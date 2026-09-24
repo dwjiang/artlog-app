@@ -21,10 +21,7 @@ export async function withGray<T>(
 }
 
 /** Decodes an image file into an 8-bit single-channel Mat; the caller releases `gray`. */
-export async function loadGray(
-  imageUri: string,
-  cv: FastOpenCV,
-): Promise<GrayImage> {
+export async function loadGray(imageUri: string, cv: FastOpenCV): Promise<GrayImage> {
   const encoded = await new File(imageUri).base64();
   const { Mat, OpenCV, ColorConversionCodes, DataTypes } = cv;
   const decoded = Mat.createFromBase64(encoded);

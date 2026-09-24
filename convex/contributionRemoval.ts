@@ -18,9 +18,7 @@ export async function removeContribution(
   if (row.status === "rejected" && !row.cropStorageId && !row.orbStorageId) {
     return;
   }
-  const object = row.indexedObjectId
-    ? await ctx.db.get(row.indexedObjectId)
-    : null;
+  const object = row.indexedObjectId ? await ctx.db.get(row.indexedObjectId) : null;
   const vector = await ctx.db
     .query("vectors")
     .withIndex("by_contributionId", (q) => q.eq("contributionId", row._id))
@@ -65,10 +63,7 @@ export async function removeContribution(
   }
 }
 
-export async function queueEntryRebuild(
-  ctx: MutationCtx,
-  objectId: Id<"objects">,
-) {
+export async function queueEntryRebuild(ctx: MutationCtx, objectId: Id<"objects">) {
   const existing = await ctx.db
     .query("entryRebuilds")
     .withIndex("by_object", (q) => q.eq("objectId", objectId))
@@ -99,17 +94,11 @@ export const rebuildPage = internalMutation({
       return null;
     }
     const restart = job.revision !== (object.supportRevision ?? 0);
-    let source =
-      !restart && job.sourceId ? await ctx.db.get(job.sourceId) : null;
-    let accessionSource =
-      !restart && job.accessionSourceId
-        ? await ctx.db.get(job.accessionSourceId)
-        : null;
+    let source = !restart && job.sourceId ? await ctx.db.get(job.sourceId) : null;
+    let accessionSource = !restart && job.accessionSourceId ? await ctx.db.get(job.accessionSourceId) : null;
     const page = await ctx.db
       .query("contributions")
-      .withIndex("by_object_status_created", (q) =>
-        q.eq("indexedObjectId", object._id).eq("status", "tentative"),
-      )
+      .withIndex("by_object_status_created", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
       .paginate({
         cursor: restart ? null : job.cursor,
         numItems: 25,
@@ -124,8 +113,7 @@ export const rebuildPage = internalMutation({
     }
     const invalid =
       (source && !(await eligibleContribution(ctx, source)))
-      || (accessionSource
-        && !(await eligibleContribution(ctx, accessionSource)));
+      || (accessionSource && !(await eligibleContribution(ctx, accessionSource)));
     if (invalid || !page.isDone) {
       await ctx.db.patch(jobId, {
         revision: object.supportRevision ?? 0,
@@ -133,20 +121,11 @@ export const rebuildPage = internalMutation({
         sourceId: invalid ? undefined : source?._id,
         accessionSourceId: invalid ? undefined : accessionSource?._id,
       });
-      await ctx.scheduler.runAfter(
-        0,
-        internal.contributionRemoval.rebuildPage,
-        { jobId },
-      );
+      await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, { jobId });
       return null;
     }
     if (source) {
-      await applyReference(
-        ctx,
-        object,
-        source,
-        accessionSource ? verifiedAccession(accessionSource) : undefined,
-      );
+      await applyReference(ctx, object, source, accessionSource ? verifiedAccession(accessionSource) : undefined);
     } else {
       await ctx.db.patch(object.artworkId, { retiredAt: Date.now() });
       await beginRevert(ctx, object, "no_eligible_contributions");

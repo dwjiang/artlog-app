@@ -39,8 +39,6 @@ it("releases both images when the conversion fails", async () => {
     images: { "b64:file:///crop.png": { rows: 8, cols: 8, channels: 1 } },
     cvtColorError: new Error("Invalid number of channels"),
   });
-  await expect(loadGray("file:///crop.png", fake.cv)).rejects.toThrow(
-    "Invalid number of channels",
-  );
+  await expect(loadGray("file:///crop.png", fake.cv)).rejects.toThrow("Invalid number of channels");
   expect(fake.leaked()).toEqual([]);
 });

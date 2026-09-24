@@ -1,10 +1,6 @@
 import type { Id } from "../../../convex/_generated/dataModel";
 import * as drafts from "@/lib/label/draft";
-import {
-  formStateFromFlow,
-  setFieldValue,
-  unlockField,
-} from "@/lib/label/fields";
+import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
 import { confirmed, verified } from "./__fixtures__/search";
 import { restoreConfirmedMuseumFlow } from "./restore";
 
@@ -31,11 +27,7 @@ it("restores an unchanged museum confirmation without requiring a local draft", 
 it.each([undefined, verified.sourceUrl, "https://museum.example/another-page"])(
   "restores a sharing edit with source %s",
   async (sourceUrl) => {
-    const draft = setFieldValue(
-      unlockField(formStateFromFlow(verified), "title"),
-      "title",
-      "My title",
-    );
+    const draft = setFieldValue(unlockField(formStateFromFlow(verified), "title"), "title", "My title");
     await drafts.saveLabelDraft(scan.scanId, draft, confirmed.updatedAt);
     const flow = {
       ...verified,
@@ -46,9 +38,7 @@ it.each([undefined, verified.sourceUrl, "https://museum.example/another-page"])(
         title: { value: "My title", evidence: "ocr" as const, locked: false },
       },
     };
-    expect(
-      await restoreConfirmedMuseumFlow({ ...scan, labelFlow: flow }),
-    ).toEqual(flow);
+    expect(await restoreConfirmedMuseumFlow({ ...scan, labelFlow: flow })).toEqual(flow);
   },
 );
 
@@ -56,22 +46,14 @@ it.each([undefined, verified.sourceUrl])(
   "does not restore a replacement label even when its source is %s",
   async (sourceUrl) => {
     const labelFlow = { ...verified, updatedAt: 3, sourceUrl };
-    expect(
-      await restoreConfirmedMuseumFlow({ ...scan, labelFlow }),
-    ).toBeUndefined();
+    expect(await restoreConfirmedMuseumFlow({ ...scan, labelFlow })).toBeUndefined();
     await drafts.saveLabelDraft(scan.scanId, formStateFromFlow(verified));
-    expect(
-      await restoreConfirmedMuseumFlow({ ...scan, labelFlow }),
-    ).toBeUndefined();
+    expect(await restoreConfirmedMuseumFlow({ ...scan, labelFlow })).toBeUndefined();
   },
 );
 
 it("does not use a draft from an earlier museum confirmation", async () => {
-  await drafts.saveLabelDraft(
-    scan.scanId,
-    formStateFromFlow(verified),
-    confirmed.updatedAt - 1,
-  );
+  await drafts.saveLabelDraft(scan.scanId, formStateFromFlow(verified), confirmed.updatedAt - 1);
   expect(
     await restoreConfirmedMuseumFlow({
       ...scan,
@@ -81,11 +63,7 @@ it("does not use a draft from an earlier museum confirmation", async () => {
 });
 
 it("never restores a result whose fields failed moderation, even with a draft", async () => {
-  await drafts.saveLabelDraft(
-    scan.scanId,
-    formStateFromFlow(verified),
-    confirmed.updatedAt,
-  );
+  await drafts.saveLabelDraft(scan.scanId, formStateFromFlow(verified), confirmed.updatedAt);
   expect(
     await restoreConfirmedMuseumFlow({
       ...scan,
@@ -95,9 +73,7 @@ it("never restores a result whose fields failed moderation, even with a draft", 
 });
 
 it("surfaces draft storage failures instead of treating edits as absent", async () => {
-  jest
-    .spyOn(drafts, "loadLabelDraft")
-    .mockRejectedValue(new Error("Disk read failed"));
+  jest.spyOn(drafts, "loadLabelDraft").mockRejectedValue(new Error("Disk read failed"));
   await expect(
     restoreConfirmedMuseumFlow({
       ...scan,

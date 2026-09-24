@@ -16,27 +16,15 @@ const client = {
 } as unknown as ConvexReactClient;
 
 it("keeps live Convex subscriptions stable across renders with equivalent argument objects", async () => {
-  const select = (value: {
-    page: SharedVisit[];
-    cursor: string | null;
-    isDone: boolean;
-  }) => value;
+  const select = (value: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => value;
   const identify = (value: SharedVisit) => value.postId;
   const view = await renderHook(
     () => ({
       query: useSocialQuery(api.walls.getMine, {}, "account"),
-      feed: useCursorPages(
-        api.sharedVisits.listFeed,
-        {},
-        "account",
-        select,
-        identify,
-      ),
+      feed: useCursorPages(api.sharedVisits.listFeed, {}, "account", select, identify),
     }),
     {
-      wrapper: ({ children }) => (
-        <ConvexProvider client={client}>{children}</ConvexProvider>
-      ),
+      wrapper: ({ children }) => <ConvexProvider client={client}>{children}</ConvexProvider>,
     },
   );
   await view.rerender({});

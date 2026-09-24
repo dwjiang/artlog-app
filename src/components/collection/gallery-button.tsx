@@ -13,12 +13,7 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { type ComponentProps, useEffect } from "react";
-import {
-  AccessibilityInfo,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { LoadingRing } from "@/components/loading-ring";
 
@@ -64,15 +59,11 @@ export function GalleryButton({
       : tone === "ink"
         ? Gallery.ink
         : Gallery.accent;
-  const foreground =
-    variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
-  const minHeight =
-    variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44;
+  const foreground = variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
+  const minHeight = variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44;
   useEffect(() => {
     if (busy) {
-      AccessibilityInfo.announceForAccessibility(
-        `${accessibilityLabel}. In progress.`,
-      );
+      AccessibilityInfo.announceForAccessibility(`${accessibilityLabel}. In progress.`);
     }
   }, [busy, accessibilityLabel]);
 
@@ -98,9 +89,7 @@ export function GalleryButton({
             borderRadius: Radius.button,
             backgroundColor: variant === "filled" ? accent : "transparent",
             borderWidth: variant === "outlined" ? 1 : 0,
-            borderColor: destructive
-              ? Gallery.destructive
-              : Gallery.accentBorder,
+            borderColor: destructive ? Gallery.destructive : Gallery.accentBorder,
             opacity: disabled && !busy ? 0.5 : 1,
             ...(expand ? { width: "100%" } : {}),
           }}
@@ -135,12 +124,7 @@ export function GalleryButton({
               ]}
             >
               {icon && iconPosition === "leading" && (
-                <Icon
-                  name={icon}
-                  size={17}
-                  color={foreground}
-                  modifiers={[frame({ width: 24 })]}
-                />
+                <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 })]} />
               )}
               <NativeText
                 textStyle={{ color: foreground }}
@@ -155,9 +139,7 @@ export function GalleryButton({
               >
                 {label}
               </NativeText>
-              {icon && iconPosition === "trailing" && (
-                <Icon name={icon} size={17} color={foreground} />
-              )}
+              {icon && iconPosition === "trailing" && <Icon name={icon} size={17} color={foreground} />}
             </Row>
           </Button>
         </Host>

@@ -14,11 +14,7 @@ export function isNetworkError(error: unknown): boolean {
 }
 
 export function convexErrorCode(error: unknown): string | undefined {
-  if (
-    !(error instanceof ConvexError)
-    || typeof error.data !== "object"
-    || error.data === null
-  ) {
+  if (!(error instanceof ConvexError) || typeof error.data !== "object" || error.data === null) {
     return;
   }
   const code = (error.data as { code?: unknown }).code;
@@ -48,23 +44,13 @@ export function isTransientError(error: unknown): boolean {
 }
 
 export function rateLimitRetryAfterMs(error: unknown): number | undefined {
-  if (
-    !(error instanceof ConvexError)
-    || convexErrorCode(error) !== "rate_limited"
-  ) {
+  if (!(error instanceof ConvexError) || convexErrorCode(error) !== "rate_limited") {
     return;
   }
   const retryAfter = (error.data as { retryAfter?: unknown }).retryAfter;
-  return typeof retryAfter === "number"
-    && Number.isFinite(retryAfter)
-    && retryAfter >= 0
-    ? retryAfter
-    : undefined;
+  return typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : undefined;
 }
 
 export function errorMessage(error: unknown): string {
-  return (
-    convexErrorCode(error)
-    ?? (error instanceof Error ? error.message : String(error))
-  );
+  return convexErrorCode(error) ?? (error instanceof Error ? error.message : String(error));
 }

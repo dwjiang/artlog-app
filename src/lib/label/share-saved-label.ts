@@ -15,9 +15,7 @@ import {
   type ContributeInput,
 } from "./contribute";
 
-export type ContributionAttempt =
-  | { result: ContributionOutcome; error?: never }
-  | { error: string; result?: never };
+export type ContributionAttempt = { result: ContributionOutcome; error?: never } | { error: string; result?: never };
 
 // The capture bytes stay in pendingScans; a queued share keeps only what the flusher needs to rebuild the input.
 type PendingShare = {
@@ -27,15 +25,11 @@ type PendingShare = {
   state: ContributeInput["state"];
   museumSearchUpdatedAt?: number;
 };
-const key = (owner: string, scanId: string) =>
-  `pendingShare:${owner}:${scanId}`;
+const key = (owner: string, scanId: string) => `pendingShare:${owner}:${scanId}`;
 const inFlight = new Map<string, Promise<ContributionAttempt>>();
 
 /** Shares a saved work; a transport failure leaves the share queued for the next flush, other failures wait for the person. */
-export function shareSavedLabel(
-  input: ContributeInput,
-  savedLocalId: string,
-): Promise<ContributionAttempt> {
+export function shareSavedLabel(input: ContributeInput, savedLocalId: string): Promise<ContributionAttempt> {
   const id = key(input.capture.owner, input.scanId);
   const running = inFlight.get(id);
   if (running) return running;
@@ -68,15 +62,10 @@ export function flushPendingShares(): Promise<void> {
   if (flushing) return flushing;
   flushing = (async () => {
     const current = captureOwner();
-    if (
-      !current.scope
-      || (await getNetworkStateAsync()).isInternetReachable === false
-    ) {
+    if (!current.scope || (await getNetworkStateAsync()).isInternetReachable === false) {
       return;
     }
-    for (const { key: id, value } of await listSettings(
-      key(current.owner, ""),
-    )) {
+    for (const { key: id, value } of await listSettings(key(current.owner, ""))) {
       if (!current.isCurrent()) return;
       const share = JSON.parse(value) as PendingShare;
       const capture = await getPendingScan(share.captureLocalId, current.owner);
@@ -107,11 +96,7 @@ export function flushPendingShares(): Promise<void> {
 
 // The capture's album row follows the photo into whichever artwork it is merged; a delete and re-save tombstones that
 // row and creates another, so the share also stands while the artwork it was queued for is still in the collection.
-async function isSaved(
-  share: PendingShare,
-  captureLocalId: string,
-  owner: string,
-): Promise<boolean> {
+async function isSaved(share: PendingShare, captureLocalId: string, owner: string): Promise<boolean> {
   const photo = findArtworkPhoto(captureLocalId, owner);
   for (const localId of new Set([photo?.savedLocalId, share.savedLocalId])) {
     if (localId && (await getSavedWork(localId, owner))?.deletedAt === null) {

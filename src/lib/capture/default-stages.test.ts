@@ -26,21 +26,16 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it.each([null, quad])(
-  "requires still-image evidence even when preview corners exist: %s",
-  async (preview) => {
-    mockStill.mockResolvedValue({
-      width: 1200,
-      height: 1600,
-      rectangles: [],
-      subjects: [],
-    });
-    expect(
-      await warper.warpAndLetterbox("file:///photo.jpg", preview, 512),
-    ).toBeNull();
-    expect(mockWarp).not.toHaveBeenCalled();
-  },
-);
+it.each([null, quad])("requires still-image evidence even when preview corners exist: %s", async (preview) => {
+  mockStill.mockResolvedValue({
+    width: 1200,
+    height: 1600,
+    rectangles: [],
+    subjects: [],
+  });
+  expect(await warper.warpAndLetterbox("file:///photo.jpg", preview, 512)).toBeNull();
+  expect(mockWarp).not.toHaveBeenCalled();
+});
 
 it("retains the exact model crop and exposes upright dimensions and native content bounds", async () => {
   const bounds = { x: 0, y: 85, width: 512, height: 341 };
@@ -55,9 +50,7 @@ it("retains the exact model crop and exposes upright dimensions and native conte
     usedQuad: corners,
     contentBounds: bounds,
   });
-  expect(
-    await warper.warpAndLetterbox("file:///rotated.jpg", null, 512),
-  ).toEqual({
+  expect(await warper.warpAndLetterbox("file:///rotated.jpg", null, 512)).toEqual({
     cropUri: "file:///crop.jpg",
     corners: quad,
     photoSize: { width: 1600, height: 1200 },
@@ -75,7 +68,5 @@ it("does not treat a prominent internal portrait subject as the canvas boundary"
     rectangles: [],
     subjects: [{ quad: corners, quadFill: 0.94, area: 0.4 }],
   });
-  expect(
-    await warper.warpAndLetterbox("file:///portrait.jpg", quad, 512),
-  ).toBeNull();
+  expect(await warper.warpAndLetterbox("file:///portrait.jpg", quad, 512)).toBeNull();
 });

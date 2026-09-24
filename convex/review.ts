@@ -79,9 +79,7 @@ export const listProposalsReady = internalQuery({
   handler: (ctx) =>
     ctx.db
       .query("placementProposals")
-      .withIndex("by_status_readyForReview", (q) =>
-        q.eq("status", "pending").eq("readyForReview", true),
-      )
+      .withIndex("by_status_readyForReview", (q) => q.eq("status", "pending").eq("readyForReview", true))
       .order("desc")
       .take(MAX_ROWS),
 });
@@ -123,9 +121,7 @@ export const replaceFactSheet = internalMutation({
     }
     const outstanding = await ctx.db
       .query("factCorrections")
-      .withIndex("by_artworkId_status", (q) =>
-        q.eq("artworkId", artworkId).eq("status", "open"),
-      )
+      .withIndex("by_artworkId_status", (q) => q.eq("artworkId", artworkId).eq("status", "open"))
       .first();
     await clearDocent(ctx, artwork);
     await ctx.db.patch(artworkId, {
@@ -192,12 +188,7 @@ export const decideReport = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { reportId, operator, decision, reason }) => {
-    if (
-      !operator.trim()
-      || operator.length > 120
-      || !reason.trim()
-      || reason.length > 2000
-    ) {
+    if (!operator.trim() || operator.length > 120 || !reason.trim() || reason.length > 2000) {
       throw new ConvexError({ code: "invalid_report" });
     }
     const report = await ctx.db.get(reportId);

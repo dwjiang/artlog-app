@@ -1,11 +1,5 @@
 import { Button, Host, Icon } from "@expo/ui";
-import {
-  accessibilityLabel,
-  contentShape,
-  frame,
-  shapes,
-  strokeBorder,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 import { useRef, useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -16,12 +10,7 @@ import { WallSheet } from "../collection/wall-sheet";
 import { GalleryButton } from "../collection/gallery-button";
 import { Gallery, Radius } from "@/constants/theme";
 import { countryName, placeIdentity } from "@/lib/journal/history";
-import {
-  mappedMuseums,
-  visitCounts,
-  visitsAtPlace,
-  type VisitSummary,
-} from "@/lib/journal/visit-summaries";
+import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from "@/lib/journal/visit-summaries";
 import { GlobeCanvas, type GlobeCanvasHandle } from "./globe-canvas";
 import { ArtworkPreviews, VisitMessage, VisitSymbol } from "./visit-ui";
 
@@ -41,8 +30,7 @@ export function VisitGlobe({
   const selectedId = session.selectedId ?? initialVenueId;
   const setSelectedId = (selectedId: string) => session.update({ selectedId });
   const [clusterIds, setClusterIds] = useState<string[]>([]);
-  const selected =
-    museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
+  const selected = museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
   const globe = useRef<GlobeCanvasHandle>(null);
   const { width } = useWindowDimensions();
   if (!selected) {
@@ -61,9 +49,7 @@ export function VisitGlobe({
   const initialPin = pins.find((pin) => pin.id === initialVenueId) ?? pins[0];
   const place = placeIdentity(selected);
   const placeVisits = visitsAtPlace(visits, place.key);
-  const museumVisits = placeVisits.filter(
-    (visit) => visit.venueId === selected.venueId,
-  );
+  const museumVisits = placeVisits.filter((visit) => visit.venueId === selected.venueId);
   const counts = visitCounts(museumVisits);
   const previews = museumVisits.flatMap((visit) => visit.works);
   const artworkCount = new Set(previews.map((work) => work.localId)).size;
@@ -124,13 +110,11 @@ export function VisitGlobe({
             <View style={{ flex: 1, gap: 3 }}>
               <Text variant="button">{selected.venueName}</Text>
               <Text style={styles.placeTitle}>
-                {[place.name, countryName(selected.country)]
-                  .filter(Boolean)
-                  .join(", ")}
+                {[place.name, countryName(selected.country)].filter(Boolean).join(", ")}
               </Text>
               <Text style={styles.counts}>
-                {counts.visits} {counts.visits === 1 ? "visit" : "visits"} ·{" "}
-                {artworkCount} {artworkCount === 1 ? "artwork" : "artworks"}
+                {counts.visits} {counts.visits === 1 ? "visit" : "visits"} · {artworkCount}{" "}
+                {artworkCount === 1 ? "artwork" : "artworks"}
               </Text>
             </View>
             <VisitSymbol name="chevron.right" size={13} color={Gallery.ink} />
@@ -201,10 +185,7 @@ function GlobeButton({
           name={icon}
           size={14}
           color={Gallery.accent}
-          modifiers={[
-            frame({ width: 44, height: 44 }),
-            contentShape(shapes.rectangle()),
-          ]}
+          modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
         />
       </Button>
     </Host>

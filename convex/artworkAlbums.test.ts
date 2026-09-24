@@ -74,18 +74,14 @@ it("serves each private photo only to its owner and revokes bytes when the artwo
     localId: first.saves[0].localId,
   });
   expect((await owner.as.fetch(path(owner.scope))).status).toBe(404);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_storage").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
   const deleted = await owner.as.mutation(api.artworkAlbums.sync, {
     ...input,
     photos: [],
     encounters: [],
   });
   expect(deleted.photos.every((row) => row.deletedAt !== undefined)).toBe(true);
-  expect(deleted.encounters.every((row) => row.deletedAt !== undefined)).toBe(
-    true,
-  );
+  expect(deleted.encounters.every((row) => row.deletedAt !== undefined)).toBe(true);
 });
 it("publishes only explicitly selected photos, permits repeated wall placements, and revokes deleted photos", async () => {
   const { t, owner, first, photos, input } = await fixture();
@@ -131,9 +127,7 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
     postId: published.postId!,
   });
   expect(post.artworks.page[0].photos).toHaveLength(1);
-  expect(JSON.stringify(post)).not.toMatch(
-    /PRIVATE|caption|capturedAt|storageId/,
-  );
+  expect(JSON.stringify(post)).not.toMatch(/PRIVATE|caption|capturedAt|storageId/);
   await owner.as.mutation(api.artworkAlbums.sync, {
     ...input,
     photos: [{ ...photos[0], deletedAt: Date.now() }],
@@ -141,18 +135,13 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
   });
   expect((await t.fetch(url(photos[0].localId))).status).toBe(404);
   expect((await owner.as.query(api.walls.getMine, {})).items).toHaveLength(1);
-  expect(
-    (await owner.as.query(api.sharedVisits.get, { postId: published.postId! }))
-      .artworks.page,
-  ).toEqual([]);
+  expect((await owner.as.query(api.sharedVisits.get, { postId: published.postId! })).artworks.page).toEqual([]);
 });
 it("merges only on explicit owner request and preserves photos, encounters, and both private notes", async () => {
   const { t, owner, outsider, first, second, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
   const target = await socialVisit(t, owner, 1);
-  await t.run((ctx) =>
-    ctx.db.patch(target.saves[0].id, { note: "Target note" }),
-  );
+  await t.run((ctx) => ctx.db.patch(target.saves[0].id, { note: "Target note" }));
   const wall = await owner.as.mutation(api.walls.setLayout, {
     scope: owner.scope,
     revision: 0,
@@ -181,24 +170,16 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
     }),
   ).rejects.toThrow("not_found");
   const result = await owner.as.mutation(api.artworkAlbums.merge, args);
+  expect(result.photos.filter((row) => row.savedLocalId === target.saves[0].localId)).toHaveLength(3);
   expect(
-    result.photos.filter((row) => row.savedLocalId === target.saves[0].localId),
-  ).toHaveLength(3);
-  expect(
-    result.encounters.filter(
-      (row) =>
-        row.savedLocalId === target.saves[0].localId
-        && row.deletedAt === undefined,
-    ),
+    result.encounters.filter((row) => row.savedLocalId === target.saves[0].localId && row.deletedAt === undefined),
   ).toHaveLength(2);
   expect(result.saves[1].note).toContain("Target note");
   expect(result.saves[1].note).toContain("PRIVATE NOTE");
   expect(result.saves[0].deletedAt).toBeDefined();
-  expect(
-    JSON.stringify(
-      await owner.as.query(api.walls.getPublic, { profileId: owner.profileId }),
-    ),
-  ).not.toMatch(/PRIVATE NOTE|Target note/);
+  expect(JSON.stringify(await owner.as.query(api.walls.getPublic, { profileId: owner.profileId }))).not.toMatch(
+    /PRIVATE NOTE|Target note/,
+  );
   expect(await t.run((ctx) => ctx.db.get(second.visit._id))).not.toBeNull();
 });
 
@@ -249,16 +230,8 @@ it("reuses capacity after deletion and refuses moving a photo into a full album"
     encounters: [],
   });
   const rows = await t.run((ctx) => ctx.db.query("artworkPhotos").collect());
-  expect(
-    rows.filter(
-      (row) => row.saveId === target.saves[0].id && row.deletedAt === undefined,
-    ),
-  ).toHaveLength(100);
-  expect(
-    rows.filter(
-      (row) => row.saveId === first.saves[0].id && row.deletedAt === undefined,
-    ),
-  ).toHaveLength(2);
+  expect(rows.filter((row) => row.saveId === target.saves[0].id && row.deletedAt === undefined)).toHaveLength(100);
+  expect(rows.filter((row) => row.saveId === first.saves[0].id && row.deletedAt === undefined)).toHaveLength(2);
 });
 
 it("merges and deletes live photos even after more than 100 older photos were deleted", async () => {
@@ -286,18 +259,14 @@ it("merges and deletes live photos even after more than 100 older photos were de
     sourceLocalId: first.saves[0].localId,
     targetLocalId: target.saves[0].localId,
   });
-  expect(
-    result.photos.filter(
-      (row) => row.saveId === target.saves[0].id && row.deletedAt === undefined,
-    ),
-  ).toHaveLength(3);
+  expect(result.photos.filter((row) => row.saveId === target.saves[0].id && row.deletedAt === undefined)).toHaveLength(
+    3,
+  );
   await owner.as.mutation(api.collections.remove, {
     scope: owner.scope,
     localId: target.saves[0].localId,
   });
   expect(
-    (await t.run((ctx) => ctx.db.query("artworkPhotos").collect())).every(
-      (row) => row.deletedAt !== undefined,
-    ),
+    (await t.run((ctx) => ctx.db.query("artworkPhotos").collect())).every((row) => row.deletedAt !== undefined),
   ).toBe(true);
 });

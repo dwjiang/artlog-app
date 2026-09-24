@@ -1,15 +1,7 @@
-import {
-  isCalendarDate,
-  LIMITS,
-  normalizeSearch,
-} from "@/shared/journal/limits";
+import { isCalendarDate, LIMITS, normalizeSearch } from "@/shared/journal/limits";
 import type { FriendshipAction, Relationship } from "./types";
 
-export function visitDate(
-  value: string,
-  locale?: string,
-  format: "full" | "short" = "full",
-): string {
+export function visitDate(value: string, locale?: string, format: "full" | "short" = "full"): string {
   if (!isCalendarDate(value)) return "Date unavailable";
   return new Intl.DateTimeFormat(locale, {
     month: format === "short" ? "short" : "long",
@@ -40,10 +32,7 @@ export function peopleSearch(value: string): string | undefined {
     : undefined;
 }
 
-export function friendshipActions(
-  state: Relationship,
-  viewerId: string,
-): FriendshipAction[] {
+export function friendshipActions(state: Relationship, viewerId: string): FriendshipAction[] {
   if (state.blocked) return [];
   if (state.state === "accepted") return ["remove"];
   if (state.state === "pending") {

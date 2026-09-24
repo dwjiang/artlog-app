@@ -2,15 +2,7 @@ import { Image, type ImageSource } from "expo-image";
 import { Pressable, type StyleProp, type ViewStyle } from "react-native";
 import { Gallery } from "@/constants/theme";
 
-export function AudioIcon({
-  name,
-  size = 22,
-  color = Gallery.ink,
-}: {
-  name: string;
-  size?: number;
-  color?: string;
-}) {
+export function AudioIcon({ name, size = 22, color = Gallery.ink }: { name: string; size?: number; color?: string }) {
   return (
     <Image
       source={`sf:${name}` as ImageSource}

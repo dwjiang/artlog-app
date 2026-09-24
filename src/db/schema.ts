@@ -1,12 +1,4 @@
-import {
-  customType,
-  foreignKey,
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-} from "drizzle-orm/sqlite-core";
+import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { OfflineResult } from "../../shared/offline/types";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -46,11 +38,7 @@ export const visits = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.owner, table.localId] }),
-    index("visits_owner_history").on(
-      table.owner,
-      table.visitedOn,
-      table.localId,
-    ),
+    index("visits_owner_history").on(table.owner, table.visitedOn, table.localId),
   ],
 );
 
@@ -165,12 +153,7 @@ export const artworkEncounters = sqliteTable(
 export type ArtworkPhoto = typeof artworkPhotos.$inferSelect;
 export type ArtworkEncounter = typeof artworkEncounters.$inferSelect;
 
-export const pendingScanStatuses = [
-  "queued",
-  "identifying",
-  "identified",
-  "failed",
-] as const;
+export const pendingScanStatuses = ["queued", "identifying", "identified", "failed"] as const;
 export type PendingScanStatus = (typeof pendingScanStatuses)[number];
 
 /** Every capture, sent or queued: the crop, vector and features stay here until the scan is saved or dismissed. */
@@ -205,11 +188,7 @@ export const pendingScans = sqliteTable(
       columns: [table.owner, table.visitLocalId],
       foreignColumns: [visits.owner, visits.localId],
     }).onUpdate("cascade"),
-    index("pendingScans_owner_status_capturedAt").on(
-      table.owner,
-      table.status,
-      table.capturedAt,
-    ),
+    index("pendingScans_owner_status_capturedAt").on(table.owner, table.status, table.capturedAt),
   ],
 );
 

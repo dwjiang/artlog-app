@@ -14,9 +14,7 @@ export type SignedIn = {
   as: ReturnType<Harness["withIdentity"]>;
 };
 
-export function harness(
-  options: { transactionLimits?: boolean } = {},
-): Harness {
+export function harness(options: { transactionLimits?: boolean } = {}): Harness {
   const t = convexTest({ schema, modules, ...options });
   register(t);
   return t;
@@ -24,9 +22,7 @@ export function harness(
 
 // Convex Auth encodes the subject as `${userId}|${sessionId}`; getAuthUserId splits on the bar.
 export async function signIn(t: Harness): Promise<SignedIn> {
-  const userId = await t.run((ctx) =>
-    ctx.db.insert("users", { isAnonymous: true }),
-  );
+  const userId = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
   const sessionId = await t.run((ctx) =>
     ctx.db.insert("authSessions", {
       userId,

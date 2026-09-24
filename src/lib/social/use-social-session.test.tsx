@@ -19,12 +19,7 @@ jest.mock("./use-social-query", () => ({
   useSocialQuery: (query: FunctionReference<"query">, args: unknown) => {
     const name = jest.requireActual("convex/server").getFunctionName(query);
     mockRead(name, args);
-    const value =
-      args === "skip"
-        ? undefined
-        : name === "accounts:me"
-          ? mockAccount
-          : mockMine;
+    const value = args === "skip" ? undefined : name === "accounts:me" ? mockAccount : mockMine;
     return {
       data: value instanceof Error ? undefined : value,
       error: value instanceof Error ? value : undefined,

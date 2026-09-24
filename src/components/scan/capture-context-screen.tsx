@@ -13,11 +13,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import {
-  readPhotoSession,
-  updatePhotoSession,
-  type CaptureVisitChoice,
-} from "@/lib/capture/photo-draft";
+import { readPhotoSession, updatePhotoSession, type CaptureVisitChoice } from "@/lib/capture/photo-draft";
 import { formatVisitDate } from "@/lib/journal/history";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -27,11 +23,7 @@ import { venueVisitLabel } from "./capture-context-button";
 const VENUE_OPTION = "venue";
 
 function optionValue(choice: CaptureVisitChoice): string {
-  return choice.kind === "none"
-    ? "none"
-    : choice.kind === "visit"
-      ? choice.localId
-      : VENUE_OPTION;
+  return choice.kind === "none" ? "none" : choice.kind === "visit" ? choice.localId : VENUE_OPTION;
 }
 
 /** Picks the visit for one capture. The choice lives on the draft, so the next scan resolves its own visit again. */
@@ -82,10 +74,7 @@ function CaptureContext({
   const captureTime = capturedAt ?? openedAt;
   const [selected, setSelected] = useState<string>(() =>
     optionValue(
-      captureVisitChoice(
-        { visitLocalId: visitId, venueId, capturedAt: captureTime },
-        readPhotoSession(owner, draftId),
-      ),
+      captureVisitChoice({ visitLocalId: visitId, venueId, capturedAt: captureTime }, readPhotoSession(owner, draftId)),
     ),
   );
   const [error, setError] = useState<string>();
@@ -97,11 +86,7 @@ function CaptureContext({
   }>();
   const availableVisits = visits.data.filter((visit) => visit.owner === owner);
   const venueOption = venueId && !visitId ? venueId : undefined;
-  const noVisits =
-    !!visits.updatedAt
-    && !visits.error
-    && availableVisits.length === 0
-    && !venueOption;
+  const noVisits = !!visits.updatedAt && !visits.error && availableVisits.length === 0 && !venueOption;
   useEffect(() => {
     let active = true;
     if (!venueOption) return;
@@ -127,8 +112,7 @@ function CaptureContext({
         && visit.visitedOn === venue.visitedOn
         && (!venue.today || visit.endedAt === null),
     );
-  const marked =
-    selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
+  const marked = selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
 
   function choose(value: string, choice: CaptureVisitChoice) {
     try {
@@ -137,18 +121,11 @@ function CaptureContext({
       router.back();
     } catch (error) {
       reportError(error, "capture.save_visit");
-      setError(
-        "Couldn’t save this visit choice. Your previous selection is unchanged. Try again.",
-      );
+      setError("Couldn’t save this visit choice. Your previous selection is unchanged. Try again.");
     }
   }
 
-  function option(
-    value: string,
-    choice: CaptureVisitChoice,
-    label: string,
-    detail?: string,
-  ) {
+  function option(value: string, choice: CaptureVisitChoice, label: string, detail?: string) {
     const current = marked === value;
     return (
       <Pressable
@@ -164,28 +141,20 @@ function CaptureContext({
         ]}
       >
         <View style={styles.optionText}>
-          <ThemedText style={current && styles.selectedLabel}>
-            {label}
-          </ThemedText>
+          <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
           {detail && (
             <ThemedText type="small" themeColor="textSecondary">
               {detail}
             </ThemedText>
           )}
         </View>
-        <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>
-          {current ? "✓" : "○"}
-        </ThemedText>
+        <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>{current ? "✓" : "○"}</ThemedText>
       </Pressable>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: "Save this artwork to…" }} />
       <ThemedText themeColor="textSecondary">
         Only this artwork changes. The next scan joins the visit you are at.
@@ -203,8 +172,7 @@ function CaptureContext({
       )}
       {visits.error ? (
         <ThemedText themeColor="error" accessibilityRole="alert">
-          Couldn’t load your visits. Close this screen and reopen it to try
-          again.
+          Couldn’t load your visits. Close this screen and reopen it to try again.
         </ThemedText>
       ) : !visits.updatedAt ? (
         <ListSkeleton label="Loading visits…" rows={3} />
@@ -222,11 +190,7 @@ function CaptureContext({
               fullWidth
               onPress={() => router.push("/visit-create")}
             />
-            <GalleryButton
-              label="Save artwork only"
-              fullWidth
-              onPress={() => choose("none", { kind: "none" })}
-            />
+            <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
           </EmptyState>
         )
       )}
@@ -245,19 +209,11 @@ function CaptureContext({
             visit.localId,
             { kind: "visit", localId: visit.localId },
             visit.venueName,
-            open?.localId === visit.localId
-              ? "Visiting now"
-              : formatVisitDate(visit.visitedOn),
+            open?.localId === visit.localId ? "Visiting now" : formatVisitDate(visit.visitedOn),
           ),
         )}
       </View>
-      {!noVisits && (
-        <GalleryButton
-          label="Create a visit"
-          icon="plus"
-          onPress={() => router.push("/visit-create")}
-        />
-      )}
+      {!noVisits && <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push("/visit-create")} />}
     </ScrollView>
   );
 }

@@ -15,14 +15,7 @@ export function LoadingImage(props: Props) {
   return <ImageContent key={props.uri} {...props} />;
 }
 
-function ImageContent({
-  uri,
-  label,
-  style,
-  contentFit = "cover",
-  onLoad,
-  onError,
-}: Props) {
+function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError }: Props) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   return (
     <View style={[{ overflow: "hidden" }, style]}>
@@ -40,12 +33,7 @@ function ImageContent({
             },
           ]}
         >
-          <Image
-            source="sf:photo"
-            accessible={false}
-            tintColor={Gallery.muted}
-            style={{ width: 24, height: 24 }}
-          />
+          <Image source="sf:photo" accessible={false} tintColor={Gallery.muted} style={{ width: 24, height: 24 }} />
         </View>
       ) : (
         <Image
@@ -58,25 +46,16 @@ function ImageContent({
             onLoad?.(event);
           }}
           onError={(event) => {
-            reportError(
-              new Error(event?.error || "Image could not load"),
-              "media.load",
-              {
-                level: "warning",
-                data: { source: uri.startsWith("file:") ? "local" : "remote" },
-              },
-            );
+            reportError(new Error(event?.error || "Image could not load"), "media.load", {
+              level: "warning",
+              data: { source: uri.startsWith("file:") ? "local" : "remote" },
+            });
             setState("failed");
             onError?.(event);
           }}
         />
       )}
-      {state === "loading" && (
-        <ImageSkeleton
-          label={`Loading image: ${label}`}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
+      {state === "loading" && <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />}
     </View>
   );
 }

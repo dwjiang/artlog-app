@@ -1,8 +1,5 @@
 import { Image, type ImageRef } from "expo-image";
-import {
-  PRESENTATION_LOAD_TIMEOUT_MS,
-  PresentationImages,
-} from "./presentation-images";
+import { PRESENTATION_LOAD_TIMEOUT_MS, PresentationImages } from "./presentation-images";
 
 jest.mock("expo-image", () => ({ Image: { loadAsync: jest.fn() } }));
 const load = jest.mocked(Image.loadAsync);
@@ -66,7 +63,5 @@ it("bounds a stalled image load and releases its eventual result", async () => {
 
 it("allows normal processing to continue after image decoding fails", async () => {
   load.mockRejectedValue(new Error("Decode failed"));
-  expect(
-    await new PresentationImages().load("file:///photo.jpg"),
-  ).toBeUndefined();
+  expect(await new PresentationImages().load("file:///photo.jpg")).toBeUndefined();
 });

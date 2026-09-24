@@ -1,16 +1,7 @@
 import anton from "./metrics/anton.json";
 import helvetica from "./metrics/helvetica.json";
-import {
-  widgetArtworkUrl,
-  widgetVisitDate,
-  type PreparedWidgetArtwork,
-} from "./widget-collection";
-import {
-  widgetColors,
-  widgetFrames,
-  type WidgetSettings,
-  type WidgetSize,
-} from "./widget-settings";
+import { widgetArtworkUrl, widgetVisitDate, type PreparedWidgetArtwork } from "./widget-collection";
+import { widgetColors, widgetFrames, type WidgetSettings, type WidgetSize } from "./widget-settings";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 export type WidgetText = Bounds & {
@@ -39,20 +30,9 @@ const metrics: Record<string, Record<string, number>> = {
   Helvetica: helvetica,
 };
 function measure(value: string, size: number, family: string) {
-  return (
-    Array.from(value).reduce(
-      (total, char) => total + (metrics[family][char] ?? metrics[family]["?"]),
-      0,
-    ) * size
-  );
+  return Array.from(value).reduce((total, char) => total + (metrics[family][char] ?? metrics[family]["?"]), 0) * size;
 }
-function wrap(
-  value: string,
-  size: number,
-  family: string,
-  width: number,
-  limit: number,
-): string[] {
+function wrap(value: string, size: number, family: string, width: number, limit: number): string[] {
   const lines: string[] = [];
   let current = "";
   for (const word of value.trim().split(/\s+/u)) {
@@ -82,23 +62,13 @@ function wrap(
   return lines;
 }
 
-function caption(
-  art: PreparedWidgetArtwork,
-  settings: WidgetSettings,
-  panoramic: boolean,
-) {
+function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic: boolean) {
   const width = panoramic ? 294 : 157;
   const date = widgetVisitDate(art.visitedOn);
   function compose(size: number, limit: number) {
     let height = 0;
     const rows: WidgetText[] = [];
-    function append(
-      value: string,
-      size: number,
-      family: string,
-      gap: number,
-      maxLines: number,
-    ) {
+    function append(value: string, size: number, family: string, gap: number, maxLines: number) {
       const lines = wrap(value, size, family, width, maxLines);
       if (!lines.length) return;
       height += gap;
@@ -120,13 +90,7 @@ function caption(
     append(art.artist, 11, "Helvetica", 4, 2);
     if (settings.caption === "visit") {
       if (panoramic) {
-        append(
-          [art.museum, date && `Visited ${date}`].filter(Boolean).join(" · "),
-          10.5,
-          "Helvetica",
-          8,
-          2,
-        );
+        append([art.museum, date && `Visited ${date}`].filter(Boolean).join(" · "), 10.5, "Helvetica", 8, 2);
       } else {
         append(art.museum ?? "", 11, "Helvetica", 10, 2);
         append(date && `Visited ${date}`, 11, "Helvetica", 3, 2);
@@ -151,10 +115,7 @@ function caption(
       .filter((row) => row.family === "Anton")
       .map((row) => row.text)
       .join(" ");
-    if (
-      value.height <= maxHeight
-      && wholeTitle === art.title.trim().replace(/\s+/g, " ")
-    ) {
+    if (value.height <= maxHeight && wholeTitle === art.title.trim().replace(/\s+/g, " ")) {
       return value;
     }
   }
@@ -171,26 +132,17 @@ export function paintingLayout(
   settings: WidgetSettings,
   unframed = false,
 ): Pick<WidgetLayout, "image" | "rectangles"> {
-  const finish = widgetFrames.find(
-    (option) => option.value === (unframed ? "none" : settings.frame),
-  )!;
+  const finish = widgetFrames.find((option) => option.value === (unframed ? "none" : settings.frame))!;
   const aspect = Number.isFinite(art.aspect) && art.aspect > 0 ? art.aspect : 1;
   const nominalHeight = Math.min(bounds.height, bounds.width / aspect);
   const thickness =
     finish.value === "none"
       ? 0
       : Math.min(
-          settings.frameWidth === "wide"
-            ? 5
-            : finish.value === "black"
-              ? 1.5
-              : 2.5,
+          settings.frameWidth === "wide" ? 5 : finish.value === "black" ? 1.5 : 2.5,
           Math.min(nominalHeight, nominalHeight * aspect) * 0.12,
         );
-  const height = Math.min(
-    bounds.height - thickness * 2,
-    (bounds.width - thickness * 2) / aspect,
-  );
+  const height = Math.min(bounds.height - thickness * 2, (bounds.width - thickness * 2) / aspect);
   const width = height * aspect;
   const x = bounds.x + (bounds.width - width) / 2,
     y = bounds.y + (bounds.height - height) / 2;
@@ -224,38 +176,21 @@ export function paintingLayout(
   };
 }
 
-export function widgetLayout(
-  art: PreparedWidgetArtwork,
-  settings: WidgetSettings,
-  size: WidgetSize,
-): WidgetLayout {
+export function widgetLayout(art: PreparedWidgetArtwork, settings: WidgetSettings, size: WidgetSize): WidgetLayout {
   if (size === "small") {
     return {
       width: 158,
       height: 158,
       texts: [],
-      ...paintingLayout(
-        art,
-        { x: 20, y: 20, width: 118, height: 118 },
-        settings,
-        true,
-      ),
+      ...paintingLayout(art, { x: 20, y: 20, width: 118, height: 118 }, settings, true),
     };
   }
   const panoramic = art.aspect > 2.25,
     hasCaption = settings.caption !== "none";
-  const text = hasCaption
-    ? caption(art, settings, panoramic)
-    : { rows: [], height: 0 };
+  const text = hasCaption ? caption(art, settings, panoramic) : { rows: [], height: 0 };
   const artHeight =
     panoramic && hasCaption
-      ? Math.max(
-          8,
-          Math.min(
-            settings.caption === "visit" ? 54 : 76,
-            158 - 44 - text.height,
-          ),
-        )
+      ? Math.max(8, Math.min(settings.caption === "visit" ? 54 : 76, 158 - 44 - text.height))
       : 118;
   const painting = paintingLayout(
     art,
@@ -283,9 +218,7 @@ export function widgetPresentation(
   art: PreparedWidgetArtwork | undefined,
   settings: WidgetSettings,
 ): WidgetPresentation {
-  const background = widgetColors.find(
-    (option) => option.value === settings.color,
-  )!.color;
+  const background = widgetColors.find((option) => option.value === settings.color)!.color;
   if (art) {
     return {
       small: widgetLayout(art, settings, "small"),

@@ -1,17 +1,7 @@
 import { isNetworkError } from "@/lib/network-error";
 
-const CAPTURE_CODES = new Set([
-  "bad_features",
-  "bad_vector",
-  "bad_dimension",
-  "bad_descriptors",
-  "bad_candidates",
-]);
-const SESSION_CODES = new Set([
-  "unauthenticated",
-  "device_not_registered",
-  "device_not_attested",
-]);
+const CAPTURE_CODES = new Set(["bad_features", "bad_vector", "bad_dimension", "bad_descriptors", "bad_candidates"]);
+const SESSION_CODES = new Set(["unauthenticated", "device_not_registered", "device_not_attested"]);
 
 export const FAILED_TITLE = "Identification failed.";
 
@@ -29,11 +19,7 @@ export function failureCopy(error?: string | null): string {
   }
   if (error === "device_banned") return "This phone can’t identify paintings.";
   // `not_found` is the server's answer for a visit this journal does not own.
-  if (
-    error === "invalid_visit"
-    || error === "invalid_venue"
-    || error === "not_found"
-  ) {
+  if (error === "invalid_visit" || error === "invalid_venue" || error === "not_found") {
     return "The museum for this scan couldn’t be confirmed.";
   }
   if (error === "scan_not_found" || error === "invalid_scan") {

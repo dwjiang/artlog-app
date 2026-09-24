@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { selectArtworkEncounters } from "@/db/repos/artwork-album";
@@ -41,8 +35,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/lib/venue/search-venues", () => ({
   MUSEUM_SEARCH_LIMIT: 30,
-  searchVenues: async (query: string) =>
-    /^fr/i.test(query) ? [] : [mockVenue, mockIsland],
+  searchVenues: async (query: string) => (/^fr/i.test(query) ? [] : [mockVenue, mockIsland]),
 }));
 jest.mock("../../../modules/poi-search/src", () => ({
   getPoiSearch: () => ({
@@ -68,20 +61,8 @@ jest.mock("expo-router", () => {
     Stack: {
       Toolbar: Object.assign(View, {
         View,
-        Button: ({
-          children,
-          onPress,
-          disabled,
-        }: {
-          children: ReactNode;
-          onPress: () => void;
-          disabled?: boolean;
-        }) => (
-          <Pressable
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={onPress}
-          >
+        Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) => (
+          <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
             <Text>{children}</Text>
           </Pressable>
         ),
@@ -105,17 +86,12 @@ async function fill() {
       name: "Museum of Art, New York, United States",
     }),
   );
-  await fireEvent.changeText(
-    screen.getByLabelText("Visit date"),
-    "2024-02-29T12:00:00",
-  );
+  await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-29T12:00:00");
 }
 it("creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and notes", async () => {
   const first = await render(<VisitCreateScreen />);
   expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
-  expect(
-    screen.queryByRole("button", { name: /Public notes|Private notes/ }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: /Public notes|Private notes/ })).toBeNull();
   await fill();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Private memory");
   await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
@@ -138,10 +114,7 @@ it("creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and 
 it("rejects future dates and clears form drafts when the owner changes", async () => {
   await render(<VisitCreateScreen />);
   await fill();
-  await fireEvent.changeText(
-    screen.getByLabelText("Visit date"),
-    "2099-01-01T12:00:00",
-  );
+  await fireEvent.changeText(screen.getByLabelText("Visit date"), "2099-01-01T12:00:00");
   expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Secret");
   await act(() => switchOwner("account:other", "scope-other"));
@@ -153,13 +126,8 @@ it("moves the default date back to the museum day when the device is already on 
   jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-16T10:00:00Z"));
   await render(<VisitCreateScreen />);
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "island");
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Island Museum, Niue" }),
-  );
-  expect(screen.getByLabelText("Visit date")).toHaveProp(
-    "value",
-    pickerDate("2026-09-15").toISOString(),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Island Museum, Niue" }));
+  expect(screen.getByLabelText("Visit date")).toHaveProp("value", pickerDate("2026-09-15").toISOString());
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByRole("button", { name: "Add visit" })).toBeEnabled();
 });
@@ -237,13 +205,8 @@ describe("a museum our table does not know", () => {
     mockSearchByName.mockResolvedValue([place]);
     mockConfirmPlace.mockResolvedValue(row);
     await render(<VisitCreateScreen />);
-    await fireEvent.changeText(
-      screen.getByLabelText("Search museums"),
-      "fraenkel",
-    );
-    expect(
-      await screen.findByRole("header", { name: "From Apple Maps" }),
-    ).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+    expect(await screen.findByRole("header", { name: "From Apple Maps" })).toBeOnTheScreen();
     expect(mockSearchByName).toHaveBeenCalledWith("fraenkel", 37.77, -122.42);
     await fireEvent.press(
       screen.getByRole("button", {
@@ -263,19 +226,12 @@ describe("a museum our table does not know", () => {
         expect.any(Function),
       ),
     );
-    expect(
-      await screen.findByRole("button", { name: "Change museum" }),
-    ).toBeOnTheScreen();
+    expect(await screen.findByRole("button", { name: "Change museum" })).toBeOnTheScreen();
     expect(screen.getByText("Fraenkel Gallery")).toBeOnTheScreen();
-    await fireEvent.changeText(
-      screen.getByLabelText("Visit date"),
-      "2024-02-29T12:00:00",
-    );
+    await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-29T12:00:00");
     await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
     await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
-    expect(
-      (await listVisits()).find((row) => row.venueId === "id-fraenkel"),
-    ).toMatchObject({
+    expect((await listVisits()).find((row) => row.venueId === "id-fraenkel")).toMatchObject({
       venueName: "Fraenkel Gallery",
       visitedOn: "2024-02-29",
       timeZone: "America/Los_Angeles",
@@ -284,33 +240,21 @@ describe("a museum our table does not know", () => {
 
   it("does not ask Apple Maps while our table has matches or the name is too short", async () => {
     await render(<VisitCreateScreen />);
-    await fireEvent.changeText(
-      screen.getByLabelText("Search museums"),
-      "museum",
-    );
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
     await screen.findByRole("button", {
       name: "Museum of Art, New York, United States",
     });
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fr");
     expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
-    expect(
-      screen.getByText("Type more of the name to search Apple Maps too."),
-    ).toBeOnTheScreen();
+    expect(screen.getByText("Type more of the name to search Apple Maps too.")).toBeOnTheScreen();
     expect(mockSearchByName).not.toHaveBeenCalled();
   });
 
   it("offers a retry when Apple Maps fails, naming Apple Maps rather than the table that answered", async () => {
-    mockSearchByName
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValue([place]);
+    mockSearchByName.mockRejectedValueOnce(new Error("offline")).mockResolvedValue([place]);
     await render(<VisitCreateScreen />);
-    await fireEvent.changeText(
-      screen.getByLabelText("Search museums"),
-      "fraenkel",
-    );
-    expect(
-      await screen.findByText("Apple Maps could not be reached. Try again."),
-    ).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+    expect(await screen.findByText("Apple Maps could not be reached. Try again.")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
     expect(
       await screen.findByRole("button", {
@@ -321,28 +265,18 @@ describe("a museum our table does not know", () => {
 
   it("keeps the search open when Apple Maps has nothing or the museum cannot be added", async () => {
     await render(<VisitCreateScreen />);
-    await fireEvent.changeText(
-      screen.getByLabelText("Search museums"),
-      "fraenkel",
-    );
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
     expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
-    expect(
-      screen.queryByRole("header", { name: "From Apple Maps" }),
-    ).toBeNull();
+    expect(screen.queryByRole("header", { name: "From Apple Maps" })).toBeNull();
     mockSearchByName.mockResolvedValue([place]);
     mockConfirmPlace.mockRejectedValue(new Error("offline"));
-    await fireEvent.changeText(
-      screen.getByLabelText("Search museums"),
-      "fraenkel gallery",
-    );
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel gallery");
     await fireEvent.press(
       await screen.findByRole("button", {
         name: "Fraenkel Gallery, San Francisco, United States",
       }),
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /This museum could not be added\./,
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(/This museum could not be added\./);
     expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
   });

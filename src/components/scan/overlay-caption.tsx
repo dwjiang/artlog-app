@@ -6,32 +6,18 @@ import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 
 /** A caption legible over any scene: bold white text on a scrim capsule. */
-export function OverlayCaption({
-  children,
-  hint,
-}: {
-  children: ReactNode;
-  hint?: string;
-}) {
+export function OverlayCaption({ children, hint }: { children: ReactNode; hint?: string }) {
   return (
     <GlassSurface style={styles.caption}>
       {typeof children === "string" ? (
-        <ThemedText
-          type="smallBold"
-          themeColor="overlayText"
-          style={styles.captionText}
-        >
+        <ThemedText type="smallBold" themeColor="overlayText" style={styles.captionText}>
           {children}
         </ThemedText>
       ) : (
         children
       )}
       {hint && (
-        <ThemedText
-          type="small"
-          themeColor="overlayText"
-          style={styles.captionText}
-        >
+        <ThemedText type="small" themeColor="overlayText" style={styles.captionText}>
           {hint}
         </ThemedText>
       )}

@@ -83,11 +83,7 @@ jest.mock("expo-router", () => {
     accessibilityLabel: string;
   }) {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        onPress={onPress}
-      >
+      <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
         <Text>{children}</Text>
       </Pressable>
     );
@@ -190,9 +186,7 @@ it("opens visits, authors, and people from Home", async () => {
     params: { postId: visit.postId },
   });
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "View Alex Chen’s profile" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "View Alex Chen’s profile" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/profile/[profileId]",
     params: { profileId: "alex" },
@@ -206,43 +200,29 @@ it("opens visits, authors, and people from Home", async () => {
   });
   await fireEvent.press(screen.getByRole("button", { name: "Leaderboards" }));
   expect(mockPush).toHaveBeenLastCalledWith("/leaderboards");
-  expect(
-    screen.queryByRole("button", { name: "Your profile and settings" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Your profile and settings" })).toBeNull();
 });
 
 it("keeps Home navigation available through ghosts, loaded content, and pagination", async () => {
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
   const view = await render(<HomeScreen />);
-  expect(
-    screen.getByRole("progressbar", { name: "Loading visits…" }),
-  ).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", { name: "Find friends" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Loading visits…" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Find friends" })).toBeOnTheScreen();
   expect(screen.queryByText("No visits from friends yet.")).toBeNull();
-  mockPages.mockReturnValue(
-    pages({ items: [visit], loading: true, done: false }),
-  );
+  mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
   await view.rerender(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  expect(
-    screen.getAllByRole("progressbar", { name: "Loading visits…" }),
-  ).toHaveLength(1);
+  expect(screen.getAllByRole("progressbar", { name: "Loading visits…" })).toHaveLength(1);
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await view.rerender(<HomeScreen />);
-  expect(
-    screen.queryByRole("progressbar", { name: "Loading visits…" }),
-  ).toBeNull();
+  expect(screen.queryByRole("progressbar", { name: "Loading visits…" })).toBeNull();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
 });
 
 it("replaces first-load ghosts with a retry action after failure", async () => {
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
   const view = await render(<HomeScreen />);
-  mockPages.mockReturnValue(
-    pages({ error: new Error("Offline"), done: false }),
-  );
+  mockPages.mockReturnValue(pages({ error: new Error("Offline"), done: false }));
   await view.rerender(<HomeScreen />);
   expect(screen.queryByRole("progressbar")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
@@ -250,17 +230,11 @@ it("replaces first-load ghosts with a retry action after failure", async () => {
 });
 
 it("retains existing visits and shows only the refresh indicator while refreshing", async () => {
-  mockPages.mockReturnValue(
-    pages({ items: [visit], loading: true, refreshing: true, done: false }),
-  );
+  mockPages.mockReturnValue(pages({ items: [visit], loading: true, refreshing: true, done: false }));
   await render(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  expect(
-    screen.getByRole("progressbar", { name: "Refreshing visits" }),
-  ).toBeOnTheScreen();
-  expect(
-    screen.queryByRole("progressbar", { name: "Loading visits…" }),
-  ).toBeNull();
+  expect(screen.getByRole("progressbar", { name: "Refreshing visits" })).toBeOnTheScreen();
+  expect(screen.queryByRole("progressbar", { name: "Loading visits…" })).toBeNull();
   expect(screen.queryByText("All visits shown.")).toBeNull();
 });
 
@@ -272,11 +246,7 @@ it.each([
   mockSession = { ...mockSession, status };
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
-  expect(
-    status === "loading"
-      ? screen.getByLabelText(expected)
-      : screen.getByText(expected),
-  ).toBeOnTheScreen();
+  expect(status === "loading" ? screen.getByLabelText(expected) : screen.getByText(expected)).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
   expect(mockPages.mock.calls[0][1]).toBe("skip");
 });
@@ -291,9 +261,7 @@ it("waits for finished pagination before showing empty or caught-up copy and off
   mockPages.mockReturnValue(pages({ items: [visit], done: true }));
   await view.rerender(<HomeScreen />);
   expect(screen.getByText("All visits shown.")).toBeOnTheScreen();
-  mockPages.mockReturnValue(
-    pages({ done: false, error: new Error("offline") }),
-  );
+  mockPages.mockReturnValue(pages({ done: false, error: new Error("offline") }));
   await view.rerender(<HomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   expect(mockRefresh).toHaveBeenCalled();
@@ -303,51 +271,28 @@ it("debounces people search for 300 ms and skips invalid searches", async () => 
   jest.useFakeTimers();
   await render(<PeopleScreen />);
   await fireEvent.changeText(screen.getByLabelText("Name or username"), "alex");
-  expect(
-    mockPages.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "profiles:search")
-      .at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   await act(() => jest.advanceTimersByTime(299));
-  expect(
-    mockPages.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "profiles:search")
-      .at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   await act(() => jest.advanceTimersByTime(1));
-  expect(
-    mockPages.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "profiles:search")
-      .at(-1)[1],
-  ).toEqual({ query: "alex" });
-  await fireEvent.changeText(
-    screen.getByLabelText("Name or username"),
-    "a".repeat(101),
-  );
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toEqual({
+    query: "alex",
+  });
+  await fireEvent.changeText(screen.getByLabelText("Name or username"), "a".repeat(101));
   await act(() => jest.advanceTimersByTime(300));
-  expect(
-    mockPages.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "profiles:search")
-      .at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   jest.useRealTimers();
 });
 
 it("opens read-only artwork details from a visit and handles revoked posts", async () => {
-  mockPages.mockReturnValue(
-    pages({ items: visit.artworks.page, first: visit }),
-  );
+  mockPages.mockReturnValue(pages({ items: visit.artworks.page, first: visit }));
   const view = await render(<VisitScreen postId={visit.postId} />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "View Blue afternoon" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "View Blue afternoon" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/artwork",
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
-  mockPages.mockReturnValue(
-    pages({ error: new ConvexError({ code: "not_found" }), done: false }),
-  );
+  mockPages.mockReturnValue(pages({ error: new ConvexError({ code: "not_found" }), done: false }));
   await view.rerender(<VisitScreen postId={visit.postId} />);
   expect(screen.getByText("Visit unavailable.")).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
@@ -367,9 +312,7 @@ it("shows only the public wall note and never a visit’s private note", async (
   }));
   const view = await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
   expect(screen.getByText("Selected public note")).toBeOnTheScreen();
-  await view.rerender(
-    <ArtworkScreen kind="visit" itemId="visit-item" postId="post-a" />,
-  );
+  await view.rerender(<ArtworkScreen kind="visit" itemId="visit-item" postId="post-a" />);
   expect(screen.queryByText("Selected public note")).toBeNull();
   expect(screen.queryByText("Private note")).toBeNull();
 });
@@ -394,13 +337,7 @@ it.each([false, true])(
         },
       },
     };
-    await render(
-      <VisitArtworks
-        artworks={[item]}
-        token="private-token"
-        compact={compact}
-      />,
-    );
+    await render(<VisitArtworks artworks={[item]} token="private-token" compact={compact} />);
     await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
       nativeEvent: { layout: { width: 390 } },
     });
@@ -412,9 +349,7 @@ it.each([false, true])(
       Authorization: "Bearer private-token",
     });
     await fireEvent(image, "error");
-    expect(
-      screen.getByRole("image", { name: "Blue afternoon: image unavailable" }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole("image", { name: "Blue afternoon: image unavailable" })).toBeOnTheScreen();
   },
 );
 
@@ -438,9 +373,7 @@ it("shows fewer previews rather than letting landscape photos overflow the card"
       },
     },
   });
-  await render(
-    <VisitArtworks artworks={["one", "two", "three"].map(landscape)} compact />,
-  );
+  await render(<VisitArtworks artworks={["one", "two", "three"].map(landscape)} compact />);
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350 } },
   });
@@ -534,46 +467,28 @@ it("keeps a feed slot for every leading artwork even when the first one has seve
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350 } },
   });
-  for (const title of [
-    "Blue afternoon",
-    "Second highlight",
-    "Third highlight",
-  ]) {
+  for (const title of ["Blue afternoon", "Second highlight", "Third highlight"]) {
     expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
   }
-  expect(
-    screen.queryByRole("image", { name: "Blue afternoon, photo 2" }),
-  ).toBeNull();
+  expect(screen.queryByRole("image", { name: "Blue afternoon, photo 2" })).toBeNull();
 });
 
 it("fills spare feed slots with extra photos when fewer than three artworks lead the visit", async () => {
-  await render(
-    <VisitArtworks artworks={highlightArtworks().slice(0, 2)} compact />,
-  );
+  await render(<VisitArtworks artworks={highlightArtworks().slice(0, 2)} compact />);
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350 } },
   });
-  for (const title of [
-    "Blue afternoon",
-    "Blue afternoon, photo 2",
-    "Second highlight",
-  ]) {
+  for (const title of ["Blue afternoon", "Blue afternoon, photo 2", "Second highlight"]) {
     expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
   }
-  expect(
-    screen.queryByRole("image", { name: "Blue afternoon, photo 3" }),
-  ).toBeNull();
+  expect(screen.queryByRole("image", { name: "Blue afternoon, photo 3" })).toBeNull();
 });
 
 it("loads public visits for guests and opens their details without signing in", async () => {
   mockSession = { ...mockSession, status: "signed-out", token: null };
-  mockPages.mockReturnValue(
-    pages({ items: [{ ...visit, audience: "public" }] }),
-  );
+  mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: "public" }] }));
   await render(<HomeScreen />);
-  expect(getFunctionName(mockPages.mock.calls[0][0])).toBe(
-    "sharedVisits:listPublic",
-  );
+  expect(getFunctionName(mockPages.mock.calls[0][0])).toBe("sharedVisits:listPublic");
   expect(mockPages.mock.calls[0][1]).toEqual({});
   expect(screen.getByText("Public visits")).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
@@ -583,9 +498,7 @@ it("loads public visits for guests and opens their details without signing in", 
     params: { postId: visit.postId },
   });
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Dismiss sign-in invitation" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
 });
 
@@ -593,9 +506,7 @@ it("offers public walls while the public visit feed is empty", async () => {
   mockSession = { ...mockSession, status: "signed-out" };
   await render(<HomeScreen />);
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "View public walls" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "View public walls" }));
   expect(mockPush).toHaveBeenCalledWith("/people");
 });
 
@@ -604,14 +515,10 @@ it("shows a direct invitation for guest Friends and keeps public discovery one t
   await render(<PeopleScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.queryByText("EXAMPLE")).toBeNull();
-  expect(
-    screen.getByRole("header", { name: "Sign in to add friends." }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
   expect(screen.queryByLabelText("Name or username")).toBeNull();
   expect(screen.queryByText("An afternoon of art")).toBeNull();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Sign in with Apple" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
@@ -648,34 +555,29 @@ it("keeps the date and reflection without count metadata, including reflection-o
   expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
 });
 
-it.each(["wall", "visit"])(
-  "renders sourced artwork stories in %s details",
-  async (kind) => {
-    mockQuery.mockReturnValue({
-      data: {
-        ...visit.artworks.page[0],
-        layout: { frame: "gilt" },
-        enrichment: {
-          docent: [
-            { sentence: "Painted beside the garden.", factIds: ["museum"] },
-          ],
-          factSheet: [
-            {
-              id: "museum",
-              sourceUrl: "https://museum.example/work",
-              sourceLabel: "Museum source",
-            },
-          ],
-        },
+it.each(["wall", "visit"])("renders sourced artwork stories in %s details", async (kind) => {
+  mockQuery.mockReturnValue({
+    data: {
+      ...visit.artworks.page[0],
+      layout: { frame: "gilt" },
+      enrichment: {
+        docent: [{ sentence: "Painted beside the garden.", factIds: ["museum"] }],
+        factSheet: [
+          {
+            id: "museum",
+            sourceUrl: "https://museum.example/work",
+            sourceLabel: "Museum source",
+          },
+        ],
       },
-      refresh: mockRefresh,
-    });
-    await render(<ArtworkScreen kind={kind} itemId="art-a" postId="post-a" />);
-    expect(screen.getByText("About this work")).toBeOnTheScreen();
-    expect(screen.getByText("Painted beside the garden.")).toBeOnTheScreen();
-    expect(screen.getByText("Museum source")).toBeOnTheScreen();
-  },
-);
+    },
+    refresh: mockRefresh,
+  });
+  await render(<ArtworkScreen kind={kind} itemId="art-a" postId="post-a" />);
+  expect(screen.getByText("About this work")).toBeOnTheScreen();
+  expect(screen.getByText("Painted beside the garden.")).toBeOnTheScreen();
+  expect(screen.getByText("Museum source")).toBeOnTheScreen();
+});
 
 it("waits for completed discovery before inviting a first scan", async () => {
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
@@ -730,13 +632,9 @@ it("renders Explore rows from the relationship embedded in each page instead of 
   await render(<PeopleScreen />);
   expect(screen.getByRole("button", { name: "Requested" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Add" })).toBeOnTheScreen();
+  expect(screen.getAllByRole("button", { name: /^(Add|Requested|Accept)$/ })).toHaveLength(2);
   expect(
-    screen.getAllByRole("button", { name: /^(Add|Requested|Accept)$/ }),
-  ).toHaveLength(2);
-  expect(
-    mockQuery.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "friendships:getState")
-      .map((call) => call[1]),
+    mockQuery.mock.calls.filter((call) => getFunctionName(call[0]) === "friendships:getState").map((call) => call[1]),
   ).toEqual(["skip", "skip"]);
 });
 
@@ -745,9 +643,7 @@ it("keeps discovery search available when a member has no friends", async () => 
   await render(<PeopleScreen />);
   expect(screen.getByLabelText("Name or username")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(
-    screen.getByRole("header", { name: "No friends added yet." }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "No friends added yet." })).toBeOnTheScreen();
   expect(screen.queryByLabelText("Name or username")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(screen.getByLabelText("Name or username")).toBeOnTheScreen();

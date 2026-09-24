@@ -35,8 +35,7 @@ export function venueDbFile(): File {
   return new File(Paths.document, "SQLite", VENUE_DB_NAME);
 }
 
-const VENUE_COLUMNS =
-  "id, key, name, lat, lng, website, region, city, cityKey, country";
+const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, country";
 
 /**
  * Copies the bundled table into place on first launch and again after an app update ships a new
@@ -44,9 +43,7 @@ const VENUE_COLUMNS =
  * Journal venues are read out first so the caller can carry them into the new copy: the sync
  * checkpoint has already passed them, so nothing would send them again.
  */
-async function installBundledTable(
-  target: File,
-): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
+async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
   const assetKey = asset.hash ?? asset.uri;
   const reusable = target.exists && (await installedTableIsValid());
@@ -85,10 +82,7 @@ async function journalVenueRows(): Promise<VenueRow[]> {
     );
   } catch (error) {
     reportError(error, "venue.table.preserve", { level: "warning" });
-    console.warn(
-      "Could not carry journal venues across the bundled table update",
-      error,
-    );
+    console.warn("Could not carry journal venues across the bundled table update", error);
     return [];
   } finally {
     await db.closeAsync();
@@ -100,9 +94,7 @@ let opening: Promise<SQLiteDatabase> | undefined;
 async function installStagedTable(db: SQLiteDatabase): Promise<void> {
   const staged = new File(venueDbFile().parentDirectory, STAGED_VENUE_DB_NAME);
   if (!staged.exists) return;
-  await db.execAsync(
-    `ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`,
-  );
+  await db.execAsync(`ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`);
   try {
     await validateVenueTable(db, "downloaded");
     const current = await readVenueTableMeta(db);
@@ -130,10 +122,7 @@ async function installStagedTable(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export async function validateVenueTable(
-  db: SQLiteDatabase,
-  schema: "main" | "downloaded" = "main",
-): Promise<void> {
+export async function validateVenueTable(db: SQLiteDatabase, schema: "main" | "downloaded" = "main"): Promise<void> {
   await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM ${schema}.venues LIMIT 0`);
 }
 
@@ -145,9 +134,7 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
     const db = await openDatabaseAsync(VENUE_DB_NAME);
     try {
       await validateVenueTable(db);
-      await db.execAsync(
-        "CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)",
-      );
+      await db.execAsync("CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)");
       if (installed) {
         for (const venue of installed.carried) {
           await writeVenue(db, venue, "IGNORE");
@@ -172,22 +159,14 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
   return opening;
 }
 
-export async function readVenueTableMeta(
-  db: SQLiteDatabase,
-): Promise<VenueTableMeta> {
-  const meta = await db.getFirstAsync<VenueTableMeta>(
-    "SELECT version, generatedAt, rowCount FROM main.meta LIMIT 1",
-  );
+export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTableMeta> {
+  const meta = await db.getFirstAsync<VenueTableMeta>("SELECT version, generatedAt, rowCount FROM main.meta LIMIT 1");
   if (!meta) throw new Error("The venue table has no meta row");
   return meta;
 }
 
 /** Seeded venues within `radiusM`, nearest first (a bounding-box scan of the 42k-row table takes a few ms). */
-export async function nearest(
-  db: SQLiteDatabase,
-  origin: Coordinate,
-  radiusM: number,
-): Promise<VenueCandidate[]> {
+export async function nearest(db: SQLiteDatabase, origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
   const box = boundingBox(origin, radiusM);
   const rows = await db.getAllAsync<VenueRow>(
     `SELECT ${VENUE_COLUMNS} FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
@@ -199,23 +178,17 @@ export async function nearest(
   return rankCandidates(rows, origin, radiusM);
 }
 
-export async function resolveVenueAt(
-  origin: Coordinate,
-): Promise<VenueResolution> {
+export async function resolveVenueAt(origin: Coordinate): Promise<VenueResolution> {
   return pickVenue(await nearest(await openVenueDb(), origin, CHOOSE_RADIUS_M));
 }
 
 /** The venue an imported photo was taken at, when its EXIF position is unambiguous. */
-export async function venueIdAt(
-  origin: Coordinate,
-): Promise<Id<"museums"> | undefined> {
+export async function venueIdAt(origin: Coordinate): Promise<Id<"museums"> | undefined> {
   const resolution = await resolveVenueAt(origin);
   return resolution.kind === "auto" ? resolution.venue.id : undefined;
 }
 
-export type VenueMetadata = FunctionReturnType<
-  typeof api.sync.syncJournal
->["venues"][number];
+export type VenueMetadata = FunctionReturnType<typeof api.sync.syncJournal>["venues"][number];
 const metadataListeners = new Set<() => void>();
 export function onVenueMetadataChange(listener: () => void): () => void {
   metadataListeners.add(listener);
@@ -242,15 +215,9 @@ async function writeVenue(
     venue.cityKey ?? null,
     venue.country ?? null,
   );
-  await db.runAsync(
-    "INSERT OR IGNORE INTO journalVenues (id) VALUES (?)",
-    venue.id,
-  );
+  await db.runAsync("INSERT OR IGNORE INTO journalVenues (id) VALUES (?)", venue.id);
 }
-export async function applyVenueMetadata(
-  db: SQLiteDatabase,
-  rows: VenueMetadata[],
-): Promise<void> {
+export async function applyVenueMetadata(db: SQLiteDatabase, rows: VenueMetadata[]): Promise<void> {
   for (const venue of rows) await writeVenue(db, venue, "REPLACE");
   if (rows.length) for (const listener of metadataListeners) listener();
 }
@@ -272,22 +239,13 @@ export async function venueMetadataForIds(ids: string[]): Promise<VenueRow[]> {
 }
 
 /** The display name of a venue from the local table; a saved work keeps it as text. */
-export async function venueNameById(
-  id: Id<"museums">,
-): Promise<string | undefined> {
-  const row = await (
-    await openVenueDb()
-  ).getFirstAsync<{ name: string }>("SELECT name FROM venues WHERE id = ?", id);
+export async function venueNameById(id: Id<"museums">): Promise<string | undefined> {
+  const row = await (await openVenueDb()).getFirstAsync<{ name: string }>("SELECT name FROM venues WHERE id = ?", id);
   return row?.name;
 }
 
-export async function venueCoordinates(
-  id: Id<"museums">,
-): Promise<Coordinate | undefined> {
+export async function venueCoordinates(id: Id<"museums">): Promise<Coordinate | undefined> {
   return (
-    (await (
-      await openVenueDb()
-    ).getFirstAsync<Coordinate>("SELECT lat, lng FROM venues WHERE id = ?", id))
-    ?? undefined
+    (await (await openVenueDb()).getFirstAsync<Coordinate>("SELECT lat, lng FROM venues WHERE id = ?", id)) ?? undefined
   );
 }

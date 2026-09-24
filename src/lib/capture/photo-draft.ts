@@ -35,10 +35,7 @@ export type PhotoSessionDraft = {
 function key(owner: string, draftId: string) {
   return `photoDraft:${owner}:${draftId}`;
 }
-export function readPhotoSession(
-  owner: string,
-  draftId: string,
-): PhotoSessionDraft {
+export function readPhotoSession(owner: string, draftId: string): PhotoSessionDraft {
   const value = db
     .select()
     .from(settings)
@@ -67,11 +64,7 @@ export function readPhotoSession(
 export function readPhotoDraft(owner: string, draftId: string): DraftPhoto[] {
   return readPhotoSession(owner, draftId).photos;
 }
-export function updatePhotoSession(
-  owner: string,
-  draftId: string,
-  patch: Partial<PhotoSessionDraft>,
-) {
+export function updatePhotoSession(owner: string, draftId: string, patch: Partial<PhotoSessionDraft>) {
   const value = JSON.stringify({
     ...readPhotoSession(owner, draftId),
     ...patch,
@@ -81,11 +74,7 @@ export function updatePhotoSession(
     .onConflictDoUpdate({ target: settings.key, set: { value } })
     .run();
 }
-export function writePhotoDraft(
-  owner: string,
-  draftId: string,
-  photos: DraftPhoto[],
-) {
+export function writePhotoDraft(owner: string, draftId: string, photos: DraftPhoto[]) {
   updatePhotoSession(owner, draftId, { photos });
 }
 export function clearPhotoDraft(owner: string, draftId: string) {
@@ -94,11 +83,7 @@ export function clearPhotoDraft(owner: string, draftId: string) {
     .run();
 }
 
-export function isLabelCapture(capture: {
-  localId: string;
-  owner: string;
-  photoPath: string;
-}) {
+export function isLabelCapture(capture: { localId: string; owner: string; photoPath: string }) {
   return (
     readPhotoSession(capture.owner, capture.photoPath).primaryKind === "label"
     || findArtworkPhoto(capture.localId, capture.owner)?.kind === "label"

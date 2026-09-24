@@ -1,39 +1,20 @@
 import { ConvexError, v } from "convex/values";
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
-import {
-  browsedProfile,
-  publicProfile,
-  validateProfile,
-  validateSearch,
-} from "../shared/social/contracts";
+import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import {
-  activeProfile,
-  optionalProfile,
-  requireAccount,
-  requireProfile,
-} from "./lib/ownership";
-import {
-  acceptedRelationships,
-  findBlock,
-  relationshipSnapshot,
-} from "./lib/friendships";
+import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
+import { acceptedRelationships, findBlock, relationshipSnapshot } from "./lib/friendships";
 import { projectProfile } from "./lib/projections";
 
 // Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
-async function projectBrowsedProfile(
-  ctx: QueryCtx,
-  viewer: Doc<"profiles"> | null,
-  profile: Doc<"profiles">,
-) {
+async function projectBrowsedProfile(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
   const person = await projectProfile(ctx, profile);
   if (!viewer || viewer._id === profile._id) return person;
   return {
     ...person,
-    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id))
-      .state,
+    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id)).state,
   };
 }
 
@@ -95,9 +76,7 @@ export const search = query({
     const viewer = await optionalProfile(ctx);
     const result = await ctx.db
       .query("profiles")
-      .withSearchIndex("search_text", (q) =>
-        q.search("searchText", search).eq("active", true),
-      )
+      .withSearchIndex("search_text", (q) => q.search("searchText", search).eq("active", true))
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
@@ -116,24 +95,17 @@ export const search = query({
 export const mine = query({
   args: {},
   returns: publicProfile,
-  handler: async (ctx) =>
-    projectProfile(ctx, (await requireProfile(ctx)).profile),
+  handler: async (ctx) => projectProfile(ctx, (await requireProfile(ctx)).profile),
 });
 export const friends = query({
   args: {},
   returns: v.array(publicProfile),
   handler: async (ctx) => {
     const { profile } = await requireProfile(ctx);
-    const edges = (await acceptedRelationships(ctx, profile._id)).slice(
-      0,
-      LIMITS.friends,
-    );
+    const edges = (await acceptedRelationships(ctx, profile._id)).slice(0, LIMITS.friends);
     const people = [];
     for (const edge of edges) {
-      const id =
-        edge.firstProfileId === profile._id
-          ? edge.secondProfileId
-          : edge.firstProfileId;
+      const id = edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId;
       const person = await activeProfile(ctx, id);
       if (
         person
@@ -197,15 +169,11 @@ export const requests = query({
       await Promise.all([
         ctx.db
           .query("friendships")
-          .withIndex("by_first_state", (q) =>
-            q.eq("firstProfileId", profile._id).eq("state", "pending"),
-          )
+          .withIndex("by_first_state", (q) => q.eq("firstProfileId", profile._id).eq("state", "pending"))
           .take(LIMITS.friends + 1),
         ctx.db
           .query("friendships")
-          .withIndex("by_second_state", (q) =>
-            q.eq("secondProfileId", profile._id).eq("state", "pending"),
-          )
+          .withIndex("by_second_state", (q) => q.eq("secondProfileId", profile._id).eq("state", "pending"))
           .take(LIMITS.friends + 1),
       ])
     ).flat();

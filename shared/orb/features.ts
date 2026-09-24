@@ -24,10 +24,7 @@ export class OrbFormatError extends Error {
   }
 }
 
-export function decodeOrbFeatures(
-  descriptors: ArrayBuffer,
-  keypoints: ArrayBuffer,
-): OrbFeatures {
+export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
   if (descriptors.byteLength % DESCRIPTOR_BYTES !== 0) {
     throw new OrbFormatError(
       `descriptors byte length ${descriptors.byteLength} is not a multiple of ${DESCRIPTOR_BYTES}`,
@@ -35,9 +32,7 @@ export function decodeOrbFeatures(
   }
   const count = descriptors.byteLength / DESCRIPTOR_BYTES;
   if (count > MAX_KEYPOINTS) {
-    throw new OrbFormatError(
-      `${count} keypoints exceeds the maximum of ${MAX_KEYPOINTS}`,
-    );
+    throw new OrbFormatError(`${count} keypoints exceeds the maximum of ${MAX_KEYPOINTS}`);
   }
   if (keypoints.byteLength !== count * KEYPOINT_BYTES) {
     throw new OrbFormatError(

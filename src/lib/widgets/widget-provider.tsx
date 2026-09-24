@@ -1,38 +1,16 @@
 import { eq } from "drizzle-orm";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import {
-  createContext,
-  use,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, use, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { db } from "@/db/client";
-import {
-  selectAllArtworkPhotos,
-  selectArtworkEncounters,
-} from "@/db/repos/artwork-album";
+import { selectAllArtworkPhotos, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { settings as settingsTable } from "@/db/schema";
-import {
-  getLocalOwner,
-  subscribeOwnerChange,
-  useLocalOwner,
-} from "@/lib/account/owner-store";
-import {
-  widgetCollection,
-  type PreparedWidgetArtwork,
-  type WidgetArtwork,
-} from "./widget-collection";
+import { getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
+import { widgetCollection, type PreparedWidgetArtwork, type WidgetArtwork } from "./widget-collection";
 import { createWidgetPublisher } from "./widget-publisher";
-import {
-  readWidgetSettings,
-  widgetSettingsKey,
-  type WidgetSettings,
-} from "./widget-settings";
+import { readWidgetSettings, widgetSettingsKey, type WidgetSettings } from "./widget-settings";
 import {
   clearWidgetCollection,
   prepareWidgetArtwork,
@@ -73,51 +51,21 @@ function useWidgetState(owner: string) {
   );
   const allArtworks = useMemo(
     () =>
-      widgetCollection(
-        owner,
-        works.data,
-        visits.data,
-        encounters.data,
-        photos.data,
-        {
-          kind: "collection",
-        },
-      ),
+      widgetCollection(owner, works.data, visits.data, encounters.data, photos.data, {
+        kind: "collection",
+      }),
     [owner, works.data, visits.data, encounters.data, photos.data],
   );
   const artworks = useMemo(
-    () =>
-      widgetCollection(
-        owner,
-        works.data,
-        visits.data,
-        encounters.data,
-        photos.data,
-        preferences.source,
-      ),
-    [
-      owner,
-      works.data,
-      visits.data,
-      encounters.data,
-      photos.data,
-      preferences.source,
-    ],
+    () => widgetCollection(owner, works.data, visits.data, encounters.data, photos.data, preferences.source),
+    [owner, works.data, visits.data, encounters.data, photos.data, preferences.source],
   );
-  const queryError =
-    works.error ?? visits.error ?? encounters.error ?? photos.error;
-  const loading =
-    !queryError
-    && (!works.updatedAt
-      || !visits.updatedAt
-      || !encounters.updatedAt
-      || !photos.updatedAt);
+  const queryError = works.error ?? visits.error ?? encounters.error ?? photos.error;
+  const loading = !queryError && (!works.updatedAt || !visits.updatedAt || !encounters.updatedAt || !photos.updatedAt);
   const syncing =
     !loading
     && !queryError
-    && (settled?.artworks !== artworks
-      || settled.preferences !== preferences
-      || settled.revision !== revision);
+    && (settled?.artworks !== artworks || settled.preferences !== preferences || settled.revision !== revision);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") refresh((value) => value + 1);
@@ -186,16 +134,8 @@ function useWidgetState(owner: string) {
   };
 }
 
-const WidgetContext = createContext<
-  ReturnType<typeof useWidgetState> | undefined
->(undefined);
-function OwnerWidgetProvider({
-  owner,
-  children,
-}: {
-  owner: string;
-  children: ReactNode;
-}) {
+const WidgetContext = createContext<ReturnType<typeof useWidgetState> | undefined>(undefined);
+function OwnerWidgetProvider({ owner, children }: { owner: string; children: ReactNode }) {
   const value = useWidgetState(owner);
   return <WidgetContext value={value}>{children}</WidgetContext>;
 }

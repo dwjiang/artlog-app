@@ -41,12 +41,7 @@ export function readCursorPages<T, R>(
   }
   const done = !loading && !error && last?.isDone === true;
   const next = last?.cursor;
-  const canLoadMore =
-    !loading
-    && !error
-    && !done
-    && next != null
-    && !cursors.slice(0, validLength).includes(next);
+  const canLoadMore = !loading && !error && !done && next != null && !cursors.slice(0, validLength).includes(next);
   // A transport failure does not revoke earlier pages; permission and server failures do.
   const hideLoaded = !!error && !isNetworkError(error);
   return {

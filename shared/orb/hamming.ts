@@ -11,21 +11,12 @@ export function popcount32(v: number): number {
 export function descriptorWords(features: OrbFeatures): Uint32Array {
   const bytes = features.descriptors;
   if (bytes.byteOffset % Uint32Array.BYTES_PER_ELEMENT === 0) {
-    return new Uint32Array(
-      bytes.buffer,
-      bytes.byteOffset,
-      bytes.byteLength / Uint32Array.BYTES_PER_ELEMENT,
-    );
+    return new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / Uint32Array.BYTES_PER_ELEMENT);
   }
   return new Uint32Array(bytes.slice().buffer);
 }
 
-export function hammingDistance32(
-  a: Uint32Array,
-  aWord: number,
-  b: Uint32Array,
-  bWord: number,
-): number {
+export function hammingDistance32(a: Uint32Array, aWord: number, b: Uint32Array, bWord: number): number {
   return (
     popcount32(a[aWord] ^ b[bWord])
     + popcount32(a[aWord + 1] ^ b[bWord + 1])

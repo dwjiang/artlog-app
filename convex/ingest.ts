@@ -6,41 +6,15 @@ import { validateGeography } from "../shared/social/contracts";
 import { ConvexError, type Infer, v } from "convex/values";
 
 import model from "../shared/model/model-version.json";
-import {
-  DESCRIPTOR_BYTES,
-  KEYPOINT_BYTES,
-  MAX_KEYPOINTS,
-} from "../shared/orb/features";
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../shared/orb/features";
 import { internal } from "./_generated/api";
-import {
-  deleteOrbIfUnreferenced,
-  loadOrb,
-  orbHash,
-  ORB_CONTENT_TYPE,
-  packOrb,
-} from "./lib/orbStorage";
+import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
-import {
-  eligibleObject,
-  eligibleVector,
-  recognitionPartition,
-} from "./lib/recognitionEligibility";
+import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server";
-import {
-  multiplicity,
-  objectSource,
-  placementSource,
-  rightsStatus,
-  seedSource,
-} from "./lib/validators";
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
@@ -154,11 +128,7 @@ function checkBatch(rows: unknown[]) {
   }
 }
 
-async function findByKey<T extends KeyedTable>(
-  ctx: QueryCtx,
-  table: T,
-  key: string,
-) {
+async function findByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: string) {
   const doc = await ctx.db
     .query(table as KeyedTable)
     .withIndex("by_key", (q) => q.eq("key", key))
@@ -166,21 +136,13 @@ async function findByKey<T extends KeyedTable>(
   return doc as Doc<T> | null;
 }
 
-async function requireByKey<T extends KeyedTable>(
-  ctx: QueryCtx,
-  table: T,
-  key: string,
-) {
+async function requireByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: string) {
   const doc = await findByKey(ctx, table, key);
   if (doc === null) throw new ConvexError({ code: "unknown_key", table, key });
   return doc;
 }
 
-export async function bumpCounter(
-  ctx: MutationCtx,
-  table: keyof Counters,
-  inserted: number,
-) {
+export async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inserted: number) {
   if (inserted === 0) return;
   const existing = await ctx.db.query("ingestCounters").first();
   if (existing === null) {
@@ -199,10 +161,7 @@ export const upsertMuseums = internalMutation({
     let inserted = 0;
     for (const row of rows) {
       validateGeography(row);
-      if (
-        row.cityKey !== undefined
-        && !/^wikidata:Q[1-9][0-9]*$/.test(row.cityKey)
-      ) {
+      if (row.cityKey !== undefined && !/^wikidata:Q[1-9][0-9]*$/.test(row.cityKey)) {
         throw new ConvexError({ code: "invalid_venue" });
       }
       const fields = {
@@ -282,18 +241,11 @@ export const upsertObjects = internalMutation({
     let inserted = 0;
     for (const row of rows) {
       const artwork = await requireByKey(ctx, "artworks", row.artworkKey);
-      if (
-        row.thumbnailUrl !== undefined
-        && artwork.rightsStatus !== "public_domain"
-      ) {
+      if (row.thumbnailUrl !== undefined && artwork.rightsStatus !== "public_domain") {
         throw new ConvexError({ code: "thumbnail_rights", objectKey: row.key });
       }
-      const owner = row.ownerKey
-        ? await requireByKey(ctx, "museums", row.ownerKey)
-        : null;
-      const mergedInto = row.mergedIntoKey
-        ? await requireByKey(ctx, "objects", row.mergedIntoKey)
-        : null;
+      const owner = row.ownerKey ? await requireByKey(ctx, "museums", row.ownerKey) : null;
+      const mergedInto = row.mergedIntoKey ? await requireByKey(ctx, "objects", row.mergedIntoKey) : null;
       const fields = {
         key: row.key,
         identityStatus: artwork.identityStatus,
@@ -357,10 +309,7 @@ export const upsertPlacements = internalMutation({
       const existing = await ctx.db
         .query("placements")
         .withIndex("by_object_venue_source", (q) =>
-          q
-            .eq("objectId", object._id)
-            .eq("venueId", venue._id)
-            .eq("source", row.source),
+          q.eq("objectId", object._id).eq("venueId", venue._id).eq("source", row.source),
         )
         .unique();
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
@@ -405,10 +354,7 @@ export const upsertVectors = internalMutation({
       const existing = await ctx.db
         .query("vectors")
         .withIndex("by_modelVersion_source_viewKey", (q) =>
-          q
-            .eq("modelVersion", row.modelVersion)
-            .eq("source", row.source)
-            .eq("viewKey", row.viewKey),
+          q.eq("modelVersion", row.modelVersion).eq("source", row.source).eq("viewKey", row.viewKey),
         )
         .unique();
       const naturalKey = `${row.modelVersion}|${row.source}|${row.viewKey}`;
@@ -452,8 +398,7 @@ export const existingDescriptors = internalQuery({
         if (!row || !(await ctx.db.system.get("_storage", row.storageId))) {
           return null;
         }
-        const { storageId, sha256, keypointCount, inputSize, extractedFrom } =
-          row;
+        const { storageId, sha256, keypointCount, inputSize, extractedFrom } = row;
         return {
           objectKey,
           storageId,
@@ -477,11 +422,7 @@ export const commitDescriptors = internalMutation({
     let inserted = 0;
     for (const { objectKey, ...reference } of rows) {
       const file = await ctx.db.system.get("_storage", reference.storageId);
-      if (
-        !file
-        || file.size
-          !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
-      ) {
+      if (!file || file.size !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
         throw new ConvexError({
           code: "bad_orb_file",
           storageId: reference.storageId,
@@ -549,14 +490,9 @@ export const upsertDescriptors = internalAction({
             rows.slice(start, start + 8).map(async (row, offset) => {
               const i = start + offset;
               const sha256 = await orbHash(packed[i]);
-              let storageId =
-                existing[i]?.sha256 === sha256
-                  ? existing[i]!.storageId
-                  : undefined;
+              let storageId = existing[i]?.sha256 === sha256 ? existing[i]!.storageId : undefined;
               if (!storageId) {
-                storageId = await ctx.storage.store(
-                  new Blob([packed[i]], { type: ORB_CONTENT_TYPE }),
-                );
+                storageId = await ctx.storage.store(new Blob([packed[i]], { type: ORB_CONTENT_TYPE }));
                 created.push(storageId);
               }
               return {
@@ -643,9 +579,7 @@ export const exportVenues = internalQuery({
     isDone: v.boolean(),
   }),
   handler: async (ctx, { cursor }) => {
-    const result = await ctx.db
-      .query("museums")
-      .paginate({ numItems: EXPORT_PAGE_SIZE, cursor: cursor ?? null });
+    const result = await ctx.db.query("museums").paginate({ numItems: EXPORT_PAGE_SIZE, cursor: cursor ?? null });
     return {
       page: result.page.map((m) => ({
         _id: m._id,
@@ -691,9 +625,7 @@ export const exportVectors = internalQuery({
   handler: async (ctx, { modelVersion, cursor }) => {
     const result = await ctx.db
       .query("vectors")
-      .withIndex("by_modelVersion_source_viewKey", (q) =>
-        q.eq("modelVersion", modelVersion),
-      )
+      .withIndex("by_modelVersion_source_viewKey", (q) => q.eq("modelVersion", modelVersion))
       .paginate({
         numItems: TRAINING_EXPORT_PAGE_SIZE,
         cursor: cursor ?? null,
@@ -702,20 +634,12 @@ export const exportVectors = internalQuery({
     const page = [];
     for (const row of result.page) {
       let object = await ctx.db.get(row.objectId);
-      if (
-        !object
-        || object.identityStatus !== "established"
-        || !(await eligibleVector(ctx, row))
-      ) {
+      if (!object || object.identityStatus !== "established" || !(await eligibleVector(ctx, row))) {
         continue;
       }
       if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
       // Match identify.loadCandidates: only one-hop merges are part of the active index.
-      if (
-        !object
-        || object.identityStatus !== "established"
-        || !(await eligibleObject(ctx, object))
-      ) {
+      if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
         continue;
       }
       const artwork = await ctx.db.get(object.artworkId);
@@ -760,21 +684,14 @@ export const exportDescriptorReferences = internalQuery({
       .query("descriptors")
       .withIndex("by_objectId")
       .paginate({
-        numItems: Math.floor(
-          TRAINING_EXPORT_BYTES
-            / (MAX_KEYPOINTS * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)),
-        ),
+        numItems: Math.floor(TRAINING_EXPORT_BYTES / (MAX_KEYPOINTS * (DESCRIPTOR_BYTES + KEYPOINT_BYTES))),
         cursor: cursor ?? null,
         maximumBytesRead: TRAINING_EXPORT_BYTES,
       });
     const page = [];
     for (const row of result.page) {
       const object = await ctx.db.get(row.objectId);
-      if (
-        !object
-        || object.identityStatus !== "established"
-        || !(await eligibleObject(ctx, object))
-      ) {
+      if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
         continue;
       }
       page.push({
@@ -811,20 +728,15 @@ export const exportDescriptors = internalAction({
   returns: descriptorExport,
   handler: async (ctx, args): Promise<Infer<typeof descriptorExport>> =>
     withErrorReporting("ingest.exportDescriptors", async () => {
-      const result = await ctx.runQuery(
-        internal.ingest.exportDescriptorReferences,
-        args,
-      );
+      const result = await ctx.runQuery(internal.ingest.exportDescriptorReferences, args);
       const page = [];
       for (let start = 0; start < result.page.length; start += 8) {
         page.push(
           ...(await Promise.all(
-            result.page
-              .slice(start, start + 8)
-              .map(async ({ storageId, ...row }) => ({
-                ...row,
-                ...(await loadOrb(ctx, storageId, row.keypointCount)),
-              })),
+            result.page.slice(start, start + 8).map(async ({ storageId, ...row }) => ({
+              ...row,
+              ...(await loadOrb(ctx, storageId, row.keypointCount)),
+            })),
           )),
         );
       }
@@ -920,8 +832,7 @@ export const countExisting = internalQuery({
           count += 1;
         }
       } else {
-        const venue =
-          row.venueKey && (await findByKey(ctx, "museums", row.venueKey));
+        const venue = row.venueKey && (await findByKey(ctx, "museums", row.venueKey));
         if (
           venue
           && (await ctx.db

@@ -1,17 +1,8 @@
 import { db } from "@/db/client";
 import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
-import {
-  enqueuePendingScan,
-  getPendingScan,
-  markIdentified,
-  recordAttemptFailure,
-} from "@/db/repos/pending-scans";
-import {
-  saveEditedArtworkCrop,
-  saveEditedScanCrop,
-  type EditedCrop,
-} from "./edit-crop";
+import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from "@/db/repos/pending-scans";
+import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from "./edit-crop";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 import { readPhotoSession, updatePhotoSession } from "./photo-draft";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -41,9 +32,7 @@ jest.mock("expo-file-system", () => {
   class Node {
     uri: string;
     constructor(...parts: (string | Node)[]) {
-      this.uri = parts
-        .map((part) => (typeof part === "string" ? part : part.uri))
-        .join("/");
+      this.uri = parts.map((part) => (typeof part === "string" ? part : part.uri)).join("/");
     }
     create() {}
     get exists() {
@@ -144,9 +133,7 @@ it("keeps the previous saved crop if writing the new file fails, and can retry t
     cropPath: "old.preview.jpg",
   });
   mockFailCopy = true;
-  await expect(saveEditedArtworkCrop("work", crop, owner)).rejects.toThrow(
-    "copy failed",
-  );
+  await expect(saveEditedArtworkCrop("work", crop, owner)).rejects.toThrow("copy failed");
   expect((await getSavedWork("work"))?.cropPath).toBe("old.preview.jpg");
   mockFailCopy = false;
   await saveEditedArtworkCrop("work", crop, owner);
@@ -161,21 +148,15 @@ it("refuses a crop save for another owner or a dismissed editor", async () => {
     savedAt: 1,
     cropPath: "old.preview.jpg",
   });
-  await expect(
-    saveEditedArtworkCrop("work", crop, "someone-else"),
-  ).rejects.toThrow();
-  await expect(
-    saveEditedArtworkCrop("work", crop, owner, () => false),
-  ).rejects.toThrow();
+  await expect(saveEditedArtworkCrop("work", crop, "someone-else")).rejects.toThrow();
+  await expect(saveEditedArtworkCrop("work", crop, owner, () => false)).rejects.toThrow();
   expect((await getSavedWork("work"))?.cropPath).toBe("old.preview.jpg");
 });
 
 it("recomputes scan features, preserves draft photos and context, and isolates late results for the old crop", async () => {
   await seedScan();
   updatePhotoSession(owner, "full.jpg", {
-    photos: [
-      { localId: "detail", kind: "detail", path: "detail.jpg", capturedAt: 2 },
-    ],
+    photos: [{ localId: "detail", kind: "detail", path: "detail.jpg", capturedAt: 2 }],
     visit: { kind: "none" },
   });
   const nextId = await saveEditedScanCrop("scan", crop, owner);
@@ -196,9 +177,10 @@ it("recomputes scan features, preserves draft photos and context, and isolates l
   expect(await getPendingScan("scan")).toBeUndefined();
   await markIdentified("scan", "late-old-result" as Id<"scans">);
   expect((await getPendingScan(nextId))?.scanId).toBeNull();
-  await expect(
-    recordAttemptFailure("scan", "late network error", { countAttempt: true }),
-  ).resolves.toEqual({ status: "failed", attempts: 0 });
+  await expect(recordAttemptFailure("scan", "late network error", { countAttempt: true })).resolves.toEqual({
+    status: "failed",
+    attempts: 0,
+  });
 });
 
 it("matches the new crop against downloaded museums only when the queue cannot send it", async () => {
@@ -221,17 +203,13 @@ it("matches the new crop against downloaded museums while offline, after the edi
 it("leaves the old scan intact when extraction fails or the editor closes during extraction", async () => {
   await seedScan();
   mockFeatures.mockRejectedValueOnce(new Error("Model failed"));
-  await expect(saveEditedScanCrop("scan", crop, owner)).rejects.toThrow(
-    "Model failed",
-  );
+  await expect(saveEditedScanCrop("scan", crop, owner)).rejects.toThrow("Model failed");
   let active = true;
   mockFeatures.mockImplementationOnce(async () => {
     active = false;
     return features;
   });
-  await expect(
-    saveEditedScanCrop("scan", crop, owner, () => active),
-  ).rejects.toThrow();
+  await expect(saveEditedScanCrop("scan", crop, owner, () => active)).rejects.toThrow();
   expect((await getPendingScan("scan"))?.cropPath).toBe("old.jpg");
   expect(mockFiles.has("file:///documents/full.jpg")).toBe(true);
 });

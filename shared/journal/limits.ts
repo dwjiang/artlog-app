@@ -26,20 +26,13 @@ export function utf8Bytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 export const isUuid = (value: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
-export const isRevision = (value: number) =>
-  Number.isSafeInteger(value) && value >= 0;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+export const isRevision = (value: number) => Number.isSafeInteger(value) && value >= 0;
 export const isTimestamp = (value: number) =>
   Number.isSafeInteger(value) && value >= 0 && value <= 8_640_000_000_000_000;
 export function isTimeZone(value: string): boolean {
   try {
-    return (
-      value.length <= 100
-      && !!new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions()
-        .timeZone
-    );
+    return value.length <= 100 && !!new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions().timeZone;
   } catch {
     return false;
   }
@@ -59,17 +52,10 @@ export function isCalendarDate(value: string): boolean {
     return false;
   }
   const time = Date.parse(`${value}T00:00:00Z`);
-  return (
-    Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value
-  );
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
 export function normalizeSearch(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ");
+  return value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().trim().replace(/\s+/g, " ");
 }
 // ISO 3166-1 assigned alpha-2 codes plus XK, the user-assigned code MapKit and Wikidata emit for Kosovo.
 // The seed pipeline reads the same file, so codes it cannot send never reach `invalid_venue`.

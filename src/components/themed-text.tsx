@@ -1,29 +1,10 @@
 import { type ComponentPropsWithRef, createContext, use } from "react";
-import {
-  StyleSheet,
-  Text,
-  type TextStyle,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, Text, type TextStyle, useWindowDimensions } from "react-native";
 
-import {
-  Fonts,
-  Gallery,
-  type TextRole,
-  type ThemeColor,
-  Typography,
-} from "@/constants/theme";
+import { Fonts, Gallery, type TextRole, type ThemeColor, Typography } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
-type TextType =
-  | "default"
-  | "title"
-  | "small"
-  | "smallBold"
-  | "subtitle"
-  | "link"
-  | "linkPrimary"
-  | "code";
+type TextType = "default" | "title" | "small" | "smallBold" | "subtitle" | "link" | "linkPrimary" | "code";
 export type ThemedTextProps = ComponentPropsWithRef<typeof Text> & {
   variant?: TextRole;
   type?: TextType;
@@ -47,13 +28,7 @@ const typeStyles: Record<TextType, TextStyle> = {
 
 const TextContext = createContext(false);
 
-export function ThemedText({
-  style,
-  variant,
-  type,
-  themeColor,
-  ...rest
-}: ThemedTextProps) {
+export function ThemedText({ style, variant, type, themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const { fontScale } = useWindowDimensions();
   const nested = use(TextContext);
@@ -62,11 +37,7 @@ export function ThemedText({
   const sized = StyleSheet.flatten(style)?.fontSize !== undefined;
   const textStyle: TextStyle = StyleSheet.flatten([
     !nested && { color: theme.text },
-    variant
-      ? Typography[variant]
-      : type
-        ? typeStyles[type]
-        : !nested && !sized && Typography.body,
+    variant ? Typography[variant] : type ? typeStyles[type] : !nested && !sized && Typography.body,
     themeColor && { color: theme[themeColor] },
     style,
   ]);
@@ -76,10 +47,7 @@ export function ThemedText({
     <TextContext value={true}>
       <Text
         key={fontScale}
-        style={[
-          textStyle,
-          textStyle.fontFamily === Fonts.display && { fontWeight: "400" },
-        ]}
+        style={[textStyle, textStyle.fontFamily === Fonts.display && { fontWeight: "400" }]}
         {...rest}
       />
     </TextContext>

@@ -14,11 +14,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Colors } from "@/constants/theme";
-import {
-  interpolateCorners,
-  perspectiveMatrix,
-  revealGeometry,
-} from "@/lib/capture/reveal-geometry";
+import { interpolateCorners, perspectiveMatrix, revealGeometry } from "@/lib/capture/reveal-geometry";
 import type { CapturePresentation } from "@/lib/capture/use-capture";
 
 export const HIGHLIGHT_MS = 150;
@@ -26,8 +22,7 @@ export const STRAIGHTEN_MS = 650;
 export const CROSSFADE_MS = 150;
 export const SHINE_DELAY_MS = 350;
 export const SHINE_MS = 950;
-export const REVEAL_TIMEOUT_MS =
-  HIGHLIGHT_MS + SHINE_DELAY_MS + SHINE_MS + 2000;
+export const REVEAL_TIMEOUT_MS = HIGHLIGHT_MS + SHINE_DELAY_MS + SHINE_MS + 2000;
 
 export function CaptureReveal({
   presentation,
@@ -114,18 +109,7 @@ export function CaptureReveal({
       cancelAnimation(highlight);
       cancelAnimation(shine);
     };
-  }, [
-    displayed,
-    painting,
-    layout.width,
-    layout.height,
-    geometry,
-    reduced,
-    finish,
-    highlight,
-    progress,
-    shine,
-  ]);
+  }, [displayed, painting, layout.width, layout.height, geometry, reduced, finish, highlight, progress, shine]);
 
   const backgroundStyle = useAnimatedStyle(() => ({
     opacity: 1 - progress.get(),
@@ -138,9 +122,7 @@ export function CaptureReveal({
   }));
   const artworkStyle = useAnimatedStyle(() => {
     if (!geometry) return { opacity: 0 };
-    const corners = reduced
-      ? geometry.to
-      : interpolateCorners(geometry.from, geometry.to, progress.get());
+    const corners = reduced ? geometry.to : interpolateCorners(geometry.from, geometry.to, progress.get());
     const matrix = perspectiveMatrix(geometry.width, geometry.height, corners);
     return {
       opacity: matrix ? (reduced ? progress.get() : 1) : 0,
@@ -163,9 +145,7 @@ export function CaptureReveal({
     <View
       pointerEvents="none"
       style={styles.container}
-      onLayout={({ nativeEvent: { layout: next } }) =>
-        setLayout({ width: next.width, height: next.height })
-      }
+      onLayout={({ nativeEvent: { layout: next } }) => setLayout({ width: next.width, height: next.height })}
     >
       <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
         <Image
@@ -193,16 +173,8 @@ export function CaptureReveal({
         </Animated.View>
       )}
       {geometry && crop && (
-        <Animated.View
-          style={[
-            styles.artwork,
-            { width: geometry.width, height: geometry.height },
-            artworkStyle,
-          ]}
-        >
-          <Animated.View
-            style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]}
-          />
+        <Animated.View style={[styles.artwork, { width: geometry.width, height: geometry.height }, artworkStyle]}>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]} />
           <View style={[StyleSheet.absoluteFill, styles.crop]}>
             <Image
               source={crop}

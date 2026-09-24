@@ -31,18 +31,10 @@ import {
   type MuseumSort,
 } from "@/lib/museum-downloads/model";
 import type { Coordinate } from "@/lib/venue/resolve";
-import {
-  DownloadButton,
-  DownloadIcon,
-  DownloadMenu,
-  DownloadProgress,
-  IconAction,
-} from "./download-controls";
+import { DownloadButton, DownloadIcon, DownloadMenu, DownloadProgress, IconAction } from "./download-controls";
 
 const hero = (museum: MuseumSummary) =>
-  museum.key === "wikidata:Q239303"
-    ? require("../../../assets/museums/art-institute.jpg")
-    : undefined;
+  museum.key === "wikidata:Q239303" ? require("../../../assets/museums/art-institute.jpg") : undefined;
 const errorText = (row: MuseumDownload) =>
   row.error === "space"
     ? "Not enough space. Remove a download and try again."
@@ -71,9 +63,7 @@ export function MuseumDownloadsScreen() {
     if (!all.has(row.museum.id)) all.set(row.museum.id, row.museum);
   }
   const museums = sortMuseums([...all.values()], query, sort, location);
-  const museum = selected
-    ? all.get(selected as MuseumSummary["id"])
-    : undefined;
+  const museum = selected ? all.get(selected as MuseumSummary["id"]) : undefined;
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -93,9 +83,7 @@ export function MuseumDownloadsScreen() {
     try {
       await action();
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Couldn’t finish. Try again.",
-      );
+      showToast(error instanceof Error ? error.message : "Couldn’t finish. Try again.");
     }
   }
   function start(museum: MuseumSummary) {
@@ -106,8 +94,7 @@ export function MuseumDownloadsScreen() {
     });
   }
   function remove(museum: MuseumSummary) {
-    const size =
-      state.downloads[museum.id]?.active?.manifest.size ?? museum.size;
+    const size = state.downloads[museum.id]?.active?.manifest.size ?? museum.size;
     Alert.alert(
       `Remove ${museum.name}?`,
       `Free ${formatDownloadSize(size)}. Your saved artworks, notes, and photos will stay.`,
@@ -148,12 +135,7 @@ export function MuseumDownloadsScreen() {
     });
   };
   return (
-    <View
-      style={[
-        styles.screen,
-        { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) },
-      ]}
-    >
+    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) }]}>
       {museum ? (
         <MuseumDetail
           museum={museum}
@@ -170,11 +152,7 @@ export function MuseumDownloadsScreen() {
       ) : (
         <>
           <View style={styles.nav}>
-            <IconAction
-              label="Close museum downloads"
-              icon="xmark"
-              onPress={close}
-            />
+            <IconAction label="Close museum downloads" icon="xmark" onPress={close} />
           </View>
           <FlatList
             ref={list}
@@ -203,20 +181,13 @@ export function MuseumDownloadsScreen() {
               <>
                 <Text
                   accessibilityRole="header"
-                  style={[
-                    styles.title,
-                    fontScale > 1.4 && { fontSize: 28, lineHeight: 34 },
-                  ]}
+                  style={[styles.title, fontScale > 1.4 && { fontSize: 28, lineHeight: 34 }]}
                 >
                   Museum{"\n"}downloads
                 </Text>
                 <View style={styles.searchRow}>
                   <View style={styles.search}>
-                    <DownloadIcon
-                      name="magnifyingglass"
-                      size={16}
-                      color={Gallery.muted}
-                    />
+                    <DownloadIcon name="magnifyingglass" size={16} color={Gallery.muted} />
                     <TextInput
                       accessibilityLabel="Search museums"
                       placeholder="Museum or city"
@@ -232,14 +203,12 @@ export function MuseumDownloadsScreen() {
                     label={`Sort museums: ${museumSortLabels[sort]}`}
                     icon="arrow.up.arrow.down"
                     color={Gallery.accent}
-                    actions={Object.entries(museumSortLabels).map(
-                      ([id, title]) => ({
-                        id,
-                        title,
-                        state: sort === id ? "on" : "off",
-                        attributes: { disabled: id === "nearest" && !location },
-                      }),
-                    )}
+                    actions={Object.entries(museumSortLabels).map(([id, title]) => ({
+                      id,
+                      title,
+                      state: sort === id ? "on" : "off",
+                      attributes: { disabled: id === "nearest" && !location },
+                    }))}
                     onAction={(value) => {
                       sortChosen.current = true;
                       setSort(value as MuseumSort);
@@ -254,10 +223,7 @@ export function MuseumDownloadsScreen() {
               ) : (
                 <View style={{ paddingVertical: 24, gap: 12 }}>
                   <Text style={{ color: Gallery.muted }}>
-                    {state.error
-                      ?? (query
-                        ? "No museums found."
-                        : "No museums available to download yet.")}
+                    {state.error ?? (query ? "No museums found." : "No museums available to download yet.")}
                   </Text>
                   {state.error && (
                     <DownloadButton
@@ -320,25 +286,15 @@ export function MuseumRow({
           style={styles.rowOpen}
         >
           {hero(museum) ? (
-            <Image
-              source={hero(museum)}
-              style={styles.thumb}
-              contentFit="cover"
-            />
+            <Image source={hero(museum)} style={styles.thumb} contentFit="cover" />
           ) : (
             <View style={[styles.thumb, styles.placeholder]}>
-              <DownloadIcon
-                name="building.columns"
-                size={25}
-                color={Gallery.muted}
-              />
+              <DownloadIcon name="building.columns" size={25} color={Gallery.muted} />
             </View>
           )}
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.rowName}>{museum.name}</Text>
-            <Text
-              style={[styles.rowStatus, ready && { color: Gallery.success }]}
-            >
+            <Text style={[styles.rowStatus, ready && { color: Gallery.success }]}>
               {ready
                 ? "✓ Ready offline"
                 : paused || downloading
@@ -350,9 +306,7 @@ export function MuseumRow({
         {!ready && (
           <IconAction
             label={`${label} ${museum.name}`}
-            icon={
-              downloading ? "pause" : paused ? "play" : "arrow.down.to.line"
-            }
+            icon={downloading ? "pause" : paused ? "play" : "arrow.down.to.line"}
             color={Gallery.accent}
             onPress={onAction}
           />
@@ -415,8 +369,7 @@ export function MuseumDetail({
 }) {
   const { height, fontScale } = useWindowDimensions();
   const network = useNetworkState();
-  const offline =
-    network.isConnected === false || network.isInternetReachable === false;
+  const offline = network.isConnected === false || network.isInternetReachable === false;
   const active = row?.status === "downloading",
     paused = row?.status === "paused",
     ready = row?.status === "ready";
@@ -428,42 +381,20 @@ export function MuseumDetail({
     <>
       <View style={styles.hero}>
         {hero(museum) ? (
-          <Image
-            source={hero(museum)}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            contentPosition="center"
-          />
+          <Image source={hero(museum)} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
         ) : (
-          <DownloadIcon
-            name="building.columns"
-            color={Gallery.muted}
-            size={72}
-          />
+          <DownloadIcon name="building.columns" color={Gallery.muted} size={72} />
         )}
         <View style={styles.back}>
-          <IconAction
-            label="Back to museum downloads"
-            icon="chevron.left"
-            onPress={onBack}
-          />
+          <IconAction label="Back to museum downloads" icon="chevron.left" onPress={onBack} />
         </View>
       </View>
       <View style={[styles.sheet, { maxHeight: height - 180 }]}>
-        <ScrollView
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={{ padding: 20, paddingBottom: 16 }}
-          bounces={false}
-        >
-          <Text
-            accessibilityRole="header"
-            style={[styles.title, { marginBottom: 12, maxWidth: 290 }]}
-          >
+        <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ padding: 20, paddingBottom: 16 }} bounces={false}>
+          <Text accessibilityRole="header" style={[styles.title, { marginBottom: 12, maxWidth: 290 }]}>
             {museum.name}
           </Text>
-          {!active && !paused && !ready && (
-            <Text style={styles.promise}>Scan and read offline.</Text>
-          )}
+          {!active && !paused && !ready && <Text style={styles.promise}>Scan and read offline.</Text>}
           {!!previews.length && (
             <View
               style={{
@@ -497,9 +428,7 @@ export function MuseumDetail({
                   gap: 12,
                 }}
               >
-                <Text style={styles.progressLabel}>
-                  {paused ? "Download paused" : "Downloading"}
-                </Text>
+                <Text style={styles.progressLabel}>{paused ? "Download paused" : "Downloading"}</Text>
                 <Text style={styles.percent}>{progress}%</Text>
               </View>
               <DownloadProgress name={museum.name} progress={progress} />
@@ -513,9 +442,7 @@ export function MuseumDetail({
           {ready && (
             <View style={styles.ready}>
               <DownloadIcon name="checkmark" size={15} />
-              <Text style={{ fontSize: 11, fontWeight: "600" }}>
-                Ready offline
-              </Text>
+              <Text style={{ fontSize: 11, fontWeight: "600" }}>Ready offline</Text>
             </View>
           )}
         </ScrollView>
@@ -541,11 +468,7 @@ export function MuseumDetail({
             <DownloadButton label="Done" onPress={onBack} />
           ) : (
             <DownloadButton
-              label={
-                offline
-                  ? "Connect to download"
-                  : `Download · ${formatDownloadSize(museum.size)}`
-              }
+              label={offline ? "Connect to download" : `Download · ${formatDownloadSize(museum.size)}`}
               icon="arrow.down.to.line"
               onPress={onStart}
             />

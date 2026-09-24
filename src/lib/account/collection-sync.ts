@@ -8,12 +8,7 @@ import { api } from "../../../convex/_generated/api";
 import { createJournalRepository } from "@/db/repos/journal";
 import { claimLocalJournal } from "@/db/repos/journal-claim";
 import { listUnsyncedVisits } from "@/db/repos/visits";
-import {
-  anonymousOwner,
-  captureOwner,
-  getLocalOwner,
-  switchOwner,
-} from "./owner-store";
+import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import * as savedWorks from "@/db/repos/saved-works";
 import { albumMediaPending } from "@/db/repos/artwork-album";
 import { getSetting, setSetting } from "@/db/repos/settings";
@@ -24,11 +19,7 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 import { syncJournal, type SyncContext } from "./sync";
 import { onCollectionChange } from "./sync-events";
 import { syncCollectionPhotos } from "./photo-sync";
-import {
-  downloadCollectionPhoto,
-  removePhotoFile,
-  uploadCollectionPhoto,
-} from "./photo-transfer";
+import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
 import { syncArtworkAlbums } from "./album-sync";
 import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
 
@@ -40,11 +31,7 @@ let authToken: string | null = null;
 type Queue = {
   label: string;
   operation: "sync.photos" | "sync.journal";
-  run: (
-    context: SyncContext,
-    token: string,
-    isCurrent: () => boolean,
-  ) => Promise<void>;
+  run: (context: SyncContext, token: string, isCurrent: () => boolean) => Promise<void>;
   running: Promise<void> | null;
   requested: boolean;
   timer?: ReturnType<typeof setTimeout>;
@@ -60,9 +47,7 @@ function schedule(queue: Queue, delay: number): void {
 }
 
 function ready(): { context: SyncContext; token: string } | null {
-  return !paused && context && authToken && AppState.currentState === "active"
-    ? { context, token: authToken }
-    : null;
+  return !paused && context && authToken && AppState.currentState === "active" ? { context, token: authToken } : null;
 }
 
 /** Scheduled runs retry on their own; the resolved failure lets a direct caller rethrow it instead. */
@@ -104,27 +89,10 @@ const transfers: Queue = {
         getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
         updatePhotoTransfer: (id, fields, _owner, expected) =>
           savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
-        listDeletedPhotoFiles: () =>
-          savedWorks.listDeletedPhotoFiles(context.owner),
-        clearDeletedPhotoPaths: (id) =>
-          savedWorks.clearDeletedPhotoPaths(id, context.owner),
-        upload: (localId, kind, path) =>
-          uploadCollectionPhoto(
-            token,
-            context.scope,
-            localId,
-            kind,
-            path,
-            isCurrent,
-          ),
-        download: (localId, kind, storageId) =>
-          downloadCollectionPhoto(
-            token,
-            context.scope,
-            localId,
-            kind,
-            storageId,
-          ),
+        listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
+        clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
+        upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+        download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
         removeFile: removePhotoFile,
       },
       isCurrent,
@@ -144,8 +112,7 @@ const sync: Queue = {
         ...savedWorks,
         ...createJournalRepository(context.owner, isCurrent),
         getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
-        setCheckpoint: (value) =>
-          setSetting(`journalSync:${context.owner}`, value),
+        setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
         sync: (args) => convex.mutation(api.sync.syncJournal, args),
         removeUnreferencedPhotos,
       },
@@ -204,10 +171,7 @@ export async function flushJournal(): Promise<void> {
 }
 
 async function journalPending(owner: string): Promise<boolean> {
-  return (
-    (await savedWorks.listUnsynced(owner)).length > 0
-    || (await listUnsyncedVisits(owner)).length > 0
-  );
+  return (await savedWorks.listUnsynced(owner)).length > 0 || (await listUnsyncedVisits(owner)).length > 0;
 }
 
 /**
@@ -215,9 +179,7 @@ async function journalPending(owner: string): Promise<boolean> {
  * fails the caller only while something it depends on is still missing; an unrelated stuck photo keeps retrying alone.
  * Each sync round trip spends a shared rate-limit token, so a caller with nothing pending makes no request at all.
  */
-export async function flushCollectionMedia(
-  dependsOn: Parameters<typeof albumMediaPending>[1] = {},
-): Promise<void> {
+export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMediaPending>[1] = {}): Promise<void> {
   const session = ready();
   if (!session) throw new SyncUnavailableError();
   const { owner } = session.context;
@@ -270,8 +232,8 @@ export function CollectionSync(): null {
         }
       } else {
         switchOwner(context.owner, paused ? undefined : scope);
-        void setSetting("activeJournalOwner", context.owner).catch(
-          (error: unknown) => reportError(error, "sync.persist_owner"),
+        void setSetting("activeJournalOwner", context.owner).catch((error: unknown) =>
+          reportError(error, "sync.persist_owner"),
         );
       }
       scheduleSync();

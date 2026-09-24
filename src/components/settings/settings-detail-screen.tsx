@@ -12,13 +12,7 @@ import { LeaderboardPreference } from "./leaderboard-preference";
 import { PrivacySection } from "./privacy-section";
 import { ContributionsScreen } from "./sharing-section";
 import { VisitPreference } from "./visit-preference";
-import {
-  ActionRow,
-  GroupedFooter,
-  GroupedList,
-  GroupedSection,
-  ValueRow,
-} from "@/components/grouped-list";
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { SearchConsentSheet } from "@/components/scan/result/search-consent-sheet";
 import { LeaderboardParticipation } from "@/components/social/leaderboard-participation";
 import { useDeviceReady } from "@/lib/use-device-ready";
@@ -40,21 +34,11 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   const [sheet, setSheet] = useState<"consent" | "participation">();
   const ready = useDeviceReady();
   const { isAuthenticated } = useConvexAuth();
-  const me = useQuery(
-    api.devices.me,
-    section === "developer" && isAuthenticated ? {} : "skip",
-  );
-  const health = useQuery(
-    api.health.ping,
-    section === "developer" ? {} : "skip",
-  );
-  const contributions = useQuery(
-    api.contributions.mine,
-    section === "contributions" && ready ? {} : "skip",
-  );
+  const me = useQuery(api.devices.me, section === "developer" && isAuthenticated ? {} : "skip");
+  const health = useQuery(api.health.ping, section === "developer" ? {} : "skip");
+  const contributions = useQuery(api.contributions.mine, section === "contributions" && ready ? {} : "skip");
   const network = useNetworkState();
-  const offline =
-    network.isConnected === false || network.isInternetReachable === false;
+  const offline = network.isConnected === false || network.isInternetReachable === false;
   const title = titles[section as keyof typeof titles] ?? "Settings";
   const close = () => setSheet(undefined);
   if (section === "contributions") {
@@ -70,11 +54,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
       <>
         <Stack.Screen options={{ title }} />
         <PrivacySection onRequestConsent={() => setSheet("consent")} />
-        <SearchConsentSheet
-          open={sheet === "consent"}
-          onGranted={close}
-          onDismiss={close}
-        />
+        <SearchConsentSheet open={sheet === "consent"} onGranted={close} onDismiss={close} />
       </>
     );
   }
@@ -93,11 +73,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         {(!(section in titles) || (section === "developer" && !__DEV__)) && (
           <GroupedSection
             title="Settings unavailable"
-            footer={
-              <GroupedFooter>
-                This settings page is not available.
-              </GroupedFooter>
-            }
+            footer={<GroupedFooter>This settings page is not available.</GroupedFooter>}
           >
             <ActionRow label="Back to Settings" onPress={() => router.back()} />
           </GroupedSection>
@@ -105,20 +81,14 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         {section === "account" && <AccountSection />}
         {section === "general" && <GeneralPreference />}
         {section === "visits" && <VisitPreference />}
-        {section === "leaderboards" && (
-          <LeaderboardPreference onManage={() => setSheet("participation")} />
-        )}
+        {section === "leaderboards" && <LeaderboardPreference onManage={() => setSheet("participation")} />}
         {section === "developer" && __DEV__ && (
           <>
             <GroupedSection title="Device">
               <ValueRow
                 label="Registration"
                 loading={me === undefined}
-                value={
-                  me
-                    ? `${me.deviceId} · attested: ${me.attested ? "yes" : "no"}`
-                    : "Unavailable"
-                }
+                value={me ? `${me.deviceId} · attested: ${me.attested ? "yes" : "no"}` : "Unavailable"}
               />
               <ValueRow label="Model" value={model.modelVersion} />
               <ValueRow label="Backend" value="Connected" loading={!health} />
@@ -127,9 +97,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
           </>
         )}
       </GroupedList>
-      {sheet === "participation" && (
-        <LeaderboardParticipation onDismiss={close} />
-      )}
+      {sheet === "participation" && <LeaderboardParticipation onDismiss={close} />}
     </>
   );
 }

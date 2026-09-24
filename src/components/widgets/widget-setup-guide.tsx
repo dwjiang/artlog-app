@@ -9,8 +9,7 @@ const instructions = [
     text: (lineBreak: string) => (
       <>
         <Text style={{ fontWeight: "600" }}>Touch and hold</Text> an empty
-        {lineBreak}area on your Home Screen.{lineBreak}Wait for the apps to
-        jiggle.
+        {lineBreak}area on your Home Screen.{lineBreak}Wait for the apps to jiggle.
       </>
     ),
   },
@@ -19,8 +18,7 @@ const instructions = [
     text: (lineBreak: string) => (
       <>
         Tap <Text style={{ fontWeight: "600" }}>Edit</Text> at the top left,
-        {lineBreak}then <Text style={{ fontWeight: "600" }}>Add Widget</Text> in
-        the menu.
+        {lineBreak}then <Text style={{ fontWeight: "600" }}>Add Widget</Text> in the menu.
       </>
     ),
   },
@@ -38,8 +36,7 @@ const instructions = [
     text: (lineBreak: string) => (
       <>
         Tap <Text style={{ fontWeight: "600" }}>Add Widget.</Text> Back on
-        {lineBreak}your Home Screen, tap{" "}
-        <Text style={{ fontWeight: "600" }}>Done.</Text>
+        {lineBreak}your Home Screen, tap <Text style={{ fontWeight: "600" }}>Done.</Text>
       </>
     ),
   },
@@ -60,12 +57,7 @@ export function WidgetSetupGuide() {
             alignItems: "flex-start",
           }}
         >
-          <View
-            style={[
-              fontScale > 1.4 ? { width: "100%" } : { flex: 1 },
-              { gap: 7, paddingTop: 2 },
-            ]}
-          >
+          <View style={[fontScale > 1.4 ? { width: "100%" } : { flex: 1 }, { gap: 7, paddingTop: 2 }]}>
             <Text
               style={{
                 color: Gallery.muted,
@@ -76,9 +68,7 @@ export function WidgetSetupGuide() {
             >
               {index + 1}.
             </Text>
-            <Text style={{ fontSize: 14.5, lineHeight: 20 }}>
-              {instruction.text(lineBreak)}
-            </Text>
+            <Text style={{ fontSize: 14.5, lineHeight: 20 }}>{instruction.text(lineBreak)}</Text>
           </View>
           <Image
             source={instruction.image}

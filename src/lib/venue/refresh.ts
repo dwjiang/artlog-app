@@ -5,13 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
 import { addBreadcrumb, reportError } from "@/lib/observability";
-import {
-  openVenueDb,
-  readVenueTableMeta,
-  STAGED_VENUE_DB_NAME,
-  validateVenueTable,
-  venueDbFile,
-} from "./venue-db";
+import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from "./venue-db";
 
 export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";
 export const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -36,9 +30,7 @@ export type RefreshDependencies = {
 export type RefreshOutcome = "skipped" | "current" | "downloaded";
 
 /** Checks `venueTable.latest` at most once a day and installs a newer table for the next launch. */
-export async function refreshVenueTable(
-  deps: RefreshDependencies,
-): Promise<RefreshOutcome> {
+export async function refreshVenueTable(deps: RefreshDependencies): Promise<RefreshOutcome> {
   const now = deps.now();
   const checkedAt = await deps.getCheckedAt();
   if (checkedAt !== undefined && now - checkedAt < REFRESH_INTERVAL_MS) {
@@ -84,8 +76,7 @@ export const refreshDependencies: RefreshDependencies = {
   },
   setCheckedAt: (at) => setSetting(VENUE_TABLE_CHECKED_AT, String(at)),
   fetchLatest: () => convex.query(api.venueTable.latest, {}),
-  localVersion: async () =>
-    (await readVenueTableMeta(await openVenueDb())).version,
+  localVersion: async () => (await readVenueTableMeta(await openVenueDb())).version,
   install: installTable,
   now: Date.now,
 };

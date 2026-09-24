@@ -33,9 +33,7 @@ export function ProfileBio({ text }: { text?: string }) {
           accessibilityRole="button"
           onPress={() => setExpanded(!expanded)}
         >
-          <Text
-            style={{ color: Gallery.accent, fontSize: 13, paddingVertical: 5 }}
-          >
+          <Text style={{ color: Gallery.accent, fontSize: 13, paddingVertical: 5 }}>
             {expanded ? "Show less" : "Read more"}
           </Text>
         </Pressable>

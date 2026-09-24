@@ -10,12 +10,7 @@ import { Alert, ScrollView, TextInput, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { applyAlbum } from "@/db/repos/artwork-album";
-import {
-  editSavedWork,
-  listSavedWorks,
-  selectSavedWork,
-  upsertFromRemote,
-} from "@/db/repos/saved-works";
+import { editSavedWork, listSavedWorks, selectSavedWork, upsertFromRemote } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
@@ -37,41 +32,20 @@ export function IdentifyArtworkScreen() {
     />
   );
 }
-function ArtworkQuery({
-  owner,
-  savedId,
-  onRetry,
-}: {
-  owner: string;
-  savedId: string;
-  onRetry: () => void;
-}) {
-  const { data, error, updatedAt } = useLiveQuery(
-    selectSavedWork(savedId, owner),
-    [savedId, owner],
-  );
+function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   useEffect(() => {
     if (error) reportError(error, "collection.artwork.load");
   }, [error]);
-  const work = data.find(
-    (row) =>
-      row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? (
     <Editor key={`${owner}:${savedId}`} work={work} />
   ) : (
-    <ArtworkQueryState
-      item="Artwork"
-      loading={!updatedAt}
-      error={error}
-      onRetry={onRetry}
-    />
+    <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />
   );
 }
 function Editor({ work }: { work: SavedWork }) {
-  const [title, setTitle] = useState(
-      work.title === "Unidentified artwork" ? "" : work.title,
-    ),
+  const [title, setTitle] = useState(work.title === "Unidentified artwork" ? "" : work.title),
     [artist, setArtist] = useState(work.artist);
   const [focusedField, setFocusedField] = useState<string>();
   const [date, setDate] = useState(work.date ?? ""),
@@ -91,9 +65,7 @@ function Editor({ work }: { work: SavedWork }) {
       target.owner === work.owner
       && target.localId !== work.localId
       && target.deletedAt === null
-      && `${target.title} ${target.artist}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+      && `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase()),
   );
   async function merge(target: SavedWork) {
     const session = captureOwner();
@@ -114,9 +86,7 @@ function Editor({ work }: { work: SavedWork }) {
         targetLocalId: target.localId,
       });
       if (!session.isCurrent()) return;
-      await removeUnreferencedPhotos(
-        await upsertFromRemote(result.saves, session.owner),
-      );
+      await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner));
       applyAlbum(result.photos, result.encounters, session.owner);
       router.replace({
         pathname: "/saved/[savedId]",
@@ -154,9 +124,7 @@ function Editor({ work }: { work: SavedWork }) {
         { label: "Medium", value: medium, change: setMedium },
       ].map((field) => (
         <View key={field.label} style={{ gap: 8 }}>
-          <Text style={{ color: Gallery.ink, fontSize: 15 }}>
-            {field.label}
-          </Text>
+          <Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text>
           <TextInput
             accessibilityLabel={field.label}
             value={field.value}
@@ -174,10 +142,7 @@ function Editor({ work }: { work: SavedWork }) {
               padding: 16,
               borderRadius: 8,
               borderWidth: 1,
-              borderColor:
-                focusedField === field.label
-                  ? Gallery.accent
-                  : Gallery.controlBorder,
+              borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder,
             }}
           />
         </View>
@@ -217,20 +182,14 @@ function Editor({ work }: { work: SavedWork }) {
               }}
             />
             {works.error ? (
-              <Text
-                accessibilityRole="alert"
-                style={{ color: Gallery.destructive }}
-              >
-                Couldn’t load your collection. Close and reopen this artwork to
-                try again.
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                Couldn’t load your collection. Close and reopen this artwork to try again.
               </Text>
             ) : !works.updatedAt && !matches.length ? (
               <ListSkeleton label="Loading artworks…" rows={3} />
             ) : !matches.length ? (
               <Text style={{ color: Gallery.muted }}>
-                {search
-                  ? "No matching artworks. Try another title or artist."
-                  : "No other saved artworks to combine."}
+                {search ? "No matching artworks. Try another title or artist." : "No other saved artworks to combine."}
               </Text>
             ) : null}
             {matches.map((target) => (
@@ -279,9 +238,7 @@ function Editor({ work }: { work: SavedWork }) {
             router.back();
           } catch (cause) {
             reportError(cause, "collection.artwork.update");
-            setError(
-              "Your artwork details could not be saved. Your edits are still here. Try again.",
-            );
+            setError("Your artwork details could not be saved. Your edits are still here. Try again.");
           }
         }}
       />

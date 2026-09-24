@@ -8,11 +8,9 @@ import { LoadingRing } from "@/components/loading-ring";
 
 // Product voice: the card says "waiting for signal" and asks for the label now.
 export const WAITING_TITLE = "Waiting for signal";
-export const WAITING_LINE =
-  "Capture the label now so we can finish this when you’re back online.";
+export const WAITING_LINE = "Capture the label now so we can finish this when you’re back online.";
 export const IDENTIFYING_TITLE = "Identifying artwork…";
-export const IDENTIFYING_LINE =
-  "Keep this screen open while we look for a match.";
+export const IDENTIFYING_LINE = "Keep this screen open while we look for a match.";
 export const LABEL_NOW = "Point at the label";
 
 export type WaitingForSignalCardProps = {
@@ -20,10 +18,7 @@ export type WaitingForSignalCardProps = {
   onLabel: () => void;
 };
 
-export function WaitingForSignalCard({
-  status,
-  onLabel,
-}: WaitingForSignalCardProps) {
+export function WaitingForSignalCard({ status, onLabel }: WaitingForSignalCardProps) {
   const waiting = status === "queued";
   return (
     <>
@@ -43,17 +38,10 @@ export function WaitingForSignalCard({
             <LoadingRing accessibilityLabel={IDENTIFYING_TITLE} />
           )}
         </View>
-        <ThemedText themeColor="textSecondary">
-          {waiting ? WAITING_LINE : IDENTIFYING_LINE}
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">{waiting ? WAITING_LINE : IDENTIFYING_LINE}</ThemedText>
       </View>
       {!waiting && <ParagraphSkeleton />}
-      <GalleryButton
-        label={LABEL_NOW}
-        variant="filled"
-        fullWidth
-        onPress={onLabel}
-      />
+      <GalleryButton label={LABEL_NOW} variant="filled" fullWidth onPress={onLabel} />
     </>
   );
 }

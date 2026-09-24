@@ -9,22 +9,13 @@ import { ToastPill } from "./toast-pill";
 /** Floats the current toast (and any extra pills passed as children) above the bottom edge; screens report outcomes through
  *  `showToast` instead of inline banners. Natively presented sheets cover the root layer, so a flow inside one mounts its own.
  *  Without an explicit offset the layer clears the tab bar only while a tab is focused; root-stack screens cover the tabs. */
-export function ToastLayer({
-  children,
-  offset,
-}: {
-  children?: ReactNode;
-  offset?: number;
-}) {
+export function ToastLayer({ children, offset }: { children?: ReactNode; offset?: number }) {
   const toast = useToast();
   const { bottom } = useSafeAreaInsets();
   const [root] = useSegments();
   const inset = offset ?? (root === "(tabs)" ? BottomTabInset : 0);
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}
-    >
+    <View pointerEvents="box-none" style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}>
       {children}
       {toast && (
         <ToastPill

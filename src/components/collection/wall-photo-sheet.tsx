@@ -30,25 +30,15 @@ export function WallPhotoSheet({
       dismissLabel="Cancel"
     >
       <View style={{ flex: 1 }}>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ padding: 20, gap: 16 }}
-        >
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 20, gap: 16 }}>
           <Text style={{ fontSize: 19, color: Gallery.ink }}>{title}</Text>
           <Text style={{ fontSize: 13, color: Gallery.muted }}>
-            {duplicate
-              ? "Adds a second placement of this artwork."
-              : "Only this placement’s image will change."}
+            {duplicate ? "Adds a second placement of this artwork." : "Only this placement’s image will change."}
           </Text>
-          <WallPhotoPicker
-            savedId={savedId}
-            selectedId={selected}
-            onSelect={setSelected}
-          />
+          <WallPhotoPicker savedId={savedId} selectedId={selected} onSelect={setSelected} />
           <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
-            This selected image will be visible on your public wall. Other
-            photos keep their existing sharing choices. Visit dates aren’t shown
-            on the wall.
+            This selected image will be visible on your public wall. Other photos keep their existing sharing choices.
+            Visit dates aren’t shown on the wall.
           </Text>
         </ScrollView>
         <View style={{ padding: 20 }}>

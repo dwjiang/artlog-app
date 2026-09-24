@@ -31,9 +31,7 @@ async function fixture() {
 
 it("resolves every identity mode, deduplicates objects, preserves provenance and retries without writes", async () => {
   const { t, objectId, venueId } = await fixture();
-  expect(
-    await t.mutation(internal.checklists.ingestChecklist, example),
-  ).toEqual({
+  expect(await t.mutation(internal.checklists.ingestChecklist, example)).toEqual({
     placed: 1,
     unresolved: [],
   });
@@ -50,15 +48,11 @@ it("resolves every identity mode, deduplicates objects, preserves provenance and
     to: Date.parse("2026-10-31T06:59:59.999Z"),
     exhibition: { ...example.exhibition, timeZone: "America/Los_Angeles" },
   });
-  expect(
-    await t.mutation(internal.checklists.ingestChecklist, example),
-  ).toEqual({
+  expect(await t.mutation(internal.checklists.ingestChecklist, example)).toEqual({
     placed: 1,
     unresolved: [],
   });
-  expect(await t.run((ctx) => ctx.db.query("placements").collect())).toEqual(
-    rows,
-  );
+  expect(await t.run((ctx) => ctx.db.query("placements").collect())).toEqual(rows);
   expect(await t.query(internal.ingest.counts, {})).toMatchObject({
     placements: 1,
   });
@@ -85,10 +79,7 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
       accession: "2026.2",
     });
   });
-  for (const input of [
-    { wikidataId: "Q123" },
-    { wikidataId: "Q123", ownerKey: "example:lender" },
-  ]) {
+  for (const input of [{ wikidataId: "Q123" }, { wikidataId: "Q123", ownerKey: "example:lender" }]) {
     expect(
       await t.mutation(internal.checklists.ingestChecklist, {
         ...example,
@@ -102,9 +93,7 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
   expect(
     await t.mutation(internal.checklists.ingestChecklist, {
       ...example,
-      works: [
-        { wikidataId: "Q123", ownerKey: "example:lender", accession: "2026.1" },
-      ],
+      works: [{ wikidataId: "Q123", ownerKey: "example:lender", accession: "2026.1" }],
     }),
   ).toEqual({ placed: 1, unresolved: [] });
   expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
@@ -147,24 +136,13 @@ it("reports missing identities and unindexed title matches instead of guessing",
   });
 });
 
-it.each(["reverted", "mergedInto"] as const)(
-  "does not place %s objects through any identity mode",
-  async (field) => {
-    const { t, objectId } = await fixture();
-    await t.run((ctx) =>
-      ctx.db.patch(
-        objectId,
-        field === "reverted" ? { reverted: true } : { mergedInto: objectId },
-      ),
-    );
-    const result = await t.mutation(
-      internal.checklists.ingestChecklist,
-      example,
-    );
-    expect(result.placed).toBe(0);
-    expect(result.unresolved).toHaveLength(3);
-  },
-);
+it.each(["reverted", "mergedInto"] as const)("does not place %s objects through any identity mode", async (field) => {
+  const { t, objectId } = await fixture();
+  await t.run((ctx) => ctx.db.patch(objectId, field === "reverted" ? { reverted: true } : { mergedInto: objectId }));
+  const result = await t.mutation(internal.checklists.ingestChecklist, example);
+  expect(result.placed).toBe(0);
+  expect(result.unresolved).toHaveLength(3);
+});
 
 it("closes only overlapping checklist rows for the resolved object at the same venue", async () => {
   const { t, objectId, ownerId } = await fixture();
@@ -192,9 +170,7 @@ it("closes only overlapping checklist rows for the resolved object at the same v
   expect(rows).toHaveLength(5);
   expect(rows[2].closedAt).toEqual(expect.any(Number));
   expect(rows.filter((row) => row.closedAt !== undefined)).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.db.get(elsewhere))).not.toHaveProperty(
-    "closedAt",
-  );
+  expect(await t.run((ctx) => ctx.db.get(elsewhere))).not.toHaveProperty("closedAt");
 });
 
 it.each([
@@ -227,9 +203,7 @@ it.each([
       expect(candidate.placement?.venueId).toBe(expectedVenue);
       expect(candidate.object.ownerId).toBe(ownerId);
     }
-    expect(await t.run((ctx) => ctx.db.get(homePlacement!._id))).toEqual(
-      homePlacement,
-    );
+    expect(await t.run((ctx) => ctx.db.get(homePlacement!._id))).toEqual(homePlacement);
   },
 );
 
@@ -259,9 +233,7 @@ it.each([
       exhibition: { ...example.exhibition, ...dates },
     }),
   ).rejects.toMatchObject({ data: { code: "invalid_checklist_window" } });
-  expect(
-    await t.run((ctx) => ctx.db.query("placements").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("placements").collect())).toHaveLength(1);
 });
 
 it("rejects missing hosts, invalid sources, and oversized requests before writing", async () => {
@@ -275,20 +247,13 @@ it("rejects missing hosts, invalid sources, and oversized requests before writin
       },
       "invalid_checklist_source",
     ],
-    [
-      { ...example, works: Array(101).fill(example.works[0]) },
-      "checklist_too_large",
-    ],
+    [{ ...example, works: Array(101).fill(example.works[0]) }, "checklist_too_large"],
   ] as const) {
-    await expect(
-      t.mutation(internal.checklists.ingestChecklist, args),
-    ).rejects.toMatchObject({
+    await expect(t.mutation(internal.checklists.ingestChecklist, args)).rejects.toMatchObject({
       data: { code },
     });
   }
-  expect(
-    await t.run((ctx) => ctx.db.query("placements").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("placements").collect())).toHaveLength(1);
 });
 
 it("an owner disambiguator selects that lender’s object and does not change unlisted works", async () => {
@@ -328,12 +293,8 @@ it("an owner disambiguator selects that lender’s object and does not change un
 it("refuses a host that opted out", async () => {
   const { t, venueId } = await fixture();
   await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
-  await expect(
-    t.mutation(internal.checklists.ingestChecklist, example),
-  ).rejects.toMatchObject({
+  await expect(t.mutation(internal.checklists.ingestChecklist, example)).rejects.toMatchObject({
     data: { code: "venue_opted_out" },
   });
-  expect(
-    await t.run((ctx) => ctx.db.query("placements").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("placements").collect())).toHaveLength(1);
 });

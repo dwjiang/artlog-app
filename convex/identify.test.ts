@@ -8,13 +8,7 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  seedJournalVisit,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 beforeEach(() => {
@@ -37,18 +31,14 @@ const capture = () => ({
   capturedAt: Date.now(),
 });
 
-const storedCorners = async (
-  t: ReturnType<typeof harness>,
-  scanId: Id<"scans">,
-) => (await t.run((ctx) => ctx.db.get(scanId)))?.best?.corners;
+const storedCorners = async (t: ReturnType<typeof harness>, scanId: Id<"scans">) =>
+  (await t.run((ctx) => ctx.db.get(scanId)))?.best?.corners;
 
 async function fixture(withWork = true) {
   const t = harness();
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const visitId = await t.run((ctx) =>
-    seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: Date.now() }),
-  );
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: Date.now() }));
   const work = withWork
     ? await t.run((ctx) =>
         seedArtworkWithObject(ctx, {
@@ -102,11 +92,7 @@ describe("identify action", () => {
 
   it("reports a missing file among verified candidates as an error", async () => {
     const { t, user, args } = await fixture();
-    await t.run(async (ctx) =>
-      ctx.storage.delete(
-        (await ctx.db.query("descriptors").unique())!.storageId,
-      ),
-    );
+    await t.run(async (ctx) => ctx.storage.delete((await ctx.db.query("descriptors").unique())!.storageId));
     await expect(
       user.as.action(api.identify.identify, {
         ...args,
@@ -134,9 +120,7 @@ describe("identify action", () => {
     });
     expect(result.best).not.toHaveProperty("corners");
     expect(await storedCorners(t, result.scanId)).toHaveLength(4);
-    expect(
-      await user.as.query(api.scans.get, { scanId: result.scanId }),
-    ).toEqual(result);
+    expect(await user.as.query(api.scans.get, { scanId: result.scanId })).toEqual(result);
     expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
       lastConfidentGallery: "4",
       lastConfidentAt: args.capturedAt,
@@ -193,9 +177,7 @@ describe("identify action", () => {
       modelVersion: model.modelVersion,
       vector: args.vector,
     });
-    expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(
-      1,
-    );
+    expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(1);
   });
 
   it("preserves a supported pending generation when a retired-model retry arrives", async () => {
@@ -238,9 +220,7 @@ describe("identify action", () => {
       ...args,
       scope: (await user.as.query(api.accounts.me, {})).scope,
     });
-    expect(
-      await user.as.query(api.scans.get, { scanId: obsolete.scanId }),
-    ).toMatchObject({
+    expect(await user.as.query(api.scans.get, { scanId: obsolete.scanId })).toMatchObject({
       status: "identified",
       outcome: "confident",
     });
@@ -262,9 +242,7 @@ describe("identify action", () => {
         }),
       ).toMatchObject({ outcome: "confident" });
     }
-    expect(
-      await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-    ).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toEqual([]);
   });
 
   it.each([
@@ -283,10 +261,7 @@ describe("identify action", () => {
     expect(await t.run((ctx) => ctx.db.query("scans").collect())).toEqual([]);
   });
 
-  it.each([
-    { descriptors: new ArrayBuffer(1) },
-    { keypoints: new ArrayBuffer(1) },
-  ])(
+  it.each([{ descriptors: new ArrayBuffer(1) }, { keypoints: new ArrayBuffer(1) }])(
     "maps malformed ORB buffers to bad_features before creating a scan",
     async (invalid) => {
       const { t, user, args } = await fixture();
@@ -303,9 +278,9 @@ describe("identify action", () => {
 
   it("requires an authenticated, registered, unbanned device", async () => {
     const t = harness();
-    await expect(
-      t.action(api.identify.identify, { ...capture(), scope: "unused" }),
-    ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+    await expect(t.action(api.identify.identify, { ...capture(), scope: "unused" })).rejects.toMatchObject({
+      data: { code: "unauthenticated" },
+    });
     const unregistered = await signIn(t);
     await expect(
       unregistered.as.action(api.identify.identify, {
@@ -383,12 +358,8 @@ describe("identify action", () => {
           extractedFrom: "test reference",
           ...(await storeOrb(
             ctx,
-            count === 0
-              ? new ArrayBuffer(0)
-              : encodeOrbFeatures(pair.ref).descriptors,
-            count === 0
-              ? new ArrayBuffer(0)
-              : encodeOrbFeatures(pair.ref).keypoints,
+            count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).descriptors,
+            count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).keypoints,
           )),
         });
         return work;
@@ -421,9 +392,7 @@ describe("identify action", () => {
         scope: (await user.as.query(api.accounts.me, {})).scope,
       }),
     ).toEqual(first);
-    expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(
-      1,
-    );
+    expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(1);
   });
 
   it("rejects the 21st identify call in a burst", async () => {
@@ -457,10 +426,7 @@ describe("identify action", () => {
         scope: (await user.as.query(api.accounts.me, {})).scope,
       });
       expect(result.outcome).toBe("confident");
-      const propose = async (
-        as: typeof user.as,
-        scanId: typeof result.scanId,
-      ) => {
+      const propose = async (as: typeof user.as, scanId: typeof result.scanId) => {
         const { nonce } = await as.mutation(api.devices.createChallenge, {
           purpose: "assert",
         });
@@ -483,9 +449,7 @@ describe("identify action", () => {
         scope: (await user.as.query(api.accounts.me, {})).scope,
       });
       await propose(user.as, another.scanId);
-      const before = await t.run((ctx) =>
-        ctx.db.query("placementProposals").collect(),
-      );
+      const before = await t.run((ctx) => ctx.db.query("placementProposals").collect());
       expect(before).toHaveLength(1);
       expect(before[0]).toMatchObject({
         kind: multiplicity === "unique" ? "move" : "new_object",
@@ -510,8 +474,7 @@ describe("identify action", () => {
 });
 
 describe("enrichment after identification", () => {
-  const TOKEN_FACTORY =
-    "https://api.tokenfactory.nebius.com/v1/chat/completions";
+  const TOKEN_FACTORY = "https://api.tokenfactory.nebius.com/v1/chat/completions";
   const TAVILY = "https://api.tavily.com/search";
   const SOURCE = "https://www.metmuseum.org/art/collection/search/437127";
 
@@ -555,9 +518,7 @@ describe("enrichment after identification", () => {
               content:
                 "Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.",
               score: 0.82,
-              published_date: new Date(
-                FIXTURE_NOW - 24 * 60 * 60 * 1000,
-              ).toUTCString(),
+              published_date: new Date(FIXTURE_NOW - 24 * 60 * 60 * 1000).toUTCString(),
             },
           ],
           usage: { credits: 1 },
@@ -597,9 +558,7 @@ describe("enrichment after identification", () => {
     expect(result.rightNow).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(
-      (await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en,
-    ).toEqual([
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en).toEqual([
       {
         sentence: "Claude Monet painted these water lilies in 1916.",
         factIds: ["f1"],
@@ -614,17 +573,15 @@ describe("enrichment after identification", () => {
         factIds: ["f1"],
       },
     ]);
-    expect(display?.factSheet).toEqual([
-      { id: "f1", sourceUrl: SOURCE, sourceLabel: "metmuseum.org" },
-    ]);
+    expect(display?.factSheet).toEqual([{ id: "f1", sourceUrl: SOURCE, sourceLabel: "metmuseum.org" }]);
     expect(display?.rightNow).toEqual({
       text: "Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.",
       sourceUrl: "https://www.sfmoma.org/press/monet-water-lilies-returns",
       sourceLabel: "sfmoma.org",
     });
-    expect(
-      await t.run((ctx) => ctx.db.query("dailySpend").collect()),
-    ).toMatchObject([{ tokenFactoryCalls: 2, tavilyCredits: 2 }]);
+    expect(await t.run((ctx) => ctx.db.query("dailySpend").collect())).toMatchObject([
+      { tokenFactoryCalls: 2, tavilyCredits: 2 },
+    ]);
   });
 
   it("schedules nothing for a soft result", async () => {
@@ -640,9 +597,7 @@ describe("enrichment after identification", () => {
     expect(result.outcome).toBe("soft");
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(
-      (await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent).toBeUndefined();
     const display = await user.as.query(api.scans.get, {
       scanId: result.scanId,
     });
@@ -674,10 +629,7 @@ describe("candidate loading", () => {
       scores: [0.9, 0.99, 0.8, 0.95],
       now: Date.now(),
     });
-    expect(candidates.map((c) => c.object._id)).toEqual([
-      target.objectId,
-      second.objectId,
-    ]);
+    expect(candidates.map((c) => c.object._id)).toEqual([target.objectId, second.objectId]);
     expect(candidates[0]).toMatchObject({
       similarity: 0.99,
       runnerUpSimilarity: 0.8,
@@ -749,8 +701,6 @@ describe("candidate loading", () => {
     expect(candidates.every((c) => c.orbStorageId !== undefined)).toBe(true);
     expect(candidates[0]).not.toHaveProperty("descriptors");
     expect(candidates[0]).not.toHaveProperty("keypoints");
-    expect(candidates.map((c) => c.object._id)).toEqual(
-      rows.slice(0, 20).map((r) => r.objectId),
-    );
+    expect(candidates.map((c) => c.object._id)).toEqual(rows.slice(0, 20).map((r) => r.objectId));
   });
 });

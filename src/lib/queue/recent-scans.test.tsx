@@ -17,9 +17,7 @@ jest.mock("@/lib/label/share-saved-label", () => ({
   startPendingShareFlusher: jest.fn(),
 }));
 
-const listeners = new Set<
-  Parameters<typeof SQLite.addDatabaseChangeListener>[0]
->();
+const listeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
 const owner = "device:test-installation";
 
 beforeEach(() => {
@@ -27,16 +25,14 @@ beforeEach(() => {
     db.delete(table).run();
   }
   listeners.clear();
-  jest
-    .spyOn(SQLite, "addDatabaseChangeListener")
-    .mockImplementation((listener) => {
-      listeners.add(listener);
-      return {
-        remove: () => {
-          listeners.delete(listener);
-        },
-      };
-    });
+  jest.spyOn(SQLite, "addDatabaseChangeListener").mockImplementation((listener) => {
+    listeners.add(listener);
+    return {
+      remove: () => {
+        listeners.delete(listener);
+      },
+    };
+  });
 });
 afterEach(() => jest.restoreAllMocks());
 

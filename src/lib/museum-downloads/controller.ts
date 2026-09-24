@@ -10,18 +10,12 @@ export type DownloadSnapshot = {
 };
 export type DownloadDependencies = {
   read(): Promise<Pick<DownloadSnapshot, "catalog" | "downloads"> | undefined>;
-  write(
-    snapshot: Pick<DownloadSnapshot, "catalog" | "downloads">,
-  ): Promise<void>;
+  write(snapshot: Pick<DownloadSnapshot, "catalog" | "downloads">): Promise<void>;
   catalog(): Promise<MuseumSummary[]>;
   manifest(id: MuseumSummary["id"]): Promise<MuseumManifest | null>;
   online(): Promise<boolean>;
   folder(manifest: MuseumManifest): string;
-  download(
-    pack: LocalPackage,
-    index: number,
-    signal: AbortSignal,
-  ): Promise<void>;
+  download(pack: LocalPackage, index: number, signal: AbortSignal): Promise<void>;
   previews(pack: LocalPackage, signal: AbortSignal): Promise<void>;
   remove(folder: string): void;
   availableBytes(): number;
@@ -49,9 +43,7 @@ export class MuseumDownloadsController {
     this.snapshot = { ...this.snapshot, ...fields };
     for (const listener of this.listeners) listener();
     const { catalog, downloads } = this.snapshot;
-    const write = this.writes
-      .catch(() => {})
-      .then(() => this.deps.write({ catalog, downloads }));
+    const write = this.writes.catch(() => {}).then(() => this.deps.write({ catalog, downloads }));
     this.writes = write;
     await write;
   }
@@ -108,8 +100,7 @@ export class MuseumDownloadsController {
     if (this.jobs.has(museum.id)) return;
     const abort = new AbortController();
     this.jobs.set(museum.id, abort);
-    const current = () =>
-      this.jobs.get(museum.id) === abort && !abort.signal.aborted;
+    const current = () => this.jobs.get(museum.id) === abort && !abort.signal.aborted;
     let row = this.snapshot.downloads[museum.id] ?? {
       museum,
       status: "paused" as const,
@@ -143,9 +134,7 @@ export class MuseumDownloadsController {
       } else row = { ...row, pending: { ...row.pending, manifest } };
       row = { ...row, status: "downloading", error: undefined };
       await this.row(museum.id, row);
-      const remaining = manifest.chunks
-        .slice(row.completed)
-        .reduce((sum, part) => sum + part.size, 0);
+      const remaining = manifest.chunks.slice(row.completed).reduce((sum, part) => sum + part.size, 0);
       if (this.deps.availableBytes() < remaining + 5_000_000) {
         throw new Error("space");
       }
@@ -224,9 +213,7 @@ export class MuseumDownloadsController {
     if (!manifest) {
       throw new Error("This museum is no longer available to download.");
     }
-    const changed =
-      this.snapshot.downloads[museum.id]?.active?.manifest.version
-      !== manifest.version;
+    const changed = this.snapshot.downloads[museum.id]?.active?.manifest.version !== manifest.version;
     if (changed) await this.start(manifest);
     return changed;
   };

@@ -5,18 +5,10 @@ import { placementProposalPayload } from "../shared/attestation/attested-payload
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { sha256 } from "./lib/appAttest";
-import {
-  authenticatorData,
-  makeSigner,
-  signAssertion,
-} from "./lib/appAttest.fixtures";
+import { authenticatorData, makeSigner, signAssertion } from "./lib/appAttest.fixtures";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
-import {
-  seedArtworkWithObject,
-  seedMuseum,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedMuseum, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const APP_ID = "TEAMID.app.artlog.ios";
@@ -83,21 +75,17 @@ async function fixture(attested = true) {
 it("requires an attested device before creating placement evidence", async () => {
   const { t, user, scan, sign } = await fixture(false);
   expect(scan.outcome).toBe("confident");
-  await expect(
-    user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId)),
-  ).rejects.toMatchObject({ data: { code: "device_not_attested" } });
-  expect(
-    await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-  ).toEqual([]);
+  await expect(user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId))).rejects.toMatchObject({
+    data: { code: "device_not_attested" },
+  });
+  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toEqual([]);
 });
 
 it("verifies scan-bound signatures, rejects nonce replays, and deduplicates fresh retries", async () => {
   const { t, user, deviceId, work, venueId, scan, sign } = await fixture();
   const args = await sign(scan.scanId);
   await user.as.mutation(api.identify.proposeFromScan, args);
-  expect(
-    await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-  ).toMatchObject([
+  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toMatchObject([
     {
       objectId: work.objectId,
       proposedVenueId: venueId,
@@ -106,19 +94,11 @@ it("verifies scan-bound signatures, rejects nonce replays, and deduplicates fres
       readyForReview: false,
     },
   ]);
-  await expect(
-    user.as.mutation(api.identify.proposeFromScan, args),
-  ).rejects.toMatchObject({
+  await expect(user.as.mutation(api.identify.proposeFromScan, args)).rejects.toMatchObject({
     data: { code: "challenge_invalid" },
   });
-  await user.as.mutation(
-    api.identify.proposeFromScan,
-    await sign(scan.scanId, 2),
-  );
-  expect(
-    (await t.run((ctx) => ctx.db.query("placementProposals").unique()))
-      ?.scanIds,
-  ).toEqual([scan.scanId]);
+  await user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId, 2));
+  expect((await t.run((ctx) => ctx.db.query("placementProposals").unique()))?.scanIds).toEqual([scan.scanId]);
   expect((await t.run((ctx) => ctx.db.get(deviceId)))?.attestCounter).toBe(2);
 });
 
@@ -137,9 +117,7 @@ it("rejects substituting another scan into a signed request", async () => {
   ).rejects.toMatchObject({
     data: { code: "invalid_assertion", reason: "invalid_signature" },
   });
-  expect(
-    await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toEqual([]);
 });
 
 it("rejects another device’s scan even when the assertion is valid", async () => {
@@ -150,12 +128,10 @@ it("rejects another device’s scan even when the assertion is valid", async () 
     ...capture,
     scope: (await other.as.query(api.accounts.me, {})).scope,
   });
-  await expect(
-    user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId)),
-  ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
-  expect(
-    await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-  ).toEqual([]);
+  await expect(user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId))).rejects.toMatchObject({
+    data: { code: "invalid_scan" },
+  });
+  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toEqual([]);
 });
 
 it("rejects a soft scan as placement evidence", async () => {
@@ -168,10 +144,8 @@ it("rejects a soft scan as placement evidence", async () => {
     scope: (await user.as.query(api.accounts.me, {})).scope,
   });
   expect(scan.outcome).toBe("soft");
-  await expect(
-    user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId)),
-  ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
-  expect(
-    await t.run((ctx) => ctx.db.query("placementProposals").collect()),
-  ).toEqual([]);
+  await expect(user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId))).rejects.toMatchObject({
+    data: { code: "invalid_scan" },
+  });
+  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toEqual([]);
 });

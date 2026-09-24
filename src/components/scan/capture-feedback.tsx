@@ -1,12 +1,7 @@
 import { Canvas, Path } from "@shopify/react-native-skia";
 import { useEffect, useSyncExternalStore } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import {
-  cancelAnimation,
-  Easing,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { cancelAnimation, Easing, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { Colors, Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -32,11 +27,7 @@ export function CaptureFeedback({
     controller.subscribeFeedback,
     () => detecting && (controller.getFeedback()?.progress ?? 0) > 0,
   );
-  const label = busy
-    ? "Identifying artwork"
-    : holding
-      ? "Hold steady"
-      : undefined;
+  const label = busy ? "Identifying artwork" : holding ? "Hold steady" : undefined;
   return (
     <View style={styles.feedback} accessibilityLiveRegion="polite">
       {label && <OverlayCaption>{label}</OverlayCaption>}
@@ -44,26 +35,12 @@ export function CaptureFeedback({
   );
 }
 
-export function CaptureOutline({
-  controller,
-  preview,
-}: {
-  controller: CaptureController;
-  preview: FrameSize;
-}) {
-  const feedback = useSyncExternalStore(
-    controller.subscribeFeedback,
-    controller.getFeedback,
-  );
+export function CaptureOutline({ controller, preview }: { controller: CaptureController; preview: FrameSize }) {
+  const feedback = useSyncExternalStore(controller.subscribeFeedback, controller.getFeedback);
   if (!feedback || !preview.width || !preview.height) return null;
-  const corners = feedback.quad.map(([x, y]) => [
-    x * preview.width,
-    y * preview.height,
-  ]);
+  const corners = feedback.quad.map(([x, y]) => [x * preview.width, y * preview.height]);
   const holding = feedback.progress > 0;
-  const outline =
-    corners.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ")
-    + " Z";
+  const outline = corners.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ") + " Z";
   const brackets = corners
     .map(([x, y], index) => {
       const tip = (neighbor: number[]) => {
@@ -83,15 +60,7 @@ export function CaptureOutline({
       style={StyleSheet.absoluteFill}
     >
       <Canvas style={StyleSheet.absoluteFill}>
-        {holding && (
-          <Path
-            path={outline}
-            color={Gallery.highlight}
-            style="stroke"
-            strokeWidth={1}
-            opacity={0.45}
-          />
-        )}
+        {holding && <Path path={outline} color={Gallery.highlight} style="stroke" strokeWidth={1} opacity={0.45} />}
         <Path
           path={brackets}
           color={holding ? Gallery.highlight : Colors.light.overlayText}
@@ -121,10 +90,7 @@ export function CaptureShutter({
   detecting: boolean;
   onPress: () => void;
 }) {
-  const progressed = useSyncExternalStore(
-    controller.subscribeFeedback,
-    () => controller.getFeedback()?.progress ?? 0,
-  );
+  const progressed = useSyncExternalStore(controller.subscribeFeedback, () => controller.getFeedback()?.progress ?? 0);
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   const value = captured ? 1 : detecting ? progressed : 0;
@@ -146,14 +112,7 @@ export function CaptureShutter({
         style={styles.ring}
       >
         <Canvas style={StyleSheet.absoluteFill}>
-          <Path
-            path={ring}
-            color={Gallery.highlight}
-            style="stroke"
-            strokeWidth={3}
-            strokeCap="round"
-            end={progress}
-          />
+          <Path path={ring} color={Gallery.highlight} style="stroke" strokeWidth={3} strokeCap="round" end={progress} />
         </Canvas>
       </View>
       <Pressable
@@ -163,10 +122,7 @@ export function CaptureShutter({
         disabled={disabled}
         accessibilityState={{ disabled, busy }}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.shutter,
-          (pressed || disabled) && styles.dimmed,
-        ]}
+        style={({ pressed }) => [styles.shutter, (pressed || disabled) && styles.dimmed]}
       >
         <View style={styles.shutterInner} />
       </Pressable>

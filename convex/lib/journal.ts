@@ -10,10 +10,7 @@ import {
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion } from "./ownership";
-import {
-  invalidateDeletedSave,
-  clearEmptyNoteVisibility,
-} from "./publicationAccess";
+import { invalidateDeletedSave, clearEmptyNoteVisibility } from "./publicationAccess";
 
 export async function upsertJournalVisit(
   ctx: MutationCtx,
@@ -30,9 +27,7 @@ export async function upsertJournalVisit(
   }
   const unchanged =
     existing
-    && Object.entries(input).every(
-      ([key, value]) => existing[key as keyof typeof existing] === value,
-    )
+    && Object.entries(input).every(([key, value]) => existing[key as keyof typeof existing] === value)
     && existing.startedAt === input.startedAt
     && existing.reflection === input.reflection
     && existing.endedAt === input.endedAt;
@@ -53,8 +48,7 @@ export async function upsertJournalVisit(
   if (
     existing
     && (existing.visitedOn !== input.visitedOn
-      || (input.visibility === "private"
-        && existing.visibility !== input.visibility))
+      || (input.visibility === "private" && existing.visibility !== input.visibility))
   ) {
     const publication = await ctx.db
       .query("sharedVisits")
@@ -63,21 +57,13 @@ export async function upsertJournalVisit(
     if (publication) {
       await ctx.db.patch(publication._id, {
         visitedOn: input.visitedOn,
-        ...(input.visibility === "private"
-          ? { status: "private" as const }
-          : {}),
+        ...(input.visibility === "private" ? { status: "private" as const } : {}),
         publicationRevision: publication.publicationRevision + 1,
         updatedAt: Date.now(),
       });
     }
   }
-  await recordVisitScore(
-    ctx,
-    owner,
-    input.venueId,
-    input.visitedOn,
-    existing?.visitedOn,
-  );
+  await recordVisitScore(ctx, owner, input.venueId, input.visitedOn, existing?.visitedOn);
   return (await ctx.db.get(id))!;
 }
 export async function upsertJournalSave(
@@ -88,17 +74,11 @@ export async function upsertJournalSave(
 ): Promise<Doc<"collections">> {
   validateSave(input);
   const existing = await findOwnedSave(ctx, owner, input.localId);
-  const visit = input.visitLocalId
-    ? await findOwnedVisit(ctx, owner, input.visitLocalId)
-    : null;
+  const visit = input.visitLocalId ? await findOwnedVisit(ctx, owner, input.visitLocalId) : null;
   if (input.visitLocalId && (!visit || visit.venueId !== input.venueId)) {
     throw new ConvexError({ code: "not_found" });
   }
-  if (
-    existing
-    && (existing.visitLocalId !== input.visitLocalId
-      || existing.venueId !== input.venueId)
-  ) {
+  if (existing && (existing.visitLocalId !== input.visitLocalId || existing.venueId !== input.venueId)) {
     throw new ConvexError({ code: "invalid_save" });
   }
   if (existing?.deletedAt !== undefined) return existing;

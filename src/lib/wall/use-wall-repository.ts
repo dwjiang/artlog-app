@@ -10,16 +10,12 @@ function createSession() {
   let token: string | null = null;
   const repository = createWallRepository({
     transport: (() => {
-      const transport = createWallTransport(
-        process.env.EXPO_PUBLIC_CONVEX_URL!,
-      );
+      const transport = createWallTransport(process.env.EXPO_PUBLIC_CONVEX_URL!);
       return {
         ...transport,
         setLayout: async (...args: Parameters<typeof transport.setLayout>) => {
           await flushCollectionMedia({
-            photoLocalIds: args[0].items.flatMap((item) =>
-              item.photoLocalId ? [item.photoLocalId] : [],
-            ),
+            photoLocalIds: args[0].items.flatMap((item) => (item.photoLocalId ? [item.photoLocalId] : [])),
           });
           return transport.setLayout(...args);
         },
@@ -29,9 +25,7 @@ function createSession() {
     subscribeOwner,
     online: async () => {
       const network = await getNetworkStateAsync();
-      return (
-        network.isInternetReachable === true && network.isConnected === true
-      );
+      return network.isInternetReachable === true && network.isConnected === true;
     },
   });
   return {
@@ -53,10 +47,6 @@ export function useWallRepository() {
     repository.connect();
     return () => repository.dispose();
   }, [repository]);
-  const state = useSyncExternalStore(
-    repository.subscribe,
-    repository.getSnapshot,
-    repository.getSnapshot,
-  );
+  const state = useSyncExternalStore(repository.subscribe, repository.getSnapshot, repository.getSnapshot);
   return { ...state, repository };
 }

@@ -8,19 +8,13 @@ import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
-import {
-  useSocialSession,
-  type SocialSession,
-} from "@/lib/social/use-social-session";
+import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { ThemedText as Text } from "../themed-text";
 import { VisitSymbol } from "../visits/visit-ui";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
-export type ReactionVisit = Pick<
-  SharedVisit,
-  "postId" | "author" | "venue" | "visitedOn"
-> & {
+export type ReactionVisit = Pick<SharedVisit, "postId" | "author" | "venue" | "visitedOn"> & {
   media?: SharedVisit["artworks"]["page"][number]["artwork"]["media"];
 };
 export type ReactionSummary = {
@@ -30,18 +24,10 @@ export type ReactionSummary = {
 };
 
 const reactionPaths = {
-  heart:
-    "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
-  comment:
-    "M21 11.5a9 9 0 0 1-9 9 10 10 0 0 1-4.1-.9L3 21l1.4-4.7A9 9 0 1 1 21 11.5Z",
+  heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
+  comment: "M21 11.5a9 9 0 0 1-9 9 10 10 0 0 1-4.1-.9L3 21l1.4-4.7A9 9 0 1 1 21 11.5Z",
 };
-function ReactionIcon({
-  kind,
-  filled = false,
-}: {
-  kind: keyof typeof reactionPaths;
-  filled?: boolean;
-}) {
+function ReactionIcon({ kind, filled = false }: { kind: keyof typeof reactionPaths; filled?: boolean }) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${reactionPaths[kind]}" fill="${filled ? "black" : "none"}" stroke="black" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return (
     <Image
@@ -53,21 +39,10 @@ function ReactionIcon({
   );
 }
 
-export function VisitReactions({
-  visit,
-  onOpenVisit,
-}: {
-  visit: ReactionVisit;
-  onOpenVisit?: () => void;
-}) {
+export function VisitReactions({ visit, onOpenVisit }: { visit: ReactionVisit; onOpenVisit?: () => void }) {
   const session = useSocialSession();
   return (
-    <LiveReactions
-      key={`${session.key}:${visit.postId}`}
-      visit={visit}
-      session={session}
-      onOpenVisit={onOpenVisit}
-    />
+    <LiveReactions key={`${session.key}:${visit.postId}`} visit={visit} session={session} onOpenVisit={onOpenVisit} />
   );
 }
 
@@ -81,14 +56,8 @@ function LiveReactions({
   onOpenVisit?: () => void;
 }) {
   const router = useRouter();
-  const ready =
-    !session.offline
-    && ["ready", "signed-out", "profile-required"].includes(session.status);
-  const summary = useSocialQuery(
-    api.visitReactions.getSummary,
-    ready ? { postId: visit.postId } : "skip",
-    session.key,
-  );
+  const ready = !session.offline && ["ready", "signed-out", "profile-required"].includes(session.status);
+  const summary = useSocialQuery(api.visitReactions.getSummary, ready ? { postId: visit.postId } : "skip", session.key);
   const setLike = useMutation(api.visitReactions.setLike);
   const [sheet, setSheet] = useState<"comments" | "likes" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,17 +65,10 @@ function LiveReactions({
   const [error, setError] = useState<string>();
   const join = () => {
     setSheet(null);
-    router.push(
-      session.status === "profile-required"
-        ? "/create-profile"
-        : signInRoute("reactions"),
-    );
+    router.push(session.status === "profile-required" ? "/create-profile" : signInRoute("reactions"));
   };
   const like = async () => {
-    if (
-      session.status === "signed-out"
-      || session.status === "profile-required"
-    ) {
+    if (session.status === "signed-out" || session.status === "profile-required") {
       join();
       return;
     }
@@ -117,9 +79,7 @@ function LiveReactions({
     try {
       await setLike({ postId: visit.postId, liked: !summary.data.liked });
     } catch (cause) {
-      setError(
-        socialErrorMessage(cause) ?? "Couldn’t update your like. Try again.",
-      );
+      setError(socialErrorMessage(cause) ?? "Couldn’t update your like. Try again.");
     } finally {
       pending.current = false;
       setBusy(false);
@@ -189,9 +149,7 @@ export function VisitReactionRow({
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike visit" : "Like visit"}
           accessibilityValue={{
-            text: summary
-              ? `${count} ${count === 1 ? "like" : "likes"}`
-              : "Loading likes",
+            text: summary ? `${count} ${count === 1 ? "like" : "likes"}` : "Loading likes",
           }}
           accessibilityState={{
             selected: liked,
@@ -203,9 +161,7 @@ export function VisitReactionRow({
           style={styles.reaction}
         >
           <ReactionIcon kind="heart" filled={liked} />
-          <Text style={[styles.count, liked && { color: Gallery.accent }]}>
-            {summary ? count : "–"}
-          </Text>
+          <Text style={[styles.count, liked && { color: Gallery.accent }]}>{summary ? count : "–"}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -220,9 +176,7 @@ export function VisitReactionRow({
           style={styles.reaction}
         >
           <ReactionIcon kind="comment" />
-          <Text style={[styles.count, { fontWeight: "500" }]}>
-            {summary?.commentCount ?? "–"}
-          </Text>
+          <Text style={[styles.count, { fontWeight: "500" }]}>{summary?.commentCount ?? "–"}</Text>
         </Pressable>
         {onOpenVisit && (
           <Pressable
@@ -262,8 +216,7 @@ export function VisitReactionRow({
               </>
             ) : (
               <>
-                <Text style={styles.strong}>{count}</Text>{" "}
-                {count === 1 ? "person likes" : "people like"} this
+                <Text style={styles.strong}>{count}</Text> {count === 1 ? "person likes" : "people like"} this
               </>
             )}
           </Text>

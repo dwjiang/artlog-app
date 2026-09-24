@@ -4,15 +4,11 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { eligibleContribution, eligibleObject } from "./recognitionEligibility";
 import { internal } from "../_generated/api";
 
-export async function contributionSource(
-  ctx: QueryCtx,
-  save: Doc<"collections">,
-) {
+export async function contributionSource(ctx: QueryCtx, save: Doc<"collections">) {
   if (
     save.deletedAt !== undefined
     || !save.scanId
-    || (save.owner.kind === "account"
-      && !(await ctx.db.get(save.owner.accountId)))
+    || (save.owner.kind === "account" && !(await ctx.db.get(save.owner.accountId)))
   ) {
     return null;
   }
@@ -49,11 +45,7 @@ export async function isCurrentAsset(
   save: Doc<"collections">,
   asset: Doc<"mediaAssets">,
 ): Promise<boolean> {
-  if (
-    save.deletedAt !== undefined
-    || asset.saveId !== save._id
-    || asset.revokedAt !== undefined
-  ) {
+  if (save.deletedAt !== undefined || asset.saveId !== save._id || asset.revokedAt !== undefined) {
     return false;
   }
   try {
@@ -62,10 +54,7 @@ export async function isCurrentAsset(
     return false;
   }
   if (asset.source.kind === "catalog") {
-    if (
-      asset.provenance.kind !== "catalog"
-      || save.objectId !== asset.provenance.objectId
-    ) {
+    if (asset.provenance.kind !== "catalog" || save.objectId !== asset.provenance.objectId) {
       return false;
     }
     const object = await ctx.db.get(asset.provenance.objectId);
@@ -96,16 +85,11 @@ export async function isCurrentAsset(
   );
 }
 
-export async function resolveDisplayAsset(
-  ctx: QueryCtx,
-  save: Doc<"collections">,
-) {
+export async function resolveDisplayAsset(ctx: QueryCtx, save: Doc<"collections">) {
   for (const kind of ["catalog", "derivative"] as const) {
     const asset = await ctx.db
       .query("mediaAssets")
-      .withIndex("by_save_kind", (q) =>
-        q.eq("saveId", save._id).eq("source.kind", kind),
-      )
+      .withIndex("by_save_kind", (q) => q.eq("saveId", save._id).eq("source.kind", kind))
       .order("desc")
       .first();
     if (asset && (await isCurrentAsset(ctx, save, asset))) return asset;
@@ -122,10 +106,7 @@ export async function revokeAsset(ctx: MutationCtx, asset: Doc<"mediaAssets">) {
     await ctx.storage.delete(asset.storageId);
   }
 }
-export async function revokeSaveMedia(
-  ctx: MutationCtx,
-  saveId: Id<"collections">,
-) {
+export async function revokeSaveMedia(ctx: MutationCtx, saveId: Id<"collections">) {
   const assets = await ctx.db
     .query("mediaAssets")
     .withIndex("by_saveId", (q) => q.eq("saveId", saveId))
@@ -133,10 +114,7 @@ export async function revokeSaveMedia(
   for (const asset of assets) await revokeAsset(ctx, asset);
 }
 
-export async function revokeContributionMedia(
-  ctx: MutationCtx,
-  contributionId: Id<"contributions">,
-): Promise<void> {
+export async function revokeContributionMedia(ctx: MutationCtx, contributionId: Id<"contributions">): Promise<void> {
   const contribution = await ctx.db.get(contributionId);
   if (contribution && contribution.displayMediaRevokedAt === undefined) {
     await ctx.db.patch(contributionId, { displayMediaRevokedAt: Date.now() });
@@ -144,9 +122,7 @@ export async function revokeContributionMedia(
   const assets = await ctx.db
     .query("mediaAssets")
     .withIndex("by_contribution_revoked", (q) =>
-      q
-        .eq("provenance.contributionId", contributionId)
-        .eq("revokedAt", undefined),
+      q.eq("provenance.contributionId", contributionId).eq("revokedAt", undefined),
     )
     .take(50);
   for (const asset of assets) await revokeAsset(ctx, asset);

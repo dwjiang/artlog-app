@@ -1,13 +1,7 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
 import { Image } from "expo-image";
 import { useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
@@ -17,24 +11,12 @@ import { Gallery } from "@/constants/theme";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
 import { currentWidgetIndex } from "@/lib/widgets/widget-publisher";
 import { widgetVisitDate } from "@/lib/widgets/widget-collection";
-import {
-  widgetCaptions,
-  widgetColors,
-  widgetFrames,
-  type WidgetSize,
-} from "@/lib/widgets/widget-settings";
+import { widgetCaptions, widgetColors, widgetFrames, type WidgetSize } from "@/lib/widgets/widget-settings";
 import { WidgetSettingRow, WidgetTile } from "./widget-controls";
 import { WidgetFrameSample, WidgetPreview } from "./widget-preview";
 import { WidgetSetupGuide } from "./widget-setup-guide";
 
-type Sheet =
-  | "source"
-  | "visit"
-  | "artwork"
-  | "caption"
-  | "frame"
-  | "color"
-  | "help";
+type Sheet = "source" | "visit" | "artwork" | "caption" | "frame" | "color" | "help";
 const sheetTitles: Record<Sheet, string> = {
   source: "Artwork source",
   visit: "Choose a visit",
@@ -56,54 +38,25 @@ const sheetDescriptions: Record<Sheet, string> = {
 
 export function WidgetsScreen() {
   const collection = useWidgetCollection();
-  const {
-    preferences,
-    update,
-    prepared,
-    artworks,
-    allArtworks,
-    visits,
-    encounters,
-    loading,
-    syncing,
-    error,
-    retry,
-  } = collection;
+  const { preferences, update, prepared, artworks, allArtworks, visits, encounters, loading, syncing, error, retry } =
+    collection;
   const { width, height, fontScale } = useWindowDimensions();
   const [size, setSize] = useState<WidgetSize>("medium");
   const [sheet, setSheet] = useState<Sheet>("source");
   const [presented, setPresented] = useState(false);
   const sheetHeight = Math.min(
-    fontScale > 1.4
-      ? height - 100
-      : sheet === "source"
-        ? 430
-        : sheet === "help"
-          ? 690
-          : 660,
+    fontScale > 1.4 ? height - 100 : sheet === "source" ? 430 : sheet === "help" ? 690 : 660,
     height - 100,
   );
   const contentWidth = Math.min(width - 40, 420);
   const mediumHeight = (contentWidth * 158) / 334;
   const artwork = prepared[currentWidgetIndex(prepared.length)];
-  const color = widgetColors.find(
-    (option) => option.value === preferences.color,
-  )!;
-  const finish = widgetFrames.find(
-    (option) => option.value === preferences.frame,
-  )!;
-  const caption = widgetCaptions.find(
-    (option) => option.value === preferences.caption,
-  )!;
+  const color = widgetColors.find((option) => option.value === preferences.color)!;
+  const finish = widgetFrames.find((option) => option.value === preferences.frame)!;
+  const caption = widgetCaptions.find((option) => option.value === preferences.caption)!;
   const source = preferences.source;
-  const selectedVisit =
-    source.kind === "visit"
-      ? visits.find((visit) => visit.localId === source.id)
-      : undefined;
-  const selectedArtwork =
-    source.kind === "artwork"
-      ? allArtworks.find((art) => art.id === source.id)
-      : undefined;
+  const selectedVisit = source.kind === "visit" ? visits.find((visit) => visit.localId === source.id) : undefined;
+  const selectedArtwork = source.kind === "artwork" ? allArtworks.find((art) => art.id === source.id) : undefined;
   const sourceDescription =
     preferences.source.kind === "collection"
       ? `Whole collection · ${allArtworks.length} ${allArtworks.length === 1 ? "artwork" : "artworks"}`
@@ -169,17 +122,11 @@ export function WidgetsScreen() {
           <Text
             variant={fontScale > 1.4 ? "display" : "pageTitle"}
             accessibilityRole="header"
-            style={
-              fontScale > 1.4 ? undefined : { fontSize: 42, lineHeight: 54 }
-            }
+            style={fontScale > 1.4 ? undefined : { fontSize: 42, lineHeight: 54 }}
           >
             Widgets
           </Text>
-          <Text
-            variant="secondary"
-            themeColor="textSecondary"
-            style={{ marginTop: 5, marginBottom: 24 }}
-          >
+          <Text variant="secondary" themeColor="textSecondary" style={{ marginTop: 5, marginBottom: 24 }}>
             Choose what appears on your Home Screen.
           </Text>
           {preview(size)}
@@ -192,9 +139,7 @@ export function WidgetsScreen() {
               paddingVertical: 14,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "600" }}>
-              Preview size
-            </Text>
+            <Text style={{ fontSize: 15, fontWeight: "600" }}>Preview size</Text>
             <View style={{ width: fontScale > 1.4 ? "100%" : 172 }}>
               <NativeSegmentedPicker
                 label="Preview size"
@@ -214,26 +159,16 @@ export function WidgetsScreen() {
               marginTop: 8,
             }}
           >
-            <WidgetSettingRow
-              title="Artwork source"
-              subtitle={sourceDescription}
-              onPress={() => open("source")}
-            />
+            <WidgetSettingRow title="Artwork source" subtitle={sourceDescription} onPress={() => open("source")} />
             {size === "medium" && (
               <>
-                <WidgetSettingRow
-                  title="Caption"
-                  subtitle={caption.name}
-                  onPress={() => open("caption")}
-                />
+                <WidgetSettingRow title="Caption" subtitle={caption.name} onPress={() => open("caption")} />
                 <WidgetSettingRow
                   title="Painting frame"
                   subtitle="Medium widget"
                   detail={
                     finish.name
-                    + (finish.value === "none"
-                      ? ""
-                      : ` · ${preferences.frameWidth === "slim" ? "Slim" : "Wide"}`)
+                    + (finish.value === "none" ? "" : ` · ${preferences.frameWidth === "slim" ? "Slim" : "Wide"}`)
                   }
                   onPress={() => open("frame")}
                 />
@@ -252,11 +187,7 @@ export function WidgetsScreen() {
             </View>
           )}
           {!loading && !syncing && !prepared.length && (
-            <Text
-              variant="secondary"
-              themeColor="textSecondary"
-              style={{ marginTop: 16 }}
-            >
+            <Text variant="secondary" themeColor="textSecondary" style={{ marginTop: 16 }}>
               {allArtworks.length === 0
                 ? "Save a painting to see it in your widget."
                 : "No photos are available for this source. Choose another artwork or visit."}
@@ -264,22 +195,14 @@ export function WidgetsScreen() {
           )}
           {error && (
             <View style={{ gap: 8, paddingTop: 12 }}>
-              <Text
-                accessibilityRole="alert"
-                style={{ color: Gallery.destructive }}
-              >
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                 {error}
               </Text>
               <GalleryButton label="Retry" onPress={retry} />
             </View>
           )}
           <View style={{ paddingTop: 20, gap: 16 }}>
-            <GalleryButton
-              label="How to add the widget"
-              variant="filled"
-              fullWidth
-              onPress={() => open("help")}
-            />
+            <GalleryButton label="How to add the widget" variant="filled" fullWidth onPress={() => open("help")} />
             <Text variant="metadata" themeColor="textSecondary">
               {rotationCopy}
             </Text>
@@ -304,23 +227,13 @@ export function WidgetsScreen() {
                 gap: sheet === "help" ? 0 : 8,
               }}
             >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <Text
-                  variant="display"
-                  accessibilityRole="header"
-                  style={{ flex: 1, fontSize: 29, lineHeight: 36 }}
-                >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text variant="display" accessibilityRole="header" style={{ flex: 1, fontSize: 29, lineHeight: 36 }}>
                   {sheetTitles[sheet]}
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    hasParent
-                      ? "Back to artwork source"
-                      : "Close instructions and settings"
-                  }
+                  accessibilityLabel={hasParent ? "Back to artwork source" : "Close instructions and settings"}
                   onPress={hasParent ? () => setSheet("source") : close}
                   style={{
                     minWidth: 44,
@@ -358,10 +271,7 @@ export function WidgetsScreen() {
                   <WidgetSettingRow
                     title={visit.venueName}
                     subtitle={`${widgetVisitDate(visit.visitedOn)} · ${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
-                    selected={
-                      preferences.source.kind === "visit"
-                      && preferences.source.id === visit.localId
-                    }
+                    selected={preferences.source.kind === "visit" && preferences.source.id === visit.localId}
                     onPress={() => {
                       update({ source: { kind: "visit", id: visit.localId } });
                       close();
@@ -393,10 +303,7 @@ export function WidgetsScreen() {
                   <WidgetSettingRow
                     title={art.title}
                     subtitle={art.artist}
-                    selected={
-                      preferences.source.kind === "artwork"
-                      && preferences.source.id === art.id
-                    }
+                    selected={preferences.source.kind === "artwork" && preferences.source.id === art.id}
                     onPress={() => {
                       update({ source: { kind: "artwork", id: art.id } });
                       close();
@@ -444,11 +351,7 @@ export function WidgetsScreen() {
                       selected={preferences.source.kind === "artwork"}
                       onPress={() => setSheet("artwork")}
                     />
-                    <Text
-                      variant="metadata"
-                      themeColor="textSecondary"
-                      style={{ paddingTop: 20 }}
-                    >
+                    <Text variant="metadata" themeColor="textSecondary" style={{ paddingTop: 20 }}>
                       Your frame and color stay the same.
                     </Text>
                   </View>
@@ -471,23 +374,13 @@ export function WidgetsScreen() {
                     <Text variant="section" accessibilityRole="header">
                       Finish
                     </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 6 }}
-                    >
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                       {widgetFrames.map((option) => (
                         <WidgetTile
                           key={option.value}
-                          label={
-                            option.value === "none"
-                              ? option.name
-                              : `${option.name} frame`
-                          }
+                          label={option.value === "none" ? option.name : `${option.name} frame`}
                           selected={preferences.frame === option.value}
-                          width={
-                            ((contentWidth - 24) / 5) * Math.max(1, fontScale)
-                          }
+                          width={((contentWidth - 24) / 5) * Math.max(1, fontScale)}
                           onPress={() => update({ frame: option.value })}
                         >
                           <View
@@ -496,16 +389,9 @@ export function WidgetsScreen() {
                               alignItems: "center",
                               gap: 8,
                               borderRadius: 8,
-                              borderWidth:
-                                preferences.frame === option.value ? 1.2 : 0.7,
-                              borderColor:
-                                preferences.frame === option.value
-                                  ? Gallery.ink
-                                  : Gallery.softBorder,
-                              backgroundColor:
-                                preferences.frame === option.value
-                                  ? Gallery.highlight
-                                  : "transparent",
+                              borderWidth: preferences.frame === option.value ? 1.2 : 0.7,
+                              borderColor: preferences.frame === option.value ? Gallery.ink : Gallery.softBorder,
+                              backgroundColor: preferences.frame === option.value ? Gallery.highlight : "transparent",
                             }}
                           >
                             {artwork ? (
@@ -528,18 +414,12 @@ export function WidgetsScreen() {
                                 }}
                               />
                             )}
-                            <Text style={{ fontSize: 10, textAlign: "center" }}>
-                              {option.name}
-                            </Text>
+                            <Text style={{ fontSize: 10, textAlign: "center" }}>{option.name}</Text>
                           </View>
                         </WidgetTile>
                       ))}
                     </ScrollView>
-                    <Text
-                      variant="section"
-                      accessibilityRole="header"
-                      style={{ paddingTop: 8 }}
-                    >
+                    <Text variant="section" accessibilityRole="header" style={{ paddingTop: 8 }}>
                       Width
                     </Text>
                     <NativeSegmentedPicker
@@ -593,12 +473,8 @@ export function WidgetsScreen() {
                               padding: 9,
                               gap: 10,
                               borderRadius: 10,
-                              borderWidth:
-                                preferences.color === option.value ? 2 : 1,
-                              borderColor:
-                                preferences.color === option.value
-                                  ? Gallery.accent
-                                  : Gallery.softBorder,
+                              borderWidth: preferences.color === option.value ? 2 : 1,
+                              borderColor: preferences.color === option.value ? Gallery.accent : Gallery.softBorder,
                             }}
                           >
                             <View
@@ -621,9 +497,7 @@ export function WidgetsScreen() {
                                 />
                               )}
                             </View>
-                            <Text style={{ fontSize: 13, textAlign: "center" }}>
-                              {option.name}
-                            </Text>
+                            <Text style={{ fontSize: 13, textAlign: "center" }}>{option.name}</Text>
                           </View>
                         </WidgetTile>
                       ))}

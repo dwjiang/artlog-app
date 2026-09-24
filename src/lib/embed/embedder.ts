@@ -2,10 +2,7 @@ import { reportError } from "@/lib/observability";
 import model from "../../../shared/model/model-version.json";
 
 import { getCoremlEmbed } from "../../../modules/coreml-embed/src";
-import type {
-  CoremlEmbed,
-  WarmUpResult,
-} from "../../../modules/coreml-embed/src";
+import type { CoremlEmbed, WarmUpResult } from "../../../modules/coreml-embed/src";
 import type { Embedder } from "@/lib/capture/stages";
 import { filePath } from "@/lib/file-uri";
 
@@ -16,9 +13,7 @@ export type ModelEmbedder = Embedder & { warmUp(): Promise<WarmUpResult> };
  * against `shared/model/model-version.json` on first use, so a stale asset fails loudly instead of
  * producing vectors the index cannot match.
  */
-export function createEmbedder(
-  native: () => CoremlEmbed = getCoremlEmbed,
-): ModelEmbedder {
+export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): ModelEmbedder {
   let checked: CoremlEmbed | undefined;
   let warming: Promise<WarmUpResult> | undefined;
 
@@ -26,9 +21,7 @@ export function createEmbedder(
     if (checked) return checked;
     const candidate = native();
     if (candidate.modelVersion === null) {
-      throw new Error(
-        "The CoreML model asset is missing from this build; run `git lfs pull` and rebuild",
-      );
+      throw new Error("The CoreML model asset is missing from this build; run `git lfs pull` and rebuild");
     }
     if (candidate.modelVersion !== model.modelVersion) {
       throw new Error(
@@ -56,9 +49,7 @@ export function createEmbedder(
     async embed(cropUri) {
       const values = await nativeModule().embed(filePath(cropUri));
       if (values.length !== model.embeddingDim) {
-        throw new Error(
-          `The embedding has ${values.length} values, expected ${model.embeddingDim}`,
-        );
+        throw new Error(`The embedding has ${values.length} values, expected ${model.embeddingDim}`);
       }
       return Float32Array.from(values);
     },

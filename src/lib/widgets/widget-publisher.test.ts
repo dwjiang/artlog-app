@@ -1,8 +1,4 @@
-import {
-  createWidgetPublisher,
-  currentWidgetIndex,
-  widgetRotationSeconds,
-} from "./widget-publisher";
+import { createWidgetPublisher, currentWidgetIndex, widgetRotationSeconds } from "./widget-publisher";
 import { defaultWidgetSettings } from "./widget-settings";
 import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 
@@ -39,11 +35,7 @@ it("publishes only the latest source when image preparation overlaps", async () 
     prune,
   });
   const outdated = publisher.publish("one", [art], defaultWidgetSettings);
-  await publisher.publish(
-    "one",
-    [{ ...art, id: "new" }],
-    defaultWidgetSettings,
-  );
+  await publisher.publish("one", [{ ...art, id: "new" }], defaultWidgetSettings);
   first.resolve(ready);
   expect(await outdated).toBeUndefined();
   expect(write).toHaveBeenCalledTimes(1);
@@ -77,17 +69,13 @@ it("replaces deleted or unavailable art with a settings link and clears old imag
     write,
     prune,
   });
-  expect(await publisher.publish("one", [art], defaultWidgetSettings)).toEqual(
-    [],
-  );
+  expect(await publisher.publish("one", [art], defaultWidgetSettings)).toEqual([]);
   expect(write.mock.calls[0][0][0].url).toBe("artlog://widgets");
   expect(prune).toHaveBeenCalledWith([]);
 });
 
 it("cycles all artworks and keeps a single selected painting fixed", () => {
   const interval = widgetRotationSeconds * 1000;
-  expect(
-    [0, 1, 2, 3, 4, 5].map((time) => currentWidgetIndex(3, time * interval)),
-  ).toEqual([0, 1, 2, 0, 1, 2]);
+  expect([0, 1, 2, 3, 4, 5].map((time) => currentWidgetIndex(3, time * interval))).toEqual([0, 1, 2, 0, 1, 2]);
   expect(currentWidgetIndex(1, 500 * interval)).toBe(0);
 });

@@ -19,9 +19,7 @@ describe("shared app text", () => {
       <>
         <ThemedText>Body copy</ThemedText>
         <ThemedText style={{ fontSize: 13 }}>Caption</ThemedText>
-        <ThemedText style={[{ fontSize: 24 }, { color: "red" }]}>
-          Numeral
-        </ThemedText>
+        <ThemedText style={[{ fontSize: 24 }, { color: "red" }]}>Numeral</ThemedText>
       </>,
     );
     expect(screen.getByText("Body copy")).toHaveStyle({
@@ -41,9 +39,7 @@ describe("shared app text", () => {
       </ThemedText>,
     );
     const initialMountCalls = ref.mock.calls.length;
-    jest
-      .mocked(useWindowDimensions)
-      .mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 3.1 });
+    jest.mocked(useWindowDimensions).mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 3.1 });
     await screen.rerender(
       <ThemedText ref={ref} variant="display">
         A long artist name — 藤田嗣治
@@ -51,8 +47,6 @@ describe("shared app text", () => {
     );
     expect(screen.getByText("A long artist name — 藤田嗣治")).toBeOnTheScreen();
     expect(ref.mock.calls.length).toBeGreaterThan(initialMountCalls);
-    expect(
-      ref.mock.calls.slice(initialMountCalls).some(([node]) => node === null),
-    ).toBe(true);
+    expect(ref.mock.calls.slice(initialMountCalls).some(([node]) => node === null)).toBe(true);
   });
 });

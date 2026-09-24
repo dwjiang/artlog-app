@@ -6,21 +6,12 @@ import { AccessibilityInfo, AppState, DeviceEventEmitter } from "react-native";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 
-import {
-  LabelCaptureScreen,
-  QR_FOUND,
-  QUEUED_MESSAGE,
-  QUEUED_ONLINE_MESSAGE,
-} from "./label-capture-screen";
+import { LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE, QUEUED_ONLINE_MESSAGE } from "./label-capture-screen";
 import { SHARE_BUTTON } from "./label/label-actions";
 import { STEP_LABELS } from "./label/progress-steps";
 import type { PendingScan } from "@/db/schema";
 import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
-import {
-  formStateFromFlow,
-  setFieldValue,
-  unlockField,
-} from "@/lib/label/fields";
+import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
 jest.mock("@/hooks/use-reduced-motion", () => ({
   useReducedMotion: () => true,
 }));
@@ -165,9 +156,7 @@ jest.mock("@/lib/result/save", () => ({
     return {
       ...result,
       contribution: input.contribution
-        ? jest
-            .requireActual("@/lib/label/share-saved-label")
-            .shareSavedLabel(input.contribution, result.localId)
+        ? jest.requireActual("@/lib/label/share-saved-label").shareSavedLabel(input.contribution, result.localId)
         : undefined,
     };
   },
@@ -228,9 +217,7 @@ function deferFlow() {
   };
 }
 
-async function start(
-  props: Partial<Parameters<typeof LabelCaptureScreen>[0]> = {},
-) {
+async function start(props: Partial<Parameters<typeof LabelCaptureScreen>[0]> = {}) {
   const view = await render(<LabelCaptureScreen scanId={scanId} {...props} />);
   await act(async () => mockCameraProps?.onStarted());
   return view;
@@ -239,19 +226,13 @@ async function start(
 beforeEach(() => {
   mockLabelOnly = false;
   jest.resetAllMocks();
-  jest
-    .spyOn(AccessibilityInfo, "isReduceTransparencyEnabled")
-    .mockResolvedValue(false);
+  jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(false);
   jest
     .spyOn(AccessibilityInfo, "addEventListener")
-    .mockImplementation((event, listener) =>
-      DeviceEventEmitter.addListener(event, listener),
-    );
+    .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockReachable = true;
   AppState.currentState = "active";
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockReturnValue({ remove: jest.fn() } as never);
+  jest.spyOn(AppState, "addEventListener").mockReturnValue({ remove: jest.fn() } as never);
   jest.spyOn(console, "warn").mockImplementation(() => {});
   mockCapture = capture;
   mockScan = {};
@@ -284,9 +265,7 @@ afterEach(() => jest.restoreAllMocks());
 
 it("prompts for the label over the camera with the QR scanner running", async () => {
   await start();
-  expect(
-    screen.getByText("Fill the frame with the museum label."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Fill the frame with the museum label.")).toBeOnTheScreen();
   expect(mockCameraProps.isActive).toBe(true);
   expect(mockCameraProps.outputs).toContainEqual({ kind: "qr-output" });
   expect(mockQr.enabled).toBe(true);
@@ -305,23 +284,15 @@ it("reads a shot online, shows the stages, then locks the verified fields with t
     expect.any(Function),
   );
   expect(screen.getByText("Reading the label")).toBeOnTheScreen();
-  expect(
-    screen.getByLabelText(STEP_LABELS.read).props.accessibilityState,
-  ).toMatchObject({
+  expect(screen.getByLabelText(STEP_LABELS.read).props.accessibilityState).toMatchObject({
     busy: true,
   });
   await flow.finish(verified);
   expect(screen.getByText("Review artwork details")).toBeOnTheScreen();
-  expect(screen.getByLabelText("Title").props.defaultValue).toBe(
-    "Water Lilies",
-  );
+  expect(screen.getByLabelText("Title").props.defaultValue).toBe("Water Lilies");
   expect(screen.getByLabelText("Title").props.editable).toBe(true);
   expect(screen.getByLabelText("Date").props.editable).toBe(true);
-  expect(
-    screen.getByText(
-      "The date is outside the artist’s lifespan — please check",
-    ),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("The date is outside the artist’s lifespan — please check")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Museum page" })).toBeOnTheScreen();
   expect(mockRemove).toHaveBeenCalledWith("file:///tmp/label.jpg");
   expect(mockHaptic).toHaveBeenCalledWith("success");
@@ -331,9 +302,7 @@ it("automatically shares the confirmed work after saving without another prompt"
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   expect(mockContribute).not.toHaveBeenCalled();
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Confirm & save" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
   expect(mockContribute).toHaveBeenCalledWith({
     scanId,
     capture,
@@ -342,9 +311,7 @@ it("automatically shares the confirmed work after saving without another prompt"
     }),
   });
   expect(
-    await screen.findByText(
-      "Saved to the shared index as a tentative match for other visitors at this museum.",
-    ),
+    await screen.findByText("Saved to the shared index as a tentative match for other visitors at this museum."),
   ).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
   expect(screen.getByLabelText("Date").props.editable).toBe(false);
@@ -354,14 +321,8 @@ it("surfaces a sharing failure and lets the user try again", async () => {
   mockContribute.mockRejectedValue(new Error("boom"));
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Confirm & save" }),
-  );
-  expect(
-    await screen.findByText(
-      "mapped: boom. Your artwork is saved to your collection.",
-    ),
-  ).toBeOnTheScreen();
+  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
+  expect(await screen.findByText("mapped: boom. Your artwork is saved to your collection.")).toBeOnTheScreen();
   mockContribute.mockResolvedValue({
     contributionId: "contrib-1",
     status: "tentative",
@@ -375,9 +336,7 @@ it("surfaces a sharing failure and lets the user try again", async () => {
 it("saves the label result without a suggestion, then links to the collection", async () => {
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Confirm & save" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
   expect(mockSave).toHaveBeenCalledWith({
     contribution: expect.objectContaining({ scanId, capture }),
     scanId,
@@ -391,9 +350,7 @@ it("saves the label result without a suggestion, then links to the collection", 
       institution: "",
     },
   });
-  await fireEvent.press(
-    await screen.findByRole("link", { name: "Saved · View in collection" }),
-  );
+  await fireEvent.press(await screen.findByRole("link", { name: "Saved · View in collection" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/saved/[savedId]",
     params: { savedId: "saved-1" },
@@ -403,36 +360,27 @@ it("saves the label result without a suggestion, then links to the collection", 
 it.each([
   { canceled: true, assets: null },
   { canceled: false, assets: [] },
-])(
-  "imports a label despite denied library access and ignores an empty selection: %s",
-  async (result) => {
-    await start();
-    mockPicker.mockResolvedValueOnce(result);
-    await fireEvent.press(
-      screen.getByRole("button", { name: "Import a label photo" }),
-    );
-    expect(mockRun).not.toHaveBeenCalled();
-    expect(mockPersistLabel).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Read label" }),
-    ).toBeOnTheScreen();
-    await fireEvent.press(
-      screen.getByRole("button", { name: "Import a label photo" }),
-    );
-    expect(mockPicker).toHaveBeenLastCalledWith({
-      mediaTypes: ["images"],
-      quality: 1,
-    });
-    expect(mockRun).toHaveBeenCalledWith(
-      scanId,
-      { labelPhotoUri: "file:///picked/label.jpg", qrUrl: undefined },
-      expect.any(Function),
-    );
-    expect(await screen.findByLabelText("Title")).toBeOnTheScreen();
-    expect(mockPhoto).not.toHaveBeenCalled();
-    expect(mockPermission).not.toHaveBeenCalled();
-  },
-);
+])("imports a label despite denied library access and ignores an empty selection: %s", async (result) => {
+  await start();
+  mockPicker.mockResolvedValueOnce(result);
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
+  expect(mockRun).not.toHaveBeenCalled();
+  expect(mockPersistLabel).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Read label" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
+  expect(mockPicker).toHaveBeenLastCalledWith({
+    mediaTypes: ["images"],
+    quality: 1,
+  });
+  expect(mockRun).toHaveBeenCalledWith(
+    scanId,
+    { labelPhotoUri: "file:///picked/label.jpg", qrUrl: undefined },
+    expect.any(Function),
+  );
+  expect(await screen.findByLabelText("Title")).toBeOnTheScreen();
+  expect(mockPhoto).not.toHaveBeenCalled();
+  expect(mockPermission).not.toHaveBeenCalled();
+});
 
 it("runs the flow from a scanned QR code at once", async () => {
   const flow = deferFlow();
@@ -444,16 +392,12 @@ it("runs the flow from a scanned QR code at once", async () => {
     expect.any(Function),
   );
   expect(screen.getByText(QR_FOUND)).toBeOnTheScreen();
-  expect(
-    screen.getByLabelText(STEP_LABELS.qr).props.accessibilityState,
-  ).toMatchObject({
+  expect(screen.getByLabelText(STEP_LABELS.qr).props.accessibilityState).toMatchObject({
     busy: true,
   });
   expect(mockPhoto).not.toHaveBeenCalled();
   await flow.finish(verified);
-  expect(screen.getByLabelText("Artist").props.defaultValue).toBe(
-    "Claude Monet",
-  );
+  expect(screen.getByLabelText("Artist").props.defaultValue).toBe("Claude Monet");
   expect(mockRemove).not.toHaveBeenCalled();
 });
 
@@ -461,9 +405,7 @@ it("keeps the label photo with the scan while offline and returns to the card", 
   mockReachable = false;
   await start();
   expect(
-    screen.getByText(
-      "No signal. We’ll keep the label with your scan and finish when you’re back online.",
-    ),
+    screen.getByText("No signal. We’ll keep the label with your scan and finish when you’re back online."),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   expect(await screen.findByText(QUEUED_MESSAGE)).toBeOnTheScreen();
@@ -471,15 +413,9 @@ it("keeps the label photo with the scan while offline and returns to the card", 
     localId: "cap-1",
     photoUri: "file:///tmp/label.jpg",
   });
-  expect(mockSetLabelPhoto).toHaveBeenCalledWith(
-    "cap-1",
-    "labels/cap-1.jpg",
-    "device:test-installation",
-  );
+  expect(mockSetLabelPhoto).toHaveBeenCalledWith("cap-1", "labels/cap-1.jpg", "device:test-installation");
   expect(mockRun).not.toHaveBeenCalled();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Back to the scan" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Back to the scan" }));
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
@@ -490,11 +426,7 @@ it("stores a QR code on a queued capture even with signal, since identify has no
   expect(mockUseScan).toHaveBeenCalledWith(undefined);
   await act(async () => mockQr.onCode("https://museum.example/qr/1"));
   expect(await screen.findByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
-  expect(mockSetQrUrl).toHaveBeenCalledWith(
-    "cap-1",
-    "https://museum.example/qr/1",
-    "device:test-installation",
-  );
+  expect(mockSetQrUrl).toHaveBeenCalledWith("cap-1", "https://museum.example/qr/1", "device:test-installation");
   expect(mockRun).not.toHaveBeenCalled();
 });
 
@@ -518,21 +450,14 @@ it.each(["read", "verify"] as const)(
       localId: "cap-1",
       photoUri: "file:///tmp/label.jpg",
     });
-    expect(mockSetLabelPhoto).toHaveBeenCalledWith(
-      "cap-1",
-      "labels/cap-1.jpg",
-      "device:test-installation",
-    );
+    expect(mockSetLabelPhoto).toHaveBeenCalledWith("cap-1", "labels/cap-1.jpg", "device:test-installation");
     expect(mockRemove).not.toHaveBeenCalled();
     expect(mockFlush).toHaveBeenCalledTimes(1);
 
     mockReachable = true;
     mockScan = { labelFlow: verified };
     await view.rerender(<LabelCaptureScreen scanId={scanId} />);
-    expect(await screen.findByLabelText("Title")).toHaveProp(
-      "defaultValue",
-      "Water Lilies",
-    );
+    expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
     expect(mockPhoto).toHaveBeenCalledTimes(1);
   },
 );
@@ -548,11 +473,7 @@ it("queues a QR source when its request is rate limited", async () => {
     }),
   );
   expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
-  expect(mockSetQrUrl).toHaveBeenCalledWith(
-    "cap-1",
-    url,
-    "device:test-installation",
-  );
+  expect(mockSetQrUrl).toHaveBeenCalledWith("cap-1", url, "device:test-installation");
   expect(mockPersistLabel).not.toHaveBeenCalled();
   expect(mockRemove).not.toHaveBeenCalled();
   expect(mockFlush).toHaveBeenCalledTimes(1);
@@ -568,11 +489,7 @@ it("retains an interrupted label even after navigating away", async () => {
       cause: new Error("Connection lost while action was in flight"),
     }),
   );
-  expect(mockSetLabelPhoto).toHaveBeenCalledWith(
-    "cap-1",
-    "labels/cap-1.jpg",
-    "device:test-installation",
-  );
+  expect(mockSetLabelPhoto).toHaveBeenCalledWith("cap-1", "labels/cap-1.jpg", "device:test-installation");
   expect(mockRemove).not.toHaveBeenCalled();
   expect(mockFlush).toHaveBeenCalledTimes(1);
 });
@@ -582,9 +499,7 @@ it("explains a paused reader and offers a retake", async () => {
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   await flow.fail(new LabelFlowError("feature_off"));
-  expect(
-    screen.getByText("Label reading is paused right now"),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Label reading is paused right now")).toBeOnTheScreen();
   expect(mockRemove).toHaveBeenCalledWith("file:///tmp/label.jpg");
   await fireEvent.press(screen.getByRole("button", { name: "Retake label" }));
   expect(screen.getByRole("button", { name: "Read label" })).toBeOnTheScreen();
@@ -593,10 +508,7 @@ it("explains a paused reader and offers a retake", async () => {
 it("opens a persisted verified label without taking or reading another photo", async () => {
   mockScan = { labelFlow: verified };
   await start();
-  expect(await screen.findByLabelText("Title")).toHaveProp(
-    "defaultValue",
-    "Water Lilies",
-  );
+  expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
   expect(mockRun).not.toHaveBeenCalled();
   expect(mockPhoto).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Confirm & save" })).toBeEnabled();
@@ -615,10 +527,7 @@ it("opens the form when a queued local scan finishes and preserves edits across 
   mockCapture = capture;
   mockScan = { labelFlow: verified };
   await view.rerender(<LabelCaptureScreen scanId="local-cap-1" />);
-  expect(await screen.findByLabelText("Title")).toHaveProp(
-    "defaultValue",
-    "Water Lilies",
-  );
+  expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
   expect(mockUseScan).toHaveBeenLastCalledWith(scanId);
   await fireEvent.changeText(screen.getByLabelText("Date"), "1917");
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
@@ -641,9 +550,7 @@ it("offers a retry when the queued label exhausted its attempts", async () => {
     attempts: 5,
   };
   await start();
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Try again" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Try again" }));
   expect(mockRetryLabel).toHaveBeenCalledWith("cap-1");
 });
 
@@ -658,9 +565,7 @@ it("explains a failed label retry while keeping the stored capture", async () =>
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   expect(
-    await screen.findByText(
-      "Couldn’t retry this label. Your scan and label are still on this phone.",
-    ),
+    await screen.findByText("Couldn’t retry this label. Your scan and label are still on this phone."),
   ).toBeOnTheScreen();
   expect(mockDiscardLabel).not.toHaveBeenCalled();
 });
@@ -671,9 +576,7 @@ it("explains a failed restore and allows a new label capture", async () => {
   expect(screen.getByText("Couldn’t load this label")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Read label" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Capture label" }));
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeOnTheScreen();
 });
 
 it("opens the match when queued identification succeeds without needing the label", async () => {
@@ -704,9 +607,7 @@ it("lets a failed queued QR be replaced with a label photo", async () => {
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Retake label" }));
   expect(mockDiscardLabel).toHaveBeenCalledWith("cap-1");
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
   expect(mockRun).toHaveBeenCalledWith(
     scanId,
     { labelPhotoUri: "file:///picked/label.jpg", qrUrl: undefined },
@@ -731,9 +632,7 @@ it("shows a recoverable failure when a queued verification was moderated", async
   await view.rerender(<LabelCaptureScreen scanId={scanId} />);
   expect(screen.queryByText(QUEUED_ONLINE_MESSAGE)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Retake label" }));
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeOnTheScreen();
 });
 
 it("locks the shutter and ignores QR callbacks while a native photo is being taken", async () => {
@@ -766,29 +665,19 @@ it("locks input until the picker is dismissed and releases it after cancellation
       }),
   );
   await start();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  );
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeDisabled();
   await act(async () => mockQr.onCode("https://museum.example/work"));
   expect(mockRun).not.toHaveBeenCalled();
   await act(async () => dismiss({ canceled: true, assets: null }));
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
   mockPicker.mockRejectedValueOnce(new Error("Picker unavailable"));
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
   expect(await screen.findByText("Picker unavailable")).toBeOnTheScreen();
   expect(mockRun).not.toHaveBeenCalled();
   expect(mockPersistLabel).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Retake label" }));
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
 });
 
 it("saves a title-only label without sharing incomplete details", async () => {
@@ -796,9 +685,7 @@ it("saves a title-only label without sharing incomplete details", async () => {
     labelFlow: { ...verified, fields: { title: verified.fields.title } },
   };
   await start();
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Confirm & save" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
   expect(mockContribute).not.toHaveBeenCalled();
   expect(mockSave).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -818,44 +705,29 @@ it("restores the original values and unlocks from a persisted sharing draft", as
       },
     },
   };
-  const draft = setFieldValue(
-    unlockField(formStateFromFlow(verified), "title"),
-    "date",
-    "1917",
-  );
+  const draft = setFieldValue(unlockField(formStateFromFlow(verified), "title"), "date", "1917");
   mockLoadDraft.mockResolvedValue(draft);
   await start();
-  expect(await screen.findByLabelText("Date")).toHaveProp(
-    "defaultValue",
-    "1917",
-  );
+  expect(await screen.findByLabelText("Date")).toHaveProp("defaultValue", "1917");
   expect(screen.getByLabelText("Title")).toHaveProp("editable", true);
   await fireEvent.press(screen.getByRole("button", { name: "Confirm & save" }));
-  expect(mockContribute).toHaveBeenCalledWith(
-    expect.objectContaining({ state: draft }),
-  );
+  expect(mockContribute).toHaveBeenCalledWith(expect.objectContaining({ state: draft }));
 });
 
 it("waits for persisted edits and offers a retry if they cannot be loaded", async () => {
   mockScan = { labelFlow: verified };
   mockLoadDraft.mockRejectedValueOnce(new Error("Database unavailable"));
   await start();
-  expect(
-    await screen.findByText("Couldn’t load your label edits. Try again."),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("Couldn’t load your label edits. Try again.")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
-  expect(
-    await screen.findByRole("button", { name: "Confirm & save" }),
-  ).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "Confirm & save" })).toBeEnabled();
 });
 
 it("opens the camera for an explicit capture intent despite a stored museum confirmation", async () => {
   mockScan = { labelFlow: verified };
   await start({ intent: "capture" });
-  expect(
-    screen.getByRole("button", { name: "Import a label photo" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Read label" })).toBeEnabled();
   expect(screen.queryByText("Review artwork details")).toBeNull();
   const flow = deferFlow();
@@ -869,16 +741,11 @@ it("resumes a pending label before starting another capture", async () => {
   mockCapture = { ...capture, labelPhotoPath: "labels/pending.jpg" };
   const view = await start({ intent: "capture" });
   expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
-  expect(
-    screen.queryByRole("button", { name: "Import a label photo" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Import a label photo" })).toBeNull();
   mockCapture = capture;
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
   await view.rerender(<LabelCaptureScreen scanId={scanId} intent="capture" />);
-  expect(await screen.findByLabelText("Title")).toHaveProp(
-    "defaultValue",
-    "Water Lilies",
-  );
+  expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
 });
 
 it("keeps a label-first scan out of the shared artwork index", async () => {

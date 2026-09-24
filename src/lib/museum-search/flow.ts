@@ -3,10 +3,7 @@ import type { FunctionArgs } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type {
-  LabelFlowDisplay,
-  MuseumSearchDisplay,
-} from "../../../convex/lib/validators";
+import type { LabelFlowDisplay, MuseumSearchDisplay } from "../../../convex/lib/validators";
 import type { ScanFeatures } from "@/lib/capture/features";
 import type { ImageCheckDeps } from "@/lib/label/image-check";
 import { errorMessage } from "@/lib/network-error";
@@ -20,12 +17,8 @@ export type MuseumSearchOutcome =
   | { stage: "cancelled" };
 
 export type MuseumSearchApi = {
-  searchExhibitions(
-    args: FunctionArgs<typeof api.museumSearch.searchExhibitions>,
-  ): Promise<MuseumSearchDisplay>;
-  confirmSearchCandidate(
-    args: FunctionArgs<typeof api.museumSearch.confirmSearchCandidate>,
-  ): Promise<LabelFlowDisplay>;
+  searchExhibitions(args: FunctionArgs<typeof api.museumSearch.searchExhibitions>): Promise<MuseumSearchDisplay>;
+  confirmSearchCandidate(args: FunctionArgs<typeof api.museumSearch.confirmSearchCandidate>): Promise<LabelFlowDisplay>;
 };
 
 export function museumSearchMessage(reason: string): string | undefined {
@@ -55,20 +48,15 @@ type Input = {
   api: MuseumSearchApi;
   images: ImageCheckDeps;
   inputSize: number;
-  getCapture(
-    localId: string,
-  ): Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
+  getCapture(localId: string): Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
   stored?: MuseumSearchDisplay;
   canContinue(): boolean;
   onStage?(stage: MuseumSearchStage): void;
 };
 
-export async function runMuseumSearch(
-  input: Input,
-): Promise<MuseumSearchOutcome> {
+export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome> {
   const { scanId, api, onStage } = input;
-  const canContinue = async () =>
-    (await getMuseumSearchConsent()) === "granted" && input.canContinue();
+  const canContinue = async () => (await getMuseumSearchConsent()) === "granted" && input.canContinue();
   const none = (reason: string): MuseumSearchOutcome => {
     onStage?.("none");
     return { stage: "none", reason };
@@ -90,15 +78,10 @@ export async function runMuseumSearch(
     if (search.stage === "none") return none(search.reason);
     if (search.stage === "confirmed") return { stage: "cancelled" };
     onStage?.("check");
-    const match = await checkCandidates(
-      search.candidates,
-      capture,
-      input.images,
-      {
-        inputSize: input.inputSize,
-        canContinue,
-      },
-    );
+    const match = await checkCandidates(search.candidates, capture, input.images, {
+      inputSize: input.inputSize,
+      canContinue,
+    });
     if (!(await canContinue())) return { stage: "cancelled" };
     if (!match) return none("no_match");
     const flow = await api.confirmSearchCandidate({ scanId, ...match });

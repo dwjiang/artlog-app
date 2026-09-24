@@ -22,30 +22,16 @@ import { ListSkeleton } from "@/components/loading-skeleton";
 import { FriendsInvitation } from "./friends-invitation";
 
 type BrowsedProfile = PublicProfile & { relationship?: Relationship };
-const searchPage = (result: {
-  page: BrowsedProfile[];
-  cursor: string | null;
-  isDone: boolean;
-}) => result;
+const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
 
 export function PeopleScreen() {
   const session = useSocialSession();
   const params = useLocalSearchParams<{ filter?: string }>();
-  const [filter, setFilter] = useState<"all" | "friends">(
-    params.filter === "friends" ? "friends" : "all",
-  );
+  const [filter, setFilter] = useState<"all" | "friends">(params.filter === "friends" ? "friends" : "all");
   const guestFriends = filter === "friends" && session.status === "signed-out";
-  const friends = useSocialQuery(
-    api.profiles.friends,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
-  const requests = useSocialQuery(
-    api.profiles.requests,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const friends = useSocialQuery(api.profiles.friends, session.status === "ready" ? {} : "skip", session.key);
+  const requests = useSocialQuery(api.profiles.requests, session.status === "ready" ? {} : "skip", session.key);
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => {
@@ -103,9 +89,7 @@ export function PeopleScreen() {
               ? (friends.data ?? []).filter(
                   (person) =>
                     !text.trim()
-                    || `${person.name} ${person.username}`
-                      .toLowerCase()
-                      .includes(text.trim().toLowerCase()),
+                    || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase()),
                 )
               : searching
                 ? results.items
@@ -135,9 +119,7 @@ export function PeopleScreen() {
               friend={
                 filter === "friends"
                 || item.relationship?.state === "accepted"
-                || friends.data?.some(
-                  (friend) => friend.profileId === item.profileId,
-                )
+                || friends.data?.some((friend) => friend.profileId === item.profileId)
               }
             />
           </View>
@@ -181,10 +163,7 @@ export function PeopleScreen() {
             {filter === "friends" && !!requests.data?.length && (
               <View style={{ gap: 10 }}>
                 <Text variant="section">
-                  Requests{" "}
-                  <Text style={{ backgroundColor: Gallery.highlight }}>
-                    {requests.data.length}
-                  </Text>
+                  Requests <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text>
                 </Text>
                 {requests.data.map((person) => (
                   <View
@@ -210,17 +189,11 @@ export function PeopleScreen() {
             )}
             {filter === "friends" && !!friends.data?.length && (
               <Text variant="section">
-                Your friends{" "}
-                <Text style={{ color: Gallery.muted }}>
-                  {friends.data.length}
-                </Text>
+                Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text>
               </Text>
             )}
             {filter === "friends" && requests.error && (
-              <GalleryButton
-                label="Retry friend requests"
-                onPress={requests.refresh}
-              />
+              <GalleryButton label="Retry friend requests" onPress={requests.refresh} />
             )}
           </View>
         }
@@ -242,22 +215,13 @@ export function PeopleScreen() {
             ) : friends.loading && !friends.error ? (
               <ListSkeleton label="Opening friends…" avatar />
             ) : friends.error ? (
-              <SocialState
-                title="Couldn’t load your friends."
-                action="Try again"
-                onAction={friends.refresh}
-              />
+              <SocialState title="Couldn’t load your friends." action="Try again" onAction={friends.refresh} />
             ) : emptyFriends ? (
               <SocialInvitation
                 title={"No friends added yet."}
                 detail="Search by name or username to add your first friend."
               >
-                <GalleryButton
-                  label="Find friends"
-                  variant="filled"
-                  fullWidth
-                  onPress={explore}
-                />
+                <GalleryButton label="Find friends" variant="filled" fullWidth onPress={explore} />
               </SocialInvitation>
             ) : text.trim() ? (
               <SearchEmptyState
@@ -267,11 +231,7 @@ export function PeopleScreen() {
               />
             ) : null
           ) : session.offline ? (
-            <SocialState
-              title="You’re offline."
-              detail="Connect to find friends."
-              icon="wifi.slash"
-            />
+            <SocialState title="You’re offline." detail="Connect to find friends." icon="wifi.slash" />
           ) : !text.trim() ? (
             discovery.done && !discovery.loading && !discovery.error ? (
               <SocialInvitation
@@ -308,38 +268,20 @@ export function PeopleScreen() {
         ListFooterComponent={
           filter === "all" ? (
             searching ? (
-              <PageFooter
-                {...results}
-                count={results.items.length}
-                noun="friends"
-              />
+              <PageFooter {...results} count={results.items.length} noun="friends" />
             ) : !text.trim() ? (
               discovery.done && !discovery.error ? (
                 discovery.items.length > 0 ? (
-                  <Text
-                    style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}
-                  >
-                    Search by name or username.
-                  </Text>
+                  <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text>
                 ) : null
               ) : (
-                <PageFooter
-                  {...discovery}
-                  count={discovery.items.length}
-                  noun="friends"
-                />
+                <PageFooter {...discovery} count={discovery.items.length} noun="friends" />
               )
             ) : null
           ) : null
         }
         onEndReached={
-          filter === "all"
-            ? searching
-              ? results.loadMore
-              : !text.trim()
-                ? discovery.loadMore
-                : undefined
-            : undefined
+          filter === "all" ? (searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined) : undefined
         }
         onEndReachedThreshold={0.4}
       />

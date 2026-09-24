@@ -2,10 +2,7 @@ import { Image } from "expo-image";
 import { Fragment, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import type {
-  DocentSentence,
-  FactChip,
-} from "../../../../convex/lib/validators";
+import type { DocentSentence, FactChip } from "../../../../convex/lib/validators";
 
 import { SourceLink } from "./source-chip";
 import { ThemedText } from "@/components/themed-text";
@@ -58,12 +55,7 @@ function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
 }
 
 /** Cited docent prose: one paragraph with numbered markers, then the numbered sources. */
-export function DocentSection({
-  docent,
-  factSheet,
-  title,
-  pending = false,
-}: DocentSectionProps) {
+export function DocentSection({ docent, factSheet, title, pending = false }: DocentSectionProps) {
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!pending) return;
@@ -79,9 +71,7 @@ export function DocentSection({
       {waiting ? (
         <ParagraphSkeleton />
       ) : !docent?.length ? (
-        <ThemedText themeColor="textSecondary">
-          Background information isn’t available for this work yet.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText>
       ) : (
         <CitedParagraph {...citeDocent(docent, factSheet)} />
       )}
@@ -127,11 +117,7 @@ function CitedParagraph({ sentences, sources }: ReturnType<typeof citeDocent>) {
               <ThemedText type="link" style={styles.sourceLabel}>
                 {label}
               </ThemedText>
-              <Image
-                source="sf:arrow.up.right"
-                tintColor={Gallery.accent}
-                style={styles.open}
-              />
+              <Image source="sf:arrow.up.right" tintColor={Gallery.accent} style={styles.open} />
             </SourceLink>
           ))}
         </View>

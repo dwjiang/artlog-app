@@ -22,10 +22,7 @@ export type ChatJsonRequest<T> = {
 // `calls` counts every request sent, including the retry, for spend reconciliation.
 export type ChatJsonResponse<T> = { value: T; calls: number };
 
-export function retryDelayMs(
-  retryAfter: string | null,
-  now = Date.now(),
-): number {
+export function retryDelayMs(retryAfter: string | null, now = Date.now()): number {
   if (retryAfter) {
     const seconds = Number(retryAfter);
     if (Number.isFinite(seconds)) {
@@ -39,18 +36,11 @@ export function retryDelayMs(
   return 1000;
 }
 
-function modelError(
-  reason: string,
-  calls: number,
-): ConvexError<{ code: string; reason: string; calls: number }> {
+function modelError(reason: string, calls: number): ConvexError<{ code: string; reason: string; calls: number }> {
   return new ConvexError({ code: "model_error", reason, calls });
 }
 
-function parseCompletion<T>(
-  body: string,
-  parse: (value: unknown) => T | null,
-  calls: number,
-): T {
+function parseCompletion<T>(body: string, parse: (value: unknown) => T | null, calls: number): T {
   let json: unknown;
   try {
     json = JSON.parse(body);
@@ -76,9 +66,7 @@ function parseCompletion<T>(
   return parsed;
 }
 
-export async function chatJson<T>(
-  request: ChatJsonRequest<T>,
-): Promise<ChatJsonResponse<T>> {
+export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJsonResponse<T>> {
   const apiKey = process.env.NEBIUS_API_KEY;
   if (!apiKey) throw new ConvexError({ code: "model_unconfigured", calls: 0 });
   const init: RequestInit = {
@@ -107,9 +95,7 @@ export async function chatJson<T>(
       max_tokens: request.maxTokens,
       // Short tasks skip reasoning; longer grounded guides opt in with a larger token budget.
       chat_template_kwargs:
-        request.reasoning === "low"
-          ? { enable_thinking: true, low_effort: true }
-          : { enable_thinking: false },
+        request.reasoning === "low" ? { enable_thinking: true, low_effort: true } : { enable_thinking: false },
     }),
   };
   let calls = 0;
@@ -126,9 +112,7 @@ export async function chatJson<T>(
     }
     if (page.status === 429 || page.status >= 500) {
       if (calls < 2) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))),
-        );
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))));
         continue;
       }
       throw modelError(`http_${page.status}`, calls);

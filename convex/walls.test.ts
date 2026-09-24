@@ -14,17 +14,13 @@ it("creates exactly one wall on first write, normalizes color and acknowledges u
     color: "#FCFCF9",
     items: [],
   });
-  expect(
-    await t.query(api.walls.getPublic, { profileId: a.profile.profileId }),
-  ).toMatchObject({
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({
     color: "#FCFCF9",
     items: [],
   });
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toHaveLength(0);
   const results = await Promise.all(
-    [1, 2].map(() =>
-      a.as.mutation(api.walls.setLayout, { ...a.input, color: "#abcdef" }),
-    ),
+    [1, 2].map(() => a.as.mutation(api.walls.setLayout, { ...a.input, color: "#abcdef" })),
   );
   expect(results[0]).toEqual(results[1]);
   expect(results[0]).toMatchObject({
@@ -40,14 +36,12 @@ it("creates exactly one wall on first write, normalizes color and acknowledges u
     ],
   });
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toHaveLength(1);
-  expect(
-    await t.query(api.profiles.getPublic, { profileId: a.profile.profileId }),
-  ).toMatchObject({
+  expect(await t.query(api.profiles.getPublic, { profileId: a.profile.profileId })).toMatchObject({
     publishedWallCount: 1,
   });
-  await expect(
-    a.as.mutation(api.walls.setLayout, { ...a.input, color: "#123456" }),
-  ).rejects.toMatchObject({ data: { code: "conflict" } });
+  await expect(a.as.mutation(api.walls.setLayout, { ...a.input, color: "#123456" })).rejects.toMatchObject({
+    data: { code: "conflict" },
+  });
 });
 
 it("preserves an existing wall color, frame, photo choice and geometry on reads", async () => {
@@ -59,9 +53,7 @@ it("preserves an existing wall color, frame, photo choice and geometry on reads"
     items: [{ ...a.selection, layout: { ...a.layout, frame: "walnut" } }],
   });
   expect(await a.as.query(api.walls.getMine, {})).toEqual(customized);
-  expect(
-    await t.query(api.walls.getPublic, { profileId: a.profile.profileId }),
-  ).toMatchObject({
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({
     color: "#45524B",
     items: [{ layout: { ...a.layout, frame: "walnut" } }],
   });
@@ -78,14 +70,12 @@ it("requires a linked profile, completed claim and current owner scope", async (
       scope: anonymous.scope,
     }),
   ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
-  await expect(
-    b.as.mutation(api.walls.setLayout, a.input),
-  ).rejects.toMatchObject({
+  await expect(b.as.mutation(api.walls.setLayout, a.input)).rejects.toMatchObject({
     data: { code: "sync_scope_changed" },
   });
-  await expect(
-    b.as.mutation(api.walls.setLayout, { ...a.input, scope: b.scope }),
-  ).rejects.toMatchObject({ data: { code: "not_found" } });
+  await expect(b.as.mutation(api.walls.setLayout, { ...a.input, scope: b.scope })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
   await t.run(async (ctx) => {
     const claim = await ctx.db
       .query("journalClaims")
@@ -93,9 +83,7 @@ it("requires a linked profile, completed claim and current owner scope", async (
       .unique();
     await ctx.db.patch(claim!._id, { phase: "saves" });
   });
-  await expect(
-    a.as.mutation(api.walls.setLayout, a.input),
-  ).rejects.toMatchObject({
+  await expect(a.as.mutation(api.walls.setLayout, a.input)).rejects.toMatchObject({
     data: { code: "claim_required" },
   });
 });
@@ -104,9 +92,7 @@ it("shares wall state across devices on the same account", async () => {
   const t = harness(),
     a = await wallFixture(t, "a"),
     other = await seedDevice(t);
-  await t.run((ctx) =>
-    ctx.db.patch(other.deviceId, { accountId: a.accountId }),
-  );
+  await t.run((ctx) => ctx.db.patch(other.deviceId, { accountId: a.accountId }));
   const mine = await a.as.mutation(api.walls.setLayout, a.input);
   expect(await other.as.query(api.walls.getMine, {})).toMatchObject({
     items: mine.items,
@@ -151,10 +137,7 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
   await expect(
     a.as.mutation(api.walls.setLayout, {
       ...a.input,
-      items: [
-        a.selection,
-        { ...a.selection, saveLocalId: crypto.randomUUID() },
-      ],
+      items: [a.selection, { ...a.selection, saveLocalId: crypto.randomUUID() }],
     }),
   ).rejects.toThrow();
   await expect(
@@ -164,16 +147,7 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
     }),
   ).rejects.toThrow();
   let revision = 0;
-  for (const frame of [
-    "gilt",
-    "baroque",
-    "walnut",
-    "oak",
-    "black",
-    "white",
-    "mat",
-    "none",
-  ] as const) {
+  for (const frame of ["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const) {
     const result = await a.as.mutation(api.walls.setLayout, {
       ...a.input,
       revision,
@@ -252,9 +226,7 @@ it("shows full current notes and never restores consent after emptying and later
     });
   }
   await note("Long current note ".repeat(100));
-  expect(
-    await t.query(api.walls.getArtwork, { itemId: item.itemId }),
-  ).toMatchObject({
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({
     note: "Long current note ".repeat(100),
   });
   await note(" ");
@@ -265,9 +237,7 @@ it("shows full current notes and never restores consent after emptying and later
     }),
   ).rejects.toThrow();
   await note("New private note");
-  expect(
-    await t.query(api.walls.getArtwork, { itemId: item.itemId }),
-  ).not.toHaveProperty("note");
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).not.toHaveProperty("note");
   expect((await a.as.query(api.walls.getMine, {})).items[0]).toMatchObject({
     noteVisible: false,
     noteRevision: 2,
@@ -294,9 +264,7 @@ it("makes visibility batches atomic and refuses another owner’s item", async (
       })),
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  expect((await a.as.query(api.walls.getMine, {})).items[0].noteVisible).toBe(
-    false,
-  );
+  expect((await a.as.query(api.walls.getMine, {})).items[0].noteVisible).toBe(false);
 });
 
 it("allowlists public data and keeps snapshot metadata without catalog enrichment", async () => {
@@ -308,17 +276,8 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
   const publicWall = await t.query(api.walls.getPublic, {
     profileId: a.profile.profileId,
   });
-  expect(Object.keys(publicWall!).sort()).toEqual([
-    "artworkCount",
-    "color",
-    "items",
-    "profileId",
-  ]);
-  expect(Object.keys(publicWall!.items[0]).sort()).toEqual([
-    "artwork",
-    "itemId",
-    "layout",
-  ]);
+  expect(Object.keys(publicWall!).sort()).toEqual(["artworkCount", "color", "items", "profileId"]);
+  expect(Object.keys(publicWall!.items[0]).sort()).toEqual(["artwork", "itemId", "layout"]);
   expect(publicWall!.items[0].artwork).toEqual({
     title: "Saved title",
     artist: "Saved artist",
@@ -327,9 +286,7 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
     media: { kind: "placeholder", width: 1, height: 1 },
   });
   expect(JSON.stringify(publicWall)).not.toContain(a.saveLocalId);
-  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual(
-    publicWall!.items[0],
-  );
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual(publicWall!.items[0]);
 });
 
 it("counts artworks by save so a second placement of the same work adds a piece, not an artwork", async () => {
@@ -344,21 +301,13 @@ it("counts artworks by save so a second placement of the same work adds a piece,
     ...a.input,
     items: [a.selection, second],
   });
-  expect(
-    await t.query(api.walls.getPublic, { profileId: a.profile.profileId }),
-  ).toMatchObject({
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({
     artworkCount: 1,
     items: [{ layout: a.layout }, { layout: second.layout }],
   });
 });
 
-it.each([
-  "deleted",
-  "missing",
-  "inactive",
-  "wrong-owner",
-  "wrong-parent",
-] as const)(
+it.each(["deleted", "missing", "inactive", "wrong-owner", "wrong-parent"] as const)(
   "checks current parents before direct and wall reads: %s",
   async (change) => {
     const t = harness(),
@@ -382,13 +331,8 @@ it.each([
         await ctx.db.patch(item.itemId, { profileId: b.profile.profileId });
       }
     });
-    expect(
-      await t.query(api.walls.getArtwork, { itemId: item.itemId }),
-    ).toBeNull();
-    expect(
-      (await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))
-        ?.items ?? [],
-    ).toEqual([]);
+    expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toBeNull();
+    expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))?.items ?? []).toEqual([]);
   },
 );
 
@@ -407,9 +351,7 @@ it("invalidates deleted selections atomically and removal retries do not advance
     localId: a.saveLocalId,
   });
   expect(await a.as.query(api.walls.getMine, {})).toEqual(before);
-  expect(
-    await t.query(api.profiles.getPublic, { profileId: a.profile.profileId }),
-  ).toMatchObject({
+  expect(await t.query(api.profiles.getPublic, { profileId: a.profile.profileId })).toMatchObject({
     publishedWallCount: 0,
   });
 });
@@ -426,9 +368,7 @@ it("removes the wall and its selections when the account is purged", async () =>
   expect(await t.run((ctx) => ctx.db.get(a.saveId))).toBeNull();
   expect(await t.run((ctx) => ctx.db.get(item.itemId))).toBeNull();
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);
-  expect(
-    await t.query(api.walls.getPublic, { profileId: a.profile.profileId }),
-  ).toBeNull();
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toBeNull();
   vi.useRealTimers();
 });
 
@@ -455,18 +395,14 @@ it("invalidates a pending opt-in when a private note is emptied and later rewrit
       note: "Replacement private note",
     });
   });
-  expect((await a.as.query(api.walls.getMine, {})).items[0].noteRevision).toBe(
-    1,
-  );
+  expect((await a.as.query(api.walls.getMine, {})).items[0].noteRevision).toBe(1);
   await expect(
     a.as.mutation(api.walls.setNoteVisibility, {
       scope: a.scope,
       changes: [{ itemId: item.itemId, noteRevision: 0, visible: true }],
     }),
   ).rejects.toMatchObject({ data: { code: "conflict" } });
-  expect(
-    await t.query(api.walls.getArtwork, { itemId: item.itemId }),
-  ).not.toHaveProperty("note");
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).not.toHaveProperty("note");
 });
 
 it("sorts layers and rejects simultaneous replacements based on the same revision", async () => {
@@ -499,16 +435,10 @@ it("sorts layers and rejects simultaneous replacements based on the same revisio
       }),
     ),
   );
-  expect(
-    results.filter((result) => result.status === "fulfilled"),
-  ).toHaveLength(1);
+  expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
   expect(results.find((result) => result.status === "rejected")).toMatchObject({
     reason: { data: { code: "conflict" } },
   });
-  await expect(
-    a.as.mutation(api.walls.setLayout, { ...a.input, note: "secret" } as never),
-  ).rejects.toThrow();
-  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual(
-    [],
-  );
+  await expect(a.as.mutation(api.walls.setLayout, { ...a.input, note: "secret" } as never)).rejects.toThrow();
+  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });

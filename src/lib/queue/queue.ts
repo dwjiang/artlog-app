@@ -12,11 +12,7 @@ import { extractFeatures, orb } from "@/lib/capture/features";
 import type { CaptureStore, IdentifyResponse } from "@/lib/capture/stages";
 import { convex } from "@/lib/convex-client";
 import { embedder } from "@/lib/embed/embedder";
-import {
-  captureFileUri,
-  persistCapture,
-  scanPreviewPath,
-} from "@/lib/files/photos";
+import { captureFileUri, persistCapture, scanPreviewPath } from "@/lib/files/photos";
 import { runLabelFlowForScan } from "@/lib/label/label-deps";
 import { LabelFlowError } from "@/lib/label/flow";
 import { removeFile } from "@/lib/label/crop";
@@ -30,12 +26,7 @@ export async function recordResult(
   owner = getLocalOwner(),
 ): Promise<void> {
   if (response.status === "unsupported_version") {
-    await pending.markFailed(
-      localId,
-      response.error ?? "Update the app to identify.",
-      response.scanId,
-      owner,
-    );
+    await pending.markFailed(localId, response.error ?? "Update the app to identify.", response.scanId, owner);
   } else {
     await pending.markIdentified(localId, response.scanId, owner);
   }
@@ -81,12 +72,7 @@ export const captureStore: CaptureStore = {
   },
   recordResult,
   async requeue(localId, error, owner = getLocalOwner()) {
-    await pending.recordAttemptFailure(
-      localId,
-      error,
-      { countAttempt: false },
-      owner,
-    );
+    await pending.recordAttemptFailure(localId, error, { countAttempt: false }, owner);
     void flushQueue();
   },
 };
@@ -99,8 +85,7 @@ function makeFlusher() {
     isLabelCapture,
     listFlushable: (version) => pending.listFlushable(version, owner),
     listPendingLabels: () => pending.listPendingLabels(owner),
-    recordLabelFailure: (id, error, options) =>
-      pending.recordLabelFailure(id, error, options, owner),
+    recordLabelFailure: (id, error, options) => pending.recordLabelFailure(id, error, options, owner),
     clearPendingLabel: async (localId, label) => {
       await pending.clearPendingLabel(localId, label, owner);
       if (label.labelPhotoPath) {
@@ -109,12 +94,9 @@ function makeFlusher() {
     },
     markIdentifying: (id) => pending.markIdentifying(id, owner),
     recordResult: (id, response) => recordResult(id, response, owner),
-    recordFailure: (id, error, options) =>
-      pending.recordAttemptFailure(id, error, options, owner),
-    resetAttemptsForModel: (id, version) =>
-      pending.resetAttemptsForModel(id, version, owner),
-    updateFeatures: (id, features) =>
-      pending.updateFeatures(id, features, owner),
+    recordFailure: (id, error, options) => pending.recordAttemptFailure(id, error, options, owner),
+    resetAttemptsForModel: (id, version) => pending.resetAttemptsForModel(id, version, owner),
+    updateFeatures: (id, features) => pending.updateFeatures(id, features, owner),
     resolveVisitId: resolveScanVisit,
     identify: (args) => {
       if (!current.isCurrent() || !current.scope) {
@@ -128,24 +110,17 @@ function makeFlusher() {
     runLabelFlow: async (scanId, label) => {
       try {
         await runLabelFlowForScan(scanId, {
-          labelPhotoUri: label.labelPhotoPath
-            ? captureFileUri(label.labelPhotoPath)
-            : undefined,
+          labelPhotoUri: label.labelPhotoPath ? captureFileUri(label.labelPhotoPath) : undefined,
           qrUrl: label.qrUrl,
         });
       } catch (error) {
         // Preserve transport/quota errors for the worker's retry policy.
-        throw error instanceof LabelFlowError
-          ? (error.cause ?? new Error(error.code))
-          : error;
+        throw error instanceof LabelFlowError ? (error.cause ?? new Error(error.code)) : error;
       }
     },
-    reembed: (cropPath) =>
-      extractFeatures(captureFileUri(cropPath), { embedder, orb }),
+    reembed: (cropPath) => extractFeatures(captureFileUri(cropPath), { embedder, orb }),
     isOnline: async () =>
-      current.isCurrent()
-      && !!current.scope
-      && (await getNetworkStateAsync()).isInternetReachable !== false,
+      current.isCurrent() && !!current.scope && (await getNetworkStateAsync()).isInternetReachable !== false,
     modelVersion: model.modelVersion,
   });
 }

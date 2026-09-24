@@ -1,35 +1,13 @@
 import { db } from "@/db/client";
-import {
-  artworkPhotos,
-  artworkEncounters,
-  notes,
-  savedWorks,
-  settings,
-} from "@/db/schema";
-import {
-  selectArtworkPhotos,
-  selectArtworkEncounters,
-  editArtworkPhoto,
-} from "@/db/repos/artwork-album";
-import {
-  readPhotoDraft,
-  writePhotoDraft,
-  updatePhotoSession,
-  isLabelCapture,
-} from "@/lib/capture/photo-draft";
+import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
+import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
+import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import { getFunctionName } from "convex/server";
 
 import { saveErrorMessage, saveResult } from "./save";
 import { draftFromCandidate } from "./snapshot";
 import { toResultViewState } from "./state";
-import {
-  bridge,
-  confidentScan,
-  lilies,
-  missScan,
-  SCAN_ID,
-  softScan,
-} from "@/components/scan/result/__fixtures__/scan";
+import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/components/scan/result/__fixtures__/scan";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 import { contributeLabel } from "@/lib/label/contribute";
@@ -50,10 +28,7 @@ jest.mock("@/db/client", () => ({
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     mutation: (fn: unknown, args: unknown) =>
-      mockMutation(
-        jest.requireActual("convex/server").getFunctionName(fn),
-        args,
-      ),
+      mockMutation(jest.requireActual("convex/server").getFunctionName(fn), args),
   },
 }));
 const mockFlush = jest.fn();
@@ -65,8 +40,7 @@ jest.mock("@/lib/venue/use-venue", () => ({
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
 }));
 jest.mock("@/lib/venue/venue-db", () => ({
-  venueNameById: async (id: string) =>
-    id === "museum-met" ? "The Met" : undefined,
+  venueNameById: async (id: string) => (id === "museum-met" ? "The Met" : undefined),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 
@@ -141,9 +115,9 @@ it("does not share if saving fails or the capture moves to a different visit con
       review: "conflict",
     },
   ]);
-  await expect(
-    saveResult({ capture, draft: draftFromCandidate(lilies), contribution }),
-  ).rejects.toThrow("Review your added photos");
+  await expect(saveResult({ capture, draft: draftFromCandidate(lilies), contribution })).rejects.toThrow(
+    "Review your added photos",
+  );
   expect(contributeLabel).not.toHaveBeenCalled();
   writePhotoDraft(capture.owner, capture.photoPath, []);
   updatePhotoSession(capture.owner, capture.photoPath, {
@@ -173,13 +147,7 @@ beforeAll(async () => {
 const STARTED_VISIT = "2b1c7e0a-0d3f-4c6e-9a1b-5d7e8f9a0b1c";
 
 beforeEach(() => {
-  for (const table of [
-    artworkPhotos,
-    artworkEncounters,
-    notes,
-    savedWorks,
-    settings,
-  ]) {
+  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, settings]) {
     db.delete(table).run();
   }
   jest.resetAllMocks();
@@ -190,20 +158,18 @@ beforeEach(() => {
     updatedBy: "device",
   });
   mockVisitByDefault.mockReturnValue(true);
-  mockVisitForSave.mockImplementation(
-    async (venueId: never, capturedAt: number) => {
-      const visit = {
-        localId: STARTED_VISIT,
-        venueId,
-        venueName: "Legion of Honor",
-        startedAt: capturedAt,
-        visitedOn: "1970-01-01",
-        timeZone: "UTC",
-      };
-      await upsertVisit(visit);
-      return visit;
-    },
-  );
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = {
+      localId: STARTED_VISIT,
+      venueId,
+      venueName: "Legion of Honor",
+      startedAt: capturedAt,
+      visitedOn: "1970-01-01",
+      timeZone: "UTC",
+    };
+    await upsertVisit(visit);
+    return visit;
+  });
 });
 
 it("saves an untouched confident card locally and passes the suggestion to the server", async () => {
@@ -289,9 +255,7 @@ it("starts the museum visit for a venue-only capture, dated by the shutter, and 
     visitLocalId: STARTED_VISIT,
     gallery: null,
   });
-  expect(selectArtworkPhotos(localId).all()[0].visitLocalId).toBe(
-    STARTED_VISIT,
-  );
+  expect(selectArtworkPhotos(localId).all()[0].visitLocalId).toBe(STARTED_VISIT);
   expect(completion.visitLabel).toBe("Legion of Honor · 1 Jan 1970");
   expect(mockMutation.mock.calls[0][1]).toMatchObject({
     scanId: SCAN_ID,
@@ -556,18 +520,11 @@ it("still records the confirmation when the journal flush fails and the visit is
     draft: draftFromCandidate(lilies),
   });
   await synced;
-  expect(mockMutation).toHaveBeenCalledWith(
-    "collections:saveToCollection",
-    expect.objectContaining({ localId }),
-  );
+  expect(mockMutation).toHaveBeenCalledWith("collections:saveToCollection", expect.objectContaining({ localId }));
   expect((await getSavedWork(localId))?.syncedAt).toEqual(expect.any(Number));
 });
 
-it.each([
-  { visitLocalId: "missing" },
-  { visitLocalId: "" },
-  { venueId: "wrong-museum" as never },
-])(
+it.each([{ visitLocalId: "missing" }, { visitLocalId: "" }, { venueId: "wrong-museum" as never }])(
   "rejects an invalid requested visit without silently dropping its link: %j",
   async (fields) => {
     await expect(
@@ -585,15 +542,11 @@ it("tells the user to pick another visit when the chosen draft visit no longer e
     visit: { kind: "visit", localId: "deleted-visit" },
   });
   const attempt = saveResult({ capture, draft: draftFromCandidate(lilies) });
-  await expect(attempt).rejects.toThrow(
-    "Choose an available visit before saving.",
-  );
+  await expect(attempt).rejects.toThrow("Choose an available visit before saving.");
   expect(saveErrorMessage(await attempt.catch((cause: unknown) => cause))).toBe(
     "Choose an available visit before saving.",
   );
-  expect(saveErrorMessage(new Error("SQLITE_BUSY"))).toBe(
-    "Couldn’t save. Try again.",
-  );
+  expect(saveErrorMessage(new Error("SQLITE_BUSY"))).toBe("Couldn’t save. Try again.");
   expect(mockMutation).not.toHaveBeenCalled();
 });
 

@@ -30,17 +30,12 @@ export async function runCapture(
   opts: CaptureOptions,
 ): Promise<CaptureResult> {
   if (deps.embedder.modelVersion !== opts.modelVersion) {
-    throw new Error(
-      `Capture model version mismatch: ${deps.embedder.modelVersion} != ${opts.modelVersion}`,
-    );
+    throw new Error(`Capture model version mismatch: ${deps.embedder.modelVersion} != ${opts.modelVersion}`);
   }
   const current = captureOwner();
   const started = performance.now();
   const timings: CaptureTimings = { total: 0 };
-  async function timed<T>(
-    stage: Exclude<keyof CaptureTimings, "total">,
-    task: () => Promise<T>,
-  ): Promise<T> {
+  async function timed<T>(stage: Exclude<keyof CaptureTimings, "total">, task: () => Promise<T>): Promise<T> {
     const start = performance.now();
     try {
       return await task();
@@ -101,20 +96,12 @@ export async function runCapture(
     };
     if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
-    if (
-      online
-      && payload.visitLocalId
-      && !payload.visitId
-      && payload.venueId
-      && deps.resolveVisitId
-    ) {
+    if (online && payload.visitLocalId && !payload.visitId && payload.venueId && deps.resolveVisitId) {
       payload.visitId = await withTimeout(
         deps.resolveVisitId(payload.visitLocalId, payload.venueId),
         VISIT_SYNC_TIMEOUT_MS,
       ).catch((error: unknown) => {
-        if (
-          !(error instanceof Error && error.message === "Visit sync timed out")
-        ) {
+        if (!(error instanceof Error && error.message === "Visit sync timed out")) {
           reportError(error, "capture.sync_visit", { level: "warning" });
         }
         addBreadcrumb("capture.queued", { reason: "visit_sync" });
@@ -126,9 +113,7 @@ export async function runCapture(
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
     await presentationReady;
     if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
-    await timed("enqueue", () =>
-      deps.store.enqueue(payload, identifyNow ? "identifying" : "queued"),
-    );
+    await timed("enqueue", () => deps.store.enqueue(payload, identifyNow ? "identifying" : "queued"));
     if (identifyNow) {
       try {
         const response = await timed("identify", () => deps.identify(payload));
@@ -138,11 +123,7 @@ export async function runCapture(
         await deps.store.recordResult(payload.localId, response, current.owner);
         return { kind: "sent", scanId: response.scanId, response, timings };
       } catch (error) {
-        await deps.store.requeue(
-          payload.localId,
-          errorMessage(error),
-          current.owner,
-        );
+        await deps.store.requeue(payload.localId, errorMessage(error), current.owner);
         if (!isNetworkError(error)) throw error;
         addBreadcrumb("capture.queued", { reason: "offline" });
       }
@@ -151,12 +132,7 @@ export async function runCapture(
     if (current.isOwnerCurrent() && deps.recognizeOffline) {
       void deps
         .recognizeOffline(payload)
-        .catch((error: unknown) =>
-          console.warn(
-            "Offline identification unavailable; capture stays queued",
-            error,
-          ),
-        );
+        .catch((error: unknown) => console.warn("Offline identification unavailable; capture stays queued", error));
     }
     return { kind: "queued", localId: payload.localId, timings };
   } finally {

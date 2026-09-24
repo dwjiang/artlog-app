@@ -8,13 +8,7 @@ import { audioTime } from "@/lib/audio/narration";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { LoadingRing } from "@/components/loading-ring";
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
-export function PlayerTransport({
-  view,
-  onView,
-}: {
-  view: PlayerView;
-  onView: (view: PlayerView) => void;
-}) {
+export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();
   const { fontScale } = useWindowDimensions();
   const [scrubbing, setScrubbing] = useState(false);
@@ -36,10 +30,7 @@ export function PlayerTransport({
         ]}
         onAccessibilityAction={({ nativeEvent }) => {
           if (ready) {
-            void audio.controller.seek(
-              audio.position
-                + (nativeEvent.actionName === "increment" ? 15 : -15),
-            );
+            void audio.controller.seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
           }
         }}
         value={audio.position}
@@ -96,22 +87,13 @@ export function PlayerTransport({
           }}
           disabled={audio.phase === "loading"}
           onPress={audio.controller.toggle}
-          style={({ pressed }) => [
-            styles.play,
-            { opacity: pressed ? 0.75 : 1 },
-          ]}
+          style={({ pressed }) => [styles.play, { opacity: pressed ? 0.75 : 1 }]}
         >
           {audio.phase === "loading" ? (
             <LoadingRing color={Gallery.surface} />
           ) : (
             <AudioIcon
-              name={
-                audio.phase === "error"
-                  ? "arrow.clockwise"
-                  : audio.playing
-                    ? "pause.fill"
-                    : "play.fill"
-              }
+              name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
               size={32}
               color={Gallery.surface}
             />
@@ -137,14 +119,7 @@ export function PlayerTransport({
           ]}
           onAccessibilityAction={({ nativeEvent }) =>
             audio.controller.setVolume(
-              Math.max(
-                0,
-                Math.min(
-                  1,
-                  audio.volume
-                    + (nativeEvent.actionName === "increment" ? 0.1 : -0.1),
-                ),
-              ),
+              Math.max(0, Math.min(1, audio.volume + (nativeEvent.actionName === "increment" ? 0.1 : -0.1))),
             )
           }
           value={audio.volume}
@@ -166,9 +141,7 @@ export function PlayerTransport({
           accessibilityLabel={`Playback speed, ${audio.rate} times`}
           onPress={() => {
             const rates = [1, 1.25, 1.5, 2];
-            audio.controller.setRate(
-              rates[(rates.indexOf(audio.rate) + 1) % rates.length],
-            );
+            audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
           style={styles.action}
         >
@@ -187,20 +160,11 @@ export function PlayerTransport({
           accessibilityRole="button"
           accessibilityLabel="Transcript and sources"
           accessibilityState={{ selected: view === "transcript" }}
-          onPress={() =>
-            onView(view === "transcript" ? "player" : "transcript")
-          }
+          onPress={() => onView(view === "transcript" ? "player" : "transcript")}
           style={[styles.action, view === "transcript" && styles.selected]}
         >
           <AudioIcon name="text.alignleft" size={18} />
-          <Text
-            style={[
-              styles.actionText,
-              view === "transcript" && styles.selectedText,
-            ]}
-          >
-            Transcript
-          </Text>
+          <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>Transcript</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -208,21 +172,11 @@ export function PlayerTransport({
           accessibilityState={{
             selected: view === "queue" || view === "saved",
           }}
-          onPress={() =>
-            onView(view === "queue" || view === "saved" ? "player" : "queue")
-          }
-          style={[
-            styles.action,
-            (view === "queue" || view === "saved") && styles.selected,
-          ]}
+          onPress={() => onView(view === "queue" || view === "saved" ? "player" : "queue")}
+          style={[styles.action, (view === "queue" || view === "saved") && styles.selected]}
         >
           <AudioIcon name="list.bullet" size={20} />
-          <Text
-            style={[
-              styles.actionText,
-              (view === "queue" || view === "saved") && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.actionText, (view === "queue" || view === "saved") && styles.selectedText]}>
             Up next
           </Text>
         </Pressable>

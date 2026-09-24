@@ -18,19 +18,13 @@ import { testVector } from "./lib/testFactories";
 function tavilySpent(): number {
   // Sourcing an unquoted CONVEX_DEPLOY_KEY line exports a stray empty `eyJ…` variable that the CLI refuses.
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([key, value]) => !(key.startsWith("ey") && value === ""),
-    ),
+    Object.entries(process.env).filter(([key, value]) => !(key.startsWith("ey") && value === "")),
   ) as NodeJS.ProcessEnv;
-  const output = execFileSync(
-    "npx",
-    ["convex", "run", "spend:status", JSON.stringify({ kind: "tavily" })],
-    {
-      encoding: "utf8",
-      env,
-      stdio: ["ignore", "pipe", "inherit"],
-    },
-  );
+  const output = execFileSync("npx", ["convex", "run", "spend:status", JSON.stringify({ kind: "tavily" })], {
+    encoding: "utf8",
+    env,
+    stdio: ["ignore", "pipe", "inherit"],
+  });
   return (JSON.parse(output) as { spent: number }).spent;
 }
 
@@ -38,18 +32,14 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
   "searches the venue site for current exhibitions on the dev deployment",
   async () => {
     const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
-    const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as
-      | Id<"museums">
-      | undefined;
+    const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as Id<"museums"> | undefined;
     if (!url || !venueId) {
-      throw new Error(
-        "CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required",
-      );
+      throw new Error("CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required");
     }
     const client = new ConvexHttpClient(url);
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
-      b.toString(16).padStart(2, "0"),
-    ).join("");
+    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     const signedIn = await client.action(api.auth.signIn, {
       provider: "anonymous",
       params: { secret },
@@ -70,9 +60,7 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
       capturedAt: Date.now(),
       scope: (await client.query(api.accounts.me, {})).scope,
     });
-    stdout.write(
-      `scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`,
-    );
+    stdout.write(`scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`);
     expect(scan.outcome).not.toBe("confident");
 
     const before = tavilySpent();
@@ -80,9 +68,7 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
     const result = await client.action(api.museumSearch.searchExhibitions, {
       scanId: scan.scanId,
     });
-    stdout.write(
-      `searchExhibitions ${Date.now() - started} ms\n${JSON.stringify(result, null, 2)}\n`,
-    );
+    stdout.write(`searchExhibitions ${Date.now() - started} ms\n${JSON.stringify(result, null, 2)}\n`);
     const credits = tavilySpent() - before;
     stdout.write(`tavily credits spent: ${credits}\n`);
     expect(["exhibitions", "none"]).toContain(result.stage);

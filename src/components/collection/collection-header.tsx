@@ -31,11 +31,7 @@ export function CollectionHeader({
   );
   const edit = () =>
     router.push(
-      profile
-        ? "/edit-profile"
-        : session.status === "profile-required"
-          ? "/create-profile"
-          : signInRoute("wall"),
+      profile ? "/edit-profile" : session.status === "profile-required" ? "/create-profile" : signInRoute("wall"),
     );
   const status = profile
     ? `@${profile.username}`
@@ -57,9 +53,7 @@ export function CollectionHeader({
           gap: 4,
         }}
       >
-        <View
-          style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}
-        >
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
           <Text
             variant="display"
             accessibilityRole="header"
@@ -72,18 +66,8 @@ export function CollectionHeader({
           >
             Your{"\n"}collection
           </Text>
-          {artworkCount > 0 && (
-            <GalleryIconButton
-              label="Share your wall"
-              icon="square.and.arrow.up"
-              onPress={edit}
-            />
-          )}
-          <GalleryIconButton
-            label="Settings"
-            icon="gearshape"
-            onPress={() => router.push("/settings")}
-          />
+          {artworkCount > 0 && <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />}
+          <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />
         </View>
         <Text variant="metadata" themeColor="textSecondary">
           Saved on this iPhone
@@ -115,11 +99,7 @@ export function CollectionHeader({
       </LoadingSkeleton>
     ) : (
       <>
-        <ProfileAvatar
-          name={profile?.name ?? "Your collection"}
-          photoUrl={profile?.photoUrl}
-          size={64}
-        />
+        <ProfileAvatar name={profile?.name ?? "Your collection"} photoUrl={profile?.photoUrl} size={64} />
         <View
           style={{
             flex: accessibilityLayout ? undefined : 1,
@@ -145,9 +125,7 @@ export function CollectionHeader({
     flex: 1,
     minWidth: 0,
     flexDirection: accessibilityLayout ? ("column" as const) : ("row" as const),
-    alignItems: accessibilityLayout
-      ? ("flex-start" as const)
-      : ("center" as const),
+    alignItems: accessibilityLayout ? ("flex-start" as const) : ("center" as const),
     gap: 14,
     minHeight: 48,
   };
@@ -169,11 +147,7 @@ export function CollectionHeader({
         >
           {identity}
         </Pressable>
-        <GalleryIconButton
-          label="Settings"
-          icon="gearshape"
-          onPress={() => router.push("/settings")}
-        />
+        <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />
       </View>
       <View
         style={{
@@ -189,10 +163,7 @@ export function CollectionHeader({
             <Ghost width={150} />
           </LoadingSkeleton>
         ) : (
-          <Text
-            variant="metadata"
-            style={{ flexShrink: 1, color: Gallery.muted }}
-          >
+          <Text variant="metadata" style={{ flexShrink: 1, color: Gallery.muted }}>
             {counts}
           </Text>
         )}

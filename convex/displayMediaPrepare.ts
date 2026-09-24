@@ -13,10 +13,7 @@ export const prepare = internalAction({
   handler: async (ctx, { saveId }) => {
     let storageId: Id<"_storage"> | undefined;
     try {
-      const asset = await ctx.runMutation(
-        internal.displayMedia.beginPreparation,
-        { saveId },
-      );
+      const asset = await ctx.runMutation(internal.displayMedia.beginPreparation, { saveId });
       if (!asset || asset.provenance.kind !== "contribution") return null;
       const blob = await ctx.storage.get(asset.provenance.sourceStorageId);
       if (!blob || blob.size > 5 * 1024 * 1024) return null;
@@ -34,9 +31,7 @@ export const prepare = internalAction({
         })
         .jpeg({ quality: 80 })
         .toBuffer({ resolveWithObject: true });
-      storageId = await ctx.storage.store(
-        new Blob([new Uint8Array(data)], { type: "image/jpeg" }),
-      );
+      storageId = await ctx.storage.store(new Blob([new Uint8Array(data)], { type: "image/jpeg" }));
       if (
         await ctx.runMutation(internal.displayMedia.attach, {
           assetId: asset._id,
@@ -49,10 +44,7 @@ export const prepare = internalAction({
       }
     } catch (error) {
       await reportBackendError(error, "displayMediaPrepare.prepare");
-      console.warn(
-        "Display media preparation failed",
-        error instanceof Error ? error.name : "UnknownError",
-      );
+      console.warn("Display media preparation failed", error instanceof Error ? error.name : "UnknownError");
     } finally {
       if (storageId) {
         await ctx.runMutation(internal.displayMedia.discard, { storageId });

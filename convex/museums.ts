@@ -4,19 +4,10 @@ import { validateGeography } from "../shared/social/contracts";
 import { stableStringify } from "../shared/attestation/stable-stringify";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  mutation,
-  type QueryCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation, type QueryCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { bumpCounter } from "./ingest";
-import {
-  probeCollectionSite as probe,
-  websiteUrl,
-} from "./lib/collectionSiteProbe";
+import { probeCollectionSite as probe, websiteUrl } from "./lib/collectionSiteProbe";
 import { limitDevice } from "./lib/rateLimits";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
@@ -30,12 +21,7 @@ const signedPayload = {
 };
 const collectionSite = v.object({
   collectionSiteUrl: v.string(),
-  platform: v.union(
-    v.literal("emuseum"),
-    v.literal("iiif"),
-    v.literal("collectionspace"),
-    v.literal("generic"),
-  ),
+  platform: v.union(v.literal("emuseum"), v.literal("iiif"), v.literal("collectionspace"), v.literal("generic")),
 });
 
 function checkPayload(payloadJson: string, expected: object) {
@@ -44,16 +30,11 @@ function checkPayload(payloadJson: string, expected: object) {
   }
 }
 
-function distanceMeters(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-) {
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const rad = Math.PI / 180;
   const h =
     Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
-    + Math.cos(a.lat * rad)
-      * Math.cos(b.lat * rad)
-      * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
   return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, h)));
 }
 
@@ -61,11 +42,7 @@ async function nearby(ctx: QueryCtx, lat: number, lng: number, radius: number) {
   const delta = ((radius / 6371000) * 180) / Math.PI;
   const rows = await ctx.db
     .query("museums")
-    .withIndex("by_lat", (q) =>
-      q
-        .gte("lat", Math.max(-90, lat - delta))
-        .lte("lat", Math.min(90, lat + delta)),
-    )
+    .withIndex("by_lat", (q) => q.gte("lat", Math.max(-90, lat - delta)).lte("lat", Math.min(90, lat + delta)))
     .take(10000);
   if (rows.length === 10000) {
     throw new ConvexError({ code: "venue_search_too_large" });
@@ -130,9 +107,7 @@ export const confirmPoiVenue = mutation({
         venue: projectJournalVenue(duplicate.venue),
       };
     }
-    const seeded = (await nearby(ctx, args.lat, args.lng, 60000)).find(
-      ({ venue }) => venue.seedSource !== "poi",
-    );
+    const seeded = (await nearby(ctx, args.lat, args.lng, 60000)).find(({ venue }) => venue.seedSource !== "poi");
     const venueId = await ctx.db.insert("museums", {
       ...fields,
       name: args.name.trim().replace(/\s+/g, " "),
@@ -165,12 +140,9 @@ export const probeCollectionSite = internalAction({
   args: { venueId: v.id("museums") },
   returns: v.null(),
   handler: async (ctx, { venueId }) => {
-    const venue: Doc<"museums"> | null = await ctx.runQuery(
-      internal.museums.getForProbe,
-      {
-        venueId,
-      },
-    );
+    const venue: Doc<"museums"> | null = await ctx.runQuery(internal.museums.getForProbe, {
+      venueId,
+    });
     if (!venue?.website || venue.collectionSiteUrl) return null;
     const result = await probe(venue.website);
     await ctx.runMutation(internal.museums.applyProbe, {

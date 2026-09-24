@@ -22,9 +22,7 @@ it("opens the visit from the compact dock and keeps ending the visit in its deta
   await render(<VisitBar />);
   expect(screen.getByText("Visiting · Legion of Honor")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "End visit" })).toBeNull();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Visiting Legion of Honor" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Visiting Legion of Honor" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
     params: { visitId: "visit-1" },

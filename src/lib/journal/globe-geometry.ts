@@ -29,12 +29,7 @@ export function globeCamera(latitude: number, longitude: number): GlobeCamera {
     zoom: 1,
   };
 }
-export function projectGlobePin(
-  pin: GlobePin,
-  camera: GlobeCamera,
-  width: number,
-  height: number,
-) {
+export function projectGlobePin(pin: GlobePin, camera: GlobeCamera, width: number, height: number) {
   "worklet";
   const { cx, cy, radius } = globeGeometry(width, height, camera.zoom);
   const latitude = pin.latitude * radians,
@@ -49,29 +44,15 @@ export function projectGlobePin(
     depth: y * Math.sin(pitch) + z * Math.cos(pitch),
   };
 }
-export function globeClusters(
-  pins: GlobePin[],
-  camera: GlobeCamera,
-  width: number,
-  height: number,
-): GlobeCluster[] {
+export function globeClusters(pins: GlobePin[], camera: GlobeCamera, width: number, height: number): GlobeCluster[] {
   "worklet";
   const groups: GlobeCluster[] = [];
   for (const pin of pins) {
     const point = projectGlobePin(pin, camera, width, height);
-    if (
-      point.depth < 0.04
-      || point.x < 0
-      || point.x > width
-      || point.y < 0
-      || point.y > height
-    ) {
+    if (point.depth < 0.04 || point.x < 0 || point.x > width || point.y < 0 || point.y > height) {
       continue;
     }
-    const group = groups.find(
-      (candidate) =>
-        Math.hypot(candidate.x - point.x, candidate.y - point.y) < 27,
-    );
+    const group = groups.find((candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < 27);
     if (group) {
       const count = group.ids.length;
       group.x = (group.x * count + point.x) / (count + 1);

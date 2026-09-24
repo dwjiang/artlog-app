@@ -18,9 +18,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 
-export type Contribution = FunctionReturnType<
-  typeof api.contributions.mine
->[number];
+export type Contribution = FunctionReturnType<typeof api.contributions.mine>[number];
 
 export function ContributionsScreen({
   contributions,
@@ -41,14 +39,12 @@ export function ContributionsScreen({
         contributions?.length ? (
           <View style={{ gap: Spacing.three }}>
             <ThemedText themeColor="textSecondary">
-              Saving a confirmed work shares its label details and a small
-              artwork crop with the index. Your full photos stay private. No
-              account needed.
+              Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos
+              stay private. No account needed.
             </ThemedText>
             {!!contributions?.length && (
               <ThemedText type="small" themeColor="textSecondary">
-                Contributions from this device, newest first. Up to 200 are
-                shown.
+                Contributions from this device, newest first. Up to 200 are shown.
               </ThemedText>
             )}
           </View>
@@ -57,9 +53,7 @@ export function ContributionsScreen({
       ListEmptyComponent={
         contributions === undefined ? (
           offline ? (
-            <ThemedText themeColor="textSecondary">
-              Connect to see your contributions.
-            </ThemedText>
+            <ThemedText themeColor="textSecondary">Connect to see your contributions.</ThemedText>
           ) : (
             <ListSkeleton label="Loading contributions…" rows={3} />
           )
@@ -111,9 +105,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
       setWithdrawn(true);
     } catch (cause) {
       reportError(cause, "contribution.withdraw");
-      setError(
-        "Couldn't withdraw this contribution. Check your connection and try again.",
-      );
+      setError("Couldn't withdraw this contribution. Check your connection and try again.");
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -130,13 +122,9 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
         borderBottomColor: Gallery.softBorder,
       }}
     >
-      {contribution.scanId && (
-        <ContributionPhoto scanId={contribution.scanId} />
-      )}
+      {contribution.scanId && <ContributionPhoto scanId={contribution.scanId} />}
       <View style={{ flex: 1, gap: 6 }}>
-        <ThemedText type="smallBold">
-          {contribution.fields.title.value}
-        </ThemedText>
+        <ThemedText type="smallBold">{contribution.fields.title.value}</ThemedText>
         <ThemedText>{contribution.fields.artist.value}</ThemedText>
         <ThemedText
           type="small"
@@ -175,8 +163,7 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
         )}
         {removed && (
           <ThemedText type="small" themeColor="textSecondary">
-            Withdrawn from the index. Your artwork and photos stay in your
-            collection.
+            Withdrawn from the index. Your artwork and photos stay in your collection.
           </ThemedText>
         )}
         {error && <ThemedText accessibilityRole="alert">{error}</ThemedText>}
@@ -185,23 +172,12 @@ function ContributionRow({ contribution }: { contribution: Contribution }) {
   );
 }
 
-function ContributionPhoto({
-  scanId,
-}: {
-  scanId: NonNullable<Contribution["scanId"]>;
-}) {
+function ContributionPhoto({ scanId }: { scanId: NonNullable<Contribution["scanId"]> }) {
   const owner = useLocalOwner();
-  const capture = useLiveQuery(selectCaptureForScan(scanId, owner), [
-    scanId,
-    owner,
-  ]).data[0];
+  const capture = useLiveQuery(selectCaptureForScan(scanId, owner), [scanId, owner]).data[0];
   return (
     <Image
-      source={
-        capture?.cropPath
-          ? { uri: captureFileUri(capture.cropPath) }
-          : "sf:photo"
-      }
+      source={capture?.cropPath ? { uri: captureFileUri(capture.cropPath) } : "sf:photo"}
       contentFit="contain"
       style={{ width: 64, height: 64, backgroundColor: Gallery.fill }}
     />

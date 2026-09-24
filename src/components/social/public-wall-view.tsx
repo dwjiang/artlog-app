@@ -35,16 +35,9 @@ export function PublicProfileHeader({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-        <ProfileAvatar
-          name={person.name}
-          photoUrl={person.photoUrl}
-          size={compact ? 44 : 64}
-        />
+        <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={compact ? 44 : 64} />
         <View style={{ flex: 1, gap: 4 }}>
-          <Text
-            variant={compact ? "section" : "display"}
-            accessibilityRole="header"
-          >
+          <Text variant={compact ? "section" : "display"} accessibilityRole="header">
             {person.name}
           </Text>
           <Text style={socialStyles.caption}>@{person.username}</Text>
@@ -90,20 +83,12 @@ export function PublicWallView({
         detail={`${arrangedBy ?? "This person"} hasn’t added any artworks yet.`}
         visual={<ArtworkCollage />}
       >
-        <GalleryButton
-          label="Back to friends"
-          variant="filled"
-          fullWidth
-          onPress={() => router.push("/people")}
-        />
+        <GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
       </EmptyState>
     );
   }
   return (
-    <View
-      accessibilityLabel="Public collection wall"
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-    >
+    <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {width > 0 && (
         <WallGallery
           width={width}
@@ -121,8 +106,7 @@ export function PublicWallView({
       )}
       <Text style={{ ...socialStyles.caption, padding: 20, lineHeight: 18 }}>
         {wall.artworkCount} {wall.artworkCount === 1 ? "artwork" : "artworks"}
-        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected
-        for public display appear here.
+        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected for public display appear here.
       </Text>
     </View>
   );

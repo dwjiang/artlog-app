@@ -120,9 +120,7 @@
         { "sentence": "Painted in 1912.", "factIds": ["f1"] },
         { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
       ],
-      "expectedKept": [
-        { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
-      ]
+      "expectedKept": [{ "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }]
     },
     {
       "name": "at most four kept",
@@ -190,9 +188,7 @@
         { "sentence": "   ", "factIds": ["f1"] },
         { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
-      ]
+      "expectedKept": [{ "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }]
     },
     {
       "name": "UTF-16 character limit includes surrogate pairs",
@@ -204,9 +200,7 @@
         },
         { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
-      ]
+      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
     },
     {
       "name": "ECMAScript whitespace includes BOM and excludes NEL",
@@ -218,9 +212,7 @@
         },
         { "sentence": "The\u0085painting shows boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [
-        { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
-      ]
+      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
     }
   ]
 }

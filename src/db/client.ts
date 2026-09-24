@@ -13,8 +13,6 @@ export function describeDatabase(): {
   path: string;
   appliedMigrations: number;
 } {
-  const row = sqlite.getFirstSync<{ applied: number }>(
-    "SELECT count(*) AS applied FROM __drizzle_migrations",
-  );
+  const row = sqlite.getFirstSync<{ applied: number }>("SELECT count(*) AS applied FROM __drizzle_migrations");
   return { path: sqlite.databasePath, appliedMigrations: row?.applied ?? 0 };
 }

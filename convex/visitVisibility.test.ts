@@ -22,21 +22,15 @@ it("saves Public without publishing and prevents publication while Private", asy
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   const privateVisit = await save("private");
   expect(privateVisit.visibility).toBe("private");
-  await expect(
-    owner.as.query(api.sharedVisits.preview, draft.selection),
-  ).resolves.toMatchObject({
+  await expect(owner.as.query(api.sharedVisits.preview, draft.selection)).resolves.toMatchObject({
     visitedOn: privateVisit.visitedOn,
   });
-  await expect(
-    owner.as.mutation(api.sharedVisits.publish, draft.selection),
-  ).rejects.toMatchObject({
+  await expect(owner.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({
     data: { code: "visit_private" },
   });
   await save("public");
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
-  expect(
-    await owner.as.mutation(api.sharedVisits.publish, draft.selection),
-  ).toMatchObject({
+  expect(await owner.as.mutation(api.sharedVisits.publish, draft.selection)).toMatchObject({
     status: "active",
   });
 });
@@ -45,10 +39,7 @@ it("syncing Private withdraws the entire publication and Public does not restore
   const t = harness(),
     owner = await socialUser(t),
     draft = await socialVisit(t, owner, 1);
-  const published = await owner.as.mutation(
-    api.sharedVisits.publish,
-    draft.selection,
-  );
+  const published = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
   const postId = published.postId!;
   const visible = await t.query(api.sharedVisits.get, { postId });
   const input = {
@@ -69,11 +60,9 @@ it("syncing Private withdraws the entire publication and Public does not restore
     status: "private",
     revision: published.revision + 1,
   });
-  await expect(t.query(api.sharedVisits.get, { postId })).rejects.toMatchObject(
-    {
-      data: { code: "not_found" },
-    },
-  );
+  await expect(t.query(api.sharedVisits.get, { postId })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
   await expect(
     t.query(api.sharedVisits.getArtwork, {
       postId,
@@ -93,11 +82,9 @@ it("syncing Private withdraws the entire publication and Public does not restore
     scope: owner.scope,
     visit: { ...input, visibility: "public" },
   });
-  await expect(t.query(api.sharedVisits.get, { postId })).rejects.toMatchObject(
-    {
-      data: { code: "not_found" },
-    },
-  );
+  await expect(t.query(api.sharedVisits.get, { postId })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
   await expect(
     owner.as.mutation(api.sharedVisits.publish, {
       ...draft.selection,
@@ -110,7 +97,5 @@ it("syncing Private withdraws the entire publication and Public does not restore
     reflection: input.reflection,
     revision: hidden.revision,
   });
-  expect((await t.query(api.sharedVisits.get, { postId })).reflection).toBe(
-    input.reflection,
-  );
+  expect((await t.query(api.sharedVisits.get, { postId })).reflection).toBe(input.reflection);
 });

@@ -5,9 +5,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 
-export async function requireAuthUserId(
-  ctx: QueryCtx | MutationCtx | ActionCtx,
-): Promise<Id<"users">> {
+export async function requireAuthUserId(ctx: QueryCtx | MutationCtx | ActionCtx): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (userId === null) throw new ConvexError({ code: "unauthenticated" });
   return userId;
@@ -29,16 +27,12 @@ function assertUsable(device: Doc<"devices"> | null): Doc<"devices"> {
   return device;
 }
 
-export async function requireDevice(
-  ctx: QueryCtx | MutationCtx,
-): Promise<Doc<"devices">> {
+export async function requireDevice(ctx: QueryCtx | MutationCtx): Promise<Doc<"devices">> {
   const userId = await requireAuthUserId(ctx);
   return assertUsable(await findDeviceForUser(ctx, userId));
 }
 
-export async function requireDeviceFromAction(
-  ctx: ActionCtx,
-): Promise<Doc<"devices">> {
+export async function requireDeviceFromAction(ctx: ActionCtx): Promise<Doc<"devices">> {
   await requireAuthUserId(ctx);
   return assertUsable(await ctx.runQuery(internal.devices.getForCaller, {}));
 }

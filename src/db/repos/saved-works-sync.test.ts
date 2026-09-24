@@ -71,9 +71,7 @@ it("clears a date, medium, or institution removed on another device", async () =
     savedAt: 1,
     syncedAt: 1,
   });
-  await repo.upsertFromRemote([
-    { ...remote, snapshot: { title: "Water Lilies", artist: "Monet" } },
-  ]);
+  await repo.upsertFromRemote([{ ...remote, snapshot: { title: "Water Lilies", artist: "Monet" } }]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     title: "Water Lilies",
     date: null,
@@ -176,30 +174,21 @@ it("applies remote deletion while a local note edit is pending", async () => {
   await setNote(saved.localId, "Offline edit");
   await repo.upsertFromRemote([{ ...remote, updatedAt: 20, deletedAt: 20 }]);
   expect(await repo.listSavedWorks()).toEqual([]);
-  expect(await repo.listUnsynced()).toMatchObject([
-    { work: { deletedAt: 20 }, note: "Offline edit" },
-  ]);
+  expect(await repo.listUnsynced()).toMatchObject([{ work: { deletedAt: 20 }, note: "Offline edit" }]);
 });
 
 it.each([
   ["a", "z"],
   ["z", "a"],
-])(
-  "merges simultaneous edits consistently in %s then %s order",
-  async (first, second) => {
-    for (const author of [first, second]) {
-      await repo.upsertFromRemote([
-        { ...remote, updatedBy: author as Id<"devices">, note: author },
-      ]);
-    }
-    expect(await getNote(remote.localId)).toMatchObject({ text: "z" });
-  },
-);
+])("merges simultaneous edits consistently in %s then %s order", async (first, second) => {
+  for (const author of [first, second]) {
+    await repo.upsertFromRemote([{ ...remote, updatedBy: author as Id<"devices">, note: author }]);
+  }
+  expect(await getNote(remote.localId)).toMatchObject({ text: "z" });
+});
 
 it("does not move the confirmed version backward when an older upload response arrives", async () => {
-  await repo.upsertFromRemote([
-    { ...remote, updatedAt: 30, note: "Latest note" },
-  ]);
+  await repo.upsertFromRemote([{ ...remote, updatedAt: 30, note: "Latest note" }]);
   await repo.markSynced([
     {
       localId: remote.localId,
@@ -208,9 +197,7 @@ it("does not move the confirmed version backward when an older upload response a
       updatedBy: deviceId,
     },
   ]);
-  await repo.upsertFromRemote([
-    { ...remote, updatedAt: 20, note: "Older note" },
-  ]);
+  await repo.upsertFromRemote([{ ...remote, updatedAt: 20, note: "Older note" }]);
   expect(await getNote(remote.localId)).toMatchObject({ text: "Latest note" });
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({
     syncedAt: 30,
@@ -250,9 +237,7 @@ it("downloads a newer remote crop independently of note stamps, reports the disp
     syncedAt: 100,
   });
   expect(
-    await repo.upsertFromRemote([
-      { ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 },
-    ]),
+    await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 }]),
   ).toEqual(["old.jpg"]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: null,
@@ -262,18 +247,14 @@ it("downloads a newer remote crop independently of note stamps, reports the disp
   });
   await repo.updatePhotoTransfer("work", { cropPath: "new.jpg" });
   expect(
-    await repo.upsertFromRemote([
-      { ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 2 },
-    ]),
+    await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 2 }]),
   ).toEqual([]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "new.jpg",
     cropStorageId: "new",
   });
   expect(
-    await repo.upsertFromRemote([
-      { ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 },
-    ]),
+    await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 }]),
   ).toEqual([]);
 });
 
@@ -287,9 +268,7 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
     cropStorageId: "old" as Id<"_storage">,
   });
   repo.replaceSavedCrop("work", "edited.jpg");
-  await repo.upsertFromRemote([
-    { ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 100 },
-  ]);
+  await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 100 }]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "edited.jpg",
     cropStorageId: null,

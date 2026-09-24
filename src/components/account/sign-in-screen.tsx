@@ -1,12 +1,7 @@
 import { LoadingRing } from "@/components/loading-ring";
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -14,21 +9,12 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkStrip } from "@/components/guest/artwork-preview";
 import { Gallery, Typography } from "@/constants/theme";
-import {
-  signInContexts,
-  type SignInContext,
-} from "@/lib/account/sign-in-context";
+import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { AppleSignInAction } from "./apple-sign-in-action";
 
-export function SignInScreen({
-  context = "account",
-  visitId,
-}: {
-  context?: SignInContext;
-  visitId?: string;
-}) {
+export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
   const state = useAccount();
   const { account, busy } = state;
   const owner = useLocalOwner();
@@ -38,10 +24,7 @@ export function SignInScreen({
   const copy = signInContexts[context];
   const initialDetent = height < 760 ? 0.8 : context === "visit" ? 0.5 : 0.62;
   const continuingVisit = context === "visit" && !!visitId;
-  const waitingForJournal =
-    continuingVisit
-    && !!account?.linked
-    && owner !== `account:${account.accountId}`;
+  const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
   useEffect(() => {
     if (!account?.linked || busy || waitingForJournal) return;
     if (continuingVisit) {
@@ -50,14 +33,7 @@ export function SignInScreen({
         params: { visitId },
       });
     } else router.back();
-  }, [
-    account?.linked,
-    busy,
-    continuingVisit,
-    router,
-    visitId,
-    waitingForJournal,
-  ]);
+  }, [account?.linked, busy, continuingVisit, router, visitId, waitingForJournal]);
 
   return (
     <>
@@ -70,28 +46,17 @@ export function SignInScreen({
       <ScrollView
         style={styles.root}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: Math.max(20, bottom) },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(20, bottom) }]}
       >
         <View style={styles.preview}>
           <View style={styles.artworks}>
             <ArtworkStrip />
           </View>
-          <GalleryIconButton
-            label="Close sign-in"
-            icon="xmark"
-            disabled={busy}
-            onPress={() => router.back()}
-          />
+          <GalleryIconButton label="Close sign-in" icon="xmark" disabled={busy} onPress={() => router.back()} />
         </View>
         <Text
           accessibilityRole="header"
-          style={[
-            styles.title,
-            fontScale > 1.3 && { ...Typography.display, maxWidth: "100%" },
-          ]}
+          style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: "100%" }]}
         >
           {copy.title}
         </Text>
@@ -99,20 +64,12 @@ export function SignInScreen({
         <View style={styles.actions}>
           {waitingForJournal && !busy ? (
             <View style={styles.preparing}>
-              <LoadingRing
-                accessibilityLabel="Syncing your journal…"
-                color={Gallery.accent}
-              />
+              <LoadingRing accessibilityLabel="Syncing your journal…" color={Gallery.accent} />
             </View>
           ) : (
             <AppleSignInAction state={state} />
           )}
-          <GalleryButton
-            label="Not now"
-            fullWidth
-            disabled={busy}
-            onPress={() => router.back()}
-          />
+          <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
         </View>
       </ScrollView>
     </>

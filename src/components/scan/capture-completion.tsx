@@ -40,11 +40,7 @@ export function CaptureCompletion({
           padding: 6,
         }}
       >
-        <Image
-          source="sf:checkmark"
-          style={{ width: 14, height: 14 }}
-          tintColor={Gallery.ink}
-        />
+        <Image source="sf:checkmark" style={{ width: 14, height: 14 }} tintColor={Gallery.ink} />
         <ThemedText type="small">Saved to your collection</ThemedText>
       </View>
       <ThemedText style={styles.copy}>{completion.title}</ThemedText>
@@ -83,25 +79,17 @@ export function CaptureCompletion({
           })
         }
       />
-      {onViewResult && (
-        <GalleryButton label="View result" fullWidth onPress={onViewResult} />
-      )}
+      {onViewResult && <GalleryButton label="View result" fullWidth onPress={onViewResult} />}
       <ThemedText type="small" style={styles.note}>
-        {sharedToIndex
-          ? "An artwork crop was saved to the shared index."
-          : "New photos are private."}{" "}
-        Your wall and shared visits haven’t changed.
+        {sharedToIndex ? "An artwork crop was saved to the shared index." : "New photos are private."} Your wall and
+        shared visits haven’t changed.
       </ThemedText>
     </>
   );
   return inline ? (
     <View style={styles.content}>{content}</View>
   ) : (
-    <ScrollView
-      style={styles.page}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       {content}
     </ScrollView>
   );

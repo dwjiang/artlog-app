@@ -9,10 +9,7 @@ export const publicArtworkStory = v.object({
 });
 
 // Call only after authorizing the published item that exposes this saved artwork.
-export async function projectArtworkStory(
-  ctx: QueryCtx,
-  save: Doc<"collections">,
-) {
+export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections">) {
   const artwork = save.artworkId ? await ctx.db.get(save.artworkId) : null;
   if (
     !artwork
@@ -25,8 +22,7 @@ export async function projectArtworkStory(
   const facts = artwork.factSheet ?? [];
   const sources = new Set(facts.map((fact) => fact.id));
   const docent = artwork.docent?.en?.filter(
-    (line) =>
-      line.factIds.length && line.factIds.every((id) => sources.has(id)),
+    (line) => line.factIds.length && line.factIds.every((id) => sources.has(id)),
   );
   if (!docent?.length) return undefined;
   const cited = new Set(docent.flatMap((line) => line.factIds));

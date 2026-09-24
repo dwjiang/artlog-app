@@ -47,10 +47,7 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
       }}
     >
       <RNHostView>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-        >
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           <ThemedText variant="display">{SEARCH_CONSENT_TITLE}</ThemedText>
           <View
             style={{
@@ -76,12 +73,7 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
               void grant();
             }}
           />
-          <GalleryButton
-            label="Not now"
-            fullWidth
-            disabled={saving}
-            onPress={onDismiss}
-          />
+          <GalleryButton label="Not now" fullWidth disabled={saving} onPress={onDismiss} />
         </ScrollView>
       </RNHostView>
     </BottomSheet>

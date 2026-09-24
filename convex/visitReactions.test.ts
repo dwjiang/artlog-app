@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import { harness } from "./test.helpers";
-import {
-  setVisitVisibility,
-  socialUser,
-  socialVisit,
-} from "./lib/socialTestFixtures";
+import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { purgeSocialBatch } from "./lib/socialCleanup";
 
 async function fixture() {
@@ -13,10 +9,7 @@ async function fixture() {
   const author = await socialUser(t, "Author");
   const visitor = await socialUser(t, "Visitor");
   const visit = await socialVisit(t, author);
-  const publication = await author.as.mutation(
-    api.sharedVisits.publish,
-    visit.selection,
-  );
+  const publication = await author.as.mutation(api.sharedVisits.publish, visit.selection);
   return { t, author, visitor, visit, postId: publication.postId! };
 }
 
@@ -29,18 +22,12 @@ describe("visit reactions", () => {
         liked: true,
       });
     }
-    expect(
-      await visitor.as.query(api.visitReactions.getSummary, { postId }),
-    ).toEqual({
+    expect(await visitor.as.query(api.visitReactions.getSummary, { postId })).toEqual({
       likeCount: 1,
       commentCount: 0,
       liked: true,
     });
-    expect(
-      (await t.query(api.visitReactions.listLikes, { postId })).page.map(
-        (p) => p.name,
-      ),
-    ).toEqual(["Visitor"]);
+    expect((await t.query(api.visitReactions.listLikes, { postId })).page.map((p) => p.name)).toEqual(["Visitor"]);
     for (let i = 0; i < 2; i++) {
       await visitor.as.mutation(api.visitReactions.setLike, {
         postId,
@@ -104,16 +91,12 @@ describe("visit reactions", () => {
       postId,
       commentId: id,
     });
-    expect(
-      (await t.query(api.visitReactions.getSummary, { postId })).commentCount,
-    ).toBe(1);
+    expect((await t.query(api.visitReactions.getSummary, { postId })).commentCount).toBe(1);
   });
 
   it("rejects guest writes and invalid comments", async () => {
     const { t, visitor, postId } = await fixture();
-    await expect(
-      t.mutation(api.visitReactions.setLike, { postId, liked: true }),
-    ).rejects.toThrow();
+    await expect(t.mutation(api.visitReactions.setLike, { postId, liked: true })).rejects.toThrow();
     await expect(
       t.mutation(api.visitReactions.addComment, {
         postId,
@@ -148,9 +131,9 @@ describe("visit reactions", () => {
         data: { code: "not_found" },
       });
     }
-    await expect(
-      visitor.as.mutation(api.visitReactions.setLike, { postId, liked: false }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
+    await expect(visitor.as.mutation(api.visitReactions.setLike, { postId, liked: false })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
     await expect(
       visitor.as.mutation(api.visitReactions.addComment, {
         postId,
@@ -177,23 +160,19 @@ describe("visit reactions", () => {
       revision: 0,
       blockRevision: 0,
     });
-    expect(
-      (await third.as.query(api.visitReactions.listComments, { postId })).page,
-    ).toEqual([]);
-    expect(
-      (await third.as.query(api.visitReactions.listLikes, { postId })).page,
-    ).toEqual([]);
+    expect((await third.as.query(api.visitReactions.listComments, { postId })).page).toEqual([]);
+    expect((await third.as.query(api.visitReactions.listLikes, { postId })).page).toEqual([]);
     await author.as.mutation(api.friendships.block, {
       profileId: visitor.profileId,
       revision: 0,
       blockRevision: 0,
     });
-    await expect(
-      visitor.as.query(api.visitReactions.getSummary, { postId }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
-    await expect(
-      visitor.as.mutation(api.visitReactions.setLike, { postId, liked: false }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
+    await expect(visitor.as.query(api.visitReactions.getSummary, { postId })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    await expect(visitor.as.mutation(api.visitReactions.setLike, { postId, liked: false })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
   });
 
   it("hides reactions from everyone once the visit’s author and the participant are blocked", async () => {
@@ -214,12 +193,8 @@ describe("visit reactions", () => {
       blockRevision: 0,
     });
     for (const reader of [t, third.as, author.as]) {
-      expect(
-        (await reader.query(api.visitReactions.listComments, { postId })).page,
-      ).toEqual([]);
-      expect(
-        (await reader.query(api.visitReactions.listLikes, { postId })).page,
-      ).toEqual([]);
+      expect((await reader.query(api.visitReactions.listComments, { postId })).page).toEqual([]);
+      expect((await reader.query(api.visitReactions.listLikes, { postId })).page).toEqual([]);
     }
   });
 
@@ -237,9 +212,7 @@ describe("visit reactions", () => {
     while (await t.run((ctx) => purgeSocialBatch(ctx, visitor.accountId))) {
       /* drain bounded batches */
     }
-    expect(
-      await t.query(api.visitReactions.getSummary, { postId }),
-    ).toMatchObject({
+    expect(await t.query(api.visitReactions.getSummary, { postId })).toMatchObject({
       likeCount: 0,
       commentCount: 0,
     });
@@ -256,11 +229,7 @@ describe("visit reactions", () => {
       /* drain bounded batches */
     }
     await t.run(async (ctx) => {
-      for (const table of [
-        "visitLikes",
-        "visitComments",
-        "visitEngagement",
-      ] as const) {
+      for (const table of ["visitLikes", "visitComments", "visitEngagement"] as const) {
         expect(await ctx.db.query(table).take(1)).toEqual([]);
       }
     });

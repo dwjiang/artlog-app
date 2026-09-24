@@ -3,12 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { mutation } from "./_generated/server";
-import {
-  findOwnedSave,
-  findOwnedVisit,
-  nextChangeVersion,
-  resolveOwner,
-} from "./lib/ownership";
+import { findOwnedSave, findOwnedVisit, nextChangeVersion, resolveOwner } from "./lib/ownership";
 
 export const resume = mutation({
   args: { scope: v.string() },
@@ -90,15 +85,11 @@ export const resume = mutation({
       await recordArtworkScore(ctx, owner, row);
       const photos = await ctx.db
         .query("artworkPhotos")
-        .withIndex("by_save_deletedAt", (q) =>
-          q.eq("saveId", row._id).eq("deletedAt", undefined),
-        )
+        .withIndex("by_save_deletedAt", (q) => q.eq("saveId", row._id).eq("deletedAt", undefined))
         .take(101);
       const encounters = await ctx.db
         .query("artworkEncounters")
-        .withIndex("by_save_deletedAt", (q) =>
-          q.eq("saveId", row._id).eq("deletedAt", undefined),
-        )
+        .withIndex("by_save_deletedAt", (q) => q.eq("saveId", row._id).eq("deletedAt", undefined))
         .take(101);
       for (const child of [...photos, ...encounters]) {
         await ctx.db.patch(child._id, {

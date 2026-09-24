@@ -8,10 +8,7 @@ type Searchable = Pick<SavedWork, "title" | "artist" | "institution">
     visitSearchTerms?: string[];
   };
 
-export function filterWorks<T extends Searchable>(
-  works: T[],
-  query: string,
-): T[] {
+export function filterWorks<T extends Searchable>(works: T[], query: string): T[] {
   const term = searchTerm(query);
   if (term === null) return [];
   if (!term) return works;
@@ -33,20 +30,13 @@ export function filterWorks<T extends Searchable>(
 
 export function linkedVisitSearchTerms(
   owner: string,
-  encounters: Pick<
-    ArtworkEncounter,
-    "owner" | "savedLocalId" | "visitLocalId" | "deletedAt"
-  >[],
+  encounters: Pick<ArtworkEncounter, "owner" | "savedLocalId" | "visitLocalId" | "deletedAt">[],
   visits: (Pick<Visit, "owner" | "localId" | "venueName"> & {
     venueId: string;
   })[],
   metadata: ReadonlyMap<string, { city?: string | null }>,
 ) {
-  const byVisit = new Map(
-    visits
-      .filter((visit) => visit.owner === owner)
-      .map((visit) => [visit.localId, visit]),
-  );
+  const byVisit = new Map(visits.filter((visit) => visit.owner === owner).map((visit) => [visit.localId, visit]));
   const terms = new Map<string, string[]>();
   for (const encounter of encounters) {
     if (encounter.owner !== owner || encounter.deletedAt !== null) continue;
@@ -68,9 +58,7 @@ export function artworkYear(date?: string | null): number | undefined {
   return /\bBCE?\b/i.test(date!) ? -Number(match[1]) : Number(match[1]);
 }
 
-export function sortWorksByArtist<
-  T extends Pick<SavedWork, "localId" | "artist" | "title" | "date">,
->(works: T[]): T[] {
+export function sortWorksByArtist<T extends Pick<SavedWork, "localId" | "artist" | "title" | "date">>(works: T[]): T[] {
   return [...works].sort(
     (a, b) =>
       compareText(normalizeSearch(a.artist), normalizeSearch(b.artist))

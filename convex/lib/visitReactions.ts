@@ -41,10 +41,7 @@ export async function visibleParticipant(
   if (!profile) return null;
   for (const other of new Set(others)) {
     if (!other || other === profileId) continue;
-    if (
-      (await findBlock(ctx, profileId, other))?.active
-      || (await findBlock(ctx, other, profileId))?.active
-    ) {
+    if ((await findBlock(ctx, profileId, other))?.active || (await findBlock(ctx, other, profileId))?.active) {
       return null;
     }
   }

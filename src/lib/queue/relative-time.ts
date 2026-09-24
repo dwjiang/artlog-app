@@ -3,10 +3,7 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /** "Just now", "5 min ago", "3 h ago", "Yesterday", "4 days ago": a queued scan rarely outlives a week. */
-export function formatRelativeTime(
-  ms: number,
-  now: number = Date.now(),
-): string {
+export function formatRelativeTime(ms: number, now: number = Date.now()): string {
   const elapsed = Math.max(0, now - ms);
   if (elapsed < MINUTE) return "Just now";
   if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`;

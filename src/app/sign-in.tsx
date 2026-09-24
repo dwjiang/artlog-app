@@ -7,7 +7,5 @@ export default function SignInRoute() {
     context?: string;
     visitId?: string;
   }>();
-  return (
-    <SignInScreen context={readSignInContext(context)} visitId={visitId} />
-  );
+  return <SignInScreen context={readSignInContext(context)} visitId={visitId} />;
 }

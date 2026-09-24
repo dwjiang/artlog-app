@@ -61,9 +61,7 @@ export function useLeaderboardChoice() {
       .then(() => setSetting(KEY, JSON.stringify(next)))
       .catch((cause) => {
         reportError(cause, "leaderboard.filters.save");
-        setError(
-          "These filters could not be remembered. Your current selection still works.",
-        );
+        setError("These filters could not be remembered. Your current selection still works.");
       });
   }
   return { choice, changeChoice, error };

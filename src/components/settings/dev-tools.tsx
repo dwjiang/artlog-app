@@ -21,10 +21,7 @@ function message(error: unknown): string {
 
 function Status({ children }: { children: string }) {
   return (
-    <Text
-      textStyle={{ color: Gallery.muted }}
-      modifiers={[font({ textStyle: "footnote" })]}
-    >
+    <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "footnote" })]}>
       {children}
     </Text>
   );
@@ -79,9 +76,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       }
       const first = await assertSmoke(signed);
       const replay = await assertSmoke(signed);
-      setResult(
-        `Assertion: ${first.ok ? "accepted" : "rejected"} · Replay: ${replay.ok ? "accepted" : "rejected"}`,
-      );
+      setResult(`Assertion: ${first.ok ? "accepted" : "rejected"} · Replay: ${replay.ok ? "accepted" : "rejected"}`);
     } catch (error) {
       reportError(error, "diagnostics.attestation");
       setResult(message(error));
@@ -97,9 +92,7 @@ export function DevTools({ attested }: { attested: boolean }) {
     setCalibration(undefined);
     setProgress("");
     try {
-      const { report } = await runCalibrationExport((done, total) =>
-        setProgress(`${done}/${total} embeddings`),
-      );
+      const { report } = await runCalibrationExport((done, total) => setProgress(`${done}/${total} embeddings`));
       setCalibration(
         `Calibration: ${report.count} embeddings · median ${report.embedMedianMs.toFixed(1)} ms · ${report.device}`,
       );
@@ -157,11 +150,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         )}
       </GroupedSection>
       <GroupedSection title="App Attest">
-        <Status>
-          {supported
-            ? "App Attest: supported"
-            : "App Attest: unsupported on this device"}
-        </Status>
+        <Status>{supported ? "App Attest: supported" : "App Attest: unsupported on this device"}</Status>
         <ActionRow
           label="Check App Attest"
           busy={running}
@@ -173,11 +162,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         {result ? <Status>{result}</Status> : null}
       </GroupedSection>
       <GroupedSection title="Embedding">
-        {modelStatus ? (
-          <Status>{modelStatus}</Status>
-        ) : (
-          <ValueRow label="Embedding model" loading />
-        )}
+        {modelStatus ? <Status>{modelStatus}</Status> : <ValueRow label="Embedding model" loading />}
         <ActionRow
           label="Export calibration embeddings"
           busy={progress !== undefined}

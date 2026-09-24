@@ -1,10 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
-import {
-  ImageManipulator,
-  SaveFormat,
-  type ImageRef,
-} from "expo-image-manipulator";
+import { ImageManipulator, SaveFormat, type ImageRef } from "expo-image-manipulator";
 
 import type { CropContentBounds } from "../../../modules/vision-rect/src";
 
@@ -20,11 +16,7 @@ function extension(uri: string): string {
   return match ? match[0].toLowerCase() : ".jpg";
 }
 
-async function moveInto(
-  folder: string,
-  uri: string,
-  localId: string,
-): Promise<string> {
+async function moveInto(folder: string, uri: string, localId: string): Promise<string> {
   const directory = new Directory(Paths.document, folder);
   directory.create({ intermediates: true, idempotent: true });
   const filename = `${localId}${extension(uri)}`;
@@ -43,10 +35,7 @@ export function scanPreviewPath(cropPath: string): string {
   return cropPath.replace(/\.[^/.]+$/, "") + ".preview.jpg";
 }
 
-export async function persistArtworkPhoto(
-  uri: string,
-  localId: string,
-): Promise<string> {
+export async function persistArtworkPhoto(uri: string, localId: string): Promise<string> {
   return moveInto("artwork-photos", uri, localId);
 }
 
@@ -73,18 +62,14 @@ export async function persistCapture({
   let image: ImageRef | undefined;
   try {
     const { x, y, width, height } = contentBounds;
-    image = await context
-      .crop({ originX: x, originY: y, width, height })
-      .renderAsync();
+    image = await context.crop({ originX: x, originY: y, width, height }).renderAsync();
     const preview = await image.saveAsync({
       format: SaveFormat.JPEG,
       compress: 1,
     });
     const photoPath = await moveInto("photos", photoUri, localId);
     const cropPath = await moveInto("crops", cropUri, localId);
-    await new File(preview.uri).move(
-      new File(captureFileUri(scanPreviewPath(cropPath))),
-    );
+    await new File(preview.uri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
     return { photoPath, cropPath };
   } finally {
     image?.release();
@@ -93,13 +78,7 @@ export async function persistCapture({
 }
 
 /** Keeps a label photo captured offline beside the scan until the queue reads it. */
-export async function persistLabelPhoto({
-  photoUri,
-  localId,
-}: {
-  photoUri: string;
-  localId: string;
-}): Promise<string> {
+export async function persistLabelPhoto({ photoUri, localId }: { photoUri: string; localId: string }): Promise<string> {
   return moveInto("labels", photoUri, `${localId}-${randomUUID()}`);
 }
 

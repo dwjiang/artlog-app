@@ -5,14 +5,7 @@ export type CollectionSite = {
   platform: "emuseum" | "iiif" | "collectionspace" | "generic";
 };
 
-const PATHS = [
-  "/",
-  "/collection",
-  "/collections",
-  "/art/collection",
-  "/objects",
-  "/sitemap.xml",
-];
+const PATHS = ["/", "/collection", "/collections", "/art/collection", "/objects", "/sitemap.xml"];
 const MAX_BODY_BYTES = 1024 * 1024;
 
 export function websiteUrl(value: string): URL | null {
@@ -41,9 +34,7 @@ export function websiteUrl(value: string): URL | null {
 
 function sameHostUrl(value: string, base: URL): URL | null {
   const url = websiteUrl(new URL(value, base).href);
-  return url
-    && url.hostname === base.hostname
-    && !(base.protocol === "https:" && url.protocol === "http:")
+  return url && url.hostname === base.hostname && !(base.protocol === "https:" && url.protocol === "http:")
     ? url
     : null;
 }
@@ -55,12 +46,7 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   );
   for (const match of rawLinks) {
     try {
-      const link = sameHostUrl(
-        (match[1] ?? match[2] ?? match[3] ?? match[4])
-          .replace(/&amp;/g, "&")
-          .trim(),
-        page,
-      );
+      const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(), page);
       if (link) links.push(link);
     } catch {
       /* Malformed markup is not a probe target. */
@@ -79,27 +65,16 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   if (links.some((link) => /\/iiif\//i.test(link.pathname))) {
     return { collectionSiteUrl, platform: "iiif" };
   }
-  if (
-    /\bemuseum\b/i.test(body)
-    || links.some((link) => /\/objects\//i.test(link.pathname))
-  ) {
+  if (/\bemuseum\b/i.test(body) || links.some((link) => /\/objects\//i.test(link.pathname))) {
     return { collectionSiteUrl, platform: "emuseum" };
   }
-  if (
-    new Set(
-      links
-        .filter((link) => collectionPath.test(link.pathname))
-        .map((link) => link.pathname),
-    ).size >= 20
-  ) {
+  if (new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname)).size >= 20) {
     return { collectionSiteUrl, platform: "generic" };
   }
   return null;
 }
 
-export async function probeCollectionSite(
-  website: string,
-): Promise<CollectionSite | null | "retry"> {
+export async function probeCollectionSite(website: string): Promise<CollectionSite | null | "retry"> {
   const root = websiteUrl(website);
   if (!root) return null;
   const pending = PATHS.map((path) => new URL(path, root));
@@ -128,20 +103,13 @@ export async function probeCollectionSite(
         continue;
       }
       if (!response.ok) {
-        if (
-          response.status === 408
-          || response.status === 429
-          || response.status >= 500
-        ) {
+        if (response.status === 408 || response.status === 429 || response.status >= 500) {
           retryable = true;
         }
         await response.body?.cancel();
         continue;
       }
-      const result = detectCollection(
-        await readBody(response, MAX_BODY_BYTES),
-        url,
-      );
+      const result = detectCollection(await readBody(response, MAX_BODY_BYTES), url);
       if (result) return result;
     } catch {
       retryable = true;

@@ -53,11 +53,7 @@ jest.mock("../loading-ring", () => {
   const { View } = jest.requireActual("react-native");
   return {
     LoadingRing: ({ accessibilityLabel }: { accessibilityLabel: string }) => (
-      <View
-        accessible
-        accessibilityRole="progressbar"
-        accessibilityLabel={accessibilityLabel}
-      />
+      <View accessible accessibilityRole="progressbar" accessibilityLabel={accessibilityLabel} />
     ),
   };
 });
@@ -74,17 +70,11 @@ beforeEach(() => {
 
 it("shows a spinner without raw loading text until the map image and layout are ready", async () => {
   const view = await render(<GlobeCanvas {...props} />);
-  expect(
-    screen.getByRole("progressbar", { name: "Loading globe…" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Loading globe…" })).toBeOnTheScreen();
   expect(screen.queryByText("Loading globe…")).toBeNull();
-  await fireEvent(
-    screen.getByLabelText("Interactive globe of your museum visits"),
-    "layout",
-    {
-      nativeEvent: { layout: { width: 350 } },
-    },
-  );
+  await fireEvent(screen.getByLabelText("Interactive globe of your museum visits"), "layout", {
+    nativeEvent: { layout: { width: 350 } },
+  });
   mockImage = {};
   await view.rerender(<GlobeCanvas {...props} />);
   expect(screen.queryByRole("progressbar")).toBeNull();
@@ -99,9 +89,5 @@ it("replaces a failed image load with the existing list recovery guidance", asyn
   await render(<GlobeCanvas {...props} />);
   await act(() => mockImageError());
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(
-    screen.getByText(
-      "Globe rendering is unavailable. Use the museum chooser or List.",
-    ),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Globe rendering is unavailable. Use the museum chooser or List.")).toBeOnTheScreen();
 });

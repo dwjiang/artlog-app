@@ -1,10 +1,6 @@
 import type { Id } from "../../../convex/_generated/dataModel";
 import { calendarDate } from "../../../shared/journal/limits";
-import {
-  type Coordinate,
-  type VenueCandidate,
-  type VenueResolution,
-} from "./resolve";
+import { type Coordinate, type VenueCandidate, type VenueResolution } from "./resolve";
 
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
@@ -36,9 +32,7 @@ export type PoiOption = {
 export type VenueOption = SeededOption | PoiOption;
 
 export function venueOptionKey(option: VenueOption): string {
-  return option.kind === "seeded"
-    ? option.venueId
-    : `poi:${option.name}:${option.lat}:${option.lng}`;
+  return option.kind === "seeded" ? option.venueId : `poi:${option.name}:${option.lat}:${option.lng}`;
 }
 
 export type CurrentVisit = {
@@ -57,13 +51,7 @@ export type CurrentVisit = {
 export type VenuePick = { venueId: Id<"museums"> } & MuseumDay;
 
 export type Fix = Coordinate & { at: number };
-export type VenueStatus =
-  | "idle"
-  | "locating"
-  | "resolved"
-  | "choose"
-  | "none"
-  | "denied";
+export type VenueStatus = "idle" | "locating" | "resolved" | "choose" | "none" | "denied";
 
 export type VenueState = {
   status: VenueStatus;
@@ -134,10 +122,7 @@ export function toSeededOption(candidate: VenueCandidate): SeededOption {
 }
 
 /** A visit resumes for the rest of its calendar day at the museum; the next day starts a new one. */
-export function isVisitToday(
-  visit: Pick<CurrentVisit, "visitedOn" | "timeZone">,
-  now: number,
-): boolean {
+export function isVisitToday(visit: Pick<CurrentVisit, "visitedOn" | "timeZone">, now: number): boolean {
   return calendarDate(now, visit.timeZone) === visit.visitedOn;
 }
 
@@ -146,12 +131,8 @@ export function needsFix(state: VenueState, now: number): boolean {
 }
 
 /** The open visit while the phone is at its museum; undefined while it is paused elsewhere. */
-export function activeVisit(
-  state: Pick<VenueState, "venue" | "visit">,
-): CurrentVisit | undefined {
-  return state.visit && state.visit.venueId === state.venue?.venueId
-    ? state.visit
-    : undefined;
+export function activeVisit(state: Pick<VenueState, "venue" | "visit">): CurrentVisit | undefined {
+  return state.visit && state.visit.venueId === state.venue?.venueId ? state.visit : undefined;
 }
 
 /** What a scan sends: the resolved venue, plus the visit only when it is at that venue. */
@@ -170,15 +151,8 @@ function isNotHere(state: VenueState, key: string, at: number): boolean {
 }
 
 /** Any listed option under "Not here" means the person already turned this spot down. */
-function promptAllowed(
-  state: VenueState,
-  options: VenueOption[],
-  at: number,
-): boolean {
-  return (
-    options.length > 0
-    && options.every((option) => !isNotHere(state, venueOptionKey(option), at))
-  );
+function promptAllowed(state: VenueState, options: VenueOption[], at: number): boolean {
+  return options.length > 0 && options.every((option) => !isNotHere(state, venueOptionKey(option), at));
 }
 
 export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
@@ -230,11 +204,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     case "resolved": {
       const { fix, resolution } = event;
-      if (
-        state.venue?.manual
-        && state.visit
-        && isVisitToday(state.visit, fix.at)
-      ) {
+      if (state.venue?.manual && state.visit && isVisitToday(state.visit, fix.at)) {
         return { ...state, status: "resolved", fix, error: undefined };
       }
       const base = { ...state, fix, error: undefined };
@@ -257,9 +227,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (resolution.kind === "choose") {
         const options = resolution.options.map(toSeededOption);
         const listedToday = (kept?: MuseumDay & { venueId: Id<"museums"> }) =>
-          kept && isVisitToday(kept, fix.at)
-            ? options.find((option) => option.venueId === kept.venueId)
-            : undefined;
+          kept && isVisitToday(kept, fix.at) ? options.find((option) => option.venueId === kept.venueId) : undefined;
         // Picking from the list sets today's visit elsewhere aside; a visit taking over since then drops the pick.
         const current = listedToday(state.picked) ?? listedToday(state.visit);
         if (current) {
@@ -270,10 +238,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
           status: "choose",
           venue: undefined,
           options,
-          prompt:
-            !event.quiet && promptAllowed(state, options, fix.at)
-              ? state.prompt + 1
-              : state.prompt,
+          prompt: !event.quiet && promptAllowed(state, options, fix.at) ? state.prompt + 1 : state.prompt,
         };
       }
       // Leaving the radius pauses the visit; it resumes on return the same day and closes with the day, a new venue, or End.
@@ -282,9 +247,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
     case "poiOptions": {
       if (state.status !== "none" || !state.fix) return state;
       const prompt =
-        !event.quiet && promptAllowed(state, event.options, state.fix.at)
-          ? state.prompt + 1
-          : state.prompt;
+        !event.quiet && promptAllowed(state, event.options, state.fix.at) ? state.prompt + 1 : state.prompt;
       return { ...state, options: event.options, prompt };
     }
     case "chosen": {
@@ -292,18 +255,13 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       const options = [
         event.option,
         ...state.options.filter(
-          (option) =>
-            venueOptionKey(option) !== selectedKey
-            && venueOptionKey(option) !== event.option.venueId,
+          (option) => venueOptionKey(option) !== selectedKey && venueOptionKey(option) !== event.option.venueId,
         ),
       ];
       // Confirming the museum ended by hand today says its visits are wanted again; saves there default to one.
-      const ended =
-        state.ended?.venueId === event.option.venueId ? undefined : state.ended;
+      const ended = state.ended?.venueId === event.option.venueId ? undefined : state.ended;
       const notHere = Object.fromEntries(
-        Object.entries(state.notHere).filter(
-          ([key]) => key !== selectedKey && key !== event.option.venueId,
-        ),
+        Object.entries(state.notHere).filter(([key]) => key !== selectedKey && key !== event.option.venueId),
       );
       return {
         ...state,
@@ -317,9 +275,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     }
     case "visitStarted": {
-      const tookOver =
-        event.visit.localId !== state.visit?.localId
-        && event.visit.venueId !== state.picked?.venueId;
+      const tookOver = event.visit.localId !== state.visit?.localId && event.visit.venueId !== state.picked?.venueId;
       return {
         ...state,
         visit: event.visit,
@@ -354,15 +310,11 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     case "dismissed": {
       // "Not here" rejects the listed options, the resolved venue and its visit; a visit paused elsewhere stays open.
-      const rejected =
-        state.visit !== undefined
-        && state.visit.venueId === state.venue?.venueId;
+      const rejected = state.visit !== undefined && state.visit.venueId === state.venue?.venueId;
       const keys = new Set(state.options.map(venueOptionKey));
       if (state.venue) keys.add(state.venue.venueId);
       const notHere = Object.fromEntries([
-        ...Object.entries(state.notHere).filter(
-          ([, until]) => until > event.at,
-        ),
+        ...Object.entries(state.notHere).filter(([, until]) => until > event.at),
         ...[...keys].map((key) => [key, event.at + NOT_HERE_MS] as const),
       ]);
       return {
@@ -370,10 +322,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         status: state.status === "resolved" ? "none" : state.status,
         venue: undefined,
         visit: rejected ? undefined : state.visit,
-        picked:
-          state.picked && keys.has(state.picked.venueId)
-            ? undefined
-            : state.picked,
+        picked: state.picked && keys.has(state.picked.venueId) ? undefined : state.picked,
         notHere,
       };
     }
@@ -383,10 +332,6 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
 }
 
 /** Location alone does not restart a visit the person ended by hand at that museum today. */
-export function endedToday(
-  state: VenueState,
-  venueId: Id<"museums">,
-  now: number,
-): boolean {
+export function endedToday(state: VenueState, venueId: Id<"museums">, now: number): boolean {
   return state.ended?.venueId === venueId && isVisitToday(state.ended, now);
 }

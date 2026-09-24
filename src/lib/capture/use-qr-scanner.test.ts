@@ -18,13 +18,10 @@ jest.mock("react-native-vision-camera", () => ({
 
 it("detaches the output while disabled and ignores late native callbacks", async () => {
   const onCode = jest.fn();
-  const hook = await renderHook(
-    (props: { enabled: boolean }) => useQrScanner(props.enabled, onCode),
-    { initialProps: { enabled: false } },
-  );
-  const objects = [
-    { type: "qr", value: "https://museum.org/painting" },
-  ] as ScannedCode[];
+  const hook = await renderHook((props: { enabled: boolean }) => useQrScanner(props.enabled, onCode), {
+    initialProps: { enabled: false },
+  });
+  const objects = [{ type: "qr", value: "https://museum.org/painting" }] as ScannedCode[];
   expect(hook.result.current).toBeUndefined();
   mockOptions.onObjectsScanned(objects);
   expect(onCode).not.toHaveBeenCalled();
@@ -36,8 +33,6 @@ it("detaches the output while disabled and ignores late native callbacks", async
   expect(onCode).toHaveBeenCalledTimes(1);
   expect(onCode).toHaveBeenCalledWith("https://museum.org/painting");
   await hook.rerender({ enabled: false });
-  mockOptions.onObjectsScanned([
-    { type: "qr", value: "https://museum.org/other" },
-  ] as ScannedCode[]);
+  mockOptions.onObjectsScanned([{ type: "qr", value: "https://museum.org/other" }] as ScannedCode[]);
   expect(onCode).toHaveBeenCalledTimes(1);
 });

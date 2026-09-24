@@ -1,8 +1,4 @@
-import {
-  REFRESH_INTERVAL_MS,
-  refreshVenueTable,
-  type RefreshDependencies,
-} from "./refresh";
+import { REFRESH_INTERVAL_MS, refreshVenueTable, type RefreshDependencies } from "./refresh";
 
 jest.mock("./venue-db", () => ({}));
 jest.mock("@/db/repos/settings", () => ({}));
@@ -49,15 +45,12 @@ it("checks again once a day has passed", async () => {
 it.each([
   ["the same version", 200],
   ["an older version", 300],
-])(
-  "keeps the local table when the published one is %s",
-  async (_label, localVersion) => {
-    deps.localVersion.mockResolvedValue(localVersion);
-    await expect(refreshVenueTable(deps)).resolves.toBe("current");
-    expect(deps.install).not.toHaveBeenCalled();
-    expect(deps.setCheckedAt).toHaveBeenCalledWith(1_000_000);
-  },
-);
+])("keeps the local table when the published one is %s", async (_label, localVersion) => {
+  deps.localVersion.mockResolvedValue(localVersion);
+  await expect(refreshVenueTable(deps)).resolves.toBe("current");
+  expect(deps.install).not.toHaveBeenCalled();
+  expect(deps.setCheckedAt).toHaveBeenCalledWith(1_000_000);
+});
 
 it("treats an unpublished table as current", async () => {
   deps.fetchLatest.mockResolvedValue(null);

@@ -12,9 +12,7 @@ it("regenerates a stored crop with the current embedding and ORB extractor", asy
     modelVersion: "current",
     embed: jest.fn().mockResolvedValue(embedding),
   };
-  jest
-    .mocked(extractOrb)
-    .mockResolvedValue({ count: 1, descriptors, keypoints });
+  jest.mocked(extractOrb).mockResolvedValue({ count: 1, descriptors, keypoints });
 
   await expect(extractFeatures(cropUri, { embedder, orb })).resolves.toEqual({
     vector: [0.12346, -0.76543],

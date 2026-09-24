@@ -1,11 +1,6 @@
 import { ConvexError } from "convex/values";
 
-import {
-  MODERATION_MAX_TOKENS,
-  MODERATION_PROMPT,
-  MODERATION_SCHEMA,
-  parseModeration,
-} from "./labelPrompt";
+import { MODERATION_MAX_TOKENS, MODERATION_PROMPT, MODERATION_SCHEMA, parseModeration } from "./labelPrompt";
 import { mentions } from "./textMatch";
 import { chatJson } from "./tokenFactory";
 import { reportBackendError } from "./observability";
@@ -46,15 +41,10 @@ export function blocklistTerms(): string[] {
 }
 
 export function blocklistFlags(text: string): boolean {
-  return (
-    PII_PATTERNS.some((pattern) => pattern.test(text))
-    || blocklistTerms().some((term) => mentions(text, term))
-  );
+  return PII_PATTERNS.some((pattern) => pattern.test(text)) || blocklistTerms().some((term) => mentions(text, term));
 }
 
-export async function checkText(
-  values: (string | null | undefined)[],
-): Promise<ModerationResult> {
+export async function checkText(values: (string | null | undefined)[]): Promise<ModerationResult> {
   const text = values
     .map((value) => value?.trim() ?? "")
     .filter(Boolean)
@@ -77,14 +67,8 @@ export async function checkText(
     return { flagged: value.flagged, method: "model", calls };
   } catch (error) {
     await reportBackendError(error, "moderation.checkText");
-    const calls =
-      error instanceof ConvexError && typeof error.data.calls === "number"
-        ? error.data.calls
-        : 0;
-    console.warn(
-      "Moderation model unavailable; falling back to the blocklist",
-      error,
-    );
+    const calls = error instanceof ConvexError && typeof error.data.calls === "number" ? error.data.calls : 0;
+    console.warn("Moderation model unavailable; falling back to the blocklist", error);
     return { flagged: blocklistFlags(text), method: "blocklist", calls };
   }
 }

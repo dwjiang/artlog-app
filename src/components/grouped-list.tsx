@@ -1,11 +1,5 @@
 import { Button, Column, Host, Icon, ListItem, Row, Text } from "@expo/ui";
-import {
-  LabeledContent,
-  List,
-  Rectangle,
-  Section,
-  Spacer,
-} from "@expo/ui/swift-ui";
+import { LabeledContent, List, Rectangle, Section, Spacer } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   accessibilityValue,
@@ -26,13 +20,7 @@ import {
   strokeBorder,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
-import {
-  Children,
-  Fragment,
-  isValidElement,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
 import { Gallery, SettingsOutline, Spacing } from "@/constants/theme";
 import { NativeLoadingRing } from "./native-loading-ring";
 
@@ -121,13 +109,7 @@ export function GroupedSection({
   );
 }
 
-export function GroupedFooter({
-  children,
-  tone = "muted",
-}: {
-  children: string;
-  tone?: "muted" | "destructive";
-}) {
+export function GroupedFooter({ children, tone = "muted" }: { children: string; tone?: "muted" | "destructive" }) {
   return (
     <Text
       modifiers={[font({ textStyle: "footnote" })]}
@@ -160,10 +142,7 @@ export function NavigationRow({
           {loading ? (
             <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} />
           ) : value ? (
-            <Text
-              modifiers={[font({ textStyle: "subheadline" })]}
-              textStyle={{ color: Gallery.muted }}
-            >
+            <Text modifiers={[font({ textStyle: "subheadline" })]} textStyle={{ color: Gallery.muted }}>
               {value}
             </Text>
           ) : null}
@@ -178,10 +157,7 @@ export function NavigationRow({
       ]}
       supportingText={
         detail ? (
-          <Text
-            modifiers={[font({ textStyle: "footnote" })]}
-            textStyle={{ color: Gallery.muted }}
-          >
+          <Text modifiers={[font({ textStyle: "footnote" })]} textStyle={{ color: Gallery.muted }}>
             {detail}
           </Text>
         ) : undefined
@@ -237,19 +213,10 @@ export function ActionRow({
       <Row
         spacing={12}
         alignment="center"
-        modifiers={[
-          frame({ maxWidth: Infinity, alignment: "leading" }),
-          contentShape(shapes.rectangle()),
-        ]}
+        modifiers={[frame({ maxWidth: Infinity, alignment: "leading" }), contentShape(shapes.rectangle())]}
       >
         {icon && indicator}
-        <Text
-          modifiers={[
-            font({ textStyle: "body" }),
-            multilineTextAlignment("leading"),
-          ]}
-          textStyle={{ color }}
-        >
+        <Text modifiers={[font({ textStyle: "body" }), multilineTextAlignment("leading")]} textStyle={{ color }}>
           {label}
         </Text>
         {!icon && indicator}
@@ -258,24 +225,13 @@ export function ActionRow({
   );
 }
 
-export function ValueRow({
-  label,
-  value,
-  loading = false,
-}: {
-  label: string;
-  value?: string;
-  loading?: boolean;
-}) {
+export function ValueRow({ label, value, loading = false }: { label: string; value?: string; loading?: boolean }) {
   return (
     <LabeledContent label={label} modifiers={[font({ textStyle: "body" })]}>
       {loading ? (
         <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} />
       ) : (
-        <Text
-          modifiers={[font({ textStyle: "body" })]}
-          textStyle={{ color: Gallery.muted }}
-        >
+        <Text modifiers={[font({ textStyle: "body" })]} textStyle={{ color: Gallery.muted }}>
           {value}
         </Text>
       )}

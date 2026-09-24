@@ -5,9 +5,7 @@ import type { ListeningTrack } from "@/lib/audio/narration";
 import { ListenActions } from "./listen-actions";
 
 const artworkId = "artwork-1" as Id<"artworks">;
-const facts = [
-  { id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" },
-];
+const facts = [{ id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" }];
 const opening = "This is Water Lilies by Claude Monet.";
 const track: ListeningTrack = {
   work: {
@@ -63,22 +61,13 @@ beforeEach(() => {
 });
 
 async function renderActions() {
-  await render(
-    <ListenActions
-      artworkId={artworkId}
-      title="Water Lilies"
-      artist="Claude Monet"
-      scanId="scan-1"
-    />,
-  );
+  await render(<ListenActions artworkId={artworkId} title="Water Lilies" artist="Claude Monet" scanId="scan-1" />);
 }
 
 it("starts the artwork guide and opens its player from the listen row", async () => {
   await renderActions();
   expect(screen.getByText(/AI-generated voice/)).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Listen to this work" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
   expect(mockController.play).toHaveBeenCalledWith({
     work: expect.objectContaining({
       artworkId,
@@ -113,9 +102,7 @@ it("resumes the current guide and shows its remaining time", async () => {
   };
   await renderActions();
   expect(screen.getByText("1:20 left · AI-generated voice")).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Resume listening" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Resume listening" }));
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockController.play).not.toHaveBeenCalled();
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
@@ -151,9 +138,7 @@ it("keeps preparation labeled and prevents duplicate playback requests", async (
 it("offers retry when the current narration fails", async () => {
   mockAudio = { ...mockAudio, current: track, phase: "error" };
   await renderActions();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Retry narration" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Retry narration" }));
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
@@ -196,11 +181,7 @@ it("marks queued artworks as added and prevents duplicate additions", async () =
 it("prepares the first queued guide without starting playback", async () => {
   await renderActions();
   await fireEvent.press(screen.getByRole("button", { name: "Add to queue" }));
-  expect(mockController.play).toHaveBeenCalledWith(
-    { work: expect.objectContaining({ artworkId }) },
-    false,
-    true,
-  );
+  expect(mockController.play).toHaveBeenCalledWith({ work: expect.objectContaining({ artworkId }) }, false, true);
   expect(mockOpenPlayer).not.toHaveBeenCalled();
 });
 
@@ -211,19 +192,13 @@ it("does not offer to queue the current artwork again when its research changes"
     phase: "ready",
   };
   await renderActions();
-  expect(
-    screen.getByRole("button", { name: "Already in player" }),
-  ).toBeDisabled();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Listen to this work" }),
-  );
+  expect(screen.getByRole("button", { name: "Already in player" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
   expect(mockController.play).toHaveBeenCalledTimes(1);
 });
 
 it("omits the listen row when no narration research is available", async () => {
   mockFacts = [];
   await renderActions();
-  expect(
-    screen.queryByRole("button", { name: "Listen to this work" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Listen to this work" })).toBeNull();
 });

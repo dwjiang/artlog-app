@@ -10,19 +10,10 @@ import {
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import type { ReactNode } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { Gallery } from "@/constants/theme";
-import {
-  wallAspect,
-  type WallFrame as Frame,
-  type WallPiece,
-} from "@/lib/wall/wall-layout";
+import { wallAspect, type WallFrame as Frame, type WallPiece } from "@/lib/wall/wall-layout";
 import { WallFrame, wallFrameInset, wallFrames } from "./wall-frame";
 import { WallArtwork } from "./wall-artwork";
 
@@ -59,10 +50,7 @@ function WallChoice({
         <Column
           spacing={7}
           alignment="center"
-          modifiers={[
-            frame({ maxWidth: Infinity, minHeight: 72 }),
-            contentShape(shapes.rectangle()),
-          ]}
+          modifiers={[frame({ maxWidth: Infinity, minHeight: 72 }), contentShape(shapes.rectangle())]}
         >
           <RNHostView matchContents>
             <View pointerEvents="none" style={styles.preview}>
@@ -98,11 +86,7 @@ export function WallFramePicker({
   piece?: WallPiece;
 }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.frames}
-    >
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.frames}>
       {wallFrames.map((finish) => (
         <WallChoice
           key={finish.value}

@@ -3,21 +3,9 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-  type MutationCtx,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
-import {
-  findDeviceForUser,
-  requireAuthUserId,
-  requireDevice,
-  requireDeviceFromAction,
-} from "./lib/auth";
+import { findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { limitKey } from "./lib/rateLimits";
 import { challengePurpose, devicePlatform } from "./lib/validators";
 import schema from "./schema";
@@ -204,19 +192,13 @@ export const attestDevice = action({
         nonce: args.nonce,
         purpose: "attest",
       });
-      const result = await ctx.runAction(
-        internal.appAttestNode.verifyAttestation,
-        {
-          attestationBase64: args.attestationBase64,
-          keyId: args.keyId,
-          challenge: args.nonce,
-        },
-      );
+      const result = await ctx.runAction(internal.appAttestNode.verifyAttestation, {
+        attestationBase64: args.attestationBase64,
+        keyId: args.keyId,
+        challenge: args.nonce,
+      });
       if (!result.ok || result.publicKeySpkiBase64 === undefined) {
-        const code =
-          result.reason === "keyId does not match"
-            ? "key_mismatch"
-            : "invalid_attestation";
+        const code = result.reason === "keyId does not match" ? "key_mismatch" : "invalid_attestation";
         throw new ConvexError({ code, reason: result.reason });
       }
       await ctx.runMutation(internal.devices.markAttested, {
@@ -240,10 +222,7 @@ export type AttestedWriteArgs = {
  * verified assertion consumes the challenge and advances the device counter. Simulator builds skip
  * the signature check while APP_ATTEST_REQUIRED is not "true".
  */
-export async function requireAttestedWrite(
-  ctx: MutationCtx,
-  args: AttestedWriteArgs,
-): Promise<Doc<"devices">> {
+export async function requireAttestedWrite(ctx: MutationCtx, args: AttestedWriteArgs): Promise<Doc<"devices">> {
   const device = await requireDevice(ctx);
   await consumeChallenge(ctx, device, args.nonce, "assert");
   if (!attestRequired() && device.platform === "simulator") return device;
@@ -283,8 +262,7 @@ export const assertSmoke = mutation({
     } catch (error) {
       if (
         error instanceof ConvexError
-        && (error.data.code === "challenge_invalid"
-          || error.data.code === "invalid_assertion")
+        && (error.data.code === "challenge_invalid" || error.data.code === "invalid_assertion")
       ) {
         return { ok: false };
       }

@@ -8,11 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
-import {
-  chooseProfilePhoto,
-  profilePhotoBytes,
-  removeProfilePhotoDraft,
-} from "@/lib/social/profile-photo";
+import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { showToast } from "@/lib/ui/toast";
@@ -25,11 +21,7 @@ import { SocialGate, SocialState } from "./social-state";
 
 export function EditProfileScreen() {
   const session = useSocialSession();
-  const profile = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const profile = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   if (session.status !== "ready") return <SocialGate session={session} />;
   if (profile.data === null) {
     return (
@@ -44,11 +36,7 @@ export function EditProfileScreen() {
   if (!profile.data) {
     return (
       <SocialState
-        title={
-          profile.error
-            ? "Couldn’t load your profile."
-            : "Opening your profile…"
-        }
+        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
         loading={!profile.error}
         action={profile.error ? "Try again" : undefined}
         onAction={profile.refresh}
@@ -104,8 +92,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
     setOperation("save");
     setError(undefined);
     try {
-      const bytes =
-        typeof photo === "string" ? await profilePhotoBytes(photo) : photo;
+      const bytes = typeof photo === "string" ? await profilePhotoBytes(photo) : photo;
       if (!owner.isCurrent() || !mounted.current) return;
       await save({
         name: name.trim(),
@@ -119,25 +106,17 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
     } catch (cause) {
       reportError(cause, "profile.update");
       if (owner.isCurrent() && mounted.current) {
-        setError(
-          socialErrorMessage(cause)
-            ?? "Your profile was not saved. Please try again.",
-        );
+        setError(socialErrorMessage(cause) ?? "Your profile was not saved. Please try again.");
       }
     } finally {
       if (owner.isCurrent() && mounted.current) setOperation(undefined);
     }
   }
-  const shownPhoto =
-    photo === undefined ? profile.photoUrl : (photo ?? undefined);
+  const shownPhoto = photo === undefined ? profile.photoUrl : (photo ?? undefined);
   return (
     <>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          disabled={busy}
-          tintColor={Gallery.accent}
-          onPress={() => router.back()}
-        >
+        <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.accent} onPress={() => router.back()}>
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -207,18 +186,13 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
         ))}
         <View style={{ gap: 4 }}>
           <Text style={{ color: Gallery.muted }}>@{profile.username}</Text>
-          <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-            Usernames can’t be changed.
-          </Text>
+          <Text style={{ color: Gallery.muted, fontSize: 13 }}>Usernames can’t be changed.</Text>
         </View>
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           Your photo, name and introduction appear on your public profile.
         </Text>
         {error && (
-          <Text
-            accessibilityRole="alert"
-            style={{ color: Gallery.destructive }}
-          >
+          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
             {error}
           </Text>
         )}

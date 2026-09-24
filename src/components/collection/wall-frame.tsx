@@ -14,16 +14,14 @@ export const wallFrames: {
     name: "Gilt",
     color: "#B3924B",
     width: 4,
-    gradient:
-      "linear-gradient(135deg, #E3C77A 0%, #9C7A36 35%, #E6CB80 55%, #8A6A2A 100%)",
+    gradient: "linear-gradient(135deg, #E3C77A 0%, #9C7A36 35%, #E6CB80 55%, #8A6A2A 100%)",
   },
   {
     value: "baroque",
     name: "Baroque",
     color: "#8A6620",
     width: 8,
-    gradient:
-      "linear-gradient(135deg, #D9B95E 0%, #8A6620 30%, #F0D68A 50%, #7A5A18 78%, #D9B95E 100%)",
+    gradient: "linear-gradient(135deg, #D9B95E 0%, #8A6620 30%, #F0D68A 50%, #7A5A18 78%, #D9B95E 100%)",
   },
   {
     value: "walnut",
@@ -52,15 +50,7 @@ export function wallFrameInset(frame: Frame, width: number) {
   return Math.min(finish.width, (finish.width * width) / 166);
 }
 
-export function WallFrame({
-  frame,
-  children,
-  width,
-}: {
-  frame: Frame;
-  children: ReactNode;
-  width: number;
-}) {
+export function WallFrame({ frame, children, width }: { frame: Frame; children: ReactNode; width: number }) {
   const finish = wallFrames.find((item) => item.value === frame)!;
   const inset = wallFrameInset(frame, width);
   return (
@@ -86,10 +76,8 @@ export function WallFrame({
             StyleSheet.absoluteFill,
             {
               borderWidth: frame === "mat" ? 1 : 0.5,
-              borderTopColor:
-                frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.5)",
-              borderLeftColor:
-                frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.35)",
+              borderTopColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.5)",
+              borderLeftColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.35)",
               borderBottomColor: "rgba(35,26,15,0.6)",
               borderRightColor: "rgba(35,26,15,0.45)",
             },

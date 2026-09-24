@@ -8,11 +8,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { Gallery } from "@/constants/theme";
-import {
-  linkArtworkVisits,
-  linkArtworksVisit,
-  selectArtworkEncounters,
-} from "@/db/repos/artwork-album";
+import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -67,9 +63,7 @@ function LinkPicker({
     [search, setSearch] = useState("");
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
-  const destination = visits.data.find(
-    (visit) => visit.localId === visitId && visit.owner === owner,
-  );
+  const destination = visits.data.find((visit) => visit.localId === visitId && visit.owner === owner);
   const clearSearch = () => setSearch("");
   const rows = savedId
     ? visits.data
@@ -91,18 +85,10 @@ function LinkPicker({
           syncing: cropSyncing(row),
         }));
   const filtered = rows.filter((row) =>
-    normalizeSearch(`${row.title} ${row.subtitle}`).includes(
-      normalizeSearch(search),
-    ),
+    normalizeSearch(`${row.title} ${row.subtitle}`).includes(normalizeSearch(search)),
   );
   const query = savedId ? visits : works;
-  const noun = savedId
-    ? selected.length === 1
-      ? "visit"
-      : "visits"
-    : selected.length === 1
-      ? "artwork"
-      : "artworks";
+  const noun = savedId ? (selected.length === 1 ? "visit" : "visits") : selected.length === 1 ? "artwork" : "artworks";
   if (!!savedId === !!visitId) {
     return (
       <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
@@ -117,9 +103,7 @@ function LinkPicker({
   }
   return (
     <>
-      <Stack.Screen
-        options={{ title: savedId ? "Link a visit" : "Link artworks" }}
-      />
+      <Stack.Screen options={{ title: savedId ? "Link a visit" : "Link artworks" }} />
       <FlatList
         style={{ backgroundColor: Gallery.paper }}
         contentInsetAdjustmentBehavior="automatic"
@@ -148,11 +132,8 @@ function LinkPicker({
               />
             )}
             {rows.length > 0 && (
-              <Text
-                style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}
-              >
-                Keep the artwork and its photos together across visits. Linking
-                doesn’t copy or share photos.
+              <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>
+                Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.
               </Text>
             )}
             {savedId && rows.length > 0 && (
@@ -168,10 +149,7 @@ function LinkPicker({
               />
             )}
             {error && (
-              <Text
-                accessibilityRole="alert"
-                style={{ color: Gallery.destructive }}
-              >
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                 {error}
               </Text>
             )}
@@ -181,10 +159,7 @@ function LinkPicker({
           const work = savedId ?? row.id,
             visit = visitId ?? row.id;
           const linked = encounters.data.some(
-            (entry) =>
-              entry.owner === owner
-              && entry.savedLocalId === work
-              && entry.visitLocalId === visit,
+            (entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
           );
           return (
             <Pressable
@@ -196,11 +171,7 @@ function LinkPicker({
               accessibilityLabel={`${linked ? "Linked: " : "Select "}${row.title}`}
               disabled={linked}
               onPress={() => {
-                setSelected((ids) =>
-                  ids.includes(row.id)
-                    ? ids.filter((id) => id !== row.id)
-                    : [...ids, row.id],
-                );
+                setSelected((ids) => (ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id]));
               }}
               style={{
                 flexDirection: "row",
@@ -221,41 +192,25 @@ function LinkPicker({
                 />
               )}
               <View style={{ flex: 1, gap: 4 }}>
-                <Text
-                  style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}
-                >
-                  {row.title}
-                </Text>
+                <Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>{row.title}</Text>
                 <Text style={{ fontSize: 13, color: Gallery.muted }}>
                   {row.subtitle}
                   {linked ? " · Linked" : ""}
                 </Text>
               </View>
-              <Text style={{ color: Gallery.muted }}>
-                {linked || selected.includes(row.id) ? "✓" : "○"}
-              </Text>
+              <Text style={{ color: Gallery.muted }}>{linked || selected.includes(row.id) ? "✓" : "○"}</Text>
             </Pressable>
           );
         }}
         ListEmptyComponent={
           query.error || encounters.error ? (
-            <SocialState
-              title="Couldn’t load your collection."
-              action="Try again"
-              onAction={onRetry}
-            />
+            <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
           ) : !query.updatedAt && !rows.length ? (
-            <ListSkeleton
-              label={savedId ? "Loading visits…" : "Loading artworks…"}
-            />
+            <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} />
           ) : search.trim() ? (
             <SearchEmptyState
               title="No matches."
-              detail={
-                savedId
-                  ? "Try a museum or visit date."
-                  : "Try another title or artist."
-              }
+              detail={savedId ? "Try a museum or visit date." : "Try another title or artist."}
               onClear={clearSearch}
             />
           ) : (
@@ -285,11 +240,7 @@ function LinkPicker({
                   }
                 }}
               />
-              <GalleryButton
-                label="Not now"
-                fullWidth
-                onPress={() => router.back()}
-              />
+              <GalleryButton label="Not now" fullWidth onPress={() => router.back()} />
             </EmptyState>
           )
         }

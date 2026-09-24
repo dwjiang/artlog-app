@@ -8,11 +8,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Gallery } from "@/constants/theme";
-import {
-  editEncounter,
-  selectArtworkEncounters,
-  selectArtworkPhotos,
-} from "@/db/repos/artwork-album";
+import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { listVisits } from "@/db/repos/visits";
 import type { SavedWork } from "@/db/schema";
 import { formatVisitDate } from "@/lib/journal/history";
@@ -21,14 +17,9 @@ import { GalleryButton } from "./gallery-button";
 import { NoteHeading } from "./note-editor";
 
 export function useArtworkEncounters(work: SavedWork) {
-  const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [
-    work.owner,
-  ]);
+  const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
   const visits = useLiveQuery(listVisits(work.owner), [work.owner]);
-  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
-    work.localId,
-    work.owner,
-  ]);
+  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
   const queryError = encounters.error ?? visits.error ?? photos.error;
   useEffect(() => {
     if (queryError) reportError(queryError, "collection.encounters.load");
@@ -67,13 +58,7 @@ export function useArtworkEncounters(work: SavedWork) {
 
 type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 
-export function ArtworkVisitNote({
-  work,
-  encounter,
-}: {
-  work: SavedWork;
-  encounter: Encounter;
-}) {
+export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
   const [editing, setEditing] = useState(false),
     [note, setNote] = useState(""),
     [error, setError] = useState<string>();
@@ -83,9 +68,7 @@ export function ArtworkVisitNote({
         {!editing && (
           <GalleryButton
             label={encounter.note ? "Edit" : "Add"}
-            accessibilityLabel={
-              encounter.note ? "Edit encounter note" : "Add an encounter note"
-            }
+            accessibilityLabel={encounter.note ? "Edit encounter note" : "Add an encounter note"}
             onPress={() => {
               setNote(encounter.note ?? "");
               setEditing(true);
@@ -110,12 +93,7 @@ export function ArtworkVisitNote({
               label="Save encounter note"
               onPress={() => {
                 try {
-                  editEncounter(
-                    work.localId,
-                    encounter.visit.localId,
-                    { note },
-                    work.owner,
-                  );
+                  editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
                   setEditing(false);
                   setError(undefined);
                   showToast("Private note saved for this encounter.");
@@ -190,9 +168,7 @@ export function ArtworkEncounterList({
           <Text style={styles.visitName} numberOfLines={2}>
             {visit.venueName}
           </Text>
-          <Text style={styles.visitDate}>
-            {formatVisitDate(visit.visitedOn)}
-          </Text>
+          <Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
           <Image
             source="sf:chevron.right"
             tintColor={Gallery.muted}
@@ -230,33 +206,24 @@ export function ArtworkEncounterList({
         <GalleryButton
           label="Unlink from this visit"
           onPress={() =>
-            Alert.alert(
-              "Unlink this visit?",
-              "Your artwork, photos, and visit stay in your journal.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Unlink",
-                  onPress: () => {
-                    try {
-                      editEncounter(
-                        work.localId,
-                        current.visit.localId,
-                        { deletedAt: Date.now() },
-                        work.owner,
-                      );
-                      router.replace({
-                        pathname: "/saved/[savedId]",
-                        params: { savedId: work.localId },
-                      });
-                    } catch (cause) {
-                      reportError(cause, "collection.encounter.unlink");
-                      setError("This visit could not be unlinked. Try again.");
-                    }
-                  },
+            Alert.alert("Unlink this visit?", "Your artwork, photos, and visit stay in your journal.", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Unlink",
+                onPress: () => {
+                  try {
+                    editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner);
+                    router.replace({
+                      pathname: "/saved/[savedId]",
+                      params: { savedId: work.localId },
+                    });
+                  } catch (cause) {
+                    reportError(cause, "collection.encounter.unlink");
+                    setError("This visit could not be unlinked. Try again.");
+                  }
                 },
-              ],
-            )
+              },
+            ])
           }
         />
       )}

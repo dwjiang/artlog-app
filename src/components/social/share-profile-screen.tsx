@@ -25,9 +25,7 @@ export function ShareProfileScreen() {
   const { profileId } = useLocalSearchParams<{ profileId?: string }>();
   const profile = useSocialQuery(
     api.profiles.getPublic,
-    profileId || session.profileId
-      ? { profileId: (profileId ?? session.profileId!) as Id<"profiles"> }
-      : "skip",
+    profileId || session.profileId ? { profileId: (profileId ?? session.profileId!) as Id<"profiles"> } : "skip",
     session.key,
   );
   if (!profileId && session.status !== "ready") {
@@ -46,23 +44,14 @@ export function ShareProfileScreen() {
   if (!profile.data) {
     return (
       <SocialState
-        title={
-          profile.error
-            ? "Couldn’t load your profile."
-            : "Opening your profile…"
-        }
+        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
         loading={!profile.error}
         action={profile.error ? "Try again" : undefined}
         onAction={profile.refresh}
       />
     );
   }
-  return (
-    <ShareProfileContent
-      key={`${session.key}:${profile.data.profileId}`}
-      person={profile.data}
-    />
-  );
+  return <ShareProfileContent key={`${session.key}:${profile.data.profileId}`} person={profile.data} />;
 }
 
 function ShareProfileContent({ person }: { person: PublicProfile }) {
@@ -116,30 +105,14 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
   }
   return (
     <View collapsable={false} style={styles.root}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.content}
-      >
+      <ScrollView style={{ flex: 1 }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <View style={styles.card}>
-          <ProfileAvatar
-            name={person.name}
-            photoUrl={person.photoUrl}
-            size={52}
-          />
+          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
           <View style={styles.identity}>
-            <Text
-              variant="display"
-              accessibilityRole="header"
-              style={styles.center}
-            >
+            <Text variant="display" accessibilityRole="header" style={styles.center}>
               {person.name}
             </Text>
-            <Text
-              variant="metadata"
-              themeColor="textSecondary"
-              style={styles.center}
-            >
+            <Text variant="metadata" themeColor="textSecondary" style={styles.center}>
               @{person.username}
             </Text>
           </View>
@@ -151,11 +124,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
             style={styles.code}
           />
           <Text variant="display">Artlog</Text>
-          <Text
-            variant="secondary"
-            themeColor="textSecondary"
-            style={styles.center}
-          >
+          <Text variant="secondary" themeColor="textSecondary" style={styles.center}>
             Scan to view this profile in Artlog.
           </Text>
         </View>
@@ -165,13 +134,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
           </Text>
         )}
       </ScrollView>
-      <View
-        collapsable={false}
-        style={[
-          styles.actions,
-          { paddingBottom: Math.max(bottom, Spacing.three) },
-        ]}
-      >
+      <View collapsable={false} style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}>
         <GalleryButton
           label="Share QR code"
           icon="square.and.arrow.up"

@@ -5,14 +5,7 @@ import { contributionPayload } from "../shared/attestation/attested-payloads";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from "../shared/orb/features";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-  type MutationCtx,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { decodeQuery } from "./identify";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -31,11 +24,7 @@ import schema from "./schema";
 import { removeContribution } from "./contributionRemoval";
 import { contributionGroup } from "./lib/agreement";
 import { recognitionPartition } from "./lib/recognitionEligibility";
-import {
-  compatibleAnchor,
-  publishContribution,
-  replaysEntry,
-} from "./lib/tentativeEntries";
+import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
@@ -108,10 +97,7 @@ function resolveField(
   };
 }
 
-function resolveFields(
-  flow: LabelFlow,
-  submitted: SubmittedFields,
-): ContributionFields {
+function resolveFields(flow: LabelFlow, submitted: SubmittedFields): ContributionFields {
   const fields: ContributionFields = {
     title: resolveField(flow, "title", submitted.title),
     artist: resolveField(flow, "artist", submitted.artist),
@@ -126,13 +112,7 @@ function resolveFields(
 }
 
 function evidenceOf(fields: ContributionFields): EvidenceKind[] {
-  return [
-    ...new Set(
-      FIELD_NAMES.flatMap((name) =>
-        fields[name] ? [fields[name].evidence] : [],
-      ),
-    ),
-  ];
+  return [...new Set(FIELD_NAMES.flatMap((name) => (fields[name] ? [fields[name].evidence] : [])))];
 }
 
 const duplicatePage = v.object({
@@ -155,10 +135,7 @@ export const checkDuplicatePage = internalQuery({
     cursor: v.union(v.string(), v.null()),
   },
   returns: duplicatePage,
-  handler: async (
-    ctx,
-    { scanId, generation, cursor },
-  ): Promise<DuplicatePage> => {
+  handler: async (ctx, { scanId, generation, cursor }): Promise<DuplicatePage> => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
     if (!scan || scan.deviceId !== device._id || !scan.venueId) {
@@ -170,10 +147,7 @@ export const checkDuplicatePage = internalQuery({
     const page = await ctx.db
       .query("contributions")
       .withIndex("by_device_venue_model", (q) =>
-        q
-          .eq("deviceId", device._id)
-          .eq("venueId", scan.venueId!)
-          .eq("modelVersion", scan.modelVersion),
+        q.eq("deviceId", device._id).eq("venueId", scan.venueId!).eq("modelVersion", scan.modelVersion),
       )
       .paginate({
         cursor,
@@ -182,25 +156,16 @@ export const checkDuplicatePage = internalQuery({
       });
     return {
       duplicate: page.page.some(
-        (row) =>
-          row.status !== "rejected"
-          && cosine(row.vector, scan.vector) >= DUPLICATE_COSINE,
+        (row) => row.status !== "rejected" && cosine(row.vector, scan.vector) >= DUPLICATE_COSINE,
       ),
       cursor: page.isDone ? null : page.continueCursor,
     };
   },
 });
 
-async function deleteUnreferencedCrop(
-  ctx: MutationCtx,
-  cropStorageId: Id<"_storage">,
-): Promise<void> {
+async function deleteUnreferencedCrop(ctx: MutationCtx, cropStorageId: Id<"_storage">): Promise<void> {
   const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (
-    !crop
-    || crop.contentType !== CROP_CONTENT_TYPE
-    || crop.size > MAX_CROP_BYTES
-  ) {
+  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
     return;
   }
   const reference = await ctx.db
@@ -226,11 +191,7 @@ async function validateSubmission(
   }
   const fields = resolveFields(flow, submitted);
   const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (
-    !crop
-    || crop.contentType !== CROP_CONTENT_TYPE
-    || crop.size > MAX_CROP_BYTES
-  ) {
+  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
     throw new ConvexError({ code: "bad_crop" });
   }
   return { flow, fields };
@@ -306,12 +267,7 @@ export const findGroupPage = internalQuery({
   handler: async (ctx, { scanId, fields, cursor }): Promise<GroupPage> => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
-    if (
-      !scan
-      || scan.deviceId !== device._id
-      || !scan.venueId
-      || !scan.labelFlow
-    ) {
+    if (!scan || scan.deviceId !== device._id || !scan.venueId || !scan.labelFlow) {
       throw new ConvexError({ code: "invalid_scan" });
     }
     const venue = await ctx.db.get(scan.venueId);
@@ -324,9 +280,7 @@ export const findGroupPage = internalQuery({
     };
     const page = await ctx.db
       .query("objects")
-      .withIndex("by_groupKey", (q) =>
-        q.eq("groupKey", contributionGroup(candidate)),
-      )
+      .withIndex("by_groupKey", (q) => q.eq("groupKey", contributionGroup(candidate)))
       .paginate({ cursor, numItems: 32 });
     for (const object of page.page) {
       if (object.reverted || object.mergedInto) continue;
@@ -393,17 +347,9 @@ export const commit = internalMutation({
     if ((device.lastContributionId ?? null) !== args.previousContributionId) {
       throw new ConvexError({ code: "contributions_changed" });
     }
-    const { flow, fields } = await validateSubmission(
-      ctx,
-      scan,
-      args.fields,
-      cropStorageId,
-    );
+    const { flow, fields } = await validateSubmission(ctx, scan, args.fields, cropStorageId);
     const orb = await ctx.db.system.get("_storage", args.orbStorageId);
-    if (
-      !orb
-      || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
-    ) {
+    if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
       throw new ConvexError({ code: "bad_orb_file" });
     }
     const venue = (await ctx.db.get(scan.venueId))!;
@@ -414,19 +360,14 @@ export const commit = internalMutation({
       ? await ctx.db
           .query("contributions")
           .withIndex("by_object_device", (q) =>
-            q
-              .eq("indexedObjectId", args.groupObjectId)
-              .eq("deviceId", device._id)
-              .eq("status", "tentative"),
+            q.eq("indexedObjectId", args.groupObjectId).eq("deviceId", device._id).eq("status", "tentative"),
           )
           .first()
       : null;
     const duplicate = args.duplicate || own !== null;
     const cropOwner = await ctx.db
       .query("contributions")
-      .withIndex("by_cropStorageId", (q) =>
-        q.eq("cropStorageId", cropStorageId),
-      )
+      .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
       .first();
     if (!duplicate && cropOwner) {
       throw new ConvexError({ code: "crop_already_shared" });
@@ -448,20 +389,13 @@ export const commit = internalMutation({
       sourceUrl: flow.sourceUrl,
       identityImageUrl: flow.identityImageUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
-      wikidataId:
-        fields.title.edited || fields.artist.edited
-          ? undefined
-          : flow.wikidataId,
+      wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
       status: duplicate ? "rejected" : "tentative",
       rejectedReason: duplicate ? "duplicate" : undefined,
       createdAt: Date.now(),
     });
     if (!duplicate) {
-      await publishContribution(
-        ctx,
-        (await ctx.db.get(contributionId))!,
-        args.groupObjectId,
-      );
+      await publishContribution(ctx, (await ctx.db.get(contributionId))!, args.groupObjectId);
     }
     await ctx.db.patch(venue._id, {
       contributionRevision: (venue.contributionRevision ?? 0) + 1,
@@ -487,26 +421,21 @@ export const contribute = action({
   handler: async (ctx, args): Promise<ContributionResult> =>
     withErrorReporting("contributions.contribute", async () => {
       const keypointCount = decodeQuery(args.descriptors, args.keypoints).count;
-      const { nonce, assertionBase64, descriptors, keypoints, ...submission } =
-        args;
-      const authorization = await ctx.runMutation(
-        internal.contributions.authorize,
-        {
-          scanId: args.scanId,
-          cropStorageId: args.cropStorageId,
-          fields: args.fields,
-          nonce,
-          assertionBase64,
-        },
-      );
+      const { nonce, assertionBase64, descriptors, keypoints, ...submission } = args;
+      const authorization = await ctx.runMutation(internal.contributions.authorize, {
+        scanId: args.scanId,
+        cropStorageId: args.cropStorageId,
+        fields: args.fields,
+        nonce,
+        assertionBase64,
+      });
       if (authorization.kind === "existing") return authorization.result;
       const { scan } = authorization;
       let previousContributionId = authorization.previousContributionId;
       const matches = await ctx.vectorSearch("vectors", "by_vector", {
         vector: scan.vector,
         limit: 3,
-        filter: (q) =>
-          q.eq("partition", recognitionPartition(scan.modelVersion)),
+        filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion)),
       });
       const established = await ctx.runQuery(internal.identify.loadCandidates, {
         vectorIds: matches.map((match) => match._id),
@@ -519,20 +448,16 @@ export const contribute = action({
         for (let attempt = 0; attempt < MAX_COMMIT_ATTEMPTS; attempt++) {
           let duplicate = established.some(
             (candidate) =>
-              candidate.object.identityStatus === "established"
-              && candidate.similarity >= DUPLICATE_COSINE,
+              candidate.object.identityStatus === "established" && candidate.similarity >= DUPLICATE_COSINE,
           );
           let cursor: string | null = null;
           do {
             if (duplicate) break;
-            const page: DuplicatePage = await ctx.runQuery(
-              internal.contributions.checkDuplicatePage,
-              {
-                scanId: scan._id,
-                generation: scan.generation,
-                cursor,
-              },
-            );
+            const page: DuplicatePage = await ctx.runQuery(internal.contributions.checkDuplicatePage, {
+              scanId: scan._id,
+              generation: scan.generation,
+              cursor,
+            });
             duplicate = page.duplicate;
             cursor = page.cursor;
           } while (cursor !== null);
@@ -541,18 +466,12 @@ export const contribute = action({
             let venueRevision: number | undefined;
             let groupCursor: string | null = null;
             do {
-              const page: GroupPage = await ctx.runQuery(
-                internal.contributions.findGroupPage,
-                {
-                  scanId: scan._id,
-                  fields: args.fields,
-                  cursor: groupCursor,
-                },
-              );
-              if (
-                venueRevision !== undefined
-                && venueRevision !== page.revision
-              ) {
+              const page: GroupPage = await ctx.runQuery(internal.contributions.findGroupPage, {
+                scanId: scan._id,
+                fields: args.fields,
+                cursor: groupCursor,
+              });
+              if (venueRevision !== undefined && venueRevision !== page.revision) {
                 throw new ConvexError({ code: "contributions_changed" });
               }
               venueRevision = page.revision;
@@ -572,14 +491,10 @@ export const contribute = action({
               orbSha256: orb.sha256,
             });
           } catch (error) {
-            if (
-              !(error instanceof ConvexError)
-              || error.data.code !== "contributions_changed"
-            ) {
+            if (!(error instanceof ConvexError) || error.data.code !== "contributions_changed") {
               throw error;
             }
-            previousContributionId =
-              (await requireDeviceFromAction(ctx)).lastContributionId ?? null;
+            previousContributionId = (await requireDeviceFromAction(ctx)).lastContributionId ?? null;
           }
         }
         throw new ConvexError({ code: "contribution_busy" });

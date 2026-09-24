@@ -24,25 +24,15 @@ export function validCrop(quad: Quad): boolean {
   });
 }
 
-export function moveCropCorner(
-  quad: Quad,
-  index: number,
-  x: number,
-  y: number,
-): Quad {
+export function moveCropCorner(quad: Quad, index: number, x: number, y: number): Quad {
   const next = quad.map((point, i) =>
-    i === index
-      ? [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))]
-      : point,
+    i === index ? [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))] : point,
   ) as Quad;
   return validCrop(next) ? next : quad;
 }
 
 export function fitPhoto(photo: FrameSize, frame: FrameSize) {
-  const scale = Math.min(
-    frame.width / photo.width,
-    frame.height / photo.height,
-  );
+  const scale = Math.min(frame.width / photo.width, frame.height / photo.height);
   const width = photo.width * scale,
     height = photo.height * scale;
   return {

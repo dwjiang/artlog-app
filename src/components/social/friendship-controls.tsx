@@ -3,22 +3,13 @@ import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import { Menu, Button } from "@expo/ui/swift-ui";
-import {
-  accessibilityLabel,
-  buttonStyle,
-  contentShape,
-  frame,
-  shapes,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, buttonStyle, contentShape, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Gallery } from "@/constants/theme";
 import { ThemedText as Text } from "@/components/themed-text";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { friendshipActions } from "@/lib/social/presentation";
 import type { FriendshipAction, PublicProfile } from "@/lib/social/types";
-import {
-  useFriendship,
-  type RelationshipSource,
-} from "@/lib/social/use-friendship";
+import { useFriendship, type RelationshipSource } from "@/lib/social/use-friendship";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialStyles } from "./social-styles";
 import { router } from "expo-router";
@@ -51,21 +42,12 @@ export function CompactFriendshipControls({
 }) {
   if (profileId === session.profileId) return null;
   if (friend) return <Text style={styles.friends}>Friends</Text>;
-  if (
-    session.status === "signed-out"
-    || session.status === "profile-required"
-  ) {
+  if (session.status === "signed-out" || session.status === "profile-required") {
     return (
       <GalleryButton
         label="Add"
         variant="outlined"
-        onPress={() =>
-          router.push(
-            session.status === "signed-out"
-              ? signInRoute("friends")
-              : "/create-profile",
-          )
-        }
+        onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
       />
     );
   }
@@ -91,17 +73,9 @@ function CompactFriendshipAction({
   session: SocialSession;
   relationship?: RelationshipSource;
 }) {
-  const { state, busy, error, act, refresh } = useFriendship(
-    profileId,
-    session,
-    relationship,
-  );
+  const { state, busy, error, act, refresh } = useFriendship(profileId, session, relationship);
   const action =
-    state?.state === "pending"
-      ? state.requesterId === session.profileId
-        ? "cancel"
-        : "accept"
-      : "request";
+    state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
   return (
     <View style={{ alignItems: "flex-end", maxWidth: 150 }}>
       {state?.state === "accepted" ? (
@@ -109,13 +83,7 @@ function CompactFriendshipAction({
       ) : (
         <GalleryButton
           variant="outlined"
-          label={
-            action === "accept"
-              ? "Accept"
-              : action === "cancel"
-                ? "Requested"
-                : "Add"
-          }
+          label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
           disabled={busy || !state || state.blocked}
           onPress={() => {
             void act(action).then((changed) => {
@@ -136,26 +104,14 @@ export function FriendshipControls({
   profileId: PublicProfile["profileId"];
   session: SocialSession;
 }) {
-  const { state, busy, error, act, refresh } = useFriendship(
-    profileId,
-    session,
-  );
-  if (
-    session.status === "signed-out"
-    || session.status === "profile-required"
-  ) {
+  const { state, busy, error, act, refresh } = useFriendship(profileId, session);
+  if (session.status === "signed-out" || session.status === "profile-required") {
     return (
       <GalleryButton
         label="Add friend"
         variant="outlined"
         fullWidth
-        onPress={() =>
-          router.push(
-            session.status === "signed-out"
-              ? signInRoute("friends")
-              : "/create-profile",
-          )
-        }
+        onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
       />
     );
   }
@@ -164,16 +120,11 @@ export function FriendshipControls({
   }
   return (
     <View style={{ gap: 8 }}>
-      {state
-        && (state.blocked
-          || (state.state === "pending"
-            && state.requesterId !== session.profileId)) && (
-          <Text style={socialStyles.caption}>
-            {state.blocked
-              ? "This connection is unavailable."
-              : "Wants to be your friend"}
-          </Text>
-        )}
+      {state && (state.blocked || (state.state === "pending" && state.requesterId !== session.profileId)) && (
+        <Text style={socialStyles.caption}>
+          {state.blocked ? "This connection is unavailable." : "Wants to be your friend"}
+        </Text>
+      )}
       {state?.state === "accepted" && !state.blocked ? (
         <View
           style={{
@@ -182,40 +133,20 @@ export function FriendshipControls({
             borderRadius: 4,
           }}
         >
-          <Host
-            matchContents={{ vertical: true }}
-            colorScheme="light"
-            style={{ width: "100%" }}
-          >
+          <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
             <Menu
               modifiers={[accessibilityLabel("Friends"), buttonStyle("plain")]}
               label={
                 <Row
                   spacing={6}
                   alignment="center"
-                  modifiers={[
-                    frame({ maxWidth: Infinity, minHeight: 44 }),
-                    contentShape(shapes.rectangle()),
-                  ]}
+                  modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}
                 >
-                  <Row
-                    spacing={6}
-                    alignment="center"
-                    modifiers={[frame({ maxWidth: Infinity })]}
-                  >
+                  <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}>
                     <Icon name="checkmark" size={17} color={Gallery.accent} />
-                    <NativeText
-                      textStyle={{ color: Gallery.accent, fontSize: 17 }}
-                    >
-                      Friends
-                    </NativeText>
+                    <NativeText textStyle={{ color: Gallery.accent, fontSize: 17 }}>Friends</NativeText>
                   </Row>
-                  <Icon
-                    name="chevron.down"
-                    size={12}
-                    color={Gallery.accent}
-                    modifiers={[frame({ width: 32 })]}
-                  />
+                  <Icon name="chevron.down" size={12} color={Gallery.accent} modifiers={[frame({ width: 32 })]} />
                 </Row>
               }
             >
@@ -255,28 +186,23 @@ export function FriendshipControls({
         </View>
       ) : (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-          {state?.state === "pending"
-            && state.requesterId === session.profileId && (
-              <GalleryButton
-                label="Request sent"
-                icon="checkmark"
-                variant="outlined"
-                fullWidth
-                disabled
-                onPress={() => {}}
-              />
-            )}
+          {state?.state === "pending" && state.requesterId === session.profileId && (
+            <GalleryButton
+              label="Request sent"
+              icon="checkmark"
+              variant="outlined"
+              fullWidth
+              disabled
+              onPress={() => {}}
+            />
+          )}
           {state
             && friendshipActions(state, session.profileId!).map((action) => (
               <GalleryButton
                 key={action}
                 label={labels[action]}
                 disabled={busy}
-                variant={
-                  action === "request" || action === "accept"
-                    ? "filled"
-                    : "outlined"
-                }
+                variant={action === "request" || action === "accept" ? "filled" : "outlined"}
                 destructive={action === "remove"}
                 onPress={() => {
                   void act(action);
@@ -286,19 +212,13 @@ export function FriendshipControls({
         </View>
       )}
       {busy && <LoadingRing accessibilityLabel="Updating friendship…" />}
-      {!state && !error && (
-        <TextSkeleton label="Loading friendship…" width="100%" height={44} />
-      )}
+      {!state && !error && <TextSkeleton label="Loading friendship…" width="100%" height={44} />}
       {error && (
         <>
           <Text selectable accessibilityRole="alert" style={socialStyles.body}>
             {error}
           </Text>
-          <GalleryButton
-            label="Refresh friendship"
-            disabled={busy}
-            onPress={refresh}
-          />
+          <GalleryButton label="Refresh friendship" disabled={busy} onPress={refresh} />
         </>
       )}
     </View>

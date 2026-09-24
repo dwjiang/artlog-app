@@ -29,9 +29,7 @@ let mockForeground: (state: AppStateStatus) => void;
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
   useQuery: (fn: unknown) =>
-    jest.requireActual("convex/server").getFunctionName(fn) === "devices:me"
-      ? { deviceId: "a" }
-      : mockAccount,
+    jest.requireActual("convex/server").getFunctionName(fn) === "devices:me" ? { deviceId: "a" } : mockAccount,
 }));
 jest.mock("expo-network", () => ({
   addNetworkStateListener: (callback: typeof mockNetwork) => {
@@ -79,12 +77,10 @@ beforeEach(() => {
     configurable: true,
     value: "active",
   });
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_event, listener) => {
-      mockForeground = listener;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
+    mockForeground = listener;
+    return { remove: jest.fn() };
+  });
   resumeCollectionSync();
 });
 afterEach(() => {
@@ -232,9 +228,7 @@ it("lets flushCollectionMedia through a transfer failure unless the caller depen
     sync: mockSync.mock.calls.length,
     photos: mockPhotos.mock.calls.length,
   };
-  await expect(
-    flushCollectionMedia({ photoLocalIds: ["other"] }),
-  ).resolves.toBeUndefined();
+  await expect(flushCollectionMedia({ photoLocalIds: ["other"] })).resolves.toBeUndefined();
   expect(mockAlbumPending).toHaveBeenLastCalledWith("account:account", {
     photoLocalIds: ["other"],
   });
@@ -242,20 +236,14 @@ it("lets flushCollectionMedia through a transfer failure unless the caller depen
   expect(mockSync).toHaveBeenCalledTimes(before.sync);
   expect(mockPhotos).toHaveBeenCalledTimes(before.photos);
   mockJournalPending = true;
-  await expect(
-    flushCollectionMedia({ photoLocalIds: ["other"] }),
-  ).resolves.toBeUndefined();
+  await expect(flushCollectionMedia({ photoLocalIds: ["other"] })).resolves.toBeUndefined();
   expect(mockSync).toHaveBeenCalledTimes(before.sync + 1);
   expect(mockPhotos).toHaveBeenCalledTimes(before.photos + 1);
   mockPending = true;
-  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBe(
-    failure,
-  );
+  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBe(failure);
   expect(mockReportError).toHaveBeenCalledWith(failure, "sync.photos");
   mockPhotos.mockResolvedValue(undefined);
-  await expect(
-    flushCollectionMedia({ photoLocalIds: ["hung"] }),
-  ).resolves.toBeUndefined();
+  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).resolves.toBeUndefined();
 });
 
 it("reports a failed owner persistence without exposing the owner or stopping the sync", async () => {

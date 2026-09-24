@@ -141,10 +141,7 @@ export function docentUser(facts: FactSheetEntry[]): string {
 }
 
 // Facts keep only the URL the model cited; label and score come from our source list, never the model.
-export function buildFactSheet(
-  raw: RawFact[],
-  sources: SourceDoc[],
-): FactSheetEntry[] {
+export function buildFactSheet(raw: RawFact[], sources: SourceDoc[]): FactSheetEntry[] {
   const byUrl = new Map(sources.map((source) => [source.url, source]));
   const seen = new Set<string>();
   const facts: Omit<FactSheetEntry, "id">[] = [];
@@ -152,12 +149,7 @@ export function buildFactSheet(
     const source = byUrl.get(fact.sourceUrl.trim());
     const text = fact.text.replace(/\s+/g, " ").trim();
     const key = text.toLowerCase();
-    if (
-      !source
-      || !text
-      || seen.has(key)
-      || !normalizePassage(source.text).includes(normalizePassage(text))
-    ) {
+    if (!source || !text || seen.has(key) || !normalizePassage(source.text).includes(normalizePassage(text))) {
       continue;
     }
     seen.add(key);

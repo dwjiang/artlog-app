@@ -7,29 +7,14 @@ import { normalizeSearch } from "@/shared/journal/limits";
 import { WallFrame, wallFrameInset } from "../collection/wall-frame";
 import { SavedWorkImage } from "../collection/saved-work-image";
 
-export function matchesVisitSearch(
-  work: { title: string; artist: string | null },
-  query: string,
-) {
-  return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(
-    normalizeSearch(query),
-  );
+export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
+  return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(normalizeSearch(query));
 }
 
-export function VisitGallerySearch({
-  value,
-  onChangeText,
-}: {
-  value: string;
-  onChangeText: (value: string) => void;
-}) {
+export function VisitGallerySearch({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
   return (
     <View style={styles.search}>
-      <Image
-        source="sf:magnifyingglass"
-        tintColor={Gallery.muted}
-        style={{ width: 15, height: 15 }}
-      />
+      <Image source="sf:magnifyingglass" tintColor={Gallery.muted} style={{ width: 15, height: 15 }} />
       <TextInput
         accessibilityLabel="Search visit artworks"
         placeholder="Search this visit"
@@ -66,8 +51,7 @@ export function VisitGalleryArtwork({
   const { width } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
-  const ratio =
-    Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
+  const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const frameWidth = Math.max(stageWidth, (stageWidth / stageAspect) * ratio);
   return (
     <>
@@ -76,22 +60,14 @@ export function VisitGalleryArtwork({
         onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
       >
         <WallFrame frame="none" width={frameWidth}>
-          {children(
-            Math.max(1, frameWidth - wallFrameInset("none", frameWidth) * 2),
-          )}
+          {children(Math.max(1, frameWidth - wallFrameInset("none", frameWidth) * 2))}
         </WallFrame>
         {photoCount !== 1 && (
           <View style={styles.badge}>
             {photoCount > 1 && (
-              <Image
-                source="sf:photo.on.rectangle"
-                tintColor={Gallery.muted}
-                style={{ width: 11, height: 11 }}
-              />
+              <Image source="sf:photo.on.rectangle" tintColor={Gallery.muted} style={{ width: 11, height: 11 }} />
             )}
-            <Text style={styles.badgeText}>
-              {photoCount ? `${photoCount} photos` : "No photos"}
-            </Text>
+            <Text style={styles.badgeText}>{photoCount ? `${photoCount} photos` : "No photos"}</Text>
           </View>
         )}
       </View>
@@ -117,12 +93,7 @@ export function LocalVisitGalleryArtwork({
   const [image, setImage] = useState<{ path: string | null; ratio: number }>();
   const ratio = image?.path === path ? image.ratio : 1;
   return (
-    <VisitGalleryArtwork
-      title={title}
-      artist={artist}
-      photoCount={photoCount}
-      aspectRatio={ratio}
-    >
+    <VisitGalleryArtwork title={title} artist={artist} photoCount={photoCount} aspectRatio={ratio}>
       {(width) => (
         <SavedWorkImage
           contain
@@ -130,9 +101,7 @@ export function LocalVisitGalleryArtwork({
           syncing={syncing}
           title={title}
           style={{ width, aspectRatio: ratio }}
-          onLoad={({ width: imageWidth, height }) =>
-            setImage({ path, ratio: imageWidth / height })
-          }
+          onLoad={({ width: imageWidth, height }) => setImage({ path, ratio: imageWidth / height })}
         />
       )}
     </VisitGalleryArtwork>

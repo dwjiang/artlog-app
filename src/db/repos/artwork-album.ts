@@ -1,31 +1,16 @@
 import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { Doc } from "../../../convex/_generated/dataModel";
-import type {
-  AlbumEncounter,
-  AlbumPhoto,
-} from "../../../shared/collection/album";
+import type { AlbumEncounter, AlbumPhoto } from "../../../shared/collection/album";
 import { getLocalOwner } from "../../lib/account/owner-store";
 import { requestCollectionSync } from "../../lib/account/sync-events";
 import { db } from "../client";
-import {
-  artworkEncounters,
-  artworkPhotos,
-  savedWorks,
-  visits,
-  type ArtworkPhoto,
-} from "../schema";
+import { artworkEncounters, artworkPhotos, savedWorks, visits, type ArtworkPhoto } from "../schema";
 
 function requireWork(localId: string, owner: string) {
   const work = db
     .select()
     .from(savedWorks)
-    .where(
-      and(
-        eq(savedWorks.owner, owner),
-        eq(savedWorks.localId, localId),
-        isNull(savedWorks.deletedAt),
-      ),
-    )
+    .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId), isNull(savedWorks.deletedAt)))
     .get();
   if (!work) throw new Error("Artwork is unavailable");
   return work;
@@ -41,10 +26,7 @@ function requireVisit(localId: string, owner: string) {
     throw new Error("Visit is unavailable");
   }
 }
-export function selectArtworkPhotos(
-  savedLocalId: string,
-  owner = getLocalOwner(),
-) {
+export function selectArtworkPhotos(savedLocalId: string, owner = getLocalOwner()) {
   return db
     .select()
     .from(artworkPhotos)
@@ -58,11 +40,7 @@ export function selectArtworkPhotos(
     .orderBy(asc(artworkPhotos.capturedAt), asc(artworkPhotos.localId));
 }
 /** Photos captured during one visit; a photo saved without a visit or at another visit belongs to neither share. */
-export function selectVisitArtworkPhotos(
-  savedLocalId: string,
-  visitLocalId: string,
-  owner = getLocalOwner(),
-) {
+export function selectVisitArtworkPhotos(savedLocalId: string, visitLocalId: string, owner = getLocalOwner()) {
   return db
     .select()
     .from(artworkPhotos)
@@ -81,27 +59,16 @@ export function findArtworkPhoto(localId: string, owner = getLocalOwner()) {
   return db
     .select()
     .from(artworkPhotos)
-    .where(
-      and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)),
-    )
+    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)))
     .get();
 }
 export function selectArtworkEncounters(owner = getLocalOwner()) {
   return db
     .select()
     .from(artworkEncounters)
-    .where(
-      and(
-        eq(artworkEncounters.owner, owner),
-        isNull(artworkEncounters.deletedAt),
-      ),
-    );
+    .where(and(eq(artworkEncounters.owner, owner), isNull(artworkEncounters.deletedAt)));
 }
-export function linkArtworkVisit(
-  savedLocalId: string,
-  visitLocalId: string,
-  owner = getLocalOwner(),
-) {
+export function linkArtworkVisit(savedLocalId: string, visitLocalId: string, owner = getLocalOwner()) {
   requireWork(savedLocalId, owner);
   requireVisit(visitLocalId, owner);
   const existing = db
@@ -119,11 +86,7 @@ export function linkArtworkVisit(
   db.insert(artworkEncounters)
     .values({ owner, savedLocalId, visitLocalId })
     .onConflictDoUpdate({
-      target: [
-        artworkEncounters.owner,
-        artworkEncounters.savedLocalId,
-        artworkEncounters.visitLocalId,
-      ],
+      target: [artworkEncounters.owner, artworkEncounters.savedLocalId, artworkEncounters.visitLocalId],
       set: {
         deletedAt: null,
         syncedAt: null,
@@ -133,51 +96,32 @@ export function linkArtworkVisit(
     .run();
   requestCollectionSync();
 }
-export function linkArtworksVisit(
-  savedLocalIds: string[],
-  visitLocalId: string,
-  owner = getLocalOwner(),
-) {
+export function linkArtworksVisit(savedLocalIds: string[], visitLocalId: string, owner = getLocalOwner()) {
   db.transaction(() => {
     for (const id of new Set(savedLocalIds)) {
       linkArtworkVisit(id, visitLocalId, owner);
     }
   });
 }
-export function linkArtworkVisits(
-  savedLocalId: string,
-  visitLocalIds: string[],
-  owner = getLocalOwner(),
-) {
+export function linkArtworkVisits(savedLocalId: string, visitLocalIds: string[], owner = getLocalOwner()) {
   db.transaction(() => {
     for (const id of new Set(visitLocalIds)) {
       linkArtworkVisit(savedLocalId, id, owner);
     }
   });
 }
-export function addArtworkPhoto(
-  input: AlbumPhoto & { path: string },
-  owner = getLocalOwner(),
-) {
+export function addArtworkPhoto(input: AlbumPhoto & { path: string }, owner = getLocalOwner()) {
   requireWork(input.savedLocalId, owner);
   if (input.visitLocalId) requireVisit(input.visitLocalId, owner);
   const existing = db
     .select()
     .from(artworkPhotos)
-    .where(
-      and(
-        eq(artworkPhotos.owner, owner),
-        eq(artworkPhotos.localId, input.localId),
-      ),
-    )
+    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, input.localId)))
     .get();
   if (existing && existing.savedLocalId !== input.savedLocalId) {
     throw new Error("Photo already belongs to another artwork");
   }
-  if (
-    !existing
-    && selectArtworkPhotos(input.savedLocalId, owner).all().length >= 100
-  ) {
+  if (!existing && selectArtworkPhotos(input.savedLocalId, owner).all().length >= 100) {
     throw new Error("An artwork can hold 100 photos");
   }
   db.transaction(() => {
@@ -193,30 +137,21 @@ export function addArtworkPhoto(
 }
 export function editArtworkPhoto(
   localId: string,
-  patch: Pick<
-    Partial<ArtworkPhoto>,
-    "kind" | "caption" | "deletedAt" | "savedLocalId"
-  >,
+  patch: Pick<Partial<ArtworkPhoto>, "kind" | "caption" | "deletedAt" | "savedLocalId">,
   owner = getLocalOwner(),
 ) {
   const photo = db
     .select()
     .from(artworkPhotos)
-    .where(
-      and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)),
-    )
+    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)))
     .get();
   if (!photo || photo.deletedAt !== null) {
     throw new Error("Photo is unavailable");
   }
   requireWork(photo.savedLocalId, owner);
   if (patch.savedLocalId) requireWork(patch.savedLocalId, owner);
-  const moving =
-    patch.savedLocalId && patch.savedLocalId !== photo.savedLocalId;
-  if (
-    moving
-    && selectArtworkPhotos(patch.savedLocalId!, owner).all().length >= 100
-  ) {
+  const moving = patch.savedLocalId && patch.savedLocalId !== photo.savedLocalId;
+  if (moving && selectArtworkPhotos(patch.savedLocalId!, owner).all().length >= 100) {
     throw new Error("An artwork can hold 100 photos");
   }
   db.transaction(() => {
@@ -229,9 +164,7 @@ export function editArtworkPhoto(
         syncedAt: null,
         revision: sql`${artworkPhotos.revision} + 1`,
       })
-      .where(
-        and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)),
-      )
+      .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)))
       .run();
   });
   requestCollectionSync();
@@ -265,20 +198,13 @@ export function pendingAlbum(owner: string) {
     photos: db
       .select()
       .from(artworkPhotos)
-      .where(
-        and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.syncedAt)),
-      )
+      .where(and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.syncedAt)))
       .limit(25)
       .all(),
     encounters: db
       .select()
       .from(artworkEncounters)
-      .where(
-        and(
-          eq(artworkEncounters.owner, owner),
-          isNull(artworkEncounters.syncedAt),
-        ),
-      )
+      .where(and(eq(artworkEncounters.owner, owner), isNull(artworkEncounters.syncedAt)))
       .limit(25)
       .all(),
   };
@@ -294,9 +220,7 @@ export function photoInput(photo: ArtworkPhoto): AlbumPhoto {
     deletedAt: photo.deletedAt ?? undefined,
   };
 }
-export function encounterInput(
-  row: typeof artworkEncounters.$inferSelect,
-): AlbumEncounter {
+export function encounterInput(row: typeof artworkEncounters.$inferSelect): AlbumEncounter {
   return {
     savedLocalId: row.savedLocalId,
     visitLocalId: row.visitLocalId,
@@ -304,10 +228,7 @@ export function encounterInput(
     deletedAt: row.deletedAt ?? undefined,
   };
 }
-export function acknowledgeAlbum(
-  pending: ReturnType<typeof pendingAlbum>,
-  owner: string,
-) {
+export function acknowledgeAlbum(pending: ReturnType<typeof pendingAlbum>, owner: string) {
   db.transaction((tx) => {
     for (const row of pending.photos) {
       tx.update(artworkPhotos)
@@ -336,17 +257,10 @@ export function acknowledgeAlbum(
     }
   });
 }
-export function applyAlbum(
-  photos: Doc<"artworkPhotos">[],
-  encounters: Doc<"artworkEncounters">[],
-  owner: string,
-) {
+export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artworkEncounters">[], owner: string) {
   db.transaction((tx) => {
     for (const row of photos) {
-      const where = and(
-        eq(artworkPhotos.owner, owner),
-        eq(artworkPhotos.localId, row.localId),
-      );
+      const where = and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, row.localId));
       const existing = tx.select().from(artworkPhotos).where(where).get();
       const fields = {
         ...photoInput({
@@ -373,10 +287,7 @@ export function applyAlbum(
       } else if (existing.syncedAt !== null || row.deletedAt !== undefined) {
         tx.update(artworkPhotos).set(fields).where(where).run();
       } else if (row.storageId) {
-        tx.update(artworkPhotos)
-          .set({ storageId: row.storageId })
-          .where(where)
-          .run();
+        tx.update(artworkPhotos).set({ storageId: row.storageId }).where(where).run();
       }
     }
     for (const row of encounters) {
@@ -409,10 +320,7 @@ export function albumPhotoTransfers(owner: string) {
     .from(artworkPhotos)
     .innerJoin(
       savedWorks,
-      and(
-        eq(savedWorks.owner, artworkPhotos.owner),
-        eq(savedWorks.localId, artworkPhotos.savedLocalId),
-      ),
+      and(eq(savedWorks.owner, artworkPhotos.owner), eq(savedWorks.localId, artworkPhotos.savedLocalId)),
     )
     .where(
       and(
@@ -435,13 +343,7 @@ export function updateAlbumTransfer(
     db
       .update(artworkPhotos)
       .set(fields)
-      .where(
-        and(
-          eq(artworkPhotos.owner, owner),
-          eq(artworkPhotos.localId, localId),
-          isNull(artworkPhotos.deletedAt),
-        ),
-      )
+      .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId), isNull(artworkPhotos.deletedAt)))
       .returning({ localId: artworkPhotos.localId })
       .all().length > 0
   );
@@ -449,15 +351,9 @@ export function updateAlbumTransfer(
 /** True while a photo the caller is about to reference has no storage yet, or a save's album rows still await the server. */
 export function albumMediaPending(
   owner: string,
-  {
-    photoLocalIds = [],
-    saveLocalIds = [],
-  }: { photoLocalIds?: string[]; saveLocalIds?: string[] },
+  { photoLocalIds = [], saveLocalIds = [] }: { photoLocalIds?: string[]; saveLocalIds?: string[] },
 ): boolean {
-  const live = and(
-    eq(artworkPhotos.owner, owner),
-    isNull(artworkPhotos.deletedAt),
-  );
+  const live = and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.deletedAt));
   if (
     photoLocalIds.length
     && db
@@ -507,26 +403,14 @@ export function deletedAlbumPhotoFiles(owner: string) {
   return db
     .select({ localId: artworkPhotos.localId, path: artworkPhotos.path })
     .from(artworkPhotos)
-    .where(
-      and(
-        eq(artworkPhotos.owner, owner),
-        isNotNull(artworkPhotos.deletedAt),
-        isNotNull(artworkPhotos.path),
-      ),
-    )
+    .where(and(eq(artworkPhotos.owner, owner), isNotNull(artworkPhotos.deletedAt), isNotNull(artworkPhotos.path)))
     .limit(20)
     .all() as { localId: string; path: string }[];
 }
 export function clearDeletedAlbumPhotoPath(localId: string, owner: string) {
   db.update(artworkPhotos)
     .set({ path: null })
-    .where(
-      and(
-        eq(artworkPhotos.owner, owner),
-        eq(artworkPhotos.localId, localId),
-        isNotNull(artworkPhotos.deletedAt),
-      ),
-    )
+    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId), isNotNull(artworkPhotos.deletedAt)))
     .run();
 }
 
@@ -534,9 +418,7 @@ export function selectAllArtworkPhotos(owner = getLocalOwner()) {
   return db
     .select()
     .from(artworkPhotos)
-    .where(
-      and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.deletedAt)),
-    );
+    .where(and(eq(artworkPhotos.owner, owner), isNull(artworkPhotos.deletedAt)));
 }
 
 export function saveArtworkSession(
@@ -548,15 +430,10 @@ export function saveArtworkSession(
 ) {
   if (!newWork) requireWork(savedLocalId, owner);
   if (visitLocalId) requireVisit(visitLocalId, owner);
-  const currentPhotos = newWork
-    ? []
-    : selectArtworkPhotos(savedLocalId, owner).all();
+  const currentPhotos = newWork ? [] : selectArtworkPhotos(savedLocalId, owner).all();
   if (
     currentPhotos.length
-      + photos.filter(
-        (photo) =>
-          !currentPhotos.some((current) => current.localId === photo.localId),
-      ).length
+      + photos.filter((photo) => !currentPhotos.some((current) => current.localId === photo.localId)).length
     > 100
   ) {
     throw new Error("An artwork can hold 100 photos");
@@ -571,12 +448,7 @@ export function saveArtworkSession(
       const existing = tx
         .select()
         .from(artworkPhotos)
-        .where(
-          and(
-            eq(artworkPhotos.owner, owner),
-            eq(artworkPhotos.localId, photo.localId),
-          ),
-        )
+        .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, photo.localId)))
         .get();
       if (existing && existing.savedLocalId !== savedLocalId) {
         throw new Error("Photo belongs to another artwork");
@@ -591,11 +463,7 @@ export function saveArtworkSession(
       tx.insert(artworkEncounters)
         .values({ owner, savedLocalId, visitLocalId })
         .onConflictDoUpdate({
-          target: [
-            artworkEncounters.owner,
-            artworkEncounters.savedLocalId,
-            artworkEncounters.visitLocalId,
-          ],
+          target: [artworkEncounters.owner, artworkEncounters.savedLocalId, artworkEncounters.visitLocalId],
           set: {
             deletedAt: null,
             syncedAt: null,

@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
 import { MUSEUM_SEARCH_SETTING } from "./museum-search-section";
@@ -50,19 +44,11 @@ beforeEach(async () => {
 afterEach(() => jest.restoreAllMocks());
 
 it("ends loading with a footer message when the stored choice cannot be read", async () => {
-  jest
-    .spyOn(museumSearch, "getMuseumSearchConsent")
-    .mockRejectedValue(new Error("Read failed"));
+  jest.spyOn(museumSearch, "getMuseumSearchConsent").mockRejectedValue(new Error("Read failed"));
   await render(<SettingsDetailScreen section="privacy" />);
-  expect(
-    await screen.findByText(
-      "Couldn't read your choice. Reopen Settings to try again.",
-    ),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("Couldn't read your choice. Reopen Settings to try again.")).toBeOnTheScreen();
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  ).toBeDisabled();
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeDisabled();
 });
 
 it("mounts the privacy control in Settings and requires consent before enabling it", async () => {
@@ -75,76 +61,38 @@ it("mounts the privacy control in Settings and requires consent before enabling 
   await fireEvent.press(toggle);
   expect(await screen.findByText(SEARCH_CONSENT_TITLE)).toBeOnTheScreen();
   expect(await getMuseumSearchConsent()).toBe("unset");
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Search this museum" }),
-  );
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).toBeChecked(),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Search this museum" }));
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   expect(await getMuseumSearchConsent()).toBe("granted");
 });
 
 it("persists off as declined through a remount and keeps cancellation off", async () => {
   await setMuseumSearchConsent("granted");
   const view = await render(<SettingsDetailScreen section="privacy" />);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   let release!: () => void;
-  jest
-    .spyOn(museumSearch, "setMuseumSearchConsent")
-    .mockImplementationOnce(async (value) => {
-      await new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      return setMuseumSearchConsent(value);
+  jest.spyOn(museumSearch, "setMuseumSearchConsent").mockImplementationOnce(async (value) => {
+    await new Promise<void>((resolve) => {
+      release = resolve;
     });
-  await fireEvent.press(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  );
-  expect(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  ).toBeDisabled();
+    return setMuseumSearchConsent(value);
+  });
+  await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeDisabled();
   await act(() => release());
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).not.toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   expect(await getMuseumSearchConsent()).toBe("declined");
   await view.unmount();
   await render(<SettingsDetailScreen section="privacy" />);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).toBeEnabled(),
-  );
-  expect(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  ).not.toBeChecked();
-  await fireEvent.press(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeEnabled());
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
+  await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
   await fireEvent.press(await screen.findByRole("button", { name: "Not now" }));
   expect(await getMuseumSearchConsent()).toBe("declined");
-  expect(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  ).not.toBeChecked();
-  await fireEvent.press(
-    screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-  );
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Search this museum" }),
-  );
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).toBeChecked(),
-  );
+  expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
+  await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Search this museum" }));
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
 });
 
 it("prevents any request after revoking consent in Settings and returning to a scan", async () => {
@@ -153,17 +101,12 @@ it("prevents any request after revoking consent in Settings and returning to a s
   const toggle = screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING });
   await waitFor(() => expect(toggle).toBeChecked());
   await fireEvent.press(toggle);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }),
-    ).not.toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   await view.unmount();
   const searchExhibitions = jest.fn();
   expect(
     await runMuseumSearch({
-      scanId:
-        "scan-1" as import("../../../convex/_generated/dataModel").Id<"scans">,
+      scanId: "scan-1" as import("../../../convex/_generated/dataModel").Id<"scans">,
       localId: "capture-1",
       inputSize: 512,
       canContinue: () => true,

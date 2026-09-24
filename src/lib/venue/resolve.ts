@@ -34,9 +34,7 @@ export function haversineMeters(a: Coordinate, b: Coordinate): number {
   const rad = Math.PI / 180;
   const h =
     Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
-    + Math.cos(a.lat * rad)
-      * Math.cos(b.lat * rad)
-      * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(Math.min(1, h)));
 }
 
@@ -48,13 +46,9 @@ export type BoundingBox = {
 };
 
 /** A latitude/longitude box that contains every point within `radiusM`; callers filter by exact distance. */
-export function boundingBox(
-  { lat, lng }: Coordinate,
-  radiusM: number,
-): BoundingBox {
+export function boundingBox({ lat, lng }: Coordinate, radiusM: number): BoundingBox {
   const latDelta = radiusM / 111_000;
-  const lngDelta =
-    radiusM / (111_000 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  const lngDelta = radiusM / (111_000 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
   return {
     minLat: Math.max(-90, lat - latDelta),
     maxLat: Math.min(90, lat + latDelta),
@@ -64,11 +58,7 @@ export function boundingBox(
 }
 
 /** Rows within `radiusM` of `origin`, nearest first. */
-export function rankCandidates(
-  rows: VenueRow[],
-  origin: Coordinate,
-  radiusM: number,
-): VenueCandidate[] {
+export function rankCandidates(rows: VenueRow[], origin: Coordinate, radiusM: number): VenueCandidate[] {
   return rows
     .map((row) => ({ ...row, distanceM: haversineMeters(origin, row) }))
     .filter((row) => row.distanceM <= radiusM)
@@ -91,10 +81,7 @@ export function pickVenue(candidates: VenueCandidate[]): VenueResolution {
   return { kind: "choose", options };
 }
 
-export function formatDistance(
-  distanceM: number,
-  units: MeasurementUnits = "metric",
-): string {
+export function formatDistance(distanceM: number, units: MeasurementUnits = "metric"): string {
   if (!Number.isFinite(distanceM)) return "";
   if (units === "imperial") {
     if (distanceM < 1609.344) {

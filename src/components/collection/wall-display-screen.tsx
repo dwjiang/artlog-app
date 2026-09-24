@@ -4,22 +4,13 @@ import { FormSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
-import {
-  constrainLayout,
-  wallAspect,
-  type WallFrame,
-} from "@/lib/wall/wall-layout";
+import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
 import { WallArtwork } from "./wall-artwork";
 import { wallFrames } from "./wall-frame";
 import { ArtworkQueryState } from "./artwork-query-state";
@@ -42,35 +33,16 @@ export function WallDisplayScreen({ savedId }: { savedId: string }) {
   );
 }
 
-function WallDisplayQuery({
-  owner,
-  savedId,
-  onRetry,
-}: {
-  owner: string;
-  savedId: string;
-  onRetry: () => void;
-}) {
-  const { data, error, updatedAt } = useLiveQuery(
-    selectSavedWork(savedId, owner),
-    [savedId, owner],
-  );
+function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   useEffect(() => {
     if (error) reportError(error, "collection.artwork.load");
   }, [error]);
-  const work = data.find(
-    (row) =>
-      row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? (
     <WallDisplay work={work} />
   ) : (
-    <ArtworkQueryState
-      item="Artwork"
-      loading={!updatedAt}
-      error={error}
-      onRetry={onRetry}
-    />
+    <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />
   );
 }
 
@@ -78,12 +50,8 @@ function WallDisplayQuery({
 function WallDisplay({ work }: { work: SavedWork }) {
   const { width } = useWindowDimensions();
   const wall = useCollectionWall([work]);
-  const hung = wall.draft?.items.find(
-    (item) => item.saveLocalId === work.localId,
-  );
-  const published = wall.acknowledged?.items.find(
-    (item) => item.saveLocalId === work.localId,
-  );
+  const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
+  const published = wall.acknowledged?.items.find((item) => item.saveLocalId === work.localId);
   const piece = wall.pieces.find((item) => item.localId === hung?.placementId);
   // The hook owns the first read; a later sync can change note eligibility, so it re-reads the loaded wall.
   useEffect(() => {
@@ -97,9 +65,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
       await wall.repository.publishLayout();
     } catch (cause) {
       reportError(cause, "wall.layout.publish");
-      wall.setError(
-        "Your wall change was not saved. Tap Retry to save these changes.",
-      );
+      wall.setError("Your wall change was not saved. Tap Retry to save these changes.");
     }
   }
   function change(patch: { frame?: WallFrame; photoLocalId?: string }) {
@@ -123,15 +89,11 @@ function WallDisplay({ work }: { work: SavedWork }) {
     if (!published || wall.pending) return;
     wall.setError(undefined);
     try {
-      wall.repository.setNoteDraft([
-        { itemId: published.itemId, visible: value },
-      ]);
+      wall.repository.setNoteDraft([{ itemId: published.itemId, visible: value }]);
       await wall.repository.publishNotes();
     } catch (cause) {
       reportError(cause, "wall.notes.publish");
-      wall.setError(
-        "This note could not be shared. Refresh to review the latest synced note and try again.",
-      );
+      wall.setError("This note could not be shared. Refresh to review the latest synced note and try again.");
     }
   }
   return (
@@ -145,9 +107,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
           {wall.loading ? (
             <FormSkeleton label="Opening your wall…" />
           ) : (
-            <Text style={styles.caption}>
-              Your wall is unavailable right now.
-            </Text>
+            <Text style={styles.caption}>Your wall is unavailable right now.</Text>
           )}
         </>
       ) : !hung ? (
@@ -166,10 +126,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
               accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
               style={[styles.preview, { backgroundColor: wall.draft.color }]}
             >
-              <WallArtwork
-                piece={piece}
-                width={Math.min(width - 88, 188 * wallAspect(piece))}
-              />
+              <WallArtwork piece={piece} width={Math.min(width - 88, 188 * wallAspect(piece))} />
             </View>
           )}
           <Text
@@ -201,15 +158,8 @@ function WallDisplay({ work }: { work: SavedWork }) {
                 onSelect={(photoLocalId) => change({ photoLocalId })}
               />
             </View>
-            <Text style={styles.caption}>
-              Only the selected photo appears on your wall.
-            </Text>
-            {hung.photoLocalId && (
-              <PhotoVisibility
-                savedId={work.localId}
-                photoId={hung.photoLocalId}
-              />
-            )}
+            <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
+            {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}
           </View>
           <View style={styles.section}>
             <NoteVisibility
@@ -220,19 +170,14 @@ function WallDisplay({ work }: { work: SavedWork }) {
               }}
             />
             {!published?.noteEligible && (
-              <Text style={styles.caption}>
-                Add a note and let it sync before sharing it.
-              </Text>
+              <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
             )}
           </View>
         </>
       )}
       {wall.error && (
         <View style={{ gap: 8 }}>
-          <Text
-            accessibilityRole="alert"
-            style={{ color: Gallery.destructive }}
-          >
+          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
             {wall.error}
           </Text>
           <GalleryButton
@@ -245,12 +190,8 @@ function WallDisplay({ work }: { work: SavedWork }) {
           />
         </View>
       )}
-      {wall.pending && (
-        <LoadingRing accessibilityLabel="Saving wall changes…" />
-      )}
-      {hung && !wall.pending && !wall.error && (
-        <Text style={styles.caption}>Changes save automatically.</Text>
-      )}
+      {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
+      {hung && !wall.pending && !wall.error && <Text style={styles.caption}>Changes save automatically.</Text>}
     </ScrollView>
   );
 }

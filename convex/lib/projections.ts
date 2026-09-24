@@ -9,13 +9,8 @@ import {
 import type { QueryCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 
-export async function projectProfile(
-  ctx: QueryCtx,
-  profile: Doc<"profiles">,
-): Promise<Infer<typeof publicProfile>> {
-  const photoUrl = profile.photoStorageId
-    ? await ctx.storage.getUrl(profile.photoStorageId)
-    : null;
+export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
+  const photoUrl = profile.photoStorageId ? await ctx.storage.getUrl(profile.photoStorageId) : null;
   return {
     profileId: profile._id,
     username: profile.username,
@@ -92,10 +87,6 @@ export function projectSharedVisitCard(
 ) {
   return {
     itemId: item._id,
-    artwork: projectArtwork(
-      save,
-      asset,
-      postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined,
-    ),
+    artwork: projectArtwork(save, asset, postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined),
   };
 }

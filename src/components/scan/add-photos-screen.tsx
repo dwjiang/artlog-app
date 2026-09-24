@@ -11,15 +11,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -59,13 +51,7 @@ export function AddPhotosScreen() {
     objectId?: string;
   }>();
   const owner = useLocalOwner();
-  return (
-    <PhotoSession
-      key={`${owner}:${params.draftId}`}
-      {...params}
-      owner={owner}
-    />
-  );
+  return <PhotoSession key={`${owner}:${params.draftId}`} {...params} owner={owner} />;
 }
 function PhotoSession({
   draftId,
@@ -83,8 +69,7 @@ function PhotoSession({
   owner: string;
 }) {
   const { fontScale } = useWindowDimensions();
-  const [target, setTarget] =
-    useState<Awaited<ReturnType<typeof getSavedWork>>>();
+  const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
     if (savedId) {
@@ -108,14 +93,10 @@ function PhotoSession({
   const completion = albumCompletion ?? newArtwork.completion;
   const [kind, setKind] = useState<PhotoKind>("detail");
   const [selected, setSelected] = useState<string | undefined>(
-    () =>
-      readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId
-      ?? "",
+    () => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? "",
   );
   const [removed, setRemoved] = useState<DraftPhoto>();
-  const [operation, setOperation] = useState<
-      "adding" | "saving" | "separating"
-    >(),
+  const [operation, setOperation] = useState<"adding" | "saving" | "separating">(),
     [ready, setReady] = useState(false),
     [error, setError] = useState<string>();
   const busy = operation !== undefined;
@@ -190,22 +171,15 @@ function PhotoSession({
           path,
           kind,
           capturedAt,
-          ...(kind === "full"
-            ? { review: check ? "checking" : "uncertain" }
-            : {}),
+          ...(kind === "full" ? { review: check ? "checking" : "uncertain" } : {}),
         };
         next.push(photo);
         // Persist each photo before asking the camera for another one.
         update([...next]);
         if (check) {
           checks++;
-          const target = savedId
-            ? await getSavedWork(savedId, owner)
-            : undefined;
-          const result = await checkAlbumPhoto(
-            photo,
-            target?.objectId ?? objectId,
-          );
+          const target = savedId ? await getSavedWork(savedId, owner) : undefined;
+          const result = await checkAlbumPhoto(photo, target?.objectId ?? objectId);
           if (!session.isOwnerCurrent()) return;
           Object.assign(photo, result);
           update([...next]);
@@ -235,9 +209,7 @@ function PhotoSession({
       session,
     );
     if (choice.kind === "venue") {
-      return (
-        await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())
-      ).localId;
+      return (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId;
     }
     return choice.kind === "visit" ? choice.localId : undefined;
   }
@@ -255,9 +227,7 @@ function PhotoSession({
       if (savedId) {
         if (!photos.length) return;
         const selectedVisitId = await sessionVisitId();
-        const visit = selectedVisitId
-          ? await getVisit(selectedVisitId, owner)
-          : undefined;
+        const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
         if (selectedVisitId && !visit) throw new Error("Visit unavailable");
         if (!session.isOwnerCurrent()) return;
         saveArtworkSession(
@@ -277,9 +247,7 @@ function PhotoSession({
           title: title || "Unidentified artwork",
           wasExisting: true,
           photoPaths: photos.map((photo) => photo.path),
-          visitLabel: visit
-            ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}`
-            : "No visit · Collection only",
+          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : "No visit · Collection only",
         });
       } else {
         const input = readPhotoSession(owner, draftId).saveInput;
@@ -291,9 +259,7 @@ function PhotoSession({
         await newArtwork.save({
           ...input,
           capture,
-          contribution: input.contribution
-            ? { ...input.contribution, capture }
-            : undefined,
+          contribution: input.contribution ? { ...input.contribution, capture } : undefined,
         });
       }
     } catch (error) {
@@ -311,14 +277,10 @@ function PhotoSession({
     setOperation("separating");
     try {
       const existing = photo.recognized
-        ? (await listSavedWorks(owner)).find(
-            (work) => work.objectId === photo.recognized!.objectId,
-          )
+        ? (await listSavedWorks(owner)).find((work) => work.objectId === photo.recognized!.objectId)
         : undefined;
       const selectedVisitId = await sessionVisitId();
-      const visit = selectedVisitId
-        ? await getVisit(selectedVisitId, owner)
-        : undefined;
+      const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
       if (selectedVisitId && !visit) throw new Error("Visit unavailable");
       if (!session.isOwnerCurrent()) return;
       const id = existing?.localId ?? randomUUID();
@@ -357,9 +319,7 @@ function PhotoSession({
       setSelected(undefined);
     } catch (error) {
       reportError(error, "capture.save_separate_photo");
-      setError(
-        "Could not save this photo separately. Your draft is still here.",
-      );
+      setError("Could not save this photo separately. Your draft is still here.");
     } finally {
       busyRef.current = false;
       setOperation(undefined);
@@ -372,14 +332,8 @@ function PhotoSession({
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
       >
-        <CaptureCompletion
-          completion={completion}
-          inline
-          sharedToIndex={newArtwork.shared?.status === "tentative"}
-        />
-        <View
-          style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}
-        >
+        <CaptureCompletion completion={completion} inline sharedToIndex={newArtwork.shared?.status === "tentative"} />
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}>
           <ContributionStatus
             sharing={newArtwork.sharing}
             shared={newArtwork.shared}
@@ -393,10 +347,7 @@ function PhotoSession({
     );
   }
   const photoCount = photos.length + (savedId ? 0 : 1);
-  const shares =
-    !savedId
-    && !!saveCapture
-    && !!readPhotoSession(owner, draftId).saveInput?.contribution;
+  const shares = !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return (
     <ScrollView
       style={styles.screen}
@@ -406,12 +357,7 @@ function PhotoSession({
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: "Add photos" }} />
-      <View
-        style={[
-          styles.target,
-          { flexDirection: "row", alignItems: "center", gap: 12 },
-        ]}
-      >
+      <View style={[styles.target, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
         <SavedWorkImage
           path={target?.cropPath ?? input?.capture.cropPath ?? null}
           title={target?.title ?? title ?? "Artwork"}
@@ -423,9 +369,7 @@ function PhotoSession({
             {target?.title || title || "Unidentified artwork"}
           </ThemedText>
           <ThemedText type="small" style={styles.hint}>
-            {target?.artist
-              || input?.draft.artist
-              || "Full views, details, and labels stay together."}
+            {target?.artist || input?.draft.artist || "Full views, details, and labels stay together."}
           </ThemedText>
         </View>
       </View>
@@ -451,9 +395,7 @@ function PhotoSession({
           currentPhoto
             ? update(
                 photos.map((photo) =>
-                  photo.localId === currentPhoto.localId
-                    ? { ...photo, kind: value as PhotoKind }
-                    : photo,
+                  photo.localId === currentPhoto.localId ? { ...photo, kind: value as PhotoKind } : photo,
                 ),
               )
             : setKind(value as PhotoKind)
@@ -517,9 +459,7 @@ function PhotoSession({
                 onPress={() =>
                   update(
                     photos.map((photo) =>
-                      photo.localId === currentPhoto.localId
-                        ? { ...photo, review: undefined }
-                        : photo,
+                      photo.localId === currentPhoto.localId ? { ...photo, review: undefined } : photo,
                     ),
                   )
                 }
@@ -548,21 +488,11 @@ function PhotoSession({
             maxLength={2000}
             style={styles.caption}
             onChangeText={(caption) =>
-              update(
-                photos.map((photo) =>
-                  photo.localId === currentPhoto.localId
-                    ? { ...photo, caption }
-                    : photo,
-                ),
-              )
+              update(photos.map((photo) => (photo.localId === currentPhoto.localId ? { ...photo, caption } : photo)))
             }
           />
           <View style={[styles.row, fontScale >= 1.5 && styles.stacked]}>
-            <GalleryButton
-              label="Back to camera"
-              disabled={busy}
-              onPress={() => setSelected(undefined)}
-            />
+            <GalleryButton label="Back to camera" disabled={busy} onPress={() => setSelected(undefined)} />
             <GalleryButton
               label="Remove photo"
               disabled={busy}
@@ -570,11 +500,7 @@ function PhotoSession({
               onPress={() => {
                 if (removed) removePhotoFile(removed.path);
                 setRemoved(currentPhoto);
-                update(
-                  photos.filter(
-                    (photo) => photo.localId !== currentPhoto.localId,
-                  ),
-                );
+                update(photos.filter((photo) => photo.localId !== currentPhoto.localId));
                 setSelected(undefined);
               }}
             />
@@ -609,11 +535,7 @@ function PhotoSession({
           )}
         </View>
       )}
-      <ScrollView
-        horizontal
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ gap: 8 }}
-      >
+      <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
         {photos.map((photo, i) => (
           <Pressable
             key={photo.localId}
@@ -648,16 +570,12 @@ function PhotoSession({
       {operation === "adding" && currentPhoto?.review !== "checking" && (
         <LoadingRing
           accessibilityLabel={
-            photos.some((photo) => photo.review === "checking")
-              ? "Checking added photos…"
-              : "Adding photos…"
+            photos.some((photo) => photo.review === "checking") ? "Checking added photos…" : "Adding photos…"
           }
         />
       )}
       {photos.length >= 99 && (
-        <ThemedText themeColor="warning">
-          Photo limit reached. Remove a photo to add another.
-        </ThemedText>
+        <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>
       )}
       {removed && (
         <GalleryButton
@@ -670,10 +588,7 @@ function PhotoSession({
         />
       )}
       {(error || newArtwork.error) && (
-        <ThemedText
-          accessibilityRole="alert"
-          style={{ color: Gallery.destructive }}
-        >
+        <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>
           {error || newArtwork.error}
         </ThemedText>
       )}
@@ -684,9 +599,7 @@ function PhotoSession({
           fullWidth
           busy={operation === "saving"}
           busyLabel="Saving photos…"
-          disabled={
-            busy || !photoCount || photos.some((photo) => !!photo.review)
-          }
+          disabled={busy || !photoCount || photos.some((photo) => !!photo.review)}
           onPress={() => {
             void done();
           }}

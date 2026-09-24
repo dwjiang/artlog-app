@@ -1,22 +1,13 @@
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { Harness } from "../test.helpers";
-import {
-  seedContribution,
-  seedDevice,
-  seedJournalVisit,
-  seedMuseum,
-  seedScan,
-} from "./testFactories";
+import { seedContribution, seedDevice, seedJournalVisit, seedMuseum, seedScan } from "./testFactories";
 
 export type SocialUser = Awaited<ReturnType<typeof seedDevice>> & {
   accountId: Id<"accounts">;
   profileId: Id<"profiles">;
 };
-export async function socialUser(
-  t: Harness,
-  name: string = crypto.randomUUID(),
-): Promise<SocialUser> {
+export async function socialUser(t: Harness, name: string = crypto.randomUUID()): Promise<SocialUser> {
   const device = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("accounts", {
@@ -95,15 +86,9 @@ export async function setVisitVisibility(
   visitId: Id<"visits">,
   visibility: "public" | "private",
 ) {
-  const {
-    localId,
-    venueId,
-    visitedOn,
-    timeZone,
-    reflection,
-    startedAt,
-    endedAt,
-  } = (await t.run((ctx) => ctx.db.get(visitId)))!;
+  const { localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } = (await t.run((ctx) =>
+    ctx.db.get(visitId),
+  ))!;
   await user.as.mutation(api.visits.upsertJournal, {
     scope: user.scope,
     visit: {
@@ -132,20 +117,14 @@ export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {
     revision: requested.revision,
   });
 }
-export async function socialDerivative(
-  t: Harness,
-  user: SocialUser,
-  saveId: Id<"collections">,
-) {
+export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<"collections">) {
   return t.run(async (ctx) => {
     const save = (await ctx.db.get(saveId))!;
     const scanId = await seedScan(ctx, {
       deviceId: user.deviceId,
       venueId: save.venueId,
     });
-    const sourceStorageId = await ctx.storage.store(
-      new Blob(["source crop"], { type: "image/jpeg" }),
-    );
+    const sourceStorageId = await ctx.storage.store(new Blob(["source crop"], { type: "image/jpeg" }));
     const contributionId = await seedContribution(ctx, {
       deviceId: user.deviceId,
       scanId,
@@ -153,9 +132,7 @@ export async function socialDerivative(
       cropStorageId: sourceStorageId,
     });
     await ctx.db.patch(saveId, { scanId });
-    const storageId = await ctx.storage.store(
-      new Blob(["derivative bytes"], { type: "image/jpeg" }),
-    );
+    const storageId = await ctx.storage.store(new Blob(["derivative bytes"], { type: "image/jpeg" }));
     const provenance = {
       kind: "contribution" as const,
       contributionId,

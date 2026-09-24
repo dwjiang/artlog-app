@@ -1,13 +1,7 @@
 import { useNetworkState } from "expo-network";
 import { Image } from "expo-image";
 import { useState } from "react";
-import {
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -35,8 +29,7 @@ export function SavedWorkImage({
   const [size, setSize] = useState<{ width: number; height: number }>();
   const { fontScale } = useWindowDimensions();
   const frame = StyleSheet.flatten(style);
-  const width =
-    size?.width ?? (typeof frame?.width === "number" ? frame.width : 0);
+  const width = size?.width ?? (typeof frame?.width === "number" ? frame.width : 0);
   const height =
     size?.height
     ?? (typeof frame?.height === "number"
@@ -51,11 +44,7 @@ export function SavedWorkImage({
       style={[styles.container, style]}
       onLayout={({ nativeEvent }) => {
         const { width, height } = nativeEvent.layout;
-        setSize((previous) =>
-          previous?.width === width && previous.height === height
-            ? previous
-            : { width, height },
-        );
+        setSize((previous) => (previous?.width === width && previous.height === height ? previous : { width, height }));
       }}
     >
       {path && failedPath !== path ? (
@@ -67,11 +56,9 @@ export function SavedWorkImage({
             if (source.width > 0 && source.height > 0) onLoad?.(source);
           }}
           onError={(event) => {
-            reportError(
-              new Error(event?.error || "Saved artwork photo could not load"),
-              "collection.photo.load",
-              { level: "warning" },
-            );
+            reportError(new Error(event?.error || "Saved artwork photo could not load"), "collection.photo.load", {
+              level: "warning",
+            });
             setFailedPath(path);
           }}
           accessibilityLabel={`Your photo of ${title}`}
@@ -84,11 +71,7 @@ export function SavedWorkImage({
           accessible
           accessibilityRole="image"
           accessibilityLabel={`${title}: ${status.toLowerCase()}`}
-          style={[
-            StyleSheet.absoluteFill,
-            styles.placeholder,
-            compact && { padding: 0 },
-          ]}
+          style={[StyleSheet.absoluteFill, styles.placeholder, compact && { padding: 0 }]}
         >
           <Image
             source="sf:photo"
@@ -109,22 +92,13 @@ export function SavedWorkImage({
         </View>
       )}
       {path && failedPath !== path && loadedPath !== path && (
-        <ImageSkeleton
-          label={`Loading photo: ${title}`}
-          style={StyleSheet.absoluteFill}
-        />
+        <ImageSkeleton label={`Loading photo: ${title}`} style={StyleSheet.absoluteFill} />
       )}
     </View>
   );
 }
 
-function PhotoDownload({
-  title,
-  compact,
-}: {
-  title: string;
-  compact: boolean;
-}) {
+function PhotoDownload({ title, compact }: { title: string; compact: boolean }) {
   const network = useNetworkState();
   if (network.isConnected === false || network.isInternetReachable === false) {
     return (
@@ -134,12 +108,7 @@ function PhotoDownload({
         accessibilityLabel={`${title}: photo waiting for connection`}
         style={[StyleSheet.absoluteFill, styles.placeholder]}
       >
-        <Image
-          source="sf:wifi.slash"
-          accessible={false}
-          tintColor={Gallery.muted}
-          style={{ width: 24, height: 24 }}
-        />
+        <Image source="sf:wifi.slash" accessible={false} tintColor={Gallery.muted} style={{ width: 24, height: 24 }} />
         {!compact && (
           <ThemedText variant="metadata" themeColor="textSecondary">
             Photo available when online
@@ -148,12 +117,7 @@ function PhotoDownload({
       </View>
     );
   }
-  return (
-    <ImageSkeleton
-      label={`Downloading photo: ${title}`}
-      style={StyleSheet.absoluteFill}
-    />
-  );
+  return <ImageSkeleton label={`Downloading photo: ${title}`} style={StyleSheet.absoluteFill} />;
 }
 
 const styles = StyleSheet.create({

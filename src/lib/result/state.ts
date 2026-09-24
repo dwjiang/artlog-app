@@ -2,22 +2,12 @@ import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type {
-  DocentSentence,
-  FactChip,
-  RightNowCard,
-} from "../../../convex/lib/validators";
+import type { DocentSentence, FactChip, RightNowCard } from "../../../convex/lib/validators";
 import { errorMessage } from "@/lib/network-error";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;
-export type ResultKind =
-  | "loading"
-  | "confident"
-  | "soft"
-  | "unidentified"
-  | "unsupported"
-  | "failed";
+export type ResultKind = "loading" | "confident" | "soft" | "unidentified" | "unsupported" | "failed";
 
 export type ResultViewState = {
   kind: ResultKind;
@@ -90,23 +80,14 @@ export function toResultViewState(
   }
 
   const rejected = new Set(selection.rejectedObjectIds ?? []);
-  const candidates = dedupe([
-    ...(scan.best ? [scan.best] : []),
-    ...(scan.runnerUps ?? []),
-  ]);
-  const chosen = candidates.find(
-    (candidate) => candidate.objectId === selection.chosenObjectId,
-  );
+  const candidates = dedupe([...(scan.best ? [scan.best] : []), ...(scan.runnerUps ?? [])]);
+  const chosen = candidates.find((candidate) => candidate.objectId === selection.chosenObjectId);
   // A miss keeps its low-probability best among the suggestions rather than naming it.
   const primary = chosen ?? (scan.outcome === "miss" ? undefined : scan.best);
-  const runnerUps = candidates.filter(
-    (candidate) => candidate !== primary && !rejected.has(candidate.objectId),
-  );
+  const runnerUps = candidates.filter((candidate) => candidate !== primary && !rejected.has(candidate.objectId));
   const kind: ResultKind = !primary
     ? "unidentified"
-    : chosen
-        || primary.identityStatus === "tentative"
-        || scan.outcome !== "confident"
+    : chosen || primary.identityStatus === "tentative" || scan.outcome !== "confident"
       ? "soft"
       : "confident";
   return {

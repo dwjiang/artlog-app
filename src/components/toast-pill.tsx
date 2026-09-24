@@ -15,22 +15,14 @@ export function ToastPill({
   const { fontScale } = useWindowDimensions();
   return (
     <View
-      style={[
-        styles.pill,
-        fontScale >= 1.5 && styles.stacked,
-        busy && styles.busy,
-      ]}
+      style={[styles.pill, fontScale >= 1.5 && styles.stacked, busy && styles.busy]}
       accessibilityLiveRegion="polite"
       accessibilityState={{ busy }}
     >
       {busy ? (
         <LoadingRing accessibilityLabel={message} color={Gallery.surface} />
       ) : (
-        <ThemedText
-          variant="secondary"
-          accessibilityRole="alert"
-          style={styles.message}
-        >
+        <ThemedText variant="secondary" accessibilityRole="alert" style={styles.message}>
           {message}
         </ThemedText>
       )}
@@ -42,10 +34,7 @@ export function ToastPill({
           accessibilityState={{ disabled: busy, busy }}
           disabled={busy}
           onPress={action.onPress}
-          style={({ pressed }) => [
-            styles.action,
-            { opacity: busy ? 0.6 : pressed ? 0.75 : 1 },
-          ]}
+          style={({ pressed }) => [styles.action, { opacity: busy ? 0.6 : pressed ? 0.75 : 1 }]}
         >
           <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
         </Pressable>

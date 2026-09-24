@@ -1,31 +1,11 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 import type { PreparedWidgetArtwork } from "@/lib/widgets/widget-collection";
-import {
-  paintingLayout,
-  widgetPresentation,
-  type WidgetLayout,
-} from "@/lib/widgets/widget-layout";
+import { paintingLayout, widgetPresentation, type WidgetLayout } from "@/lib/widgets/widget-layout";
 import type { WidgetSettings, WidgetSize } from "@/lib/widgets/widget-settings";
 
-export function WidgetDrawing({
-  layout,
-  scale = 1,
-}: {
-  layout: WidgetLayout;
-  scale?: number;
-}) {
-  const position = ({
-    x,
-    y,
-    width,
-    height,
-  }: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) => ({
+export function WidgetDrawing({ layout, scale = 1 }: { layout: WidgetLayout; scale?: number }) {
+  const position = ({ x, y, width, height }: { x: number; y: number; width: number; height: number }) => ({
     position: "absolute" as const,
     left: x * scale,
     top: y * scale,
@@ -39,18 +19,10 @@ export function WidgetDrawing({
       style={{ width: layout.width * scale, height: layout.height * scale }}
     >
       {layout.rectangles.map((rect, i) => (
-        <View
-          key={i}
-          style={[position(rect), { backgroundColor: rect.color }]}
-        />
+        <View key={i} style={[position(rect), { backgroundColor: rect.color }]} />
       ))}
       {layout.image && (
-        <Image
-          source={layout.image.uri}
-          contentFit="contain"
-          transition={0}
-          style={position(layout.image)}
-        />
+        <Image source={layout.image.uri} contentFit="contain" transition={0} style={position(layout.image)} />
       )}
       {layout.texts.map((row, i) => (
         <Text
@@ -116,24 +88,14 @@ export function WidgetPreview({
   );
 }
 
-export function WidgetFrameSample({
-  artwork,
-  settings,
-}: {
-  artwork: PreparedWidgetArtwork;
-  settings: WidgetSettings;
-}) {
+export function WidgetFrameSample({ artwork, settings }: { artwork: PreparedWidgetArtwork; settings: WidgetSettings }) {
   return (
     <WidgetDrawing
       layout={{
         width: 48,
         height: 48,
         texts: [],
-        ...paintingLayout(
-          artwork,
-          { x: 0, y: 0, width: 48, height: 48 },
-          settings,
-        ),
+        ...paintingLayout(artwork, { x: 0, y: 0, width: 48, height: 48 }, settings),
       }}
     />
   );

@@ -3,11 +3,7 @@ import { ListeningProvider } from "@/lib/audio/listening-provider";
 import { ListeningRoot } from "@/components/audio/listening-root";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import * as Sentry from "@sentry/react-native";
-import {
-  DefaultTheme,
-  ThemeProvider,
-  type ErrorBoundaryProps,
-} from "expo-router";
+import { DefaultTheme, ThemeProvider, type ErrorBoundaryProps } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { useEffect } from "react";
 
@@ -66,17 +62,13 @@ function RootLayout() {
                         contentStyle: { backgroundColor: Gallery.paper },
                       }}
                     />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ headerShown: false, title: "Back" }}
-                    />
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Back" }} />
                     <Stack.Screen
                       name="result/[scanId]"
                       options={({ route }) => ({
                         title: "",
                         animation:
-                          (route.params as { entrance?: string } | undefined)
-                            ?.entrance === "capture"
+                          (route.params as { entrance?: string } | undefined)?.entrance === "capture"
                             ? "fade"
                             : "default",
                       })}
@@ -84,23 +76,15 @@ function RootLayout() {
                         transitionEnd: ({ data }) => {
                           if (
                             !data.closing
-                            && (
-                              route.params as { entrance?: string } | undefined
-                            )?.entrance === "capture"
+                            && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
                           ) {
                             navigation.setParams({ entrance: undefined });
                           }
                         },
                       })}
                     />
-                    <Stack.Screen
-                      name="all-artworks"
-                      options={{ title: "", headerBackTitle: "Collection" }}
-                    />
-                    <Stack.Screen
-                      name="label/[scanId]"
-                      options={{ title: "Label" }}
-                    />
+                    <Stack.Screen name="all-artworks" options={{ title: "", headerBackTitle: "Collection" }} />
+                    <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
                     <Stack.Screen
                       name="sign-in"
                       dangerouslySingular
@@ -118,10 +102,7 @@ function RootLayout() {
                         headerShown: false,
                       }}
                     />
-                    <Stack.Screen
-                      name="settings-detail"
-                      options={{ title: "Settings" }}
-                    />
+                    <Stack.Screen name="settings-detail" options={{ title: "Settings" }} />
                     <Stack.Screen
                       name="museum-downloads"
                       options={{
@@ -129,63 +110,21 @@ function RootLayout() {
                         headerShown: false,
                       }}
                     />
-                    <Stack.Screen
-                      name="settings"
-                      options={{ title: "", headerBackTitle: "Collection" }}
-                    />
-                    <Stack.Screen
-                      name="widgets"
-                      options={{ title: "", headerBackTitle: "Settings" }}
-                    />
-                    <Stack.Screen
-                      name="saved/[savedId]"
-                      options={{ title: "" }}
-                    />
+                    <Stack.Screen name="settings" options={{ title: "", headerBackTitle: "Collection" }} />
+                    <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
+                    <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />
                     <Stack.Screen name="wall-display" options={{ title: "" }} />
-                    <Stack.Screen
-                      name="journal/[visitId]"
-                      options={{ title: "Visit" }}
-                    />
-                    <Stack.Screen
-                      name="adjust-crop"
-                      options={{ title: "Adjust crop", gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="photo-details"
-                      options={{ title: "Photo details" }}
-                    />
-                    <Stack.Screen
-                      name="identify-artwork"
-                      options={{ title: "Artwork details" }}
-                    />
-                    <Stack.Screen
-                      name="leaderboards"
-                      options={{ title: "Leaderboards" }}
-                    />
-                    <Stack.Screen
-                      name="people"
-                      options={{ title: "Friends" }}
-                    />
-                    <Stack.Screen
-                      name="profile/[profileId]"
-                      options={{ title: "Profile" }}
-                    />
-                    <Stack.Screen
-                      name="visit/[postId]"
-                      options={{ title: "Visit" }}
-                    />
-                    <Stack.Screen
-                      name="edit-profile"
-                      options={{ ...visitSheet, title: "Edit profile" }}
-                    />
-                    <Stack.Screen
-                      name="share-profile"
-                      options={{ title: "Share profile" }}
-                    />
-                    <Stack.Screen
-                      name="public-notes"
-                      options={{ title: "Public notes" }}
-                    />
+                    <Stack.Screen name="journal/[visitId]" options={{ title: "Visit" }} />
+                    <Stack.Screen name="adjust-crop" options={{ title: "Adjust crop", gestureEnabled: false }} />
+                    <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
+                    <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
+                    <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
+                    <Stack.Screen name="people" options={{ title: "Friends" }} />
+                    <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
+                    <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
+                    <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
+                    <Stack.Screen name="share-profile" options={{ title: "Share profile" }} />
+                    <Stack.Screen name="public-notes" options={{ title: "Public notes" }} />
                     <Stack.Screen
                       name="create-profile"
                       options={{
@@ -196,14 +135,8 @@ function RootLayout() {
                       }}
                     />
                     <Stack.Screen name="artwork" options={{ title: "" }} />
-                    <Stack.Screen
-                      name="visit-create"
-                      options={{ ...visitSheet, title: "Add visit" }}
-                    />
-                    <Stack.Screen
-                      name="visit-share/[visitId]"
-                      options={{ headerShown: false }}
-                    />
+                    <Stack.Screen name="visit-create" options={{ ...visitSheet, title: "Add visit" }} />
+                    <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="visit-globe"
                       options={{

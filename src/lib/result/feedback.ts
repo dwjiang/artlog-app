@@ -8,10 +8,7 @@ import { signPayload } from "@/lib/attested-write";
 
 const labelRejections = new Map<Id<"scans">, Promise<Id<"feedback"> | null>>();
 
-export function handOffLabelRejection(
-  scanId: Id<"scans">,
-  rejection: Promise<Id<"feedback"> | null>,
-): void {
+export function handOffLabelRejection(scanId: Id<"scans">, rejection: Promise<Id<"feedback"> | null>): void {
   labelRejections.set(scanId, rejection);
 }
 
@@ -34,10 +31,7 @@ export function resolveWithLabel(
     )
     .catch((error: unknown) => {
       reportError(error, "result.resolve_label_feedback");
-      console.warn(
-        "Could not resolve the rejection with this contribution",
-        error,
-      );
+      console.warn("Could not resolve the rejection with this contribution", error);
     });
 }
 

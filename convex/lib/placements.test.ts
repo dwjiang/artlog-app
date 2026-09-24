@@ -5,9 +5,7 @@ import { currentPlacement, type PlacementLike } from "./placements";
 const day = 24 * 60 * 60 * 1000;
 const now = 100 * day;
 
-function placement(
-  overrides: Partial<PlacementLike> & { venueId: string },
-): PlacementLike {
+function placement(overrides: Partial<PlacementLike> & { venueId: string }): PlacementLike {
   return { onView: true, source: "wikidata", confidence: 0.5, ...overrides };
 }
 
@@ -16,10 +14,7 @@ describe("currentPlacement", () => {
     expect(currentPlacement([], now)).toBeNull();
     expect(
       currentPlacement(
-        [
-          placement({ venueId: "past", to: now - day }),
-          placement({ venueId: "future", from: now + day }),
-        ],
+        [placement({ venueId: "past", to: now - day }), placement({ venueId: "future", from: now + day })],
         now,
       ),
     ).toBeNull();

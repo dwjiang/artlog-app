@@ -46,30 +46,16 @@ export function LabelActions({
   return (
     <View style={styles.bar}>
       {completion ? (
-        <CaptureCompletion
-          completion={completion}
-          sharedToIndex={shared?.status === "tentative"}
-          inline
-        />
+        <CaptureCompletion completion={completion} sharedToIndex={shared?.status === "tentative"} inline />
       ) : savedId ? (
-        <Pressable
-          accessibilityRole="link"
-          onPress={onViewSaved}
-          style={styles.saved}
-        >
-          <ThemedText themeColor="accent">
-            Saved · View in collection
-          </ThemedText>
+        <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
+          <ThemedText themeColor="accent">Saved · View in collection</ThemedText>
         </Pressable>
       ) : (
         <>
-          <View
-            style={{ padding: 14, backgroundColor: "#F0F1E8", borderRadius: 8 }}
-          >
+          <View style={{ padding: 14, backgroundColor: "#F0F1E8", borderRadius: 8 }}>
             <ThemedText type="small">
-              {allowContribution
-                ? SHARING_NOTICE
-                : "Save privately to your collection."}
+              {allowContribution ? SHARING_NOTICE : "Save privately to your collection."}
             </ThemedText>
           </View>
           <GalleryButton
@@ -87,22 +73,13 @@ export function LabelActions({
             </ThemedText>
           )}
           {saveError && (
-            <ThemedText
-              type="small"
-              themeColor="error"
-              accessibilityRole="alert"
-            >
+            <ThemedText type="small" themeColor="error" accessibilityRole="alert">
               {saveError}
             </ThemedText>
           )}
         </>
       )}
-      <ContributionStatus
-        sharing={sharing}
-        shared={shared}
-        shareError={shareError}
-        onShare={onShare}
-      />
+      <ContributionStatus sharing={sharing} shared={shared} shareError={shareError} onShare={onShare} />
     </View>
   );
 }
@@ -116,21 +93,13 @@ export function ContributionStatus({
   return (
     <>
       {shared && <ContributeResult result={shared} />}
-      {sharing && (
-        <LoadingRing accessibilityLabel="Saving to the shared index…" />
-      )}
+      {sharing && <LoadingRing accessibilityLabel="Saving to the shared index…" />}
       {shareError && (
         <>
           <ThemedText type="small" themeColor="error" accessibilityRole="alert">
             {shareError}. Your artwork is saved to your collection.
           </ThemedText>
-          <GalleryButton
-            label={SHARE_BUTTON}
-            variant="outlined"
-            fullWidth
-            disabled={sharing}
-            onPress={onShare}
-          />
+          <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth disabled={sharing} onPress={onShare} />
         </>
       )}
     </>

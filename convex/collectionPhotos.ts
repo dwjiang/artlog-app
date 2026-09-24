@@ -1,26 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
-import {
-  MAX_COLLECTION_PHOTO_BYTES,
-  type CollectionPhotoKind,
-} from "../shared/collection/photo-limits";
+import { MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from "../shared/collection/photo-limits";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  httpAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server";
+import { httpAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireDeviceFromAction } from "./lib/auth";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
-import {
-  nextChangeVersion,
-  requireJournalOwner,
-  requireOwnedSave,
-} from "./lib/ownership";
+import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
 import { isUuid } from "../shared/journal/limits";
 import { limitDevice } from "./lib/rateLimits";
 import { reportBackendError } from "./lib/observability";
@@ -33,11 +20,7 @@ const args = {
   photoId: v.optional(v.string()),
 };
 
-async function requireCollection(
-  ctx: QueryCtx | MutationCtx,
-  scope: string,
-  localId: string,
-) {
+async function requireCollection(ctx: QueryCtx | MutationCtx, scope: string, localId: string) {
   const { owner } = await requireJournalOwner(ctx, scope);
   return requireOwnedSave(ctx, owner, localId);
 }
@@ -77,10 +60,7 @@ export const attach = internalMutation({
     storageId: v.id("_storage"),
     photoUpdatedAt: v.number(),
   }),
-  handler: async (
-    ctx,
-    { scope, localId, kind, photoId, storageId, width, height },
-  ) => {
+  handler: async (ctx, { scope, localId, kind, photoId, storageId, width, height }) => {
     const { save, photo } = await target(ctx, scope, localId, kind, photoId);
     const existing = photo ? photo.storageId : save.cropStorageId;
     if (photo && existing) {
@@ -88,9 +68,7 @@ export const attach = internalMutation({
       return { storageId: existing, photoUpdatedAt: 0 };
     }
     const changeVersion = await nextChangeVersion(ctx, save.owner);
-    const photoUpdatedAt = photo
-      ? 0
-      : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
+    const photoUpdatedAt = photo ? 0 : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
     if (photo) {
       await ctx.db.patch(photo._id, {
         storageId,
@@ -122,13 +100,7 @@ function parameters(request: Request): {
   const scope = url.searchParams.get("scope");
   const localId = url.searchParams.get("localId"),
     kind = url.searchParams.get("kind");
-  if (
-    !scope
-    || scope.length > 256
-    || !localId
-    || !isUuid(localId)
-    || (kind !== "photo" && kind !== "crop")
-  ) {
+  if (!scope || scope.length > 256 || !localId || !isUuid(localId) || (kind !== "photo" && kind !== "crop")) {
     throw new ConvexError({ code: "invalid_photo" });
   }
   const photoId = url.searchParams.get("photoId") ?? undefined;
@@ -140,10 +112,7 @@ function parameters(request: Request): {
 
 function failure(error: unknown): Response {
   const code =
-    error instanceof ConvexError
-    && typeof error.data === "object"
-    && error.data !== null
-    && "code" in error.data
+    error instanceof ConvexError && typeof error.data === "object" && error.data !== null && "code" in error.data
       ? String(error.data.code)
       : "photo_failed";
   const status =
@@ -162,10 +131,7 @@ function failure(error: unknown): Response {
                 : code === "invalid_photo"
                   ? 400
                   : 500;
-  return Response.json(
-    { code },
-    { status, headers: { "Cache-Control": "private, no-store" } },
-  );
+  return Response.json({ code }, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
 export const upload = httpAction(async (ctx, request) => {
@@ -173,17 +139,12 @@ export const upload = httpAction(async (ctx, request) => {
   try {
     const device = await requireDeviceFromAction(ctx);
     const input = parameters(request);
-    const existing = await ctx.runQuery(
-      internal.collectionPhotos.findForCaller,
-      input,
-    );
+    const existing = await ctx.runQuery(internal.collectionPhotos.findForCaller, input);
     if (existing && input.kind === "photo") {
       return Response.json({ storageId: existing, photoUpdatedAt: 0 });
     }
     await limitDevice(ctx, "photoUpload", device._id);
-    if (
-      Number(request.headers.get("Content-Length")) > MAX_COLLECTION_PHOTO_BYTES
-    ) {
+    if (Number(request.headers.get("Content-Length")) > MAX_COLLECTION_PHOTO_BYTES) {
       throw new ConvexError({ code: "photo_too_large" });
     }
     if (request.headers.get("Content-Type") !== "image/jpeg") {
@@ -200,10 +161,7 @@ export const upload = httpAction(async (ctx, request) => {
     uploaded = await ctx.storage.store(blob);
     const width = Number(request.headers.get("X-Photo-Width")),
       height = Number(request.headers.get("X-Photo-Height"));
-    const dimensions =
-      width > 0 && height > 0 && width <= 65535 && height <= 65535
-        ? { width, height }
-        : {};
+    const dimensions = width > 0 && height > 0 && width <= 65535 && height <= 65535 ? { width, height } : {};
     const result = await ctx.runMutation(internal.collectionPhotos.attach, {
       ...input,
       storageId: uploaded,
@@ -232,10 +190,7 @@ export const discard = internalMutation({
 
 export const download = httpAction(async (ctx, request) => {
   try {
-    const storageId = await ctx.runQuery(
-      internal.collectionPhotos.findForCaller,
-      parameters(request),
-    );
+    const storageId = await ctx.runQuery(internal.collectionPhotos.findForCaller, parameters(request));
     const blob = storageId ? await ctx.storage.get(storageId) : null;
     if (!blob) throw new ConvexError({ code: "not_found" });
     return new Response(blob, {

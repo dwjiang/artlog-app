@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  jsonResponse,
-  wikidataEntities,
-  wikidataEntitiesResponse,
-  wikidataSearchWaterLilies,
-} from "./labelFixtures";
+import { jsonResponse, wikidataEntities, wikidataEntitiesResponse, wikidataSearchWaterLilies } from "./labelFixtures";
 import {
   collections,
   countries,
@@ -37,31 +32,22 @@ describe("Wikidata client", () => {
   it.each([
     { error: { code: "ratelimited", info: "Rate limit exceeded" } },
     { errors: [{ code: "ratelimited", text: "Rate limit exceeded" }] },
-  ])(
-    "surfaces HTTP 200 API errors for searches and entity lookups",
-    async (response) => {
-      fetchMock.mockImplementation(async () => jsonResponse(response));
-      await expect(searchEntities("Claude Monet")).rejects.toMatchObject({
-        data: { code: "wikidata_error" },
-      });
-      await expect(getEntities(["Q296"])).rejects.toMatchObject({
-        data: { code: "wikidata_error" },
-      });
-    },
-  );
+  ])("surfaces HTTP 200 API errors for searches and entity lookups", async (response) => {
+    fetchMock.mockImplementation(async () => jsonResponse(response));
+    await expect(searchEntities("Claude Monet")).rejects.toMatchObject({
+      data: { code: "wikidata_error" },
+    });
+    await expect(getEntities(["Q296"])).rejects.toMatchObject({
+      data: { code: "wikidata_error" },
+    });
+  });
 
   it("searches items in English with an identified User-Agent", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(wikidataSearchWaterLilies));
     const hits = await searchEntities("Water Lilies");
-    expect(hits.map((hit) => hit.id)).toEqual([
-      "Q1189907",
-      "Q7973309",
-      "Q93512",
-    ]);
+    expect(hits.map((hit) => hit.id)).toEqual(["Q1189907", "Q7973309", "Q93512"]);
     const url = new URL(String(fetchMock.mock.calls[0][0]));
-    expect(url.origin + url.pathname).toBe(
-      "https://www.wikidata.org/w/api.php",
-    );
+    expect(url.origin + url.pathname).toBe("https://www.wikidata.org/w/api.php");
     expect(Object.fromEntries(url.searchParams)).toEqual({
       action: "wbsearchentities",
       search: "Water Lilies",
@@ -72,9 +58,7 @@ describe("Wikidata client", () => {
     });
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       headers: {
-        "User-Agent": expect.stringMatching(
-          /^artlog-bot\/0\.1 \(\+https:\/\/github\.com\//,
-        ),
+        "User-Agent": expect.stringMatching(/^artlog-bot\/0\.1 \(\+https:\/\/github\.com\//),
       },
     });
   });
@@ -135,9 +119,7 @@ describe("Wikidata client", () => {
   it("returns every requested entity across batches and propagates later failures", async () => {
     const ids = Array.from({ length: 101 }, (_, i) => `Q${1000 + i}`);
     fetchMock.mockImplementation(async (input) => {
-      const requested = new URL(String(input)).searchParams
-        .get("ids")!
-        .split("|");
+      const requested = new URL(String(input)).searchParams.get("ids")!.split("|");
       expect(requested.length).toBeLessThanOrEqual(50);
       return jsonResponse({
         entities: Object.fromEntries(requested.map((id) => [id, { id }])),
@@ -145,12 +127,8 @@ describe("Wikidata client", () => {
     });
     expect(Object.keys(await getEntities([...ids, ids[0]]))).toEqual(ids);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ entities: { Q1000: { id: "Q1000" } } }),
-    );
-    fetchMock.mockResolvedValueOnce(
-      new Response("unavailable", { status: 503 }),
-    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entities: { Q1000: { id: "Q1000" } } }));
+    fetchMock.mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
     await expect(getEntities(ids)).rejects.toMatchObject({
       data: { code: "wikidata_error" },
     });

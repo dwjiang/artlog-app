@@ -1,8 +1,4 @@
-import {
-  interpolateCorners,
-  perspectiveMatrix,
-  revealGeometry,
-} from "./reveal-geometry";
+import { interpolateCorners, perspectiveMatrix, revealGeometry } from "./reveal-geometry";
 import type { PreparedPainting, Quad } from "./stages";
 
 const painting: PreparedPainting = {
@@ -23,11 +19,7 @@ function project(m: number[], [x, y]: [number, number]) {
 }
 
 it("maps all four crop corners exactly onto the frozen photograph and the final flat rectangle", () => {
-  const geometry = revealGeometry(
-    painting,
-    { width: 390, height: 844 },
-    "cover",
-  )!;
+  const geometry = revealGeometry(painting, { width: 390, height: 844 }, "cover")!;
   const rect: Quad = [
     [0, 0],
     [geometry.width, 0],
@@ -48,11 +40,7 @@ it("maps all four crop corners exactly onto the frozen photograph and the final 
 });
 
 it("shows the entire unpadded artwork and accounts for odd asymmetric padding", () => {
-  const geometry = revealGeometry(
-    painting,
-    { width: 390, height: 844 },
-    "contain",
-  )!;
+  const geometry = revealGeometry(painting, { width: 390, height: 844 }, "contain")!;
   const scale = geometry.width / painting.contentBounds.width;
   expect(geometry.imageTop).toBe(-85 * scale);
   expect(geometry.height).toBe(341 * scale);
@@ -96,15 +84,10 @@ it("keeps a tall canvas entirely between the measured camera controls", () => {
     ...painting,
     contentBounds: { x: 85, y: 0, width: 341, height: 512 },
   };
-  const geometry = revealGeometry(
-    portrait,
-    { width: 390, height: 844 },
-    "cover",
-    {
-      top: 120,
-      bottom: 260,
-    },
-  )!;
+  const geometry = revealGeometry(portrait, { width: 390, height: 844 }, "cover", {
+    top: 120,
+    bottom: 260,
+  })!;
   expect(geometry.to[0][1]).toBeGreaterThanOrEqual(120);
   expect(geometry.to[2][1]).toBeLessThanOrEqual(844 - 260);
   expect(geometry.width / geometry.height).toBeCloseTo(341 / 512);

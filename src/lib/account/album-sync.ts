@@ -1,7 +1,4 @@
-import {
-  isPhotoFileReferenced,
-  upsertFromRemote,
-} from "../../db/repos/saved-works";
+import { isPhotoFileReferenced, upsertFromRemote } from "../../db/repos/saved-works";
 import { upsertVisitsFromRemote } from "../../db/repos/visits";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -17,20 +14,12 @@ import {
 } from "../../db/repos/artwork-album";
 import { getSetting, setSetting } from "../../db/repos/settings";
 import { convex } from "../convex-client";
-import {
-  downloadCollectionPhoto,
-  removePhotoFile,
-  uploadCollectionPhoto,
-} from "./photo-transfer";
+import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
 import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
 import type { SyncContext } from "./sync";
 import { reportError } from "../observability";
 
-export async function syncArtworkAlbums(
-  context: SyncContext,
-  token: string,
-  isCurrent: () => boolean,
-) {
+export async function syncArtworkAlbums(context: SyncContext, token: string, isCurrent: () => boolean) {
   while (isCurrent()) {
     const deleted = deletedAlbumPhotoFiles(context.owner);
     if (!deleted.length) break;
@@ -55,9 +44,7 @@ export async function syncArtworkAlbums(
     if (!isCurrent()) return;
     await upsertVisitsFromRemote(result.visits, context.owner);
     if (!isCurrent()) return;
-    await removeUnreferencedPhotos(
-      await upsertFromRemote(result.saves, context.owner),
-    );
+    await removeUnreferencedPhotos(await upsertFromRemote(result.saves, context.owner));
     if (!isCurrent()) return;
     acknowledgeAlbum(pending, context.owner);
     applyAlbum(result.photos, result.encounters, context.owner);
@@ -101,10 +88,7 @@ export async function syncArtworkAlbums(
             photo.storageId,
             photo.localId,
           );
-          if (
-            !isCurrent()
-            || !updateAlbumTransfer(photo.localId, { path }, context.owner)
-          ) {
+          if (!isCurrent() || !updateAlbumTransfer(photo.localId, { path }, context.owner)) {
             removePhotoFile(path);
           }
         }

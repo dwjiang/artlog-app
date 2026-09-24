@@ -33,12 +33,7 @@ function candidate(name: string, distanceM: number): VenueCandidate {
   };
 }
 
-function visitAt(
-  name: string,
-  startedAt: number,
-  remoteVisitId?: string,
-  visitedOn = "1970-01-01",
-): CurrentVisit {
+function visitAt(name: string, startedAt: number, remoteVisitId?: string, visitedOn = "1970-01-01"): CurrentVisit {
   return {
     localId: `local-${name}`,
     venueId: `id-${name}` as Id<"museums">,
@@ -50,10 +45,7 @@ function visitAt(
   };
 }
 
-function reduce(
-  events: Parameters<typeof venueReducer>[1][],
-  from: VenueState = initialVenueState,
-): VenueState {
+function reduce(events: Parameters<typeof venueReducer>[1][], from: VenueState = initialVenueState): VenueState {
   return events.reduce(venueReducer, from);
 }
 
@@ -182,10 +174,7 @@ describe("resolving a fix", () => {
     ]);
     expect(venueContext(changed)).toEqual({ venueId: "id-Neue" });
     const backdated = reduce(
-      [
-        { type: "visitStarted", visit: visitAt("Met", fix.at - 120_000) },
-        choose(fix.at + 120_000),
-      ],
+      [{ type: "visitStarted", visit: visitAt("Met", fix.at - 120_000) }, choose(fix.at + 120_000)],
       changed,
     );
     expect(venueContext(backdated)).toEqual({ venueId: "id-Neue" });
@@ -193,10 +182,7 @@ describe("resolving a fix", () => {
       ...visitAt("Met", fix.at + 180_000),
       localId: "local-Met-2",
     };
-    const tookOver = reduce(
-      [{ type: "visitStarted", visit: later }, choose(fix.at + 240_000)],
-      changed,
-    );
+    const tookOver = reduce([{ type: "visitStarted", visit: later }, choose(fix.at + 240_000)], changed);
     expect(tookOver.picked).toBeUndefined();
     expect(venueContext(tookOver)).toEqual({
       venueId: "id-Met",
@@ -278,10 +264,7 @@ describe("resolving a fix", () => {
         },
       },
     ]);
-    const failed = reduce(
-      [{ type: "locating" }, { type: "failed", error: "Location unavailable" }],
-      resolved,
-    );
+    const failed = reduce([{ type: "locating" }, { type: "failed", error: "Location unavailable" }], resolved);
     expect(failed.status).toBe("resolved");
     expect(failed.venue?.name).toBe("Met");
     expect(failed.error).toBe("Location unavailable");
@@ -289,10 +272,7 @@ describe("resolving a fix", () => {
   });
 
   it("drops the venue, visit and fix when location access is denied", () => {
-    const state = reduce([
-      { type: "hydrated", visit: visitAt("Met", fix.at) },
-      { type: "denied" },
-    ]);
+    const state = reduce([{ type: "hydrated", visit: visitAt("Met", fix.at) }, { type: "denied" }]);
     expect(state).toMatchObject({
       status: "denied",
       venue: undefined,
@@ -313,15 +293,11 @@ describe("nearby places", () => {
   };
 
   it("prompts with MapKit places only after a fix found nothing seeded", () => {
-    const none = reduce([
-      { type: "resolved", fix, resolution: { kind: "none" } },
-    ]);
+    const none = reduce([{ type: "resolved", fix, resolution: { kind: "none" } }]);
     const state = venueReducer(none, { type: "poiOptions", options: [poi] });
     expect(state.options).toEqual([poi]);
     expect(state.prompt).toBe(1);
-    expect(venueReducer(none, { type: "poiOptions", options: [] }).prompt).toBe(
-      0,
-    );
+    expect(venueReducer(none, { type: "poiOptions", options: [] }).prompt).toBe(0);
   });
 
   it("ignores a search result that arrives after a newer fix resolved a venue", () => {
@@ -336,15 +312,11 @@ describe("nearby places", () => {
         },
       },
     ]);
-    expect(venueReducer(resolved, { type: "poiOptions", options: [poi] })).toBe(
-      resolved,
-    );
+    expect(venueReducer(resolved, { type: "poiOptions", options: [poi] })).toBe(resolved);
   });
 
   it("lists MapKit places for a scan without raising the prompt", () => {
-    const none = reduce([
-      { type: "resolved", fix, quiet: true, resolution: { kind: "none" } },
-    ]);
+    const none = reduce([{ type: "resolved", fix, quiet: true, resolution: { kind: "none" } }]);
     const state = venueReducer(none, {
       type: "poiOptions",
       options: [poi],
@@ -401,20 +373,14 @@ describe('"Not here"', () => {
         fix: { ...fix, at: fix.at + ms },
         resolution: {
           kind: "choose",
-          options: names.map((name, index) =>
-            candidate(name, 90 + index * 100),
-          ),
+          options: names.map((name, index) => candidate(name, 90 + index * 100)),
         },
       });
     const again = later(FIX_MAX_AGE_MS, ["Met", "Neue"]);
     expect(again).toMatchObject({ status: "choose", prompt: dismissed.prompt });
-    expect(later(FIX_MAX_AGE_MS, ["Neue", "Guggenheim"]).prompt).toBe(
-      dismissed.prompt,
-    );
+    expect(later(FIX_MAX_AGE_MS, ["Neue", "Guggenheim"]).prompt).toBe(dismissed.prompt);
     expect(later(FIX_MAX_AGE_MS, ["A", "B"]).prompt).toBe(dismissed.prompt + 1);
-    expect(later(NOT_HERE_MS, ["Met", "Neue"]).prompt).toBe(
-      dismissed.prompt + 1,
-    );
+    expect(later(NOT_HERE_MS, ["Met", "Neue"]).prompt).toBe(dismissed.prompt + 1);
     const metAlone = (ms: number) =>
       venueReducer(dismissed, {
         type: "resolved",
@@ -456,10 +422,7 @@ describe('"Not here"', () => {
     });
     const dismissed = venueReducer(picked, { type: "dismissed", at: fix.at });
     expect(dismissed.picked).toBeUndefined();
-    expect(Object.keys(dismissed.notHere).sort()).toEqual([
-      "id-Met",
-      "id-Neue",
-    ]);
+    expect(Object.keys(dismissed.notHere).sort()).toEqual(["id-Met", "id-Neue"]);
   });
 
   it("ends the visit and drops the venue when tapped over a resolved venue, keeping the options", () => {
@@ -540,9 +503,7 @@ describe("visits and the scan context", () => {
 
   it("is active only while the phone is at the visit museum, so the bar and pill stay quiet elsewhere", () => {
     const visit = visitAt("Met", fix.at);
-    expect(
-      activeVisit(venueReducer(resolved, { type: "visitStarted", visit })),
-    ).toEqual(visit);
+    expect(activeVisit(venueReducer(resolved, { type: "visitStarted", visit }))).toEqual(visit);
     const away = reduce(
       [
         { type: "visitStarted", visit },
@@ -570,9 +531,7 @@ describe("visits and the scan context", () => {
   });
 
   it("shows the hydrated visit as the venue before the first fix", () => {
-    const state = reduce([
-      { type: "hydrated", visit: visitAt("Met", fix.at, "remote-1") },
-    ]);
+    const state = reduce([{ type: "hydrated", visit: visitAt("Met", fix.at, "remote-1") }]);
     expect(state.status).toBe("idle");
     expect(venueContext(state)).toEqual({
       venueId: "id-Met",
@@ -584,15 +543,11 @@ describe("visits and the scan context", () => {
 
 describe("fix reuse", () => {
   it("reuses a fix for three minutes unless the app was backgrounded", () => {
-    const resolved = reduce([
-      { type: "resolved", fix, resolution: { kind: "none" } },
-    ]);
+    const resolved = reduce([{ type: "resolved", fix, resolution: { kind: "none" } }]);
     expect(needsFix(initialVenueState, fix.at)).toBe(true);
     expect(needsFix(resolved, fix.at + FIX_MAX_AGE_MS - 1)).toBe(false);
     expect(needsFix(resolved, fix.at + FIX_MAX_AGE_MS)).toBe(true);
-    expect(
-      needsFix(venueReducer(resolved, { type: "backgrounded" }), fix.at + 1),
-    ).toBe(true);
+    expect(needsFix(venueReducer(resolved, { type: "backgrounded" }), fix.at + 1)).toBe(true);
   });
 });
 
@@ -617,19 +572,9 @@ describe("a visit ended by hand", () => {
       manual: true,
     });
     expect(ended.visit).toBeUndefined();
-    expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at + 60_000)).toBe(
-      true,
-    );
-    expect(endedToday(ended, "id-Neue" as Id<"museums">, fix.at + 60_000)).toBe(
-      false,
-    );
-    expect(
-      endedToday(
-        ended,
-        "id-Met" as Id<"museums">,
-        fix.at + 24 * 60 * 60 * 1000,
-      ),
-    ).toBe(false);
+    expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at + 60_000)).toBe(true);
+    expect(endedToday(ended, "id-Neue" as Id<"museums">, fix.at + 60_000)).toBe(false);
+    expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at + 24 * 60 * 60 * 1000)).toBe(false);
     expect(
       venueReducer(ended, {
         type: "visitStarted",
@@ -675,10 +620,7 @@ describe("a visit ended by hand", () => {
   });
 
   it("is not remembered when the visit ended on its own, and is restored at launch", () => {
-    expect(
-      venueReducer(resolved, { type: "visitEnded", localId: "local-Met" })
-        .ended,
-    ).toBeUndefined();
+    expect(venueReducer(resolved, { type: "visitEnded", localId: "local-Met" }).ended).toBeUndefined();
     const restored = venueReducer(initialVenueState, {
       type: "hydrated",
       ended: {

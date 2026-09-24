@@ -1,14 +1,7 @@
 import { LoadingRing } from "@/components/loading-ring";
 import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
-import {
-  accessibilityLabel,
-  buttonStyle,
-  contentShape,
-  disabled,
-  frame,
-  shapes,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, buttonStyle, contentShape, disabled, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -69,11 +62,7 @@ export function QueueRow({
         accessibilityState={{ disabled: discarding, busy: discarding }}
         style={({ pressed }) => [styles.capture, pressed && styles.pressed]}
       >
-        <Image
-          source={captureFileUri(scanPreviewPath(item.cropPath))}
-          contentFit="cover"
-          style={styles.thumbnail}
-        />
+        <Image source={captureFileUri(scanPreviewPath(item.cropPath))} contentFit="cover" style={styles.thumbnail} />
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>
             {title}
@@ -83,13 +72,7 @@ export function QueueRow({
           </ThemedText>
           {retrying || item.status === "identifying" || discarding ? (
             <LoadingRing
-              accessibilityLabel={
-                discarding
-                  ? "Discarding scan…"
-                  : retrying
-                    ? "Retrying…"
-                    : status
-              }
+              accessibilityLabel={discarding ? "Discarding scan…" : retrying ? "Retrying…" : status}
               style={{ alignSelf: "flex-start" }}
             />
           ) : (
@@ -99,18 +82,9 @@ export function QueueRow({
                 alignSelf: "flex-start",
                 paddingHorizontal: 6,
                 paddingVertical: 3,
-                backgroundColor:
-                  item.status === "identified"
-                    ? Gallery.highlight
-                    : Gallery.fill,
+                backgroundColor: item.status === "identified" ? Gallery.highlight : Gallery.fill,
               }}
-              themeColor={
-                item.status === "failed"
-                  ? "error"
-                  : item.status === "identified"
-                    ? "success"
-                    : "warning"
-              }
+              themeColor={item.status === "failed" ? "error" : item.status === "identified" ? "success" : "warning"}
             >
               {status}
             </ThemedText>
@@ -132,10 +106,7 @@ export function QueueRow({
               name="ellipsis"
               size={20}
               color={Gallery.muted}
-              modifiers={[
-                frame({ width: 44, height: 44 }),
-                contentShape(shapes.rectangle()),
-              ]}
+              modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
             />
           }
           modifiers={[
@@ -144,11 +115,7 @@ export function QueueRow({
             disabled(discarding || retrying),
           ]}
         >
-          <Button
-            label="Resume"
-            systemImage="arrow.right"
-            onPress={() => onOpen(item)}
-          />
+          <Button label="Resume" systemImage="arrow.right" onPress={() => onOpen(item)} />
           {item.status === "failed" && (
             <Button
               label={RETRY_ROW}
@@ -157,12 +124,7 @@ export function QueueRow({
               onPress={() => onRetry(item)}
             />
           )}
-          <Button
-            label="Discard scan"
-            systemImage="trash"
-            role="destructive"
-            onPress={() => onDiscard(item)}
-          />
+          <Button label="Discard scan" systemImage="trash" role="destructive" onPress={() => onDiscard(item)} />
         </Menu>
       </Host>
     </View>

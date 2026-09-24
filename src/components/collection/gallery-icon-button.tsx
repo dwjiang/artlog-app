@@ -1,12 +1,5 @@
 import { Button, Host, Icon } from "@expo/ui";
-import {
-  accessibilityLabel,
-  accessibilityValue,
-  contentShape,
-  frame,
-  shapes,
-  tint,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, accessibilityValue, contentShape, frame, shapes, tint } from "@expo/ui/swift-ui/modifiers";
 import type { ComponentProps } from "react";
 import { Gallery } from "@/constants/theme";
 import { NativeLoadingRing } from "../native-loading-ring";
@@ -47,10 +40,7 @@ export function GalleryIconButton({
             name={icon}
             size={21}
             color={color}
-            modifiers={[
-              frame({ width: 44, height: 44 }),
-              contentShape(shapes.rectangle()),
-            ]}
+            modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
           />
         )}
       </Button>

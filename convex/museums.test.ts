@@ -4,11 +4,7 @@ import type { FunctionArgs } from "convex/server";
 import { stableStringify } from "../shared/attestation/stable-stringify";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import {
-  authenticatorData,
-  makeSigner,
-  signAssertion,
-} from "./lib/appAttest.fixtures";
+import { authenticatorData, makeSigner, signAssertion } from "./lib/appAttest.fixtures";
 import { sha256 } from "./lib/appAttest";
 import { seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness, type SignedIn } from "./test.helpers";
@@ -33,9 +29,7 @@ async function proof(user: SignedIn, payload: object) {
 async function fixture(overrides: Partial<Doc<"museums">> = {}) {
   const t = harness();
   const user = await seedDevice(t);
-  const venueId = await t.run((ctx) =>
-    seedMuseum(ctx, { website: "https://museum.example", ...overrides }),
-  );
+  const venueId = await t.run((ctx) => seedMuseum(ctx, { website: "https://museum.example", ...overrides }));
   return { t, user, venueId };
 }
 
@@ -47,10 +41,7 @@ const poi = {
 };
 async function confirm(
   user: SignedIn,
-  fields: Omit<
-    FunctionArgs<typeof api.museums.confirmPoiVenue>,
-    "nonce" | "assertionBase64" | "payloadJson"
-  > = poi,
+  fields: Omit<FunctionArgs<typeof api.museums.confirmPoiVenue>, "nonce" | "assertionBase64" | "payloadJson"> = poi,
 ) {
   return user.as.mutation(api.museums.confirmPoiVenue, {
     ...fields,
@@ -60,19 +51,11 @@ async function confirm(
 
 it("confirms a POI, inherits the nearest seeded region, and records its collection site", async () => {
   const { t, user } = await fixture({ lat: 10.1, lng: 20, region: "nearby" });
-  await t.run((ctx) =>
-    seedMuseum(ctx, { lat: 10, lng: 20.5, region: "farther" }),
-  );
-  await t.run((ctx) =>
-    seedMuseum(ctx, { lat: 10, lng: 20, seedSource: "poi", region: "ignore" }),
-  );
+  await t.run((ctx) => seedMuseum(ctx, { lat: 10, lng: 20.5, region: "farther" }));
+  await t.run((ctx) => seedMuseum(ctx, { lat: 10, lng: 20, seedSource: "poi", region: "ignore" }));
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockImplementation(() =>
-        Promise.resolve(new Response('<a href="/objects/1">Work</a>')),
-      ),
+    vi.fn().mockImplementation(() => Promise.resolve(new Response('<a href="/objects/1">Work</a>'))),
   );
   const { venueId } = await confirm(user);
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
@@ -93,14 +76,10 @@ it("deduplicates names within 100 m without replacing the existing website or pr
     lng: 20,
     website: undefined,
   });
-  expect(
-    await confirm(user, { ...poi, name: "  NEW   MUSEUM ", lat: 10.0005 }),
-  ).toMatchObject({
+  expect(await confirm(user, { ...poi, name: "  NEW   MUSEUM ", lat: 10.0005 })).toMatchObject({
     venueId,
   });
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect()),
-  ).toHaveLength(0);
+  expect(await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).toHaveLength(0);
   expect((await t.run((ctx) => ctx.db.get(venueId)))?.website).toBeUndefined();
 });
 
@@ -112,13 +91,9 @@ it("does not deduplicate distant names and uses unknown region beyond 60 km", as
   });
   const result = await confirm(user, { ...poi, website: undefined });
   expect(result.venueId).not.toBe(venueId);
-  expect((await t.run((ctx) => ctx.db.get(result.venueId)))?.region).toBe(
-    "country:unknown",
-  );
+  expect((await t.run((ctx) => ctx.db.get(result.venueId)))?.region).toBe("country:unknown");
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
-  expect(
-    (await t.run((ctx) => ctx.db.get(result.venueId)))?.collectionSiteUrl,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(result.venueId)))?.collectionSiteUrl).toBeUndefined();
 });
 
 it("deduplicates across the date line", async () => {
@@ -127,17 +102,13 @@ it("deduplicates across the date line", async () => {
     lat: 0,
     lng: 179.9998,
   });
-  expect(await confirm(user, { ...poi, lat: 0, lng: -179.9998 })).toMatchObject(
-    { venueId },
-  );
+  expect(await confirm(user, { ...poi, lat: 0, lng: -179.9998 })).toMatchObject({ venueId });
 });
 
 it("rate limits the sixth POI confirmation and validates coordinates and website", async () => {
   const { user } = await fixture();
   await expect(confirm(user, { ...poi, lat: 91 })).rejects.toThrow();
-  await expect(
-    confirm(user, { ...poi, website: "http://127.0.0.1" }),
-  ).rejects.toThrow();
+  await expect(confirm(user, { ...poi, website: "http://127.0.0.1" })).rejects.toThrow();
   for (let i = 0; i < 5; i++) await confirm(user);
   await expect(confirm(user)).rejects.toMatchObject({
     data: { code: "rate_limited", name: "venueConfirm" },
@@ -150,15 +121,11 @@ it("requires a device and a fresh challenge even in simulator mode", async () =>
     ...poi,
     ...(await proof(user, { action: "museums.confirmPoiVenue", ...poi })),
   };
-  await expect(
-    t.mutation(api.museums.confirmPoiVenue, args),
-  ).rejects.toMatchObject({
+  await expect(t.mutation(api.museums.confirmPoiVenue, args)).rejects.toMatchObject({
     data: { code: "unauthenticated" },
   });
   await user.as.mutation(api.museums.confirmPoiVenue, args);
-  await expect(
-    user.as.mutation(api.museums.confirmPoiVenue, args),
-  ).rejects.toMatchObject({
+  await expect(user.as.mutation(api.museums.confirmPoiVenue, args)).rejects.toMatchObject({
     data: { code: "challenge_invalid" },
   });
 });
@@ -188,9 +155,9 @@ it("verifies real signatures and binds the signature to the operation and its fi
     `${signed.nonce}.${signed.payloadJson}`,
   );
   const elsewhere = { ...poi, lat: 11 };
-  await expect(
-    user.as.mutation(api.museums.confirmPoiVenue, { ...elsewhere, ...signed }),
-  ).rejects.toMatchObject({ data: { code: "invalid_payload" } });
+  await expect(user.as.mutation(api.museums.confirmPoiVenue, { ...elsewhere, ...signed })).rejects.toMatchObject({
+    data: { code: "invalid_payload" },
+  });
   await expect(
     user.as.mutation(api.museums.confirmPoiVenue, {
       ...elsewhere,
@@ -201,9 +168,7 @@ it("verifies real signatures and binds the signature to the operation and its fi
       }),
     }),
   ).rejects.toMatchObject({ data: { code: "invalid_assertion" } });
-  expect(
-    await user.as.mutation(api.museums.confirmPoiVenue, { ...poi, ...signed }),
-  ).toMatchObject({
+  expect(await user.as.mutation(api.museums.confirmPoiVenue, { ...poi, ...signed })).toMatchObject({
     venueId: expect.any(String),
   });
 });
@@ -215,9 +180,7 @@ it("a probe with no collection leaves the site unset, and a late result cannot o
     vi.fn().mockImplementation(() => Promise.resolve(new Response("About us"))),
   );
   await t.action(internal.museums.probeCollectionSite, { venueId });
-  expect(
-    (await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
   await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
   await t.mutation(internal.museums.applyProbe, {
     venueId,
@@ -227,9 +190,7 @@ it("a probe with no collection leaves the site unset, and a late result cannot o
       platform: "generic",
     },
   });
-  expect(
-    (await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
 });
 
 it("honors registry-only opt-outs: the probe never fetches", async () => {
@@ -245,9 +206,7 @@ it("honors registry-only opt-outs: the probe never fetches", async () => {
   vi.stubGlobal("fetch", fetchMock);
   await t.action(internal.museums.probeCollectionSite, { venueId });
   expect(fetchMock).not.toHaveBeenCalled();
-  expect(
-    (await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
 });
 
 it("ignores a successful probe if an opt-out is recorded while it is fetching", async () => {
@@ -266,9 +225,7 @@ it("ignores a successful probe if an opt-out is recorded while it is fetching", 
     }),
   );
   await t.action(internal.museums.probeCollectionSite, { venueId });
-  expect(
-    (await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
 });
 
 it.each([429, 503, "network"] as const)(
@@ -281,9 +238,7 @@ it.each([429, 503, "network"] as const)(
     });
     vi.stubGlobal("fetch", fetchMock);
     await t.action(internal.museums.probeCollectionSite, { venueId });
-    expect(
-      (await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(venueId)))?.collectionSiteUrl).toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(6);
   },
 );
@@ -300,9 +255,7 @@ it("returns the canonical geography when MapKit confirms an existing museum", as
       cityKey: "wikidata:Q90",
     }),
   );
-  expect(
-    await confirm(user, { ...poi, city: "Unverified city", country: "US" }),
-  ).toMatchObject({
+  expect(await confirm(user, { ...poi, city: "Unverified city", country: "US" })).toMatchObject({
     venueId,
     venue: {
       id: venueId,

@@ -98,37 +98,22 @@ afterEach(() => jest.restoreAllMocks());
 
 it("searches museums, sorts by size, and preserves the search when returning from details", async () => {
   await render(<MuseumDownloadsScreen />);
-  expect(
-    screen
-      .getAllByRole("button", { name: /^View / })
-      .map((item) => item.props.accessibilityLabel),
-  ).toEqual(["View Art Institute of Chicago", "View Boston Museum"]);
-  await fireEvent.press(
-    screen.getByRole("menuitem", { name: "Download size" }),
-  );
-  expect(
-    screen
-      .getAllByRole("button", { name: /^View / })
-      .map((item) => item.props.accessibilityLabel),
-  ).toEqual(["View Boston Museum", "View Art Institute of Chicago"]);
-  await fireEvent.changeText(
-    screen.getByLabelText("Search museums"),
-    "Chicago",
-  );
-  expect(
-    screen.queryByRole("button", { name: "View Boston Museum" }),
-  ).toBeNull();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "View Art Institute of Chicago" }),
-  );
+  expect(screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel)).toEqual([
+    "View Art Institute of Chicago",
+    "View Boston Museum",
+  ]);
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Download size" }));
+  expect(screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel)).toEqual([
+    "View Boston Museum",
+    "View Art Institute of Chicago",
+  ]);
+  await fireEvent.changeText(screen.getByLabelText("Search museums"), "Chicago");
+  expect(screen.queryByRole("button", { name: "View Boston Museum" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "View Art Institute of Chicago" }));
   expect(screen.getByText("Scan and read offline.")).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Download · 10 MB" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Download · 10 MB" }));
   expect(mockStart).toHaveBeenCalledWith(museum);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Back to museum downloads" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Back to museum downloads" }));
   expect(screen.getByLabelText("Search museums").props.value).toBe("Chicago");
 });
 it("pauses and cancels directly from the list without opening a museum", async () => {
@@ -138,13 +123,9 @@ it("pauses and cancels directly from the list without opening a museum", async (
     completed: 0,
   };
   await render(<MuseumDownloadsScreen />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Pause Art Institute of Chicago" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Pause Art Institute of Chicago" }));
   expect(mockPause).toHaveBeenCalledWith(museum.id);
-  await fireEvent.press(
-    screen.getByRole("menuitem", { name: "Cancel download" }),
-  );
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Cancel download" }));
   expect(mockCancel).toHaveBeenCalledWith(museum.id);
 });
 it("requires the list removal confirmation before deleting a ready download", async () => {
@@ -152,9 +133,7 @@ it("requires the list removal confirmation before deleting a ready download", as
   const alert = jest.spyOn(Alert, "alert");
   await render(<MuseumDownloadsScreen />);
   expect(screen.getByText("✓ Ready offline")).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("menuitem", { name: "Remove download" }),
-  );
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Remove download" }));
   expect(mockRemove).not.toHaveBeenCalled();
   expect(alert).toHaveBeenCalledWith(
     "Remove Art Institute of Chicago?",
@@ -162,9 +141,7 @@ it("requires the list removal confirmation before deleting a ready download", as
     expect.any(Array),
   );
   await act(async () => {
-    alert.mock.calls[0][2]
-      ?.find((action) => action.text === "Remove download")
-      ?.onPress?.();
+    alert.mock.calls[0][2]?.find((action) => action.text === "Remove download")?.onPress?.();
   });
   expect(mockRemove).toHaveBeenCalledWith(museum.id);
 });
@@ -188,9 +165,7 @@ it("labels the cached previews of a downloaded package even after the catalog ad
     active: { manifest: { ...downloaded, chunks: [] }, folder: "chicago-v1" },
   };
   await render(<MuseumDownloadsScreen />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "View Art Institute of Chicago" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "View Art Institute of Chicago" }));
   expect(screen.getByLabelText("Water Lilies")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Haystacks")).toBeNull();
 });

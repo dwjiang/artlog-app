@@ -17,9 +17,7 @@ afterEach(() => {
 });
 
 const parse = (value: unknown) =>
-  value && typeof value === "object" && "ok" in value
-    ? (value as { ok: boolean })
-    : null;
+  value && typeof value === "object" && "ok" in value ? (value as { ok: boolean }) : null;
 const request = {
   model: "nvidia/Nemotron-3_5-Lightning",
   system: "sys",
@@ -49,8 +47,7 @@ describe("Token Factory chatJson", () => {
       headers: {
         Authorization: "Bearer test-key",
         "Content-Type": "application/json",
-        "User-Agent":
-          "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
+        "User-Agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
       },
     });
     expect(JSON.parse(String(init?.body))).toEqual({
@@ -81,9 +78,7 @@ describe("Token Factory chatJson", () => {
   it("retries once on 429 honoring Retry-After capped at five seconds, then counts both calls", async () => {
     vi.useFakeTimers();
     fetchMock
-      .mockResolvedValueOnce(
-        new Response("busy", { status: 429, headers: { "retry-after": "30" } }),
-      )
+      .mockResolvedValueOnce(new Response("busy", { status: 429, headers: { "retry-after": "30" } }))
       .mockResolvedValueOnce(completion({ ok: true }));
     const pending = chatJson(request);
     await vi.advanceTimersByTimeAsync(4999);
@@ -92,16 +87,12 @@ describe("Token Factory chatJson", () => {
     await expect(pending).resolves.toEqual({ value: { ok: true }, calls: 2 });
     expect(retryDelayMs(null)).toBe(1000);
     expect(retryDelayMs("2")).toBe(2000);
-    expect(
-      retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now()),
-    ).toBeLessThanOrEqual(3000);
+    expect(retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now())).toBeLessThanOrEqual(3000);
   });
 
   it("gives up after the second 5xx with the call count attached", async () => {
     vi.useFakeTimers();
-    fetchMock.mockImplementation(
-      async () => new Response("down", { status: 503 }),
-    );
+    fetchMock.mockImplementation(async () => new Response("down", { status: 503 }));
     const pending = chatJson(request).catch((error) => error);
     await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toMatchObject({
@@ -120,15 +111,12 @@ describe("Token Factory chatJson", () => {
     ["truncated", completion({ ok: true }, "length")],
     ["bad_response", jsonResponse({ choices: [] })],
     ["http_401", new Response("no", { status: 401 })],
-  ])(
-    "rejects malformed output as %s without repairing it",
-    async (reason, response) => {
-      fetchMock.mockResolvedValueOnce(response);
-      await expect(chatJson(request)).rejects.toMatchObject({
-        data: { code: "model_error", reason, calls: 1 },
-      });
-    },
-  );
+  ])("rejects malformed output as %s without repairing it", async (reason, response) => {
+    fetchMock.mockResolvedValueOnce(response);
+    await expect(chatJson(request)).rejects.toMatchObject({
+      data: { code: "model_error", reason, calls: 1 },
+    });
+  });
 
   it("fails fast without a key and on network errors", async () => {
     vi.stubEnv("NEBIUS_API_KEY", "");

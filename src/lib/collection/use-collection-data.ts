@@ -1,9 +1,6 @@
 import { useEffect } from "react";
 import { reportError } from "@/lib/observability";
-import {
-  selectArtworkEncounters,
-  selectAllArtworkPhotos,
-} from "@/db/repos/artwork-album";
+import { selectArtworkEncounters, selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { useRemovedWorkIds } from "./pending-removals";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { listSavedWorks } from "@/db/repos/saved-works";
@@ -22,43 +19,27 @@ export function useCollectionData() {
   const visitsQuery = useLiveQuery(listVisits(owner), [owner]);
   const hiddenIds = [
     ...new Set([
-      ...worksQuery.data
-        .filter((row) => row.owner === owner && row.deletedAt !== null)
-        .map((row) => row.localId),
+      ...worksQuery.data.filter((row) => row.owner === owner && row.deletedAt !== null).map((row) => row.localId),
       ...removedIds,
     ]),
   ];
-  const rows = worksQuery.data.filter(
-    (row) => row.owner === owner && !hiddenIds.includes(row.localId),
-  );
+  const rows = worksQuery.data.filter((row) => row.owner === owner && !hiddenIds.includes(row.localId));
   const visits = visitsQuery.data.filter((row) => row.owner === owner);
   const { metadata, ready } = useVenueMetadata(
-    [
-      ...visits.map((row) => row.venueId),
-      ...rows.flatMap((row) => (row.venueId ? [row.venueId] : [])),
-    ],
+    [...visits.map((row) => row.venueId), ...rows.flatMap((row) => (row.venueId ? [row.venueId] : []))],
     owner,
   );
-  const visitTerms = linkedVisitSearchTerms(
-    owner,
-    encounters.data,
-    visits,
-    metadata,
-  );
+  const visitTerms = linkedVisitSearchTerms(owner, encounters.data, visits, metadata);
   const works = rows.map((row) => ({
     ...row,
-    photoCount: photos.data.filter(
-      (photo) => photo.owner === owner && photo.savedLocalId === row.localId,
-    ).length,
+    photoCount: photos.data.filter((photo) => photo.owner === owner && photo.savedLocalId === row.localId).length,
     visitCount: encounters.data.filter(
-      (encounter) =>
-        encounter.owner === owner && encounter.savedLocalId === row.localId,
+      (encounter) => encounter.owner === owner && encounter.savedLocalId === row.localId,
     ).length,
     city: row.venueId ? metadata.get(row.venueId)?.city : undefined,
     visitSearchTerms: visitTerms.get(row.localId),
   }));
-  const error =
-    worksQuery.error ?? visitsQuery.error ?? encounters.error ?? photos.error;
+  const error = worksQuery.error ?? visitsQuery.error ?? encounters.error ?? photos.error;
   useEffect(() => {
     if (error) reportError(error, "collection.load");
   }, [error]);
@@ -69,11 +50,7 @@ export function useCollectionData() {
     visits: visitSummaries(visits, works, metadata, owner, encounters.data),
     loading:
       !error
-      && (!worksQuery.updatedAt
-        || !visitsQuery.updatedAt
-        || !encounters.updatedAt
-        || !photos.updatedAt
-        || !ready),
+      && (!worksQuery.updatedAt || !visitsQuery.updatedAt || !encounters.updatedAt || !photos.updatedAt || !ready),
     error,
   };
 }

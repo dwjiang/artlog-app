@@ -2,16 +2,8 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 import { waitFor } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 import { createVisitSharingController } from "./visit-sharing-controller";
-import type {
-  SharePreview,
-  ShareState,
-  VisitSharingTransport,
-} from "./visit-sharing-transport";
-import {
-  captureOwner,
-  subscribeOwner,
-  switchOwner,
-} from "../account/owner-store";
+import type { SharePreview, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
+import { captureOwner, subscribeOwner, switchOwner } from "../account/owner-store";
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
   addBreadcrumb: jest.fn(),
@@ -118,9 +110,7 @@ it("invalidates a preview when the saved note changes without a publication revi
   });
   await controller.load();
   expect(controller.getSnapshot().preview).toBeNull();
-  expect(controller.getSnapshot().draft?.reflection).toBe(
-    "Changed on another device",
-  );
+  expect(controller.getSnapshot().draft?.reflection).toBe("Changed on another device");
   expect(await controller.publish()).toBe(false);
   expect(transport.publish).not.toHaveBeenCalled();
 });
@@ -141,9 +131,7 @@ it("refreshes visit notes after a conflict while preserving the selected artwork
   await controller.load();
   controller.edit({ saveLocalIds: [] });
   await controller.preview();
-  transport.publish.mockRejectedValueOnce(
-    new ConvexError({ code: "conflict" }),
-  );
+  transport.publish.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   await controller.publish();
   expect(controller.getSnapshot()).toMatchObject({
     conflict: true,
@@ -194,9 +182,7 @@ it("blocks publishing an edited selection until another preview is ready", async
   expect(await controller.publish()).toBe(false);
   expect(transport.publish).not.toHaveBeenCalled();
   controller.edit({ saveLocalIds: ["foreign-save"] });
-  expect(controller.getSnapshot().draft?.saveLocalIds).not.toContain(
-    "foreign-save",
-  );
+  expect(controller.getSnapshot().draft?.saveLocalIds).not.toContain("foreign-save");
 });
 it("loads an existing share for editing and waits for an acknowledged publish", async () => {
   transport.getState.mockResolvedValue({
@@ -231,9 +217,7 @@ it("loads an existing share for editing and waits for an acknowledged publish", 
   expect(controller.getSnapshot().acknowledged?.revision).toBe(4);
 });
 it("surfaces profile requirements and refuses anonymous sharing", async () => {
-  transport.getState.mockRejectedValueOnce(
-    new ConvexError({ code: "profile_required" }),
-  );
+  transport.getState.mockRejectedValueOnce(new ConvexError({ code: "profile_required" }));
   await controller.load();
   expect(controller.getSnapshot().profileRequired).toBe(true);
   switchOwner("device:guest", "guest");
@@ -255,9 +239,7 @@ it("reads all artwork pages of a shared visit", async () => {
     artworks: { page: [{ itemId: "two" }], isDone: true, cursor: null },
   });
   await controller.view();
-  expect(
-    controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId),
-  ).toEqual(["one", "two"]);
+  expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual(["one", "two"]);
 });
 
 it("keeps publishing public and requires a fresh preview when the selection changes", async () => {
@@ -269,10 +251,7 @@ it("keeps publishing public and requires a fresh preview when the selection chan
   expect(await controller.publish()).toBe(false);
   await controller.preview();
   await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith(
-    expect.objectContaining({ audience: "public" }),
-    expect.anything(),
-  );
+  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "public" }), expect.anything());
 });
 
 it("reports publication failures without attaching the selected artwork or reflection", async () => {
@@ -284,9 +263,7 @@ it("reports publication failures without attaching the selected artwork or refle
   expect(reportError).toHaveBeenCalledWith(error, "visit.sharing.publish");
   expect(controller.getSnapshot().draft).not.toBeNull();
   expect(addBreadcrumb).toHaveBeenCalledWith("visit.sharing.publish.started");
-  expect(addBreadcrumb).not.toHaveBeenCalledWith(
-    "visit.sharing.publish.completed",
-  );
+  expect(addBreadcrumb).not.toHaveBeenCalledWith("visit.sharing.publish.completed");
 });
 
 it("reports a timed-out load and releases the busy state for retry", async () => {

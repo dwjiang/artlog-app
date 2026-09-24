@@ -2,10 +2,7 @@ import { api } from "../_generated/api";
 import type { Harness } from "../test.helpers";
 import { seedDevice } from "./testFactories";
 
-export async function wallFixture(
-  t: Harness,
-  sub: string = crypto.randomUUID().slice(0, 8),
-) {
+export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().slice(0, 8)) {
   const device = await seedDevice(t);
   await t.run((ctx) =>
     ctx.db.patch(device.deviceId, {
@@ -22,9 +19,7 @@ export async function wallFixture(
     assertionBase64: "",
   });
   const { scope } = await device.as.query(api.accounts.me, {});
-  while (
-    !(await device.as.mutation(api.journalClaims.resume, { scope })).complete
-  ) {
+  while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {
     /* Finish the fixture's claim. */
   }
   const profile = await device.as.mutation(api.profiles.create, {

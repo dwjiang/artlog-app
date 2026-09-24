@@ -18,14 +18,11 @@ export type SignedPayload = {
  * empty assertion, which the server accepts only for simulator devices while attestation is optional.
  * A string is signed as-is so the builders in `shared/attestation/attested-payloads.ts` produce the server's exact bytes.
  */
-export async function signPayload(
-  payload: object | string,
-): Promise<SignedPayload | null> {
+export async function signPayload(payload: object | string): Promise<SignedPayload | null> {
   const appAttest = getAppAttest();
   if (!appAttest && Device.isDevice) return null;
 
-  const payloadJson =
-    typeof payload === "string" ? payload : stableStringify(payload);
+  const payloadJson = typeof payload === "string" ? payload : stableStringify(payload);
   if (!appAttest) {
     const { nonce } = await convex.mutation(api.devices.createChallenge, {
       purpose: "assert",
@@ -37,9 +34,6 @@ export async function signPayload(
   const { nonce } = await convex.mutation(api.devices.createChallenge, {
     purpose: "assert",
   });
-  const assertionBase64 = await appAttest.generateAssertion(
-    keyId,
-    `${nonce}.${payloadJson}`,
-  );
+  const assertionBase64 = await appAttest.generateAssertion(keyId, `${nonce}.${payloadJson}`);
   return { nonce, assertionBase64, payloadJson };
 }

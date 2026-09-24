@@ -20,9 +20,7 @@ describe("verifyOrb", () => {
       [0, inputSize],
     ].map(([x, y]) => applyHomography(truth.H, x, y));
     result.corners!.forEach(([x, y], i) => {
-      expect(Math.hypot(x - expected[i][0], y - expected[i][1])).toBeLessThan(
-        3,
-      );
+      expect(Math.hypot(x - expected[i][0], y - expected[i][1])).toBeLessThan(3);
     });
   });
 

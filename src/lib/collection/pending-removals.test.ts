@@ -2,13 +2,7 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 import { act, renderHook } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
-import {
-  commitRemoval,
-  scheduleRemoval,
-  undoRemoval,
-  usePendingRemovals,
-  useRemovedWorkIds,
-} from "./pending-removals";
+import { commitRemoval, scheduleRemoval, undoRemoval, usePendingRemovals, useRemovedWorkIds } from "./pending-removals";
 jest.mock("@/lib/observability", () => ({
   addBreadcrumb: jest.fn(),
   reportError: jest.fn(),
@@ -20,12 +14,10 @@ let appStateListener: ((state: AppStateStatus) => void) | undefined;
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_event, listener) => {
-      appStateListener = listener;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
+    appStateListener = listener;
+    return { remove: jest.fn() };
+  });
 });
 afterEach(() => {
   jest.useRealTimers();
@@ -53,24 +45,15 @@ it("undo cancels deletion even after the detail screen has closed", async () => 
 });
 it("commits to the original owner and exposes a failed removal for retry", async () => {
   const item = { owner: "account:original", localId: "retry", title: "Irises" };
-  jest
-    .mocked(softDeleteSavedWork)
-    .mockRejectedValueOnce(new Error("Disk full"));
+  jest.mocked(softDeleteSavedWork).mockRejectedValueOnce(new Error("Disk full"));
   const view = await renderHook(usePendingRemovals);
   const hidden = await renderHook(() => useRemovedWorkIds(item.owner));
   await act(() => scheduleRemoval(item));
   expect(hidden.result.current).toContain(item.localId);
   await act(() => jest.advanceTimersByTime(6000));
-  expect(softDeleteSavedWork).toHaveBeenCalledWith(
-    "retry",
-    expect.any(Number),
-    "account:original",
-  );
+  expect(softDeleteSavedWork).toHaveBeenCalledWith("retry", expect.any(Number), "account:original");
   expect(view.result.current[0].status).toBe("failed");
-  expect(reportError).toHaveBeenCalledWith(
-    expect.objectContaining({ message: "Disk full" }),
-    "collection.remove",
-  );
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "Disk full" }), "collection.remove");
   expect(hidden.result.current).not.toContain(item.localId);
   expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
     ["collection.remove.scheduled"],
@@ -114,11 +97,7 @@ it("commits undoable removals when the app leaves the foreground instead of wait
   const view = await renderHook(usePendingRemovals);
   await act(() => scheduleRemoval(item));
   await act(() => appStateListener?.("background"));
-  expect(softDeleteSavedWork).toHaveBeenCalledWith(
-    "background",
-    expect.any(Number),
-    "account:a",
-  );
+  expect(softDeleteSavedWork).toHaveBeenCalledWith("background", expect.any(Number), "account:a");
   expect(view.result.current).toEqual([]);
   await act(() => jest.advanceTimersByTime(6000));
   expect(softDeleteSavedWork).toHaveBeenCalledTimes(1);

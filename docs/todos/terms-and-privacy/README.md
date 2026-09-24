@@ -118,12 +118,8 @@ import { httpAction } from "./_generated/server";
 import { TERMS_SECTIONS, TERMS_TITLE } from "../shared/legal/terms";
 import { PRIVACY_SECTIONS, PRIVACY_TITLE } from "../shared/legal/privacy";
 
-function page(
-  title: string,
-  sections: { heading: string; body: string }[],
-): Response {
-  const escape = (text: string) =>
-    text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+function page(title: string, sections: { heading: string; body: string }[]): Response {
+  const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} · Artlog</title></head><body style="font-family: -apple-system, system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #111; background: #FCFCF9;"><h1>${escape(title)}</h1>${sections.map((section) => `<h2>${escape(section.heading)}</h2><p>${escape(section.body)}</p>`).join("")}</body></html>`;
   return new Response(html, {
     status: 200,
@@ -135,9 +131,7 @@ function page(
 }
 
 export const terms = httpAction(async () => page(TERMS_TITLE, TERMS_SECTIONS));
-export const privacy = httpAction(async () =>
-  page(PRIVACY_TITLE, PRIVACY_SECTIONS),
-);
+export const privacy = httpAction(async () => page(PRIVACY_TITLE, PRIVACY_SECTIONS));
 ```
 
 In `convex/http.ts`, import `{ privacy, terms } from './legal'` and add:

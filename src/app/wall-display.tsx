@@ -10,11 +10,7 @@ export default function WallDisplayRoute() {
       <GalleryBackToolbar />
       <WallDisplayScreen savedId={savedId} />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          hidesSharedBackground
-          tintColor={Gallery.accent}
-          onPress={() => router.back()}
-        >
+        <Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={() => router.back()}>
           Done
         </Stack.Toolbar.Button>
       </Stack.Toolbar>

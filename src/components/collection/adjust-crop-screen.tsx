@@ -12,32 +12,17 @@ import { CropEditor } from "../scan/crop-editor";
 import { ThemedText } from "../themed-text";
 import { GalleryButton } from "./gallery-button";
 
-export function AdjustCropScreen({
-  savedId,
-  photoId,
-}: {
-  savedId: string;
-  photoId?: string;
-}) {
+export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoId?: string }) {
   const owner = useLocalOwner();
   const works = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
-  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [
-    savedId,
-    owner,
-  ]);
+  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
   const queryError = works.error ?? photos.error;
   useEffect(() => {
     if (queryError) reportError(queryError, "collection.crop-source.load");
   }, [queryError]);
-  const work = works.data.find(
-    (row) => row.owner === owner && row.deletedAt === null,
-  );
+  const work = works.data.find((row) => row.owner === owner && row.deletedAt === null);
   const album = photos.data.filter(
-    (row) =>
-      row.owner === owner
-      && row.savedLocalId === savedId
-      && row.deletedAt === null
-      && row.kind !== "label",
+    (row) => row.owner === owner && row.savedLocalId === savedId && row.deletedAt === null && row.kind !== "label",
   );
   const source = photoId
     ? album.find((row) => row.localId === photoId)?.path
@@ -47,10 +32,7 @@ export function AdjustCropScreen({
       ?? work?.photoPath);
   if (!work || !source) {
     return (
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: 24, gap: 16 }}
-      >
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 24, gap: 16 }}>
         <ThemedText>
           {!works.updatedAt || !photos.updatedAt
             ? "Loading your photo…"

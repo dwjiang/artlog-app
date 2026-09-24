@@ -14,20 +14,13 @@ export type ImageCheckDeps = {
   /** Letterboxes the whole image to the model's square input and returns the crop's file URI. */
   letterbox(uri: string): Promise<string>;
   embed(uri: string): Promise<Float32Array>;
-  extractOrb(
-    uri: string,
-  ): Promise<{ descriptors: ArrayBuffer; keypoints: ArrayBuffer }>;
+  extractOrb(uri: string): Promise<{ descriptors: ArrayBuffer; keypoints: ArrayBuffer }>;
   remove(uri: string): void;
 };
 
-export function cosineSimilarity(
-  a: ArrayLike<number>,
-  b: ArrayLike<number>,
-): number {
+export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): number {
   if (a.length !== b.length) {
-    throw new Error(
-      `Cannot compare vectors of ${a.length} and ${b.length} values`,
-    );
+    throw new Error(`Cannot compare vectors of ${a.length} and ${b.length} values`);
   }
   let dot = 0;
   let normA = 0;
@@ -59,10 +52,7 @@ export async function checkImages(
         files.push(downloaded);
         const letterboxed = await deps.letterbox(downloaded);
         files.push(letterboxed);
-        const cosine = cosineSimilarity(
-          scan.vector,
-          await deps.embed(letterboxed),
-        );
+        const cosine = cosineSimilarity(scan.vector, await deps.embed(letterboxed));
         if (!best || cosine > best.cosine) {
           best = { url, cosine, uri: letterboxed };
         }

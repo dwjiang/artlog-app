@@ -11,11 +11,7 @@ import { Gallery } from "@/constants/theme";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { socialStyles } from "./social-styles";
-import {
-  FeedSkeleton,
-  ListSkeleton,
-  VisitSkeleton,
-} from "@/components/loading-skeleton";
+import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
 
 export function SocialState({
   title,
@@ -44,25 +40,10 @@ export function SocialState({
     );
   }
   return (
-    <EmptyState
-      title={title}
-      detail={detail ?? ""}
-      visual={<EmptySymbol name={icon} size={132} />}
-    >
-      {action && onAction && (
-        <GalleryButton
-          label={action}
-          onPress={onAction}
-          variant="filled"
-          fullWidth
-        />
-      )}
+    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />}>
+      {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
       {secondaryAction && onSecondaryAction && (
-        <GalleryButton
-          label={secondaryAction}
-          onPress={onSecondaryAction}
-          fullWidth
-        />
+        <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />
       )}
     </EmptyState>
   );
@@ -85,19 +66,8 @@ export function SocialGate({
         title={"Sign in to add friends."}
         detail="See the museum visits and artworks your friends share."
       >
-        <GalleryButton
-          label="Sign in"
-          variant="filled"
-          fullWidth
-          onPress={() => router.push(signInRoute(context))}
-        />
-        {browsePublic && (
-          <GalleryButton
-            label="Find friends"
-            fullWidth
-            onPress={() => router.push("/people")}
-          />
-        )}
+        <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
+        {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />}
       </SocialInvitation>
     );
   }
@@ -113,13 +83,7 @@ export function SocialGate({
           fullWidth
           onPress={() => router.push("/create-profile")}
         />
-        {browsePublic && (
-          <GalleryButton
-            label="Find friends"
-            fullWidth
-            onPress={() => router.push("/people")}
-          />
-        )}
+        {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />}
       </SocialInvitation>
     );
   }
@@ -137,11 +101,7 @@ export function SocialGate({
           }}
         />
         <View style={{ paddingHorizontal: 20 }}>
-          <GalleryButton
-            label="Try again"
-            fullWidth
-            onPress={session.refresh}
-          />
+          <GalleryButton label="Try again" fullWidth onPress={session.refresh} />
         </View>
       </View>
     );
@@ -150,10 +110,7 @@ export function SocialGate({
     return (
       <SocialState
         title="Couldn’t load your account."
-        detail={
-          socialErrorMessage(session.error)
-          ?? "Check your connection and try again."
-        }
+        detail={socialErrorMessage(session.error) ?? "Check your connection and try again."}
         action="Try again"
         onAction={session.refresh}
       />
@@ -203,10 +160,7 @@ export function PageFooter({
     return (
       <View style={{ padding: 20, gap: 4, alignItems: "center" }}>
         <Text style={socialStyles.caption}>Couldn’t load more {noun}.</Text>
-        <GalleryButton
-          label="Try loading more"
-          onPress={canLoadMore ? loadMore : refresh}
-        />
+        <GalleryButton label="Try loading more" onPress={canLoadMore ? loadMore : refresh} />
       </View>
     );
   }
@@ -228,10 +182,7 @@ export function PageFooter({
   if (!done) {
     return (
       <View style={socialStyles.footer}>
-        <GalleryButton
-          label={canLoadMore ? `More ${noun}` : "Try again"}
-          onPress={canLoadMore ? loadMore : refresh}
-        />
+        <GalleryButton label={canLoadMore ? `More ${noun}` : "Try again"} onPress={canLoadMore ? loadMore : refresh} />
       </View>
     );
   }
@@ -246,9 +197,7 @@ export function PageFooter({
           gap: 2,
         }}
       >
-        <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>
-          All visits shown.
-        </Text>
+        <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>All visits shown.</Text>
         <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
           Tap a name to view their public wall.
         </Text>
@@ -257,11 +206,7 @@ export function PageFooter({
   }
   return count > 0 ? (
     <View style={socialStyles.footer}>
-      <Image
-        source="sf:checkmark.circle"
-        tintColor={Gallery.muted}
-        style={{ width: 22, height: 22 }}
-      />
+      <Image source="sf:checkmark.circle" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
       <Text style={socialStyles.caption}>{`All ${noun} shown.`}</Text>
     </View>
   ) : null;

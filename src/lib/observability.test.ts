@@ -1,12 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { ConvexError } from "convex/values";
 
-import {
-  addBreadcrumb,
-  reportError,
-  sanitizeBreadcrumb,
-  sanitizeEvent,
-} from "./observability";
+import { addBreadcrumb, reportError, sanitizeBreadcrumb, sanitizeEvent } from "./observability";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -25,9 +20,7 @@ test("reports a handled failure with its operation and stack, without serializin
       contexts: { operation: { count: 2 } },
     },
   );
-  expect(
-    jest.mocked(Sentry.captureException).mock.calls[0][0],
-  ).not.toHaveProperty("photo");
+  expect(jest.mocked(Sentry.captureException).mock.calls[0][0]).not.toHaveProperty("photo");
 });
 
 test.each([
@@ -43,9 +36,7 @@ test.each([
   new Error("Photo upload cancelled"),
   new ConvexError({ code: "qr_no_artwork" }),
   new ConvexError({ code: "spend_cap" }),
-  new Error(
-    "Unable to download a file: The Internet connection appears to be offline.",
-  ),
+  new Error("Unable to download a file: The Internet connection appears to be offline."),
   new Error("Unable to upload a file: Network request failed"),
   new ConvexError({ code: "no_venue_site" }),
   new ConvexError({ code: "identity_unresolved" }),
@@ -55,13 +46,10 @@ test.each([
     code: "page_unavailable",
     cause: new ConvexError({ code: "page_unavailable", reason: "http_429" }),
   }),
-])(
-  "keeps expected retry, validation and cancellation outcomes out of Sentry issues (%#)",
-  (error) => {
-    reportError(error, "test.expected");
-    expect(Sentry.captureException).not.toHaveBeenCalled();
-  },
-);
+])("keeps expected retry, validation and cancellation outcomes out of Sentry issues (%#)", (error) => {
+  reportError(error, "test.expected");
+  expect(Sentry.captureException).not.toHaveBeenCalled();
+});
 
 test("reports distinct failures from the same operation within the retry window", () => {
   reportError(new Error("database disk is full"), "test.distinct");
@@ -78,20 +66,14 @@ test("does not include parsed content or custom credentials in diagnostics", () 
       deviceId: "private id",
     },
   });
-  const [reported, context] = jest.mocked(Sentry.captureException).mock
-    .calls[0];
+  const [reported, context] = jest.mocked(Sentry.captureException).mock.calls[0];
   expect((reported as Error).message).toBe("Invalid data could not be parsed");
   expect((reported as Error).stack).not.toContain("private label draft");
-  expect(JSON.stringify(context)).not.toMatch(
-    /secret nonce|secret assertion|private id/,
-  );
+  expect(JSON.stringify(context)).not.toMatch(/secret nonce|secret assertion|private id/);
 });
 
 test("reports unexpected server codes without serializing server data", () => {
-  reportError(
-    new ConvexError({ code: "invalid_sync", note: "a private note" }),
-    "test.sync",
-  );
+  reportError(new ConvexError({ code: "invalid_sync", note: "a private note" }), "test.sync");
   expect(Sentry.captureException).toHaveBeenCalledWith(
     expect.objectContaining({ message: "invalid_sync" }),
     expect.objectContaining({
@@ -121,25 +103,17 @@ test("unwraps an unexpected cause but filters wrapped offline failures", () => {
     expect.anything(),
   );
   jest.clearAllMocks();
-  reportError(
-    new Error("capture failed", { cause: new Error("Network request failed") }),
-    "test.offline-cause",
-  );
+  reportError(new Error("capture failed", { cause: new Error("Network request failed") }), "test.offline-cause");
   expect(Sentry.captureException).not.toHaveBeenCalled();
 });
 
 test("normalizes non-Error rejections without serializing arbitrary objects", () => {
-  reportError(
-    { token: "private token", message: "write failed" },
-    "test.non-error",
-  );
+  reportError({ token: "private token", message: "write failed" }, "test.non-error");
   expect(Sentry.captureException).toHaveBeenCalledWith(
     expect.objectContaining({ message: "write failed" }),
     expect.anything(),
   );
-  expect(
-    jest.mocked(Sentry.captureException).mock.calls[0][0],
-  ).not.toHaveProperty("token");
+  expect(jest.mocked(Sentry.captureException).mock.calls[0][0]).not.toHaveProperty("token");
 });
 
 test("keeps useful breadcrumbs and drops console messages and navigation payloads", () => {
@@ -150,9 +124,7 @@ test("keeps useful breadcrumbs and drops console messages and navigation payload
     level: "info",
     data: { source: "camera" },
   });
-  expect(
-    sanitizeBreadcrumb({ category: "console", message: "private note" }),
-  ).toBeNull();
+  expect(sanitizeBreadcrumb({ category: "console", message: "private note" })).toBeNull();
   expect(
     sanitizeBreadcrumb({
       category: "navigation",
@@ -181,8 +153,7 @@ test("scrubs credentials, image payloads, SQL parameters and request data before
     exception: {
       values: [
         {
-          value:
-            "Failed query: insert into notes values (?)\nparams: private note",
+          value: "Failed query: insert into notes values (?)\nparams: private note",
         },
       ],
     },
@@ -204,9 +175,7 @@ test("telemetry failures cannot interrupt saving or recovery", () => {
   jest.mocked(Sentry.captureException).mockImplementationOnce(() => {
     throw new Error("telemetry failed");
   });
-  expect(() =>
-    reportError(new Error("write failed"), "test.telemetry"),
-  ).not.toThrow();
+  expect(() => reportError(new Error("write failed"), "test.telemetry")).not.toThrow();
   jest.mocked(Sentry.addBreadcrumb).mockImplementationOnce(() => {
     throw new Error("telemetry failed");
   });
@@ -218,12 +187,10 @@ test("scrubs server validation values and SQL text containing private content", 
     exception: {
       values: [
         {
-          value:
-            '[CONVEX M(notes:save)] ArgumentValidationError: Value: {"note":"a private note"}',
+          value: '[CONVEX M(notes:save)] ArgumentValidationError: Value: {"note":"a private note"}',
         },
         {
-          value:
-            "Failed query: insert into notes values ('another private note')\nparams: []",
+          value: "Failed query: insert into notes values ('another private note')\nparams: []",
         },
       ],
     },

@@ -20,9 +20,7 @@ afterEach(() => {
 describe("text moderation", () => {
   it("asks the moderation model with the fields as data and returns its verdict", async () => {
     fetchMock.mockResolvedValueOnce(completion({ flagged: true }));
-    await expect(
-      checkText(["Title", null, "Gift of Someone"]),
-    ).resolves.toEqual({
+    await expect(checkText(["Title", null, "Gift of Someone"])).resolves.toEqual({
       flagged: true,
       method: "model",
       calls: 1,
@@ -37,9 +35,7 @@ describe("text moderation", () => {
 
   it("falls back to the blocklist when the model fails, keeping the spent call count", async () => {
     vi.useFakeTimers();
-    fetchMock.mockImplementation(
-      async () => new Response("down", { status: 500 }),
-    );
+    fetchMock.mockImplementation(async () => new Response("down", { status: 500 }));
     const pending = checkText(["Water Lilies", "Claude Monet"]);
     await vi.advanceTimersByTimeAsync(1000);
     await expect(pending).resolves.toEqual({
@@ -73,11 +69,7 @@ describe("text moderation", () => {
   });
 
   it("flags personal information patterns but not accession numbers, years or credit lines", () => {
-    expect(
-      blocklistFlags(
-        "Gift of Louise Reinhardt Smith, 1983\n1998.325.2\nFrench, 1840–1926",
-      ),
-    ).toBe(false);
+    expect(blocklistFlags("Gift of Louise Reinhardt Smith, 1983\n1998.325.2\nFrench, 1840–1926")).toBe(false);
     expect(blocklistFlags("(415) 555 0123")).toBe(true);
     expect(blocklistFlags("4111 1111 1111 1111")).toBe(true);
     expect(blocklistFlags("078-05-1120")).toBe(true);
@@ -91,27 +83,22 @@ describe("text moderation", () => {
     expect(blocklistFlags("badwords are not matched")).toBe(false);
   });
 
-  it.each(["", "custom phrase"])(
-    'retains baseline slur checks with optional terms "%s"',
-    async (terms) => {
-      vi.stubEnv("MODERATION_MODEL", "");
-      vi.stubEnv("MODERATION_BLOCKLIST", terms);
-      await expect(checkText(["FAGGOT"])).resolves.toEqual({
-        flagged: true,
-        method: "blocklist",
-        calls: 0,
-      });
-      await expect(checkText(["wetbacks"])).resolves.toMatchObject({
-        flagged: true,
-      });
-      await expect(
-        checkText(["Portrait of Dick", "Scunthorpe"]),
-      ).resolves.toMatchObject({
-        flagged: false,
-      });
-      expect(fetchMock).not.toHaveBeenCalled();
-    },
-  );
+  it.each(["", "custom phrase"])('retains baseline slur checks with optional terms "%s"', async (terms) => {
+    vi.stubEnv("MODERATION_MODEL", "");
+    vi.stubEnv("MODERATION_BLOCKLIST", terms);
+    await expect(checkText(["FAGGOT"])).resolves.toEqual({
+      flagged: true,
+      method: "blocklist",
+      calls: 0,
+    });
+    await expect(checkText(["wetbacks"])).resolves.toMatchObject({
+      flagged: true,
+    });
+    await expect(checkText(["Portrait of Dick", "Scunthorpe"])).resolves.toMatchObject({
+      flagged: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it("uses the baseline slur checks when the model fails without an operator blocklist", async () => {
     vi.stubEnv("MODERATION_BLOCKLIST", "");

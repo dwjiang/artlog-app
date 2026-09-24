@@ -13,8 +13,7 @@ export const signInContexts = {
   },
   leaderboards: {
     title: "Sign in to see friends’ rankings",
-    detail:
-      "Find your friends on the leaderboards. You choose whether to share your activity totals.",
+    detail: "Find your friends on the leaderboards. You choose whether to share your activity totals.",
   },
   visit: {
     title: "Sign in to share this visit",
@@ -36,7 +35,5 @@ export function signInRoute(context: SignInContext, visitId?: string) {
 }
 
 export function readSignInContext(value?: string): SignInContext {
-  return value && Object.hasOwn(signInContexts, value)
-    ? (value as SignInContext)
-    : "account";
+  return value && Object.hasOwn(signInContexts, value) ? (value as SignInContext) : "account";
 }

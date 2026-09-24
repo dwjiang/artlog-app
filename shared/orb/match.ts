@@ -1,9 +1,5 @@
 import type { OrbFeatures } from "./features";
-import {
-  DESCRIPTOR_WORDS,
-  descriptorWords,
-  hammingDistance32,
-} from "./hamming";
+import { DESCRIPTOR_WORDS, descriptorWords, hammingDistance32 } from "./hamming";
 
 export type Match = { queryIdx: number; refIdx: number; distance: number };
 export type MatchOptions = {
@@ -15,11 +11,7 @@ export type MatchOptions = {
 // One past the largest 256-bit distance, so a lone reference row always passes the ratio test.
 const NO_MATCH = 257;
 
-export function matchDescriptors(
-  query: OrbFeatures,
-  ref: OrbFeatures,
-  opts: MatchOptions = {},
-): Match[] {
+export function matchDescriptors(query: OrbFeatures, ref: OrbFeatures, opts: MatchOptions = {}): Match[] {
   const ratio = opts.ratio ?? 0.8;
   const maxDistance = opts.maxDistance ?? 64;
   const crossCheck = opts.crossCheck ?? false;
@@ -53,8 +45,6 @@ export function matchDescriptors(
     }
   }
 
-  const kept = crossCheck
-    ? matches.filter((m) => refBestQuery[m.refIdx] === m.queryIdx)
-    : matches;
+  const kept = crossCheck ? matches.filter((m) => refBestQuery[m.refIdx] === m.queryIdx) : matches;
   return kept.sort((a, b) => a.distance - b.distance);
 }

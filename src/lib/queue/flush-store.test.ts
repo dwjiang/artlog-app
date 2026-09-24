@@ -2,13 +2,7 @@ import { ConvexError } from "convex/values";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import * as pending from "@/db/repos/pending-scans";
-import {
-  getVisit,
-  listUnsyncedVisits,
-  markVisitsSynced,
-  patchVisit,
-  upsertVisit,
-} from "@/db/repos/visits";
+import { getVisit, listUnsyncedVisits, markVisitsSynced, patchVisit, upsertVisit } from "@/db/repos/visits";
 import type { NewPendingScan } from "@/db/schema";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
 import { createFlusher, type FlushDependencies } from "./flush";
@@ -48,8 +42,7 @@ function dependencies(modelVersion = "v1") {
     resetAttemptsForModel: pending.resetAttemptsForModel,
     updateFeatures: pending.updateFeatures,
     resolveVisitId: resolveScanVisit,
-    recordResult: (localId, response) =>
-      pending.markIdentified(localId, response.scanId),
+    recordResult: (localId, response) => pending.markIdentified(localId, response.scanId),
     isOnline: async (): Promise<boolean> => true,
     runLabelFlow: async () => {},
     reembed: jest.fn(async () => ({
@@ -314,10 +307,7 @@ it("processes a label attached while its scan is being identified", async () => 
   await pending.enqueuePendingScan(capture("label-during-identify"));
   const deps = { ...dependencies(), runLabelFlow: jest.fn(async () => {}) };
   deps.identify.mockImplementation(async () => {
-    await pending.setQrUrl(
-      "label-during-identify",
-      "https://museum.example/late",
-    );
+    await pending.setQrUrl("label-during-identify", "https://museum.example/late");
     return {
       scanId: "scan-late" as Id<"scans">,
       localId: "label-during-identify",
@@ -383,9 +373,7 @@ it("identifies new paintings while a label quota is paused and resumes labels at
     ...dependencies(),
     runLabelFlow: jest.fn(async (): Promise<void> => {}),
   };
-  deps.runLabelFlow.mockRejectedValueOnce(
-    new ConvexError({ code: "rate_limited", retryAfter: 3_600_000 }),
-  );
+  deps.runLabelFlow.mockRejectedValueOnce(new ConvexError({ code: "rate_limited", retryAfter: 3_600_000 }));
   const flusher = createFlusher(deps);
   try {
     await flusher.start();
@@ -432,9 +420,7 @@ it("processes an identified scan’s label while the identification quota is pau
     ...dependencies(),
     runLabelFlow: jest.fn(async (): Promise<void> => {}),
   };
-  deps.identify.mockRejectedValueOnce(
-    new ConvexError({ code: "rate_limited", retryAfter: 12_000 }),
-  );
+  deps.identify.mockRejectedValueOnce(new ConvexError({ code: "rate_limited", retryAfter: 12_000 }));
   const flusher = createFlusher(deps);
   try {
     await flusher.start();

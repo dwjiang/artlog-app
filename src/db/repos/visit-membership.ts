@@ -16,16 +16,10 @@ export function requireVisitMembership(
     ? db
         .select()
         .from(visits)
-        .where(
-          and(eq(visits.owner, owner), eq(visits.localId, row.visitLocalId)),
-        )
+        .where(and(eq(visits.owner, owner), eq(visits.localId, row.visitLocalId)))
         .get()
     : undefined;
-  if (
-    !visit
-    || visit.venueId !== row.venueId
-    || (row.visitId != null && visit.remoteVisitId !== row.visitId)
-  ) {
+  if (!visit || visit.venueId !== row.venueId || (row.visitId != null && visit.remoteVisitId !== row.visitId)) {
     throw new ConvexError({ code: "not_found" });
   }
 }

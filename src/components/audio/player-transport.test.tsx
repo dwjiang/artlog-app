@@ -38,11 +38,7 @@ it("previews the drag position and seeks once to the final released value", asyn
 
 it("seeks when accessibility changes the value without a touch gesture", async () => {
   await render(<PlayerTransport view="player" onView={jest.fn()} />);
-  await fireEvent(
-    screen.getByRole("adjustable", { name: "Narration position" }),
-    "valueChange",
-    18,
-  );
+  await fireEvent(screen.getByRole("adjustable", { name: "Narration position" }), "valueChange", 18);
   expect(mockSeek).toHaveBeenCalledWith(18);
 });
 
@@ -56,17 +52,13 @@ it("changes volume continuously while the volume bar is dragged", async () => {
 
 it("supports VoiceOver adjustments for position and volume", async () => {
   await render(<PlayerTransport view="player" onView={jest.fn()} />);
-  await fireEvent(
-    screen.getByRole("adjustable", { name: "Narration position" }),
-    "accessibilityAction",
-    { nativeEvent: { actionName: "increment" } },
-  );
+  await fireEvent(screen.getByRole("adjustable", { name: "Narration position" }), "accessibilityAction", {
+    nativeEvent: { actionName: "increment" },
+  });
   expect(mockSeek).toHaveBeenCalledWith(27);
-  await fireEvent(
-    screen.getByRole("adjustable", { name: "Narration volume" }),
-    "accessibilityAction",
-    { nativeEvent: { actionName: "decrement" } },
-  );
+  await fireEvent(screen.getByRole("adjustable", { name: "Narration volume" }), "accessibilityAction", {
+    nativeEvent: { actionName: "decrement" },
+  });
   expect(mockVolume.mock.calls[0][0]).toBeCloseTo(0.7);
 });
 
@@ -84,8 +76,6 @@ it("marks transcript selection and returns to the artwork when tapped again", as
 it("keeps Up next selected while adding saved artworks", async () => {
   const onView = jest.fn();
   await render(<PlayerTransport view="saved" onView={onView} />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Up next", selected: true }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Up next", selected: true }));
   expect(onView).toHaveBeenCalledWith("player");
 });

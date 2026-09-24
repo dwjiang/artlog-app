@@ -31,11 +31,7 @@ export function CollectionSearchField({
         style={[
           styles.field,
           {
-            borderColor: focused
-              ? Gallery.accent
-              : filled
-                ? "transparent"
-                : Gallery.controlBorder,
+            borderColor: focused ? Gallery.accent : filled ? "transparent" : Gallery.controlBorder,
             backgroundColor: filled ? Gallery.fill : Gallery.surface,
           },
         ]}
@@ -68,10 +64,7 @@ export function CollectionSearchField({
             accessibilityRole="button"
             accessibilityLabel="Clear search"
             onPress={onClear}
-            style={({ pressed }) => [
-              styles.clear,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
+            style={({ pressed }) => [styles.clear, { opacity: pressed ? 0.6 : 1 }]}
           >
             <Image
               source="sf:xmark.circle.fill"

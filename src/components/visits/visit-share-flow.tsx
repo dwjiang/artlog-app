@@ -27,12 +27,7 @@ import { SharedVisitProjection } from "../social/visit-screen";
 import { VisitReactions } from "../social/visit-reactions";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { ToastLayer } from "../toast";
-import {
-  VisitMessage,
-  VisitPage,
-  VisitSymbol,
-  visitStyles as styles,
-} from "./visit-ui";
+import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from "./visit-ui";
 
 type Sharing = ReturnType<typeof useVisitSharing>;
 type PublishedArtworks = NonNullable<Sharing["preview"]>["artworks"];
@@ -55,11 +50,7 @@ export function VisitShareLayout() {
   if (!visit) {
     return (
       <VisitPage>
-        <VisitMessage
-          loading={loading}
-          action="Done"
-          onAction={() => router.dismiss()}
-        >
+        <VisitMessage loading={loading} action="Done" onAction={() => router.dismiss()}>
           {loading
             ? "Loading visit…"
             : error
@@ -90,34 +81,16 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
             name="index"
             options={{
               title: "Share visit",
-              headerRight: () => (
-                <GalleryButton
-                  label="Done"
-                  fullWidth={false}
-                  onPress={() => router.dismiss()}
-                />
-              ),
+              headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} />,
             }}
           />
-          <Stack.Screen
-            name="preview"
-            options={{ title: "Preview", headerBackTitle: "Edit" }}
-          />
-          <Stack.Screen
-            name="success"
-            options={{ title: "Visit shared", headerBackVisible: false }}
-          />
+          <Stack.Screen name="preview" options={{ title: "Preview", headerBackTitle: "Edit" }} />
+          <Stack.Screen name="success" options={{ title: "Visit shared", headerBackVisible: false }} />
           <Stack.Screen
             name="shared"
             options={{
               title: "Shared visit",
-              headerRight: () => (
-                <GalleryButton
-                  label="Done"
-                  fullWidth={false}
-                  onPress={() => router.dismiss()}
-                />
-              ),
+              headerRight: () => <GalleryButton label="Done" fullWidth={false} onPress={() => router.dismiss()} />,
             }}
           />
         </Stack>
@@ -155,9 +128,7 @@ export function VisitShareScreen() {
   const { sharing, visit } = useShareFlow();
   const [photoWorkId, setPhotoWorkId] = useState<string>();
   const [creatingProfile, setCreatingProfile] = useState(false);
-  const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [
-    visit.owner,
-  ]);
+  const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "visit.share-photos.load");
   }, [photos.error]);
@@ -177,11 +148,7 @@ export function VisitShareScreen() {
     ) : (
       <VisitPage>
         <Text style={styles.body}>Create a profile to publish this visit.</Text>
-        <GalleryButton
-          label="Create profile"
-          variant="filled"
-          onPress={() => setCreatingProfile(true)}
-        />
+        <GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} />
       </VisitPage>
     );
   }
@@ -207,21 +174,13 @@ export function VisitShareScreen() {
       <SharePhotoPicker
         work={photoWork}
         visitId={visit.localId}
-        selected={
-          draft.photoSelections?.find(
-            (row) => row.saveLocalId === photoWork.localId,
-          )?.photoLocalIds ?? []
-        }
+        selected={draft.photoSelections?.find((row) => row.saveLocalId === photoWork.localId)?.photoLocalIds ?? []}
         onDone={() => setPhotoWorkId(undefined)}
         onChange={(ids) => {
           controller.edit({
             photoSelections: [
-              ...(draft.photoSelections ?? []).filter(
-                (row) => row.saveLocalId !== photoWork.localId,
-              ),
-              ...(ids.length
-                ? [{ saveLocalId: photoWork.localId, photoLocalIds: ids }]
-                : []),
+              ...(draft.photoSelections ?? []).filter((row) => row.saveLocalId !== photoWork.localId),
+              ...(ids.length ? [{ saveLocalId: photoWork.localId, photoLocalIds: ids }] : []),
             ],
           });
         }}
@@ -229,20 +188,12 @@ export function VisitShareScreen() {
     );
   }
   const selected = new Set(draft.saveLocalIds);
-  const highlights = (draft.highlightLocalIds ?? []).filter((id) =>
-    selected.has(id),
-  );
+  const highlights = (draft.highlightLocalIds ?? []).filter((id) => selected.has(id));
   const active = sharing.acknowledged?.status === "active";
   const photoTotal = (saveLocalId: string) =>
-    photos.data.filter(
-      (photo) =>
-        photo.savedLocalId === saveLocalId
-        && photo.visitLocalId === visit.localId,
-    ).length;
+    photos.data.filter((photo) => photo.savedLocalId === saveLocalId && photo.visitLocalId === visit.localId).length;
   function previewPhotoPath(saveLocalId: string) {
-    const selectedIds =
-      draft!.photoSelections?.find((row) => row.saveLocalId === saveLocalId)
-        ?.photoLocalIds ?? [];
+    const selectedIds = draft!.photoSelections?.find((row) => row.saveLocalId === saveLocalId)?.photoLocalIds ?? [];
     for (const localId of selectedIds) {
       const photo = photos.data.find(
         (row) =>
@@ -316,8 +267,7 @@ export function VisitShareScreen() {
           )}
           <View style={share.notice}>
             <Text style={styles.fine}>
-              Only the selected photos and your visit notes will be published.
-              Anyone can view a published visit.
+              Only the selected photos and your visit notes will be published. Anyone can view a published visit.
             </Text>
           </View>
           {sharing.acknowledged?.removed ? (
@@ -326,15 +276,9 @@ export function VisitShareScreen() {
             <>
               <View style={styles.sectionLabel}>
                 <Text variant="section">Artworks</Text>
-                <Text style={[styles.fine, { color: Gallery.accent }]}>
-                  {selected.size} selected
-                </Text>
+                <Text style={[styles.fine, { color: Gallery.accent }]}>{selected.size} selected</Text>
               </View>
-              {!visit.works.length && (
-                <Text style={styles.caption}>
-                  You can share a visit with no artworks.
-                </Text>
-              )}
+              {!visit.works.length && <Text style={styles.caption}>You can share a visit with no artworks.</Text>}
             </>
           )}
           <ShareError sharing={sharing} />
@@ -353,8 +297,7 @@ export function VisitShareScreen() {
         const on = selected.has(item.localId),
           rank = highlights.indexOf(item.localId);
         const chosen =
-          draft.photoSelections?.find((row) => row.saveLocalId === item.localId)
-            ?.photoLocalIds.length ?? 0;
+          draft.photoSelections?.find((row) => row.saveLocalId === item.localId)?.photoLocalIds.length ?? 0;
         const total = photoTotal(item.localId);
         return (
           <View style={share.item}>
@@ -363,23 +306,14 @@ export function VisitShareScreen() {
                 accessibilityRole="checkbox"
                 accessibilityLabel={`Share ${item.title}`}
                 accessibilityState={{ checked: on, disabled: sharing.busy }}
-                disabled={
-                  sharing.busy || (!on && selected.size >= LIMITS.selectedSaves)
-                }
+                disabled={sharing.busy || (!on && selected.size >= LIMITS.selectedSaves)}
                 onPress={() => toggleSelection(item.localId)}
                 style={share.choice}
               >
-                <SavedWorkImage
-                  contain
-                  path={previewPhotoPath(item.localId)}
-                  title={item.title}
-                  style={share.thumb}
-                />
+                <SavedWorkImage contain path={previewPhotoPath(item.localId)} title={item.title} style={share.thumb} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={share.itemTitle}>{item.title}</Text>
-                  <Text style={share.itemArtist}>
-                    {item.artist || "Artist unknown"}
-                  </Text>
+                  <Text style={share.itemArtist}>{item.artist || "Artist unknown"}</Text>
                 </View>
                 <VisitSymbol
                   name={on ? "checkmark.circle.fill" : "circle"}
@@ -398,20 +332,10 @@ export function VisitShareScreen() {
                 }}
                 disabled={!on || sharing.busy}
                 onPress={() => toggleHighlight(item.localId)}
-                style={[
-                  share.highlight,
-                  rank >= 0 && share.highlightOn,
-                  !on && { opacity: 0.3 },
-                ]}
+                style={[share.highlight, rank >= 0 && share.highlightOn, !on && { opacity: 0.3 }]}
               >
-                <VisitSymbol
-                  name={rank >= 0 ? "star.fill" : "star"}
-                  size={13}
-                  color={Gallery.ink}
-                />
-                <Text style={share.highlightRank}>
-                  {rank >= 0 ? "Feed highlight" : "Highlight"}
-                </Text>
+                <VisitSymbol name={rank >= 0 ? "star.fill" : "star"} size={13} color={Gallery.ink} />
+                <Text style={share.highlightRank}>{rank >= 0 ? "Feed highlight" : "Highlight"}</Text>
               </Pressable>
               <GalleryButton
                 label={`${chosen} of ${total} ${total === 1 ? "photo" : "photos"}`}
@@ -438,18 +362,13 @@ export function VisitShareScreen() {
           ) : (
             <Text style={styles.caption}>No notes added.</Text>
           )}
-          <Text style={styles.fine}>
-            Your private artwork notes are not included.
-          </Text>
+          <Text style={styles.fine}>Your private artwork notes are not included.</Text>
           <PrivacyNote>
-            Only selected photos from this visit are shared. Artwork notes,
-            wall-label photos, and photos from other visits are not added
-            automatically. Adding a photo later will not share it.
+            Only selected photos from this visit are shared. Artwork notes, wall-label photos, and photos from other
+            visits are not added automatically. Adding a photo later will not share it.
           </PrivacyNote>
           <GalleryButton
-            label={
-              sharing.conflict ? "Refresh preview" : "Preview shared visit"
-            }
+            label={sharing.conflict ? "Refresh preview" : "Preview shared visit"}
             busy={sharing.busy}
             busyLabel="Preparing preview…"
             variant="filled"
@@ -484,12 +403,8 @@ export function VisitSharePreviewScreen() {
   // Match the published order, with highlights first.
   const highlights = sharing.draft?.highlightLocalIds ?? [];
   const ordered = [
-    ...highlights.flatMap((id) =>
-      preview.artworks.filter((item) => item.saveLocalId === id),
-    ),
-    ...preview.artworks.filter(
-      (item) => !highlights.includes(item.saveLocalId),
-    ),
+    ...highlights.flatMap((id) => preview.artworks.filter((item) => item.saveLocalId === id)),
+    ...preview.artworks.filter((item) => !highlights.includes(item.saveLocalId)),
   ];
   async function publish() {
     if (submitting.current) return;
@@ -515,9 +430,7 @@ export function VisitSharePreviewScreen() {
       }
     } catch (cause) {
       reportError(cause, "visit.publish.visibility");
-      setPublicationError(
-        "Your visit could not be published. Your selection is kept. Try again.",
-      );
+      setPublicationError("Your visit could not be published. Your selection is kept. Try again.");
     } finally {
       submitting.current = false;
       setPublishing(false);
@@ -547,9 +460,8 @@ export function VisitSharePreviewScreen() {
           inset={false}
         />
         <PrivacyNote>
-          Publishing makes these selected photos and visit notes public,
-          including to people without an account. Your other visits and artwork
-          notes stay private.
+          Publishing makes these selected photos and visit notes public, including to people without an account. Your
+          other visits and artwork notes stay private.
         </PrivacyNote>
         <ShareError sharing={sharing} />
         {publicationError && (
@@ -644,18 +556,13 @@ export function VisitShareSuccessScreen() {
       >
         <VisitSymbol name="checkmark" size={30} color={Gallery.ink} />
       </View>
-      <Text style={styles.caption}>
-        Your {visit.venueName} visit is now public.
-      </Text>
+      <Text style={styles.caption}>Your {visit.venueName} visit is now public.</Text>
       <View style={{ gap: 10, paddingBottom: 20 }}>
-        {!!published?.length && (
-          <VisitArtworks artworks={published} token={sharing.token} />
-        )}
+        {!!published?.length && <VisitArtworks artworks={published} token={sharing.token} />}
         <Text style={share.step}>Public</Text>
         <Text variant="section">{visit.venueName}</Text>
         <Text style={styles.caption}>
-          {formatVisitDate(visit.visitedOn)} · {artworkCount}{" "}
-          {artworkCount === 1 ? "artwork" : "artworks"}
+          {formatVisitDate(visit.visitedOn)} · {artworkCount} {artworkCount === 1 ? "artwork" : "artworks"}
         </Text>
       </View>
       <GalleryButton
@@ -712,9 +619,7 @@ export function VisitSharedScreen() {
     );
   }
   const unavailable =
-    sharing.acknowledged
-    && (sharing.acknowledged.status !== "active"
-      || sharing.acknowledged.removed);
+    sharing.acknowledged && (sharing.acknowledged.status !== "active" || sharing.acknowledged.removed);
   if (!shared) {
     return (
       <VisitPage>
@@ -743,11 +648,7 @@ export function VisitSharedScreen() {
   return (
     <SharedVisitProjection
       postId={shared.postId}
-      reactions={
-        <VisitReactions
-          visit={{ ...shared, media: shared.artworks.page[0]?.artwork.media }}
-        />
-      }
+      reactions={<VisitReactions visit={{ ...shared, media: shared.artworks.page[0]?.artwork.media }} />}
       author={shared.author}
       venue={shared.venue}
       visitedOn={shared.visitedOn}

@@ -5,10 +5,7 @@ jest.mock("../client", () => ({
   db: jest.requireActual("../test-db").createTestDatabase(),
 }));
 
-function work(
-  localId: string,
-  overrides: Partial<NewSavedWork> = {},
-): NewSavedWork {
+function work(localId: string, overrides: Partial<NewSavedWork> = {}): NewSavedWork {
   return {
     localId,
     savedAt: 1,
@@ -37,26 +34,23 @@ beforeAll(async () => {
       institution: "de Young",
     }),
   );
-  await repo.insertSavedWork(
-    work("gone", { savedAt: 1, title: "Deleted", artist: "Monet" }),
-  );
+  await repo.insertSavedWork(work("gone", { savedAt: 1, title: "Deleted", artist: "Monet" }));
   await repo.softDeleteSavedWork("gone", 10);
 });
 
 it("lists saved works newest first without deleted rows", async () => {
-  expect((await repo.listSavedWorks()).map((entry) => entry.localId)).toEqual([
-    "lilies",
-    "cotton",
-  ]);
+  expect((await repo.listSavedWorks()).map((entry) => entry.localId)).toEqual(["lilies", "cotton"]);
   expect(await repo.getSavedWork("gone")).toMatchObject({ deletedAt: 10 });
 });
 
 it("includes owner-scoped deletions when reconciling the collection wall", async () => {
   await repo.insertSavedWork(work("other-gone"), "account:other");
   await repo.softDeleteSavedWork("other-gone", 20, "account:other");
-  expect(
-    (await repo.listSavedWorks(undefined, true)).map((entry) => entry.localId),
-  ).toEqual(["lilies", "cotton", "gone"]);
+  expect((await repo.listSavedWorks(undefined, true)).map((entry) => entry.localId)).toEqual([
+    "lilies",
+    "cotton",
+    "gone",
+  ]);
 });
 
 it("records sync without touching the snapshot", async () => {

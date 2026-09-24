@@ -1,12 +1,5 @@
 import { fakeOpenCV, type FakeOpenCVOptions } from "@/lib/image/opencv-fake";
-import {
-  BLUR_THRESHOLD,
-  GLARE_LEVEL,
-  GLARE_THRESHOLD,
-  TRIAGE_SIZE,
-  check,
-  decide,
-} from "./triage";
+import { BLUR_THRESHOLD, GLARE_LEVEL, GLARE_THRESHOLD, TRIAGE_SIZE, check, decide } from "./triage";
 
 const mockBase64 = jest.fn();
 jest.mock("expo-file-system", () => ({
@@ -32,9 +25,7 @@ afterEach(() => {
 
 describe("decide", () => {
   it("asks for a steadier shot below the blur threshold", () => {
-    expect(
-      decide({ blurVariance: BLUR_THRESHOLD - 1, glareFraction: 0 }),
-    ).toEqual({
+    expect(decide({ blurVariance: BLUR_THRESHOLD - 1, glareFraction: 0 })).toEqual({
       ok: false,
       reason: "blur",
       message: "Hold steady and try again",
@@ -45,16 +36,12 @@ describe("decide", () => {
   });
 
   it("asks to dodge glare above the highlight fraction", () => {
-    expect(
-      decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD + 0.001 }),
-    ).toEqual({
+    expect(decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD + 0.001 })).toEqual({
       ok: false,
       reason: "glare",
       message: "Adjust the angle to reduce glare",
     });
-    expect(
-      decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD }),
-    ).toEqual({ ok: true });
+    expect(decide({ blurVariance: 2000, glareFraction: GLARE_THRESHOLD })).toEqual({ ok: true });
   });
 
   it("reports blur before glare when both fail", () => {
@@ -114,9 +101,7 @@ describe("check", () => {
       images: { "b64:file:///crop.jpg": { rows: 512, cols: 512, channels: 3 } },
       cvtColorError: new Error("bad image"),
     });
-    await expect(check("file:///crop.jpg", fake.cv)).rejects.toThrow(
-      "bad image",
-    );
+    await expect(check("file:///crop.jpg", fake.cv)).rejects.toThrow("bad image");
     expect(fake.leaked()).toEqual([]);
   });
 });

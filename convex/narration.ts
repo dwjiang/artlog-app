@@ -12,11 +12,7 @@ import {
   unsupportedLines,
   validateGuide,
 } from "../shared/audio/guide";
-import {
-  SPEECH_INSTRUCTIONS,
-  SPEECH_MODEL,
-  SPEECH_VOICE,
-} from "../shared/audio/speech";
+import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery } from "./_generated/server";
@@ -30,11 +26,7 @@ import {
   type RenderedNarration,
 } from "./lib/narrationCache";
 import { chatJson } from "./lib/tokenFactory";
-import {
-  docentSentence,
-  factSheetEntry,
-  type DocentSentence,
-} from "./lib/validators";
+import { docentSentence, factSheetEntry, type DocentSentence } from "./lib/validators";
 
 const audio = v.object({
   uri: v.string(),
@@ -54,12 +46,7 @@ export const claim = internalMutation({
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get(args.artworkId);
-    if (
-      !artwork
-      || artwork.retiredAt
-      || artwork.identityStatus !== "established"
-      || artwork.factSheetNeedsReview
-    ) {
+    if (!artwork || artwork.retiredAt || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
       throw new ConvexError({ code: "narration_unavailable" });
     }
     const facts = guideResearch(artwork.factSheet ?? []);
@@ -68,11 +55,7 @@ export const claim = internalMutation({
     const audio = await renderedNarration(ctx, artwork);
     if (audio) return { facts, opening, owned: false, audio };
     const entry = await narrationEntry(ctx, artwork._id);
-    if (
-      entry
-      && narrationCurrent(entry, artwork)
-      && Date.now() - entry.claimedAt < LEASE_MS
-    ) {
+    if (entry && narrationCurrent(entry, artwork) && Date.now() - entry.claimedAt < LEASE_MS) {
       return { facts, opening, owned: false, audio: null };
     }
     await limitDevice(ctx, "narration", device._id);
@@ -183,14 +166,11 @@ export const render = action({
         problems = [];
         const lines = parseGuideLines(value);
         if (!lines) {
-          problems.push(
-            "The response was not an array of sentence, fact_ids and support.",
-          );
+          problems.push("The response was not an array of sentence, fact_ids and support.");
           return null;
         }
         problems = unsupportedLines(lines, facts).map(
-          (line) =>
-            `The support "${line.support}" is not verbatim in the facts cited for "${line.sentence}".`,
+          (line) => `The support "${line.support}" is not verbatim in the facts cited for "${line.sentence}".`,
         );
         if (problems.length) return null;
         const guide = validateGuide(
@@ -235,9 +215,7 @@ export const render = action({
           script = await write();
         } catch (error) {
           // One more attempt, with the rejected sentences named; pointed feedback lands better than the rules did.
-          if (
-            !(error instanceof ConvexError && error.data.reason === "schema")
-          ) {
+          if (!(error instanceof ConvexError && error.data.reason === "schema")) {
             throw error;
           }
           calls += error.data.calls;
@@ -248,10 +226,7 @@ export const render = action({
         calls += script.calls;
         sentences = script.value;
       } catch (error) {
-        if (
-          error instanceof ConvexError
-          && typeof error.data.calls === "number"
-        ) {
+        if (error instanceof ConvexError && typeof error.data.calls === "number") {
           calls += error.data.calls;
         }
         throw error;
@@ -285,15 +260,10 @@ export const render = action({
         throw new ConvexError({ code: "narration_provider_failed" });
       }
       const bytes = await response.arrayBuffer();
-      if (
-        !bytes.byteLength
-        || !response.headers.get("content-type")?.startsWith("audio/")
-      ) {
+      if (!bytes.byteLength || !response.headers.get("content-type")?.startsWith("audio/")) {
         throw new ConvexError({ code: "narration_provider_failed" });
       }
-      storageId = await ctx.storage.store(
-        new Blob([bytes], { type: "audio/mpeg" }),
-      );
+      storageId = await ctx.storage.store(new Blob([bytes], { type: "audio/mpeg" }));
       await ctx.runMutation(internal.narration.finish, {
         artworkId,
         claim: claimId,

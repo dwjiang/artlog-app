@@ -61,12 +61,8 @@ beforeEach(() => {
 });
 it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => {
   await render(<SignInScreen context="wall" />);
-  expect(
-    screen.getByRole("header", { name: "Sign in to share your wall" }),
-  ).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Sign in with Apple" }),
-  );
+  expect(screen.getByRole("header", { name: "Sign in to share your wall" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockBack).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
@@ -75,9 +71,7 @@ it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => 
 it("keeps sign-in errors retryable and closes only after linking finishes", async () => {
   mockAccount.error = "Couldn’t update your account.";
   const view = await render(<SignInScreen />);
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Couldn’t update your account.",
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t update your account.");
   mockAccount = {
     ...mockAccount,
     busy: true,
@@ -85,9 +79,7 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   };
   await view.rerender(<SignInScreen />);
   expect(screen.getByRole("button", { name: "Not now" })).toBeDisabled();
-  expect(
-    screen.queryByRole("button", { name: "Sign in with Apple" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign in with Apple" })).toBeNull();
   expect(mockBack).not.toHaveBeenCalled();
   mockAccount.busy = false;
   await view.rerender(<SignInScreen />);
@@ -102,33 +94,23 @@ it("returns to the previous activity when the close button is pressed", async ()
 it("waits for the device with a spinner online and explains the wait offline", async () => {
   mockAccount.ready = false;
   const view = await render(<SignInScreen />);
-  expect(
-    screen.getByRole("progressbar", { name: "Connecting to your account" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Connecting to your account" })).toBeOnTheScreen();
   mockOnline = false;
   await view.rerender(<SignInScreen />);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(
-    screen.getByText("Connect to the internet to sign in."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Connect to the internet to sign in.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Not now" })).toBeEnabled();
 });
 it("explains unavailable sign-in without preventing dismissal", async () => {
   mockAccount.available = false;
   await render(<SignInScreen />);
-  expect(
-    screen.getByText("Apple sign-in is unavailable on this device."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Apple sign-in is unavailable on this device.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Not now" })).toBeEnabled();
 });
 
 it("continues to the visit editor only after the linked account has its local journal", async () => {
-  const view = await render(
-    <SignInScreen context="visit" visitId="museum-visit" />,
-  );
-  expect(
-    screen.getByRole("header", { name: "Sign in to share this visit" }),
-  ).toBeOnTheScreen();
+  const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
+  expect(screen.getByRole("header", { name: "Sign in to share this visit" })).toBeOnTheScreen();
   mockAccount.account.linked = true;
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
   expect(screen.getByLabelText("Syncing your journal…")).toBeOnTheScreen();

@@ -38,17 +38,9 @@ export function ChoiceMenu<T extends string>({
         borderRadius: 4,
       }}
     >
-      <Host
-        matchContents={{ vertical: true }}
-        colorScheme="light"
-        style={{ width: "100%" }}
-      >
+      <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
         <Menu
-          modifiers={[
-            accessibilityLabel(`${label}: ${selected}`),
-            buttonStyle("plain"),
-            frame({ maxWidth: Infinity }),
-          ]}
+          modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain"), frame({ maxWidth: Infinity })]}
           label={
             <Row
               spacing={8}
@@ -68,26 +60,15 @@ export function ChoiceMenu<T extends string>({
                   fontWeight: "400",
                   color: plain ? Gallery.accent : Gallery.ink,
                 }}
-                modifiers={[
-                  frame({ maxWidth: Infinity, alignment: "leading" }),
-                ]}
+                modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
               >
                 {selected}
               </NativeText>
-              <Icon
-                name="chevron.down"
-                size={11}
-                color={plain ? Gallery.accent : Gallery.muted}
-              />
+              <Icon name="chevron.down" size={11} color={plain ? Gallery.accent : Gallery.muted} />
             </Row>
           }
         >
-          <Picker
-            label={label}
-            selection={value}
-            onSelectionChange={onChange}
-            modifiers={[pickerStyle("inline")]}
-          >
+          <Picker label={label} selection={value} onSelectionChange={onChange} modifiers={[pickerStyle("inline")]}>
             {options.map((option) => (
               <PickerText key={option.value} modifiers={[tag(option.value)]}>
                 {option.label}

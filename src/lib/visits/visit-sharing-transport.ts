@@ -8,10 +8,7 @@ export type ShareSelection = FunctionArgs<typeof api.sharedVisits.publish>;
 export type ShareState = FunctionReturnType<typeof api.sharedVisits.getState>;
 export type SharePreview = FunctionReturnType<typeof api.sharedVisits.preview>;
 export type SharedVisit = FunctionReturnType<typeof api.sharedVisits.get>;
-export function createVisitSharingTransport(
-  url: string,
-  fetcher: typeof globalThis.fetch = expoFetch,
-) {
+export function createVisitSharingTransport(url: string, fetcher: typeof globalThis.fetch = expoFetch) {
   function client({ token, signal }: RequestContext) {
     return new ConvexHttpClient(url, {
       auth: token,
@@ -20,22 +17,15 @@ export function createVisitSharingTransport(
     });
   }
   return {
-    getState: (
-      args: FunctionArgs<typeof api.sharedVisits.getState>,
-      context: RequestContext,
-    ) => client(context).query(api.sharedVisits.getState, args),
-    preview: (args: ShareSelection, context: RequestContext) =>
-      client(context).query(api.sharedVisits.preview, args),
+    getState: (args: FunctionArgs<typeof api.sharedVisits.getState>, context: RequestContext) =>
+      client(context).query(api.sharedVisits.getState, args),
+    preview: (args: ShareSelection, context: RequestContext) => client(context).query(api.sharedVisits.preview, args),
     publish: (args: ShareSelection, context: RequestContext) =>
       client(context).mutation(api.sharedVisits.publish, args, {
         skipQueue: true,
       }),
-    get: (
-      args: FunctionArgs<typeof api.sharedVisits.get>,
-      context: RequestContext,
-    ) => client(context).query(api.sharedVisits.get, args),
+    get: (args: FunctionArgs<typeof api.sharedVisits.get>, context: RequestContext) =>
+      client(context).query(api.sharedVisits.get, args),
   };
 }
-export type VisitSharingTransport = ReturnType<
-  typeof createVisitSharingTransport
->;
+export type VisitSharingTransport = ReturnType<typeof createVisitSharingTransport>;

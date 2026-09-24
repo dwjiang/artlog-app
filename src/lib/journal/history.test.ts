@@ -1,16 +1,7 @@
-import {
-  filterVisits,
-  formatVisitDate,
-  groupHistoryByMonth,
-  summarizeJournal,
-  type JournalVisit,
-} from "./history";
+import { filterVisits, formatVisitDate, groupHistoryByMonth, summarizeJournal, type JournalVisit } from "./history";
 import { pageRows } from "./query";
 import { sortWorksByArtist } from "../collection/search";
-const visit = (
-  localId: string,
-  fields: Partial<JournalVisit> = {},
-): JournalVisit => ({
+const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisit => ({
   visibility: "public" as const,
   owner: "account:me",
   localId,
@@ -32,24 +23,11 @@ const visit = (
 });
 it("searches dates and geography and groups months without a phone timezone conversion", () => {
   const rows = [visit("a"), visit("b", { visitedOn: "2024-03-01" })];
-  for (const query of [
-    "musee",
-    "paris",
-    "fr",
-    "france",
-    "2024-02-29",
-    "29 feb 2024",
-    "February",
-  ]) {
+  for (const query of ["musee", "paris", "fr", "france", "2024-02-29", "29 feb 2024", "February"]) {
     expect(filterVisits(rows, query)).toContain(rows[0]);
   }
   expect(formatVisitDate("2024-02-29")).toBe("29 Feb 2024");
-  expect(
-    groupHistoryByMonth(rows).map(({ title, data }) => [
-      title,
-      data.map((row) => row.localId),
-    ]),
-  ).toEqual([
+  expect(groupHistoryByMonth(rows).map(({ title, data }) => [title, data.map((row) => row.localId)])).toEqual([
     ["March 2024", ["b"]],
     ["February 2024", ["a"]],
   ]);
@@ -88,9 +66,7 @@ it("counts repeat and empty visits, merges canonical cities and separates unreso
   expect(places.find((row) => row.key === "venue:missing")).toMatchObject({
     name: "Unknown Museum",
   });
-  expect(
-    summarizeJournal(rows, "museum").find((row) => row.key === "museum"),
-  ).toMatchObject({
+  expect(summarizeJournal(rows, "museum").find((row) => row.key === "museum")).toMatchObject({
     visitCount: 2,
   });
 });
@@ -104,17 +80,10 @@ it("uses stable cursors and rejects cursors from a different owner or filter", (
   });
   expect(second.page.map((row) => row.localId)).toEqual(["b", "a"]);
   expect(second.isDone).toBe(true);
-  expect(() =>
-    pageRows(rows, key, "owner-b", { cursor: first.cursor }),
-  ).toThrow("invalid_pagination");
+  expect(() => pageRows(rows, key, "owner-b", { cursor: first.cursor })).toThrow("invalid_pagination");
 });
 it("sorts by artist display name, parsed year, title and save UUID, with undated works last", () => {
-  const row = (
-    localId: string,
-    artist: string,
-    date: string | null,
-    title = "Painting",
-  ) => ({
+  const row = (localId: string, artist: string, date: string | null, title = "Painting") => ({
     localId,
     artist,
     date,

@@ -1,7 +1,4 @@
-import type {
-  ImageCheck,
-  SearchCandidate,
-} from "../../../convex/lib/validators";
+import type { ImageCheck, SearchCandidate } from "../../../convex/lib/validators";
 import type { ScanFeatures } from "@/lib/capture/features";
 import { checkImages, type ImageCheckDeps } from "@/lib/label/image-check";
 

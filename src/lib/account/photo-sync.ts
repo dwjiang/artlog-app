@@ -14,28 +14,16 @@ export type PhotoSyncDependencies = Pick<
   | "isPhotoFileReferenced"
   | "clearDeletedPhotoPaths"
 > & {
-  upload: (
-    localId: string,
-    kind: CollectionPhotoKind,
-    path: string,
-  ) => Promise<PhotoUpload>;
-  download: (
-    localId: string,
-    kind: CollectionPhotoKind,
-    storageId: Id<"_storage">,
-  ) => Promise<string>;
+  upload: (localId: string, kind: CollectionPhotoKind, path: string) => Promise<PhotoUpload>;
+  download: (localId: string, kind: CollectionPhotoKind, storageId: Id<"_storage">) => Promise<string>;
   removeFile: (path: string) => void;
 };
 
 /** A crop the account holds but this phone has not downloaded yet; the sync below fills cropPath. */
-export const cropSyncing = (
-  work: Pick<SavedWork, "cropPath" | "cropStorageId">,
-): boolean => !work.cropPath && !!work.cropStorageId;
+export const cropSyncing = (work: Pick<SavedWork, "cropPath" | "cropStorageId">): boolean =>
+  !work.cropPath && !!work.cropStorageId;
 
-export async function syncCollectionPhotos(
-  deps: PhotoSyncDependencies,
-  isCurrent = () => true,
-): Promise<void> {
+export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurrent = () => true): Promise<void> {
   while (isCurrent()) {
     const deleted = await deps.listDeletedPhotoFiles();
     if (!deleted.length) break;
@@ -61,11 +49,7 @@ export async function syncCollectionPhotos(
       if (!current || current.deletedAt !== null) continue;
       try {
         if (current.cropPath && !current.cropStorageId) {
-          const uploaded = await deps.upload(
-            work.localId,
-            "crop",
-            current.cropPath,
-          );
+          const uploaded = await deps.upload(work.localId, "crop", current.cropPath);
           if (!isCurrent()) return;
           await deps.updatePhotoTransfer(
             work.localId,
@@ -77,19 +61,10 @@ export async function syncCollectionPhotos(
             current,
           );
         } else if (!current.cropPath && current.cropStorageId) {
-          const downloaded = await deps.download(
-            work.localId,
-            "crop",
-            current.cropStorageId,
-          );
+          const downloaded = await deps.download(work.localId, "crop", current.cropStorageId);
           if (
             !isCurrent()
-            || !(await deps.updatePhotoTransfer(
-              work.localId,
-              { cropPath: downloaded },
-              undefined,
-              current,
-            ))
+            || !(await deps.updatePhotoTransfer(work.localId, { cropPath: downloaded }, undefined, current))
           ) {
             deps.removeFile(downloaded);
           }

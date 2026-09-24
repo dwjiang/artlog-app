@@ -1,11 +1,6 @@
 import type { Id } from "../../../convex/_generated/dataModel";
 import { db } from "../client";
-import {
-  artworkEncounters,
-  artworkPhotos,
-  savedWorks,
-  visits,
-} from "../schema";
+import { artworkEncounters, artworkPhotos, savedWorks, visits } from "../schema";
 import * as repo from "./visits";
 import { onCollectionChange } from "../../lib/account/sync-events";
 
@@ -46,9 +41,7 @@ it("creates and links a visit atomically without copying photos, including retri
     }),
   ]);
   expect(await db.select().from(artworkPhotos)).toEqual([]);
-  await expect(
-    repo.upsertVisit({ ...visit, localId: second }, "account:other", "art"),
-  ).rejects.toThrow("not_found");
+  await expect(repo.upsertVisit({ ...visit, localId: second }, "account:other", "art")).rejects.toThrow("not_found");
   expect(await repo.listVisits("account:other")).toEqual([]);
 });
 
@@ -56,10 +49,7 @@ it("preserves empty, manual and repeat visits and retries the same UUID", async 
   await repo.upsertVisit(visit);
   await repo.upsertVisit(visit);
   await repo.upsertVisit({ ...visit, localId: second });
-  expect((await repo.listVisits()).map((v) => v.localId)).toEqual([
-    second,
-    first,
-  ]);
+  expect((await repo.listVisits()).map((v) => v.localId)).toEqual([second, first]);
   expect(await repo.getVisit(first)).toMatchObject({
     startedAt: null,
     endedAt: null,
@@ -75,9 +65,7 @@ it.each([
   { startedAt: 1 },
   { endedAt: 1 },
 ])("rejects invalid creates before persistence: %j", async (fields) => {
-  await expect(repo.upsertVisit({ ...visit, ...fields })).rejects.toThrow(
-    "invalid_visit",
-  );
+  await expect(repo.upsertVisit({ ...visit, ...fields })).rejects.toThrow("invalid_visit");
   expect(await repo.listVisits()).toEqual([]);
 });
 it("validates merged patches, allows reflection clearing and refuses foreign targets", async () => {
@@ -86,20 +74,14 @@ it("validates merged patches, allows reflection clearing and refuses foreign tar
     reflection: "private",
     startedAt: Date.parse("2024-02-29T12:00Z"),
   });
-  await expect(
-    repo.patchVisit(first, { visitedOn: "2024-02-28" }),
-  ).rejects.toThrow("invalid_visit");
-  await expect(
-    repo.patchVisit(first, { reflection: "" }, "account:other"),
-  ).rejects.toThrow("not_found");
+  await expect(repo.patchVisit(first, { visitedOn: "2024-02-28" })).rejects.toThrow("invalid_visit");
+  await expect(repo.patchVisit(first, { reflection: "" }, "account:other")).rejects.toThrow("not_found");
   await repo.patchVisit(first, { reflection: null });
   expect(await repo.getVisit(first)).toMatchObject({
     visitedOn: "2024-02-29",
     reflection: null,
   });
-  await expect(
-    repo.upsertVisit({ ...visit, venueId: "other" as never }),
-  ).rejects.toThrow("invalid_visit");
+  await expect(repo.upsertVisit({ ...visit, venueId: "other" as never })).rejects.toThrow("invalid_visit");
 });
 it("keeps edits made during sync pending until their own revision is acknowledged", async () => {
   await repo.upsertVisit(visit);
@@ -193,16 +175,10 @@ it("finds the visit at a museum on a day, latest started first, and only open on
     localId: "00000000-0000-4000-8000-000000000004",
     venueId: "museum-2" as Id<"museums">,
   });
-  expect((await repo.findVisitOnDay(venueId, "2024-02-29"))?.localId).toBe(
-    second,
-  );
+  expect((await repo.findVisitOnDay(venueId, "2024-02-29"))?.localId).toBe(second);
   await repo.patchVisit(second, { endedAt: noon + 3 });
-  expect(
-    await repo.findVisitOnDay(venueId, "2024-02-29", undefined, { open: true }),
-  ).toBeUndefined();
-  expect(
-    await repo.findVisitOnDay(venueId, "2024-02-29", "account:other"),
-  ).toBeUndefined();
+  expect(await repo.findVisitOnDay(venueId, "2024-02-29", undefined, { open: true })).toBeUndefined();
+  expect(await repo.findVisitOnDay(venueId, "2024-02-29", "account:other")).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-03-01")).toBeUndefined();
 });
 it("lists open visits across museums and days, earliest first, skipping manual ones with no start", async () => {

@@ -5,11 +5,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import { contributionPayload } from "../../../shared/attestation/attested-payloads";
 import { clearPhotoDraft, updatePhotoSession } from "@/lib/capture/photo-draft";
-import {
-  contributeLabel,
-  contributionErrorMessage,
-  uploadCrop,
-} from "./contribute";
+import { contributeLabel, contributionErrorMessage, uploadCrop } from "./contribute";
 import { clearLabelDraft, loadLabelDraft } from "./draft";
 import { formStateFromFlow, setFieldValue, unlockField } from "./fields";
 import { handOffLabelRejection } from "@/lib/result/feedback";
@@ -31,15 +27,10 @@ jest.mock("@/db/client", () => ({
 
 jest.mock("@/lib/convex-client", () => ({
   convex: {
-    query: (fn: unknown, args: unknown) =>
-      mockQuery(jest.requireActual("convex/server").getFunctionName(fn), args),
+    query: (fn: unknown, args: unknown) => mockQuery(jest.requireActual("convex/server").getFunctionName(fn), args),
     mutation: (fn: unknown, args: unknown) =>
-      mockMutation(
-        jest.requireActual("convex/server").getFunctionName(fn),
-        args,
-      ),
-    action: (fn: unknown, args: unknown) =>
-      mockAction(jest.requireActual("convex/server").getFunctionName(fn), args),
+      mockMutation(jest.requireActual("convex/server").getFunctionName(fn), args),
+    action: (fn: unknown, args: unknown) => mockAction(jest.requireActual("convex/server").getFunctionName(fn), args),
   },
 }));
 jest.mock("@/lib/attested-write", () => ({
@@ -159,18 +150,12 @@ it("uploads the 256 px crop, signs the exact fields and contributes the capture�
   ]);
   expect(mockVerify).not.toHaveBeenCalled();
   expect(mockResize).toHaveBeenCalledWith("file:///documents/crops/c1.jpg");
-  expect(mockUpload).toHaveBeenCalledWith(
-    "file:///cache/crop-256.jpg",
-    "https://upload.example/crop",
-    {
-      httpMethod: "POST",
-      uploadType: 0,
-      headers: { "Content-Type": "image/jpeg" },
-    },
-  );
-  expect(mockSign).toHaveBeenCalledWith(
-    contributionPayload({ scanId, cropStorageId: "st-1", fields: submitted }),
-  );
+  expect(mockUpload).toHaveBeenCalledWith("file:///cache/crop-256.jpg", "https://upload.example/crop", {
+    httpMethod: "POST",
+    uploadType: 0,
+    headers: { "Content-Type": "image/jpeg" },
+  });
+  expect(mockSign).toHaveBeenCalledWith(contributionPayload({ scanId, cropStorageId: "st-1", fields: submitted }));
   expect(mockAction).toHaveBeenCalledWith("contributions:contribute", {
     scanId,
     descriptors: capture.descriptors,
@@ -188,11 +173,7 @@ it("uploads the 256 px crop, signs the exact fields and contributes the capture�
 });
 
 it("re-verifies edited values first and flags the edited fields; no rejection means no resolution", async () => {
-  const state = setFieldValue(
-    unlockField(formStateFromFlow(flow), "title"),
-    "date",
-    "1916–19",
-  );
+  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "date", "1916–19");
   await contributeLabel({ scanId, capture, state });
   expect(calls.slice(0, 2)).toEqual(["scans:get", "verify"]);
   expect(mockVerify).toHaveBeenCalledWith({
@@ -209,10 +190,7 @@ it("re-verifies edited values first and flags the edited fields; no rejection me
       },
     }),
   );
-  expect(mockMutation).not.toHaveBeenCalledWith(
-    "feedback:resolveRejection",
-    expect.anything(),
-  );
+  expect(mockMutation).not.toHaveBeenCalledWith("feedback:resolveRejection", expect.anything());
 });
 
 it("needs a title and an artist, an attestable device and a successful upload", async () => {
@@ -224,15 +202,15 @@ it("needs a title and an artist, an attestable device and a successful upload", 
     }),
   ).rejects.toThrow("A title and an artist are required to share");
   mockSign.mockResolvedValue(null);
-  await expect(
-    contributeLabel({ scanId, capture, state: formStateFromFlow(flow) }),
-  ).rejects.toThrow("This device can’t share contributions yet");
+  await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).rejects.toThrow(
+    "This device can’t share contributions yet",
+  );
   expect(mockAction).not.toHaveBeenCalled();
   expect(mockRemove).toHaveBeenCalledWith("file:///cache/crop-256.jpg");
   mockUpload.mockResolvedValue({ status: 413, headers: {}, body: "" });
-  await expect(
-    uploadCrop("https://upload.example/crop", "file:///cache/crop-256.jpg"),
-  ).rejects.toThrow("Crop upload failed with HTTP 413");
+  await expect(uploadCrop("https://upload.example/crop", "file:///cache/crop-256.jpg")).rejects.toThrow(
+    "Crop upload failed with HTTP 413",
+  );
 });
 
 it("keeps the contribution when resolving the rejection fails", async () => {
@@ -243,9 +221,10 @@ it("keeps the contribution when resolving the rejection fails", async () => {
     }
     throw new ConvexError({ code: "invalid_resolution" });
   });
-  await expect(
-    contributeLabel({ scanId, capture, state: formStateFromFlow(flow) }),
-  ).resolves.toEqual({ contributionId: "contrib-1", status: "tentative" });
+  await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).resolves.toEqual({
+    contributionId: "contrib-1",
+    status: "tentative",
+  });
   await waitFor(() =>
     expect(console.warn).toHaveBeenCalledWith(
       "Could not resolve the rejection with this contribution",
@@ -280,9 +259,7 @@ it("re-verifies reverted fields after an earlier upload failed", async () => {
       state: setFieldValue(original, "date", "1917"),
     }),
   ).rejects.toThrow("HTTP 503");
-  await expect(
-    contributeLabel({ scanId, capture, state: original }),
-  ).resolves.toMatchObject({
+  await expect(contributeLabel({ scanId, capture, state: original })).resolves.toMatchObject({
     status: "tentative",
   });
   expect(mockVerify).toHaveBeenCalledTimes(2);
@@ -293,11 +270,7 @@ it("re-verifies reverted fields after an earlier upload failed", async () => {
 });
 
 it("keeps edits marked as user edits when reopening after an upload failure", async () => {
-  const state = setFieldValue(
-    unlockField(formStateFromFlow(flow), "title"),
-    "date",
-    "1917",
-  );
+  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "date", "1917");
   mockVerify.mockImplementation(async (args) => {
     expect(await loadLabelDraft(scanId)).toEqual(state);
     mockStoredFlow = {
@@ -310,11 +283,8 @@ it("keeps edits marked as user edits when reopening after an upload failure", as
     return mockStoredFlow;
   });
   mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: "" });
-  await expect(contributeLabel({ scanId, capture, state })).rejects.toThrow(
-    "HTTP 503",
-  );
-  const reopened =
-    (await loadLabelDraft(scanId)) ?? formStateFromFlow(mockStoredFlow);
+  await expect(contributeLabel({ scanId, capture, state })).rejects.toThrow("HTTP 503");
+  const reopened = (await loadLabelDraft(scanId)) ?? formStateFromFlow(mockStoredFlow);
   await contributeLabel({ scanId, capture, state: reopened });
   expect(mockVerify).toHaveBeenCalledTimes(1);
   expect(mockAction).toHaveBeenLastCalledWith(
@@ -329,20 +299,14 @@ it("keeps edits marked as user edits when reopening after an upload failure", as
 });
 
 it("keeps museum sharing edits tied to their confirmation before verification replaces its fields", async () => {
-  const state = setFieldValue(
-    unlockField(formStateFromFlow(flow), "title"),
-    "title",
-    "My title",
-  );
+  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "title", "My title");
   mockVerify.mockImplementation(async () => {
     expect(await loadLabelDraft(scanId, 2)).toEqual(state);
     expect(await loadLabelDraft(scanId)).toBeUndefined();
     return { ...flow, updatedAt: 3 };
   });
   mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: "" });
-  await expect(
-    contributeLabel({ scanId, capture, state, museumSearchUpdatedAt: 2 }),
-  ).rejects.toThrow("HTTP 503");
+  await expect(contributeLabel({ scanId, capture, state, museumSearchUpdatedAt: 2 })).rejects.toThrow("HTTP 503");
   expect(await loadLabelDraft(scanId, 2)).toEqual(state);
   expect(await loadLabelDraft(scanId, 3)).toBeUndefined();
 });
@@ -357,18 +321,9 @@ it.each([
     new ConvexError({ code: "invalid_scan" }),
     "This scan isn’t tied to a museum, so it can’t be saved to the shared index",
   ],
-  [
-    new Error("Network request failed"),
-    "No connection — it will be saved to the shared index when you’re back online",
-  ],
-  [
-    new Error("This device can’t share contributions yet"),
-    "This device can’t save to the shared index yet",
-  ],
-  [
-    new ConvexError({ code: "contribution_busy" }),
-    "Couldn’t save to the shared index right now",
-  ],
+  [new Error("Network request failed"), "No connection — it will be saved to the shared index when you’re back online"],
+  [new Error("This device can’t share contributions yet"), "This device can’t save to the shared index yet"],
+  [new ConvexError({ code: "contribution_busy" }), "Couldn’t save to the shared index right now"],
 ])("maps %s to a sharing message", (error, message) => {
   expect(contributionErrorMessage(error)).toBe(message);
 });
@@ -378,9 +333,9 @@ it("rejects label-only captures before their pixels or fingerprints leave the ph
     primaryKind: "label",
   });
   try {
-    await expect(
-      contributeLabel({ scanId, capture, state: formStateFromFlow(flow) }),
-    ).rejects.toThrow("An artwork photo is required");
+    await expect(contributeLabel({ scanId, capture, state: formStateFromFlow(flow) })).rejects.toThrow(
+      "An artwork photo is required",
+    );
     expect(mockResize).not.toHaveBeenCalled();
     expect(mockUpload).not.toHaveBeenCalled();
     expect(mockAction).not.toHaveBeenCalled();

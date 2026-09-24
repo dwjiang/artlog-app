@@ -1,13 +1,7 @@
 import { openBrowserAsync } from "expo-web-browser";
 import { reportError } from "@/lib/observability";
 import { useState, type ReactNode } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";

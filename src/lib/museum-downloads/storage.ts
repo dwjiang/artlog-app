@@ -9,29 +9,16 @@ import model from "../../../shared/model/model-version.json";
 import type { MuseumEntry, MuseumSummary } from "@/shared/offline/types";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
-import {
-  MuseumDownloadsController,
-  type DownloadDependencies,
-} from "./controller";
+import { MuseumDownloadsController, type DownloadDependencies } from "./controller";
 import type { LocalPackage } from "./model";
 
 const SETTING = "museumDownloads";
-export const packageDirectory = (folder: string) =>
-  new Directory(Paths.document, "museum-downloads", folder);
-const partFile = (pack: LocalPackage, index: number) =>
-  new File(packageDirectory(pack.folder), `${index}.json`);
-export async function readEntries(
-  pack: LocalPackage,
-  index: number,
-): Promise<MuseumEntry[]> {
-  return jsonToConvex(
-    JSON.parse(await partFile(pack, index).text()),
-  ) as unknown as MuseumEntry[];
+export const packageDirectory = (folder: string) => new Directory(Paths.document, "museum-downloads", folder);
+const partFile = (pack: LocalPackage, index: number) => new File(packageDirectory(pack.folder), `${index}.json`);
+export async function readEntries(pack: LocalPackage, index: number): Promise<MuseumEntry[]> {
+  return jsonToConvex(JSON.parse(await partFile(pack, index).text())) as unknown as MuseumEntry[];
 }
-export function previewUri(
-  pack: LocalPackage | undefined,
-  index: number,
-): string | undefined {
+export function previewUri(pack: LocalPackage | undefined, index: number): string | undefined {
   if (!pack) return;
   const file = new File(packageDirectory(pack.folder), `preview-${index}`);
   return file.exists ? file.uri : undefined;
@@ -40,10 +27,7 @@ const removePackage = (folder: string) => {
   const directory = packageDirectory(folder);
   if (directory.exists) directory.delete();
 };
-async function download(
-  url: string,
-  signal: AbortSignal,
-): Promise<Uint8Array<ArrayBuffer>> {
+async function download(url: string, signal: AbortSignal): Promise<Uint8Array<ArrayBuffer>> {
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Download failed (${response.status})`);
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -57,16 +41,13 @@ const deps: DownloadDependencies = {
   async read() {
     const value = await getSetting(SETTING);
     if (!value) return;
-    const saved: Awaited<ReturnType<DownloadDependencies["read"]>> =
-      JSON.parse(value);
+    const saved: Awaited<ReturnType<DownloadDependencies["read"]>> = JSON.parse(value);
     if (!saved) return;
     for (const [id, row] of Object.entries(saved.downloads)) {
       if (
         row.active
         && (row.active.manifest.modelVersion !== model.modelVersion
-          || !row.active.manifest.chunks.every(
-            (_, index) => partFile(row.active!, index).exists,
-          ))
+          || !row.active.manifest.chunks.every((_, index) => partFile(row.active!, index).exists))
       ) {
         removePackage(row.active.folder);
         row.active = undefined;
@@ -82,10 +63,12 @@ const deps: DownloadDependencies = {
     const museums: MuseumSummary[] = [];
     let cursor: string | null = null;
     do {
-      const result: FunctionReturnType<typeof api.museumDownloads.catalog> =
-        await convex.query(api.museumDownloads.catalog, {
+      const result: FunctionReturnType<typeof api.museumDownloads.catalog> = await convex.query(
+        api.museumDownloads.catalog,
+        {
           paginationOpts: { cursor, numItems: 64 },
-        });
+        },
+      );
       museums.push(...result.page);
       if (result.isDone) return museums;
       cursor = result.continueCursor;
@@ -95,17 +78,14 @@ const deps: DownloadDependencies = {
   manifest: (venueId) => convex.query(api.museumDownloads.get, { venueId }),
   online: async () => {
     const network = await getNetworkStateAsync();
-    return (
-      network.isConnected !== false && network.isInternetReachable !== false
-    );
+    return network.isConnected !== false && network.isInternetReachable !== false;
   },
   folder: (manifest) => `${manifest.id}-${manifest.version}`,
   async download(pack, index, signal) {
     const part = pack.manifest.chunks[index];
     const bytes = await download(part.url, signal);
-    const hash = Array.from(
-      new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, bytes)),
-      (byte) => byte.toString(16).padStart(2, "0"),
+    const hash = Array.from(new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, bytes)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
     ).join("");
     if (hash !== part.sha256 || bytes.byteLength !== part.size) {
       throw new Error("Incomplete download");

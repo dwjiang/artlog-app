@@ -37,9 +37,7 @@ export function OfflineResultScreen({
     : {
         kind: chosen ? "soft" : "confident",
         primary: chosen ?? result.best,
-        runnerUps: (result.runnerUps ?? []).filter(
-          (candidate) => candidate.objectId !== chosen?.objectId,
-        ),
+        runnerUps: (result.runnerUps ?? []).filter((candidate) => candidate.objectId !== chosen?.objectId),
         docent: chosen ? undefined : result.docent,
         factSheet: chosen ? undefined : result.factSheet,
         editable: true,
@@ -53,20 +51,16 @@ export function OfflineResultScreen({
   };
   const adjustCrop = () => {
     if (hasEdits) {
-      Alert.alert(
-        "Adjust this crop?",
-        "Recognition will run again. Unsaved artwork details will be discarded.",
-        [
-          { text: "Keep editing", style: "cancel" },
-          {
-            text: "Adjust crop",
-            onPress: () => {
-              setHasEdits(false);
-              setEditingCrop(true);
-            },
+      Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Adjust crop",
+          onPress: () => {
+            setHasEdits(false);
+            setEditingCrop(true);
           },
-        ],
-      );
+        },
+      ]);
     } else setEditingCrop(true);
   };
   // The queue identified this capture after the local match; the server's card may name a different work.
@@ -89,20 +83,10 @@ export function OfflineResultScreen({
       } else onViewResult();
     });
   if (editingCrop) {
-    return (
-      <ScanCropEditor
-        capture={capture}
-        onCancel={() => setEditingCrop(false)}
-      />
-    );
+    return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
   }
   if (saved.completion) {
-    return (
-      <CaptureCompletion
-        completion={saved.completion}
-        onViewResult={onViewResult}
-      />
-    );
+    return <CaptureCompletion completion={saved.completion} onViewResult={onViewResult} />;
   }
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -120,14 +104,8 @@ export function OfflineResultScreen({
             cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
             artworkTitle={view.primary?.title}
             kind={view.kind}
-            onNotRight={
-              !saved.saving && !saved.savedId && view.primary
-                ? () => setNotRight(true)
-                : undefined
-            }
-            onAdjustCrop={
-              !saved.saving && !saved.savedId ? adjustCrop : undefined
-            }
+            onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
+            onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />
         }
         context={
@@ -141,15 +119,7 @@ export function OfflineResultScreen({
             />
           )
         }
-        visit={
-          !saved.savedId && (
-            <CaptureContextButton
-              capture={capture}
-              disabled={saved.saving}
-              variant="row"
-            />
-          )
-        }
+        visit={!saved.savedId && <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />}
         onLabel={onLabel}
         onPick={setChosen}
         onEdit={() => setHasEdits(true)}

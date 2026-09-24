@@ -10,17 +10,15 @@ it("keeps source passages and rejects invented details even when their citation 
       text: "Visible brushwork conveys wind.\nThe artist painted outdoors.",
     },
   ];
-  const facts = [
-    "Visible brushwork conveys wind.",
-    "The artist felt hopeful.",
-    "The artist painted outdoors.",
-  ].map((text, index) => ({
-    id: `f${index}`,
-    text,
-    sourceUrl: sources[0].url,
-    sourceLabel: "Made up",
-    sourceScore: 0.1,
-  }));
+  const facts = ["Visible brushwork conveys wind.", "The artist felt hopeful.", "The artist painted outdoors."].map(
+    (text, index) => ({
+      id: `f${index}`,
+      text,
+      sourceUrl: sources[0].url,
+      sourceLabel: "Made up",
+      sourceScore: 0.1,
+    }),
+  );
   expect(buildFactSheet(facts, sources)).toEqual([
     {
       id: "f1",
@@ -54,10 +52,5 @@ it("allows typographic quote changes without accepting a changed claim", () => {
     sourceScore: 1,
   };
   expect(buildFactSheet([fact], [source])).toHaveLength(1);
-  expect(
-    buildFactSheet(
-      [{ ...fact, text: 'He called it "a winter landscape."' }],
-      [source],
-    ),
-  ).toHaveLength(0);
+  expect(buildFactSheet([{ ...fact, text: 'He called it "a winter landscape."' }], [source])).toHaveLength(0);
 });

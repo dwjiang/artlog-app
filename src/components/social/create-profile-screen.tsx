@@ -10,24 +10,14 @@ export function CreateProfileScreen() {
   const router = useRouter();
   if (session.status === "ready") {
     return (
-      <ScrollView
-        style={socialStyles.root}
-        contentInsetAdjustmentBehavior="automatic"
-      >
-        <SocialState
-          title="Your profile is ready."
-          action="Done"
-          onAction={() => router.back()}
-        />
+      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+        <SocialState title="Your profile is ready." action="Done" onAction={() => router.back()} />
       </ScrollView>
     );
   }
   if (session.status !== "profile-required") {
     return (
-      <ScrollView
-        style={socialStyles.root}
-        contentInsetAdjustmentBehavior="automatic"
-      >
+      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
         <SocialGate session={session} />
       </ScrollView>
     );

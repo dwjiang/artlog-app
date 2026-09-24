@@ -10,9 +10,7 @@ import { harness, type Harness } from "./test.helpers";
 vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn() }));
 let privateKey: string;
 beforeAll(async () => {
-  privateKey = await exportPKCS8(
-    (await generateKeyPair("RS256", { extractable: true })).privateKey,
-  );
+  privateKey = await exportPKCS8((await generateKeyPair("RS256", { extractable: true })).privateKey);
 });
 beforeEach(() => {
   vi.stubEnv("JWT_PRIVATE_KEY", privateKey);
@@ -35,10 +33,7 @@ async function appleSignIn(device: Awaited<ReturnType<typeof seedDevice>>) {
   });
 }
 
-async function link(
-  device: Awaited<ReturnType<typeof seedDevice>>,
-  appleUserId = "apple-user",
-) {
+async function link(device: Awaited<ReturnType<typeof seedDevice>>, appleUserId = "apple-user") {
   const { nonce } = await device.as.mutation(api.devices.createChallenge, {
     purpose: "assert",
   });
@@ -58,9 +53,7 @@ async function pair(t: Harness) {
   await link(b);
   for (const device of [a, b]) {
     const { scope } = await device.as.query(api.accounts.me, {});
-    while (
-      !(await device.as.mutation(api.journalClaims.resume, { scope })).complete
-    ) {}
+    while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
   }
   return { a, b };
 }
@@ -71,16 +64,10 @@ it("keeps distinct device users when both sign into the same Apple account, incl
     b = await seedDevice(t);
   for (const device of [a, b, a]) {
     const result = await appleSignIn(device);
-    expect(decodeJwt(result.tokens!.token).sub?.split("|")[0]).toBe(
-      device.userId,
-    );
-    expect((await device.as.query(api.devices.me, {}))?.deviceId).toBe(
-      device.deviceId,
-    );
+    expect(decodeJwt(result.tokens!.token).sub?.split("|")[0]).toBe(device.userId);
+    expect((await device.as.query(api.devices.me, {}))?.deviceId).toBe(device.deviceId);
   }
-  expect(
-    await t.run((ctx) => ctx.db.query("authAccounts").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(1);
 });
 
 it("requires a device session and a valid Apple token", async () => {
@@ -92,9 +79,7 @@ it("requires a device session and a valid Apple token", async () => {
     }),
   ).rejects.toThrow();
   const device = await seedDevice(t);
-  vi.mocked(verifyAppleIdentityToken).mockRejectedValueOnce(
-    new Error("wrong audience"),
-  );
+  vi.mocked(verifyAppleIdentityToken).mockRejectedValueOnce(new Error("wrong audience"));
   await expect(appleSignIn(device)).rejects.toThrow("wrong audience");
   await expect(link(device)).rejects.toThrow("apple_sign_in_required");
 });
@@ -103,9 +88,7 @@ it("rejects a forged Apple subject even with a valid device assertion", async ()
   const t = harness();
   const device = await seedDevice(t);
   await appleSignIn(device);
-  await expect(link(device, "someone-else")).rejects.toThrow(
-    "apple_sign_in_required",
-  );
+  await expect(link(device, "someone-else")).rejects.toThrow("apple_sign_in_required");
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
 });
 
@@ -117,13 +100,9 @@ it("consumes Apple challenges and rejects replay, expiration and another device�
     purpose: "apple",
   });
   const args = { sub: "apple-user", nonce };
-  await expect(
-    b.as.mutation(internal.appleLogin.recordVerifiedIdentity, args),
-  ).rejects.toThrow("challenge_invalid");
+  await expect(b.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args);
-  await expect(
-    a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args),
-  ).rejects.toThrow("challenge_invalid");
+  await expect(a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await t.run((ctx) =>
     ctx.db.patch(a.deviceId, {
       appleLinkProof: { sub: "apple-user", expiresAt: 0 },
@@ -160,12 +139,8 @@ it("aggregates trust on linking while leaving rate limits per device", async () 
   for (let i = 0; i < 10; i++) {
     await t.run((ctx) => limitDevice(ctx, "sync", a.deviceId));
   }
-  await expect(
-    t.run((ctx) => limitDevice(ctx, "sync", a.deviceId)),
-  ).rejects.toThrow("rate_limited");
-  await expect(
-    t.run((ctx) => limitDevice(ctx, "sync", b.deviceId)),
-  ).resolves.toBeNull();
+  await expect(t.run((ctx) => limitDevice(ctx, "sync", a.deviceId))).rejects.toThrow("rate_limited");
+  await expect(t.run((ctx) => limitDevice(ctx, "sync", b.deviceId))).resolves.toBeNull();
 });
 
 it("unlink removes only this device and clears pending proof so it cannot silently relink", async () => {
@@ -195,12 +170,8 @@ it("deleting an account unlinks every device and removes its Apple auth associat
       linked: false,
     });
   }
-  expect(await t.run((ctx) => ctx.db.query("accounts").collect())).toHaveLength(
-    0,
-  );
-  expect(
-    await t.run((ctx) => ctx.db.query("authAccounts").collect()),
-  ).toHaveLength(0);
+  expect(await t.run((ctx) => ctx.db.query("accounts").collect())).toHaveLength(0);
+  expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(0);
 });
 
 it("keeps interrupted claims linked until they can finish without stranding parents", async () => {
@@ -208,12 +179,8 @@ it("keeps interrupted claims linked until they can finish without stranding pare
   const device = await seedDevice(t);
   await appleSignIn(device);
   await link(device);
-  await expect(device.as.mutation(api.accounts.unlink, {})).rejects.toThrow(
-    "claim_required",
-  );
-  await expect(
-    device.as.mutation(api.accounts.deleteAccount, {}),
-  ).rejects.toThrow("claim_required");
+  await expect(device.as.mutation(api.accounts.unlink, {})).rejects.toThrow("claim_required");
+  await expect(device.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow("claim_required");
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(true);
 });
 
@@ -242,13 +209,9 @@ it("checks every claim on deletion and forgets a device’s claim once it unlink
   await b.as.mutation(api.accounts.unlink, {});
   await appleSignIn(b);
   await link(b);
-  await expect(a.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow(
-    "claim_required",
-  );
+  await expect(a.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow("claim_required");
   const { scope } = await b.as.query(api.accounts.me, {});
-  while (
-    !(await b.as.mutation(api.journalClaims.resume, { scope })).complete
-  ) {}
+  while (!(await b.as.mutation(api.journalClaims.resume, { scope })).complete) {}
   await b.as.mutation(api.accounts.unlink, {});
   expect(
     await t.run((ctx) =>
@@ -259,9 +222,7 @@ it("checks every claim on deletion and forgets a device’s claim once it unlink
     ),
   ).toEqual([]);
   await a.as.mutation(api.accounts.deleteAccount, {});
-  expect(await t.run((ctx) => ctx.db.query("journalClaims").collect())).toEqual(
-    [],
-  );
+  expect(await t.run((ctx) => ctx.db.query("journalClaims").collect())).toEqual([]);
 });
 
 it("purges the deleted account’s journal, photos and sync state without extra monitoring jobs", async () => {
@@ -281,9 +242,7 @@ it("purges the deleted account’s journal, photos and sync state without extra 
       region: "US",
       optOut: false,
     });
-    const stored = await ctx.storage.store(
-      new Blob([new Uint8Array([0xff, 0xd8, 0xff])]),
-    );
+    const stored = await ctx.storage.store(new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
     await ctx.db.insert("journalSyncState", { owner, version: 70 });
     for (let i = 0; i < 5; i++) {
       await ctx.db.insert("visits", {
@@ -314,12 +273,8 @@ it("purges the deleted account’s journal, photos and sync state without extra 
   });
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  const jobs = await t.run((ctx) =>
-    ctx.db.system.query("_scheduled_functions").collect(),
-  );
-  expect(new Set(jobs.map((job) => job.name))).toEqual(
-    new Set(["accounts:purgeJournal"]),
-  );
+  const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  expect(new Set(jobs.map((job) => job.name))).toEqual(new Set(["accounts:purgeJournal"]));
   expect(
     await t.run((ctx) =>
       ctx.db
@@ -336,11 +291,7 @@ it("purges the deleted account’s journal, photos and sync state without extra 
         .collect(),
     ),
   ).toEqual([]);
-  expect(
-    await t.run((ctx) => ctx.db.query("journalSyncState").collect()),
-  ).toEqual([]);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_storage").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("journalSyncState").collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
   vi.useRealTimers();
 });

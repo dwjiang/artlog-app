@@ -91,9 +91,7 @@ it("ends the sharing state and offers a retry when the share attempt itself fail
   );
   await waitFor(() => expect(hook.result.current.sharing).toBe(false));
   expect(hook.result.current.savedId).toBe("saved-1");
-  expect(hook.result.current.shareError).toBe(
-    "Couldn’t save to the shared index right now",
-  );
+  expect(hook.result.current.shareError).toBe("Couldn’t save to the shared index right now");
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "result.share");
   jest.mocked(shareSavedLabel).mockResolvedValue({ result: outcome });
   await act(() => hook.result.current.retrySharing());

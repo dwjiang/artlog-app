@@ -9,10 +9,7 @@ import model from "../../../shared/model/model-version.json";
 
 import { getVisionRect } from "../../../modules/vision-rect/src";
 import { filePath } from "@/lib/file-uri";
-import {
-  collectCalibrationEmbeddings,
-  parseCalibrationUrls,
-} from "./calibration-export";
+import { collectCalibrationEmbeddings, parseCalibrationUrls } from "./calibration-export";
 import { embedder } from "./embedder";
 
 export type CalibrationReport = {
@@ -49,11 +46,7 @@ export async function runCalibrationExport(
         return filePath(file.uri);
       },
       async letterbox(path) {
-        const result = await getVisionRect().warpAndLetterbox(
-          path,
-          undefined,
-          model.inputSize,
-        );
+        const result = await getVisionRect().warpAndLetterbox(path, undefined, model.inputSize);
         return `file://${result.cropPath}`;
       },
       embed: (cropUri) => embedder.embed(cropUri),
@@ -75,9 +68,7 @@ export async function runCalibrationExport(
   };
   const embeddingsFile = new File(directory, "iphone-embeddings.json");
   embeddingsFile.write(JSON.stringify(embeddings));
-  new File(directory, "iphone-report.json").write(
-    JSON.stringify(report, null, 2) + "\n",
-  );
+  new File(directory, "iphone-report.json").write(JSON.stringify(report, null, 2) + "\n");
   await Share.share({ url: embeddingsFile.uri });
   return { fileUri: embeddingsFile.uri, report };
 }

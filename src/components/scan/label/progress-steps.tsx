@@ -27,9 +27,7 @@ const ICON_SIZE = 20;
 
 function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
   return [
-    qr
-      ? { stage: "qr", label: STEP_LABELS.qr }
-      : { stage: "read", label: STEP_LABELS.read },
+    qr ? { stage: "qr", label: STEP_LABELS.qr } : { stage: "read", label: STEP_LABELS.read },
     { stage: "verify", label: STEP_LABELS.records },
     { stage: "verify", label: STEP_LABELS.wikidata },
     { stage: "verify", label: STEP_LABELS.web },
@@ -38,13 +36,7 @@ function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
 }
 
 /** The label flow's stages as a vertical stepper: ticks behind, a spinner on the current group, grey ahead. */
-export function ProgressSteps({
-  stage,
-  qr,
-}: {
-  stage: LabelStage;
-  qr: boolean;
-}) {
+export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean }) {
   const current = ORDER[stage];
   const steps = stepsFor(qr);
   const firstActive = steps.findIndex((step) => ORDER[step.stage] === current);
@@ -63,21 +55,14 @@ export function ProgressSteps({
           >
             <View style={styles.icon}>
               {done ? (
-                <Image
-                  source="sf:checkmark.circle.fill"
-                  tintColor={Colors.light.success}
-                  style={styles.glyph}
-                />
+                <Image source="sf:checkmark.circle.fill" tintColor={Colors.light.success} style={styles.glyph} />
               ) : spinner ? (
                 <LoadingRing color={Colors.light.accent} />
               ) : (
                 <View style={[styles.dot, active && styles.dotActive]} />
               )}
             </View>
-            <ThemedText
-              style={{ flex: 1 }}
-              themeColor={done || active ? "text" : "textSecondary"}
-            >
+            <ThemedText style={{ flex: 1 }} themeColor={done || active ? "text" : "textSecondary"}>
               {label}
             </ThemedText>
           </View>

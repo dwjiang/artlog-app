@@ -32,18 +32,11 @@ jest.mock("expo-router", () => {
     disabled?: boolean;
     onPress: () => void;
   }) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      disabled={disabled}
-      onPress={onPress}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress}>
       <Text>{children}</Text>
     </Pressable>
   );
-  const Group = ({ children }: { children: unknown }) => (
-    <View>{children as never}</View>
-  );
+  const Group = ({ children }: { children: unknown }) => <View>{children as never}</View>;
   return {
     useRouter: () => ({ back: mockBack, push: mockPush }),
     Stack: {
@@ -76,41 +69,29 @@ beforeEach(() => jest.clearAllMocks());
 it("offers an undo window before deletion and returns to the collection", async () => {
   const alert = jest.spyOn(Alert, "alert");
   await render(<SavedWorkToolbar savedId="plain" />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Remove from collection" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Remove from collection" }));
   expect(scheduleRemoval).not.toHaveBeenCalled();
-  const confirm = alert.mock.calls
-    .at(-1)?.[2]
-    ?.find((button) => button.style === "destructive");
+  const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
   expect(confirm).toBeDefined();
   confirm?.onPress?.();
-  expect(scheduleRemoval).toHaveBeenCalledWith(
-    expect.objectContaining({ localId: "plain", title: "Untitled" }),
-  );
+  expect(scheduleRemoval).toHaveBeenCalledWith(expect.objectContaining({ localId: "plain", title: "Untitled" }));
   expect((await getSavedWork("plain"))?.deletedAt).toBeNull();
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
 it("shares the artwork photo and keeps sharing unavailable without one", async () => {
   const view = await render(<SavedWorkToolbar savedId="plain" />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Share artwork" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Share artwork" }));
   expect(mockShare).toHaveBeenCalledWith("file:///documents/crops/plain.jpg", {
     dialogTitle: "Untitled",
   });
   await view.rerender(<SavedWorkToolbar savedId="no-photo" />);
-  expect(
-    await screen.findByRole("button", { name: "Share artwork" }),
-  ).toBeDisabled();
+  expect(await screen.findByRole("button", { name: "Share artwork" })).toBeDisabled();
 });
 
 it("routes editing actions from the overflow menu", async () => {
   await render(<SavedWorkToolbar savedId="plain" visitId="visit-1" />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Add photos" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Add photos" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/add-photos",
     params: {
@@ -125,9 +106,7 @@ it("routes editing actions from the overflow menu", async () => {
     pathname: "/link-artwork",
     params: { savedId: "plain" },
   });
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Edit artwork details" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Edit artwork details" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/identify-artwork",
     params: { savedId: "plain" },

@@ -8,10 +8,7 @@ export function currentWidgetIndex(count: number, now = Date.now()): number {
 }
 
 export function createWidgetPublisher(dependencies: {
-  prepare: (
-    artwork: WidgetArtwork,
-    owner: string,
-  ) => Promise<PreparedWidgetArtwork | undefined>;
+  prepare: (artwork: WidgetArtwork, owner: string) => Promise<PreparedWidgetArtwork | undefined>;
   write: (entries: WidgetPresentation[]) => void;
   prune: (artworks: PreparedWidgetArtwork[]) => void;
   currentOwner: () => string;
@@ -27,8 +24,7 @@ export function createWidgetPublisher(dependencies: {
       settings: WidgetSettings,
     ): Promise<PreparedWidgetArtwork[] | undefined> {
       const version = ++generation;
-      const current = () =>
-        generation === version && owner === dependencies.currentOwner();
+      const current = () => generation === version && owner === dependencies.currentOwner();
       const ready: PreparedWidgetArtwork[] = [];
       for (const artwork of artworks) {
         if (!current()) return;

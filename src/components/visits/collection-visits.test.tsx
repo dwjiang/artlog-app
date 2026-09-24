@@ -52,12 +52,8 @@ it.each(["list", "globe"] as const)(
   async (mode) => {
     mockMode = mode;
     await render(<CollectionVisits {...props} visits={[]} search="" />);
-    expect(
-      screen.getByRole("header", { name: "No visits yet." }),
-    ).toBeOnTheScreen();
-    expect(screen.getAllByRole("button", { name: "Add visit" })).toHaveLength(
-      1,
-    );
+    expect(screen.getByRole("header", { name: "No visits yet." })).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: "Add visit" })).toHaveLength(1);
     expect(screen.queryByLabelText("Search your visits")).toBeNull();
     expect(screen.queryByRole("button", { name: "Globe" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
@@ -83,15 +79,11 @@ it("keeps the collection header and view controls mounted when switching between
     }, []);
     return <View />;
   }
-  const view = await render(
-    <CollectionVisits {...props} header={<Header />} search="" />,
-  );
+  const view = await render(<CollectionVisits {...props} header={<Header />} search="" />);
   const globeButton = screen.getByRole("button", { name: "Globe" });
   for (const mode of ["globe", "list", "globe"] as const) {
     mockMode = mode;
-    await view.rerender(
-      <CollectionVisits {...props} header={<Header />} search="" />,
-    );
+    await view.rerender(<CollectionVisits {...props} header={<Header />} search="" />);
     expect(screen.getByRole("button", { name: "Globe" })).toBe(globeButton);
     expect(mounted).toHaveBeenCalledTimes(1);
     expect(unmounted).not.toHaveBeenCalled();
@@ -101,9 +93,7 @@ it("keeps the collection header and view controls mounted when switching between
 it("shows loading instead of the globe until the view preference is read", async () => {
   mockMode = undefined;
   await render(<CollectionVisits {...props} search="" />);
-  expect(
-    screen.getByRole("progressbar", { name: "Loading your visits…" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Loading your visits…" })).toBeOnTheScreen();
   expect(screen.queryByText("Loading your visits…")).toBeNull();
   expect(screen.queryByText("Globe canvas")).toBeNull();
   expect(screen.getByRole("button", { name: "Globe" })).toBeDisabled();
@@ -117,32 +107,20 @@ it("holds visits behind the loading state until their places are read", async ()
     regionName: undefined,
     country: undefined,
   };
-  const view = await render(
-    <CollectionVisits {...props} visits={[unplaced]} loading search="" />,
-  );
-  expect(
-    screen.getByRole("progressbar", { name: "Loading your visits…" }),
-  ).toBeOnTheScreen();
+  const view = await render(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
+  expect(screen.getByRole("progressbar", { name: "Loading your visits…" })).toBeOnTheScreen();
   expect(screen.queryByText(/Location unavailable/)).toBeNull();
   expect(screen.queryByText(/1 museum/)).toBeNull();
   mockMode = "globe";
-  await view.rerender(
-    <CollectionVisits {...props} visits={[unplaced]} loading search="" />,
-  );
-  expect(
-    screen.getByRole("progressbar", { name: "Loading your visits…" }),
-  ).toBeOnTheScreen();
+  await view.rerender(<CollectionVisits {...props} visits={[unplaced]} loading search="" />);
+  expect(screen.getByRole("progressbar", { name: "Loading your visits…" })).toBeOnTheScreen();
   expect(screen.queryByText("Globe canvas")).toBeNull();
-  await view.rerender(
-    <CollectionVisits {...props} visits={[visit]} search="" />,
-  );
+  await view.rerender(<CollectionVisits {...props} visits={[visit]} search="" />);
   expect(screen.getByText("Globe canvas")).toBeOnTheScreen();
 });
 
 it("opens the Scan tab from the visits failure recovery action", async () => {
-  await render(
-    <CollectionVisits {...props} search="" error={new Error("Read failed")} />,
-  );
+  await render(<CollectionVisits {...props} search="" error={new Error("Read failed")} />);
   await fireEvent.press(screen.getByRole("button", { name: "Go to Scan" }));
   expect(router.push).toHaveBeenCalledWith("/scan");
 });

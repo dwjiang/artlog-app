@@ -20,19 +20,15 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
   "reads and verifies a real label photo on the dev deployment",
   async () => {
     const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
-    const venueId = process.env.LABEL_LIVE_VENUE_ID as
-      | Id<"museums">
-      | undefined;
+    const venueId = process.env.LABEL_LIVE_VENUE_ID as Id<"museums"> | undefined;
     const ocr = process.env.LABEL_LIVE_OCR;
     if (!url || !venueId || !ocr) {
-      throw new Error(
-        "CONVEX_URL, LABEL_LIVE_VENUE_ID and LABEL_LIVE_OCR are required",
-      );
+      throw new Error("CONVEX_URL, LABEL_LIVE_VENUE_ID and LABEL_LIVE_OCR are required");
     }
     const client = new ConvexHttpClient(url);
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
-      b.toString(16).padStart(2, "0"),
-    ).join("");
+    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     const signedIn = await client.action(api.auth.signIn, {
       provider: "anonymous",
       params: { secret },
@@ -53,9 +49,7 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
       capturedAt: Date.now(),
       scope: (await client.query(api.accounts.me, {})).scope,
     });
-    stdout.write(
-      `scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`,
-    );
+    stdout.write(`scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`);
 
     const { lines } = JSON.parse(readFileSync(ocr, "utf8")) as {
       lines: { text: string; confidence: number }[];
@@ -70,17 +64,13 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
     );
     expect(read.stage).toBe("read");
 
-    const fields = Object.fromEntries(
-      Object.entries(read.fields).map(([name, field]) => [name, field.value]),
-    );
+    const fields = Object.fromEntries(Object.entries(read.fields).map(([name, field]) => [name, field.value]));
     started = Date.now();
     const verified = await client.action(api.label.verifyLabel, {
       scanId: scan.scanId,
       fields,
     });
-    stdout.write(
-      `verifyLabel ${Date.now() - started} ms\n${JSON.stringify(verified, null, 2)}\n`,
-    );
+    stdout.write(`verifyLabel ${Date.now() - started} ms\n${JSON.stringify(verified, null, 2)}\n`);
     expect(verified.stage).toBe("verified");
     const status = await client.query(api.scans.get, { scanId: scan.scanId });
     expect(status?.scanId).toBe(scan.scanId);

@@ -1,14 +1,7 @@
 import { reportError } from "@/lib/observability";
 import { NotePaper } from "../note-paper";
 import { useFocusEffect } from "expo-router";
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type Ref,
-} from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AppState, TextInput, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -53,12 +46,7 @@ function persist(note: NoteDraft, sync = true) {
   note.writes = note.writes.then(async () => {
     try {
       if (text !== note.savedText) {
-        await patchVisit(
-          note.localId,
-          { reflection: text.trim() || null },
-          note.owner,
-          { sync },
-        );
+        await patchVisit(note.localId, { reflection: text.trim() || null }, note.owner, { sync });
         note.savedText = text;
         note.unsynced = !sync;
       } else if (sync && note.unsynced) {
@@ -69,9 +57,7 @@ function persist(note: NoteDraft, sync = true) {
       return true;
     } catch (cause) {
       reportError(cause, "visit.note.save");
-      note.onResult(
-        socialErrorMessage(cause) ?? "Your note could not be saved. Try again.",
-      );
+      note.onResult(socialErrorMessage(cause) ?? "Your note could not be saved. Try again.");
       return false;
     } finally {
       note.pending--;
@@ -81,21 +67,10 @@ function persist(note: NoteDraft, sync = true) {
 }
 
 export function VisitNotes({ visit, ...props }: VisitNotesProps) {
-  return (
-    <NoteField
-      key={`${visit.owner}:${visit.localId}`}
-      visit={visit}
-      {...props}
-    />
-  );
+  return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
 }
 
-function NoteField({
-  visit,
-  autoSave = true,
-  editable = true,
-  ref,
-}: VisitNotesProps) {
+function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? "");
   const [editing, setEditing] = useState(!autoSave);
   const [error, setError] = useState<string>();
@@ -157,9 +132,7 @@ function NoteField({
         </Text>
         <GalleryButton
           label={editing ? "Done" : draft ? "Edit" : "Add"}
-          accessibilityLabel={
-            editing ? "Done editing note" : draft ? "Edit note" : "Add a note"
-          }
+          accessibilityLabel={editing ? "Done editing note" : draft ? "Edit note" : "Add a note"}
           disabled={!editable}
           onPress={() => {
             if (editing && autoSave) void persist(latest.current);

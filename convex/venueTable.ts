@@ -19,18 +19,12 @@ export const publish = internalMutation({
     if (!Number.isSafeInteger(version) || version <= 0) {
       throw new ConvexError("Venue table version must be a positive integer");
     }
-    if (
-      !Number.isSafeInteger(rowCount)
-      || rowCount <= 0
-      || rowCount > 150_000
-    ) {
+    if (!Number.isSafeInteger(rowCount) || rowCount <= 0 || rowCount > 150_000) {
       throw new ConvexError("Venue table must contain 1–150,000 rows");
     }
     const file = await ctx.db.system.get(storageId);
     if (file === null || file.size === 0 || file.size > 10_000_000) {
-      throw new ConvexError(
-        "Venue table upload is missing, empty, or exceeds 10 MB",
-      );
+      throw new ConvexError("Venue table upload is missing, empty, or exceeds 10 MB");
     }
     const existing = await ctx.db
       .query("venueTables")
@@ -38,9 +32,7 @@ export const publish = internalMutation({
       .unique();
     if (existing !== null) {
       if (existing.storageId !== storageId || existing.rowCount !== rowCount) {
-        throw new ConvexError(
-          "Venue table version already describes another asset",
-        );
+        throw new ConvexError("Venue table version already describes another asset");
       }
       return existing._id;
     }
@@ -55,20 +47,11 @@ export const publish = internalMutation({
 
 export const latest = query({
   args: {},
-  returns: v.union(
-    v.null(),
-    v.object({ version: v.number(), rowCount: v.number(), url: v.string() }),
-  ),
+  returns: v.union(v.null(), v.object({ version: v.number(), rowCount: v.number(), url: v.string() })),
   handler: async (ctx) => {
-    const table = await ctx.db
-      .query("venueTables")
-      .withIndex("by_version")
-      .order("desc")
-      .first();
+    const table = await ctx.db.query("venueTables").withIndex("by_version").order("desc").first();
     if (table === null) return null;
     const url = await ctx.storage.getUrl(table.storageId);
-    return url === null
-      ? null
-      : { version: table.version, rowCount: table.rowCount, url };
+    return url === null ? null : { version: table.version, rowCount: table.rowCount, url };
   },
 });

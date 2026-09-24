@@ -6,9 +6,7 @@ jest.mock("expo-file-system", () => {
   class Node {
     uri: string;
     constructor(...parts: (string | Node)[]) {
-      this.uri = parts
-        .map((part) => (typeof part === "string" ? part : part.uri))
-        .join("/");
+      this.uri = parts.map((part) => (typeof part === "string" ? part : part.uri)).join("/");
     }
     create() {
       mockFiles.set(this.uri, true);
@@ -59,9 +57,7 @@ jest.mock("@/db/repos/settings", () => ({
   },
 }));
 
-const model = jest.requireActual<{ modelVersion: string }>(
-  "../../../shared/model/model-version.json",
-);
+const model = jest.requireActual<{ modelVersion: string }>("../../../shared/model/model-version.json");
 const manifest: MuseumManifest = {
   id: "museum-1" as never,
   key: "one",
@@ -110,9 +106,7 @@ it("deletes a package folder that the bundled model can no longer read instead o
   });
   await museumDownloads.hydrate();
   expect(museumDownloads.getSnapshot().downloads[manifest.id]).toBeUndefined();
-  expect([...mockFiles.keys()].some((uri) => uri.includes("museum-1-v1"))).toBe(
-    false,
-  );
+  expect([...mockFiles.keys()].some((uri) => uri.includes("museum-1-v1"))).toBe(false);
 });
 
 it("finishes a package whose preview thumbnail the museum refuses, keeping the previews it could fetch", async () => {
@@ -133,12 +127,6 @@ it("finishes a package whose preview thumbnail the museum refuses, keeping the p
     completed: 1,
   });
   expect(previewUri(row.active, 0)).toBeUndefined();
-  expect(previewUri(row.active, 1)).toBe(
-    "file:///documents/museum-downloads/museum-1-v2/preview-1",
-  );
-  expect(console.warn).toHaveBeenCalledWith(
-    "Museum preview unavailable",
-    manifest.previews[0].url,
-    expect.any(Error),
-  );
+  expect(previewUri(row.active, 1)).toBe("file:///documents/museum-downloads/museum-1-v2/preview-1");
+  expect(console.warn).toHaveBeenCalledWith("Museum preview unavailable", manifest.previews[0].url, expect.any(Error));
 });

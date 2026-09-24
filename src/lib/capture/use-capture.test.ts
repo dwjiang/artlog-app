@@ -97,34 +97,26 @@ beforeEach(() => {
     height: 512,
     release: mockRelease,
   });
-  mockPipeline.mockImplementation(
-    async (_input: CaptureInput, deps: CaptureDependencies) => {
-      await deps.onPrepared?.(painting);
-      return { kind: "sent", scanId: "scan-id", timings: { total: 12 } };
-    },
-  );
+  mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
+    await deps.onPrepared?.(painting);
+    return { kind: "sent", scanId: "scan-id", timings: { total: 12 } };
+  });
 });
 
 it.each([
   [{ kind: "sent", scanId: "scan-id" }, "scan-id"],
   [{ kind: "queued", localId: "capture-uuid" }, "local-capture-uuid"],
 ])("opens the matching result after capture: %s", async (result, scanId) => {
-  mockPipeline.mockImplementation(
-    async (_input: CaptureInput, deps: CaptureDependencies) => {
-      await deps.onPrepared?.(painting);
-      return { ...result, timings: { total: 12 } };
-    },
-  );
+  mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
+    await deps.onPrepared?.(painting);
+    return { ...result, timings: { total: 12 } };
+  });
   const hook = await renderHook(useCapture);
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
   expect(mockPush).not.toHaveBeenCalled();
-  await act(() =>
-    hook.result.current.completeReveal(
-      hook.result.current.presentation!.attempt,
-    ),
-  );
+  await act(() => hook.result.current.completeReveal(hook.result.current.presentation!.attempt));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/result/[scanId]",
     params: { scanId, entrance: "capture" },
@@ -256,9 +248,7 @@ it("imports without a venue when the local table cannot be read", async () => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
   mockPicker.mockResolvedValue({
     canceled: false,
-    assets: [
-      { uri: "file:///library.jpg", exif: { GPSLatitude: 1, GPSLongitude: 2 } },
-    ],
+    assets: [{ uri: "file:///library.jpg", exif: { GPSLatitude: 1, GPSLongitude: 2 } }],
   });
   mockVenueIdAt.mockRejectedValue(new Error("no table"));
   const hook = await renderHook(useCapture);
@@ -275,20 +265,17 @@ it("imports without a venue when the local table cannot be read", async () => {
 it.each([
   { canceled: true, assets: null },
   { canceled: false, assets: [] },
-])(
-  "leaves the screen unchanged when no photo is selected: %s",
-  async (result) => {
-    mockPicker.mockResolvedValue(result);
-    const hook = await renderHook(useCapture);
-    await act(async () => {
-      await hook.result.current.importPhoto();
-    });
-    expect(mockPipeline).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalled();
-    expect(hook.result.current.state.occupied).toBe(false);
-    expect(hook.result.current.state.message).toBeUndefined();
-  },
-);
+])("leaves the screen unchanged when no photo is selected: %s", async (result) => {
+  mockPicker.mockResolvedValue(result);
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.importPhoto();
+  });
+  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(hook.result.current.state.occupied).toBe(false);
+  expect(hook.result.current.state.message).toBeUndefined();
+});
 
 it("shows picker errors and releases the capture for another import", async () => {
   mockPicker.mockRejectedValueOnce(new Error("Picker unavailable"));
@@ -358,9 +345,7 @@ it("blocks a second capture until the first finishes, then exposes errors for re
     await first;
   });
   expect(hook.result.current.state.occupied).toBe(false);
-  expect(hook.result.current.state.message).toBe(
-    "Unable to correct the painting perspective",
-  );
+  expect(hook.result.current.state.message).toBe("Unable to correct the painting perspective");
 });
 
 it("checks current reachability after processing, not the value at shutter press", async () => {
@@ -420,14 +405,12 @@ it("publishes the captured photo before venue lookup finishes", async () => {
 
 it("holds the revealed artwork during slow recognition and navigates exactly once when ready", async () => {
   let resolve!: (result: CaptureResult) => void;
-  mockPipeline.mockImplementation(
-    async (_input: CaptureInput, deps: CaptureDependencies) => {
-      await deps.onPrepared?.(painting);
-      return new Promise((done) => {
-        resolve = done;
-      });
-    },
-  );
+  mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
+    await deps.onPrepared?.(painting);
+    return new Promise((done) => {
+      resolve = done;
+    });
+  });
   const hook = await renderHook(useCapture);
   let pending!: Promise<void>;
   await act(async () => {
@@ -479,16 +462,12 @@ it("retains a failed import when choosing another photo is canceled, and support
   await act(async () => {
     await hook.result.current.importPhoto();
   });
-  expect(hook.result.current.presentation?.photoUri).toBe(
-    "file:///selected.jpg",
-  );
+  expect(hook.result.current.presentation?.photoUri).toBe("file:///selected.jpg");
   expect(hook.result.current.state.phase).toBe("retry");
   await act(async () => {
     await hook.result.current.importPhoto();
   });
-  expect(hook.result.current.presentation?.photoUri).toBe(
-    "file:///selected.jpg",
-  );
+  expect(hook.result.current.presentation?.photoUri).toBe("file:///selected.jpg");
   expect(hook.result.current.state).toMatchObject({
     phase: "retry",
     source: "library",
@@ -500,10 +479,9 @@ it("retains a failed import when choosing another photo is canceled, and support
 });
 
 it("defers navigation while backgrounded and resumes exactly once on return", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
@@ -516,10 +494,9 @@ it("defers navigation while backgrounded and resumes exactly once on return", as
 });
 
 it("drops presentation and old completion callbacks when a different screen takes focus", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
@@ -567,9 +544,7 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
   await act(async () => {
     pending = hook.result.current.importPhoto();
   });
-  expect(hook.result.current.presentation?.photoUri).toBe(
-    "file:///selected.jpg",
-  );
+  expect(hook.result.current.presentation?.photoUri).toBe("file:///selected.jpg");
   expect(mockPipeline).not.toHaveBeenCalled();
   await act(async () => {
     resolve("museum");
@@ -578,18 +553,13 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
 });
 
 it("keeps the artwork visible through the native result fade and releases it at transition end", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
-  await act(() =>
-    hook.result.current.completeReveal(
-      hook.result.current.presentation!.attempt,
-    ),
-  );
+  await act(() => hook.result.current.completeReveal(hook.result.current.presentation!.attempt));
   await hook.rerender({ active: false, focused: false });
   expect(mockRelease).not.toHaveBeenCalled();
   expect(hook.result.current.presentation?.crop).toBeDefined();
@@ -601,9 +571,7 @@ it("keeps the artwork visible through the native result fade and releases it at 
 });
 
 it("captures automatically with the detected corners and announces it", async () => {
-  const announce = jest
-    .spyOn(AccessibilityInfo, "announceForAccessibility")
-    .mockImplementation(() => {});
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   const quad: Quad = [
     [0.1, 0.2],
     [0.9, 0.2],
@@ -666,9 +634,7 @@ it.each(["camera", "library"] as const)(
       canceled: false,
       assets: [{ uri: "file:///library.jpg" }],
     });
-    const hook = await renderHook(() =>
-      useCapture({ visitLocalId: "chosen-visit" }),
-    );
+    const hook = await renderHook(() => useCapture({ visitLocalId: "chosen-visit" }));
     await act(async () => {
       if (source === "library") await hook.result.current.importPhoto();
       else {
@@ -691,17 +657,13 @@ it("reports an unavailable visit before taking the photo instead of assigning th
   mockVisit.mockResolvedValue(undefined);
   const onVisitUnavailable = jest.fn(),
     takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
-  const hook = await renderHook(() =>
-    useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }),
-  );
+  const hook = await renderHook(() => useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }));
   await act(async () => {
     await hook.result.current.captureManually(takePhoto);
   });
   expect(takePhoto).not.toHaveBeenCalled();
   expect(mockPipeline).not.toHaveBeenCalled();
   expect(onVisitUnavailable).toHaveBeenCalledTimes(1);
-  expect(hook.result.current.state.message).toContain(
-    "This visit is no longer available.",
-  );
+  expect(hook.result.current.state.message).toContain("This visit is no longer available.");
   expect(hook.result.current.state.rearm).toBe("shutter");
 });

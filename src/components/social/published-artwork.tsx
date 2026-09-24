@@ -1,12 +1,6 @@
 import { EmptySymbol } from "../empty-state";
 import { useRef, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { socialStyles } from "./social-styles";
 import { Gallery, Typography } from "@/constants/theme";
@@ -16,10 +10,7 @@ import { WallFrame, wallFrameInset } from "../collection/wall-frame";
 import { DisplayMedia } from "../artwork/display-media";
 import { NoteHeading } from "../collection/note-editor";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import {
-  DocentSection,
-  type DocentSectionProps,
-} from "../scan/result/docent-section";
+import { DocentSection, type DocentSectionProps } from "../scan/result/docent-section";
 
 export function PublishedArtwork({
   artwork,
@@ -78,11 +69,7 @@ export function PublishedArtwork({
         {enrichment && (
           <>
             <View style={styles.divider} />
-            <DocentSection
-              docent={enrichment.docent}
-              factSheet={enrichment.factSheet}
-              title="About this work"
-            />
+            <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" />
           </>
         )}
         <View style={styles.divider} />
@@ -139,15 +126,7 @@ function PublishedArtworkGallery({
         showsHorizontalScrollIndicator={false}
         accessibilityLabel="Artwork photos"
         onMomentumScrollEnd={({ nativeEvent }) =>
-          setPage(
-            Math.max(
-              0,
-              Math.min(
-                photos.length - 1,
-                Math.round(nativeEvent.contentOffset.x / width),
-              ),
-            ),
-          )
+          setPage(Math.max(0, Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width))))
         }
       >
         {photos.map((media, index) => {
@@ -158,10 +137,7 @@ function PublishedArtworkGallery({
                 <DisplayMedia
                   media={media}
                   label={`${title}, photo ${index + 1}`}
-                  width={Math.max(
-                    1,
-                    outerWidth - wallFrameInset(frame, outerWidth) * 2,
-                  )}
+                  width={Math.max(1, outerWidth - wallFrameInset(frame, outerWidth) * 2)}
                   token={token}
                 />
               </WallFrame>
@@ -180,10 +156,7 @@ function PublishedArtworkGallery({
           >
             <Text style={styles.arrowText}>‹</Text>
           </Pressable>
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.caption, { fontVariant: ["tabular-nums"] }]}
-          >
+          <Text accessibilityLiveRegion="polite" style={[styles.caption, { fontVariant: ["tabular-nums"] }]}>
             {page + 1} / {photos.length}
           </Text>
           <Pressable
@@ -191,10 +164,7 @@ function PublishedArtworkGallery({
             accessibilityLabel="Next photo"
             disabled={page >= photos.length - 1}
             onPress={() => goTo(page + 1)}
-            style={[
-              styles.arrow,
-              page >= photos.length - 1 && { opacity: 0.4 },
-            ]}
+            style={[styles.arrow, page >= photos.length - 1 && { opacity: 0.4 }]}
           >
             <Text style={styles.arrowText}>›</Text>
           </Pressable>

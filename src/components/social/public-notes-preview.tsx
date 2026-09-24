@@ -16,49 +16,27 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
   const session = useSocialSession();
   const [selectedId, setSelectedId] = useState<string>();
   const selected = wall.items.find((item) => item.itemId === selectedId);
-  const profile = useSocialQuery(
-    api.profiles.getPublic,
-    { profileId: wall.profileId },
-    session.key,
-  );
-  const detail = useSocialQuery(
-    api.walls.getArtwork,
-    selected ? { itemId: selected.itemId } : "skip",
-    session.key,
-  );
+  const profile = useSocialQuery(api.profiles.getPublic, { profileId: wall.profileId }, session.key);
+  const detail = useSocialQuery(api.walls.getArtwork, selected ? { itemId: selected.itemId } : "skip", session.key);
   return (
     <GestureHandlerRootView style={{ flexGrow: 0 }}>
       <View style={{ paddingHorizontal: 20, paddingBottom: 16, gap: 6 }}>
-        <Text style={socialStyles.caption}>
-          VISITOR PREVIEW · UNSAVED CHOICES
-        </Text>
-        <Text style={socialStyles.caption}>
-          Tap an artwork to see its shared note.
-        </Text>
+        <Text style={socialStyles.caption}>VISITOR PREVIEW · UNSAVED CHOICES</Text>
+        <Text style={socialStyles.caption}>Tap an artwork to see its shared note.</Text>
       </View>
       {profile.data ? (
         <PublicProfileHeader person={profile.data} />
       ) : (
         <SocialState
-          title={
-            profile.error ? "Couldn’t load your profile." : "Opening profile…"
-          }
+          title={profile.error ? "Couldn’t load your profile." : "Opening profile…"}
           loading={!profile.error}
           action={profile.error ? "Try again" : undefined}
           onAction={profile.refresh}
         />
       )}
-      <PublicWallView
-        wall={wall}
-        onSelect={(item) => setSelectedId(item.itemId)}
-      />
+      <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
       {selected && (
-        <WallSheet
-          title="Visitor preview"
-          dismissLabel="Back to wall"
-          tall
-          onDismiss={() => setSelectedId(undefined)}
-        >
+        <WallSheet title="Visitor preview" dismissLabel="Back to wall" tall onDismiss={() => setSelectedId(undefined)}>
           <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
             <PublishedArtwork
               key={selected.itemId}

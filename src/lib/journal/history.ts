@@ -32,10 +32,7 @@ export function formatVisitDate(date: string): string {
   const [year, month, day] = date.split("-");
   return `${Number(day)} ${MONTHS[Number(month) - 1].slice(0, 3)} ${year}`;
 }
-export function filterVisits<T extends JournalVisit>(
-  visits: T[],
-  query = "",
-): T[] {
+export function filterVisits<T extends JournalVisit>(visits: T[], query = ""): T[] {
   const term = searchTerm(query);
   if (term === null) return [];
   if (!term) return visits;
@@ -55,14 +52,10 @@ export function filterVisits<T extends JournalVisit>(
     ),
   );
 }
-export function groupHistoryByMonth<T extends JournalVisit>(
-  visits: T[],
-): { key: string; title: string; data: T[] }[] {
+export function groupHistoryByMonth<T extends JournalVisit>(visits: T[]): { key: string; title: string; data: T[] }[] {
   const groups = new Map<string, T[]>();
   for (const visit of [...visits].sort(
-    (a, b) =>
-      compareText(b.visitedOn, a.visitedOn)
-      || compareText(b.localId, a.localId),
+    (a, b) => compareText(b.visitedOn, a.visitedOn) || compareText(b.localId, a.localId),
   )) {
     const key = visit.visitedOn.slice(0, 7);
     const group = groups.get(key) ?? [];
@@ -107,16 +100,10 @@ export function placeIdentity(visit: JournalVisit): {
   return { key: `venue:${visit.venueId}`, name: visit.venueName };
 }
 
-export function summarizeJournal(
-  visits: JournalVisit[],
-  by: "museum" | "place",
-): JournalSummary[] {
+export function summarizeJournal(visits: JournalVisit[], by: "museum" | "place"): JournalSummary[] {
   const groups = new Map<string, JournalSummary>();
   for (const visit of visits) {
-    const { key, name } =
-      by === "museum"
-        ? { key: visit.venueId, name: visit.venueName }
-        : placeIdentity(visit);
+    const { key, name } = by === "museum" ? { key: visit.venueId, name: visit.venueName } : placeIdentity(visit);
     const group = groups.get(key) ?? {
       key,
       name,

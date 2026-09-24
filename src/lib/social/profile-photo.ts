@@ -23,9 +23,7 @@ export async function chooseProfilePhoto(): Promise<string | undefined> {
       .resize({ width: 256, height: 256 })
       .renderAsync();
     try {
-      return (
-        await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 })
-      ).uri;
+      return (await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 })).uri;
     } finally {
       rendered.release();
     }

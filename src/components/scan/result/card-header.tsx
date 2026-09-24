@@ -38,8 +38,7 @@ export function CardHeader({
   const [failedUri, setFailedUri] = useState<string>();
   const [loaded, setLoaded] = useState<{ uri?: string; aspect: number }>();
   const available = cropUri && failedUri !== cropUri;
-  const aspectRatio =
-    available && loaded?.uri === cropUri ? loaded.aspect : FALLBACK_ASPECT;
+  const aspectRatio = available && loaded?.uri === cropUri ? loaded.aspect : FALLBACK_ASPECT;
   return (
     <View style={styles.header}>
       <View style={[styles.frame, { aspectRatio }]}>
@@ -56,11 +55,9 @@ export function CardHeader({
               })
             }
             onError={(event) => {
-              reportError(
-                new Error(event?.error ?? "Painting preview unavailable"),
-                "result.load_preview",
-                { level: "warning" },
-              );
+              reportError(new Error(event?.error ?? "Painting preview unavailable"), "result.load_preview", {
+                level: "warning",
+              });
               setFailedUri(cropUri);
             }}
           />
@@ -68,19 +65,12 @@ export function CardHeader({
           <ImageSkeleton style={{ width: "100%", height: "100%" }} />
         ) : (
           <View style={styles.placeholder}>
-            <Image
-              source="sf:photo"
-              tintColor={Colors.light.textSecondary}
-              style={styles.placeholderIcon}
-            />
+            <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />
             <ThemedText type="smallBold" style={styles.placeholderText}>
               Photo unavailable
             </ThemedText>
             {artworkTitle && (
-              <ThemedText
-                themeColor="textSecondary"
-                style={styles.placeholderText}
-              >
+              <ThemedText themeColor="textSecondary" style={styles.placeholderText}>
                 {artworkTitle}
               </ThemedText>
             )}
@@ -93,11 +83,7 @@ export function CardHeader({
             onPress={onAdjustCrop}
             style={({ pressed }) => [styles.crop, pressed && styles.pressed]}
           >
-            <Image
-              source="sf:crop"
-              tintColor={Gallery.ink}
-              style={styles.cropIcon}
-            />
+            <Image source="sf:crop" tintColor={Gallery.ink} style={styles.cropIcon} />
           </Pressable>
         )}
       </View>
@@ -105,12 +91,7 @@ export function CardHeader({
         <View style={styles.status}>
           <ConfidenceChip kind={kind} />
           {onNotRight && (
-            <Pressable
-              accessibilityRole="button"
-              onPress={onNotRight}
-              hitSlop={8}
-              style={styles.correction}
-            >
+            <Pressable accessibilityRole="button" onPress={onNotRight} hitSlop={8} style={styles.correction}>
               <ThemedText variant="secondary" themeColor="accent">
                 Not right?
               </ThemedText>

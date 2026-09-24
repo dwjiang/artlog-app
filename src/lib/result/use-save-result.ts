@@ -4,15 +4,8 @@ import type { CaptureCompletion } from "../capture/completion";
 import { useRef, useState } from "react";
 
 import { saveErrorMessage, saveResult, type SaveResultInput } from "./save";
-import {
-  contributionErrorMessage,
-  type ContributionOutcome,
-  type ContributeInput,
-} from "../label/contribute";
-import {
-  shareSavedLabel,
-  type ContributionAttempt,
-} from "../label/share-saved-label";
+import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from "../label/contribute";
+import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
 
 export type SaveInput = Omit<SaveResultInput, "capture"> & {
   capture?: SaveResultInput["capture"];
@@ -28,9 +21,7 @@ export function useSaveResult() {
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<ContributionOutcome>();
   const [shareError, setShareError] = useState<string>();
-  const retry = useRef<
-    { input: ContributeInput; savedLocalId: string } | undefined
-  >(undefined);
+  const retry = useRef<{ input: ContributeInput; savedLocalId: string } | undefined>(undefined);
   const sharingNow = useRef(false);
 
   async function trackContribution(attempt: Promise<ContributionAttempt>) {
@@ -53,17 +44,13 @@ export function useSaveResult() {
 
   async function retrySharing() {
     if (!retry.current || sharingNow.current) return;
-    await trackContribution(
-      shareSavedLabel(retry.current.input, retry.current.savedLocalId),
-    );
+    await trackContribution(shareSavedLabel(retry.current.input, retry.current.savedLocalId));
   }
 
   async function save({ capture, ...input }: SaveInput): Promise<void> {
     if (inFlight.current) return;
     if (!capture) {
-      setError(
-        "Your photo of this scan isn’t on this phone, so it can’t be saved.",
-      );
+      setError("Your photo of this scan isn’t on this phone, so it can’t be saved.");
       return;
     }
     inFlight.current = true;
@@ -81,9 +68,7 @@ export function useSaveResult() {
         retry.current = { input: input.contribution, savedLocalId: localId };
         void trackContribution(contribution);
       }
-      void Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (cause) {
       reportError(cause, "result.save");
       console.warn("Could not save the work", cause);

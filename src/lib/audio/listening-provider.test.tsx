@@ -38,8 +38,7 @@ function Screen() {
               artworkId: "one" as never,
               title: "First owner’s artwork",
               artist: "Artist",
-              opening:
-                "This is First owner’s artwork, by Artist. Its date is unknown.",
+              opening: "This is First owner’s artwork, by Artist. Its date is unknown.",
               savedId: "private-id",
               facts: [
                 {

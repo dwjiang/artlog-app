@@ -11,23 +11,11 @@ import { scheduleRemoval } from "@/lib/collection/pending-removals";
 import { showToast } from "@/lib/ui/toast";
 
 /** Header actions for an owned artwork: share the photo, and the overflow menu with editing and removal. */
-export function SavedWorkToolbar({
-  savedId,
-  visitId,
-}: {
-  savedId: string;
-  visitId?: string;
-}) {
+export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitId?: string }) {
   const owner = useLocalOwner();
   const router = useRouter();
-  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [
-    savedId,
-    owner,
-  ]);
-  const work = data.find(
-    (row) =>
-      row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   if (!work) return null;
   async function share() {
     if (!work?.cropPath) return;
@@ -68,9 +56,7 @@ export function SavedWorkToolbar({
             })
           }
         >
-          {work.title === "Unidentified artwork"
-            ? "Identify this artwork"
-            : "Edit artwork details"}
+          {work.title === "Unidentified artwork" ? "Identify this artwork" : "Edit artwork details"}
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           onPress={() =>

@@ -17,8 +17,7 @@ function getRootState(path: string) {
 }
 
 function getTabsState(path: string) {
-  return getRootState(path)?.routes.find((route) => route.name === "(tabs)")
-    ?.state;
+  return getRootState(path)?.routes.find((route) => route.name === "(tabs)")?.state;
 }
 
 describe("App navigation", () => {
@@ -56,10 +55,7 @@ describe("App navigation", () => {
 
   it("opens sharing as a sheet with its nested preview route", () => {
     const root = getRootState("/visit-share/demo/preview");
-    expect(root?.routes.map((route) => route.name)).toEqual([
-      "(tabs)",
-      "visit-share/[visitId]",
-    ]);
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "visit-share/[visitId]"]);
     expect(root?.routes[1]).toMatchObject({
       params: { visitId: "demo" },
       state: { routes: [{ name: "preview" }] },
@@ -68,10 +64,7 @@ describe("App navigation", () => {
 
   it("opens a widget artwork at its visit with Home underneath for Back", () => {
     const root = getRootState("/saved/painting?visitId=museum-visit");
-    expect(root?.routes.map((route) => route.name)).toEqual([
-      "(tabs)",
-      "saved/[savedId]",
-    ]);
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "saved/[savedId]"]);
     expect(root?.routes[1].params).toMatchObject({
       savedId: "painting",
       visitId: "museum-visit",
@@ -82,50 +75,29 @@ describe("App navigation", () => {
   it.each([
     ["journal/demo", "journal/[visitId]", { visitId: "demo" }],
     ["saved/demo", "saved/[savedId]", { savedId: "demo" }],
-  ])(
-    "opens %s above the tabs instead of inside Collection",
-    (path, name, params) => {
-      const root = getRootState(`/${path}`);
-      expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", name]);
-      expect(root?.index).toBe(1);
-      expect(root?.routes[1].params).toMatchObject(params);
-      expect(
-        getTabsState(`/${path}`)?.routes.find(
-          (route) => route.name === "(collection)",
-        )?.state,
-      ).toBeUndefined();
-    },
-  );
+  ])("opens %s above the tabs instead of inside Collection", (path, name, params) => {
+    const root = getRootState(`/${path}`);
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", name]);
+    expect(root?.index).toBe(1);
+    expect(root?.routes[1].params).toMatchObject(params);
+    expect(getTabsState(`/${path}`)?.routes.find((route) => route.name === "(collection)")?.state).toBeUndefined();
+  });
 
-  it.each(["result", "label"])(
-    "opens %s above the tabs with the capture identifier",
-    (screen) => {
-      const root = getRootState(`/${screen}/demo`);
-      expect(root?.routes.map((route) => route.name)).toEqual([
-        "(tabs)",
-        `${screen}/[scanId]`,
-      ]);
-      expect(root?.index).toBe(1);
-      expect(root?.routes[1].params).toMatchObject({ scanId: "demo" });
-    },
-  );
+  it.each(["result", "label"])("opens %s above the tabs with the capture identifier", (screen) => {
+    const root = getRootState(`/${screen}/demo`);
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", `${screen}/[scanId]`]);
+    expect(root?.index).toBe(1);
+    expect(root?.routes[1].params).toMatchObject({ scanId: "demo" });
+  });
 
   it("opens the artwork archive above the collection tab", () => {
     const root = getRootState("/all-artworks");
-    expect(root?.routes.map((route) => route.name)).toEqual([
-      "(tabs)",
-      "all-artworks",
-    ]);
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "all-artworks"]);
   });
 
-  it.each(["visit/post-id", "profile/profile-id"])(
-    "opens %s above the tabs",
-    (path) => {
-      const root = getRootState(`/${path}`);
-      expect(root?.routes[0].name).toBe("(tabs)");
-      expect(root?.routes[1].name).toBe(
-        path.startsWith("visit") ? "visit/[postId]" : "profile/[profileId]",
-      );
-    },
-  );
+  it.each(["visit/post-id", "profile/profile-id"])("opens %s above the tabs", (path) => {
+    const root = getRootState(`/${path}`);
+    expect(root?.routes[0].name).toBe("(tabs)");
+    expect(root?.routes[1].name).toBe(path.startsWith("visit") ? "visit/[postId]" : "profile/[profileId]");
+  });
 });

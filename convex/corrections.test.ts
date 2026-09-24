@@ -3,11 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import model from "../shared/model/model-version.json";
 import { completion } from "./lib/labelFixtures";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 afterEach(() => {
@@ -33,9 +29,7 @@ const factSheet = [
   },
 ];
 const docent = {
-  en: [
-    { sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] },
-  ],
+  en: [{ sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] }],
 };
 
 async function fixture() {
@@ -77,9 +71,7 @@ describe("corrections.correctFact", () => {
       deviceId: user.deviceId,
       status: "open",
     });
-    expect(
-      await t.query(internal.review.listCorrections, { status: "resolved" }),
-    ).toEqual([]);
+    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toEqual([]);
   });
 
   it("keeps the sheet untouched until it is reviewed, then a rewritten sheet clears the flag", async () => {
@@ -110,9 +102,7 @@ describe("corrections.correctFact", () => {
       correctionIds: corrections.map((correction) => correction._id),
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect(
-      await t.query(internal.review.listCorrections, { status: "resolved" }),
-    ).toHaveLength(1);
+    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toHaveLength(1);
     expect(await artwork()).toMatchObject({ factSheet: [factSheet[0]] });
     expect(await artwork()).not.toHaveProperty("docent");
     vi.stubEnv("NEBIUS_API_KEY", "test");
@@ -137,31 +127,17 @@ describe("corrections.correctFact", () => {
 
   it.each([
     ["an unknown fact", { factId: "f9", message: "Wrong." }, "unknown_fact"],
-    [
-      "an empty message",
-      { factId: "f1", message: "   " },
-      "invalid_correction",
-    ],
-    [
-      "an oversized message",
-      { factId: "f1", message: "x".repeat(2001) },
-      "invalid_correction",
-    ],
-    [
-      "an oversized contact",
-      { factId: "f1", message: "Wrong.", contact: "c".repeat(201) },
-      "invalid_correction",
-    ],
+    ["an empty message", { factId: "f1", message: "   " }, "invalid_correction"],
+    ["an oversized message", { factId: "f1", message: "x".repeat(2001) }, "invalid_correction"],
+    ["an oversized contact", { factId: "f1", message: "Wrong.", contact: "c".repeat(201) }, "invalid_correction"],
   ])("rejects %s without touching the artwork", async (_label, args, code) => {
     const { t, user, artworkId, artwork } = await fixture();
-    await expect(
-      user.as.mutation(api.corrections.correctFact, { artworkId, ...args }),
-    ).rejects.toMatchObject({ data: { code } });
+    await expect(user.as.mutation(api.corrections.correctFact, { artworkId, ...args })).rejects.toMatchObject({
+      data: { code },
+    });
     expect(await artwork()).toMatchObject({ docent });
     expect(await artwork()).not.toHaveProperty("factSheetNeedsReview");
-    expect(
-      await t.run((ctx) => ctx.db.query("factCorrections").collect()),
-    ).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toEqual([]);
   });
 
   it("requires a registered device and allows five corrections per device per day", async () => {
@@ -198,9 +174,7 @@ describe("corrections.correctFact", () => {
     ).rejects.toMatchObject({
       data: { code: "rate_limited", name: "correctFact" },
     });
-    expect(
-      await t.run((ctx) => ctx.db.query("factCorrections").collect()),
-    ).toHaveLength(5);
+    expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toHaveLength(5);
   });
 });
 
@@ -261,9 +235,7 @@ it.each([false, true])(
       vi.fn(async () => {
         fetched();
         await responseGate;
-        return completion([
-          { sentence: "Monet painted this work in 1916.", fact_ids: ["f1"] },
-        ]);
+        return completion([{ sentence: "Monet painted this work in 1916.", fact_ids: ["f1"] }]);
       }),
     );
     const generating = t.action(internal.docent.ensure, {
@@ -286,11 +258,7 @@ it.each([false, true])(
     }
     finish();
     await generating;
-    expect(
-      (await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview,
-    ).toBe(reviewed ? undefined : true);
-    expect(
-      (await user.as.query(api.scans.get, { scanId }))?.docent,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview).toBe(reviewed ? undefined : true);
+    expect((await user.as.query(api.scans.get, { scanId }))?.docent).toBeUndefined();
   },
 );

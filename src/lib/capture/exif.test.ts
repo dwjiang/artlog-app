@@ -39,32 +39,27 @@ it("reads nested Apple dictionaries and DMS coordinates", () => {
   });
 });
 
-it.each(["America/Los_Angeles", "UTC"])(
-  "preserves an offset timestamp across the local DST gap in %s",
-  (timezone) => {
-    const result = execFileSync(
-      process.execPath,
-      [
-        "--experimental-strip-types",
-        "-e",
-        `const { extractCaptureMeta } = require(${JSON.stringify(require.resolve("./exif"))});
+it.each(["America/Los_Angeles", "UTC"])("preserves an offset timestamp across the local DST gap in %s", (timezone) => {
+  const result = execFileSync(
+    process.execPath,
+    [
+      "--experimental-strip-types",
+      "-e",
+      `const { extractCaptureMeta } = require(${JSON.stringify(require.resolve("./exif"))});
      process.stdout.write(JSON.stringify(extractCaptureMeta({
        DateTimeOriginal: '2026:03:08 02:30:00', OffsetTimeOriginal: '+01:00',
      })));`,
-      ],
-      { encoding: "utf8", env: { ...process.env, TZ: timezone } },
-    );
+    ],
+    { encoding: "utf8", env: { ...process.env, TZ: timezone } },
+  );
 
-    expect(JSON.parse(result)).toEqual({
-      capturedAt: Date.parse("2026-03-08T01:30:00Z"),
-    });
-  },
-);
+  expect(JSON.parse(result)).toEqual({
+    capturedAt: Date.parse("2026-03-08T01:30:00Z"),
+  });
+});
 
 it("preserves signed coordinates and accepts zero", () => {
-  expect(
-    extractCaptureMeta({ GPSLatitude: 0, GPSLongitude: -122.5 }),
-  ).toMatchObject({
+  expect(extractCaptureMeta({ GPSLatitude: 0, GPSLongitude: -122.5 })).toMatchObject({
     lat: 0,
     lng: -122.5,
   });

@@ -5,8 +5,7 @@ import { type CandidateSignals, FEATURE_NAMES } from "./features";
 import { DEFAULT_CALIBRATOR } from "./weights";
 
 function probability(signals: CandidateSignals): number {
-  return scoreCandidates([{ candidate: "x", signals }], DEFAULT_CALIBRATOR)[0]
-    .probability;
+  return scoreCandidates([{ candidate: "x", signals }], DEFAULT_CALIBRATOR)[0].probability;
 }
 
 describe("DEFAULT_CALIBRATOR", () => {
@@ -16,9 +15,7 @@ describe("DEFAULT_CALIBRATOR", () => {
   });
 
   it("keeps the confident threshold at or above the soft threshold", () => {
-    expect(DEFAULT_CALIBRATOR.thresholds.confident).toBeGreaterThanOrEqual(
-      DEFAULT_CALIBRATOR.thresholds.soft,
-    );
+    expect(DEFAULT_CALIBRATOR.thresholds.confident).toBeGreaterThanOrEqual(DEFAULT_CALIBRATOR.thresholds.soft);
   });
 
   it("scores the strong anchor above 0.99", () => {

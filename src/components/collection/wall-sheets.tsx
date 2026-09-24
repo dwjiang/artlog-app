@@ -2,38 +2,21 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { WallSheet } from "./wall-sheet";
 import { Host } from "@expo/ui";
 import { Slider } from "@expo/ui/swift-ui";
-import {
-  accessibilityLabel,
-  disabled as nativeDisabled,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, disabled as nativeDisabled } from "@expo/ui/swift-ui/modifiers";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { Gallery, Spacing } from "@/constants/theme";
-import {
-  constrainLayout,
-  wallAspect,
-  type WallLayout,
-  type WallPiece,
-} from "@/lib/wall/wall-layout";
+import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
 import { WallArtwork } from "./wall-artwork";
 import { GalleryButton } from "./gallery-button";
 import { WallFramePicker } from "./wall-options";
 
-export function WallArtworkSummary({
-  piece,
-  color,
-}: {
-  piece: WallPiece;
-  color: string;
-}) {
+export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: string }) {
   return (
     <>
       <View style={[styles.hero, { backgroundColor: color }]}>
-        <WallArtwork
-          piece={piece}
-          width={Math.min(230, 180 * wallAspect(piece))}
-        />
+        <WallArtwork piece={piece} width={Math.min(230, 180 * wallAspect(piece))} />
       </View>
       <View style={styles.section}>
         <Text variant="display" selectable style={styles.artist}>
@@ -41,9 +24,7 @@ export function WallArtworkSummary({
         </Text>
         <Text selectable style={styles.workTitle}>
           {piece.artwork.title}
-          {piece.artwork.date ? (
-            <Text style={styles.date}>, {piece.artwork.date}</Text>
-          ) : null}
+          {piece.artwork.date ? <Text style={styles.date}>, {piece.artwork.date}</Text> : null}
         </Text>
         {piece.artwork.medium && (
           <Text selectable style={styles.caption}>
@@ -71,12 +52,7 @@ function WallSizeSlider({
     if (!disabled && latest.current !== width) onChange(latest.current);
   }
   return (
-    <Host
-      matchContents={{ vertical: true }}
-      colorScheme="light"
-      seedColor={Gallery.accent}
-      style={{ width: "100%" }}
-    >
+    <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent} style={{ width: "100%" }}>
       <Slider
         value={value}
         min={0.16}
@@ -93,10 +69,7 @@ function WallSizeSlider({
           dragging.current = editing;
           if (!editing) commit();
         }}
-        modifiers={[
-          accessibilityLabel("Artwork size"),
-          nativeDisabled(disabled),
-        ]}
+        modifiers={[accessibilityLabel("Artwork size"), nativeDisabled(disabled)]}
       />
     </Host>
   );
@@ -204,9 +177,7 @@ export function WallArtworkSheet({
                   onPress={() => change({ y: piece.layout.y + 0.025 })}
                 />
               </View>
-              <Text style={styles.caption}>
-                You can also hold and drag the artwork on your wall.
-              </Text>
+              <Text style={styles.caption}>You can also hold and drag the artwork on your wall.</Text>
             </View>
             <View style={[styles.section, styles.removal]}>
               <GalleryButton
@@ -218,9 +189,7 @@ export function WallArtworkSheet({
                 fullWidth
                 destructive
               />
-              <Text style={[styles.caption, { textAlign: "center" }]}>
-                The artwork stays in your collection.
-              </Text>
+              <Text style={[styles.caption, { textAlign: "center" }]}>The artwork stays in your collection.</Text>
             </View>
           </>
         )}

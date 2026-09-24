@@ -1,10 +1,7 @@
 import { render } from "@testing-library/react-native";
 
 import { CaptureShutter } from "./capture-feedback";
-import type {
-  CaptureController,
-  CaptureFeedback,
-} from "@/lib/capture/capture-controller";
+import type { CaptureController, CaptureFeedback } from "@/lib/capture/capture-controller";
 
 let mockFeedback: CaptureFeedback = null;
 const mockRing: number[] = [];
@@ -18,9 +15,7 @@ jest.mock("react-native-reanimated", () => {
   return {
     __esModule: true,
     default: { View },
-    useSharedValue: (value: number) =>
-      useRef({ get: () => value, set: (next: number) => mockRing.push(next) })
-        .current,
+    useSharedValue: (value: number) => useRef({ get: () => value, set: (next: number) => mockRing.push(next) }).current,
     withTiming: (value: number) => value,
     cancelAnimation: jest.fn(),
     Easing: { linear: jest.fn() },

@@ -26,10 +26,7 @@ export function visitSummaries(
   for (const encounter of encounters) {
     if (encounter.owner !== owner || encounter.deletedAt !== null) continue;
     const work = works.find(
-      (row) =>
-        row.owner === owner
-        && row.localId === encounter.savedLocalId
-        && row.deletedAt === null,
+      (row) => row.owner === owner && row.localId === encounter.savedLocalId && row.deletedAt === null,
     );
     if (!work) continue;
     const group = byVisit.get(encounter.visitLocalId) ?? [];
@@ -62,17 +59,9 @@ export function visitSummaries(
     });
 }
 
-export function searchVisitSummaries(
-  visits: VisitSummary[],
-  search: string,
-): VisitSummary[] {
-  const matches = new Set(
-    filterVisits(visits, search).map((visit) => visit.localId),
-  );
-  return visits.filter(
-    (visit) =>
-      matches.has(visit.localId) || filterWorks(visit.works, search).length > 0,
-  );
+export function searchVisitSummaries(visits: VisitSummary[], search: string): VisitSummary[] {
+  const matches = new Set(filterVisits(visits, search).map((visit) => visit.localId));
+  return visits.filter((visit) => matches.has(visit.localId) || filterWorks(visit.works, search).length > 0);
 }
 
 export function visitCounts(visits: VisitSummary[]) {

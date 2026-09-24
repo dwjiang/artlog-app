@@ -9,14 +9,8 @@ const painting: Quad = [
   [0.85, 0.75],
   [0.15, 0.75],
 ];
-const shifted = (dx: number, dy = 0) =>
-  painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
-function observe(
-  controller: CaptureController,
-  now: number,
-  quads: Quad[] = [painting],
-  preview: FrameSize = frame,
-) {
+const shifted = (dx: number, dy = 0) => painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
+function observe(controller: CaptureController, now: number, quads: Quad[] = [painting], preview: FrameSize = frame) {
   return controller.observe(
     {
       ...frame,
@@ -29,20 +23,13 @@ function observe(
     now,
   );
 }
-function hold(
-  controller: CaptureController,
-  from = 0,
-  quads = [painting],
-  preview = frame,
-) {
+function hold(controller: CaptureController, from = 0, quads = [painting], preview = frame) {
   for (let now = from; now < from + 800; now += 100) {
     expect(observe(controller, now, quads, preview)).toBeUndefined();
   }
   return observe(controller, from + 800, quads, preview);
 }
-function failed(
-  attempt = (controller: CaptureController) => hold(controller)!,
-) {
+function failed(attempt = (controller: CaptureController) => hold(controller)!) {
   const controller = new CaptureController();
   const started = attempt(controller);
   controller.fail(started, "Adjust the angle to reduce glare");
@@ -171,12 +158,9 @@ it.each([
     ],
     frame,
   ],
-] as [Quad, FrameSize][])(
-  "rejects cropped, off-center, small, or skewed candidates",
-  (quad, preview) => {
-    expect(hold(new CaptureController(), 0, [quad], preview)).toBeUndefined();
-  },
-);
+] as [Quad, FrameSize][])("rejects cropped, off-center, small, or skewed candidates", (quad, preview) => {
+  expect(hold(new CaptureController(), 0, [quad], preview)).toBeUndefined();
+});
 
 it("selects the largest eligible candidate from several rectangles", () => {
   const detail: Quad = [
@@ -185,9 +169,7 @@ it("selects the largest eligible candidate from several rectangles", () => {
     [0.8, 0.7],
     [0.2, 0.7],
   ];
-  expect(hold(new CaptureController(), 0, [detail, painting])?.quad).toEqual(
-    painting,
-  );
+  expect(hold(new CaptureController(), 0, [detail, painting])?.quad).toEqual(painting);
 });
 
 it("requires a new full window after the candidate leaves the visible preview", () => {
@@ -200,9 +182,7 @@ it("requires a new full window after the candidate leaves the visible preview", 
 it("does not recapture an unchanged failure, even with another candidate present", () => {
   const controller = failed();
   for (let now = 900; now <= 5000; now += 100) {
-    expect(
-      observe(controller, now, [painting, shifted(0.14, 0.14)]),
-    ).toBeUndefined();
+    expect(observe(controller, now, [painting, shifted(0.14, 0.14)])).toBeUndefined();
   }
   expect(controller.getSnapshot()).toMatchObject({
     phase: "retry",

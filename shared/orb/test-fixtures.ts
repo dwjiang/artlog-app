@@ -1,8 +1,4 @@
-import {
-  DESCRIPTOR_BYTES,
-  KEYPOINT_FLOATS,
-  type OrbFeatures,
-} from "./features";
+import { DESCRIPTOR_BYTES, KEYPOINT_FLOATS, type OrbFeatures } from "./features";
 import { applyHomography, mat3mul, mulberry32 } from "./homography";
 
 export type SyntheticPairOptions = {
@@ -21,11 +17,7 @@ export type SyntheticPair = {
   truth: { H: Float64Array; correspondences: [number, number][] };
 };
 
-export function makeRandomFeatures(
-  rand: () => number,
-  count: number,
-  inputSize: number,
-): OrbFeatures {
+export function makeRandomFeatures(rand: () => number, count: number, inputSize: number): OrbFeatures {
   const descriptors = new Uint8Array(count * DESCRIPTOR_BYTES);
   for (let i = 0; i < descriptors.length; i++) {
     descriptors[i] = Math.floor(rand() * 256);
@@ -50,10 +42,7 @@ export function featuresFromDescriptors(rows: Uint8Array[]): OrbFeatures {
   };
 }
 
-export function withFlippedBits(
-  descriptor: Uint8Array,
-  bits: number[],
-): Uint8Array {
+export function withFlippedBits(descriptor: Uint8Array, bits: number[]): Uint8Array {
   const out = descriptor.slice();
   for (const bit of bits) out[bit >> 3] ^= 1 << (bit & 7);
   return out;
@@ -65,25 +54,13 @@ export function defaultSyntheticHomography(inputSize: number): Float64Array {
   const c = Math.cos(angle);
   const s = Math.sin(angle);
   const half = inputSize / 2;
-  const rotate = [
-    c,
-    -s,
-    half - c * half + s * half,
-    s,
-    c,
-    half - s * half - c * half,
-    0,
-    0,
-    1,
-  ];
+  const rotate = [c, -s, half - c * half + s * half, s, c, half - s * half - c * half, 0, 0, 1];
   const translate = [1, 0, 15, 0, 1, -10, 0, 0, 1];
   const perspective = [1, 0, 0, 0, 1, 0, 1e-4, -5e-5, 1];
   return mat3mul(perspective, mat3mul(translate, rotate));
 }
 
-export function makeSyntheticPair(
-  opts: SyntheticPairOptions = {},
-): SyntheticPair {
+export function makeSyntheticPair(opts: SyntheticPairOptions = {}): SyntheticPair {
   const seed = opts.seed ?? 1;
   const count = opts.count ?? 300;
   const inputSize = opts.inputSize ?? 512;
@@ -91,9 +68,7 @@ export function makeSyntheticPair(
   const bitFlipFraction = opts.bitFlipFraction ?? 0.06;
   const noiseSigma = opts.noiseSigma ?? 0.7;
   const rand = mulberry32(seed);
-  const H = Float64Array.from(
-    opts.homography ?? defaultSyntheticHomography(inputSize),
-  );
+  const H = Float64Array.from(opts.homography ?? defaultSyntheticHomography(inputSize));
 
   const ref = makeRandomFeatures(rand, count, inputSize);
   const queryCount = count + Math.round(count * outlierFraction);
@@ -129,17 +104,11 @@ export function makeSyntheticPair(
   for (let k = 0; k < queryCount; k++) {
     const i = order[k];
     query.descriptors.set(
-      unshuffled.descriptors.subarray(
-        i * DESCRIPTOR_BYTES,
-        (i + 1) * DESCRIPTOR_BYTES,
-      ),
+      unshuffled.descriptors.subarray(i * DESCRIPTOR_BYTES, (i + 1) * DESCRIPTOR_BYTES),
       k * DESCRIPTOR_BYTES,
     );
     query.keypoints.set(
-      unshuffled.keypoints.subarray(
-        i * KEYPOINT_FLOATS,
-        (i + 1) * KEYPOINT_FLOATS,
-      ),
+      unshuffled.keypoints.subarray(i * KEYPOINT_FLOATS, (i + 1) * KEYPOINT_FLOATS),
       k * KEYPOINT_FLOATS,
     );
     if (i < count) correspondences.push([i, k]);

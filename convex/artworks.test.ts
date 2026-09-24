@@ -62,9 +62,7 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
 it("omits the thumbnail for in-copyright works and reverted objects, and returns null for a missing artwork", async () => {
   const t = harness();
   const { as } = await seedDevice(t);
-  const inCopyright = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { rightsStatus: "in_copyright" } }),
-  );
+  const inCopyright = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { rightsStatus: "in_copyright" } }));
   expect(
     await as.query(api.artworks.enrichment, {
       artworkId: inCopyright.artworkId,
@@ -73,34 +71,24 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
     rightsStatus: "in_copyright",
     narrationOpening: openingFixture,
   });
-  const reverted = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { object: { reverted: true } }),
-  );
-  expect(
-    await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId }),
-  ).toEqual({
+  const reverted = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { reverted: true } }));
+  expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({
     rightsStatus: "public_domain",
     narrationOpening: openingFixture,
   });
   const gone = await t.run((ctx) => seedArtworkWithObject(ctx));
   await t.run((ctx) => ctx.db.delete(gone.artworkId));
-  expect(
-    await as.query(api.artworks.enrichment, { artworkId: gone.artworkId }),
-  ).toBeNull();
+  expect(await as.query(api.artworks.enrichment, { artworkId: gone.artworkId })).toBeNull();
 });
 
 it("rejects anonymous and unregistered callers", async () => {
   const t = harness();
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
-  await expect(
-    t.query(api.artworks.enrichment, { artworkId }),
-  ).rejects.toMatchObject({
+  await expect(t.query(api.artworks.enrichment, { artworkId })).rejects.toMatchObject({
     data: { code: "unauthenticated" },
   });
   const user = await signIn(t);
-  await expect(
-    user.as.query(api.artworks.enrichment, { artworkId }),
-  ).rejects.toMatchObject({
+  await expect(user.as.query(api.artworks.enrichment, { artworkId })).rejects.toMatchObject({
     data: { code: "device_not_registered" },
   });
 });
@@ -122,18 +110,9 @@ it("keeps catalogue lines as source chips but out of the narration research", as
   );
   const enrichment = await as.query(api.artworks.enrichment, { artworkId });
   expect(enrichment?.narrationFacts).toEqual(chips);
-  expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual([
-    "f1",
-    "f2",
-    "f3",
-  ]);
-  const bare = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }),
-  );
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))
-      ?.narrationFacts,
-  ).toBeUndefined();
+  expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual(["f1", "f2", "f3"]);
+  const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }));
+  expect((await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts).toBeUndefined();
 });
 
 it("withholds additional narration facts while their sources need review", async () => {
@@ -148,7 +127,5 @@ it("withholds additional narration facts while their sources need review", async
       },
     }),
   );
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts,
-  ).toBeUndefined();
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();
 });

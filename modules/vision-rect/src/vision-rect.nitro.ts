@@ -86,11 +86,7 @@ export interface VisionRect extends HybridObject<{ ios: "swift" }> {
   detect(frame: Frame, stride: number): RectDetection | undefined;
   /** Rectangle detection and subject lifting on a captured still or library photo. */
   detectStill(photoPath: string): Promise<StillDetection>;
-  warpAndLetterbox(
-    photoPath: string,
-    quad: RectPoint[] | undefined,
-    size: number,
-  ): Promise<LetterboxResult>;
+  warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;
   /** Reads printed text on a captured still or library photo with Apple Vision; nothing leaves the phone. */
   recognizeText(photoPath: string): Promise<TextRecognition>;
 }

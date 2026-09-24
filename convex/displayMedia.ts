@@ -1,17 +1,9 @@
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { ConvexError, v } from "convex/values";
 import { reportBackendError } from "./lib/observability";
-import {
-  catalogMedia,
-  validateMedia,
-  wallItemMediaContext,
-} from "../shared/social/contracts";
+import { catalogMedia, validateMedia, wallItemMediaContext } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
-import {
-  httpAction,
-  internalMutation,
-  internalQuery,
-} from "./_generated/server";
+import { httpAction, internalMutation, internalQuery } from "./_generated/server";
 import {
   contributionSource,
   isCurrentAsset,
@@ -53,9 +45,7 @@ export const registerCatalog = internalMutation({
     };
     const existing = await ctx.db
       .query("mediaAssets")
-      .withIndex("by_save_kind", (q) =>
-        q.eq("saveId", saveId).eq("source.kind", "catalog"),
-      )
+      .withIndex("by_save_kind", (q) => q.eq("saveId", saveId).eq("source.kind", "catalog"))
       .unique();
     if (!existing) {
       return ctx.db.insert("mediaAssets", {
@@ -73,9 +63,9 @@ export const registerCatalog = internalMutation({
       && existing.provenance.kind === "catalog"
       && existing.provenance.objectId === objectId
       && existing.provenance.imageRightsEvidence === imageRightsEvidence
-      && (
-        ["url", "sourceUrl", "rights", "credit", "width", "height"] as const
-      ).every((key) => current[key] === source[key]);
+      && (["url", "sourceUrl", "rights", "credit", "width", "height"] as const).every(
+        (key) => current[key] === source[key],
+      );
     if (!same) {
       await ctx.db.patch(existing._id, {
         source,
@@ -93,20 +83,14 @@ export const beginPreparation = internalMutation({
   returns: v.union(schema.doc("mediaAssets"), v.null()),
   handler: async (ctx, { saveId }) => {
     const save = await ctx.db.get(saveId);
-    if (
-      !save
-      || save.deletedAt !== undefined
-      || (await resolveDisplayAsset(ctx, save))
-    ) {
+    if (!save || save.deletedAt !== undefined || (await resolveDisplayAsset(ctx, save))) {
       return null;
     }
     const source = await contributionSource(ctx, save);
     if (!source) return null;
     const existing = await ctx.db
       .query("mediaAssets")
-      .withIndex("by_save_kind", (q) =>
-        q.eq("saveId", saveId).eq("source.kind", "derivative"),
-      )
+      .withIndex("by_save_kind", (q) => q.eq("saveId", saveId).eq("source.kind", "derivative"))
       .unique();
     if (existing) {
       return existing.revokedAt !== undefined
@@ -155,10 +139,7 @@ export const attach = internalMutation({
       return false;
     }
     if (asset.storageId) return asset.storageId === storageId;
-    if (
-      storageId === source.sourceStorageId
-      || !(await ctx.db.system.get(storageId))
-    ) {
+    if (storageId === source.sourceStorageId || !(await ctx.db.system.get(storageId))) {
       return false;
     }
     const metadata = { ...asset.source, width, height };
@@ -206,14 +187,10 @@ export const findForWallItem = internalQuery({
       if (context.photoLocalId !== item.photoLocalId) {
         throw new ConvexError({ code: "not_found" });
       }
-      return (
-        (await ownedAlbumPhoto(ctx, save, context.photoLocalId)).storageId
-        ?? null
-      );
+      return (await ownedAlbumPhoto(ctx, save, context.photoLocalId)).storageId ?? null;
     }
     const asset = await resolveDisplayAsset(ctx, save);
-    return asset?.source.kind === "derivative"
-      && (await isCurrentAsset(ctx, save, asset))
+    return asset?.source.kind === "derivative" && (await isCurrentAsset(ctx, save, asset))
       ? (asset.storageId ?? null)
       : null;
   },
@@ -232,15 +209,10 @@ export const download = httpAction(async (ctx, request) => {
     const params = new URL(request.url).searchParams;
     const kind = params.get("kind");
     const keys: readonly string[] | null =
-      kind && Object.hasOwn(PARAMS, kind)
-        ? PARAMS[kind as keyof typeof PARAMS]
-        : null;
+      kind && Object.hasOwn(PARAMS, kind) ? PARAMS[kind as keyof typeof PARAMS] : null;
     if (
       !keys
-      || [...params.keys()].some(
-        (key) =>
-          key !== "kind" && key !== "photoLocalId" && !keys.includes(key),
-      )
+      || [...params.keys()].some((key) => key !== "kind" && key !== "photoLocalId" && !keys.includes(key))
       || keys.some((key) => !params.get(key))
     ) {
       throw new ConvexError({ code: "invalid_media" });
@@ -249,15 +221,10 @@ export const download = httpAction(async (ctx, request) => {
     const context = {
       kind,
       ...Object.fromEntries(keys.map((key) => [key, params.get(key)!])),
-      ...(params.get("photoLocalId")
-        ? { photoLocalId: params.get("photoLocalId") }
-        : {}),
+      ...(params.get("photoLocalId") ? { photoLocalId: params.get("photoLocalId") } : {}),
     } as never;
     if (kind !== "wallItem") return await serveSharedMedia(ctx, context);
-    const storageId = await ctx.runQuery(
-      internal.displayMedia.findForWallItem,
-      { context },
-    );
+    const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await ctx.storage.get(storageId) : null;
     if (
       !blob
@@ -272,12 +239,7 @@ export const download = httpAction(async (ctx, request) => {
     });
   } catch (error) {
     // Malformed IDs are caller validation failures; retain the same non-disclosing response.
-    if (
-      !(
-        error instanceof Error
-        && error.message.includes("ArgumentValidationError")
-      )
-    ) {
+    if (!(error instanceof Error && error.message.includes("ArgumentValidationError"))) {
       await reportBackendError(error, "displayMedia.download");
     }
     return new Response("Image unavailable", { status: 404, headers });

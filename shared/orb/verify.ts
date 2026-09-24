@@ -1,14 +1,8 @@
 import type { OrbFeatures } from "./features";
-import {
-  applyHomography,
-  type Point,
-  ransacHomography,
-  type RansacOptions,
-} from "./homography";
+import { applyHomography, type Point, ransacHomography, type RansacOptions } from "./homography";
 import { matchDescriptors, type MatchOptions } from "./match";
 
-export type VerifyOptions = MatchOptions
-  & RansacOptions & { minInliers?: number; inputSize: number };
+export type VerifyOptions = MatchOptions & RansacOptions & { minInliers?: number; inputSize: number };
 
 export type VerifyResult = {
   matchCount: number;
@@ -23,11 +17,7 @@ const MIN_DETERMINANT = 1e-6;
 const MIN_AREA_RATIO = 0.05;
 const MAX_AREA_RATIO = 20;
 
-export function verifyOrb(
-  query: OrbFeatures,
-  ref: OrbFeatures,
-  opts: VerifyOptions,
-): VerifyResult {
+export function verifyOrb(query: OrbFeatures, ref: OrbFeatures, opts: VerifyOptions): VerifyResult {
   const minInliers = opts.minInliers ?? MIN_INLIERS;
   if (query.count < 4 || ref.count < 4) {
     return {
@@ -65,11 +55,7 @@ export function verifyOrb(
   };
 }
 
-function isSaneQuad(
-  H: Float64Array,
-  corners: Point[],
-  inputSize: number,
-): boolean {
+function isSaneQuad(H: Float64Array, corners: Point[], inputSize: number): boolean {
   const determinant = H[0] * H[4] - H[1] * H[3];
   if (Math.abs(determinant) <= MIN_DETERMINANT) return false;
   if (!corners.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))) {

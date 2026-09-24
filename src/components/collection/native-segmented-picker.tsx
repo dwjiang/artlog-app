@@ -89,11 +89,7 @@ export function NativeSegmentedPicker<T extends string>({
                   }),
                   contentShape(shapes.rectangle()),
                   background(
-                    selected
-                      ? compact
-                        ? Gallery.surface
-                        : Gallery.segmentSelection
-                      : Gallery.segmentTrack,
+                    selected ? (compact ? Gallery.surface : Gallery.segmentSelection) : Gallery.segmentTrack,
                     shapes.roundedRectangle({
                       cornerRadius: Radius.input - Spacing.half,
                     }),
@@ -101,19 +97,11 @@ export function NativeSegmentedPicker<T extends string>({
                 ]}
               >
                 {option.icon && (
-                  <Icon
-                    name={option.icon}
-                    size={17}
-                    color={compact && selected ? Gallery.accent : Gallery.muted}
-                  />
+                  <Icon name={option.icon} size={17} color={compact && selected ? Gallery.accent : Gallery.muted} />
                 )}
                 <Text
                   textStyle={{
-                    color: compact
-                      ? selected
-                        ? Gallery.accent
-                        : Gallery.muted
-                      : Gallery.ink,
+                    color: compact ? (selected ? Gallery.accent : Gallery.muted) : Gallery.ink,
                   }}
                   modifiers={[
                     font({

@@ -1,16 +1,8 @@
 import { ConvexError, v } from "convex/values";
-import {
-  journalVisit,
-  pageArgs,
-  pagination,
-} from "../shared/journal/contracts";
+import { journalVisit, pageArgs, pagination } from "../shared/journal/contracts";
 import { mutation, query } from "./_generated/server";
 import { upsertJournalVisit } from "./lib/journal";
-import {
-  findOwnedVisit,
-  requireJournalOwner,
-  requireMembership,
-} from "./lib/ownership";
+import { findOwnedVisit, requireJournalOwner, requireMembership } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";
 import schema from "./schema";
 
@@ -41,12 +33,8 @@ export const history = query({
     const rows = args.venueId
       ? ctx.db
           .query("visits")
-          .withIndex("by_owner_venue_history", (q) =>
-            q.eq("owner", owner).eq("venueId", args.venueId!),
-          )
-      : ctx.db
-          .query("visits")
-          .withIndex("by_owner_history", (q) => q.eq("owner", owner));
+          .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", args.venueId!))
+      : ctx.db.query("visits").withIndex("by_owner_history", (q) => q.eq("owner", owner));
     const result = await rows.order("desc").paginate(pagination(args));
     return {
       page: result.page,

@@ -3,20 +3,11 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Gallery } from "@/constants/theme";
-import {
-  constrainLayout,
-  isLightWall,
-  wallBottom,
-  type WallLayout,
-  type WallPiece,
-} from "@/lib/wall/wall-layout";
+import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
 import { WallArtwork } from "./wall-artwork";
 
 export function WallGallery({
@@ -146,11 +137,7 @@ function Hanging({
     })
     .onEnd(() => {
       if (onMove) {
-        scheduleOnRN(
-          onMove,
-          piece.localId,
-          constrainLayout(layout, { width: layout.width * scale.get() }),
-        );
+        scheduleOnRN(onMove, piece.localId, constrainLayout(layout, { width: layout.width * scale.get() }));
       }
     })
     .onFinalize((_event, success) => {
@@ -199,16 +186,10 @@ function Hanging({
           </View>
           <View style={styles.label}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                style={[styles.artist, { color: labelColor }]}
-              >
+              <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
                 {piece.artwork.artist}
               </Text>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                style={[styles.title, { color: labelColor }]}
-              >
+              <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
                 {piece.artwork.title}
               </Text>
             </View>
@@ -232,11 +213,7 @@ function Hanging({
                 },
               ]}
             >
-              <Image
-                source="sf:minus.circle.fill"
-                style={{ width: 20, height: 20 }}
-                tintColor={Gallery.destructive}
-              />
+              <Image source="sf:minus.circle.fill" style={{ width: 20, height: 20 }} tintColor={Gallery.destructive} />
             </Pressable>
             <GestureDetector gesture={resize}>
               <Animated.View
@@ -250,19 +227,12 @@ function Hanging({
                   now: Math.round(layout.width * 100),
                   text: `${Math.round(layout.width * 100)} percent of wall width`,
                 }}
-                accessibilityActions={[
-                  { name: "increment" },
-                  { name: "decrement" },
-                ]}
+                accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
                 onAccessibilityAction={({ nativeEvent }) =>
                   onMove?.(
                     piece.localId,
                     constrainLayout(layout, {
-                      width:
-                        layout.width
-                        + (nativeEvent.actionName === "increment"
-                          ? 0.04
-                          : -0.04),
+                      width: layout.width + (nativeEvent.actionName === "increment" ? 0.04 : -0.04),
                     }),
                   )
                 }
@@ -290,11 +260,7 @@ function Hanging({
       </Animated.View>
     </Animated.View>
   );
-  return editing ? (
-    <GestureDetector gesture={pan}>{hanging}</GestureDetector>
-  ) : (
-    hanging
-  );
+  return editing ? <GestureDetector gesture={pan}>{hanging}</GestureDetector> : hanging;
 }
 
 const styles = StyleSheet.create({

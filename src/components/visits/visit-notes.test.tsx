@@ -1,18 +1,8 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import * as visits from "@/db/repos/visits";
-import {
-  anonymousOwner,
-  switchOwner,
-  useLocalOwner,
-} from "@/lib/account/owner-store";
+import { anonymousOwner, switchOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { onCollectionChange } from "@/lib/account/sync-events";
 import { VisitNotes } from "./visit-notes";
 
@@ -20,14 +10,11 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 jest.mock("expo-router", () => ({
-  useFocusEffect: (effect: () => void) =>
-    jest.requireActual("react").useEffect(effect, [effect]),
+  useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, [effect]),
 }));
 const mockDatabaseListeners = new Set<(event: { tableName: string }) => void>();
 jest.mock("expo-sqlite", () => ({
-  addDatabaseChangeListener: (
-    listener: (event: { tableName: string }) => void,
-  ) => {
+  addDatabaseChangeListener: (listener: (event: { tableName: string }) => void) => {
     mockDatabaseListeners.add(listener);
     return { remove: () => mockDatabaseListeners.delete(listener) };
   },
@@ -45,9 +32,7 @@ const draft = {
 function Notes() {
   const owner = useLocalOwner();
   const rows = useLiveQuery(visits.listVisits(owner), [owner]);
-  const visit = rows.data.find(
-    (row) => row.owner === owner && row.localId === localId,
-  );
+  const visit = rows.data.find((row) => row.owner === owner && row.localId === localId);
   return visit ? <VisitNotes visit={visit} /> : null;
 }
 
@@ -71,15 +56,11 @@ async function notifyVisitChange() {
 
 it("opens notes for editing explicitly and keeps saved notes readable after returning", async () => {
   const view = await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   expect(input).toHaveProp("value", "");
   expect(input).toHaveProp("autoFocus", true);
-  expect(
-    screen.getByRole("button", { name: "Done editing note" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Done editing note" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /Public|Private/ })).toBeNull();
   await fireEvent.changeText(input, "  Remember the light  ");
   await fireEvent(input, "blur");
@@ -95,9 +76,7 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
 
 it("autosaves after a typing pause without trimming the text under the cursor", async () => {
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   jest.useFakeTimers();
   await fireEvent(input, "focus");
@@ -109,10 +88,7 @@ it("autosaves after a typing pause without trimming the text under the cursor", 
   await act(() => jest.advanceTimersByTime(200));
   expect((await visits.getVisit(localId))?.reflection).toBe("The light stayed");
   await notifyVisitChange();
-  expect(screen.getByLabelText("Notes")).toHaveProp(
-    "value",
-    "The light stayed ",
-  );
+  expect(screen.getByLabelText("Notes")).toHaveProp("value", "The light stayed ");
 });
 
 it("pushes a pause-saved note to sync only when the field blurs", async () => {
@@ -120,9 +96,7 @@ it("pushes a pause-saved note to sync only when the field blurs", async () => {
   const unsubscribe = onCollectionChange(requests);
   try {
     await render(<Notes />);
-    await fireEvent.press(
-      await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-    );
+    await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
     const input = await screen.findByLabelText("Notes");
     jest.useFakeTimers();
     await fireEvent(input, "focus");
@@ -130,9 +104,7 @@ it("pushes a pause-saved note to sync only when the field blurs", async () => {
     await act(() => jest.advanceTimersByTime(500));
     await fireEvent.changeText(input, "The light stayed");
     await act(() => jest.advanceTimersByTime(500));
-    expect((await visits.getVisit(localId))?.reflection).toBe(
-      "The light stayed",
-    );
+    expect((await visits.getVisit(localId))?.reflection).toBe("The light stayed");
     expect(requests).not.toHaveBeenCalled();
     await fireEvent(input, "blur");
     await waitFor(() => expect(requests).toHaveBeenCalledTimes(1));
@@ -156,9 +128,7 @@ it("flushes the newest text when closing during an earlier save", async () => {
     await write(...args);
   });
   const view = await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   await fireEvent.changeText(input, "First draft");
   await fireEvent(input, "blur");
@@ -176,20 +146,13 @@ it("flushes the newest text when closing during an earlier save", async () => {
 
 it("saves when the app goes into the background", async () => {
   let changeState!: (state: AppStateStatus) => void;
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_event, callback) => {
-      changeState = callback;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, callback) => {
+    changeState = callback;
+    return { remove: jest.fn() };
+  });
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
-  await fireEvent.changeText(
-    await screen.findByLabelText("Notes"),
-    "Before backgrounding",
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
+  await fireEvent.changeText(await screen.findByLabelText("Notes"), "Before backgrounding");
   await act(() => changeState("background"));
   await waitFor(async () =>
     expect(await visits.getVisit(localId)).toMatchObject({
@@ -201,75 +164,44 @@ it("saves when the app goes into the background", async () => {
 it("removes a note when the field is cleared", async () => {
   await visits.upsertVisit({ ...draft, reflection: "Saved memory" });
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   await fireEvent.changeText(input, "  \n ");
   await fireEvent(input, "blur");
-  await waitFor(async () =>
-    expect((await visits.getVisit(localId))?.reflection).toBeNull(),
-  );
-  expect(screen.getByLabelText("Notes")).toHaveProp(
-    "placeholder",
-    "Add a note about this visit…",
-  );
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBeNull());
+  expect(screen.getByLabelText("Notes")).toHaveProp("placeholder", "Add a note about this visit…");
 });
 
 it("keeps a failed draft visible and retries without more typing", async () => {
-  jest
-    .spyOn(visits, "patchVisit")
-    .mockRejectedValueOnce(new Error("Storage unavailable"));
+  jest.spyOn(visits, "patchVisit").mockRejectedValueOnce(new Error("Storage unavailable"));
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   await fireEvent.changeText(input, "Keep this draft");
   await fireEvent(input, "blur");
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Your note could not be saved. Try again.",
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Your note could not be saved. Try again.");
   expect(input).toHaveProp("value", "Keep this draft");
   await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
-  await waitFor(async () =>
-    expect((await visits.getVisit(localId))?.reflection).toBe(
-      "Keep this draft",
-    ),
-  );
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Keep this draft"));
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("saves the previous owner’s draft only to their journal when switching accounts", async () => {
-  await visits.upsertVisit(
-    { ...draft, reflection: "Other owner note" },
-    "account:other",
-  );
+  await visits.upsertVisit({ ...draft, reflection: "Other owner note" }, "account:other");
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
-  await fireEvent.changeText(
-    await screen.findByLabelText("Notes"),
-    "Original owner draft",
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
+  await fireEvent.changeText(await screen.findByLabelText("Notes"), "Original owner draft");
   await act(() => switchOwner("account:other", "scope-other"));
   expect(await screen.findByText("Other owner note")).toBeOnTheScreen();
   await waitFor(async () =>
-    expect((await visits.getVisit(localId, anonymousOwner()))?.reflection).toBe(
-      "Original owner draft",
-    ),
+    expect((await visits.getVisit(localId, anonymousOwner()))?.reflection).toBe("Original owner draft"),
   );
-  expect((await visits.getVisit(localId, "account:other"))?.reflection).toBe(
-    "Other owner note",
-  );
+  expect((await visits.getVisit(localId, "account:other"))?.reflection).toBe("Other owner note");
 });
 
 it("accepts synced notes when idle and keeps an unsaved local draft during a refresh", async () => {
   await render(<Notes />);
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Add a note|Edit note/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
   await visits.patchVisit(localId, { reflection: "From another device" });
   await notifyVisitChange();
@@ -279,25 +211,18 @@ it("accepts synced notes when idle and keeps an unsaved local draft during a ref
   await notifyVisitChange();
   expect(input).toHaveProp("value", "Local draft");
   await fireEvent(input, "blur");
-  await waitFor(async () =>
-    expect((await visits.getVisit(localId))?.reflection).toBe("Local draft"),
-  );
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Local draft"));
 });
 
 it("keeps end-visit notes unsaved through pauses, blur, backgrounding and dismissal", async () => {
   let changeState!: (state: AppStateStatus) => void;
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_event, callback) => {
-      changeState = callback;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, callback) => {
+    changeState = callback;
+    return { remove: jest.fn() };
+  });
   const save = jest.spyOn(visits, "patchVisit");
   const view = await render(
-    <VisitNotes
-      visit={{ ...draft, owner: anonymousOwner(), reflection: null }}
-      autoSave={false}
-    />,
+    <VisitNotes visit={{ ...draft, owner: anonymousOwner(), reflection: null }} autoSave={false} />,
   );
   jest.useFakeTimers();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Unsaved review");

@@ -2,13 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type ActionCtx,
-  type MutationCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type ActionCtx, type MutationCtx } from "./_generated/server";
 import {
   DOCENT_MAX_TOKENS,
   DOCENT_PROMPT,
@@ -26,12 +20,7 @@ import { gatherSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
 import { limitDevice } from "./lib/rateLimits";
 import { chatJson } from "./lib/tokenFactory";
-import {
-  docentSentence,
-  factSheetEntry,
-  type DocentSentence,
-  type FactSheetEntry,
-} from "./lib/validators";
+import { docentSentence, factSheetEntry, type DocentSentence, type FactSheetEntry } from "./lib/validators";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
 
@@ -43,10 +32,7 @@ const MAX_MODEL_CALLS = 4;
 // Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
 const MODEL_TIMEOUT_MS = 20_000;
 
-export async function clearDocent(
-  ctx: MutationCtx,
-  artwork: Doc<"artworks">,
-): Promise<void> {
+export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {
   await ctx.db.patch(artwork._id, {
     docent: undefined,
     docentUpdatedAt: undefined,
@@ -70,15 +56,8 @@ export const load = internalQuery({
     if (!artwork || artwork.identityStatus !== "established") return null;
     let pageUrl: string | undefined;
     let owner: Doc<"museums"> | null = null;
-    for await (const object of ctx.db
-      .query("objects")
-      .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-      if (
-        object.reverted
-        || object.mergedInto
-        || !object.pageUrl
-        || !object.ownerId
-      ) {
+    for await (const object of ctx.db.query("objects").withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
+      if (object.reverted || object.mergedInto || !object.pageUrl || !object.ownerId) {
         continue;
       }
       const museum = await ctx.db.get(object.ownerId);
@@ -96,19 +75,11 @@ export const claim = internalMutation({
   returns: v.union(v.number(), v.null()),
   handler: async (ctx, { artworkId }) => {
     const artwork = await ctx.db.get(artworkId);
-    if (
-      !artwork
-      || artwork.identityStatus !== "established"
-      || artwork.docent?.en
-      || artwork.factSheetNeedsReview
-    ) {
+    if (!artwork || artwork.identityStatus !== "established" || artwork.docent?.en || artwork.factSheetNeedsReview) {
       return null;
     }
     const now = Date.now();
-    if (
-      artwork.enrichClaimedAt !== undefined
-      && artwork.enrichClaimedAt > now - CLAIM_MS
-    ) {
+    if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) {
       return null;
     }
     const generation = (artwork.enrichGeneration ?? 0) + 1;
@@ -189,8 +160,7 @@ async function generate(
   factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
 } | null> {
-  const cached =
-    artwork.factSheetUpdatedAt !== undefined ? artwork.factSheet : undefined;
+  const cached = artwork.factSheetUpdatedAt !== undefined ? artwork.factSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
     // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.
@@ -271,9 +241,7 @@ export const ensure = internalAction({
   handler: async (ctx, { artworkId, deviceId }) => {
     const models = configuredModels();
     if (!models) {
-      console.warn(
-        "FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation",
-      );
+      console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
       return null;
     }
     const generation = await ctx.runMutation(internal.docent.claim, {
@@ -283,11 +251,7 @@ export const ensure = internalAction({
     let written = false;
     try {
       const context = await ctx.runQuery(internal.docent.load, { artworkId });
-      if (
-        !context
-        || context.artwork.enrichGeneration !== generation
-        || context.artwork.factSheetNeedsReview
-      ) {
+      if (!context || context.artwork.enrichGeneration !== generation || context.artwork.factSheetNeedsReview) {
         return null;
       }
       await limitDevice(ctx, "docent", deviceId);
@@ -299,11 +263,7 @@ export const ensure = internalAction({
         ...result,
       });
     } catch (error) {
-      if (
-        error instanceof ConvexError
-        && (error.data.code === "spend_cap"
-          || error.data.code === "rate_limited")
-      ) {
+      if (error instanceof ConvexError && (error.data.code === "spend_cap" || error.data.code === "rate_limited")) {
         console.warn("Docent generation skipped", error.data);
         return null;
       }

@@ -6,10 +6,7 @@ export type Keypoint = { x: number; y: number; size: number; angle: number };
 export function packKeypoints(keypoints: readonly Keypoint[]): Float32Array {
   const packed = new Float32Array(keypoints.length * KEYPOINT_FLOATS);
   keypoints.forEach((keypoint, index) => {
-    packed.set(
-      [keypoint.x, keypoint.y, keypoint.size, keypoint.angle],
-      index * KEYPOINT_FLOATS,
-    );
+    packed.set([keypoint.x, keypoint.y, keypoint.size, keypoint.angle], index * KEYPOINT_FLOATS);
   });
   return packed;
 }

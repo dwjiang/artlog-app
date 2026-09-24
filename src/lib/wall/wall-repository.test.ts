@@ -46,13 +46,9 @@ function fixture() {
     changed = () => {};
   const transport = {
     getMine: jest.fn().mockResolvedValue(wall),
-    setLayout: jest
-      .fn()
-      .mockResolvedValue({ ...wall, revision: 2, color: draft.color }),
+    setLayout: jest.fn().mockResolvedValue({ ...wall, revision: 2, color: draft.color }),
     setNoteVisibility: jest.fn().mockResolvedValue(wall),
-    listMine: jest
-      .fn()
-      .mockResolvedValue({ page: [], cursor: null, isDone: true }),
+    listMine: jest.fn().mockResolvedValue({ page: [], cursor: null, isDone: true }),
   } satisfies WallTransport;
   const online = jest.fn().mockResolvedValue(true);
   const repository = createWallRepository({
@@ -174,9 +170,7 @@ it("refreshes conflicts and requires a new note confirmation using current revis
   const { repository, transport } = fixture();
   await repository.refresh();
   repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  transport.setNoteVisibility.mockRejectedValueOnce(
-    new ConvexError({ code: "conflict" }),
-  );
+  transport.setNoteVisibility.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   transport.getMine.mockResolvedValueOnce({
     ...wall,
     items: [{ ...wall.items[0], noteRevision: 2 }],
@@ -193,9 +187,7 @@ it("refreshes conflicts and requires a new note confirmation using current revis
   expect(transport.setNoteVisibility).toHaveBeenCalledTimes(1);
   repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
   await repository.publishNotes();
-  expect(
-    transport.setNoteVisibility.mock.calls[1][0].changes[0].noteRevision,
-  ).toBe(2);
+  expect(transport.setNoteVisibility.mock.calls[1][0].changes[0].noteRevision).toBe(2);
   repository.dispose();
 });
 
@@ -204,9 +196,7 @@ it("keeps layout drafts after conflict but clears pending note confirmation", as
   await repository.refresh();
   repository.setLayoutDraft(draft);
   repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  transport.setLayout.mockRejectedValueOnce(
-    new ConvexError({ code: "conflict" }),
-  );
+  transport.setLayout.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   await expect(repository.publishLayout()).rejects.toThrow();
   expect(repository.getSnapshot()).toMatchObject({
     layoutDraft: draft,
@@ -221,9 +211,7 @@ it("keeps the layout draft’s base revision through a notes conflict", async ()
   await repository.refresh();
   repository.setLayoutDraft(draft);
   repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  transport.setNoteVisibility.mockRejectedValueOnce(
-    new ConvexError({ code: "conflict" }),
-  );
+  transport.setNoteVisibility.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   transport.getMine.mockResolvedValueOnce({
     ...wall,
     revision: 7,

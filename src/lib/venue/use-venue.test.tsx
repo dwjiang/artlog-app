@@ -6,11 +6,7 @@ import { calendarDate } from "../../../shared/journal/limits";
 import type { NewVisit, Visit } from "@/db/schema";
 import type { VenueCandidate } from "./resolve";
 import { museumDay } from "@/lib/journal/visit-date";
-import {
-  createVenueController,
-  VenueResolver,
-  type VenueController,
-} from "./use-venue";
+import { createVenueController, VenueResolver, type VenueController } from "./use-venue";
 import { NOT_HERE_MS } from "./venue-reducer";
 
 const mockRequestPermission = jest.fn();
@@ -81,33 +77,19 @@ jest.mock("@/db/repos/visits", () => ({
       syncedBy: null,
       revision: 0,
       ...existing,
-      ...Object.fromEntries(
-        Object.entries(visit).filter(([, v]) => v !== undefined),
-      ),
+      ...Object.fromEntries(Object.entries(visit).filter(([, v]) => v !== undefined)),
     } as Visit;
     mockVisits.set(visit.localId, merged);
   },
   getVisit: async (localId: string) => mockVisits.get(localId),
-  findVisitOnDay: async (
-    venueId: string,
-    visitedOn: string,
-    _owner: string,
-    { open = false } = {},
-  ) =>
+  findVisitOnDay: async (venueId: string, visitedOn: string, _owner: string, { open = false } = {}) =>
     [...mockVisits.values()]
       .filter(
-        (visit) =>
-          visit.venueId === venueId
-          && visit.visitedOn === visitedOn
-          && (!open || visit.endedAt === null),
+        (visit) => visit.venueId === venueId && visit.visitedOn === visitedOn && (!open || visit.endedAt === null),
       )
-      .sort(
-        (a, b) => (b.startedAt ?? -Infinity) - (a.startedAt ?? -Infinity),
-      )[0],
+      .sort((a, b) => (b.startedAt ?? -Infinity) - (a.startedAt ?? -Infinity))[0],
   listOpenVisits: async () =>
-    [...mockVisits.values()].filter(
-      (visit) => visit.startedAt !== null && visit.endedAt === null,
-    ),
+    [...mockVisits.values()].filter((visit) => visit.startedAt !== null && visit.endedAt === null),
   latestVisitActivity: async () => mockActivity,
   patchVisit: async (localId: string, fields: Partial<Visit>) => {
     if (localId === mockPatchRejects) throw new Error("invalid_visit");
@@ -192,12 +174,10 @@ beforeEach(() => {
   jest.resetAllMocks();
   jest.spyOn(console, "warn").mockImplementation(() => {});
   jest.spyOn(Date, "now").mockImplementation(() => mockNow);
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_event, listener) => {
-      appStateListener = listener;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
+    appStateListener = listener;
+    return { remove: jest.fn() };
+  });
   mockNow = 1_000_000;
   mockActivity = undefined;
   mockPatchRejects = undefined;
@@ -262,11 +242,7 @@ describe("resolving the museum", () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
     expect(mockGetPosition).toHaveBeenCalledWith({ accuracy: 3 });
-    expect(mockNearest).toHaveBeenCalledWith(
-      "venue-db",
-      { lat: met.lat, lng: met.lng, at: mockNow },
-      400,
-    );
+    expect(mockNearest).toHaveBeenCalledWith("venue-db", { lat: met.lat, lng: met.lng, at: mockNow }, 400);
     expect(controller.getState().status).toBe("resolved");
     expect(controller.getContext()).toEqual({ venueId: "id-met" });
     expect(mockVisits.size).toBe(0);
@@ -370,9 +346,7 @@ describe("resolving the museum", () => {
     ]);
     expect(controller.getContext()).toEqual({ venueId: "id-corner" });
     expect(mockVisits.size).toBe(0);
-    await expect(
-      controller.visitForSave("id-corner" as Id<"museums">, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave("id-corner" as Id<"museums">, mockNow)).resolves.toMatchObject({
       venueId: "id-corner",
       venueName: "Corner Gallery",
     });
@@ -412,9 +386,7 @@ describe("resolving the museum", () => {
     await controller.resolve();
     await controller.visitForSave(metId, mockNow);
     mockNow += 10 * 60 * 1000;
-    mockGetPosition.mockRejectedValue(
-      new Error("Location services are disabled"),
-    );
+    mockGetPosition.mockRejectedValue(new Error("Location services are disabled"));
     await controller.resolve();
     await controller.syncRemoteVisit();
     expect(controller.getContext()).toEqual({
@@ -434,15 +406,11 @@ describe("the visit a save links to", () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
     const first = await controller.visitForSave(metId, mockNow);
-    expect(
-      await controller.visitForSave(metId, mockNow + 60_000),
-    ).toMatchObject({
+    expect(await controller.visitForSave(metId, mockNow + 60_000)).toMatchObject({
       localId: first.localId,
       startedAt: mockNow,
     });
-    expect(
-      await controller.visitForSave(metId, mockNow - 60_000),
-    ).toMatchObject({
+    expect(await controller.visitForSave(metId, mockNow - 60_000)).toMatchObject({
       localId: first.localId,
       startedAt: mockNow - 60_000,
     });
@@ -476,15 +444,11 @@ describe("the visit a save links to", () => {
     await controller.resolve();
     const today = await controller.visitForSave(metId, mockNow);
     const yesterday = await controller.visitForSave(metId, mockNow - DAY);
-    await expect(
-      controller.visitForSave(metId, mockNow - DAY + 60_000),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow - DAY + 60_000)).resolves.toMatchObject({
       localId: yesterday.localId,
       startedAt: mockNow - DAY,
     });
-    await expect(
-      controller.visitForSave(metId, mockNow - DAY - 60_000),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow - DAY - 60_000)).resolves.toMatchObject({
       localId: yesterday.localId,
       startedAt: mockNow - DAY - 60_000,
     });
@@ -493,9 +457,7 @@ describe("the visit a save links to", () => {
       startedAt: mockNow - DAY - 60_000,
       endedAt: mockNow - DAY + 60_000,
     });
-    await expect(
-      controller.visitForSave(metId, mockNow - DAY + 120_000),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow - DAY + 120_000)).resolves.toMatchObject({
       localId: yesterday.localId,
     });
     expect(mockVisits.get(yesterday.localId)).toMatchObject({
@@ -526,9 +488,7 @@ describe("the visit a save links to", () => {
     mockVisits.set(manual.localId, manual);
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "manual",
       startedAt: mockNow,
     });
@@ -565,9 +525,7 @@ describe("the visit a save links to", () => {
     expect(mockVisits.get(met.localId)).toMatchObject({ endedAt: null });
     mockNow += 10 * 60 * 1000;
     await expect(controller.resolve()).resolves.toEqual({ venueId: "id-met" });
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: met.localId,
       startedAt: morning,
     });
@@ -619,15 +577,10 @@ describe("the visit a save links to", () => {
   });
 
   it("keeps a visit open when a later fix resolves another museum; the first save there closes it and starts the new one", async () => {
-    mockMutation.mockImplementation(
-      async (ref: string, args: { localId?: string }) =>
-        ref === "syncVisit"
-          ? { visitId: args.localId === "uuid-2" ? "remote-2" : "remote-1" }
-          : {},
+    mockMutation.mockImplementation(async (ref: string, args: { localId?: string }) =>
+      ref === "syncVisit" ? { visitId: args.localId === "uuid-2" ? "remote-2" : "remote-1" } : {},
     );
-    mockNearest
-      .mockResolvedValueOnce([metRow])
-      .mockResolvedValueOnce([{ ...neueRow, distanceM: 30 }]);
+    mockNearest.mockResolvedValueOnce([metRow]).mockResolvedValueOnce([{ ...neueRow, distanceM: 30 }]);
     await controller.resolve();
     await controller.visitForSave(metId, mockNow);
     mockNow += 10 * 60 * 1000;
@@ -657,14 +610,10 @@ describe("the visit a save links to", () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
     mockCoordinates.mockRejectedValueOnce(new Error("table busy"));
-    await expect(controller.visitForSave(metId, mockNow)).rejects.toThrow(
-      "table busy",
-    );
+    await expect(controller.visitForSave(metId, mockNow)).rejects.toThrow("table busy");
     expect(mockVisits.size).toBe(0);
     expect(controller.getState().visit).toBeUndefined();
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "uuid-1",
     });
   });
@@ -755,9 +704,7 @@ describe("scans", () => {
     await act(async () => {
       await controller.resolveForScan(mockNow);
     });
-    expect(controller.getState().options).toEqual([
-      expect.objectContaining({ kind: "poi" }),
-    ]);
+    expect(controller.getState().options).toEqual([expect.objectContaining({ kind: "poi" })]);
     expect(mockPush).not.toHaveBeenCalled();
     await act(async () => {
       appStateListener?.("background");
@@ -769,10 +716,7 @@ describe("scans", () => {
 
 describe("pausing, ending and the day", () => {
   it("pauses the visit when a later fix finds nothing nearby and resumes it on return", async () => {
-    mockNearest
-      .mockResolvedValueOnce([metRow])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([metRow]);
+    mockNearest.mockResolvedValueOnce([metRow]).mockResolvedValueOnce([]).mockResolvedValueOnce([metRow]);
     await controller.resolve();
     await controller.visitForSave(metId, mockNow);
     mockNow += 10 * 60 * 1000;
@@ -805,9 +749,7 @@ describe("pausing, ending and the day", () => {
     await relaunched.hydrate();
     await expect(relaunched.resolve()).resolves.toEqual({ venueId: "id-met" });
     expect(relaunched.visitByDefault(metId)).toBe(false);
-    await expect(
-      relaunched.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(relaunched.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "uuid-2",
       venueId: "id-met",
     });
@@ -909,9 +851,7 @@ describe("pausing, ending and the day", () => {
       venueId: "id-met",
       visitId: "remote-1",
     });
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "existing",
     });
     expect(mockVisits.size).toBe(1);
@@ -987,11 +927,7 @@ describe("pausing, ending and the day", () => {
     mockPatchRejects = "ahead";
     mockNearest.mockResolvedValue([metRow]);
     await mountResolver();
-    expect(console.warn).toHaveBeenCalledWith(
-      "Could not close the visit",
-      "ahead",
-      expect.any(Error),
-    );
+    expect(console.warn).toHaveBeenCalledWith("Could not close the visit", "ahead", expect.any(Error));
     expect(mockVisits.get("ahead")).toMatchObject({ endedAt: null });
     expect(mockVisits.get("stale")).toMatchObject({ endedAt: startedAt });
     expect(controller.getState()).toMatchObject({
@@ -999,9 +935,7 @@ describe("pausing, ending and the day", () => {
       venue: { venueId: "id-met" },
       error: undefined,
     });
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       venueId: "id-met",
     });
   });
@@ -1038,9 +972,7 @@ describe("pausing, ending and the day", () => {
     await expect(controller.resolve()).resolves.toEqual({ venueId: "id-met" });
     expect(mockVisits.get("uuid-1")).toMatchObject({ endedAt: mockActivity });
     expect(controller.getState().visit).toBeUndefined();
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "uuid-2",
     });
     expect(mockSettings.get(CURRENT)).toBe("uuid-2");
@@ -1093,13 +1025,9 @@ describe("the sheet", () => {
   it("keeps resolving local venues and confirming seeded choices while the server is offline", async () => {
     const remote = deferred<{ visitId: string }>();
     mockMutation.mockReturnValueOnce(remote.promise);
-    mockNearest
-      .mockResolvedValueOnce([metRow])
-      .mockResolvedValueOnce([{ ...neueRow, distanceM: 30 }]);
+    mockNearest.mockResolvedValueOnce([metRow]).mockResolvedValueOnce([{ ...neueRow, distanceM: 30 }]);
     await expect(controller.resolve()).resolves.toEqual({ venueId: "id-met" });
-    await expect(
-      controller.visitForSave(metId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({
       localId: "uuid-1",
     });
     mockNow += 5 * 60 * 1000;
@@ -1109,9 +1037,7 @@ describe("the sheet", () => {
     expect(mockVisits.get("uuid-1")?.endedAt).toBeNull();
     expect(controller.getState().visit?.localId).toBe("uuid-1");
     expect(controller.getContext()).toEqual({ venueId: "id-neue" });
-    await expect(
-      controller.visitForSave(neueId, mockNow),
-    ).resolves.toMatchObject({
+    await expect(controller.visitForSave(neueId, mockNow)).resolves.toMatchObject({
       localId: "uuid-2",
       venueId: "id-neue",
     });
@@ -1182,10 +1108,7 @@ describe("the sheet", () => {
     }>();
     mockMutation.mockReturnValueOnce(remote.promise);
     const abort = new AbortController();
-    const confirming = controller.confirm(
-      controller.getState().options[0],
-      abort.signal,
-    );
+    const confirming = controller.confirm(controller.getState().options[0], abort.signal);
     await Promise.resolve();
     abort.abort();
     remote.resolve({
@@ -1255,9 +1178,7 @@ describe("the sheet", () => {
       await resolving;
       await controller.syncRemoteVisit();
       expect(controller.getContext().venueId).toBe("id-neue");
-      expect(
-        [...mockVisits.values()].filter((visit) => visit.endedAt === null),
-      ).toEqual([
+      expect([...mockVisits.values()].filter((visit) => visit.endedAt === null)).toEqual([
         expect.objectContaining({ localId: "uuid-1", venueId: "id-neue" }),
       ]);
       expect(mockSettings.get(CURRENT)).toBe("uuid-1");
@@ -1390,10 +1311,7 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
   });
   expect(controller.getState().visit).toBeUndefined();
   expect(await controller.resolve()).toEqual({ venueId: "id-Met" });
-  const visit = await controller.visitForSave(
-    "id-Met" as Id<"museums">,
-    mockNow,
-  );
+  const visit = await controller.visitForSave("id-Met" as Id<"museums">, mockNow);
   expect(await controller.resolve()).toMatchObject({
     venueId: "id-Met",
     visitLocalId: visit.localId,
@@ -1436,9 +1354,7 @@ it("starts a museum visit privately until the owner chooses to share", async () 
   });
   expect(mockVisits.size).toBe(0);
   await controller.visitForSave(metRow.id, mockNow);
-  expect([...mockVisits.values()]).toEqual([
-    expect.objectContaining({ visibility: "private" }),
-  ]);
+  expect([...mockVisits.values()]).toEqual([expect.objectContaining({ visibility: "private" })]);
 });
 
 it("keeps a manually selected museum when its first save closes the previous visit", async () => {

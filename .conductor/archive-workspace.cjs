@@ -19,9 +19,7 @@ function processes() {
   return output("ps", ["-axww", "-o", "pid=,ppid=,lstart=,stat=,args="])
     .split("\n")
     .flatMap((line) => {
-      const match = line.match(
-        /^\s*(\d+)\s+(\d+)\s+((?:\S+\s+){4}\S+)\s+(\S+)\s+(.*)$/,
-      );
+      const match = line.match(/^\s*(\d+)\s+(\d+)\s+((?:\S+\s+){4}\S+)\s+(\S+)\s+(.*)$/);
       if (!match || match[4].startsWith("Z")) return [];
       return [
         {
@@ -36,14 +34,10 @@ function processes() {
 
 function isDevServer(command) {
   return (
-    /(?:^|[ /])(?:expo(?:\/bin\/cli)?|@expo\/cli\/build\/bin\/cli)(?:\.js)? (?:start|run:ios)(?: |$)/.test(
-      command,
-    )
+    /(?:^|[ /])(?:expo(?:\/bin\/cli)?|@expo\/cli\/build\/bin\/cli)(?:\.js)? (?:start|run:ios)(?: |$)/.test(command)
     || /(?:^|[ /])convex(?:\/bin\/main\.js)? dev(?: |$)/.test(command)
     || /(?:^|[ /])metro(?:\/src\/cli\.js)? (?:start|serve)(?: |$)/.test(command)
-    || /^npm (?:run ios|(?:run )?start|(?:exec|x) (?:expo|convex dev))(?: |$)/.test(
-      command,
-    )
+    || /^npm (?:run ios|(?:run )?start|(?:exec|x) (?:expo|convex dev))(?: |$)/.test(command)
   );
 }
 
@@ -55,21 +49,12 @@ async function stopServers() {
     ancestors.add(parent);
     parent = snapshot.find((entry) => entry.pid === parent)?.parent;
   }
-  const candidates = snapshot.filter(
-    (entry) => !ancestors.has(entry.pid) && isDevServer(entry.command),
-  );
+  const candidates = snapshot.filter((entry) => !ancestors.has(entry.pid) && isDevServer(entry.command));
   if (!candidates.length) return;
 
   const cwdResult = spawnSync(
     "lsof",
-    [
-      "-a",
-      "-p",
-      candidates.map((entry) => entry.pid).join(","),
-      "-d",
-      "cwd",
-      "-Fpn",
-    ],
+    ["-a", "-p", candidates.map((entry) => entry.pid).join(","), "-d", "cwd", "-Fpn"],
     {
       encoding: "utf8",
       timeout: 15_000,
@@ -103,15 +88,10 @@ async function stopServers() {
   function stillRunning(entries) {
     const live = processes();
     return entries.filter((entry) =>
-      live.some(
-        (current) =>
-          current.pid === entry.pid && current.started === entry.started,
-      ),
+      live.some((current) => current.pid === entry.pid && current.started === entry.started),
     );
   }
-  let remaining = stillRunning(
-    snapshot.filter((entry) => owned.has(entry.pid)),
-  );
+  let remaining = stillRunning(snapshot.filter((entry) => owned.has(entry.pid)));
   if (!remaining.length) return;
   const stopped = remaining.length;
 
@@ -140,10 +120,7 @@ function stopSimulators() {
       .replace(/[-_\s]+/g, " ")
       .trim()
       .replace(/^\d+(?:\.\d+)+ /, "");
-  const labels = [
-    basename(workspace),
-    process.env.CONDUCTOR_WORKSPACE_NAME,
-  ].filter(Boolean);
+  const labels = [basename(workspace), process.env.CONDUCTOR_WORKSPACE_NAME].filter(Boolean);
   const current = new Set(labels.map(normalize));
   const worktrees = output("git", ["worktree", "list", "--porcelain", "-z"]);
   const names = [
@@ -155,9 +132,7 @@ function stopSimulators() {
         .map((field) => normalize(basename(field.slice("worktree ".length)))),
     ]),
   ].sort((a, b) => b.length - a.length);
-  const { devices } = JSON.parse(
-    output("xcrun", ["simctl", "list", "devices", "--json"]),
-  );
+  const { devices } = JSON.parse(output("xcrun", ["simctl", "list", "devices", "--json"]));
   const owned = Object.entries(devices).flatMap(([runtime, entries]) => {
     if (!runtime.startsWith("com.apple.CoreSimulator.SimRuntime.iOS-")) {
       return [];
@@ -165,12 +140,8 @@ function stopSimulators() {
     return entries.filter((device) => {
       if (!/^artlog[ _-]/i.test(device.name)) return false;
       const name = normalize(device.name.replace(/^artlog[ _-]+/i, ""));
-      const owner = names.find(
-        (candidate) => name === candidate || name.startsWith(`${candidate} `),
-      );
-      return (
-        current.has(owner) && !/^ v\d+(?: |$)/.test(name.slice(owner.length))
-      );
+      const owner = names.find((candidate) => name === candidate || name.startsWith(`${candidate} `));
+      return current.has(owner) && !/^ v\d+(?: |$)/.test(name.slice(owner.length));
     });
   });
   for (const device of owned) {
@@ -179,9 +150,7 @@ function stopSimulators() {
       output("xcrun", ["simctl", "shutdown", device.udid]);
       console.log(`Stopped ${device.name} (${device.udid}).`);
     } catch (error) {
-      console.error(
-        `Could not stop ${device.name} (${device.udid}): ${error.message}`,
-      );
+      console.error(`Could not stop ${device.name} (${device.udid}): ${error.message}`);
       process.exitCode = 1;
     }
   }

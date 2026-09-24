@@ -24,25 +24,13 @@ export function EmptyState({
 }) {
   const { fontScale } = useWindowDimensions();
   return (
-    <View
-      style={[
-        styles.root,
-        inset && !compact && styles.inset,
-        compact && styles.compact,
-      ]}
-    >
+    <View style={[styles.root, inset && !compact && styles.inset, compact && styles.compact]}>
       {visual}
       <View style={styles.copy}>
         <Text
           variant="display"
           accessibilityRole="header"
-          style={
-            compact || !visual
-              ? styles.smallTitle
-              : fontScale > 1.3
-                ? styles.largeTextTitle
-                : styles.title
-          }
+          style={compact || !visual ? styles.smallTitle : fontScale > 1.3 ? styles.largeTextTitle : styles.title}
         >
           {title}
         </Text>
@@ -54,21 +42,9 @@ export function EmptyState({
   );
 }
 
-export function EmptySymbol({
-  name,
-  size = 76,
-}: {
-  name: string;
-  size?: number;
-}) {
+export function EmptySymbol({ name, size = 76 }: { name: string; size?: number }) {
   return (
-    <View
-      accessibilityElementsHidden
-      style={[
-        styles.symbol,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
+    <View accessibilityElementsHidden style={[styles.symbol, { width: size, height: size, borderRadius: size / 2 }]}>
       <Image
         source={`sf:${name}`}
         tintColor={Gallery.muted}
@@ -89,17 +65,8 @@ export function SearchEmptyState({
   onClear: () => void;
 }) {
   return (
-    <EmptyState
-      title={title}
-      detail={detail}
-      visual={<EmptySymbol name="magnifyingglass" size={132} />}
-    >
-      <GalleryButton
-        label="Clear search"
-        variant="filled"
-        fullWidth
-        onPress={onClear}
-      />
+    <EmptyState title={title} detail={detail} visual={<EmptySymbol name="magnifyingglass" size={132} />}>
+      <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />
     </EmptyState>
   );
 }

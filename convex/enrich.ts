@@ -1,11 +1,7 @@
 import { type Infer, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  internalMutation,
-  internalQuery,
-  type QueryCtx,
-} from "./_generated/server";
+import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
 import { currentPlacement } from "./lib/placements";
 import schema from "./schema";
 
@@ -23,28 +19,18 @@ function claimable(artwork: Doc<"artworks">, now: number): boolean {
     && artwork.retiredAt === undefined
     && artwork.factSheetUpdatedAt === undefined
     && !artwork.factSheetNeedsReview
-    && (artwork.enrichClaimedAt === undefined
-      || artwork.enrichClaimedAt < now - STALE_CLAIM_MS)
+    && (artwork.enrichClaimedAt === undefined || artwork.enrichClaimedAt < now - STALE_CLAIM_MS)
   );
 }
 
-async function onView(
-  ctx: QueryCtx,
-  artworkId: Id<"artworks">,
-  now: number,
-): Promise<boolean> {
-  for await (const object of ctx.db
-    .query("objects")
-    .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
+async function onView(ctx: QueryCtx, artworkId: Id<"artworks">, now: number): Promise<boolean> {
+  for await (const object of ctx.db.query("objects").withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
     if (object.reverted || object.mergedInto) continue;
     let current: Doc<"placements"> | null = null;
     for await (const placement of ctx.db
       .query("placements")
       .withIndex("by_objectId", (q) => q.eq("objectId", object._id))) {
-      current = currentPlacement(
-        current ? [current, placement] : [placement],
-        now,
-      );
+      current = currentPlacement(current ? [current, placement] : [placement], now);
     }
     if (current?.onView) return true;
   }
@@ -92,9 +78,7 @@ async function pendingPage(
   }
   const page = await ctx.db
     .query("artworks")
-    .withIndex("by_factSheetUpdatedAt", (q) =>
-      q.eq("factSheetUpdatedAt", undefined),
-    )
+    .withIndex("by_factSheetUpdatedAt", (q) => q.eq("factSheetUpdatedAt", undefined))
     .paginate({
       cursor: after.cursor,
       numItems: limit,
@@ -107,9 +91,7 @@ async function pendingPage(
   }
   return {
     artworks,
-    after: page.isDone
-      ? null
-      : { phase: "artworks", cursor: page.continueCursor },
+    after: page.isDone ? null : { phase: "artworks", cursor: page.continueCursor },
   };
 }
 
@@ -148,19 +130,13 @@ export const lookup = internalQuery({
       .withIndex("by_key", (q) => q.eq("key", key))
       .unique();
     if (artwork) {
-      return artwork.identityStatus === "established"
-        && artwork.retiredAt === undefined
-        ? artwork
-        : null;
+      return artwork.identityStatus === "established" && artwork.retiredAt === undefined ? artwork : null;
     }
     const object = await ctx.db
       .query("objects")
       .withIndex("by_key", (q) => q.eq("key", key))
       .unique();
-    return object
-      && object.identityStatus === "established"
-      && !object.reverted
-      && !object.mergedInto
+    return object && object.identityStatus === "established" && !object.reverted && !object.mergedInto
       ? ctx.db.get(object.artworkId)
       : null;
   },

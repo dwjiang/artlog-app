@@ -2,13 +2,7 @@ import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { ConvexError } from "convex/values";
 
 import { runCapture } from "./pipeline";
-import type {
-  CaptureDependencies,
-  CaptureInput,
-  CapturePayload,
-  IdentifyResponse,
-  PreparedPainting,
-} from "./stages";
+import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from "./stages";
 
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "capture-uuid") }));
 
@@ -41,9 +35,7 @@ const response = {
 function dependencies() {
   return {
     warper: {
-      warpAndLetterbox: jest.fn(
-        async (): Promise<PreparedPainting | null> => painting,
-      ),
+      warpAndLetterbox: jest.fn(async (): Promise<PreparedPainting | null> => painting),
     },
     triage: { check: jest.fn(async () => ({ ok: true as const })) },
     embedder: {
@@ -60,15 +52,8 @@ function dependencies() {
     identify: jest.fn(async (_payload: CapturePayload) => response),
     isOnline: jest.fn(() => true),
     store: {
-      enqueue: jest.fn(
-        async (
-          _payload: CapturePayload,
-          _status: "queued" | "identifying",
-        ) => {},
-      ),
-      recordResult: jest.fn(
-        async (_localId: string, _response: IdentifyResponse) => {},
-      ),
+      enqueue: jest.fn(async (_payload: CapturePayload, _status: "queued" | "identifying") => {}),
+      recordResult: jest.fn(async (_localId: string, _response: IdentifyResponse) => {}),
       requeue: jest.fn(async (_localId: string, _error: string) => {}),
     },
   } satisfies CaptureDependencies;
@@ -85,11 +70,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   const deps = dependencies();
   const result = await runCapture(input, deps, options);
   expect(result).toMatchObject({ kind: "sent", scanId: "scan-id", response });
-  expect(deps.warper.warpAndLetterbox).toHaveBeenCalledWith(
-    input.photoUri,
-    null,
-    512,
-  );
+  expect(deps.warper.warpAndLetterbox).toHaveBeenCalledWith(input.photoUri, null, 512);
   expect(deps.triage.check).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.embedder.embed).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.orb.extract).toHaveBeenCalledWith("file:///crop.jpg");
@@ -103,11 +84,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   });
   expect(deps.store.enqueue).toHaveBeenCalledWith(payload, "identifying");
   expect(deps.identify).toHaveBeenCalledWith(payload);
-  expect(deps.store.recordResult).toHaveBeenCalledWith(
-    "capture-uuid",
-    response,
-    "device:test-installation",
-  );
+  expect(deps.store.recordResult).toHaveBeenCalledWith("capture-uuid", response, "device:test-installation");
   const calls = [
     deps.warper.warpAndLetterbox,
     deps.triage.check,
@@ -130,27 +107,24 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   });
 });
 
-it.each(["blur", "glare"] as const)(
-  "returns a retake for %s before extracting features",
-  async (reason) => {
-    const deps: CaptureDependencies = dependencies();
-    deps.triage.check = jest.fn(async () => ({
-      ok: false,
-      reason,
-      message: "Try again",
-    }));
-    const result = await runCapture(input, deps, options);
-    expect(result).toMatchObject({
-      kind: "retake",
-      reason,
-      message: "Try again",
-      timings: { triage: expect.any(Number) },
-    });
-    expect(deps.embedder.embed).not.toHaveBeenCalled();
-    expect(deps.identify).not.toHaveBeenCalled();
-    expect(deps.store.enqueue).not.toHaveBeenCalled();
-  },
-);
+it.each(["blur", "glare"] as const)("returns a retake for %s before extracting features", async (reason) => {
+  const deps: CaptureDependencies = dependencies();
+  deps.triage.check = jest.fn(async () => ({
+    ok: false,
+    reason,
+    message: "Try again",
+  }));
+  const result = await runCapture(input, deps, options);
+  expect(result).toMatchObject({
+    kind: "retake",
+    reason,
+    message: "Try again",
+    timings: { triage: expect.any(Number) },
+  });
+  expect(deps.embedder.embed).not.toHaveBeenCalled();
+  expect(deps.identify).not.toHaveBeenCalled();
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+});
 
 it("queues the crop and binary features when offline", async () => {
   const deps = dependencies();
@@ -200,9 +174,7 @@ it.each([true, false])(
 it("syncs a new visit first so the first scan at a museum identifies immediately", async () => {
   const deps = {
     ...dependencies(),
-    resolveVisitId: jest.fn(
-      async () => "remote-visit" as NonNullable<CapturePayload["visitId"]>,
-    ),
+    resolveVisitId: jest.fn(async () => "remote-visit" as NonNullable<CapturePayload["visitId"]>),
   };
   const result = await runCapture(atVisit, deps, options);
   expect(deps.resolveVisitId).toHaveBeenCalledWith("local-visit", "museum-1");
@@ -214,9 +186,7 @@ it("syncs a new visit first so the first scan at a museum identifies immediately
     }),
     "identifying",
   );
-  expect(deps.identify).toHaveBeenCalledWith(
-    expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }),
-  );
+  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }));
 });
 
 it("falls back to the queue when the visit sync fails or takes too long, and skips it offline", async () => {
@@ -243,9 +213,7 @@ it("falls back to the queue when the visit sync fails or takes too long, and ski
   try {
     const slow = {
       ...dependencies(),
-      resolveVisitId: jest.fn(
-        () => new Promise<NonNullable<CapturePayload["visitId"]>>(() => {}),
-      ),
+      resolveVisitId: jest.fn(() => new Promise<NonNullable<CapturePayload["visitId"]>>(() => {})),
     };
     const pending = runCapture(atVisit, slow, options);
     await jest.advanceTimersByTimeAsync(4000);
@@ -263,51 +231,33 @@ it("falls back to the queue when the visit sync fails or takes too long, and ski
 
 it.each([
   new Error("Connection lost while action was in flight"),
-  new Error(
-    "[CONVEX A(identify:identify)] Connection lost while action was in flight\n  Called by client",
-  ),
+  new Error("[CONVEX A(identify:identify)] Connection lost while action was in flight\n  Called by client"),
   new TypeError("Network request failed"),
   new TypeError("Failed to fetch"),
-])(
-  "returns the stored capture to the queue after a transport failure: %s",
-  async (error) => {
-    const deps = dependencies();
-    deps.identify.mockRejectedValue(error);
-    expect(await runCapture(input, deps, options)).toMatchObject({
-      kind: "queued",
-      localId: "capture-uuid",
-    });
-    expect(deps.store.enqueue).toHaveBeenCalledTimes(1);
-    expect(deps.store.enqueue.mock.calls[0][0]).toBe(
-      deps.identify.mock.calls[0][0],
-    );
-    expect(deps.store.requeue).toHaveBeenCalledWith(
-      "capture-uuid",
-      error.message,
-      "device:test-installation",
-    );
-    expect(deps.embedder.embed).toHaveBeenCalledTimes(1);
-  },
-);
+])("returns the stored capture to the queue after a transport failure: %s", async (error) => {
+  const deps = dependencies();
+  deps.identify.mockRejectedValue(error);
+  expect(await runCapture(input, deps, options)).toMatchObject({
+    kind: "queued",
+    localId: "capture-uuid",
+  });
+  expect(deps.store.enqueue).toHaveBeenCalledTimes(1);
+  expect(deps.store.enqueue.mock.calls[0][0]).toBe(deps.identify.mock.calls[0][0]);
+  expect(deps.store.requeue).toHaveBeenCalledWith("capture-uuid", error.message, "device:test-installation");
+  expect(deps.embedder.embed).toHaveBeenCalledTimes(1);
+});
 
 it.each([
   [new ConvexError({ code: "rate_limited" }), "rate_limited"],
   [new Error("Invalid vector"), "Invalid vector"],
   [new TypeError("Bad implementation"), "Bad implementation"],
-])(
-  "surfaces non-network failures but keeps the capture queued: %s",
-  async (error, message) => {
-    const deps = dependencies();
-    deps.identify.mockRejectedValue(error);
-    await expect(runCapture(input, deps, options)).rejects.toBe(error);
-    expect(deps.store.requeue).toHaveBeenCalledWith(
-      "capture-uuid",
-      message,
-      "device:test-installation",
-    );
-    expect(deps.store.recordResult).not.toHaveBeenCalled();
-  },
-);
+])("surfaces non-network failures but keeps the capture queued: %s", async (error, message) => {
+  const deps = dependencies();
+  deps.identify.mockRejectedValue(error);
+  await expect(runCapture(input, deps, options)).rejects.toBe(error);
+  expect(deps.store.requeue).toHaveBeenCalledWith("capture-uuid", message, "device:test-installation");
+  expect(deps.store.recordResult).not.toHaveBeenCalled();
+});
 
 it("does not send or report queued if the store rejects the write", async () => {
   const deps = dependencies();
@@ -319,9 +269,7 @@ it("does not send or report queued if the store rejects the write", async () => 
 it("rejects a model mismatch before processing the photo", async () => {
   const deps = dependencies();
   deps.embedder.modelVersion = "other-model";
-  await expect(runCapture(input, deps, options)).rejects.toThrow(
-    "model version",
-  );
+  await expect(runCapture(input, deps, options)).rejects.toThrow("model version");
   expect(deps.warper.warpAndLetterbox).not.toHaveBeenCalled();
 });
 
@@ -335,10 +283,7 @@ it("keeps a capture made before registration when the same installation becomes 
   expect(await runCapture(input, deps, options)).toMatchObject({
     kind: "queued",
   });
-  expect(deps.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({ owner: anonymousOwner() }),
-    "queued",
-  );
+  expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({ owner: anonymousOwner() }), "queued");
   expect(deps.identify).not.toHaveBeenCalled();
 });
 
@@ -350,13 +295,11 @@ it.each([
   async (source, message) => {
     const deps = dependencies();
     deps.warper.warpAndLetterbox.mockResolvedValue(null);
-    expect(await runCapture({ ...input, source }, deps, options)).toMatchObject(
-      {
-        kind: "retake",
-        reason: "boundary",
-        message: expect.stringMatching(message),
-      },
-    );
+    expect(await runCapture({ ...input, source }, deps, options)).toMatchObject({
+      kind: "retake",
+      reason: "boundary",
+      message: expect.stringMatching(message),
+    });
     expect(deps.triage.check).not.toHaveBeenCalled();
     expect(deps.embedder.embed).not.toHaveBeenCalled();
     expect(deps.store.enqueue).not.toHaveBeenCalled();
@@ -380,10 +323,7 @@ it("starts preparation presentation concurrently but retains images before persi
   retained();
   expect(await pending).toMatchObject({ kind: "sent" });
   expect(deps.identify).toHaveBeenCalledTimes(1);
-  expect(deps.store.enqueue.mock.calls[0][0]).toHaveProperty(
-    "contentBounds",
-    painting.contentBounds,
-  );
+  expect(deps.store.enqueue.mock.calls[0][0]).toHaveProperty("contentBounds", painting.contentBounds);
 });
 
 it("preserves recognition when presentation decoding fails", async () => {
@@ -413,11 +353,7 @@ it("recognizes a persisted offline capture locally without delaying the queued r
       finish = resolve;
     });
   });
-  const result = await runCapture(
-    input,
-    { ...deps, recognizeOffline },
-    options,
-  );
+  const result = await runCapture(input, { ...deps, recognizeOffline }, options);
   expect(result).toMatchObject({ kind: "queued", localId: "capture-uuid" });
   expect(recognizeOffline).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -432,11 +368,7 @@ it("falls back to local recognition after connectivity fails during identificati
   const deps = dependencies();
   deps.identify.mockRejectedValue(new Error("Network request failed"));
   const recognizeOffline = jest.fn(async () => {});
-  const result = await runCapture(
-    input,
-    { ...deps, recognizeOffline },
-    options,
-  );
+  const result = await runCapture(input, { ...deps, recognizeOffline }, options);
   expect(result.kind).toBe("queued");
   expect(deps.store.requeue).toHaveBeenCalled();
   expect(recognizeOffline).toHaveBeenCalled();

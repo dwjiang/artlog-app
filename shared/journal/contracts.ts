@@ -1,14 +1,5 @@
 import { ConvexError, type Infer, v } from "convex/values";
-import {
-  calendarDate,
-  isCalendarDate,
-  isRevision,
-  isTimestamp,
-  isTimeZone,
-  isUuid,
-  LIMITS,
-  utf8Bytes,
-} from "./limits";
+import { calendarDate, isCalendarDate, isRevision, isTimestamp, isTimeZone, isUuid, LIMITS, utf8Bytes } from "./limits";
 
 export const journalOwner = v.union(
   v.object({ kind: v.literal("account"), accountId: v.id("accounts") }),
@@ -16,11 +7,8 @@ export const journalOwner = v.union(
 );
 export type JournalOwner = Infer<typeof journalOwner>;
 export const ownerKey = (owner: JournalOwner): string =>
-  owner.kind === "account"
-    ? `account:${owner.accountId}`
-    : `device:${owner.deviceId}`;
-export const sameOwner = (a: JournalOwner, b: JournalOwner): boolean =>
-  ownerKey(a) === ownerKey(b);
+  owner.kind === "account" ? `account:${owner.accountId}` : `device:${owner.deviceId}`;
+export const sameOwner = (a: JournalOwner, b: JournalOwner): boolean => ownerKey(a) === ownerKey(b);
 export const journalSnapshot = v.object({
   title: v.string(),
   artist: v.string(),
@@ -28,10 +16,7 @@ export const journalSnapshot = v.object({
   medium: v.optional(v.string()),
   institution: v.optional(v.string()),
 });
-export const visitVisibility = v.union(
-  v.literal("public"),
-  v.literal("private"),
-);
+export const visitVisibility = v.union(v.literal("public"), v.literal("private"));
 export const journalVisit = v.object({
   visibility: visitVisibility,
   localId: v.string(),
@@ -67,8 +52,7 @@ export function pagination(input: { cursor?: string | null; limit?: number }) {
     !Number.isInteger(limit)
     || limit < 1
     || limit > LIMITS.maxPage
-    || (input.cursor
-      && new TextEncoder().encode(input.cursor).byteLength > LIMITS.cursorBytes)
+    || (input.cursor && new TextEncoder().encode(input.cursor).byteLength > LIMITS.cursorBytes)
   ) {
     throw new ConvexError({ code: "invalid_pagination" });
   }
@@ -83,12 +67,9 @@ export function validateVisit(visit: JournalVisit, now = Date.now()): void {
     || visit.visitedOn > calendarDate(now, visit.timeZone)
     || (visit.reflection?.length ?? 0) > LIMITS.note
     || (visit.startedAt !== undefined
-      && (!isTimestamp(visit.startedAt)
-        || calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn))
+      && (!isTimestamp(visit.startedAt) || calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn))
     || (visit.endedAt !== undefined
-      && (!isTimestamp(visit.endedAt)
-        || visit.startedAt === undefined
-        || visit.endedAt < visit.startedAt))
+      && (!isTimestamp(visit.endedAt) || visit.startedAt === undefined || visit.endedAt < visit.startedAt))
   ) {
     throw new ConvexError({ code: "invalid_visit" });
   }
@@ -99,9 +80,7 @@ export function validateSave(save: JournalSave): void {
     || (save.visitLocalId !== undefined && !isUuid(save.visitLocalId))
     || !isTimestamp(save.savedAt)
     || !save.snapshot.title.trim()
-    || Object.values(save.snapshot).some(
-      (s) => (s?.length ?? 0) > LIMITS.snapshot,
-    )
+    || Object.values(save.snapshot).some((s) => (s?.length ?? 0) > LIMITS.snapshot)
     || (save.note?.length ?? 0) > LIMITS.note
     || (save.venueName?.length ?? 0) > LIMITS.snapshot
     || (save.gallery?.length ?? 0) > LIMITS.snapshot
@@ -110,11 +89,7 @@ export function validateSave(save: JournalSave): void {
     throw new ConvexError({ code: "invalid_save" });
   }
 }
-export function validateBatch(
-  visits: JournalVisit[],
-  saves: JournalSave[],
-  since: number,
-): void {
+export function validateBatch(visits: JournalVisit[], saves: JournalSave[], since: number): void {
   if (
     !isRevision(since)
     || visits.length + saves.length > LIMITS.batchRecords

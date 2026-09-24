@@ -22,8 +22,7 @@ function signals(overrides: Partial<CandidateSignals>): CandidateSignals {
 }
 
 function probability(s: CandidateSignals, config?: CalibratorConfig): number {
-  return scoreCandidates([{ candidate: "x", signals: s }], config)[0]
-    .probability;
+  return scoreCandidates([{ candidate: "x", signals: s }], config)[0].probability;
 }
 
 function decideOne(s: CandidateSignals) {
@@ -46,19 +45,13 @@ describe("scoreCandidates", () => {
       orbInliers: 10,
     });
     for (const similarity of [0.82, 0.86, 0.9, 0.95]) {
-      expect(
-        probability(signals({ ...base, similarity })),
-      ).toBeGreaterThanOrEqual(probability(base));
+      expect(probability(signals({ ...base, similarity }))).toBeGreaterThanOrEqual(probability(base));
     }
     for (const runnerUpSimilarity of [0.75, 0.7, 0.5]) {
-      expect(
-        probability(signals({ ...base, runnerUpSimilarity })),
-      ).toBeGreaterThanOrEqual(probability(base));
+      expect(probability(signals({ ...base, runnerUpSimilarity }))).toBeGreaterThanOrEqual(probability(base));
     }
     for (const orbInliers of [15, 30, 100]) {
-      expect(
-        probability(signals({ ...base, orbInliers })),
-      ).toBeGreaterThanOrEqual(probability(base));
+      expect(probability(signals({ ...base, orbInliers }))).toBeGreaterThanOrEqual(probability(base));
     }
   });
 
@@ -75,10 +68,7 @@ describe("scoreCandidates", () => {
     const galleryFree: CalibratorConfig = {
       ...DEFAULT_CALIBRATOR,
       weights: DEFAULT_CALIBRATOR.weights.map((w, i) =>
-        i === featureIndex("gallerySame")
-        || i === featureIndex("galleryDifferent")
-          ? 0
-          : w,
+        i === featureIndex("gallerySame") || i === featureIndex("galleryDifferent") ? 0 : w,
       ),
     };
     const unknown = signals({
@@ -87,9 +77,7 @@ describe("scoreCandidates", () => {
       runnerUpSimilarity: 0.795,
     });
     expect(probability(unknown)).toBe(probability(unknown, galleryFree));
-    expect(probability({ ...unknown, gallery: "same" })).toBeGreaterThan(
-      probability(unknown),
-    );
+    expect(probability({ ...unknown, gallery: "same" })).toBeGreaterThan(probability(unknown));
   });
 
   it("blocks confidence for textured works without a homography or enough inliers", () => {
@@ -111,9 +99,7 @@ describe("scoreCandidates", () => {
     expect(fewInliers.eligibleForConfident).toBe(false);
     expect(fewInliers.reasons).toEqual(["textured:few-inliers"]);
 
-    const [ok] = scoreCandidates([
-      { candidate: "x", signals: signals({ orbInliers: 15 }) },
-    ]);
+    const [ok] = scoreCandidates([{ candidate: "x", signals: signals({ orbInliers: 15 }) }]);
     expect(ok.eligibleForConfident).toBe(true);
     expect(ok.reasons).toEqual([]);
   });
@@ -126,14 +112,10 @@ describe("scoreCandidates", () => {
       similarity: 0.96,
       runnerUpSimilarity: 0.9,
     });
-    const [atVenue] = scoreCandidates([
-      { candidate: "x", signals: lowTexture },
-    ]);
+    const [atVenue] = scoreCandidates([{ candidate: "x", signals: lowTexture }]);
     expect(atVenue.eligibleForConfident).toBe(true);
 
-    const [offVenue] = scoreCandidates([
-      { candidate: "x", signals: { ...lowTexture, atVenue: false } },
-    ]);
+    const [offVenue] = scoreCandidates([{ candidate: "x", signals: { ...lowTexture, atVenue: false } }]);
     expect(offVenue.eligibleForConfident).toBe(false);
     expect(offVenue.reasons).toEqual(["low-texture:venue"]);
 
@@ -148,11 +130,7 @@ describe("scoreCandidates", () => {
         },
       },
     ]);
-    expect(weak.reasons).toEqual([
-      "low-texture:similarity",
-      "low-texture:margin",
-      "low-texture:venue",
-    ]);
+    expect(weak.reasons).toEqual(["low-texture:similarity", "low-texture:margin", "low-texture:venue"]);
   });
 
   it("sorts by probability and breaks ties by similarity", () => {
@@ -167,11 +145,7 @@ describe("scoreCandidates", () => {
         signals: signals({ similarity: 0.8, runnerUpSimilarity: 0.79 }),
       },
     ]);
-    expect(scored.map((s) => s.candidate)).toEqual([
-      "strong",
-      "middle",
-      "weak",
-    ]);
+    expect(scored.map((s) => s.candidate)).toEqual(["strong", "middle", "weak"]);
 
     const flat: CalibratorConfig = {
       ...DEFAULT_CALIBRATOR,
@@ -192,33 +166,24 @@ describe("scoreCandidates", () => {
       ...DEFAULT_CALIBRATOR,
       weights: [1, 2, 3],
     };
-    expect(() =>
-      scoreCandidates([{ candidate: "x", signals: strong }], short),
-    ).toThrow(RangeError);
+    expect(() => scoreCandidates([{ candidate: "x", signals: strong }], short)).toThrow(RangeError);
   });
 });
 
 describe("decide", () => {
-  it.each([null, 0, 40])(
-    "distinguishes unknown reference texture from measured low texture (%s)",
-    (keypointCount) => {
-      const decision = decideOne(
-        signals({
-          keypointCount,
-          similarity: 0.99,
-          runnerUpSimilarity: 0.8,
-          homographyValid: false,
-          orbInliers: 0,
-        }),
-      );
-      expect(decision.best?.probability).toBeGreaterThan(
-        DEFAULT_CALIBRATOR.thresholds.confident,
-      );
-      expect(decision.outcome).toBe(
-        keypointCount === null ? "soft" : "confident",
-      );
-    },
-  );
+  it.each([null, 0, 40])("distinguishes unknown reference texture from measured low texture (%s)", (keypointCount) => {
+    const decision = decideOne(
+      signals({
+        keypointCount,
+        similarity: 0.99,
+        runnerUpSimilarity: 0.8,
+        homographyValid: false,
+        orbInliers: 0,
+      }),
+    );
+    expect(decision.best?.probability).toBeGreaterThan(DEFAULT_CALIBRATOR.thresholds.confident);
+    expect(decision.outcome).toBe(keypointCount === null ? "soft" : "confident");
+  });
 
   it("returns confident for a strong, eligible best candidate", () => {
     const decision = decideOne(strong);
@@ -271,9 +236,7 @@ describe("decide", () => {
         homographyValid: false,
       }),
     );
-    expect(decision.best?.probability).toBeLessThan(
-      DEFAULT_CALIBRATOR.thresholds.soft,
-    );
+    expect(decision.best?.probability).toBeLessThan(DEFAULT_CALIBRATOR.thresholds.soft);
     expect(decision.outcome).toBe("miss");
     expect(decision.best?.candidate).toBe("x");
   });
@@ -294,16 +257,9 @@ describe("decide", () => {
     }));
     const five = decide(scoreCandidates(items));
     expect(five.best?.candidate).toBe("c0");
-    expect(five.runnerUps.map((r) => r.candidate)).toEqual([
-      "c1",
-      "c2",
-      "c3",
-      "c4",
-    ]);
+    expect(five.runnerUps.map((r) => r.candidate)).toEqual(["c1", "c2", "c3", "c4"]);
     for (let i = 1; i < five.runnerUps.length; i++) {
-      expect(five.runnerUps[i].probability).toBeLessThanOrEqual(
-        five.runnerUps[i - 1].probability,
-      );
+      expect(five.runnerUps[i].probability).toBeLessThanOrEqual(five.runnerUps[i - 1].probability);
     }
 
     const eight = decide(scoreCandidates([...items, ...items.slice(0, 3)]));
@@ -318,8 +274,6 @@ describe("decide", () => {
         signals: signals({ similarity: 0.8, homographyValid: false }),
       },
     ];
-    expect(decide(scoreCandidates(items))).toEqual(
-      decide(scoreCandidates(items)),
-    );
+    expect(decide(scoreCandidates(items))).toEqual(decide(scoreCandidates(items)));
   });
 });

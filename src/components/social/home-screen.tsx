@@ -7,13 +7,7 @@ import { GalleryButton } from "../collection/gallery-button";
 import { WelcomePrompt } from "../account/welcome-prompt";
 import { socialStyles } from "./social-styles";
 import { useRouter } from "expo-router";
-import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
@@ -26,11 +20,7 @@ import { GalleryIconButton } from "../collection/gallery-icon-button";
 import { FeedSkeleton, Ghost } from "@/components/loading-skeleton";
 import { LoadingRing } from "@/components/loading-ring";
 
-const feedPage = (result: {
-  page: SharedVisit[];
-  cursor: string | null;
-  isDone: boolean;
-}) => result;
+const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
@@ -53,49 +43,27 @@ export function HomeScreen() {
       <WelcomePrompt />
       <FlatList
         style={socialStyles.root}
-        contentContainerStyle={[
-          socialStyles.content,
-          { paddingBottom: 28 + dockInset },
-        ]}
+        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 + dockInset }]}
         contentInsetAdjustmentBehavior="automatic"
         data={ready ? feed.items : []}
         keyExtractor={visitId}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
-        renderItem={({ item }) => (
-          <VisitCard visit={item} token={session.token} />
-        )}
+        renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
         refreshControl={
           ready ? (
-            <RefreshControl
-              refreshing={feed.refreshing}
-              tintColor="transparent"
-              onRefresh={feed.refresh}
-            />
+            <RefreshControl refreshing={feed.refreshing} tintColor="transparent" onRefresh={feed.refresh} />
           ) : undefined
         }
         ListHeaderComponent={
           <>
-            <View
-              style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}
-            >
-              <Text
-                variant={fontScale > 1.4 ? "display" : "wordmark"}
-                accessibilityRole="header"
-              >
+            <View style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}>
+              <Text variant={fontScale > 1.4 ? "display" : "wordmark"} accessibilityRole="header">
                 Artlog
               </Text>
               <View style={styles.headerActions}>
-                <GalleryIconButton
-                  icon="trophy"
-                  label="Leaderboards"
-                  onPress={() => router.push("/leaderboards")}
-                />
-                <GalleryIconButton
-                  icon="magnifyingglass"
-                  label="Find friends"
-                  onPress={() => router.push("/people")}
-                />
+                <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
+                <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
                 <GalleryIconButton
                   icon="person.2"
                   label="Friends"
@@ -121,11 +89,7 @@ export function HomeScreen() {
                   gap: 8,
                 }}
               >
-                <Image
-                  source="sf:person.2"
-                  tintColor={Gallery.accent}
-                  style={{ width: 22, height: 22 }}
-                />
+                <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
                 <Text
                   style={{
                     flex: 1,
@@ -136,10 +100,7 @@ export function HomeScreen() {
                 >
                   Sign in to connect with friends.
                 </Text>
-                <GalleryButton
-                  label="Sign in"
-                  onPress={() => router.push(signInRoute("friends"))}
-                />
+                <GalleryButton label="Sign in" onPress={() => router.push(signInRoute("friends"))} />
                 <GalleryIconButton
                   label="Dismiss sign-in invitation"
                   icon="xmark"
@@ -150,19 +111,13 @@ export function HomeScreen() {
             {(ready || session.status === "loading") && (
               <View style={styles.heading}>
                 {ready ? (
-                  <Text
-                    variant="section"
-                    accessibilityRole="header"
-                    style={styles.eyebrow}
-                  >
+                  <Text variant="section" accessibilityRole="header" style={styles.eyebrow}>
                     {guest ? "Public visits" : "Recent visits"}
                   </Text>
                 ) : (
                   <Ghost width={110} height={24} />
                 )}
-                {feed.refreshing && (
-                  <LoadingRing accessibilityLabel="Refreshing visits" />
-                )}
+                {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
               </View>
             )}
           </>
@@ -176,9 +131,7 @@ export function HomeScreen() {
             )
           ) : feed.done && !feed.loading && !feed.error ? (
             <SocialInvitation
-              title={
-                guest ? "No public visits yet." : "No visits from friends yet."
-              }
+              title={guest ? "No public visits yet." : "No visits from friends yet."}
               detail={
                 guest
                   ? "View public walls to see other people’s collections."
@@ -191,17 +144,12 @@ export function HomeScreen() {
                 fullWidth
                 onPress={() => router.push("/people")}
               />
-              <GalleryButton
-                label="Scan an artwork"
-                fullWidth
-                onPress={() => router.navigate("/scan")}
-              />
+              <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate("/scan")} />
             </SocialInvitation>
           ) : null
         }
         ListFooterComponent={
-          ready
-          && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? (
+          ready && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? (
             <PageFooter {...feed} count={feed.items.length} skeleton="feed" />
           ) : null
         }

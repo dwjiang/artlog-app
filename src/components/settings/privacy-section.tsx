@@ -3,20 +3,14 @@ import { ThemedText } from "../themed-text";
 import { MuseumSearchSection } from "./museum-search-section";
 import { Gallery } from "@/constants/theme";
 
-export function PrivacySection({
-  onRequestConsent,
-}: {
-  onRequestConsent: () => void;
-}) {
+export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => void }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
-      <ThemedText themeColor="textSecondary">
-        Here’s how Artlog uses your photos and information.
-      </ThemedText>
+      <ThemedText themeColor="textSecondary">Here’s how Artlog uses your photos and information.</ThemedText>
       <MuseumSearchSection onRequestConsent={onRequestConsent} />
       <ThemedText variant="section">How your data is used</ThemedText>
       {[
@@ -46,14 +40,8 @@ export function PrivacySection({
             borderBottomColor: Gallery.separator,
           }}
         >
-          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
-            {title}
-          </ThemedText>
-          <ThemedText
-            style={{ fontSize: 15, lineHeight: 23, color: Gallery.muted }}
-          >
-            {copy}
-          </ThemedText>
+          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>{title}</ThemedText>
+          <ThemedText style={{ fontSize: 15, lineHeight: 23, color: Gallery.muted }}>{copy}</ThemedText>
         </View>
       ))}
     </ScrollView>

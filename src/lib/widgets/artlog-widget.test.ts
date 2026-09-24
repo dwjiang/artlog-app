@@ -11,8 +11,7 @@ jest.mock("expo-widgets", () => ({
 }));
 
 it("renders the serialized component in the actual isolated widget runtime", () => {
-  const layout = jest.mocked(createWidget).mock
-    .calls[0][1] as unknown as string;
+  const layout = jest.mocked(createWidget).mock.calls[0][1] as unknown as string;
   expect(typeof layout).toBe("string");
   const runtime = vm.createContext({});
   const bundle = path.join(
@@ -50,9 +49,7 @@ it("renders the serialized component in the actual isolated widget runtime", () 
     expect(tree).toContain("file:///painting.jpg");
     expect(tree).toContain("artlog://saved/painting?visitId=paris");
     expect(tree).toContain(props.background);
-    expect(JSON.parse(tree).props.modifiers).toContainEqual(
-      expect.objectContaining({ $type: "dynamicTypeSize" }),
-    );
+    expect(JSON.parse(tree).props.modifiers).toContainEqual(expect.objectContaining({ $type: "dynamicTypeSize" }));
   }
   expect(small).not.toContain("TextView");
   expect(medium).toContain("TextView");

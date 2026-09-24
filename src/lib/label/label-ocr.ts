@@ -4,9 +4,7 @@ import { filePath } from "@/lib/file-uri";
 import type { OcrLine } from "./flow";
 
 /** Trims the recognizer's lines to what convex/label.ts accepts, keeping reading order. */
-export function toOcrLines(
-  lines: readonly Pick<TextLine, "text" | "confidence">[],
-): OcrLine[] {
+export function toOcrLines(lines: readonly Pick<TextLine, "text" | "confidence">[]): OcrLine[] {
   return lines
     .map((line) => ({
       text: line.text.trim().slice(0, MAX_OCR_LINE_CHARS),

@@ -14,11 +14,7 @@ import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { Gallery } from "@/constants/theme";
 export function AddSavedWorks() {
   const owner = useLocalOwner();
-  const {
-    data,
-    updatedAt,
-    error: loadError,
-  } = useLiveQuery(listSavedWorks(owner), [owner]);
+  const { data, updatedAt, error: loadError } = useLiveQuery(listSavedWorks(owner), [owner]);
   const works = data.filter((work) => work.owner === owner && !work.deletedAt);
   const client = useConvex();
   const audio = useListening();
@@ -44,9 +40,7 @@ export function AddSavedWorks() {
           title: work.title,
           artist: work.artist,
           savedId: work.localId,
-          imageUri: work.cropPath
-            ? captureFileUri(work.cropPath)
-            : enriched.thumbnailUrl,
+          imageUri: work.cropPath ? captureFileUri(work.cropPath) : enriched.thumbnailUrl,
           facts: enriched.narrationFacts,
           researchUpdatedAt: enriched.narrationResearchUpdatedAt,
           opening: enriched.narrationOpening,
@@ -55,9 +49,7 @@ export function AddSavedWorks() {
       });
     } catch {
       if (scope.isOwnerCurrent()) {
-        setError(
-          "Couldn’t load narration. Check your connection and try again.",
-        );
+        setError("Couldn’t load narration. Check your connection and try again.");
       }
     } finally {
       if (scope.isOwnerCurrent()) setPending(undefined);
@@ -82,9 +74,7 @@ export function AddSavedWorks() {
       )}
       {works.map((work) => {
         const current = audio.current?.work.artworkId === work.artworkId;
-        const queued = audio.queue.some(
-          (track) => track.work.artworkId === work.artworkId,
-        );
+        const queued = audio.queue.some((track) => track.work.artworkId === work.artworkId);
         return (
           <View
             key={work.localId}
@@ -97,13 +87,9 @@ export function AddSavedWorks() {
               borderColor: Gallery.softBorder,
             }}
           >
-            <ArtworkThumbnail
-              uri={work.cropPath ? captureFileUri(work.cropPath) : undefined}
-            />
+            <ArtworkThumbnail uri={work.cropPath ? captureFileUri(work.cropPath) : undefined} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "600" }}>
-                {work.title}
-              </Text>
+              <Text style={{ fontSize: 14, fontWeight: "600" }}>{work.title}</Text>
               <Text variant="metadata" themeColor="textSecondary">
                 {work.artist}
               </Text>

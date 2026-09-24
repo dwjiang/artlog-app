@@ -6,18 +6,10 @@ describe("title without its printed date", () => {
   it.each([
     ["Reclining Figure: Arch Leg, 1969", "1969", "Reclining Figure: Arch Leg"],
     ["Cubi XV, 1963-64", "1963-64", "Cubi XV"],
-    [
-      "Retrato de D. Alfonso XIII (1929)",
-      "(1929)",
-      "Retrato de D. Alfonso XIII",
-    ],
+    ["Retrato de D. Alfonso XIII (1929)", "(1929)", "Retrato de D. Alfonso XIII"],
     ["Hasta verte Cristo mío 1895", "1895", "Hasta verte Cristo mío"],
     ["Flying female shaman, ca. 1850", "ca. 1850", "Flying female shaman"],
-    [
-      "Skeleton bear (in shamanic transformation), n.d.",
-      "n.d.",
-      "Skeleton bear (in shamanic transformation)",
-    ],
+    ["Skeleton bear (in shamanic transformation), n.d.", "n.d.", "Skeleton bear (in shamanic transformation)"],
   ])("strips %s with work date %s", (title, workDate, expected) => {
     expect(titleWithoutDate(title, workDate)).toBe(expected);
   });
@@ -30,12 +22,9 @@ describe("title without its printed date", () => {
     ["Playground", "n.d."],
     ["Room 11969", "1969"],
     ["Water Lilies", null],
-  ])(
-    "keeps %s when the date is absent, different, inside, unbounded, or the whole title",
-    (title, workDate) => {
-      expect(titleWithoutDate(title, workDate)).toBe(title);
-    },
-  );
+  ])("keeps %s when the date is absent, different, inside, unbounded, or the whole title", (title, workDate) => {
+    expect(titleWithoutDate(title, workDate)).toBe(title);
+  });
 });
 
 describe("label reading contract", () => {
@@ -77,8 +66,6 @@ describe("label reading contract", () => {
         confidence: { ...confidence, title: 1.5 },
       }),
     ).toBeNull();
-    expect(
-      parseLabelReading({ ...reading, confidence: { title: 1 } }),
-    ).toBeNull();
+    expect(parseLabelReading({ ...reading, confidence: { title: 1 } })).toBeNull();
   });
 });

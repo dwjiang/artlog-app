@@ -12,16 +12,9 @@ import {
   sha256,
   verifyAssertion,
 } from "./appAttest";
-import {
-  authenticatorData,
-  encodeAssertion,
-  makeSigner,
-  rawToDer,
-  signAssertion,
-} from "./appAttest.fixtures";
+import { authenticatorData, encodeAssertion, makeSigner, rawToDer, signAssertion } from "./appAttest.fixtures";
 
-const hex = (s: string) =>
-  Uint8Array.from(s.match(/../g)!.map((b) => parseInt(b, 16)));
+const hex = (s: string) => Uint8Array.from(s.match(/../g)!.map((b) => parseInt(b, 16)));
 
 describe("base64", () => {
   it("round-trips standard and url-safe alphabets", () => {
@@ -65,9 +58,7 @@ describe("decodeAssertion", () => {
   it("decodes the two byte strings Apple returns", () => {
     const signature = Uint8Array.from([1, 2, 3]);
     const authData = authenticatorData(new Uint8Array(32), 7);
-    const decoded = decodeAssertion(
-      bytesToBase64(encodeAssertion(signature, authData)),
-    );
+    const decoded = decodeAssertion(bytesToBase64(encodeAssertion(signature, authData)));
     expect(decoded.signature).toEqual(signature);
     expect(decoded.authenticatorData).toEqual(authData);
     expect(parseAuthenticatorData(decoded.authenticatorData).counter).toBe(7);
@@ -75,9 +66,7 @@ describe("decodeAssertion", () => {
 
   it("rejects malformed input", () => {
     expect(() => decodeAssertion("AAAA")).toThrow();
-    expect(() =>
-      decodeAssertion(bytesToBase64(Uint8Array.from([0xa0]))),
-    ).toThrow("missing signature");
+    expect(() => decodeAssertion(bytesToBase64(Uint8Array.from([0xa0])))).toThrow("missing signature");
   });
 });
 
@@ -101,9 +90,7 @@ describe("verifyAssertion", () => {
       ok: true,
       counter: phoneFixture.expectedCounter,
     });
-    expect(
-      await verifyAssertion({ ...check, clientData: `${check.clientData} ` }),
-    ).toMatchObject({
+    expect(await verifyAssertion({ ...check, clientData: `${check.clientData} ` })).toMatchObject({
       ok: false,
       reason: "invalid_signature",
     });
@@ -116,11 +103,8 @@ describe("verifyAssertion", () => {
         "omlzaWduYXR1cmVYRzBFAiBB8BGAwkmFCg1M5J0mOYEun0SUN1/lse79/7ypG9WiMQIhAIHvqj7eg59B1PMFX1CN4GMGlsgfFtdL30pHCf7G/dNRcWF1dGhlbnRpY2F0b3JEYXRhWCXKPdw7T3iujcFZbHVrHX0mDSMrNms5PzEbrFbQPRA6rEAAAAAB",
       publicKeySpkiBase64:
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEg69t2YzgcPTLUx8Zgu+rbcikeaEL8Ppb+HG0QTIulz8YUB9tgv1pDRruWk87nZC3our56pzIWaqXEbaWyamdzA==",
-      clientData:
-        '{"subject":"Lorem ipsum","message":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}',
-      expectedRpIdHash: await sha256(
-        "V8H6LQ9448.io.uebelacker.AppAttestExample",
-      ),
+      clientData: '{"subject":"Lorem ipsum","message":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}',
+      expectedRpIdHash: await sha256("V8H6LQ9448.io.uebelacker.AppAttestExample"),
       previousCounter: 0,
     });
     expect(result).toEqual({ ok: true, counter: 1 });
@@ -130,11 +114,7 @@ describe("verifyAssertion", () => {
     const signer = await makeSigner();
     const rpIdHash = await sha256(appId);
     const clientData = 'nonce.{"objectId":"abc"}';
-    const assertionBase64 = await signAssertion(
-      signer,
-      authenticatorData(rpIdHash, 1),
-      clientData,
-    );
+    const assertionBase64 = await signAssertion(signer, authenticatorData(rpIdHash, 1), clientData);
 
     const result = await verifyAssertion({
       publicKeySpkiBase64: signer.publicKeySpkiBase64,
@@ -151,11 +131,7 @@ describe("verifyAssertion", () => {
     const other = await makeSigner();
     const rpIdHash = await sha256(appId);
     const clientData = 'nonce.{"objectId":"abc"}';
-    const assertionBase64 = await signAssertion(
-      signer,
-      authenticatorData(rpIdHash, 5),
-      clientData,
-    );
+    const assertionBase64 = await signAssertion(signer, authenticatorData(rpIdHash, 5), clientData);
     const base = {
       publicKeySpkiBase64: signer.publicKeySpkiBase64,
       clientData,
@@ -173,9 +149,7 @@ describe("verifyAssertion", () => {
       ok: false,
       reason: "invalid_signature",
     });
-    expect(
-      await verifyAssertion({ ...base, previousCounter: 5 }),
-    ).toMatchObject({
+    expect(await verifyAssertion({ ...base, previousCounter: 5 })).toMatchObject({
       ok: false,
       reason: "counter_not_increasing",
     });

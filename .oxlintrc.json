@@ -3,13 +3,7 @@
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "import"],
   "jsPlugins": ["eslint-plugin-expo", "./oxlint-plugin.js"],
   "categories": { "correctness": "error" },
-  "ignorePatterns": [
-    ".agents/**",
-    ".claude/**",
-    "convex/_generated/**",
-    "src/db/migrations/**",
-    "scripts/data/**"
-  ],
+  "ignorePatterns": [".agents/**", ".claude/**", "convex/_generated/**", "src/db/migrations/**", "scripts/data/**"],
   "rules": {
     "curly": ["error", "multi-line"],
     "eqeqeq": ["error", "smart"],
@@ -19,14 +13,8 @@
     "no-lonely-if": "error",
     "no-redeclare": "error",
     "no-unneeded-ternary": "error",
-    "no-unused-expressions": [
-      "error",
-      { "allowShortCircuit": true, "enforceForJSX": true }
-    ],
-    "no-unused-vars": [
-      "error",
-      { "args": "none", "ignoreRestSiblings": true, "caughtErrors": "all" }
-    ],
+    "no-unused-expressions": ["error", { "allowShortCircuit": true, "enforceForJSX": true }],
+    "no-unused-vars": ["error", { "args": "none", "ignoreRestSiblings": true, "caughtErrors": "all" }],
     "no-useless-constructor": "error",
     "no-useless-rename": "error",
     "no-useless-return": "error",

@@ -10,13 +10,7 @@ import { requireDeviceFromAction } from "./lib/auth";
 import { isEnabled } from "./lib/flags";
 import { exhibitionCandidates } from "./lib/exhibitionSearch";
 import { resolveExhibitionIdentity } from "./lib/exhibitionIdentity";
-import {
-  FIELD_NAMES,
-  displayLabelFlow,
-  evidenceSummary,
-  imageCheckPasses,
-  labelField,
-} from "./lib/labelVerify";
+import { FIELD_NAMES, displayLabelFlow, evidenceSummary, imageCheckPasses, labelField } from "./lib/labelVerify";
 import type { PageFields } from "./lib/pageExtract";
 import { limitDevice } from "./lib/rateLimits";
 import { search } from "./lib/tavily";
@@ -127,22 +121,16 @@ export const searchExhibitions = action({
       if (!isEnabled("museumSearch")) {
         throw new ConvexError({ code: "feature_off" });
       }
-      const { scan, hosts, venueName } = await ctx.runQuery(
-        internal.museumSearch.load,
-        {
-          scanId,
-          deviceId: device._id,
-        },
-      );
+      const { scan, hosts, venueName } = await ctx.runQuery(internal.museumSearch.load, {
+        scanId,
+        deviceId: device._id,
+      });
       await limitDevice(ctx, "museumSearch", device._id);
-      const revision = await ctx.runMutation(
-        internal.museumSearch.beginSearch,
-        {
-          scanId,
-          deviceId: device._id,
-          generation: scan.generation,
-        },
-      );
+      const revision = await ctx.runMutation(internal.museumSearch.beginSearch, {
+        scanId,
+        deviceId: device._id,
+        generation: scan.generation,
+      });
       const write = (museumSearch: MuseumSearchDisplay) =>
         ctx.runMutation(internal.museumSearch.write, {
           scanId,
@@ -158,10 +146,7 @@ export const searchExhibitions = action({
           amount: 1,
         });
       } catch (error) {
-        if (
-          !(error instanceof ConvexError)
-          || error.data.code !== "spend_cap"
-        ) {
+        if (!(error instanceof ConvexError) || error.data.code !== "spend_cap") {
           throw error;
         }
         const state: MuseumSearchDisplay = {
@@ -189,10 +174,7 @@ export const searchExhibitions = action({
         await write(state);
         return state;
       } catch (error) {
-        if (
-          error instanceof ConvexError
-          && error.data.code === "search_unconfigured"
-        ) {
+        if (error instanceof ConvexError && error.data.code === "search_unconfigured") {
           credits = 0;
         }
         throw error;
@@ -214,8 +196,7 @@ function retainedCandidate(
 ): { state: Retained; candidate: SearchCandidate } | null {
   if (!state || state.stage === "none") return null;
   const candidate = state.candidates.find(
-    (entry) =>
-      entry.sourceUrl === sourceUrl && entry.imageUrls.includes(imageUrl),
+    (entry) => entry.sourceUrl === sourceUrl && entry.imageUrls.includes(imageUrl),
   );
   return candidate ? { state, candidate } : null;
 }
@@ -227,10 +208,7 @@ function candidateFields(identity: PageFields): LabelFields {
   for (const name of FIELD_NAMES) {
     const value = identity[name];
     if (value) {
-      fields[name] = labelField(
-        value,
-        name === "title" || name === "artist" ? "tavily+image" : "tavily",
-      );
+      fields[name] = labelField(value, name === "title" || name === "artist" ? "tavily+image" : "tavily");
     }
   }
   return fields;
@@ -255,60 +233,34 @@ function confirmedFlow(
   };
 }
 
-function sameList(
-  a: readonly string[] | undefined,
-  b: readonly string[] | undefined,
-): boolean {
-  return (
-    (a ?? []).length === (b ?? []).length
-    && (a ?? []).every((value, index) => value === b?.[index])
-  );
+function sameList(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+  return (a ?? []).length === (b ?? []).length && (a ?? []).every((value, index) => value === b?.[index]);
 }
 
-function sameField(
-  a: LabelField | undefined,
-  b: LabelField | undefined,
-): boolean {
+function sameField(a: LabelField | undefined, b: LabelField | undefined): boolean {
   if (!a || !b) return a === b;
-  return (
-    a.value === b.value
-    && a.evidence === b.evidence
-    && a.locked === b.locked
-    && a.confidence === b.confidence
-  );
+  return a.value === b.value && a.evidence === b.evidence && a.locked === b.locked && a.confidence === b.confidence;
 }
 
 // A retried confirmation of the same page and image (lost response, reopened card) returns the
 // stored result untouched; a flagged result with empty fields for that selection counts as stored too.
-function storedConfirmation(
-  scan: Doc<"scans">,
-  flow: LabelFlow,
-): LabelFlow | null {
+function storedConfirmation(scan: Doc<"scans">, flow: LabelFlow): LabelFlow | null {
   const search = scan.museumSearch;
   const stored = scan.labelFlow;
   if (search?.stage !== "confirmed" || !stored || stored.stage !== "verified") {
     return null;
   }
-  if (
-    search.selected.sourceUrl !== flow.sourceUrl
-    || search.selected.imageUrl !== flow.imageUrls?.[0]
-  ) {
+  if (search.selected.sourceUrl !== flow.sourceUrl || search.selected.imageUrl !== flow.imageUrls?.[0]) {
     return null;
   }
-  if (
-    stored.sourceUrl !== flow.sourceUrl
-    || !sameList(stored.imageUrls, flow.imageUrls)
-  ) {
+  if (stored.sourceUrl !== flow.sourceUrl || !sameList(stored.imageUrls, flow.imageUrls)) {
     return null;
   }
   const flaggedEmpty =
-    stored.moderation === "flagged"
-    && FIELD_NAMES.every((name) => !stored.fields[name])
-    && !stored.evidence.length;
+    stored.moderation === "flagged" && FIELD_NAMES.every((name) => !stored.fields[name]) && !stored.evidence.length;
   const sameResult =
-    FIELD_NAMES.every((name) =>
-      sameField(stored.fields[name], flow.fields[name]),
-    ) && sameList(stored.evidence, flow.evidence);
+    FIELD_NAMES.every((name) => sameField(stored.fields[name], flow.fields[name]))
+    && sameList(stored.evidence, flow.evidence);
   return flaggedEmpty || sameResult ? stored : null;
 }
 
@@ -325,16 +277,8 @@ export const confirm = internalMutation({
     const flow = args.labelFlow;
     const imageUrl = flow.imageUrls?.[0];
     const selected =
-      flow.sourceUrl !== undefined && imageUrl !== undefined
-        ? { sourceUrl: flow.sourceUrl, imageUrl }
-        : null;
-    const retained =
-      selected
-      && retainedCandidate(
-        scan.museumSearch,
-        selected.sourceUrl,
-        selected.imageUrl,
-      );
+      flow.sourceUrl !== undefined && imageUrl !== undefined ? { sourceUrl: flow.sourceUrl, imageUrl } : null;
+    const retained = selected && retainedCandidate(scan.museumSearch, selected.sourceUrl, selected.imageUrl);
     if (!selected || !retained) {
       throw new ConvexError({ code: "unknown_candidate" });
     }
@@ -388,10 +332,7 @@ export const markUnresolved = internalMutation({
 export const confirmSearchCandidate = action({
   args: { scanId: v.id("scans"), sourceUrl: v.string(), imageCheck },
   returns: labelFlowDisplay,
-  handler: async (
-    ctx,
-    { scanId, sourceUrl, imageCheck: check },
-  ): Promise<LabelFlowDisplay> =>
+  handler: async (ctx, { scanId, sourceUrl, imageCheck: check }): Promise<LabelFlowDisplay> =>
     withErrorReporting("museumSearch.confirmSearchCandidate", async () => {
       const device = await requireDeviceFromAction(ctx);
       if (!isEnabled("museumSearch")) {
@@ -401,11 +342,7 @@ export const confirmSearchCandidate = action({
         scanId,
         deviceId: device._id,
       });
-      const retained = retainedCandidate(
-        scan.museumSearch,
-        sourceUrl,
-        check.url,
-      );
+      const retained = retainedCandidate(scan.museumSearch, sourceUrl, check.url);
       if (!retained) throw new ConvexError({ code: "unknown_candidate" });
       if (!imageCheckPasses(check)) {
         throw new ConvexError({ code: "image_mismatch" });
@@ -444,19 +381,12 @@ export const confirmSearchCandidate = action({
       const clear = confirmedFlow(candidate, check.url, fields, "clear");
       const stored = storedConfirmation(scan, clear);
       if (stored) return displayLabelFlow(stored);
-      const moderation = await moderateVerifiedFields(
-        ctx,
-        fields,
-        scan.labelFlow,
-      );
+      const moderation = await moderateVerifiedFields(ctx, fields, scan.labelFlow);
       return ctx.runMutation(internal.museumSearch.confirm, {
         scanId,
         deviceId: device._id,
         generation: scan.generation,
-        labelFlow:
-          moderation === "flagged"
-            ? confirmedFlow(candidate, check.url, {}, "flagged")
-            : clear,
+        labelFlow: moderation === "flagged" ? confirmedFlow(candidate, check.url, {}, "flagged") : clear,
       });
     }),
 });

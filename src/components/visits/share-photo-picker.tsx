@@ -26,18 +26,16 @@ export function SharePhotoPicker({
   onDone: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
-  const { data, updatedAt, error } = useLiveQuery(
-    selectVisitArtworkPhotos(work.localId, visitId, work.owner),
-    [work.localId, visitId, work.owner],
-  );
+  const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [
+    work.localId,
+    visitId,
+    work.owner,
+  ]);
   useEffect(() => {
     if (error) reportError(error, "visit.share-photos.load");
   }, [error]);
   return (
-    <ScrollView
-      contentContainerStyle={{ padding: 20, gap: 16 }}
-      style={{ backgroundColor: Gallery.paper }}
-    >
+    <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
       <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
       <Text
         style={{
@@ -83,9 +81,7 @@ export function SharePhotoPicker({
                 borderRadius: 2,
                 overflow: "hidden",
                 borderWidth: 2,
-                borderColor: selected.includes(photo.localId)
-                  ? Gallery.accent
-                  : Gallery.fill,
+                borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.fill,
                 backgroundColor: Gallery.fill,
                 padding: 8,
                 gap: 8,
@@ -99,40 +95,20 @@ export function SharePhotoPicker({
                   contentFit="contain"
                 />
               ) : (
-                <Text style={{ color: Gallery.muted }}>
-                  Photo unavailable on this iPhone.
-                </Text>
+                <Text style={{ color: Gallery.muted }}>Photo unavailable on this iPhone.</Text>
               )}
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={{ flex: 1, fontSize: 13, color: Gallery.ink }}>
-                  {photo.kind === "full"
-                    ? "Full artwork"
-                    : photo.kind === "detail"
-                      ? "Detail"
-                      : "Museum label"}
+                  {photo.kind === "full" ? "Full artwork" : photo.kind === "detail" ? "Detail" : "Museum label"}
                 </Text>
                 <Image
-                  source={
-                    selected.includes(photo.localId)
-                      ? "sf:checkmark.circle.fill"
-                      : "sf:circle"
-                  }
+                  source={selected.includes(photo.localId) ? "sf:checkmark.circle.fill" : "sf:circle"}
                   accessible={false}
-                  tintColor={
-                    selected.includes(photo.localId)
-                      ? Gallery.accent
-                      : Gallery.muted
-                  }
+                  tintColor={selected.includes(photo.localId) ? Gallery.accent : Gallery.muted}
                   style={{ width: 18, height: 18 }}
                 />
               </View>
-              {!!photo.caption && (
-                <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-                  {photo.caption}
-                </Text>
-              )}
+              {!!photo.caption && <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>}
             </Pressable>
           ))}
       </View>

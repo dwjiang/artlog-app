@@ -2,13 +2,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert } from "react-native";
 
-import {
-  ActionRow,
-  GroupedFooter,
-  GroupedSection,
-  NavigationRow,
-  ValueRow,
-} from "@/components/grouped-list";
+import { ActionRow, GroupedFooter, GroupedSection, NavigationRow, ValueRow } from "@/components/grouped-list";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { useSocialSession } from "@/lib/social/use-social-session";
@@ -26,9 +20,7 @@ export function AccountSection() {
   }
   const session = useSocialSession();
   const profileRequired = session.status === "profile-required";
-  const status = error ? (
-    <GroupedFooter tone="destructive">{error}</GroupedFooter>
-  ) : undefined;
+  const status = error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
   // Offline, the account query never resolves; keep the sign-in row instead of an endless indicator.
   if (!account?.linked) {
     return (
@@ -48,20 +40,14 @@ export function AccountSection() {
   return (
     <>
       {account.email && (
-        <GroupedSection
-          footer={
-            <GroupedFooter>Your account is connected with Apple.</GroupedFooter>
-          }
-        >
+        <GroupedSection footer={<GroupedFooter>Your account is connected with Apple.</GroupedFooter>}>
           <ValueRow label="Apple ID" value={account.email} />
         </GroupedSection>
       )}
       <GroupedSection footer={status}>
         <NavigationRow
           label={profileRequired ? "Create profile" : "Edit profile"}
-          onPress={() =>
-            router.push(profileRequired ? "/create-profile" : "/edit-profile")
-          }
+          onPress={() => router.push(profileRequired ? "/create-profile" : "/edit-profile")}
         />
       </GroupedSection>
       <GroupedSection>
@@ -96,20 +82,16 @@ export function AccountSection() {
           destructive
           disabled={busy}
           onPress={() =>
-            Alert.alert(
-              "Delete account?",
-              "This disconnects all your devices. Saved works stay on each phone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete account",
-                  style: "destructive",
-                  onPress: () => {
-                    void disconnect(true);
-                  },
+            Alert.alert("Delete account?", "This disconnects all your devices. Saved works stay on each phone.", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete account",
+                style: "destructive",
+                onPress: () => {
+                  void disconnect(true);
                 },
-              ],
-            )
+              },
+            ])
           }
         />
       </GroupedSection>

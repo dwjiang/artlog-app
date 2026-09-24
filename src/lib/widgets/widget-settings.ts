@@ -59,10 +59,7 @@ export const widgetCaptions = [
   },
 ] as const;
 
-export type WidgetSource =
-  | { kind: "collection" }
-  | { kind: "visit"; id: string }
-  | { kind: "artwork"; id: string };
+export type WidgetSource = { kind: "collection" } | { kind: "visit"; id: string } | { kind: "artwork"; id: string };
 export type WidgetSize = "small" | "medium";
 export type WidgetSettings = {
   source: WidgetSource;
@@ -92,15 +89,9 @@ export function readWidgetSettings(value?: string): WidgetSettings {
         && source.id.length
           ? { kind: source.kind, id: source.id }
           : defaultWidgetSettings.source,
-      color: widgetColors.some((option) => option.value === parsed.color)
-        ? parsed.color
-        : "paper",
-      frame: widgetFrames.some((option) => option.value === parsed.frame)
-        ? parsed.frame
-        : "oak",
-      caption: widgetCaptions.some((option) => option.value === parsed.caption)
-        ? parsed.caption
-        : "visit",
+      color: widgetColors.some((option) => option.value === parsed.color) ? parsed.color : "paper",
+      frame: widgetFrames.some((option) => option.value === parsed.frame) ? parsed.frame : "oak",
+      caption: widgetCaptions.some((option) => option.value === parsed.caption) ? parsed.caption : "visit",
       frameWidth: parsed.frameWidth === "wide" ? "wide" : "slim",
     };
   } catch {

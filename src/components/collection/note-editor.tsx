@@ -10,10 +10,7 @@ import { Button, Host } from "@expo/ui/swift-ui";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 
-import {
-  MAX_NOTE_LENGTH,
-  NOTE_LENGTH_MESSAGE,
-} from "../../../shared/collection/collection-limits";
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "../../../shared/collection/collection-limits";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -48,13 +45,7 @@ function persist(note: NoteDraft | undefined): void {
 }
 
 /** The lime swatch and heading shared by every note block, so private and shared notes read the same way. */
-export function NoteHeading({
-  title,
-  children,
-}: {
-  title: string;
-  children?: React.ReactNode;
-}) {
+export function NoteHeading({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <View style={styles.heading}>
       <ThemedText accessibilityRole="header" style={styles.title}>
@@ -98,10 +89,7 @@ function WorkNoteEditor({
   sharedOnWall?: boolean;
   initiallyEditing: boolean;
 }) {
-  const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [
-    savedLocalId,
-    owner,
-  ]).data[0];
+  const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
   const [draft, setDraft] = useState<string>();
   const [savedText, setSavedText] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
@@ -181,10 +169,7 @@ function WorkNoteEditor({
             setEditing(false);
           }}
         >
-          <ScrollView
-            automaticallyAdjustKeyboardInsets
-            contentContainerStyle={{ padding: 24, gap: 16 }}
-          >
+          <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
             <View
               style={{
                 flexDirection: "row",
@@ -210,11 +195,7 @@ function WorkNoteEditor({
                 </ThemedText>
               </View>
             </View>
-            <ThemedText
-              variant="metadata"
-              themeColor="textSecondary"
-              style={{ letterSpacing: 1 }}
-            >
+            <ThemedText variant="metadata" themeColor="textSecondary" style={{ letterSpacing: 1 }}>
               Private note
             </ThemedText>
             <TextInput
@@ -235,9 +216,7 @@ function WorkNoteEditor({
               style={styles.input}
             />
             <View style={{ padding: 12, backgroundColor: "#EEF2FF" }}>
-              <ThemedText variant="metadata">
-                Private note. You can choose to show it on your wall later.
-              </ThemedText>
+              <ThemedText variant="metadata">Private note. You can choose to show it on your wall later.</ThemedText>
             </View>
             {draft?.length === MAX_NOTE_LENGTH && (
               <ThemedText themeColor="textSecondary" style={styles.body}>
@@ -251,12 +230,7 @@ function WorkNoteEditor({
                   ? "Saved on this iPhone"
                   : "Saves when you close"}
             </ThemedText>
-            {saveFailed && (
-              <GalleryButton
-                label="Retry save"
-                onPress={() => persist(latest.current)}
-              />
-            )}
+            {saveFailed && <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />}
           </ScrollView>
         </WallSheet>
       )}
@@ -280,9 +254,7 @@ function WorkNoteEditor({
           style={{ width: 13, height: 13 }}
           accessible={false}
         />
-        <ThemedText
-          style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}
-        >
+        <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           {sharedOnWall === true
             ? "Shared on your public wall"
             : sharedOnWall === false || !owner.startsWith("account:")
@@ -292,14 +264,9 @@ function WorkNoteEditor({
       </View>
       {saveFailed && !editing ? (
         <View>
-          <ThemedText themeColor="textSecondary">
-            Your note couldn’t be saved. Try again.
-          </ThemedText>
+          <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
           <Host matchContents colorScheme="light">
-            <Button
-              label="Retry save"
-              onPress={() => persist(latest.current)}
-            />
+            <Button label="Retry save" onPress={() => persist(latest.current)} />
           </Host>
         </View>
       ) : null}

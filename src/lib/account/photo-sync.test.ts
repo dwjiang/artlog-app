@@ -23,9 +23,7 @@ beforeEach(async () => {
     storageId: cropStorageId,
     photoUpdatedAt: 1,
   }));
-  download.mockImplementation(
-    async (localId, kind) => `collection-photos/${localId}-${kind}.jpg`,
-  );
+  download.mockImplementation(async (localId, kind) => `collection-photos/${localId}-${kind}.jpg`);
   deps = { ...repo, upload, download, removeFile: removeDownload };
 });
 

@@ -2,13 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  seedScan,
-  seedJournalVisit,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, seedJournalVisit } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 afterEach(() => {
@@ -42,9 +36,7 @@ async function fixture() {
       },
     }),
   );
-  const visitId = await t.run((ctx) =>
-    seedJournalVisit(ctx, user.deviceId, venueId),
-  );
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
   await t.run((ctx) => ctx.db.patch(scanId, { visitId }));
   const args: {
     localId: string;
@@ -75,11 +67,7 @@ async function fixture() {
     as.mutation(api.collections.saveToCollection, { ...args, ...overrides });
   const object = () => t.run((ctx) => ctx.db.get(work.objectId));
   const list = (as = user.as) =>
-    as
-      .query(api.accounts.me, {})
-      .then(({ scope }) =>
-        as.query(api.collections.listMine, { ...page, scope }),
-      );
+    as.query(api.accounts.me, {}).then(({ scope }) => as.query(api.collections.listMine, { ...page, scope }));
   const rows = () => t.run((ctx) => ctx.db.query("collections").collect());
   return { t, user, venueId, work, args, save, object, list, rows };
 }
@@ -111,10 +99,7 @@ it("saves a snapshot once per local id and confirms an untouched suggestion exac
 });
 
 it.each([
-  [
-    "an edited title",
-    { snapshot: { ...snapshot, title: "Water Lilies (Nymphéas)" } },
-  ],
+  ["an edited title", { snapshot: { ...snapshot, title: "Water Lilies (Nymphéas)" } }],
   ["an edited artist", { snapshot: { ...snapshot, artist: "Monet" } }],
   ["a save without a suggestion", { suggested: null }],
   [
@@ -160,9 +145,7 @@ it("lists the caller’s saved works newest first and hides removed ones", async
     scope: user.scope,
     localId: "10000000-0000-4000-8000-000000000001",
   });
-  expect((await list()).page.map((row) => row.localId)).toEqual([
-    "10000000-0000-4000-8000-000000000002",
-  ]);
+  expect((await list()).page.map((row) => row.localId)).toEqual(["10000000-0000-4000-8000-000000000002"]);
   const removed = await t.run((ctx) =>
     ctx.db
       .query("collections")
@@ -180,23 +163,19 @@ it("lists the caller’s saved works newest first and hides removed ones", async
       localId: "10000000-0000-4000-8000-000000000002",
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  await expect(
-    t.query(api.collections.listMine, { ...page, scope: user.scope }),
-  ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+  await expect(t.query(api.collections.listMine, { ...page, scope: user.scope })).rejects.toMatchObject({
+    data: { code: "unauthenticated" },
+  });
 });
 
 it("refuses another device’s scan or visit, a missing object and a blank title or id", async () => {
   const { t, venueId, save, rows } = await fixture();
   const other = await seedDevice(t);
-  const foreignScan = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: other.deviceId }),
-  );
+  const foreignScan = await t.run((ctx) => seedScan(ctx, { deviceId: other.deviceId }));
   await expect(save({ scanId: foreignScan })).rejects.toMatchObject({
     data: { code: "invalid_scan" },
   });
-  const foreignVisit = await t.run((ctx) =>
-    seedJournalVisit(ctx, other.deviceId, venueId),
-  );
+  const foreignVisit = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
   await expect(
     save({
       visitLocalId: (await t.run((ctx) => ctx.db.get(foreignVisit)))!.localId,
@@ -210,9 +189,7 @@ it("refuses another device’s scan or visit, a missing object and a blank title
   await expect(save({ objectId: missing })).rejects.toMatchObject({
     data: { code: "invalid_object" },
   });
-  await expect(
-    save({ snapshot: { ...snapshot, title: "  " } }),
-  ).rejects.toMatchObject({
+  await expect(save({ snapshot: { ...snapshot, title: "  " } })).rejects.toMatchObject({
     data: { code: "invalid_save" },
   });
   await expect(save({ localId: " " })).rejects.toMatchObject({
@@ -256,13 +233,9 @@ it("rejects changed or foreign visit associations even when the save UUID is ret
   const { t, args, save } = await fixture();
   await save();
   const other = await seedDevice(t);
-  const foreign = await t.run((ctx) =>
-    seedJournalVisit(ctx, other.deviceId, args.venueId!),
-  );
+  const foreign = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, args.venueId!));
   const foreignVisit = (await t.run((ctx) => ctx.db.get(foreign)))!;
-  await expect(
-    save({ visitLocalId: foreignVisit.localId }),
-  ).rejects.toMatchObject({
+  await expect(save({ visitLocalId: foreignVisit.localId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   await expect(save({ visitLocalId: undefined })).rejects.toMatchObject({
@@ -278,9 +251,7 @@ it("deduplicates attributable confirmation events by save and refuses a work out
   const { t, user, args, save } = await fixture();
   const first = await save();
   await save();
-  expect(
-    await t.run((ctx) => ctx.db.query("feedbackEvents").collect()),
-  ).toMatchObject([
+  expect(await t.run((ctx) => ctx.db.query("feedbackEvents").collect())).toMatchObject([
     {
       kind: "confirmation",
       deviceId: user.deviceId,
@@ -325,9 +296,7 @@ it("saves a scan identified before its museum visit existed into that visit and 
     probability: 0.95,
     identityStatus: "established" as const,
   };
-  const visitless = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: user.deviceId, venueId, best }),
-  );
+  const visitless = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId, best }));
   const { collectionId } = await save({
     scanId: visitless,
     localId: crypto.randomUUID(),
@@ -339,12 +308,8 @@ it("saves a scan identified before its museum visit existed into that visit and 
     confirmationRecorded: true,
   });
   expect(await object()).toMatchObject({ confirmCount: 1 });
-  const elsewhere = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: user.deviceId, best }),
-  );
-  await expect(
-    save({ scanId: elsewhere, localId: crypto.randomUUID() }),
-  ).rejects.toMatchObject({
+  const elsewhere = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, best }));
+  await expect(save({ scanId: elsewhere, localId: crypto.randomUUID() })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
 });

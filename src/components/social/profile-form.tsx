@@ -1,9 +1,5 @@
 import { reportError } from "@/lib/observability";
-import {
-  chooseProfilePhoto,
-  profilePhotoBytes,
-  removeProfilePhotoDraft,
-} from "@/lib/social/profile-photo";
+import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, TextInput, View } from "react-native";
@@ -19,13 +15,7 @@ import { validateProfile } from "@/shared/social/contracts";
 import { LIMITS } from "@/shared/journal/limits";
 import { ProfileAvatar } from "./profile-avatar";
 
-export function ProfileForm({
-  onCreated,
-  introduction,
-}: {
-  onCreated: () => void;
-  introduction: string;
-}) {
+export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
   const create = useMutation(api.profiles.create);
   const savePhoto = useAction(api.profilePhotos.save);
   const [photo, setPhoto] = useState<string>();
@@ -61,9 +51,7 @@ export function ProfileForm({
   }, [normalized]);
   const available = useSocialQuery(
     api.profiles.usernameAvailable,
-    validUsername && normalized === checkedUsername
-      ? { username: normalized }
-      : "skip",
+    validUsername && normalized === checkedUsername ? { username: normalized } : "skip",
     session.key,
   );
   const usernameMessage = profileCreated
@@ -106,11 +94,7 @@ export function ProfileForm({
     }
   }
   async function submit() {
-    if (
-      submitting.current
-      || !name.trim()
-      || (!created.current && (!validUsername || available.data === false))
-    ) {
+    if (submitting.current || !name.trim() || (!created.current && (!validUsername || available.data === false))) {
       return;
     }
     const owner = captureOwner();
@@ -135,16 +119,12 @@ export function ProfileForm({
       }
       if (owner.isCurrent() && mounted.current) onCreated();
     } catch (cause) {
-      reportError(
-        cause,
-        created.current ? "profile.photo.save" : "profile.create",
-      );
+      reportError(cause, created.current ? "profile.photo.save" : "profile.create");
       if (owner.isCurrent() && mounted.current) {
         setError(
           created.current
             ? "Your profile is ready, but the photo could not upload. Retry or continue without it."
-            : (socialErrorMessage(cause)
-                ?? "Your profile could not be created. Your edits are kept. Try again."),
+            : (socialErrorMessage(cause) ?? "Your profile could not be created. Your edits are kept. Try again."),
         );
       }
     } finally {
@@ -162,9 +142,7 @@ export function ProfileForm({
     >
       <View style={{ gap: 10 }}>
         <Text variant="pageTitle">Create a public profile.</Text>
-        <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>
-          {introduction}
-        </Text>
+        <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>{introduction}</Text>
       </View>
       <View style={{ alignItems: "center", gap: 8 }}>
         <ProfileAvatar name={name || "You"} photoUrl={photo} size={72} />
@@ -227,9 +205,7 @@ export function ProfileForm({
                 fontSize: 13,
                 lineHeight: 18,
                 color:
-                  !profileCreated
-                  && (available.data === false
-                    || (!!username && !validUsername))
+                  !profileCreated && (available.data === false || (!!username && !validUsername))
                     ? Gallery.destructive
                     : Gallery.muted,
               }}
@@ -240,8 +216,7 @@ export function ProfileForm({
         </View>
       ))}
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
-        Your name, photo and introduction appear on your public profile. Visits
-        and private notes are separate.
+        Your name, photo and introduction appear on your public profile. Visits and private notes are separate.
       </Text>
       {error && (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
@@ -253,21 +228,13 @@ export function ProfileForm({
         variant="filled"
         fullWidth
         busy={busy}
-        disabled={
-          !name.trim()
-          || (!profileCreated && (!validUsername || available.data === false))
-        }
+        disabled={!name.trim() || (!profileCreated && (!validUsername || available.data === false))}
         onPress={() => {
           void submit();
         }}
       />
       {profileCreated && error && (
-        <GalleryButton
-          label="Continue without photo"
-          fullWidth
-          disabled={busy}
-          onPress={onCreated}
-        />
+        <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={onCreated} />
       )}
     </ScrollView>
   );

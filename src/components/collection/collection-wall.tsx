@@ -5,23 +5,13 @@ import { EmptyState } from "../empty-state";
 import { ArtworkCollage } from "../guest/artwork-preview";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
-import {
-  DEFAULT_WALL_COLOR,
-  DEFAULT_THUMBNAIL_FRAME,
-} from "@/shared/wall/defaults";
+import { DEFAULT_WALL_COLOR, DEFAULT_THUMBNAIL_FRAME } from "@/shared/wall/defaults";
 import { randomUUID } from "expo-crypto";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gallery, Radius } from "@/constants/theme";
@@ -58,13 +48,7 @@ type CollectionWallProps = {
   header?: ReactElement;
   controls?: ReactElement;
 };
-export function CollectionWall({
-  works,
-  hiddenIds,
-  onEditingChange,
-  header,
-  controls,
-}: CollectionWallProps) {
+export function CollectionWall({ works, hiddenIds, onEditingChange, header, controls }: CollectionWallProps) {
   const wall = useCollectionWall(works);
   return (
     <CollectionWallContent
@@ -107,22 +91,15 @@ export function CollectionWallContent({
     wallTop = useRef(0),
     controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
-  const pieces = wall.pieces.filter(
-    (piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId),
-  );
+  const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
   const color = wall.draft?.color ?? DEFAULT_WALL_COLOR;
-  const count =
-    wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId))
-      .length ?? 0;
+  const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const opening = wall.loading && !wall.draft && !wall.error;
-  const blank =
-    !wall.draft?.items.length && !editing && !opening && !wall.error;
+  const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
   const hasSavedArt = works.some((work) => !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
-  const available = wall.selections.filter(
-    (item) => !hiddenIds.includes(item.localId),
-  );
+  const available = wall.selections.filter((item) => !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave;
   useEffect(() => {
@@ -130,13 +107,7 @@ export function CollectionWallContent({
     if (!piece || !width) return;
     const frame = requestAnimationFrame(() => {
       scroll.current?.scrollTo({
-        y: Math.max(
-          0,
-          wallTop.current
-            + piece.layout.y * width
-            - controlsHeight.current
-            - 24,
-        ),
+        y: Math.max(0, wallTop.current + piece.layout.y * width - controlsHeight.current - 24),
         animated: false,
       });
       revealId.current = undefined;
@@ -209,11 +180,7 @@ export function CollectionWallContent({
     }
   }
   function commit(draft: WallDraft) {
-    if (
-      blocked
-      || wall.repository.getSnapshot().pending
-      || !wall.repository.getSnapshot().acknowledged
-    ) {
+    if (blocked || wall.repository.getSnapshot().pending || !wall.repository.getSnapshot().acknowledged) {
       return;
     }
     wall.repository.setLayoutDraft(draft);
@@ -224,9 +191,7 @@ export function CollectionWallContent({
     commit({
       ...wall.draft,
       items: wall.draft.items.map((item) =>
-        item.placementId === id
-          ? { ...item, layout: constrainLayout(item.layout, layout) }
-          : item,
+        item.placementId === id ? { ...item, layout: constrainLayout(item.layout, layout) } : item,
       ),
     });
   }
@@ -251,10 +216,7 @@ export function CollectionWallContent({
     }
     commit({
       ...wall.draft,
-      items: [
-        ...wall.draft.items,
-        { placementId, photoLocalId, saveLocalId: localId, layout },
-      ],
+      items: [...wall.draft.items, { placementId, photoLocalId, saveLocalId: localId, layout }],
     });
     setSelectedId(placementId);
     return true;
@@ -270,11 +232,7 @@ export function CollectionWallContent({
     const items = [...wall.draft.items];
     for (const localId of picker) {
       const selection = available.find((item) => item.localId === localId);
-      if (
-        !selection
-        || items.some((item) => item.saveLocalId === localId)
-        || items.length >= LIMITS.wallItems
-      ) {
+      if (!selection || items.some((item) => item.saveLocalId === localId) || items.length >= LIMITS.wallItems) {
         continue;
       }
       const placementId = randomUUID(),
@@ -357,9 +315,7 @@ export function CollectionWallContent({
                   />
                 )}
                 <View style={styles.toolbarTrailing}>
-                  {wall.loading && wall.draft && !wall.error && (
-                    <LoadingRing accessibilityLabel="Refreshing wall" />
-                  )}
+                  {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
                   <GalleryButton
                     label="All artworks"
                     icon="chevron.right"
@@ -373,11 +329,7 @@ export function CollectionWallContent({
             )}
           </View>
         </View>
-        {editing && (
-          <Text style={styles.publicNotice}>
-            Hold and drag to move. Drag a corner to resize.
-          </Text>
-        )}
+        {editing && <Text style={styles.publicNotice}>Hold and drag to move. Drag a corner to resize.</Text>}
         {editing && (
           <ScrollView
             horizontal
@@ -437,11 +389,7 @@ export function CollectionWallContent({
                     void publish();
                   }}
                 />
-                <GalleryButton
-                  label="Discard unsaved change"
-                  disabled={wall.pending}
-                  onPress={discard}
-                />
+                <GalleryButton label="Discard unsaved change" disabled={wall.pending} onPress={discard} />
               </View>
             ) : (
               <GalleryButton
@@ -465,8 +413,7 @@ export function CollectionWallContent({
             style={[
               styles.blankWall,
               {
-                backgroundColor:
-                  color === DEFAULT_WALL_COLOR ? "#EFEEE7" : color,
+                backgroundColor: color === DEFAULT_WALL_COLOR ? "#EFEEE7" : color,
               },
             ]}
           >
@@ -522,9 +469,7 @@ export function CollectionWallContent({
                 onMove={move}
                 onSelect={(piece) => {
                   if (editing) setSelectedId(piece.localId);
-                  else if (
-                    works.some((work) => work.localId === piece.saveLocalId)
-                  ) {
+                  else if (works.some((work) => work.localId === piece.saveLocalId)) {
                     router.push({
                       pathname: "/saved/[savedId]",
                       params: {
@@ -541,25 +486,17 @@ export function CollectionWallContent({
                 {!count && (
                   <View style={styles.empty}>
                     {!opening && (
-                      <Text
-                        variant="display"
-                        style={[styles.emptyTitle, { color: wallInk }]}
-                      >
+                      <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>
                         Add artworks to your wall.
                       </Text>
                     )}
                     {!opening && (
                       <Text style={[styles.emptyCaption, { color: wallInk }]}>
-                        {editing
-                          ? "Tap a saved artwork below to hang it."
-                          : "Choose from your saved artworks."}
+                        {editing ? "Tap a saved artwork below to hang it." : "Choose from your saved artworks."}
                       </Text>
                     )}
                     {opening ? (
-                      <LoadingRing
-                        color={wallInk}
-                        accessibilityLabel="Opening your wall…"
-                      />
+                      <LoadingRing color={wallInk} accessibilityLabel="Opening your wall…" />
                     ) : !editing && wall.draft ? (
                       <GalleryButton
                         label="Add artworks"
@@ -585,9 +522,7 @@ export function CollectionWallContent({
         <View pointerEvents="none" style={styles.topOverscroll} />
       </ScrollView>
       {editing && (
-        <View
-          style={[styles.tray, { paddingBottom: Math.max(insets.bottom, 12) }]}
-        >
+        <View style={[styles.tray, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View
             style={{
               flexDirection: "row",
@@ -599,11 +534,7 @@ export function CollectionWallContent({
             <Text variant="metadata" style={styles.trayLabel}>
               Saved artworks
             </Text>
-            <GalleryButton
-              label="Choose artworks"
-              disabled={blocked}
-              onPress={openPicker}
-            />
+            <GalleryButton label="Choose artworks" disabled={blocked} onPress={openPicker} />
           </View>
           <ScrollView
             horizontal
@@ -612,14 +543,11 @@ export function CollectionWallContent({
             contentContainerStyle={styles.artworkStrip}
           >
             {available.map((item) => {
-              const placement = pieces.find(
-                (piece) => piece.saveLocalId === item.localId,
-              );
+              const placement = pieces.find((piece) => piece.saveLocalId === item.localId);
               const isSelected = selected?.saveLocalId === item.localId;
               const frame = placement?.layout.frame ?? DEFAULT_THUMBNAIL_FRAME;
               const imageWidth = 88 - wallFrameInset(frame, 88) * 2;
-              const disabled =
-                blocked || (!placement && count >= LIMITS.wallItems);
+              const disabled = blocked || (!placement && count >= LIMITS.wallItems);
               return (
                 <Pressable
                   key={item.localId}
@@ -632,18 +560,14 @@ export function CollectionWallContent({
                       setSelectedId(placement.localId);
                       revealId.current = placement.localId;
                     } else if (add(item.localId)) {
-                      showToast(
-                        "Selected image added to your wall. Other photos stay private.",
-                      );
+                      showToast("Selected image added to your wall. Other photos stay private.");
                     }
                   }}
                   style={[
                     styles.artworkCard,
                     {
                       width: 140 * Math.min(fontScale, 1.5),
-                      borderColor: isSelected
-                        ? Gallery.accent
-                        : Gallery.softBorder,
+                      borderColor: isSelected ? Gallery.accent : Gallery.softBorder,
                       borderWidth: isSelected ? 2 : 1,
                     },
                   ]}
@@ -651,32 +575,18 @@ export function CollectionWallContent({
                   <View style={styles.artworkMat}>
                     <WallFrame frame={frame} width={88}>
                       <SavedWorkImage
-                        path={
-                          works.find((work) => work.localId === item.localId)
-                            ?.cropPath ?? null
-                        }
-                        syncing={works.some(
-                          (work) =>
-                            work.localId === item.localId && cropSyncing(work),
-                        )}
+                        path={works.find((work) => work.localId === item.localId)?.cropPath ?? null}
+                        syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))}
                         title={item.snapshot.title}
                         contain
                         style={{ width: imageWidth, height: 60 }}
                       />
                     </WallFrame>
                   </View>
-                  <Text
-                    numberOfLines={1}
-                    variant="metadata"
-                    style={{ fontWeight: "600" }}
-                  >
+                  <Text numberOfLines={1} variant="metadata" style={{ fontWeight: "600" }}>
                     {item.snapshot.title}
                   </Text>
-                  <Text
-                    numberOfLines={1}
-                    variant="metadata"
-                    themeColor="textSecondary"
-                  >
+                  <Text numberOfLines={1} variant="metadata" themeColor="textSecondary">
                     {item.snapshot.artist}
                   </Text>
                 </Pressable>
@@ -693,9 +603,7 @@ export function CollectionWallContent({
                 }}
               />
             ) : !available.length ? (
-              <Text style={styles.caption}>
-                Save an artwork to add it to your wall.
-              </Text>
+              <Text style={styles.caption}>Save an artwork to add it to your wall.</Text>
             ) : null}
           </ScrollView>
           <View style={styles.trayActions}>
@@ -723,19 +631,11 @@ export function CollectionWallContent({
         </View>
       )}
       {picker && (
-        <WallSheet
-          title="Choose artworks"
-          tall
-          onDismiss={() => setPicker(undefined)}
-        >
+        <WallSheet title="Choose artworks" tall onDismiss={() => setPicker(undefined)}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
-            <Text style={styles.caption}>
-              {count + picker.length} selected · Your wall is public
-            </Text>
+            <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
             {available.map((item) => {
-              const hung = pieces.some(
-                (piece) => piece.saveLocalId === item.localId,
-              );
+              const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
               const checked = hung || picker.includes(item.localId);
               return (
                 <Pressable
@@ -743,11 +643,7 @@ export function CollectionWallContent({
                   accessibilityRole="checkbox"
                   accessibilityLabel={item.snapshot.title}
                   accessibilityState={{ checked, disabled: hung }}
-                  disabled={
-                    hung
-                    || blocked
-                    || (!checked && count + picker.length >= LIMITS.wallItems)
-                  }
+                  disabled={hung || blocked || (!checked && count + picker.length >= LIMITS.wallItems)}
                   onPress={() =>
                     setPicker((ids) =>
                       ids?.includes(item.localId)
@@ -763,10 +659,7 @@ export function CollectionWallContent({
                   }}
                 >
                   <SavedWorkImage
-                    path={
-                      works.find((work) => work.localId === item.localId)
-                        ?.cropPath ?? null
-                    }
+                    path={works.find((work) => work.localId === item.localId)?.cropPath ?? null}
                     title={item.snapshot.title}
                     contain
                     style={{ width: 60, height: 60 }}
@@ -778,9 +671,7 @@ export function CollectionWallContent({
                       {hung ? " · On wall" : ""}
                     </Text>
                   </View>
-                  <Text style={{ color: Gallery.accent }}>
-                    {checked ? "✓" : "○"}
-                  </Text>
+                  <Text style={{ color: Gallery.accent }}>{checked ? "✓" : "○"}</Text>
                 </Pressable>
               );
             })}
@@ -794,15 +685,10 @@ export function CollectionWallContent({
                 }}
               />
             ) : !available.length ? (
-              <Text style={styles.caption}>
-                Your artworks appear here once they have synced.
-              </Text>
+              <Text style={styles.caption}>Your artworks appear here once they have synced.</Text>
             ) : null}
             {wall.error && (
-              <Text
-                accessibilityRole="alert"
-                style={{ color: Gallery.destructive }}
-              >
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                 {wall.error}
               </Text>
             )}
@@ -843,9 +729,7 @@ export function CollectionWallContent({
               commit({
                 ...wall.draft,
                 items: wall.draft.items.map((item) =>
-                  item.placementId === selected.localId
-                    ? { ...item, photoLocalId }
-                    : item,
+                  item.placementId === selected.localId ? { ...item, photoLocalId } : item,
                 ),
               });
               showToast("Wall photo updated. Other photos remain private.");
@@ -864,17 +748,11 @@ export function CollectionWallContent({
           onDismiss={() => setOptions(false)}
           onDismissed={() => {
             setOptions(false);
-            setPhotoPicker(
-              (picker) => picker && { ...picker, presented: true },
-            );
+            setPhotoPicker((picker) => picker && { ...picker, presented: true });
           }}
           onChange={(layout) => move(selected.localId, layout)}
           onRemove={() => remove(selected.localId)}
-          onChoosePhoto={
-            selected.saveLocalId
-              ? () => setPhotoPicker({ kind: "choose", presented: false })
-              : undefined
-          }
+          onChoosePhoto={selected.saveLocalId ? () => setPhotoPicker({ kind: "choose", presented: false }) : undefined}
           onDuplicatePhoto={
             selected.saveLocalId && count < LIMITS.wallItems
               ? () => setPhotoPicker({ kind: "duplicate", presented: false })

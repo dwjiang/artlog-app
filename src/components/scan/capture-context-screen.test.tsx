@@ -14,9 +14,7 @@ let mockParams: {
   capturedAt?: string;
 } = {};
 let mockSession: PhotoSessionDraft = { photos: [] };
-let mockOpenVisit:
-  | { localId: string; venueId: string; visitedOn: string; timeZone: string }
-  | undefined;
+let mockOpenVisit: { localId: string; venueId: string; visitedOn: string; timeZone: string } | undefined;
 const mockVisitByDefault = jest.fn();
 let mockQuery = {
   data: [] as {
@@ -112,9 +110,7 @@ it("marks the capture’s own visit until the draft overrides it", async () => {
   mockSession = { photos: [], visit: { kind: "none" } };
   mockParams = { draftId: "other.jpg", visitId: "captured-visit" };
   await view.rerender(<CaptureContextScreen />);
-  expect(
-    screen.getByRole("button", { name: "Artwork only", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
 });
 
 it("writes the choice to the draft only and closes", async () => {
@@ -124,12 +120,8 @@ it("writes the choice to the draft only and closes", async () => {
     error: undefined,
   };
   await render(<CaptureContextScreen />);
-  expect(
-    screen.getByRole("button", { name: "Artwork only", selected: true }),
-  ).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Other museum · 1 Mar 2024" }),
-  );
+  expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Other museum · 1 Mar 2024" }));
   expect(mockUpdateSession).toHaveBeenCalledWith("owner", "capture.jpg", {
     visit: { kind: "visit", localId: "other-visit" },
   });
@@ -156,9 +148,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
       name: "The Met · Today · Starts with this artwork",
       selected: true,
     });
-    expect(
-      screen.getByRole("button", { name: "Artwork only", selected: false }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Artwork only", selected: false })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: "Artwork only" }));
     expect(mockUpdateSession).toHaveBeenLastCalledWith("owner", "capture.jpg", {
       visit: { kind: "none" },
@@ -172,19 +162,14 @@ describe("a capture scanned at a museum with no visit yet", () => {
   it("defaults to no visit after the visit there was ended on the capture day, with the museum one tap away", async () => {
     mockVisitByDefault.mockReturnValue(false);
     await render(<CaptureContextScreen />);
-    expect(mockVisitByDefault).toHaveBeenCalledWith(
-      "id-met",
-      Number(mockParams.capturedAt),
-    );
+    expect(mockVisitByDefault).toHaveBeenCalledWith("id-met", Number(mockParams.capturedAt));
     expect(
       await screen.findByRole("button", {
         name: "The Met · Today · Starts with this artwork",
         selected: false,
       }),
     ).toBeOnTheScreen();
-    expect(
-      screen.getByRole("button", { name: "Artwork only", selected: true }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
   });
 
   it("marks the visit already open at that museum instead of offering the museum again", async () => {
@@ -302,9 +287,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
       selected: true,
     });
     expect(screen.queryByText("Keep the day, too.")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Create a visit" }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Create a visit" })).toBeOnTheScreen();
   });
 });
 
@@ -315,15 +298,9 @@ it("places artwork only before museum visits and creation after them", async () 
     error: undefined,
   };
   await render(<CaptureContextScreen />);
-  const choices = screen
-    .getAllByRole("button")
-    .map((button) => button.props.accessibilityLabel);
-  expect(choices.indexOf("Artwork only")).toBeLessThan(
-    choices.indexOf("Museum · 29 Feb 2024"),
-  );
-  expect(
-    screen.getByRole("button", { name: "Create a visit" }),
-  ).toBeOnTheScreen();
+  const choices = screen.getAllByRole("button").map((button) => button.props.accessibilityLabel);
+  expect(choices.indexOf("Artwork only")).toBeLessThan(choices.indexOf("Museum · 29 Feb 2024"));
+  expect(screen.getByRole("button", { name: "Create a visit" })).toBeOnTheScreen();
 });
 
 it("names the open visit as the one happening now", async () => {
@@ -335,9 +312,7 @@ it("names the open visit as the one happening now", async () => {
   };
   mockQuery = { data: [museum], updatedAt: new Date(), error: undefined };
   await render(<CaptureContextScreen />);
-  expect(
-    screen.getByRole("button", { name: "Museum · Visiting now" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Museum · Visiting now" })).toBeOnTheScreen();
 });
 
 it("distinguishes loading visits from an empty collection", async () => {
@@ -355,26 +330,16 @@ it("preserves the current choice when saving the new choice fails", async () => 
     throw new Error("Write failed");
   });
   await render(<CaptureContextScreen />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Museum · 29 Feb 2024" }),
-  );
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    /Your previous selection is unchanged\./,
-  );
-  expect(
-    screen.getByRole("button", { name: "Artwork only", selected: true }),
-  ).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Museum · 29 Feb 2024" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(/Your previous selection is unchanged\./);
+  expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });
 
 it("shows a query failure without claiming there are no visits, and still offers a new visit", async () => {
   mockQuery.error = new Error("Read failed");
   await render(<CaptureContextScreen />);
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    /Couldn’t load your visits\./,
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent(/Couldn’t load your visits\./);
   expect(screen.queryByText("No visits yet.")).toBeNull();
-  expect(
-    screen.getByRole("button", { name: "Create a visit" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Create a visit" })).toBeOnTheScreen();
 });

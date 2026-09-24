@@ -4,14 +4,7 @@ import type { FunctionReturnType } from "convex/server";
 import { randomUUID } from "expo-crypto";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
@@ -35,9 +28,7 @@ type CommentPage = FunctionReturnType<typeof api.visitReactions.listComments>;
 type Comment = CommentPage["page"][number];
 const commentsPage = (value: CommentPage) => value;
 const commentId = (value: Comment) => value.commentId;
-const likesPage = (
-  value: FunctionReturnType<typeof api.visitReactions.listLikes>,
-) => value;
+const likesPage = (value: FunctionReturnType<typeof api.visitReactions.listLikes>) => value;
 const profileId = (value: PublicProfile) => value.profileId;
 
 export function VisitReactionsSheet({
@@ -71,48 +62,26 @@ export function VisitReactionsSheet({
             <Text accessibilityRole="header" style={styles.title}>
               {title}{" "}
               <Text style={styles.total}>
-                {summary
-                  ? kind === "comments"
-                    ? summary.commentCount
-                    : summary.likeCount
-                  : ""}
+                {summary ? (kind === "comments" ? summary.commentCount : summary.likeCount) : ""}
               </Text>
             </Text>
-            <GalleryIconButton
-              label={`Close ${kind}`}
-              icon="xmark"
-              onPress={onDismiss}
-            />
+            <GalleryIconButton label={`Close ${kind}`} icon="xmark" onPress={onDismiss} />
           </View>
           <View style={styles.context}>
             {kind === "comments" && visit.media && (
-              <DisplayMedia
-                media={visit.media}
-                label="Visit artwork"
-                token={session.token}
-                width={40}
-                height={40}
-              />
+              <DisplayMedia media={visit.media} label="Visit artwork" token={session.token} width={40} height={40} />
             )}
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.contextName}>
                 {visit.author.name}’s visit to {visit.venue.name}
               </Text>
-              {kind === "comments" && (
-                <Text style={styles.meta}>
-                  {visitDate(visit.visitedOn, undefined, "short")}
-                </Text>
-              )}
+              {kind === "comments" && <Text style={styles.meta}>{visitDate(visit.visitedOn, undefined, "short")}</Text>}
             </View>
           </View>
           {kind === "comments" ? (
             <Comments visit={visit} session={session} onJoin={onJoin} />
           ) : (
-            <Likes
-              postId={visit.postId}
-              session={session}
-              onDismiss={onDismiss}
-            />
+            <Likes postId={visit.postId} session={session} onDismiss={onDismiss} />
           )}
         </View>
       </RNHostView>
@@ -120,23 +89,9 @@ export function VisitReactionsSheet({
   );
 }
 
-function Likes({
-  postId,
-  session,
-  onDismiss,
-}: {
-  postId: string;
-  session: SocialSession;
-  onDismiss: () => void;
-}) {
+function Likes({ postId, session, onDismiss }: { postId: string; session: SocialSession; onDismiss: () => void }) {
   const router = useRouter();
-  const likes = useCursorPages(
-    api.visitReactions.listLikes,
-    { postId },
-    session.key,
-    likesPage,
-    profileId,
-  );
+  const likes = useCursorPages(api.visitReactions.listLikes, { postId }, session.key, likesPage, profileId);
   return (
     <FlatList
       data={likes.items}
@@ -165,10 +120,7 @@ function Likes({
       )}
       ListEmptyComponent={
         likes.done && !likes.loading && !likes.error ? (
-          <Empty
-            title="No likes yet."
-            detail="Be the first to like this visit."
-          />
+          <Empty title="No likes yet." detail="Be the first to like this visit." />
         ) : null
       }
       ListFooterComponent={
@@ -182,15 +134,7 @@ function Likes({
   );
 }
 
-function Comments({
-  visit,
-  session,
-  onJoin,
-}: {
-  visit: ReactionVisit;
-  session: SocialSession;
-  onJoin: () => void;
-}) {
+function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: SocialSession; onJoin: () => void }) {
   const comments = useCursorPages(
     api.visitReactions.listComments,
     { postId: visit.postId },
@@ -198,11 +142,7 @@ function Comments({
     commentsPage,
     commentId,
   );
-  const viewer = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const viewer = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   const addComment = useMutation(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
   const list = useRef<FlatList<Comment>>(null);
@@ -220,8 +160,7 @@ function Comments({
   const [deleting, setDeleting] = useState<string>();
   const [error, setError] = useState<string>();
   const { canLoadMore, loadMore } = comments;
-  const postedVisible =
-    !!posted && comments.items.some((item) => item.commentId === posted);
+  const postedVisible = !!posted && comments.items.some((item) => item.commentId === posted);
   useEffect(() => {
     if (posted && !postedVisible && canLoadMore) loadMore();
   }, [posted, postedVisible, canLoadMore, loadMore]);
@@ -244,47 +183,37 @@ function Comments({
       request.current = null;
       setPosted(id);
     } catch (cause) {
-      setError(
-        socialErrorMessage(cause)
-          ?? "Couldn’t post your comment. Your text is still here.",
-      );
+      setError(socialErrorMessage(cause) ?? "Couldn’t post your comment. Your text is still here.");
     } finally {
       pending.current = false;
       setBusy(false);
     }
   };
   const remove = (item: Comment) =>
-    Alert.alert(
-      "Delete comment?",
-      "This removes your comment from this visit.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (pending.current) return;
-            pending.current = true;
-            setDeleting(item.commentId);
-            setError(undefined);
-            try {
-              await deleteComment({
-                postId: visit.postId,
-                commentId: item.commentId,
-              });
-            } catch (cause) {
-              setError(
-                socialErrorMessage(cause)
-                  ?? "Couldn’t delete your comment. Try again.",
-              );
-            } finally {
-              pending.current = false;
-              setDeleting(undefined);
-            }
-          },
+    Alert.alert("Delete comment?", "This removes your comment from this visit.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          if (pending.current) return;
+          pending.current = true;
+          setDeleting(item.commentId);
+          setError(undefined);
+          try {
+            await deleteComment({
+              postId: visit.postId,
+              commentId: item.commentId,
+            });
+          } catch (cause) {
+            setError(socialErrorMessage(cause) ?? "Couldn’t delete your comment. Try again.");
+          } finally {
+            pending.current = false;
+            setDeleting(undefined);
+          }
         },
-      ],
-    );
+      },
+    ]);
   return (
     <>
       <FlatList
@@ -303,11 +232,7 @@ function Comments({
         }}
         renderItem={({ item }) => (
           <View style={styles.comment}>
-            <ProfileAvatar
-              name={item.author.name}
-              photoUrl={item.author.photoUrl}
-              size={32}
-            />
+            <ProfileAvatar name={item.author.name} photoUrl={item.author.photoUrl} size={32} />
             <View style={{ flex: 1, gap: 4 }}>
               <View style={styles.byline}>
                 <Text style={styles.name}>{item.author.name}</Text>
@@ -336,9 +261,7 @@ function Comments({
                   onPress={() => remove(item)}
                   style={styles.delete}
                 >
-                  <Text style={styles.meta}>
-                    {deleting === item.commentId ? "Deleting…" : "Delete"}
-                  </Text>
+                  <Text style={styles.meta}>{deleting === item.commentId ? "Deleting…" : "Delete"}</Text>
                 </Pressable>
               )}
             </View>
@@ -346,19 +269,12 @@ function Comments({
         )}
         ListEmptyComponent={
           comments.done && !comments.loading && !comments.error ? (
-            <Empty
-              title="No comments yet."
-              detail="Start the conversation about this visit."
-            />
+            <Empty title="No comments yet." detail="Start the conversation about this visit." />
           ) : null
         }
         ListFooterComponent={
           !comments.done || comments.loading || comments.error ? (
-            <PageFooter
-              {...comments}
-              count={comments.items.length}
-              noun="comments"
-            />
+            <PageFooter {...comments} count={comments.items.length} noun="comments" />
           ) : null
         }
         onEndReached={comments.loadMore}
@@ -373,17 +289,8 @@ function Comments({
         {session.status === "ready" ? (
           <>
             <View style={styles.inputRow}>
-              <ProfileAvatar
-                name={viewer.data?.name ?? "You"}
-                photoUrl={viewer.data?.photoUrl}
-                size={32}
-              />
-              <View
-                style={[
-                  styles.inputWrap,
-                  focused && { borderColor: Gallery.accent },
-                ]}
-              >
+              <ProfileAvatar name={viewer.data?.name ?? "You"} photoUrl={viewer.data?.photoUrl} size={32} />
+              <View style={[styles.inputWrap, focused && { borderColor: Gallery.accent }]}>
                 <TextInput
                   accessibilityLabel="Add a comment"
                   placeholder="Add a comment…"
@@ -417,24 +324,15 @@ function Comments({
                     ]}
                   >
                     {busy ? (
-                      <LoadingRing
-                        accessibilityLabel="Posting comment"
-                        size={18}
-                      />
+                      <LoadingRing accessibilityLabel="Posting comment" size={18} />
                     ) : (
-                      <VisitSymbol
-                        name="arrow.up"
-                        size={18}
-                        color={draft.trim() ? Gallery.surface : Gallery.muted}
-                      />
+                      <VisitSymbol name="arrow.up" size={18} color={draft.trim() ? Gallery.surface : Gallery.muted} />
                     )}
                   </View>
                 </Pressable>
               </View>
             </View>
-            <Text style={styles.audience}>
-              Comments are public, like this visit.
-            </Text>
+            <Text style={styles.audience}>Comments are public, like this visit.</Text>
           </>
         ) : (
           <View style={styles.join}>
@@ -444,11 +342,7 @@ function Comments({
                 : "Sign in to join the conversation."}
             </Text>
             <GalleryButton
-              label={
-                session.status === "profile-required"
-                  ? "Create profile"
-                  : "Sign in"
-              }
+              label={session.status === "profile-required" ? "Create profile" : "Sign in"}
               onPress={onJoin}
             />
           </View>

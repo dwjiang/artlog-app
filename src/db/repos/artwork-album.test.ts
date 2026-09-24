@@ -1,8 +1,4 @@
-import {
-  insertSavedWork,
-  softDeleteSavedWork,
-  selectSavedWork,
-} from "./saved-works";
+import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from "./saved-works";
 import { upsertVisit } from "./visits";
 import {
   albumMediaPending,
@@ -91,38 +87,21 @@ it("scopes photos to the visit they were taken on, so a repeat visit does not in
       .all()
       .map((row) => row.kind),
   ).toEqual(["detail", "label"]);
-  expect(
-    selectVisitArtworkPhotos(
-      "work",
-      "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342",
-      "account:other",
-    ).all(),
-  ).toEqual([]);
+  expect(selectVisitArtworkPhotos("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", "account:other").all()).toEqual([]);
 });
 it("lists the same artwork on both visits without cloning it", async () => {
   const journal = createJournalRepository(owner);
-  expect(
-    (await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).page.map(
-      (row) => row.localId,
-    ),
-  ).toEqual(["work"]);
-  expect(
-    (await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).page.map(
-      (row) => row.localId,
-    ),
-  ).toEqual(["work"]);
+  expect((await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).page.map((row) => row.localId)).toEqual([
+    "work",
+  ]);
+  expect((await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).page.map((row) => row.localId)).toEqual([
+    "work",
+  ]);
 });
 it("rejects foreign artwork and visit identifiers", async () => {
-  await insertSavedWork(
-    { localId: "foreign", title: "Private", artist: "", savedAt: 1 },
-    "account:other",
-  );
-  expect(() =>
-    linkArtworkVisit("foreign", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341"),
-  ).toThrow("Artwork is unavailable");
-  expect(() => linkArtworkVisit("work", "foreign")).toThrow(
-    "Visit is unavailable",
-  );
+  await insertSavedWork({ localId: "foreign", title: "Private", artist: "", savedAt: 1 }, "account:other");
+  expect(() => linkArtworkVisit("foreign", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toThrow("Artwork is unavailable");
+  expect(() => linkArtworkVisit("work", "foreign")).toThrow("Visit is unavailable");
   expect(selectArtworkPhotos("work", "account:other").all()).toEqual([]);
 });
 it("unlinking preserves photographs and the visit record", async () => {
@@ -132,32 +111,24 @@ it("unlinking preserves photographs and the visit record", async () => {
   });
   expect(selectArtworkEncounters().all()).toHaveLength(1);
   expect(selectArtworkPhotos("work").all()).toHaveLength(3);
-  expect(
-    await createJournalRepository(owner).detail(
-      "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342",
-    ),
-  ).toMatchObject({ localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342" });
+  expect(await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).toMatchObject({
+    localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342",
+  });
   linkArtworkVisit("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342");
   expect(
     selectArtworkEncounters()
       .all()
-      .find(
-        (row) => row.visitLocalId === "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342",
-      )?.note,
+      .find((row) => row.visitLocalId === "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")?.note,
   ).toBe("Came back");
 });
 it("deleting the artwork tombstones its album and retains visits", async () => {
   await softDeleteSavedWork("work", 20);
   expect(selectArtworkPhotos("work").all()).toEqual([]);
   expect(selectArtworkEncounters().all()).toEqual([]);
-  expect(pendingAlbum(owner).photos.every((row) => row.deletedAt === 20)).toBe(
-    true,
-  );
-  expect(
-    await createJournalRepository(owner).detail(
-      "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
-    ),
-  ).toMatchObject({ localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341" });
+  expect(pendingAlbum(owner).photos.every((row) => row.deletedAt === 20)).toBe(true);
+  expect(await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toMatchObject({
+    localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
+  });
 });
 it("rolls back a whole capture session when a photo belongs to another artwork", () => {
   expect(() =>
@@ -214,9 +185,7 @@ it("moves photos and their visit link atomically and reuses deleted capacity", a
       kind: "full",
     });
   }
-  expect(() =>
-    editArtworkPhoto("move-source", { savedLocalId: "move-target" }),
-  ).toThrow("100 photos");
+  expect(() => editArtworkPhoto("move-source", { savedLocalId: "move-target" })).toThrow("100 photos");
   expect(
     selectArtworkEncounters()
       .all()
@@ -241,22 +210,11 @@ it("reports media a publish depends on as pending until its rows and bytes reach
     photoPath: "pending.jpg",
   });
   expect(albumMediaPending(owner, {})).toBe(false);
-  expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(
-    true,
-  );
-  expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(
-    true,
-  );
-  db.update(artworkPhotos)
-    .set({ syncedAt: 5 })
-    .where(eq(artworkPhotos.localId, "pending-work"))
-    .run();
-  expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(
-    false,
-  );
-  expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(
-    true,
-  );
+  expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(true);
+  expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(true);
+  db.update(artworkPhotos).set({ syncedAt: 5 }).where(eq(artworkPhotos.localId, "pending-work")).run();
+  expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(false);
+  expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(true);
   db.update(artworkPhotos)
     .set({ storageId: "stored" as never })
     .where(eq(artworkPhotos.localId, "pending-work"))
@@ -306,9 +264,7 @@ it("links one artwork to several visits atomically", async () => {
   });
   const first = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
     second = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342";
-  expect(() =>
-    linkArtworkVisits("multi-visit", [first, "missing-visit"]),
-  ).toThrow();
+  expect(() => linkArtworkVisits("multi-visit", [first, "missing-visit"])).toThrow();
   expect(
     selectArtworkEncounters()
       .all()

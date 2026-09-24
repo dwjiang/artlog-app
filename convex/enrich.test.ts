@@ -22,11 +22,8 @@ async function fixture() {
       source: "feed" as const,
       confidence: 1,
     };
-    const contribution = (
-      await seedArtworkWithObject(ctx, { object: { source: "user" } })
-    ).artworkId;
-    const hanging = (await seedArtworkWithObject(ctx, { placement: onView }))
-      .artworkId;
+    const contribution = (await seedArtworkWithObject(ctx, { object: { source: "user" } })).artworkId;
+    const hanging = (await seedArtworkWithObject(ctx, { placement: onView })).artworkId;
     const stored = (
       await seedArtworkWithObject(ctx, {
         placement: { ...onView, onView: false },
@@ -83,11 +80,7 @@ async function fixture() {
 
 const claimed = (rows: { _id: Id<"artworks"> }[]) => rows.map((row) => row._id);
 
-async function sweep(
-  t: Harness,
-  limit = 100,
-  after?: BatchCursor,
-): Promise<Doc<"artworks">[]> {
+async function sweep(t: Harness, limit = 100, after?: BatchCursor): Promise<Doc<"artworks">[]> {
   const artworks: Doc<"artworks">[] = [];
   for (let pageNumber = 0; pageNumber < 1000; pageNumber++) {
     const page = await t.mutation(internal.enrich.claimBatch, { limit, after });
@@ -102,22 +95,10 @@ describe("enrich.claimBatch", () => {
   it("claims contributions before on-view works and skips enriched, claimed, reviewed and reverted rows", async () => {
     const { t, now, ids } = await fixture();
     const artworks = await sweep(t);
-    expect(claimed(artworks)).toEqual([
-      ids.contribution,
-      ids.staleClaim,
-      ids.hanging,
-    ]);
-    expect(
-      artworks.every(
-        (row) => row.enrichClaimedAt === now && row.enrichGeneration === 1,
-      ),
-    ).toBe(true);
-    expect(
-      (await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt,
-    ).toBe(now);
-    expect(
-      (await t.run((ctx) => ctx.db.get(ids.stored)))?.enrichClaimedAt,
-    ).toBeUndefined();
+    expect(claimed(artworks)).toEqual([ids.contribution, ids.staleClaim, ids.hanging]);
+    expect(artworks.every((row) => row.enrichClaimedAt === now && row.enrichGeneration === 1)).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt).toBe(now);
+    expect((await t.run((ctx) => ctx.db.get(ids.stored)))?.enrichClaimedAt).toBeUndefined();
     expect(await sweep(t)).toEqual([]);
   });
 
@@ -129,19 +110,14 @@ describe("enrich.claimBatch", () => {
       phase: "contributions",
       cursor: expect.any(String),
     });
-    await t.run((ctx) =>
-      ctx.db.patch(ids.contribution, { enrichClaimedAt: undefined }),
-    );
+    await t.run((ctx) => ctx.db.patch(ids.contribution, { enrichClaimedAt: undefined }));
     const second = await t.mutation(internal.enrich.claimBatch, {
       limit: 1,
       after: first.after!,
     });
     expect(second.artworks).toEqual([]);
     expect(second.after).not.toBeNull();
-    expect(claimed(await sweep(t, 1, second.after!))).toEqual([
-      ids.staleClaim,
-      ids.hanging,
-    ]);
+    expect(claimed(await sweep(t, 1, second.after!))).toEqual([ids.staleClaim, ids.hanging]);
   });
 
   it("releases only the owning generation so an artwork can be claimed again", async () => {
@@ -156,9 +132,7 @@ describe("enrich.claimBatch", () => {
       artworkId: ids.hanging,
       generation: 1,
     });
-    expect(
-      (await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(ids.hanging)))?.enrichClaimedAt).toBeUndefined();
     const next = await sweep(t);
     expect(claimed(next)).toEqual([ids.hanging]);
     expect(next[0].enrichGeneration).toBe(2);
@@ -214,20 +188,14 @@ it("previews pending work without claims or generations and resolves object keys
   const { t, ids } = await fixture();
   const page = await t.query(internal.enrich.previewBatch, { limit: 100 });
   expect(claimed(page.artworks)).toEqual([ids.contribution, ids.staleClaim]);
-  expect(
-    (await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichGeneration,
-  ).toBeUndefined();
-  expect(
-    (await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichClaimedAt,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichGeneration).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(ids.contribution)))?.enrichClaimedAt).toBeUndefined();
   const object = await t.run((ctx) =>
     ctx.db
       .query("objects")
       .withIndex("by_artworkId", (q) => q.eq("artworkId", ids.contribution))
       .first(),
   );
-  expect(
-    (await t.query(internal.enrich.lookup, { key: object!.key }))?._id,
-  ).toBe(ids.contribution);
+  expect((await t.query(internal.enrich.lookup, { key: object!.key }))?._id).toBe(ids.contribution);
   expect(await t.query(internal.enrich.lookup, { key: "missing" })).toBeNull();
 });

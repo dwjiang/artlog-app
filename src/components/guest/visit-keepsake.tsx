@@ -5,16 +5,10 @@ import { Gallery, Spacing, Typography } from "@/constants/theme";
 
 export function VisitKeepsake() {
   const { width, height, fontScale } = useWindowDimensions();
-  const size = Math.min(
-    width - Spacing.content * 2,
-    height < 760 || fontScale > 1.3 ? 280 : 360,
-  );
+  const size = Math.min(width - Spacing.content * 2, height < 760 || fontScale > 1.3 ? 280 : 360);
   return (
     <View style={styles.root}>
-      <View
-        accessibilityElementsHidden
-        style={{ width: size, height: size * 0.68 }}
-      >
+      <View accessibilityElementsHidden style={{ width: size, height: size * 0.68 }}>
         <View
           style={[
             styles.postcard,
@@ -33,19 +27,9 @@ export function VisitKeepsake() {
             accessible={false}
           />
         </View>
-        <View
-          style={[
-            styles.ticket,
-            { width: size * 0.72, height: size * 0.39, top: size * 0.22 },
-          ]}
-        >
+        <View style={[styles.ticket, { width: size * 0.72, height: size * 0.39, top: size * 0.22 }]}>
           <View style={styles.ticketMain}>
-            <Image
-              source="sf:star"
-              tintColor={Gallery.accent}
-              style={styles.star}
-              accessible={false}
-            />
+            <Image source="sf:star" tintColor={Gallery.accent} style={styles.star} accessible={false} />
             <Text
               allowFontScaling={false}
               style={[

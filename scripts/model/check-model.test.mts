@@ -1,17 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  chmod,
-  copyFile,
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { chmod, copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -34,14 +24,8 @@ beforeEach(async () => {
   await mkdir(join(compiled, "analytics"));
   await mkdir(join(directory, "scripts/model"), { recursive: true });
   await mkdir(join(directory, "shared/model"), { recursive: true });
-  await copyFile(
-    new URL("./check-model.mts", import.meta.url),
-    join(directory, "scripts/model/check-model.mts"),
-  );
-  await writeFile(
-    join(directory, "shared/model/model-version.json"),
-    JSON.stringify(contract),
-  );
+  await copyFile(new URL("./check-model.mts", import.meta.url), join(directory, "scripts/model/check-model.mts"));
+  await writeFile(join(directory, "shared/model/model-version.json"), JSON.stringify(contract));
   await writeFile(
     join(models, "model-manifest.json"),
     JSON.stringify({
@@ -50,12 +34,7 @@ beforeEach(async () => {
       weightsSha256: createHash("sha256").update("test weights").digest("hex"),
     }),
   );
-  for (const file of [
-    "coremldata.bin",
-    "analytics/coremldata.bin",
-    "model.mil",
-    "metadata.json",
-  ]) {
+  for (const file of ["coremldata.bin", "analytics/coremldata.bin", "model.mil", "metadata.json"]) {
     await writeFile(join(compiled, file), "compiled model");
   }
   await writeFile(join(compiled, "weights/weight.bin"), "test weights");
@@ -68,11 +47,7 @@ afterEach(async () => {
 function checkModel(...args: string[]) {
   return execFileSync(
     process.execPath,
-    [
-      "--experimental-strip-types",
-      join(directory, "scripts/model/check-model.mts"),
-      ...args,
-    ],
+    ["--experimental-strip-types", join(directory, "scripts/model/check-model.mts"), ...args],
     {
       cwd: directory,
       encoding: "utf8",
@@ -106,10 +81,7 @@ test("rejects unresolved LFS pointers before native compilation", async () => {
   ]) {
     const path = join(compiled, file);
     const original = await readFile(path);
-    await writeFile(
-      path,
-      "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 100\n",
-    );
+    await writeFile(path, "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 100\n");
     assert.throws(checkModel, /Git LFS pointer.*git lfs pull/);
     await writeFile(path, original);
   }
@@ -122,16 +94,9 @@ test("rejects incomplete compiled packages", async () => {
 
 test("rejects a model whose version or dimensions do not match the app", async () => {
   const path = join(directory, "shared/model/model-version.json");
-  for (const change of [
-    { modelVersion: "test-v2" },
-    { inputSize: 224 },
-    { embeddingDim: 768 },
-  ]) {
+  for (const change of [{ modelVersion: "test-v2" }, { inputSize: 224 }, { embeddingDim: 768 }]) {
     await writeFile(path, JSON.stringify({ ...contract, ...change }));
-    assert.throws(
-      checkModel,
-      /does not match shared\/model\/model-version.json/,
-    );
+    assert.throws(checkModel, /does not match shared\/model\/model-version.json/);
   }
 });
 
@@ -150,14 +115,8 @@ async function compilerFixture() {
   await mkdir(bin);
   await mkdir(result);
   await cp(compiled, join(result, "TestModel.mlmodelc"), { recursive: true });
-  await copyFile(
-    join(models, "model-manifest.json"),
-    join(output, "model-manifest.json"),
-  );
-  await writeFile(
-    join(bin, "xcrun"),
-    '#!/bin/sh\ncp -R "$ARTLOG_TEST_COMPILED/." "$4/"\n',
-  );
+  await copyFile(join(models, "model-manifest.json"), join(output, "model-manifest.json"));
+  await writeFile(join(bin, "xcrun"), '#!/bin/sh\ncp -R "$ARTLOG_TEST_COMPILED/." "$4/"\n');
   await chmod(join(bin, "xcrun"), 0o755);
   const compile = () =>
     execFileSync("bash", [script, output], {
@@ -182,13 +141,8 @@ test("installs a validated compiler result into the tracked model directory", as
 
 test("keeps the existing model when a new export does not match the app", async () => {
   const { compile, output } = await compilerFixture();
-  const manifest = JSON.parse(
-    await readFile(join(output, "model-manifest.json"), "utf8"),
-  );
-  await writeFile(
-    join(output, "model-manifest.json"),
-    JSON.stringify({ ...manifest, modelVersion: "wrong" }),
-  );
+  const manifest = JSON.parse(await readFile(join(output, "model-manifest.json"), "utf8"));
+  await writeFile(join(output, "model-manifest.json"), JSON.stringify({ ...manifest, modelVersion: "wrong" }));
   assert.throws(compile, /does not match/);
   assert.match(checkModel(), /Model test-v1 ready/);
 });

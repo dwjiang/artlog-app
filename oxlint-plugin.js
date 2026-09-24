@@ -1,5 +1,4 @@
-const RE_EXPORT =
-  "Re-export: import the symbol from the module that defines it";
+const RE_EXPORT = "Re-export: import the symbol from the module that defines it";
 const ALIAS = "Alias export: give the declaration one name and export that";
 
 // Flags forwarding another module's binding (`export ... from`, `export { imported }`,
@@ -15,16 +14,11 @@ const noReExports = {
       } else if (renamed) context.report({ node, message: ALIAS });
     };
     return {
-      ExportAllDeclaration: (node) =>
-        context.report({ node, message: RE_EXPORT }),
+      ExportAllDeclaration: (node) => context.report({ node, message: RE_EXPORT }),
       ExportNamedDeclaration(node) {
         if (node.source) return context.report({ node, message: RE_EXPORT });
         for (const specifier of node.specifiers) {
-          check(
-            specifier,
-            specifier.local.name,
-            specifier.exported.name !== specifier.local.name,
-          );
+          check(specifier, specifier.local.name, specifier.exported.name !== specifier.local.name);
         }
         for (const declarator of node.declaration?.declarations ?? []) {
           if (declarator.init?.type === "Identifier") {

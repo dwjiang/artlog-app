@@ -5,11 +5,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const models = resolve(
-  process.argv[2] ?? join(root, "modules/coreml-embed/ios/Models"),
-);
-const recovery =
-  "Run `git lfs install` and `git lfs pull` before building or uploading to EAS.";
+const models = resolve(process.argv[2] ?? join(root, "modules/coreml-embed/ios/Models"));
+const recovery = "Run `git lfs install` and `git lfs pull` before building or uploading to EAS.";
 const lfsPointerPrefix = "version https://git-lfs.github.com/spec/v1";
 
 function modelFile(path: string): Buffer {
@@ -17,10 +14,7 @@ function modelFile(path: string): Buffer {
     throw new Error(`Missing model file ${path}. ${recovery}`);
   }
   const contents = readFileSync(path);
-  if (
-    contents.subarray(0, lfsPointerPrefix.length).toString()
-    === lfsPointerPrefix
-  ) {
+  if (contents.subarray(0, lfsPointerPrefix.length).toString() === lfsPointerPrefix) {
     throw new Error(`Git LFS pointer found at ${path}. ${recovery}`);
   }
   if (contents.length === 0) {
@@ -30,12 +24,8 @@ function modelFile(path: string): Buffer {
 }
 
 try {
-  const manifest = JSON.parse(
-    modelFile(join(models, "model-manifest.json")).toString(),
-  );
-  const expected = JSON.parse(
-    readFileSync(join(root, "shared/model/model-version.json"), "utf8"),
-  );
+  const manifest = JSON.parse(modelFile(join(models, "model-manifest.json")).toString());
+  const expected = JSON.parse(readFileSync(join(root, "shared/model/model-version.json"), "utf8"));
   for (const key of ["modelVersion", "inputSize", "embeddingDim"]) {
     if (manifest[key] !== expected[key]) {
       throw new Error(
@@ -44,19 +34,11 @@ try {
     }
   }
   const compiled = join(models, `${manifest.modelName}.mlmodelc`);
-  for (const file of [
-    "coremldata.bin",
-    "analytics/coremldata.bin",
-    "model.mil",
-    "metadata.json",
-  ]) {
+  for (const file of ["coremldata.bin", "analytics/coremldata.bin", "model.mil", "metadata.json"]) {
     modelFile(join(compiled, file));
   }
   const weights = modelFile(join(compiled, "weights/weight.bin"));
-  if (
-    createHash("sha256").update(weights).digest("hex")
-    !== manifest.weightsSha256
-  ) {
+  if (createHash("sha256").update(weights).digest("hex") !== manifest.weightsSha256) {
     throw new Error(
       "Model weights do not match the manifest SHA-256. Restore the tracked model files before building.",
     );

@@ -19,11 +19,7 @@ export async function museumIdentityKeys(input: {
     url.hash = "";
     url.searchParams.sort();
     // One exhibition page can identify several works; its matched image distinguishes them.
-    identities.push(
-      input.imageUrl
-        ? `page-image:${url.href}\n${input.imageUrl}`
-        : `page:${url.href}`,
-    );
+    identities.push(input.imageUrl ? `page-image:${url.href}\n${input.imageUrl}` : `page:${url.href}`);
   }
   // A museum identifier distinguishes identically named works at the same venue.
   if (!identities.length && input.names) {
@@ -31,14 +27,9 @@ export async function museumIdentityKeys(input: {
   }
   return Promise.all(
     identities.map(async (identity) => {
-      const digest = await crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(identity),
-      );
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(identity));
       return {
-        key: Array.from(new Uint8Array(digest), (byte) =>
-          byte.toString(16).padStart(2, "0"),
-        ).join(""),
+        key: Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""),
         specific: !identity.startsWith("names:"),
       };
     }),
@@ -47,19 +38,14 @@ export async function museumIdentityKeys(input: {
 
 export async function registerMuseumObject(
   ctx: MutationCtx,
-  object: Pick<
-    Doc<"objects">,
-    "ownerId" | "artworkId" | "accession" | "pageUrl"
-  >,
+  object: Pick<Doc<"objects">, "ownerId" | "artworkId" | "accession" | "pageUrl">,
 ): Promise<void> {
   const venueId = object.ownerId;
   if (!venueId) return;
   for (const { key } of await museumIdentityKeys(object)) {
     const existing = await ctx.db
       .query("museumWorkIdentities")
-      .withIndex("by_venue_identity", (q) =>
-        q.eq("venueId", venueId).eq("identity", key),
-      )
+      .withIndex("by_venue_identity", (q) => q.eq("venueId", venueId).eq("identity", key))
       .unique();
     if (!existing) {
       await ctx.db.insert("museumWorkIdentities", {

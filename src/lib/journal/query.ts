@@ -7,26 +7,15 @@ export type Page<T> = { page: T[]; cursor: string | null; isDone: boolean };
 
 export function searchTerm(query = ""): string | null {
   const term = normalizeSearch(query);
-  return term
-    && (term.length < LIMITS.searchMin || term.length > LIMITS.searchMax)
-    ? null
-    : term;
+  return term && (term.length < LIMITS.searchMin || term.length > LIMITS.searchMax) ? null : term;
 }
 
-export function matchesSearch(
-  fields: (string | null | undefined)[],
-  term: string,
-): boolean {
+export function matchesSearch(fields: (string | null | undefined)[], term: string): boolean {
   const text = normalizeSearch(fields.filter(Boolean).join(" "));
   return term.split(" ").every((word) => text.includes(word));
 }
 
-export function pageRows<T>(
-  rows: T[],
-  key: (row: T) => string,
-  scope: string,
-  options: PageOptions = {},
-): Page<T> {
+export function pageRows<T>(rows: T[], key: (row: T) => string, scope: string, options: PageOptions = {}): Page<T> {
   const { numItems, cursor } = pagination(options);
   let after: string | undefined;
   if (cursor) {
@@ -48,11 +37,8 @@ export function pageRows<T>(
   return {
     page,
     isDone,
-    cursor: isDone
-      ? null
-      : JSON.stringify({ scope, after: key(page[page.length - 1]) }),
+    cursor: isDone ? null : JSON.stringify({ scope, after: key(page[page.length - 1]) }),
   };
 }
 
-export const compareText = (a: string, b: string): number =>
-  a < b ? -1 : a > b ? 1 : 0;
+export const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);

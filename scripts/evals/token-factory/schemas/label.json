@@ -55,15 +55,6 @@
       "additionalProperties": false
     }
   },
-  "required": [
-    "title",
-    "artist",
-    "artist_dates",
-    "work_date",
-    "medium",
-    "accession",
-    "credit_line",
-    "confidence"
-  ],
+  "required": ["title", "artist", "artist_dates", "work_date", "medium", "accession", "credit_line", "confidence"],
   "additionalProperties": false
 }

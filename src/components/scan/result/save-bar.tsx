@@ -38,11 +38,7 @@ export function SaveBar({
       {savedId ? (
         <View style={{ gap: 12 }}>
           <ThemedText type="title">Saved to collection</ThemedText>
-          <Pressable
-            accessibilityRole="link"
-            onPress={onViewSaved}
-            style={styles.saved}
-          >
+          <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
             <ThemedText themeColor="accent">View artwork</ThemedText>
           </Pressable>
           <GalleryButton
@@ -59,13 +55,7 @@ export function SaveBar({
         <>
           {visit}
           {onLabel && labelFirst && (
-            <GalleryButton
-              label={LABEL_BUTTON}
-              variant="filled"
-              fullWidth
-              disabled={saving}
-              onPress={onLabel}
-            />
+            <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={onLabel} />
           )}
           <GalleryButton
             label={saveLabel}
@@ -82,21 +72,12 @@ export function SaveBar({
             </ThemedText>
           )}
           {error && (
-            <ThemedText
-              type="small"
-              themeColor="error"
-              accessibilityRole="alert"
-            >
+            <ThemedText type="small" themeColor="error" accessibilityRole="alert">
               {error}
             </ThemedText>
           )}
           {onLabel && !labelFirst && (
-            <GalleryButton
-              label={LABEL_BUTTON}
-              fullWidth
-              disabled={saving}
-              onPress={onLabel}
-            />
+            <GalleryButton label={LABEL_BUTTON} fullWidth disabled={saving} onPress={onLabel} />
           )}
         </>
       )}

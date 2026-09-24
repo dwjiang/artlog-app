@@ -31,36 +31,25 @@ it("passes venue-only and empty contexts through without starting a visit", asyn
   });
   expect(await prepareCaptureVisit({}, capturedAt)).toEqual({});
   expect(await db.select().from(visits)).toEqual([]);
-  await expect(prepareCaptureVisit({ venueId }, -1)).rejects.toThrow(
-    "Invalid capture date",
-  );
+  await expect(prepareCaptureVisit({ venueId }, -1)).rejects.toThrow("Invalid capture date");
 });
 it("preserves an explicit ended visit for delayed captures and rejects foreign or mismatched associations", async () => {
   const original = await startVisit(capturedAt);
   await patchVisit(localId, { endedAt: capturedAt + 60_000 });
-  expect(await prepareCaptureVisit(original, capturedAt + 120_000)).toEqual(
-    original,
-  );
+  expect(await prepareCaptureVisit(original, capturedAt + 120_000)).toEqual(original);
   expect(await getVisit(localId)).toMatchObject({
     startedAt: capturedAt,
     endedAt: capturedAt + 60_000,
   });
-  await expect(
-    prepareCaptureVisit({ ...original, venueId: "other" as never }, capturedAt),
-  ).rejects.toThrow("invalid visit");
-  await expect(
-    prepareCaptureVisit(
-      { ...original, visitId: "remote" as never },
-      capturedAt,
-    ),
-  ).rejects.toThrow("invalid visit");
-  await expect(
-    prepareCaptureVisit({ venueId, visitLocalId: "missing" }, capturedAt),
-  ).rejects.toThrow("invalid visit");
-  switchOwner("account:other");
-  await expect(prepareCaptureVisit(original, capturedAt)).rejects.toThrow(
+  await expect(prepareCaptureVisit({ ...original, venueId: "other" as never }, capturedAt)).rejects.toThrow(
     "invalid visit",
   );
+  await expect(prepareCaptureVisit({ ...original, visitId: "remote" as never }, capturedAt)).rejects.toThrow(
+    "invalid visit",
+  );
+  await expect(prepareCaptureVisit({ venueId, visitLocalId: "missing" }, capturedAt)).rejects.toThrow("invalid visit");
+  switchOwner("account:other");
+  await expect(prepareCaptureVisit(original, capturedAt)).rejects.toThrow("invalid visit");
 });
 it("uses the shutter date when location resolution crosses local midnight", async () => {
   const after = Date.parse("2024-03-10T05:00:01Z"),

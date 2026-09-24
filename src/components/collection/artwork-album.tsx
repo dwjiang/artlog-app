@@ -7,13 +7,7 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
@@ -33,16 +27,11 @@ export function ArtworkAlbum({
   photoId?: string;
   children?: ReactNode;
 }) {
-  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
-    work.localId,
-    work.owner,
-  ]);
+  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "collection.album.load");
   }, [photos.error]);
-  const [scope, setScope] = useState<"all" | "visit">(
-    visitId ? "visit" : "all",
-  );
+  const [scope, setScope] = useState<"all" | "visit">(visitId ? "visit" : "all");
   const [requestedPhoto, setRequestedPhoto] = useState(photoId);
   const [page, setPage] = useState(0);
   const [ratios, setRatios] = useState<Record<string, number>>({});
@@ -69,13 +58,7 @@ export function ArtworkAlbum({
   const selectedPhoto = rows[Math.min(page, lastPage)];
   const imageHeight =
     selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
-      ? Math.max(
-          44,
-          Math.min(
-            (width - 40) * 1.2,
-            (width - 40) / (ratios[selectedPhoto.localId] || 1),
-          ),
-        )
+      ? Math.max(44, Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)))
       : 180 * fontScale;
   const goTo = (next: number) => {
     setPage(next);
@@ -84,10 +67,7 @@ export function ArtworkAlbum({
   return (
     <View style={{ gap: 8 }}>
       {!rows.length && !photos.updatedAt && !photos.error ? (
-        <ImageSkeleton
-          label="Loading photos…"
-          style={{ width: "100%", aspectRatio: 1 }}
-        />
+        <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
       ) : (
         !rows.length
         && (photos.error ? (
@@ -122,15 +102,10 @@ export function ArtworkAlbum({
                 animated: false,
               })
             }
-            onMomentumScrollEnd={({ nativeEvent }) =>
-              setPage(Math.round(nativeEvent.contentOffset.x / width))
-            }
+            onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.round(nativeEvent.contentOffset.x / width))}
           >
             {rows.map((photo, i) => (
-              <View
-                key={photo.localId}
-                style={{ width, paddingHorizontal: 20 }}
-              >
+              <View key={photo.localId} style={{ width, paddingHorizontal: 20 }}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Edit ${photo.kind} photo ${i + 1}`}
@@ -205,9 +180,7 @@ export function ArtworkAlbum({
         </Text>
         {(work.medium || work.institution || work.venueName) && (
           <Text selectable style={styles.medium}>
-            {[work.medium, work.institution || work.venueName]
-              .filter(Boolean)
-              .join(" · ")}
+            {[work.medium, work.institution || work.venueName].filter(Boolean).join(" · ")}
           </Text>
         )}
       </View>
@@ -227,10 +200,7 @@ export function ArtworkAlbum({
                 accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
                 accessibilityState={{ selected: index === page }}
                 onPress={() => goTo(index)}
-                style={[
-                  styles.thumbnail,
-                  index === page && { borderColor: Gallery.accent },
-                ]}
+                style={[styles.thumbnail, index === page && { borderColor: Gallery.accent }]}
               >
                 {photo.path && !failedPhotos[photo.path] ? (
                   <LoadingImage
@@ -240,11 +210,7 @@ export function ArtworkAlbum({
                     style={{ width: "100%", height: "100%" }}
                   />
                 ) : (
-                  <Image
-                    source="sf:photo"
-                    tintColor={Gallery.muted}
-                    style={{ width: 22, height: 22 }}
-                  />
+                  <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
                 )}
               </Pressable>
             ))}
@@ -308,11 +274,7 @@ export function ArtworkAlbum({
       {!rows.length && !!photos.updatedAt && !photos.error && (
         <EmptyState
           inset={false}
-          title={
-            scope === "visit"
-              ? "No photos from this visit yet."
-              : "No photos yet."
-          }
+          title={scope === "visit" ? "No photos from this visit yet." : "No photos yet."}
           detail={
             scope === "visit"
               ? "Add a photo from this visit, or look through the rest of this artwork’s photos."

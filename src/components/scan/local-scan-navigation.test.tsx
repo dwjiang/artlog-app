@@ -95,9 +95,7 @@ it("keeps label capture open on completion and shows the result when returning",
   );
   await view;
   await act(() => router.push("/result/local-one"));
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Point at the label" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Point at the label" }));
   await waitFor(() => expect(view.getPathname()).toBe("/label/local-one"));
   await act(() => {
     mockRows = [{ ...mockRows[0], status: "identified", scanId: "server-one" }];
@@ -137,9 +135,7 @@ it("checks opening a row from the root queue sheet leaves one underlying stack",
   );
   await view;
   await act(() => router.push("/queue"));
-  await fireEvent.press(
-    await screen.findByRole("button", { name: /Scan from/ }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: /Scan from/ }));
   await waitFor(() => expect(view.getPathname()).toBe("/result/local-one"));
   const root = view.getRouterState()!.routes[0].state!;
   expect(root.routes.map((route) => route.name)).toEqual(["(tabs)"]);

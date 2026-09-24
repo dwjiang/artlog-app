@@ -34,9 +34,7 @@ function findTabsState(state: RouteState | undefined): RouteState | undefined {
 /** The selected tab, unchanged while a sheet or modal sits above the tabs. Reads the parent stack's state and follows its changes. */
 function useSelectedTab(): string | undefined {
   const navigation = useNavigation();
-  const [tabs, setTabs] = useState(() =>
-    findTabsState(navigation.getState() as RouteState | undefined),
-  );
+  const [tabs, setTabs] = useState(() => findTabsState(navigation.getState() as RouteState | undefined));
   useEffect(
     () =>
       navigation.addListener("state", (event) => {
@@ -54,22 +52,14 @@ export default function TabsLayout() {
   const { venue, visit } = useVenue();
   const selectedTab = useSelectedTab();
   // The camera has the venue pill; the bar there would crowd the shutter. A visit paused away from its museum stays quiet.
-  const showVisitBar =
-    !!activeVisit({ venue, visit }) && selectedTab !== "(scan)" && !hidden;
+  const showVisitBar = !!activeVisit({ venue, visit }) && selectedTab !== "(scan)" && !hidden;
   return (
     <TabBarVisibility value={setHidden}>
       <View style={{ flex: 1 }}>
-        <NativeTabs
-          minimizeBehavior="never"
-          hidden={hidden}
-          tintColor={Gallery.accent}
-          backgroundColor={Gallery.paper}
-        >
+        <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
           <NativeTabs.Trigger name="(home)">
             <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              sf={{ default: "house", selected: "house.fill" }}
-            />
+            <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger name="(scan)">
             <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>

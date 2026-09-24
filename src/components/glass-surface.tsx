@@ -1,22 +1,13 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useEffect, useState } from "react";
-import {
-  AccessibilityInfo,
-  StyleSheet,
-  View,
-  type ViewProps,
-} from "react-native";
+import { AccessibilityInfo, StyleSheet, View, type ViewProps } from "react-native";
 
 import { Colors, Gallery } from "@/constants/theme";
 
 export type GlassSurfaceProps = ViewProps & { isInteractive?: boolean };
 
 /** Camera controls keep a dark backing so labels remain legible over bright imagery. */
-export function GlassSurface({
-  isInteractive = false,
-  style,
-  ...rest
-}: GlassSurfaceProps) {
+export function GlassSurface({ isInteractive = false, style, ...rest }: GlassSurfaceProps) {
   const [reduceTransparency, setReduceTransparency] = useState(false);
   useEffect(() => {
     let active = true;
@@ -25,13 +16,10 @@ export function GlassSurface({
       const enabled = await AccessibilityInfo.isReduceTransparencyEnabled();
       if (active && !receivedChange) setReduceTransparency(enabled);
     })();
-    const subscription = AccessibilityInfo.addEventListener(
-      "reduceTransparencyChanged",
-      (enabled) => {
-        receivedChange = true;
-        setReduceTransparency(enabled);
-      },
-    );
+    const subscription = AccessibilityInfo.addEventListener("reduceTransparencyChanged", (enabled) => {
+      receivedChange = true;
+      setReduceTransparency(enabled);
+    });
     return () => {
       active = false;
       subscription.remove();

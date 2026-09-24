@@ -35,10 +35,7 @@ jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     mutation: (fn: unknown, args: unknown) =>
-      mockMutation(
-        jest.requireActual("convex/server").getFunctionName(fn),
-        args,
-      ),
+      mockMutation(jest.requireActual("convex/server").getFunctionName(fn), args),
   },
 }));
 jest.mock("@/lib/attested-write", () => ({
@@ -95,10 +92,7 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   });
   expect(mockPause).toHaveBeenCalledTimes(1);
   expect(mockResume).toHaveBeenCalledTimes(1);
-  expect(mockBreadcrumb.mock.calls).toEqual([
-    ["auth.apple_sign_in.start"],
-    ["auth.apple_sign_in.success"],
-  ]);
+  expect(mockBreadcrumb.mock.calls).toEqual([["auth.apple_sign_in.start"], ["auth.apple_sign_in.success"]]);
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
@@ -130,32 +124,25 @@ it("reports a native availability failure while keeping sign-in unavailable", as
   mockAvailable.mockRejectedValueOnce(failure);
   const { result } = await renderHook(useAccount);
   await waitFor(() =>
-    expect(mockReportError).toHaveBeenCalledWith(
-      failure,
-      "auth.apple_availability",
-      {
-        level: "warning",
-      },
-    ),
+    expect(mockReportError).toHaveBeenCalledWith(failure, "auth.apple_availability", {
+      level: "warning",
+    }),
   );
   expect(result.current.available).toBe(false);
 });
 
-it.each(["signOut", "deleteAccount"] as const)(
-  "reports failed %s without ending the session",
-  async (operation) => {
-    const failure = new Error("Server failed");
-    mockMutation.mockRejectedValueOnce(failure);
-    const { result } = await renderHook(useAccount);
-    await act(() => result.current[operation]());
-    expect(mockReportError).toHaveBeenCalledWith(
-      failure,
-      operation === "signOut" ? "auth.sign_out" : "auth.delete_account",
-    );
-    expect(mockEndSession).not.toHaveBeenCalled();
-    expect(mockResume).toHaveBeenCalledTimes(1);
-  },
-);
+it.each(["signOut", "deleteAccount"] as const)("reports failed %s without ending the session", async (operation) => {
+  const failure = new Error("Server failed");
+  mockMutation.mockRejectedValueOnce(failure);
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current[operation]());
+  expect(mockReportError).toHaveBeenCalledWith(
+    failure,
+    operation === "signOut" ? "auth.sign_out" : "auth.delete_account",
+  );
+  expect(mockEndSession).not.toHaveBeenCalled();
+  expect(mockResume).toHaveBeenCalledTimes(1);
+});
 
 it("unlinks before ending the session and restoring the anonymous device identity", async () => {
   const { result } = await renderHook(useAccount);
@@ -163,12 +150,8 @@ it("unlinks before ending the session and restoring the anonymous device identit
   expect(mockMutation).toHaveBeenCalledWith("accounts:unlink", {});
   expect(mockEndSession).toHaveBeenCalledTimes(1);
   expect(mockAnonymous).toHaveBeenCalledWith(mockSignIn);
-  expect(mockMutation.mock.invocationCallOrder[0]).toBeLessThan(
-    mockEndSession.mock.invocationCallOrder[0],
-  );
-  expect(mockEndSession.mock.invocationCallOrder[0]).toBeLessThan(
-    mockAnonymous.mock.invocationCallOrder[0],
-  );
+  expect(mockMutation.mock.invocationCallOrder[0]).toBeLessThan(mockEndSession.mock.invocationCallOrder[0]);
+  expect(mockEndSession.mock.invocationCallOrder[0]).toBeLessThan(mockAnonymous.mock.invocationCallOrder[0]);
 });
 
 it("leaves the session intact when unlink fails", async () => {
@@ -197,7 +180,5 @@ it("finishes an interrupted claim before disconnecting the account", async () =>
   const { result } = await renderHook(useAccount);
   await act(() => result.current.signOut());
   expect(mockClaim).toHaveBeenCalledWith(mockAccount);
-  expect(mockClaim.mock.invocationCallOrder[0]).toBeLessThan(
-    mockMutation.mock.invocationCallOrder[0],
-  );
+  expect(mockClaim.mock.invocationCallOrder[0]).toBeLessThan(mockMutation.mock.invocationCallOrder[0]);
 });

@@ -40,8 +40,7 @@ export const verifyAttestation = internalAction({
         keyId: args.keyId,
         bundleIdentifier,
         teamIdentifier,
-        allowDevelopmentEnvironment:
-          process.env.APP_ATTEST_ALLOW_DEV === "true",
+        allowDevelopmentEnvironment: process.env.APP_ATTEST_ALLOW_DEV === "true",
       });
       return {
         ok: true,

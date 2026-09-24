@@ -11,10 +11,7 @@ const mockWithdraw = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
 const mockDelete = jest.fn();
-let mockAccount:
-  | { linked: boolean; deviceCount: number; email?: string }
-  | null
-  | undefined = null;
+let mockAccount: { linked: boolean; deviceCount: number; email?: string } | null | undefined = null;
 let mockReady = true;
 let mockBusy = false;
 let mockSessionStatus = "ready";
@@ -142,12 +139,8 @@ it("shows grouped settings and opens the matching detail", async () => {
 
 it("opens measurement units in General", async () => {
   await render(<SettingsDetailScreen section="general" />);
-  expect(
-    screen.getByRole("header", { name: "Measurement units" }),
-  ).toBeOnTheScreen();
-  expect(
-    await screen.findByRole("button", { name: "Metric", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "Measurement units" })).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Metric", selected: true })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Imperial" })).toBeOnTheScreen();
 });
 
@@ -155,9 +148,7 @@ it("opens account management from the profile row", async () => {
   mockAccount = { linked: true, deviceCount: 2 };
   await render(<SettingsScreen />);
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
-  expect(
-    screen.getByText("A", { includeHiddenElements: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("A", { includeHiddenElements: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: /Alex/ }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/settings-detail",
@@ -168,24 +159,16 @@ it("opens account management from the profile row", async () => {
 it("keeps privacy and About details accessible", async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(
-    screen.getByText(
-      /Apple Maps searches may send a search area centered on your location to Apple/,
-    ),
+    screen.getByText(/Apple Maps searches may send a search area centered on your location to Apple/),
   ).toBeOnTheScreen();
   expect(
-    screen.getByText(
-      /Artlog’s servers receive the selected museum, but not your GPS coordinates/,
-    ),
+    screen.getByText(/Artlog’s servers receive the selected museum, but not your GPS coordinates/),
   ).toBeOnTheScreen();
   expect(
-    screen.getByText(
-      /Confirming a new place also sends that place’s name, coordinates and website to Artlog/,
-    ),
+    screen.getByText(/Confirming a new place also sends that place’s name, coordinates and website to Artlog/),
   ).toBeOnTheScreen();
   expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
-  expect(
-    screen.getByText(/Camera and location metadata are removed/),
-  ).toBeOnTheScreen();
+  expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
   for (const label of ["Privacy policy", "Send feedback", "Source code"]) {
@@ -240,18 +223,12 @@ it("opens contextual sign-in while keeping the guest journal available", async (
 it("holds the account row behind a ghost only while the account can still load", async () => {
   mockAccount = undefined;
   const view = await render(<SettingsDetailScreen section="account" />);
-  expect(
-    screen.getByRole("progressbar", { name: "Loading account" }),
-  ).toBeOnTheScreen();
-  expect(
-    screen.queryByRole("button", { name: "Sign in to Artlog" }),
-  ).toBeNull();
+  expect(screen.getByRole("progressbar", { name: "Loading account" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Sign in to Artlog" })).toBeNull();
   mockOffline = true;
   await view.rerender(<SettingsDetailScreen section="account" />);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(
-    screen.getByRole("button", { name: "Sign in to Artlog" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Sign in to Artlog" })).toBeEnabled();
 });
 
 it("shows account details and controls without device counts or sync copy", async () => {
@@ -260,9 +237,7 @@ it("shows account details and controls without device counts or sync copy", asyn
   expect(screen.queryByText("Devices")).toBeNull();
   expect(screen.queryByText(/devices|sync privately/i)).toBeNull();
   expect(screen.getByText("visitor@example.com")).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", { name: "Delete account" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Delete account" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
   expect(mockSignOut).not.toHaveBeenCalled();
   await confirmDestructive();
@@ -292,8 +267,6 @@ it("reports contributions as unavailable offline instead of loading indefinitely
   mockOffline = true;
   await render(<SettingsDetailScreen section="contributions" />);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(
-    screen.getByText("Connect to see your contributions."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Connect to see your contributions.")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Loading contributions…")).toBeNull();
 });

@@ -7,10 +7,5 @@ export default function LabelCaptureRoute() {
     scanId: string;
     intent?: string;
   }>();
-  return (
-    <LabelCaptureScreen
-      scanId={scanId}
-      intent={intent === "capture" ? "capture" : "review"}
-    />
-  );
+  return <LabelCaptureScreen scanId={scanId} intent={intent === "capture" ? "capture" : "review"} />;
 }

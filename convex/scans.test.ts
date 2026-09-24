@@ -3,13 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
 import { labelField } from "./lib/labelVerify";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  seedJournalVisit,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 afterEach(() => {
@@ -21,9 +15,7 @@ async function fixture() {
   const t = harness();
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const work = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { object: { ownerId: venueId } }),
-  );
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { ownerId: venueId } }));
   const args = {
     deviceId: user.deviceId,
     localId: "capture-1",
@@ -214,9 +206,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     lastConfidentGallery: "4",
     lastConfidentAt: 200,
   });
-  await t.run((ctx) =>
-    ctx.db.patch(visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }),
-  );
+  await t.run((ctx) => ctx.db.patch(visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }));
   const older = await t.mutation(internal.scans.create, {
     ...args,
     localId: "older",
@@ -237,12 +227,10 @@ it("updates gallery history only for a confident result and never rolls it backw
 it("refuses another device’s visit or a visit at another venue", async () => {
   const { t, user, venueId, args } = await fixture();
   const other = await seedDevice(t);
-  const visitId = await t.run((ctx) =>
-    seedJournalVisit(ctx, other.deviceId, venueId),
-  );
-  await expect(
-    t.mutation(internal.scans.create, { ...args, localId: "foreign", visitId }),
-  ).rejects.toMatchObject({ data: { code: "not_found" } });
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
+  await expect(t.mutation(internal.scans.create, { ...args, localId: "foreign", visitId })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
   const otherVenue = await t.run((ctx) => seedMuseum(ctx));
   await t.run((ctx) =>
     ctx.db.patch(visitId, {
@@ -317,9 +305,7 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     imageUrls: ["https://images.metmuseum.org/work.jpg"],
   };
   const write = async (
-    museumSearch: Parameters<
-      typeof t.mutation<typeof internal.museumSearch.write>
-    >[1]["museumSearch"],
+    museumSearch: Parameters<typeof t.mutation<typeof internal.museumSearch.write>>[1]["museumSearch"],
   ) => {
     const revision = await t.mutation(internal.museumSearch.beginSearch, {
       scanId,
@@ -335,25 +321,19 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     });
   };
   await write({ stage: "exhibitions", candidates: [candidate], updatedAt: 1 });
-  expect(
-    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
-  ).toEqual({
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
     stage: "exhibitions",
     candidates: [candidate],
     updatedAt: 1,
   });
   await write({ stage: "none", reason: "cap", updatedAt: 2 });
-  expect(
-    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
-  ).toEqual({
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
     stage: "none",
     reason: "cap",
     updatedAt: 2,
   });
   await write({ stage: "none", reason: "identity_unresolved", updatedAt: 3 });
-  expect(
-    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
-  ).toMatchObject({
+  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({
     reason: "identity_unresolved",
   });
 
@@ -416,7 +396,7 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
       deviceId: user.deviceId,
     }),
   ).toEqual(confirmed);
-  await expect(
-    t.query(internal.scans.getDisplay, { scanId, deviceId: other.deviceId }),
-  ).rejects.toMatchObject({ data: { code: "scan_not_found" } });
+  await expect(t.query(internal.scans.getDisplay, { scanId, deviceId: other.deviceId })).rejects.toMatchObject({
+    data: { code: "scan_not_found" },
+  });
 });

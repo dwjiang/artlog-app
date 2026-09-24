@@ -14,14 +14,8 @@ export type WallPiece = {
   cropAspectRatio?: number;
 };
 
-export function wallAspect(
-  piece: Pick<WallPiece, "artwork" | "cropAspectRatio">,
-): number {
-  if (
-    piece.cropAspectRatio
-    && Number.isFinite(piece.cropAspectRatio)
-    && piece.cropAspectRatio > 0
-  ) {
+export function wallAspect(piece: Pick<WallPiece, "artwork" | "cropAspectRatio">): number {
+  if (piece.cropAspectRatio && Number.isFinite(piece.cropAspectRatio) && piece.cropAspectRatio > 0) {
     return piece.cropAspectRatio;
   }
   const { width, height } = piece.artwork.media;
@@ -29,18 +23,10 @@ export function wallAspect(
 }
 
 export function wallBottom(pieces: WallPiece[]): number {
-  return Math.max(
-    0,
-    ...pieces.map(
-      (piece) => piece.layout.y + piece.layout.width / wallAspect(piece),
-    ),
-  );
+  return Math.max(0, ...pieces.map((piece) => piece.layout.y + piece.layout.width / wallAspect(piece)));
 }
 
-export function constrainLayout(
-  layout: WallLayout,
-  patch: Partial<WallLayout>,
-): WallLayout {
+export function constrainLayout(layout: WallLayout, patch: Partial<WallLayout>): WallLayout {
   "worklet";
   const next = { ...layout, ...patch };
   const width = Math.min(0.9, Math.max(0.16, next.width));
@@ -65,17 +51,11 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
   ];
   const placement = placements[index % placements.length];
   const neighbors = pieces.filter(
-    ({ layout }) =>
-      placement.x < layout.x + layout.width + 0.025
-      && placement.x + placement.width + 0.025 > layout.x,
+    ({ layout }) => placement.x < layout.x + layout.width + 0.025 && placement.x + placement.width + 0.025 > layout.x,
   );
   return {
     ...placement,
-    y: neighbors.length
-      ? wallBottom(neighbors) + 0.16
-      : index % 2
-        ? 0.12
-        : 0.06,
+    y: neighbors.length ? wallBottom(neighbors) + 0.16 : index % 2 ? 0.12 : 0.06,
     layer: index,
     frame: DEFAULT_WALL_FRAME,
   };
@@ -92,7 +72,5 @@ export function removeWallPiece(draft: WallDraft, localId: string): WallDraft {
 
 export function isLightWall(color: string): boolean {
   const rgb = parseInt(color.slice(1), 16);
-  return (
-    (rgb >> 16) * 0.299 + ((rgb >> 8) & 255) * 0.587 + (rgb & 255) * 0.114 > 153
-  );
+  return (rgb >> 16) * 0.299 + ((rgb >> 8) & 255) * 0.587 + (rgb & 255) * 0.114 > 153;
 }

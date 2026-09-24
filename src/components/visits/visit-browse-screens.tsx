@@ -24,9 +24,7 @@ export function VisitPlaceScreen() {
     venueId?: string;
   }>();
   const { visits, loading, error } = useVisits();
-  const matches = visitsAtPlace(visits, placeKey).filter(
-    (visit) => !venueId || visit.venueId === venueId,
-  );
+  const matches = visitsAtPlace(visits, placeKey).filter((visit) => !venueId || visit.venueId === venueId);
   return (
     <View style={{ flex: 1, paddingBottom: dockInset }}>
       <Stack.Screen options={{ title: name || "Visits by museum" }} />
@@ -49,10 +47,7 @@ export function VisitPlaceScreen() {
             detail="Your saved visits to this place will appear here."
             visual={<EmptySymbol name="building.columns" />}
           >
-            <GalleryButton
-              label="Back to Collection"
-              onPress={() => router.back()}
-            />
+            <GalleryButton label="Back to Collection" onPress={() => router.back()} />
           </EmptyState>
         </VisitPage>
       ) : (
@@ -63,12 +58,8 @@ export function VisitPlaceScreen() {
           contentContainerStyle={{ padding: 20, gap: 20 }}
           ListHeaderComponent={
             <View style={{ gap: 12 }}>
-              <Text style={[Typography.pageTitle, { color: Gallery.ink }]}>
-                {name || matches[0].venueName}
-              </Text>
-              <Text style={{ color: Gallery.muted }}>
-                {matches[0].location}
-              </Text>
+              <Text style={[Typography.pageTitle, { color: Gallery.ink }]}>{name || matches[0].venueName}</Text>
+              <Text style={{ color: Gallery.muted }}>{matches[0].location}</Text>
               <View
                 style={{
                   flexDirection: "row",
@@ -93,16 +84,11 @@ export function VisitPlaceScreen() {
               }
               style={{ gap: 12 }}
             >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "600" }}>
-                    {formatVisitDate(visit.visitedOn)}
-                  </Text>
+                  <Text style={{ fontWeight: "600" }}>{formatVisitDate(visit.visitedOn)}</Text>
                   <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-                    {visit.works.length}{" "}
-                    {visit.works.length === 1 ? "artwork" : "artworks"}
+                    {visit.works.length} {visit.works.length === 1 ? "artwork" : "artworks"}
                   </Text>
                 </View>
                 <Text style={{ color: Gallery.accent }}>View visit →</Text>
@@ -154,14 +140,9 @@ function ExpandedGlobe() {
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()}>
-          Done
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 30 }}
-      >
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 30 }}>
         {loading || error ? (
           <VisitMessage loading={loading && !error}>
             {error ? "Globe locations could not load." : "Loading globe…"}
@@ -170,15 +151,8 @@ function ExpandedGlobe() {
           <>
             <View style={{ padding: 20, gap: 12 }}>
               <Text style={{ color: Gallery.muted }}>
-                {counts.museums} {counts.museums === 1 ? "museum" : "museums"} ·{" "}
-                {places}{" "}
-                {citiesKnown
-                  ? places === 1
-                    ? "city"
-                    : "cities"
-                  : places === 1
-                    ? "place"
-                    : "places"}
+                {counts.museums} {counts.museums === 1 ? "museum" : "museums"} · {places}{" "}
+                {citiesKnown ? (places === 1 ? "city" : "cities") : places === 1 ? "place" : "places"}
               </Text>
               <NativeSegmentedPicker
                 compact
@@ -192,16 +166,9 @@ function ExpandedGlobe() {
               />
             </View>
             {mode === "globe" ? (
-              <VisitGlobe
-                visits={visits}
-                expanded
-                initialVenueId={venueId}
-                onList={() => setMode("list")}
-              />
+              <VisitGlobe visits={visits} expanded initialVenueId={venueId} onList={() => setMode("list")} />
             ) : (
-              visits.map((visit) => (
-                <VisitRow key={visit.localId} visit={visit} />
-              ))
+              visits.map((visit) => <VisitRow key={visit.localId} visit={visit} />)
             )}
           </>
         )}

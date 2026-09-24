@@ -9,53 +9,34 @@ const moma = (path: string) => `https://www.moma.org${path}`;
 export const tavilySeurat = {
   query: '"A Sunday on La Grande Jatte" Georges Seurat',
   images: [
-    artic(
-      "/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
-    ),
+    artic("/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"),
     "https://shop.artic.edu/cdn/shop/files/60442_2_1024x728.jpg?v=1763657967",
     "https://archive.artic.edu/seurat/images/lagrandejatte.jpg",
   ],
   results: [
     {
-      url: artic(
-        "/artworks/150773/seated-woman-with-a-parasol-study-for-la-grande-jatte",
-      ),
-      title:
-        "Seated Woman with a Parasol (study for La Grande Jatte) | The Art Institute of Chicago",
+      url: artic("/artworks/150773/seated-woman-with-a-parasol-study-for-la-grande-jatte"),
+      title: "Seated Woman with a Parasol (study for La Grande Jatte) | The Art Institute of Chicago",
       content:
         "During 1884 and 1885, Georges Seurat was hard at work on the most ambitious painting of his career, A Sunday on La Grande Jatte—1884, now a centerpiece of the Art Institute’s collection of 19th-century French painting.",
       score: 0.8536326,
-      images: [
-        artic(
-          "/iiif/2/8769be30-7bda-37f2-16a8-30e5396d47dc/full/843,/0/default.jpg",
-        ),
-      ],
+      images: [artic("/iiif/2/8769be30-7bda-37f2-16a8-30e5396d47dc/full/843,/0/default.jpg")],
     },
     {
-      url: artic(
-        "/artworks/61616/oil-sketch-for-a-sunday-on-la-grande-jatte-1884",
-      ),
-      title:
-        'Oil Sketch for "A Sunday on La Grande Jatte — 1884" | The Art Institute of Chicago',
+      url: artic("/artworks/61616/oil-sketch-for-a-sunday-on-la-grande-jatte-1884"),
+      title: 'Oil Sketch for "A Sunday on La Grande Jatte — 1884" | The Art Institute of Chicago',
       content:
         "This small oil on thin wood panel is one of over 20 painted studies Georges Seurat made for A Sunday on La Grande Jatte—1884.",
       score: 0.8497846,
-      images: [
-        artic(
-          "/iiif/2/081be15c-8812-c174-eeb2-cf318a2e67cf/full/843,/0/default.jpg",
-        ),
-      ],
+      images: [artic("/iiif/2/081be15c-8812-c174-eeb2-cf318a2e67cf/full/843,/0/default.jpg")],
     },
     {
       url: "https://shop.artic.edu/products/60442",
-      title:
-        "Georges Seurat A Sunday on La Grande Jatte—1884 Poster – The Art Institute of Chicago Museum Shop",
+      title: "Georges Seurat A Sunday on La Grande Jatte—1884 Poster – The Art Institute of Chicago Museum Shop",
       content:
         "Poster developed from Georges Seurat’s A Sunday on La Grande Jatte—1884, 1884/86 from The Art Institute of Chicago’s collection.",
       score: 0.8430832,
-      images: [
-        "https://shop.artic.edu/cdn/shop/files/60442_2_1200x853.jpg?v=1763657967",
-      ],
+      images: ["https://shop.artic.edu/cdn/shop/files/60442_2_1200x853.jpg?v=1763657967"],
     },
     {
       url: artic("/artists/40810/georges-seurat"),
@@ -63,9 +44,7 @@ export const tavilySeurat = {
       content:
         "Large painting of people in a crowded park, brushstrokes are dots. A Sunday on La Grande Jatte — 1884, 1884–86, border added 1888–89 Georges Seurat",
       score: 0.8184036,
-      images: [
-        "https://artic-web.imgix.net/a0b8219d-bd2c-41d2-b99d-58a7549f59d8/Georges_Seurat_1888.jpg",
-      ],
+      images: ["https://artic-web.imgix.net/a0b8219d-bd2c-41d2-b99d-58a7549f59d8/Georges_Seurat_1888.jpg"],
     },
     {
       url: artic("/artworks/27992/a-sunday-on-la-grande-jatte-1884"),
@@ -74,9 +53,7 @@ export const tavilySeurat = {
         "## Status\n:   On View, Gallery 240\n\n## Department\n:   Painting and Sculpture of Europe\n\n## Artist\n:   Georges Seurat\n\n## Title\n:   A Sunday on La Grande Jatte — 1884",
       score: 0.81133276,
       images: [
-        artic(
-          "/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
-        ),
+        artic("/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"),
         "https://artic-web.imgix.net/b55a24a5-ab1c-453e-9ecd-e30ee5473f6e/navigation-thumbnail-visit.jpg?auto=format&q=1",
       ],
     },
@@ -112,14 +89,11 @@ export const tavilyMonet = {
       content:
         "As part of his extensive gardening plans at Giverny, Monet had a pond dug and planted with lilies in 1893. Water Lilies by Claude Monet.",
       score: 0.79769903,
-      images: [
-        "https://customprints.metmuseum.org/vitruvius/render/1200/489058.jpg",
-      ],
+      images: ["https://customprints.metmuseum.org/vitruvius/render/1200/489058.jpg"],
     },
     {
       url: met("/perspectives/monet-conversation"),
-      title:
-        "Exploring Late Monet with Art Historian Kathryn Calley Galitz - The Metropolitan Museum of Art",
+      title: "Exploring Late Monet with Art Historian Kathryn Calley Galitz - The Metropolitan Museum of Art",
       content:
         "Water Lilies (1916–19) by Monet\n\nClaude Monet (French, 1840–1926). Water Lilies, 1916–19. Oil on canvas, 51 1/4 x 79 in. The Metropolitan Museum of Art, New York, Gift of Louise Reinhardt Smith, 1983",
       score: 0.79119295,
@@ -133,20 +107,14 @@ export const tavilyMonet = {
       content:
         "# Water Lilies\n\nWater Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\n\n## Artwork Details\n\n## Audio",
       score: 0.78334314,
-      images: [
-        "https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted",
-      ],
+      images: ["https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted"],
     },
     {
       url: met("/art/collection/search/437127"),
-      title:
-        "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
-      content:
-        "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas",
+      title: "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
+      content: "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas",
       score: 0.7610953,
-      images: [
-        "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/restricted",
-      ],
+      images: ["https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/restricted"],
     },
   ],
   usage: { credits: 1 },
@@ -164,9 +132,7 @@ export const tavilyRodin = {
         "A shiny dark-brown and green bronze sculpture depicts a muscular, nude man seated, his right elbow supported by his left knee as he rests his chin on the back of his hand. Auguste Rodin, bronze, 1979.138.",
       score: 0.8095324,
       images: [
-        cma(
-          "/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1979.138_o5.jpg&w=640&q=75",
-        ),
+        cma("/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1979.138_o5.jpg&w=640&q=75"),
       ],
     },
     {
@@ -176,9 +142,7 @@ export const tavilyRodin = {
         "# Artwork Page for The Thinker\n\n## Details / Information for The Thinker\n\n### The Thinker\n\n#### Auguste Rodin\n\n(French, 1840–1917)\n\nCulture\n\nFrance, 19th century\n\nMedium\n\nbronze",
       score: 0.78334314,
       images: [
-        cma(
-          "/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1917.42_o5.jpg&w=640&q=75",
-        ),
+        cma("/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1917.42_o5.jpg&w=640&q=75"),
       ],
     },
     {
@@ -187,9 +151,7 @@ export const tavilyRodin = {
       content:
         "A universal image of a man lost in thought, The Thinker has become one of the most celebrated sculptures in the history of art. Rodin originally planned to place the figure in the lintel above the doors.",
       score: 0.76972175,
-      images: [
-        "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A3.jpg",
-      ],
+      images: ["https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A3.jpg"],
     },
   ],
   usage: { credits: 1 },
@@ -233,9 +195,7 @@ export const tavilyStarryNight = {
       content:
         "This poster features a reproduction of The Starry Night by Vincent van Gogh, one of the most popular paintings in MoMA’s collection.",
       score: 0.82560414,
-      images: [
-        "http://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9.jpg?v=1704232502",
-      ],
+      images: ["http://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9.jpg?v=1704232502"],
     },
   ],
   usage: { credits: 1 },
@@ -378,8 +338,7 @@ export const metaPage = `<html><head>
 <dl><dt>Reference Number</dt><dd>1942.51</dd><dt>Dimensions</dt><dd>84.1 &times; 152.4 cm</dd></dl>
 <p>Object number 1942.51</p></body></html>`;
 
-export const plainPage =
-  "<html><head><title>Visit us</title></head><body><p>Opening hours</p></body></html>";
+export const plainPage = "<html><head><title>Visit us</title></head><body><p>Opening hours</p></body></html>";
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {

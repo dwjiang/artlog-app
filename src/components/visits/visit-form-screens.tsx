@@ -13,12 +13,7 @@ import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { venueLocation } from "@/lib/venue/venue-location";
-import {
-  dateFromPicker,
-  pickerDate,
-  validVisitDate,
-  venueTimeZone,
-} from "@/lib/journal/visit-date";
+import { dateFromPicker, pickerDate, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
 import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
@@ -37,21 +32,12 @@ export function VisitCreateScreen() {
     savedId?: string;
     venueId?: string;
   }>();
-  return (
-    <CreateForm
-      key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`}
-      savedId={savedId}
-      initialVenueId={venueId}
-    />
-  );
+  return <CreateForm key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`} savedId={savedId} initialVenueId={venueId} />;
 }
 /** Apple Maps is asked only when our table has nothing for the name; a short query would match too much of the world. */
 const PLACE_SEARCH_MIN = 3;
 
-async function searchPlaces(
-  query: string,
-  near?: { lat: number; lng: number },
-): Promise<PoiOption[]> {
+async function searchPlaces(query: string, near?: { lat: number; lng: number }): Promise<PoiOption[]> {
   if (query.trim().length < PLACE_SEARCH_MIN) return [];
   const places = await getPoiSearch().searchByName(query, near?.lat, near?.lng);
   return places.map((place) => ({
@@ -60,9 +46,7 @@ async function searchPlaces(
     lat: place.lat,
     lng: place.lng,
     category: place.category,
-    ...(place.distanceMeters === undefined
-      ? {}
-      : { distanceM: place.distanceMeters }),
+    ...(place.distanceMeters === undefined ? {} : { distanceM: place.distanceMeters }),
     city: place.city,
     country: place.country,
     ...(place.website ? { website: place.website } : {}),
@@ -73,13 +57,7 @@ export function placeLocation(place: PoiOption): string {
   return [place.city, countryName(place.country)].filter(Boolean).join(", ");
 }
 
-function CreateForm({
-  savedId,
-  initialVenueId,
-}: {
-  savedId?: string;
-  initialVenueId?: string;
-}) {
+function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenueId?: string }) {
   const { fix } = useVenue();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{
@@ -115,13 +93,10 @@ function CreateForm({
     [error, setError] = useState<string>();
   const submitting = useRef(false);
   const [localId] = useState(randomUUID);
-  const timeZone = venue
-    ? venueTimeZone(venue)
-    : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = venue ? venueTimeZone(venue) : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const today = calendarDate(now, timeZone);
   const validDate = validVisitDate(date, timeZone, now);
-  const currentResults =
-    results?.query === query && results.retry === retry ? results : undefined;
+  const currentResults = results?.query === query && results.retry === retry ? results : undefined;
   const venues = currentResults?.rows ?? [];
   const places = currentResults?.places ?? [];
   const searchError = currentResults?.error;
@@ -187,10 +162,7 @@ function CreateForm({
     } catch (cause) {
       reportError(cause, "visit.venue.confirm");
       if (session.isOwnerCurrent()) {
-        setError(
-          socialErrorMessage(cause)
-            ?? "This museum could not be added. Check your connection and try again.",
-        );
+        setError(socialErrorMessage(cause) ?? "This museum could not be added. Check your connection and try again.");
       }
     } finally {
       if (session.isOwnerCurrent()) setAdding(undefined);
@@ -218,11 +190,7 @@ function CreateForm({
         savedId,
       );
       if (session.isOwnerCurrent()) {
-        showToast(
-          savedId
-            ? "New visit linked. Other photos are unchanged."
-            : "Visit saved.",
-        );
+        showToast(savedId ? "New visit linked. Other photos are unchanged." : "Visit saved.");
         if (savedId) {
           router.dismissTo({
             pathname: "/saved/[savedId]",
@@ -233,10 +201,7 @@ function CreateForm({
     } catch (cause) {
       reportError(cause, "visit.create");
       if (session.isOwnerCurrent()) {
-        setError(
-          socialErrorMessage(cause)
-            ?? "Your visit could not be saved. Try again.",
-        );
+        setError(socialErrorMessage(cause) ?? "Your visit could not be saved. Try again.");
       }
     } finally {
       if (session.isOwnerCurrent()) {
@@ -271,11 +236,7 @@ function CreateForm({
           <View style={styles.card}>
             <Text style={styles.body}>{venue.name}</Text>
             <Text style={styles.caption}>{venueLocation(venue).location}</Text>
-            <GalleryButton
-              label="Change museum"
-              disabled={busy}
-              onPress={() => setVenue(undefined)}
-            />
+            <GalleryButton label="Change museum" disabled={busy} onPress={() => setVenue(undefined)} />
           </View>
         ) : (
           <>
@@ -297,10 +258,7 @@ function CreateForm({
                 Searching museums…
               </VisitMessage>
             ) : searchError ? (
-              <VisitMessage
-                action="Try again"
-                onAction={() => setRetry((value) => value + 1)}
-              >
+              <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>
                 {searchError}
               </VisitMessage>
             ) : query.trim().length < 2 ? (
@@ -325,9 +283,7 @@ function CreateForm({
                 onPress={() => chooseVenue(row)}
               >
                 <Text style={styles.body}>{row.name}</Text>
-                <Text style={styles.caption}>
-                  {venueLocation(row).location}
-                </Text>
+                <Text style={styles.caption}>{venueLocation(row).location}</Text>
               </Pressable>
             ))}
             {!venues.length && places.length > 0 && (
@@ -354,9 +310,7 @@ function CreateForm({
                     >
                       <Text style={styles.body}>{place.name}</Text>
                       <Text style={styles.caption}>
-                        {adding === key
-                          ? "Adding this museum…"
-                          : placeLocation(place)}
+                        {adding === key ? "Adding this museum…" : placeLocation(place)}
                       </Text>
                     </Pressable>
                   );
@@ -365,8 +319,7 @@ function CreateForm({
             )}
             {venues.length === MUSEUM_SEARCH_LIMIT && (
               <Text style={styles.caption}>
-                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or
-                more of the name to narrow your search.
+                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to narrow your search.
               </Text>
             )}
           </>
@@ -410,9 +363,7 @@ function CreateForm({
           editable={!busy}
           style={[styles.input, styles.reflection]}
         />
-        <Text style={styles.caption}>
-          Your visit stays private until you share it.
-        </Text>
+        <Text style={styles.caption}>Your visit stays private until you share it.</Text>
         <GalleryButton
           label="Add visit"
           variant="filled"

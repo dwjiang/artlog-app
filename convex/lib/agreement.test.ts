@@ -2,11 +2,11 @@ import { expect, it } from "vitest";
 import { verifiedAccession, workKey } from "./agreement";
 import type { ContributionField } from "./validators";
 
-const field = (
-  value: string,
-  evidence: ContributionField["evidence"],
-  edited = false,
-): ContributionField => ({ value, evidence, edited });
+const field = (value: string, evidence: ContributionField["evidence"], edited = false): ContributionField => ({
+  value,
+  evidence,
+  edited,
+});
 const fields = {
   title: field("Water Lilies", "ocr"),
   artist: field("Claude Monet", "ocr"),

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  artworkImageEvidence,
-  parseCaptionIdentity,
-} from "./exhibitionIdentity";
+import { artworkImageEvidence, parseCaptionIdentity } from "./exhibitionIdentity";
 
 const pageUrl = "https://museum.example/exhibitions/colour";
 const imageUrl = "https://museum.example/blue.jpg";
@@ -63,11 +60,7 @@ describe("identity of the matched exhibition image", () => {
       fields: { title: "Blue", artist: "Second Artist", accession: "1917.42" },
     });
     expect(
-      artworkImageEvidence(
-        html({ ...work, identifier: "https://museum.example/objects/1" }),
-        pageUrl,
-        imageUrl,
-      ),
+      artworkImageEvidence(html({ ...work, identifier: "https://museum.example/objects/1" }), pageUrl, imageUrl),
     ).toEqual({ fields: { title: "Blue", artist: "Second Artist" } });
   });
 
@@ -136,17 +129,12 @@ describe("identity of the matched exhibition image", () => {
   });
 
   it("accepts only complete title/artist values present in the image caption", () => {
-    const parse = parseCaptionIdentity(
-      "Second Artist, Blue, 2020.",
-      "A Century of Colour",
-    );
+    const parse = parseCaptionIdentity("Second Artist, Blue, 2020.", "A Century of Colour");
     expect(parse({ title: "Blue", artist: "Second Artist" })).toEqual({
       title: "Blue",
       artist: "Second Artist",
     });
-    expect(
-      parse({ title: "A Century of Colour", artist: "Second Artist" }),
-    ).toBeNull();
+    expect(parse({ title: "A Century of Colour", artist: "Second Artist" })).toBeNull();
     expect(parse({ title: "Blue", artist: "Invented Artist" })).toBeNull();
     expect(parse({ title: null, artist: null })).toEqual({});
   });

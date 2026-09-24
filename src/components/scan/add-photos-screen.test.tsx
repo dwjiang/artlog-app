@@ -1,30 +1,14 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { AppState } from "react-native";
 import { AddPhotosScreen } from "./add-photos-screen";
 import { CaptureContextScreen } from "./capture-context-screen";
 import { db } from "@/db/client";
-import {
-  artworkEncounters,
-  artworkPhotos,
-  notes,
-  pendingScans,
-  savedWorks,
-  settings,
-  visits,
-} from "@/db/schema";
+import { artworkEncounters, artworkPhotos, notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
 import { insertSavedWork, getSavedWork } from "@/db/repos/saved-works";
 import { getPendingScan, enqueuePendingScan } from "@/db/repos/pending-scans";
 import { upsertVisit } from "@/db/repos/visits";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
-import {
-  readPhotoSession,
-  updatePhotoSession,
-} from "@/lib/capture/photo-draft";
+import { readPhotoSession, updatePhotoSession } from "@/lib/capture/photo-draft";
 import { draftFromCandidate } from "@/lib/result/snapshot";
 import { contributeLabel } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
@@ -46,8 +30,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
-  useFocusEffect: (callback: () => void) =>
-    jest.requireActual("react").useEffect(callback, [callback]),
+  useFocusEffect: (callback: () => void) => jest.requireActual("react").useEffect(callback, [callback]),
   useRouter: () => ({
     navigate: mockNavigate,
     dismissAll: mockDismissAll,
@@ -121,29 +104,19 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => "saved-new" }));
 
 beforeEach(async () => {
   jest.clearAllMocks();
-  mockVisitForSave.mockImplementation(
-    async (venueId: never, capturedAt: number) => {
-      const visit = {
-        localId: "3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f",
-        venueId,
-        venueName: "The Met",
-        startedAt: capturedAt,
-        visitedOn: "1970-01-01",
-        timeZone: "UTC",
-      };
-      await upsertVisit(visit);
-      return visit;
-    },
-  );
-  for (const table of [
-    artworkPhotos,
-    artworkEncounters,
-    notes,
-    savedWorks,
-    pendingScans,
-    visits,
-    settings,
-  ]) {
+  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
+    const visit = {
+      localId: "3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f",
+      venueId,
+      venueName: "The Met",
+      startedAt: capturedAt,
+      visitedOn: "1970-01-01",
+      timeZone: "UTC",
+    };
+    await upsertVisit(visit);
+    return visit;
+  });
+  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, pendingScans, visits, settings]) {
     db.delete(table).run();
   }
   AppState.currentState = "active";
@@ -177,9 +150,7 @@ beforeEach(async () => {
     venueId: "museum-met" as never,
   });
   updatePhotoSession(owner, mockParams.draftId, {
-    photos: [
-      { localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 },
-    ],
+    photos: [{ localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 }],
   });
 });
 
@@ -206,9 +177,7 @@ it("retains an edited visit after leaving the session and saves only new photos 
       selected: true,
     }),
   ).toBeOnTheScreen();
-  await fireEvent.press(
-    await screen.findByRole("button", { name: "Other museum · 2 Sep 2026" }),
-  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Other museum · 2 Sep 2026" }));
   expect(readPhotoSession(owner, "saved-artwork").visit).toEqual({
     kind: "visit",
     localId: "eaebe816-f46f-5312-a657-f92d1af2cb76",
@@ -221,9 +190,7 @@ it("retains an edited visit after leaving the session and saves only new photos 
     }),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(
-    await screen.findByRole("button", { name: "Add a private note" }),
-  ).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
   expect(screen.getByText("Other museum · 2 Sep 2026")).toBeOnTheScreen();
   expect(screen.getAllByLabelText("Saved photo preview")).toHaveLength(1);
   expect(selectArtworkPhotos("artwork").all()).toEqual(
@@ -267,30 +234,21 @@ it("saves an unsaved artwork and every added photo directly from the session", a
       capture,
       draft: { ...draftFromCandidate(), title: "My edited title" },
     },
-    photos: [
-      { localId: "extra", path: "extra.jpg", kind: "detail", capturedAt: 2 },
-    ],
+    photos: [{ localId: "extra", path: "extra.jpg", kind: "detail", capturedAt: 2 }],
   });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Save 2 photos" }));
   expect(await screen.findByText("My edited title")).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", { name: "Add a private note" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
   expect((await getSavedWork("saved-new"))?.title).toBe("My edited title");
   expect(
     selectArtworkPhotos("saved-new")
       .all()
       .map((photo) => photo.visitLocalId),
-  ).toEqual([
-    "eaebe816-f46f-5312-a657-f92d1af2cb76",
-    "eaebe816-f46f-5312-a657-f92d1af2cb76",
-  ]);
+  ).toEqual(["eaebe816-f46f-5312-a657-f92d1af2cb76", "eaebe816-f46f-5312-a657-f92d1af2cb76"]);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
   expect(mockBack).not.toHaveBeenCalled();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Scan next artwork" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Scan next artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
 });
@@ -298,18 +256,12 @@ it("saves an unsaved artwork and every added photo directly from the session", a
 it("names a chosen visit that has since been deleted instead of calling it the current visit", async () => {
   updatePhotoSession(owner, mockParams.draftId, {
     visit: { kind: "visit", localId: "deleted-visit" },
-    photos: [
-      { localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 },
-    ],
+    photos: [{ localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 }],
   });
   await render(<AddPhotosScreen />);
-  expect(
-    await screen.findByRole("button", { name: "Visit unavailable · Change" }),
-  ).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Visit unavailable · Change" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Could not save the photos. Your draft is still here.",
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not save the photos. Your draft is still here.");
   expect(
     selectArtworkPhotos("artwork")
       .all()
@@ -360,11 +312,7 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
   expect(screen.getByText(/Also saves the confirmed label/)).toBeOnTheScreen();
   expect(screen.queryByText("Only you can see these photos.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(
-    await screen.findByText(
-      "Index save failed. Your artwork is saved to your collection.",
-    ),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("Index save failed. Your artwork is saved to your collection.")).toBeOnTheScreen();
   expect(contributeLabel).toHaveBeenCalledWith(
     expect.objectContaining({
       capture: expect.objectContaining({ descriptors, keypoints }),
@@ -374,9 +322,7 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
     contributionId: "contribution-1" as never,
     status: "tentative",
   });
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Retry saving to the shared index" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Retry saving to the shared index" }));
   expect(
     await screen.findByText(
       "An artwork crop was saved to the shared index. Your wall and shared visits haven’t changed.",
@@ -384,9 +330,7 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
   ).toBeOnTheScreen();
   expect(selectArtworkPhotos("saved-new").all()).toHaveLength(1);
   // The capture was scanned at the Met with no visit yet: the save started one.
-  expect(selectArtworkPhotos("saved-new").all()[0].visitLocalId).toBe(
-    "3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f",
-  );
+  expect(selectArtworkPhotos("saved-new").all()[0].visitLocalId).toBe("3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f");
 });
 
 it("saves a conflicting photo as its own artwork in the museum visit the context chip names, dated by the scan rather than the photo", async () => {
@@ -427,14 +371,8 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
       name: "The Met · 31 Dec 1969 · Change",
     }),
   ).toBeOnTheScreen();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Save as a separate artwork" }),
-  );
-  await waitFor(() =>
-    expect(
-      screen.queryByRole("button", { name: "Save as a separate artwork" }),
-    ).toBeNull(),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Save as a separate artwork" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Save as a separate artwork" })).toBeNull());
   expect(mockVisitForSave).toHaveBeenCalledWith("museum-met", 1);
   expect(await getSavedWork("saved-new")).toMatchObject({
     title: "Unidentified artwork",
@@ -460,9 +398,7 @@ it("keeps unresolved photos in the draft until the owner explicitly confirms the
   });
   await render(<AddPhotosScreen />);
   expect(screen.getByRole("button", { name: "Save 1 photo" })).toBeDisabled();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Keep with this artwork" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Keep with this artwork" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
   expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
   expect(selectArtworkPhotos("artwork").all()).toHaveLength(2);

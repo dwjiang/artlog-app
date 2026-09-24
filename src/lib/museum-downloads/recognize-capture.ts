@@ -6,13 +6,7 @@ import { identifyOffline } from "./identify-offline";
 export async function recognizeOfflineCapture(
   payload: Pick<
     CapturePayload,
-    | "owner"
-    | "localId"
-    | "vector"
-    | "descriptors"
-    | "keypoints"
-    | "modelVersion"
-    | "venueId"
+    "owner" | "localId" | "vector" | "descriptors" | "keypoints" | "modelVersion" | "venueId"
   >,
 ): Promise<void> {
   const current = captureOwner();

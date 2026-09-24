@@ -2,12 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { jsonToConvex } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { harness } from "./test.helpers";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import type { MuseumEntry } from "../shared/offline/types";
@@ -30,9 +25,7 @@ async function fixture() {
       placement: { venueId, onView: true, source: "feed", confidence: 1 },
       artwork: {
         docent: {
-          en: [
-            { sentence: "Painted as part of a series.", factIds: ["series"] },
-          ],
+          en: [{ sentence: "Painted as part of a series.", factIds: ["series"] }],
         },
         factSheet: [
           {
@@ -52,9 +45,7 @@ it("publishes an authenticated museum download only when all chunks are complete
   const { t, user, venueId, work } = await fixture();
   await t.mutation(internal.museumDownloads.build, { venueId });
   const paginationOpts = { cursor: null, numItems: 64 };
-  expect(
-    (await user.as.query(api.museumDownloads.catalog, { paginationOpts })).page,
-  ).toEqual([]);
+  expect((await user.as.query(api.museumDownloads.catalog, { paginationOpts })).page).toEqual([]);
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   const manifest = await user.as.query(api.museumDownloads.get, { venueId });
   expect(manifest).toMatchObject({
@@ -68,9 +59,7 @@ it("publishes an authenticated museum download only when all chunks are complete
       .unique())!;
     const file = await ctx.storage.get(row.published!.chunks[0].storageId);
     expect(file!.size).toBe(manifest!.size);
-    return jsonToConvex(
-      JSON.parse(await file!.text()),
-    ) as unknown as MuseumEntry[];
+    return jsonToConvex(JSON.parse(await file!.text())) as unknown as MuseumEntry[];
   });
   expect(entries[0].candidate.object).toEqual({
     _id: work.objectId,
@@ -109,10 +98,7 @@ it("publishes an authenticated museum download only when all chunks are complete
     docent: [{ sentence: "Painted as part of a series." }],
   });
   expect(
-    recognizeEntries(
-      { modelVersion: "old-model", venueId, ...encodeOrbFeatures(pair.query) },
-      ranked,
-    ),
+    recognizeEntries({ modelVersion: "old-model", venueId, ...encodeOrbFeatures(pair.query) }, ranked),
   ).toBeUndefined();
   expect(
     recognizeEntries(
@@ -125,15 +111,11 @@ it("publishes an authenticated museum download only when all chunks are complete
       ranked,
     ),
   ).toBeUndefined();
-  await expect(
-    t.query(api.museumDownloads.catalog, { paginationOpts }),
-  ).rejects.toMatchObject({
+  await expect(t.query(api.museumDownloads.catalog, { paginationOpts })).rejects.toMatchObject({
     data: { code: "unauthenticated" },
   });
   await t.run((ctx) => ctx.db.patch(user.deviceId, { banned: true }));
-  await expect(
-    user.as.query(api.museumDownloads.get, { venueId }),
-  ).rejects.toMatchObject({
+  await expect(user.as.query(api.museumDownloads.get, { venueId })).rejects.toMatchObject({
     data: { code: "device_banned" },
   });
 });
@@ -144,9 +126,7 @@ it("excludes withdrawn works and museums from newly published downloads", async 
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(await user.as.query(api.museumDownloads.get, { venueId })).toBeNull();
   await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
-  await expect(
-    t.mutation(internal.museumDownloads.build, { venueId }),
-  ).rejects.toThrow("Museum unavailable");
+  await expect(t.mutation(internal.museumDownloads.build, { venueId })).rejects.toThrow("Museum unavailable");
 });
 it("can restart an interrupted build without publishing stale batches", async () => {
   const { t, user, venueId } = await fixture();
@@ -167,11 +147,7 @@ it("rejects incomplete, unverified, and nonmatching references during offline re
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique())!;
     return jsonToConvex(
-      JSON.parse(
-        await (await ctx.storage.get(
-          row.published!.chunks[0].storageId,
-        ))!.text(),
-      ),
+      JSON.parse(await (await ctx.storage.get(row.published!.chunks[0].storageId))!.text()),
     ) as unknown as MuseumEntry[];
   });
   const ranked = rankEntries(testVector(-1), entries);
@@ -179,9 +155,7 @@ it("rejects incomplete, unverified, and nonmatching references during offline re
     recognizeEntries(
       {
         modelVersion: model.modelVersion,
-        ...encodeOrbFeatures(
-          makeSyntheticPair({ seed: 123456, count: 120 }).query,
-        ),
+        ...encodeOrbFeatures(makeSyntheticPair({ seed: 123456, count: 120 }).query),
       },
       ranked,
     ),
@@ -217,14 +191,8 @@ it("publishes the rest of a museum when one reference has an unreadable ORB file
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique())!;
     return jsonToConvex(
-      JSON.parse(
-        await (await ctx.storage.get(
-          row.published!.chunks[0].storageId,
-        ))!.text(),
-      ),
+      JSON.parse(await (await ctx.storage.get(row.published!.chunks[0].storageId))!.text()),
     ) as unknown as MuseumEntry[];
   });
-  expect(entries.map((entry) => entry.candidate.object._id)).toEqual([
-    work.objectId,
-  ]);
+  expect(entries.map((entry) => entry.candidate.object._id)).toEqual([work.objectId]);
 });

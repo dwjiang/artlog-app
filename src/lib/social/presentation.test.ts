@@ -1,9 +1,4 @@
-import {
-  friendshipActions,
-  initials,
-  peopleSearch,
-  visitDate,
-} from "./presentation";
+import { friendshipActions, initials, peopleSearch, visitDate } from "./presentation";
 import type { Relationship } from "./types";
 
 it("formats calendar dates without shifting the visit into another day", () => {
@@ -29,20 +24,17 @@ it.each([
   ["pending", "other", false, ["accept", "decline"]],
   ["accepted", "other", false, ["remove"]],
   ["none", null, true, []],
-] as const)(
-  "offers the allowed actions for %s / %s / blocked %s",
-  (state, requesterId, blocked, actions) => {
-    expect(
-      friendshipActions(
-        {
-          state,
-          requesterId,
-          blocked,
-          revision: 2,
-          blockRevision: 0,
-        } as Relationship,
-        "me",
-      ),
-    ).toEqual(actions);
-  },
-);
+] as const)("offers the allowed actions for %s / %s / blocked %s", (state, requesterId, blocked, actions) => {
+  expect(
+    friendshipActions(
+      {
+        state,
+        requesterId,
+        blocked,
+        revision: 2,
+        blockRevision: 0,
+      } as Relationship,
+      "me",
+    ),
+  ).toEqual(actions);
+});

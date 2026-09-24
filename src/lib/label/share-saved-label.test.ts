@@ -3,21 +3,14 @@ import { AppState } from "react-native";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { db } from "@/db/client";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
-import {
-  enqueuePendingScan,
-  deletePendingScan,
-} from "@/db/repos/pending-scans";
+import { enqueuePendingScan, deletePendingScan } from "@/db/repos/pending-scans";
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
 import { listSettings, removeSetting } from "@/db/repos/settings";
 import { artworkPhotos, savedWorks } from "@/db/schema";
 import { switchOwner } from "@/lib/account/owner-store";
 import { contributeLabel } from "./contribute";
 import { formStateFromFlow } from "./fields";
-import {
-  flushPendingShares,
-  shareSavedLabel,
-  startPendingShareFlusher,
-} from "./share-saved-label";
+import { flushPendingShares, shareSavedLabel, startPendingShareFlusher } from "./share-saved-label";
 
 const mockNetworkState = jest.fn();
 const mockNetworkListener = jest.fn();
@@ -113,9 +106,7 @@ beforeEach(async () => {
 
 it("clears the queued share once the contribution succeeds", async () => {
   jest.mocked(contributeLabel).mockImplementation(async () => {
-    expect((await queued()).map((row) => row.key)).toEqual([
-      `pendingShare:${owner}:${scanId}`,
-    ]);
+    expect((await queued()).map((row) => row.key)).toEqual([`pendingShare:${owner}:${scanId}`]);
     return outcome;
   });
   expect(await shareSavedLabel(input, "saved-1")).toEqual({ result: outcome });
@@ -123,9 +114,7 @@ it("clears the queued share once the contribution succeeds", async () => {
 });
 
 it("keeps a share queued after a transport failure and drops it after a failure the person must fix", async () => {
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   expect(await shareSavedLabel(input, "saved-1")).toEqual({
     error: "Network request failed",
   });
@@ -138,9 +127,7 @@ it("keeps a share queued after a transport failure and drops it after a failure 
       museumSearchUpdatedAt: 7,
     },
   ]);
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("label_unverified"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("label_unverified"));
   expect(await shareSavedLabel(input, "saved-1")).toEqual({
     error: "label_unverified",
   });
@@ -158,17 +145,12 @@ it("reuses an in-flight attempt for the same scan instead of contributing twice"
     second = shareSavedLabel(input, "saved-1");
   await Promise.resolve();
   finish(outcome);
-  expect(await Promise.all([first, second])).toEqual([
-    { result: outcome },
-    { result: outcome },
-  ]);
+  expect(await Promise.all([first, second])).toEqual([{ result: outcome }, { result: outcome }]);
   expect(contributeLabel).toHaveBeenCalledTimes(1);
 });
 
 it("flushes queued shares with the capture bytes reloaded from the phone and drops shares whose capture is gone", async () => {
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-1");
   await shareSavedLabel(
     {
@@ -181,10 +163,7 @@ it("flushes queued shares with the capture bytes reloaded from the phone and dro
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: false });
   await flushPendingShares();
   expect(contributeLabel).toHaveBeenCalledTimes(2);
-  await enqueuePendingScan(
-    { ...pendingScan, venueId: "museum-met" as Id<"museums"> },
-    owner,
-  );
+  await enqueuePendingScan({ ...pendingScan, venueId: "museum-met" as Id<"museums"> }, owner);
   saveCapture();
   jest.mocked(contributeLabel).mockResolvedValue(outcome);
   await flushPendingShares();
@@ -226,9 +205,7 @@ it("keeps a queued share after the artwork is deleted and the same scan is saved
     undefined,
     owner,
   );
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-2");
   jest.mocked(contributeLabel).mockResolvedValue(outcome);
   await flushPendingShares();
@@ -239,9 +216,7 @@ it("keeps a queued share after the artwork is deleted and the same scan is saved
 it("keeps a queued share after its artwork is merged into another", async () => {
   await enqueuePendingScan(pendingScan, owner);
   saveCapture();
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-1");
   saveArtworkSession(
     "target",
@@ -264,9 +239,7 @@ it("keeps a queued share after its artwork is merged into another", async () => 
 });
 
 it("drops a queued share once its artwork is deleted instead of publishing it on reconnect", async () => {
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValueOnce(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-1");
   await enqueuePendingScan(pendingScan, owner);
   saveCapture();
@@ -277,20 +250,16 @@ it("drops a queued share once its artwork is deleted instead of publishing it on
 });
 
 it("retries on start, reconnect and foreground until stopped", async () => {
-  jest
-    .mocked(contributeLabel)
-    .mockRejectedValue(new Error("Network request failed"));
+  jest.mocked(contributeLabel).mockRejectedValue(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-1");
   await enqueuePendingScan(pendingScan, owner);
   saveCapture();
   const removeAppState = jest.fn();
   let onAppState: ((state: string) => void) | undefined;
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_type, listener) => {
-      onAppState = listener as typeof onAppState;
-      return { remove: removeAppState };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
+    onAppState = listener as typeof onAppState;
+    return { remove: removeAppState };
+  });
   const stop = startPendingShareFlusher();
   await flushPendingShares();
   expect(contributeLabel).toHaveBeenCalledTimes(2);

@@ -25,10 +25,7 @@ export const save = internalMutation({
       throw new ConvexError({ code: "sync_scope_changed" });
     }
     const fields = validateProfile(input);
-    const photoStorageId =
-      input.photo === undefined
-        ? profile.photoStorageId
-        : (input.photo ?? undefined);
+    const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
     await ctx.db.patch(profile._id, {
       ...fields,
       photoStorageId,

@@ -1,8 +1,4 @@
-import {
-  CONTRIBUTION_CROP_QUALITY,
-  removeFile,
-  resizeCropForContribution,
-} from "./crop";
+import { CONTRIBUTION_CROP_QUALITY, removeFile, resizeCropForContribution } from "./crop";
 
 const mockManipulate = jest.fn();
 const mockResize = jest.fn();
@@ -57,43 +53,32 @@ beforeEach(() => {
         return context;
       },
       async renderAsync(): Promise<FakeImage> {
-        const base =
-          typeof source === "string" ? image(...sizes[source]) : source;
+        const base = typeof source === "string" ? image(...sizes[source]) : source;
         if (requested?.width) {
-          return image(
-            requested.width,
-            Math.round((base.height * requested.width) / base.width),
-          );
+          return image(requested.width, Math.round((base.height * requested.width) / base.width));
         }
         if (requested?.height) {
-          return image(
-            Math.round((base.width * requested.height) / base.height),
-            requested.height,
-          );
+          return image(Math.round((base.width * requested.height) / base.height), requested.height);
         }
         return base;
       },
     };
     return context;
   });
-  mockSave.mockImplementation(
-    async (width: number, height: number, options: { base64?: boolean }) => {
-      mockExisting.add("file:///cache/out.jpg");
-      return {
-        uri: "file:///cache/out.jpg",
-        width,
-        height,
-        base64: options.base64 ? "QUJDRA==" : undefined,
-      };
-    },
-  );
+  mockSave.mockImplementation(async (width: number, height: number, options: { base64?: boolean }) => {
+    mockExisting.add("file:///cache/out.jpg");
+    return {
+      uri: "file:///cache/out.jpg",
+      width,
+      height,
+      base64: options.base64 ? "QUJDRA==" : undefined,
+    };
+  });
 });
 
 it("resizes the letterboxed crop to 256 px JPEG 0.85 without base64", async () => {
   sizes["file:///documents/crops/c1.jpg"] = [512, 512];
-  const result = await resizeCropForContribution(
-    "file:///documents/crops/c1.jpg",
-  );
+  const result = await resizeCropForContribution("file:///documents/crops/c1.jpg");
   expect(mockResize).toHaveBeenCalledWith({ width: 256 });
   expect(mockSave).toHaveBeenCalledWith(256, 256, {
     format: "jpeg",

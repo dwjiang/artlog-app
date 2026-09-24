@@ -11,11 +11,7 @@ import { pendingScans } from "@/db/schema";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { getSavedWork, replaceSavedCrop } from "@/db/repos/saved-works";
 import { captureOwner } from "@/lib/account/owner-store";
-import {
-  captureFileUri,
-  copyArtworkPhoto,
-  scanPreviewPath,
-} from "@/lib/files/photos";
+import { captureFileUri, copyArtworkPhoto, scanPreviewPath } from "@/lib/files/photos";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { filePath } from "@/lib/file-uri";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
@@ -24,11 +20,7 @@ import { extractFeatures, orb } from "./features";
 import { toCorners } from "./rectangle";
 import { validCrop } from "./crop-geometry";
 import type { Quad } from "./stages";
-import {
-  clearPhotoDraft,
-  readPhotoSession,
-  updatePhotoSession,
-} from "./photo-draft";
+import { clearPhotoDraft, readPhotoSession, updatePhotoSession } from "./photo-draft";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 
 export type EditedCrop = {
@@ -45,10 +37,7 @@ export function discardEditedCrop(crop: EditedCrop) {
   }
 }
 
-export async function prepareEditedCrop(
-  photoPath: string,
-  corners: Quad,
-): Promise<EditedCrop> {
+export async function prepareEditedCrop(photoPath: string, corners: Quad): Promise<EditedCrop> {
   if (!validCrop(corners)) {
     throw new Error("Choose four corners around the painting.");
   }
@@ -62,9 +51,7 @@ export async function prepareEditedCrop(
   let image;
   try {
     const { x, y, width, height } = result.contentBounds;
-    image = await context
-      .crop({ originX: x, originY: y, width, height })
-      .renderAsync();
+    image = await context.crop({ originX: x, originY: y, width, height }).renderAsync();
     const preview = await image.saveAsync({
       format: SaveFormat.JPEG,
       compress: 1,
@@ -80,12 +67,7 @@ export async function prepareEditedCrop(
   }
 }
 
-export async function saveEditedArtworkCrop(
-  savedId: string,
-  crop: EditedCrop,
-  owner: string,
-  isCurrent = () => true,
-) {
+export async function saveEditedArtworkCrop(savedId: string, crop: EditedCrop, owner: string, isCurrent = () => true) {
   const current = captureOwner();
   const work = await getSavedWork(savedId, owner);
   if (current.owner !== owner || !work || work.deletedAt !== null) {
@@ -127,10 +109,7 @@ export async function saveEditedScanCrop(
   let photoPath: string | undefined;
   try {
     new File(crop.previewUri).copy(new File(captureFileUri(previewPath)));
-    photoPath = copyArtworkPhoto(
-      captureFileUri(capture.photoPath),
-      `${nextId}-full`,
-    );
+    photoPath = copyArtworkPhoto(captureFileUri(capture.photoPath), `${nextId}-full`);
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }
@@ -138,9 +117,7 @@ export async function saveEditedScanCrop(
       const original = tx
         .select()
         .from(pendingScans)
-        .where(
-          and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
-        )
+        .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)))
         .get();
       if (!original || original.cropPath !== capture.cropPath) {
         throw new Error("Scan changed. Reopen it and try again.");
@@ -162,9 +139,7 @@ export async function saveEditedScanCrop(
         })
         .run();
       tx.delete(pendingScans)
-        .where(
-          and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
-        )
+        .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)))
         .run();
       updatePhotoSession(owner, photoPath!, {
         ...readPhotoSession(owner, capture.photoPath),
@@ -178,11 +153,7 @@ export async function saveEditedScanCrop(
     if (photoPath) removePhotoFile(photoPath);
     throw error;
   }
-  await removeUnreferencedPhotos([
-    capture.photoPath,
-    capture.cropPath,
-    scanPreviewPath(capture.cropPath),
-  ]);
+  await removeUnreferencedPhotos([capture.photoPath, capture.cropPath, scanPreviewPath(capture.cropPath)]);
   void recognizeUnsendableCrop(
     {
       ...features,
@@ -192,12 +163,7 @@ export async function saveEditedScanCrop(
       venueId: capture.venueId ?? undefined,
     },
     current.scope,
-  ).catch((error) =>
-    console.warn(
-      "Offline identification unavailable; edited capture stays queued",
-      error,
-    ),
-  );
+  ).catch((error) => console.warn("Offline identification unavailable; edited capture stays queued", error));
   return nextId;
 }
 

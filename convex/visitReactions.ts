@@ -8,11 +8,7 @@ import { optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
-import {
-  changeEngagement,
-  engagement,
-  visibleParticipant,
-} from "./lib/visitReactions";
+import { changeEngagement, engagement, visibleParticipant } from "./lib/visitReactions";
 
 const comment = v.object({
   commentId: v.id("visitComments"),
@@ -41,9 +37,7 @@ export const getSummary = query({
       viewer
       && (await ctx.db
         .query("visitLikes")
-        .withIndex("by_publication_profile", (q) =>
-          q.eq("publicationId", publication._id).eq("profileId", viewer._id),
-        )
+        .withIndex("by_publication_profile", (q) => q.eq("publicationId", publication._id).eq("profileId", viewer._id))
         .unique());
     return {
       likeCount: counts?.likeCount ?? 0,
@@ -61,9 +55,7 @@ export const setLike = mutation({
     const { publication } = await requireSharedVisit(ctx, postId, profile._id);
     const current = await ctx.db
       .query("visitLikes")
-      .withIndex("by_publication_profile", (q) =>
-        q.eq("publicationId", publication._id).eq("profileId", profile._id),
-      )
+      .withIndex("by_publication_profile", (q) => q.eq("publicationId", publication._id).eq("profileId", profile._id))
       .unique();
     if (!!current === liked) return null;
     await limitKey(ctx, "likeVisit", accountId);
@@ -84,24 +76,15 @@ export const listLikes = query({
   returns: v.object({ page: v.array(publicProfile), ...pageFields }),
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    const { publication } = await requireSharedVisit(
-      ctx,
-      input.postId,
-      viewer?._id,
-    );
+    const { publication } = await requireSharedVisit(ctx, input.postId, viewer?._id);
     const result = await ctx.db
       .query("visitLikes")
-      .withIndex("by_publication", (q) =>
-        q.eq("publicationId", publication._id),
-      )
+      .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
       .order("desc")
       .paginate(pagination(input));
     const page = [];
     for (const row of result.page) {
-      const profile = await visibleParticipant(ctx, row.profileId, [
-        viewer?._id,
-        publication.profileId,
-      ]);
+      const profile = await visibleParticipant(ctx, row.profileId, [viewer?._id, publication.profileId]);
       if (profile) page.push(await projectProfile(ctx, profile));
     }
     return {
@@ -117,23 +100,14 @@ export const listComments = query({
   returns: v.object({ page: v.array(comment), ...pageFields }),
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    const { publication } = await requireSharedVisit(
-      ctx,
-      input.postId,
-      viewer?._id,
-    );
+    const { publication } = await requireSharedVisit(ctx, input.postId, viewer?._id);
     const result = await ctx.db
       .query("visitComments")
-      .withIndex("by_publication", (q) =>
-        q.eq("publicationId", publication._id),
-      )
+      .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
       .paginate(pagination(input));
     const page = [];
     for (const row of result.page) {
-      const profile = await visibleParticipant(ctx, row.profileId, [
-        viewer?._id,
-        publication.profileId,
-      ]);
+      const profile = await visibleParticipant(ctx, row.profileId, [viewer?._id, publication.profileId]);
       if (profile) {
         page.push({
           commentId: row._id,
@@ -157,26 +131,17 @@ export const addComment = mutation({
   returns: v.id("visitComments"),
   handler: async (ctx, input) => {
     const { profile, accountId } = await requireProfile(ctx);
-    const { publication } = await requireSharedVisit(
-      ctx,
-      input.postId,
-      profile._id,
-    );
+    const { publication } = await requireSharedVisit(ctx, input.postId, profile._id);
     const body = input.body.trim();
     if (!body || body.length > MAX_COMMENT_LENGTH || !isUuid(input.requestId)) {
       throw new ConvexError({ code: "invalid_comment" });
     }
     const existing = await ctx.db
       .query("visitComments")
-      .withIndex("by_profile_request", (q) =>
-        q.eq("profileId", profile._id).eq("requestId", input.requestId),
-      )
+      .withIndex("by_profile_request", (q) => q.eq("profileId", profile._id).eq("requestId", input.requestId))
       .unique();
     if (existing) {
-      if (
-        existing.publicationId !== publication._id
-        || existing.body !== body
-      ) {
+      if (existing.publicationId !== publication._id || existing.body !== body) {
         throw new ConvexError({ code: "invalid_comment" });
       }
       return existing._id;
@@ -201,10 +166,7 @@ export const deleteComment = mutation({
     const { publication } = await requireSharedVisit(ctx, postId, profile._id);
     const row = await ctx.db.get(commentId);
     if (!row) return null;
-    if (
-      row.publicationId !== publication._id
-      || row.profileId !== profile._id
-    ) {
+    if (row.publicationId !== publication._id || row.profileId !== profile._id) {
       throw new ConvexError({ code: "not_found" });
     }
     await ctx.db.delete(commentId);

@@ -1,10 +1,7 @@
 import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { SocialSession } from "@/lib/social/use-social-session";
-import {
-  CompactFriendshipControls,
-  FriendshipControls,
-} from "./friendship-controls";
+import { CompactFriendshipControls, FriendshipControls } from "./friendship-controls";
 
 const mockPush = jest.fn(),
   mockAct = jest.fn(),
@@ -37,9 +34,7 @@ beforeEach(() => {
 });
 
 it("lets guests request sign-in from the friend action without sending a request", async () => {
-  await render(
-    <FriendshipControls profileId={"friend" as never} session={guest} />,
-  );
+  await render(<FriendshipControls profileId={"friend" as never} session={guest} />);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
   expect(mockPush).toHaveBeenCalledWith({
@@ -50,12 +45,7 @@ it("lets guests request sign-in from the friend action without sending a request
 });
 
 it("continues to profile setup after sign-in without sending a request automatically", async () => {
-  await render(
-    <FriendshipControls
-      profileId={"friend" as never}
-      session={{ ...guest, status: "profile-required" }}
-    />,
-  );
+  await render(<FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "profile-required" }} />);
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
   expect(mockPush).toHaveBeenCalledWith("/create-profile");
   expect(mockAct).not.toHaveBeenCalled();
@@ -63,10 +53,7 @@ it("continues to profile setup after sign-in without sending a request automatic
 
 it("keeps friendship actions unavailable while offline", async () => {
   await render(
-    <FriendshipControls
-      profileId={"friend" as never}
-      session={{ ...guest, status: "offline", offline: true }}
-    />,
+    <FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "offline", offline: true }} />,
   );
   expect(screen.queryByRole("button", { name: "Add friend" })).toBeNull();
 });
@@ -82,9 +69,7 @@ it("requires confirmation before removing an existing friend", async () => {
   );
   await fireEvent.press(screen.getByRole("button", { name: "Remove friend" }));
   expect(mockAct).not.toHaveBeenCalled();
-  const confirm = alert.mock.calls
-    .at(-1)?.[2]
-    ?.find((button) => button.style === "destructive");
+  const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
   expect(confirm?.text).toBe("Remove friend");
   await act(() => confirm?.onPress?.());
   expect(mockAct).toHaveBeenCalledWith("remove");
@@ -100,15 +85,8 @@ it("renders a known friend row without a relationship query and lets a stranger 
   };
   await render(
     <>
-      <CompactFriendshipControls
-        profileId={"friend" as never}
-        session={ready}
-        friend
-      />
-      <CompactFriendshipControls
-        profileId={"stranger" as never}
-        session={ready}
-      />
+      <CompactFriendshipControls profileId={"friend" as never} session={ready} friend />
+      <CompactFriendshipControls profileId={"stranger" as never} session={ready} />
     </>,
   );
   expect(screen.getByText("Friends")).toBeOnTheScreen();
@@ -135,13 +113,7 @@ it("hands a relationship the list already holds to the friendship hook", async (
     refresh: jest.fn(),
   };
   mockState = relationship.data;
-  await render(
-    <CompactFriendshipControls
-      profileId={"asked" as never}
-      session={ready}
-      relationship={relationship}
-    />,
-  );
+  await render(<CompactFriendshipControls profileId={"asked" as never} session={ready} relationship={relationship} />);
   expect(mockUseFriendship).toHaveBeenCalledWith("asked", ready, relationship);
   expect(screen.getByRole("button", { name: "Requested" })).toBeOnTheScreen();
 });

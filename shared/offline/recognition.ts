@@ -18,18 +18,10 @@ export function similarity(a: number[], b: number[]): number {
   }
   return aa && bb ? dot / Math.sqrt(aa * bb) : -1;
 }
-export function rankEntries(
-  vector: number[],
-  entries: MuseumEntry[],
-  previous: MuseumEntry[] = [],
-): MuseumEntry[] {
-  const matches = new Map(
-    previous.map((entry) => [entry.candidate.object._id, entry]),
-  );
+export function rankEntries(vector: number[], entries: MuseumEntry[], previous: MuseumEntry[] = []): MuseumEntry[] {
+  const matches = new Map(previous.map((entry) => [entry.candidate.object._id, entry]));
   for (const entry of entries) {
-    const score = Math.max(
-      ...entry.vectors.map((reference) => similarity(vector, reference)),
-    );
+    const score = Math.max(...entry.vectors.map((reference) => similarity(vector, reference)));
     const previous = matches.get(entry.candidate.object._id);
     if (!previous || score > previous.candidate.similarity) {
       matches.set(entry.candidate.object._id, {
@@ -38,9 +30,7 @@ export function rankEntries(
       });
     }
   }
-  return [...matches.values()]
-    .sort((a, b) => b.candidate.similarity - a.candidate.similarity)
-    .slice(0, MAX_CANDIDATES);
+  return [...matches.values()].sort((a, b) => b.candidate.similarity - a.candidate.similarity).slice(0, MAX_CANDIDATES);
 }
 export function recognizeEntries(
   payload: {
@@ -60,10 +50,7 @@ export function recognizeEntries(
     inputSize: model.inputSize,
   });
   if (decision.outcome !== "confident" || !decision.best) return;
-  const display = ({
-    candidate,
-    probability,
-  }: NonNullable<typeof decision.best>): ResultCandidate => ({
+  const display = ({ candidate, probability }: NonNullable<typeof decision.best>): ResultCandidate => ({
     objectId: candidate.object._id,
     artworkId: candidate.artwork._id,
     probability,
@@ -74,10 +61,7 @@ export function recognizeEntries(
     date: candidate.artwork.date,
     medium: candidate.object.medium,
     institution: candidate.institution,
-    gallery:
-      candidate.placement?.venueId === payload.venueId
-        ? candidate.placement?.gallery
-        : undefined,
+    gallery: candidate.placement?.venueId === payload.venueId ? candidate.placement?.gallery : undefined,
   });
   const artwork = decision.best.candidate.artwork;
   return {

@@ -12,14 +12,7 @@ export function DownloadIcon({
   color?: string;
   size?: number;
 }) {
-  return (
-    <Image
-      source={`sf:${name}`}
-      tintColor={color}
-      style={{ width: size, height: size }}
-      accessible={false}
-    />
-  );
+  return <Image source={`sf:${name}`} tintColor={color} style={{ width: size, height: size }} accessible={false} />;
 }
 export function IconAction({
   label,
@@ -63,12 +56,7 @@ export function DownloadMenu({
       colorScheme="light"
       style={styles.icon}
     >
-      <View
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        style={styles.icon}
-      >
+      <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.icon}>
         <DownloadIcon name={icon} color={color} />
       </View>
     </MenuView>
@@ -96,13 +84,7 @@ export function DownloadButton({
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {icon && (
-        <DownloadIcon
-          name={icon}
-          size={19}
-          color={secondary ? Gallery.accent : Gallery.surface}
-        />
-      )}
+      {icon && <DownloadIcon name={icon} size={19} color={secondary ? Gallery.accent : Gallery.surface} />}
       <Text
         style={{
           fontSize: 14,
@@ -118,13 +100,7 @@ export function DownloadButton({
     </Pressable>
   );
 }
-export function DownloadProgress({
-  name,
-  progress,
-}: {
-  name: string;
-  progress: number;
-}) {
+export function DownloadProgress({ name, progress }: { name: string; progress: number }) {
   return (
     <View
       accessibilityRole="progressbar"

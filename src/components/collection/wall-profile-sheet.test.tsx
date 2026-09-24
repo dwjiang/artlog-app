@@ -23,18 +23,12 @@ beforeEach(() => jest.clearAllMocks());
 it("creates a profile only after submission and normalizes the name and username", async () => {
   const onCreated = jest.fn();
   mockCreate.mockResolvedValue({});
-  await render(
-    <WallProfileSheet onCreated={onCreated} onDismiss={jest.fn()} />,
-  );
-  expect(
-    screen.getByRole("button", { name: "Create public profile" }),
-  ).toBeDisabled();
+  await render(<WallProfileSheet onCreated={onCreated} onDismiss={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Create public profile" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), "  Alex Chen  ");
   await fireEvent.changeText(screen.getByLabelText("Username"), " Alex-Chen ");
   expect(mockCreate).not.toHaveBeenCalled();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Create public profile" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
   expect(mockCreate).toHaveBeenCalledWith({
     name: "Alex Chen",
     username: "alex-chen",
@@ -46,17 +40,11 @@ it("creates a profile only after submission and normalizes the name and username
 it("keeps entered profile details when a username is taken", async () => {
   const onCreated = jest.fn();
   mockCreate.mockRejectedValue(new ConvexError({ code: "username_taken" }));
-  await render(
-    <WallProfileSheet onCreated={onCreated} onDismiss={jest.fn()} />,
-  );
+  await render(<WallProfileSheet onCreated={onCreated} onDismiss={jest.fn()} />);
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
   await fireEvent.changeText(screen.getByLabelText("Username"), "alex");
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Create public profile" }),
-  );
-  expect(
-    await screen.findByText("That username is already taken."),
-  ).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
+  expect(await screen.findByText("That username is already taken.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
   expect(onCreated).not.toHaveBeenCalled();
 });

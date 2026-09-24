@@ -25,11 +25,7 @@ export function expectedDim(): number {
 }
 
 export function validateVector(vector: number[]): void {
-  if (
-    vector.length !== expectedDim()
-    || !vector.every(Number.isFinite)
-    || !vector.some((value) => value !== 0)
-  ) {
+  if (vector.length !== expectedDim() || !vector.every(Number.isFinite) || !vector.some((value) => value !== 0)) {
     throw new ConvexError({ code: "bad_vector" });
   }
 }

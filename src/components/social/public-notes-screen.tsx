@@ -27,10 +27,7 @@ export function PublicNotesScreen() {
   const changes = wall.noteDraft;
   const items = wall.acknowledged?.items ?? [];
   function visible(item: (typeof items)[number]) {
-    return (
-      changes.find((change) => change.itemId === item.itemId)?.visible
-      ?? item.noteVisible
-    );
+    return changes.find((change) => change.itemId === item.itemId)?.visible ?? item.noteVisible;
   }
   function toggle(item: (typeof items)[number], value: boolean) {
     wall.repository.setNoteDraft([
@@ -61,12 +58,7 @@ export function PublicNotesScreen() {
       visual={<EmptyPaper kind="note" />}
       footnote="Your existing notes stay private."
     >
-      <GalleryButton
-        label="Sign in"
-        variant="filled"
-        fullWidth
-        onPress={() => router.push(signInRoute("wall"))}
-      />
+      <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute("wall"))} />
     </EmptyState>
   ) : wall.profileRequired ? (
     <SocialState
@@ -83,9 +75,7 @@ export function PublicNotesScreen() {
       <ScrollView
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={
-          wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }
-        }
+        contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}
       >
         {gate}
       </ScrollView>
@@ -95,27 +85,18 @@ export function PublicNotesScreen() {
   const toolbar = (
     <Stack.Toolbar placement="right">
       {preview ? (
-        <Stack.Toolbar.Button
-          tintColor={Gallery.ink}
-          onPress={() => setPreview(false)}
-        >
+        <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(false)}>
           Edit
         </Stack.Toolbar.Button>
       ) : (
-        <Stack.Toolbar.Button
-          tintColor={Gallery.ink}
-          onPress={() => setPreview(true)}
-        >
+        <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(true)}>
           Preview
         </Stack.Toolbar.Button>
       )}
       {!preview
         && (wall.pending ? (
           <Stack.Toolbar.View>
-            <LoadingRing
-              accessibilityLabel="Saving note choices…"
-              style={{ width: 44, height: 44 }}
-            />
+            <LoadingRing accessibilityLabel="Saving note choices…" style={{ width: 44, height: 44 }} />
           </Stack.Toolbar.View>
         ) : (
           <Stack.Toolbar.Button
@@ -149,9 +130,7 @@ export function PublicNotesScreen() {
                 itemId: item.itemId,
                 layout: item.layout,
                 artwork: item.artwork,
-                ...(visible(item) && item.privateNote
-                  ? { note: item.privateNote }
-                  : {}),
+                ...(visible(item) && item.privateNote ? { note: item.privateNote } : {}),
               })),
             }}
           />
@@ -159,15 +138,10 @@ export function PublicNotesScreen() {
       </>
     );
   }
-  const eligible = items.filter(
-    (item) => item.noteEligible || item.noteVisible,
-  );
+  const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
   if (!eligible.length && !wall.error) {
     return (
-      <ScrollView
-        style={socialStyles.root}
-        contentInsetAdjustmentBehavior="automatic"
-      >
+      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
         <EmptyState
           title="No notes to share yet."
           detail="Add a private note to an artwork on your wall. After it syncs, you can choose whether to show it here."
@@ -222,19 +196,10 @@ export function PublicNotesScreen() {
               borderBottomColor: Gallery.separator,
             }}
           >
-            <View
-              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
-            >
-              <DisplayMedia
-                media={item.artwork.media}
-                label={item.artwork.title}
-                width={48}
-                height={56}
-              />
+            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+              <DisplayMedia media={item.artwork.media} label={item.artwork.title} width={48} height={56} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                  {item.artwork.title}
-                </Text>
+                <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.artwork.title}</Text>
                 <Text type="small" themeColor="textSecondary">
                   {item.artwork.artist}
                 </Text>
@@ -245,17 +210,11 @@ export function PublicNotesScreen() {
                 <Text>{item.privateNote}</Text>
               </NotePaper>
             )}
-            <Host
-              matchContents={{ vertical: true }}
-              colorScheme="light"
-              style={{ width: "100%" }}
-            >
+            <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
               <Switch
                 label="Show note on public wall"
                 value={visible(item)}
-                disabled={
-                  wall.pending || (!item.noteEligible && !item.noteVisible)
-                }
+                disabled={wall.pending || (!item.noteEligible && !item.noteVisible)}
                 onValueChange={(value) => toggle(item, value)}
               />
             </Host>

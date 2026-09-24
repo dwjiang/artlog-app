@@ -39,9 +39,7 @@ it("shows the selected photo’s actual published visibility and updates after u
     data: [{ photoLocalId: "p", wallPlacements: 2, sharedVisits: 1 }],
   };
   const view = await render(<PhotoVisibility savedId="s" photoId="p" />);
-  expect(
-    screen.getByText(/2 public wall placements · 1 shared visit/),
-  ).toBeOnTheScreen();
+  expect(screen.getByText(/2 public wall placements · 1 shared visit/)).toBeOnTheScreen();
   mockResult = {
     data: [{ photoLocalId: "p", wallPlacements: 0, sharedVisits: 0 }],
   };
@@ -69,9 +67,7 @@ it("clears the old account’s visibility while the owner or server scope change
     data: [{ photoLocalId: "p", wallPlacements: 1, sharedVisits: 2 }],
   };
   const view = await render(<PhotoVisibility savedId="s" photoId="p" />);
-  expect(
-    screen.getByText(/1 public wall placement · 2 shared visits/),
-  ).toBeOnTheScreen();
+  expect(screen.getByText(/1 public wall placement · 2 shared visits/)).toBeOnTheScreen();
   mockOwner = "account:b";
   mockScope = undefined;
   mockSession = { status: "loading", key: "b", offline: false };
@@ -83,10 +79,7 @@ it("clears the old account’s visibility while the owner or server scope change
   mockSession.status = "ready";
   mockResult = { data: [] };
   await view.rerender(<PhotoVisibility savedId="s" photoId="p" />);
-  expect(mockQuery.mock.calls.at(-1)?.slice(1)).toEqual([
-    { scope: "scope-b", savedLocalId: "s" },
-    "b",
-  ]);
+  expect(mockQuery.mock.calls.at(-1)?.slice(1)).toEqual([{ scope: "scope-b", savedLocalId: "s" }, "b"]);
   expect(screen.getByText("This photo is private.")).toBeOnTheScreen();
 });
 

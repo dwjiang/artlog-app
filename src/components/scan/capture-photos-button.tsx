@@ -6,22 +6,9 @@ import type { SaveResultInput } from "@/lib/result/save";
 import { canSave } from "@/lib/result/snapshot";
 import { GalleryButton } from "../collection/gallery-button";
 
-export function CapturePhotosButton({
-  input,
-  disabled,
-}: {
-  input: SaveResultInput;
-  disabled?: boolean;
-}) {
+export function CapturePhotosButton({ input, disabled }: { input: SaveResultInput; disabled?: boolean }) {
   const { label, open, unavailable } = useCapturePhotos(input, disabled);
-  return (
-    <GalleryButton
-      label={label}
-      icon="photo.badge.plus"
-      disabled={unavailable}
-      onPress={open}
-    />
-  );
+  return <GalleryButton label={label} icon="photo.badge.plus" disabled={unavailable} onPress={open} />;
 }
 
 export function useCapturePhotos(input?: SaveResultInput, disabled = false) {

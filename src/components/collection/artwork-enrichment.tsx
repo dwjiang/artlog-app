@@ -11,11 +11,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
-export function ArtworkEnrichment({
-  artworkId,
-}: {
-  artworkId: Id<"artworks">;
-}) {
+export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) {
   const ready = useDeviceReady();
   const enrichmentQuery = useMemo(
     (): RequestForQueries =>
@@ -31,10 +27,7 @@ export function ArtworkEnrichment({
   }: {
     enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
   } = useQueries(enrichmentQuery);
-  if (
-    !enrichment
-    || (!(enrichment instanceof Error) && !enrichment.docent?.length)
-  ) {
+  if (!enrichment || (!(enrichment instanceof Error) && !enrichment.docent?.length)) {
     return null;
   }
 
@@ -42,14 +35,9 @@ export function ArtworkEnrichment({
     <View style={styles.section}>
       <ThemedText variant="section">About this work</ThemedText>
       {enrichment instanceof Error ? (
-        <ThemedText themeColor="textSecondary">
-          Details about this work are unavailable right now.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Details about this work are unavailable right now.</ThemedText>
       ) : (
-        <DocentSection
-          docent={enrichment.docent}
-          factSheet={enrichment.factSheet}
-        />
+        <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} />
       )}
     </View>
   );

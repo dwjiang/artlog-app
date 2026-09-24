@@ -2,17 +2,9 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import {
-  FLAG_MIN_REJECTIONS,
-  FLAG_REJECT_RATIO,
-  PENALTY_STEP,
-} from "./lib/rejectionPenalty";
+import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
 
-export async function feedbackChanged(
-  ctx: MutationCtx,
-  objectId: Id<"objects">,
-  rebuild = true,
-) {
+export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">, rebuild = true) {
   const object = await ctx.db.get(objectId);
   if (!object) return;
   const revision = (object.feedbackRevision ?? 0) + 1;
@@ -74,17 +66,14 @@ export const rebuildPage = internalMutation({
       if (!device || device.banned) continue;
       if (event.kind === "confirmation") state.confirmCount++;
       else {
-        const feedback = event.feedbackId
-          ? await ctx.db.get(event.feedbackId)
-          : null;
+        const feedback = event.feedbackId ? await ctx.db.get(event.feedbackId) : null;
         if (!feedback || feedback.resolution.kind === "false_rejection") {
           continue;
         }
         state.rejectCount++;
         const flagged =
           state.rejectCount >= FLAG_MIN_REJECTIONS
-          && state.rejectCount / (state.confirmCount + state.rejectCount)
-            >= FLAG_REJECT_RATIO;
+          && state.rejectCount / (state.confirmCount + state.rejectCount) >= FLAG_REJECT_RATIO;
         if (flagged) {
           state.flaggedForReview = true;
           state.rejectionPenalty += PENALTY_STEP;

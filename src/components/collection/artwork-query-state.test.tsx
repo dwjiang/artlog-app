@@ -62,9 +62,7 @@ it.each([
   "%s distinguishes an unfinished read, a missing item and a recoverable read failure",
   async (_name, content, item) => {
     const view = await render(content());
-    expect(
-      screen.getByLabelText(`Opening ${item.toLowerCase()}…`),
-    ).toBeOnTheScreen();
+    expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
     expect(screen.queryByText(`${item} unavailable.`)).toBeNull();
     mockQuery = { data: [], updatedAt: new Date() };
     await view.rerender(content());
@@ -73,14 +71,10 @@ it.each([
     expect(mockBack).toHaveBeenCalledTimes(1);
     mockQuery = { data: [], error: new Error("Read failed") };
     await view.rerender(content());
-    expect(
-      screen.getByText(`Couldn’t load this ${item.toLowerCase()}.`),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(`Couldn’t load this ${item.toLowerCase()}.`)).toBeOnTheScreen();
     mockQuery = { data: [] };
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
-    expect(
-      screen.getByLabelText(`Opening ${item.toLowerCase()}…`),
-    ).toBeOnTheScreen();
+    expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
   },
 );
 
@@ -99,9 +93,7 @@ it("does not show a photo from a stale account or a different artwork", async ()
   mockOwner = "account:current";
   await render(<PhotoEditorScreen />);
   expect(screen.getByText("Photo unavailable.")).toBeOnTheScreen();
-  expect(
-    screen.queryByRole("button", { name: "Save photo details" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save photo details" })).toBeNull();
 });
 
 it("keeps manual identification edits when saving fails", async () => {
@@ -127,9 +119,7 @@ it("keeps manual identification edits when saving fails", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Save details" }));
   expect(screen.getByDisplayValue("Water Lilies")).toBeOnTheScreen();
   expect(
-    screen.getByText(
-      "Your artwork details could not be saved. Your edits are still here. Try again.",
-    ),
+    screen.getByText("Your artwork details could not be saved. Your edits are still here. Try again."),
   ).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });

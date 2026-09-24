@@ -29,42 +29,21 @@ import { useSaveResult } from "@/lib/result/use-save-result";
 
 export const MISSING_TITLE = "This scan isn’t on this phone anymore";
 
-export function LocalScanScreen({
-  localId,
-  manual = false,
-}: {
-  localId: string;
-  manual?: boolean;
-}) {
+export function LocalScanScreen({ localId, manual = false }: { localId: string; manual?: boolean }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
-  const {
-    data,
-    updatedAt,
-    error: loadError,
-  } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   useEffect(() => {
     if (loadError) reportError(loadError, "result.load_local_scan");
   }, [loadError]);
-  const { data: offlineResults } = useLiveQuery(
-    offlineResultQuery(localId, owner),
-    [localId, owner],
-  );
-  const offlineResult = offlineResults?.find(
-    (result) => result.owner === owner,
-  )?.result;
+  const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [localId, owner]);
+  const offlineResult = offlineResults?.find((result) => result.owner === owner)?.result;
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
   const pending = row?.status === "queued" || row?.status === "identifying";
   const scanId = pending ? undefined : row?.scanId;
-  const {
-    saving,
-    savedId,
-    completion,
-    error: saveError,
-    save,
-  } = useSaveResult();
+  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
   const [editingCrop, setEditingCrop] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -87,8 +66,7 @@ export function LocalScanScreen({
 
   function openResult() {
     if (!scanId || saving) return;
-    const open = () =>
-      router.replace({ pathname: "/result/[scanId]", params: { scanId } });
+    const open = () => router.replace({ pathname: "/result/[scanId]", params: { scanId } });
     if (hasDraft && !savedId) {
       Alert.alert(
         "Discard your edits?",
@@ -105,20 +83,16 @@ export function LocalScanScreen({
 
   function adjustCrop() {
     if (hasDraft) {
-      Alert.alert(
-        "Adjust this crop?",
-        "Recognition will run again. Unsaved artwork details will be discarded.",
-        [
-          { text: "Keep editing", style: "cancel" },
-          {
-            text: "Adjust crop",
-            onPress: () => {
-              setHasDraft(false);
-              setEditingCrop(true);
-            },
+      Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Adjust crop",
+          onPress: () => {
+            setHasDraft(false);
+            setEditingCrop(true);
           },
-        ],
-      );
+        },
+      ]);
     } else setEditingCrop(true);
   }
 
@@ -137,9 +111,7 @@ export function LocalScanScreen({
     void retryPendingScan(localId)
       .catch((error: unknown) => {
         reportError(error, "queue.retry");
-        setRetryError(
-          "Couldn’t retry this scan. Your photo is still here. Try again.",
-        );
+        setRetryError("Couldn’t retry this scan. Your photo is still here. Try again.");
       })
       .finally(() => {
         retryPending.current = false;
@@ -151,9 +123,7 @@ export function LocalScanScreen({
     saving,
     savedId,
     saveError,
-    captureInput: row
-      ? { scanId: row.scanId ?? undefined, capture: row }
-      : undefined,
+    captureInput: row ? { scanId: row.scanId ?? undefined, capture: row } : undefined,
     onSave: (draft: Parameters<typeof save>[0]["draft"]) => {
       void save({ scanId: row?.scanId ?? undefined, capture: row, draft });
     },
@@ -166,27 +136,17 @@ export function LocalScanScreen({
   };
 
   if (editingCrop && row) {
-    return (
-      <ScanCropEditor capture={row} onCancel={() => setEditingCrop(false)} />
-    );
+    return <ScanCropEditor capture={row} onCancel={() => setEditingCrop(false)} />;
   }
   if (labelCapture) {
     return (
       <ThemedView style={styles.container}>
-        <LoadingRing
-          accessibilityLabel="Opening your label…"
-          style={{ flex: 1 }}
-        />
+        <LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} />
       </ThemedView>
     );
   }
   if (completion) {
-    return (
-      <CaptureCompletion
-        completion={completion}
-        onViewResult={scanId ? openResult : undefined}
-      />
-    );
+    return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
   }
 
   if (row && offlineResult && !manual) {
@@ -215,20 +175,14 @@ export function LocalScanScreen({
             onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
           />
         )}
-        {row && !savedId && (
-          <CaptureContextButton capture={row} disabled={saving} />
-        )}
+        {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}
         {loadError ? (
           <ThemedText themeColor="error" accessibilityRole="alert">
-            Couldn’t load this scan. Close this screen and reopen it to try
-            again.
+            Couldn’t load this scan. Close this screen and reopen it to try again.
           </ThemedText>
         ) : !updatedAt ? (
           <View style={styles.loading} accessibilityState={{ busy: true }}>
-            <LoadingRing
-              color={Colors.light.accent}
-              accessibilityLabel="Loading your scan…"
-            />
+            <LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" />
           </View>
         ) : !row ? (
           <View style={styles.section}>
@@ -247,21 +201,11 @@ export function LocalScanScreen({
           keepForm && (
             <View style={styles.section}>
               <ThemedText type="subtitle">Your result is ready</ThemedText>
-              <GalleryButton
-                label="View result"
-                variant="filled"
-                fullWidth
-                disabled={saving}
-                onPress={openResult}
-              />
+              <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
             </View>
           )
         ) : row.status === "failed" ? (
-          <FailedCard
-            error={row.lastError}
-            onRetry={retry}
-            retrying={retrying}
-          />
+          <FailedCard error={row.lastError} onRetry={retry} retrying={retrying} />
         ) : row.status === "identified" ? null : (
           <WaitingForSignalCard status={row.status} onLabel={openLabel} />
         )}

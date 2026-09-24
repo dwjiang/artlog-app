@@ -1,19 +1,10 @@
 import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
-import {
-  accessibilityLabel,
-  buttonStyle,
-  frame,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, buttonStyle, frame } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText as Text } from "@/components/themed-text";
 import { DocentSection } from "@/components/scan/result/docent-section";
@@ -26,9 +17,7 @@ import { AddSavedWorks } from "./add-saved-works";
 
 export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();
-  const [view, setView] = useState<PlayerView>(
-    initialView === "queue" ? "queue" : "player",
-  );
+  const [view, setView] = useState<PlayerView>(initialView === "queue" ? "queue" : "player");
   const audio = useListening();
   const { bottom } = useSafeAreaInsets();
   const { width, height, fontScale } = useWindowDimensions();
@@ -36,11 +25,7 @@ export function NowPlayingScreen() {
     return (
       <View style={styles.empty}>
         <Text>No artwork is playing.</Text>
-        <AudioIconButton
-          name="chevron.down"
-          label="Close player"
-          onPress={() => router.back()}
-        />
+        <AudioIconButton name="chevron.down" label="Close player" onPress={() => router.back()} />
       </View>
     );
   }
@@ -62,31 +47,13 @@ export function NowPlayingScreen() {
   const options = (
     <Host matchContents colorScheme="light">
       <Menu
-        modifiers={[
-          buttonStyle("plain"),
-          accessibilityLabel("Listening options"),
-        ]}
-        label={
-          <Icon
-            name="ellipsis"
-            size={22}
-            color={Gallery.ink}
-            modifiers={[frame({ width: 44, height: 44 })]}
-          />
-        }
+        modifiers={[buttonStyle("plain"), accessibilityLabel("Listening options")]}
+        label={<Icon name="ellipsis" size={22} color={Gallery.ink} modifiers={[frame({ width: 44, height: 44 })]} />}
       >
         {(work.savedId || work.scanId) && (
-          <Button
-            label="View this artwork"
-            systemImage="photo"
-            onPress={openArtwork}
-          />
+          <Button label="View this artwork" systemImage="photo" onPress={openArtwork} />
         )}
-        <Button
-          label="Restart narration"
-          systemImage="arrow.counterclockwise"
-          onPress={audio.controller.restart}
-        />
+        <Button label="Restart narration" systemImage="arrow.counterclockwise" onPress={audio.controller.restart} />
         <Button
           label="Stop listening & close player"
           systemImage="stop"
@@ -121,11 +88,7 @@ export function NowPlayingScreen() {
     </View>
   );
   const compact = height < 720;
-  const artworkSize = Math.min(
-    width - Spacing.content * 2,
-    height * (compact || fontScale > 1.4 ? 0.24 : 0.35),
-    360,
-  );
+  const artworkSize = Math.min(width - Spacing.content * 2, height * (compact || fontScale > 1.4 ? 0.24 : 0.35), 360);
   const artwork = (
     <View style={[styles.artwork, { width: artworkSize, height: artworkSize }]}>
       {work.imageUri ? (
@@ -154,17 +117,9 @@ export function NowPlayingScreen() {
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(8, bottom) }]}>
       <View style={styles.header}>
-        <AudioIconButton
-          name="chevron.down"
-          label="Minimize player"
-          onPress={() => router.back()}
-        />
+        <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
         <Text variant="secondary" style={{ fontWeight: "600" }}>
-          {view === "player"
-            ? "Now playing"
-            : view === "transcript"
-              ? "Transcript"
-              : "Audio guide"}
+          {view === "player" ? "Now playing" : view === "transcript" ? "Transcript" : "Audio guide"}
         </Text>
         {view === "player" ? (
           options
@@ -178,18 +133,8 @@ export function NowPlayingScreen() {
         )}
       </View>
       {view === "player" && (
-        <ScrollView
-          style={styles.scroll}
-          contentInsetAdjustmentBehavior="never"
-        >
-          <View
-            style={[
-              styles.artworkSpace,
-              compact && { paddingVertical: Spacing.three },
-            ]}
-          >
-            {artwork}
-          </View>
+        <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never">
+          <View style={[styles.artworkSpace, compact && { paddingVertical: Spacing.three }]}>{artwork}</View>
           <View style={styles.details}>
             {metadata}
             {status}
@@ -213,9 +158,7 @@ export function NowPlayingScreen() {
           }}
         >
           <Text variant="display">{work.title}</Text>
-          <Text themeColor="textSecondary">
-            Audio guide · Transcript & sources
-          </Text>
+          <Text themeColor="textSecondary">Audio guide · Transcript & sources</Text>
           {audio.sentences ? (
             <DocentSection docent={audio.sentences} factSheet={work.facts} />
           ) : (

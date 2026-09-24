@@ -11,15 +11,8 @@ import {
   validateProfile,
   validateGeography,
 } from "../shared/social/contracts";
-import {
-  projectArtwork,
-  projectSharedVisitCard,
-  projectWallArtwork,
-} from "./lib/projections";
-import {
-  requirePublicWallItem,
-  requireSharedVisit,
-} from "./lib/publicationAccess";
+import { projectArtwork, projectSharedVisitCard, projectWallArtwork } from "./lib/projections";
+import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 
 async function fixture() {
   const t = harness();
@@ -40,9 +33,7 @@ async function fixture() {
       assertionBase64: "",
     });
     const { scope } = await device.as.query(api.accounts.me, {});
-    while (
-      !(await device.as.mutation(api.journalClaims.resume, { scope })).complete
-    ) {
+    while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {
       /* bounded claim phases */
     }
     return { ...device, accountId, scope };
@@ -61,9 +52,7 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
   await account("a");
   expect(await t.run((ctx) => ctx.db.query("profiles").collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);
-  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual(
-    [],
-  );
+  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });
 it("has one winner for simultaneous username requests and never replaces an existing profile username", async () => {
   const { account } = await fixture();
@@ -114,13 +103,7 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
   const publicResult = await t.query(api.profiles.getPublic, {
     profileId: profile.profileId,
   });
-  expect(Object.keys(publicResult!).sort()).toEqual([
-    "bio",
-    "name",
-    "profileId",
-    "publishedWallCount",
-    "username",
-  ]);
+  expect(Object.keys(publicResult!).sort()).toEqual(["bio", "name", "profileId", "publishedWallCount", "username"]);
   const found = await t.query(api.profiles.search, {
     query: "  ÉLODiE  ",
     limit: 1,
@@ -140,9 +123,9 @@ it.each(["ab", "-abc", "abc-", "ab--cd", "Abcd", "élodie", "a".repeat(31)])(
   async (username) => {
     const { account } = await fixture();
     const user = await account("a");
-    await expect(
-      user.as.mutation(api.profiles.create, { username, name: "Reader" }),
-    ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
+    await expect(user.as.mutation(api.profiles.create, { username, name: "Reader" })).rejects.toMatchObject({
+      data: { code: "invalid_profile" },
+    });
   },
 );
 it("deletion revokes profile and publication access immediately", async () => {
@@ -190,21 +173,15 @@ it("deletion revokes profile and publication access immediately", async () => {
       publicationRevision: 0,
     });
   });
-  expect(
-    await t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId)),
-  ).toMatchObject({
+  expect(await t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId))).toMatchObject({
     publication: { postId },
   });
   await user.as.mutation(api.accounts.deleteAccount, {});
-  expect(
-    await t.query(api.profiles.getPublic, { profileId: profile.profileId }),
-  ).toBeNull();
-  expect(
-    (await t.query(api.profiles.search, { query: "reader" })).page,
-  ).toEqual([]);
-  await expect(
-    t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId)),
-  ).rejects.toMatchObject({ data: { code: "not_found" } });
+  expect(await t.query(api.profiles.getPublic, { profileId: profile.profileId })).toBeNull();
+  expect((await t.query(api.profiles.search, { query: "reader" })).page).toEqual([]);
+  await expect(t.run((ctx) => requireSharedVisit(ctx, postId, profile.profileId))).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
 });
 it("projects only permitted artwork fields, no artwork notes on shared cards, and a square placeholder", () => {
   const save = {
@@ -232,18 +209,11 @@ it("projects only permitted artwork fields, no artwork notes on shared cards, an
     itemId: "item",
     artwork,
   });
-  expect(
-    projectWallArtwork(
-      { _id: "wall", noteVisible: false, layout: {} } as never,
-      save,
-    ),
-  ).not.toHaveProperty("note");
-  expect(
-    projectWallArtwork(
-      { _id: "wall", noteVisible: true, layout: {} } as never,
-      save,
-    ),
-  ).toHaveProperty("note", "Private note");
+  expect(projectWallArtwork({ _id: "wall", noteVisible: false, layout: {} } as never, save)).not.toHaveProperty("note");
+  expect(projectWallArtwork({ _id: "wall", noteVisible: true, layout: {} } as never, save)).toHaveProperty(
+    "note",
+    "Private note",
+  );
 });
 it("invalidates reverse save references, consent and revisions while keeping the visit and empty post", async () => {
   const { t, account } = await fixture();
@@ -327,9 +297,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
     scope: user.scope,
     localId: ids.localId,
   });
-  await expect(
-    t.run((ctx) => requirePublicWallItem(ctx, ids.itemId)),
-  ).rejects.toMatchObject({
+  await expect(t.run((ctx) => requirePublicWallItem(ctx, ids.itemId))).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   expect(await t.run((ctx) => ctx.db.get(ids.itemId))).toMatchObject({
@@ -345,18 +313,12 @@ it("invalidates reverse save references, consent and revisions while keeping the
     status: "active",
   });
   expect(await t.run((ctx) => ctx.db.get(ids.visitId))).not.toBeNull();
-  expect(
-    await t.run((ctx) => ctx.db.query("sharedVisitItems").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("sharedVisitItems").collect())).toEqual([]);
 });
 it("validates shared layout, dimensions, and reporting boundaries", () => {
-  expect(() =>
-    validateLayout({ x: 0, y: 3, width: 0.5, layer: 2, frame: "oak" }),
-  ).not.toThrow();
+  expect(() => validateLayout({ x: 0, y: 3, width: 0.5, layer: 2, frame: "oak" })).not.toThrow();
   for (const width of [0, -1, 2, Infinity]) {
-    expect(() =>
-      validateLayout({ x: 0, y: 0, width, layer: 0, frame: "none" }),
-    ).toThrow();
+    expect(() => validateLayout({ x: 0, y: 0, width, layer: 0, frame: "none" })).toThrow();
   }
   expect(() =>
     validateMedia({
@@ -405,10 +367,7 @@ it("publishes eligible media with an allowlist and binds derivatives to a public
     "https://dev.convex.cloud/api/storage/private",
     "https://app.example/collection-photos?localId=private",
   ]) {
-    expect(
-      projectArtwork(save, { ...asset, source: { ...source, url } } as never)
-        .media.kind,
-    ).toBe("placeholder");
+    expect(projectArtwork(save, { ...asset, source: { ...source, url } } as never).media.kind).toBe("placeholder");
   }
   const derivative = {
     ...asset,
@@ -421,22 +380,14 @@ it("publishes eligible media with an allowlist and binds derivatives to a public
     },
   } as never;
   expect(projectArtwork(save, derivative).media.kind).toBe("placeholder");
-  const projected = projectWallArtwork(
-    { _id: "wall-item", layout: {}, noteVisible: false } as never,
-    save,
-    derivative,
-  );
+  const projected = projectWallArtwork({ _id: "wall-item", layout: {}, noteVisible: false } as never, save, derivative);
   expect(projected.artwork.media).toMatchObject({
     kind: "derivative",
     reference: { kind: "wallItem", itemId: "wall-item" },
   });
   expect(JSON.stringify(projected)).not.toContain("private");
-  expect(
-    projectArtwork(save, { ...asset, saveId: "other" } as never).media.kind,
-  ).toBe("placeholder");
-  expect(
-    projectArtwork(save, { ...asset, revokedAt: 1 } as never).media.kind,
-  ).toBe("placeholder");
+  expect(projectArtwork(save, { ...asset, saveId: "other" } as never).media.kind).toBe("placeholder");
+  expect(projectArtwork(save, { ...asset, revokedAt: 1 } as never).media.kind).toBe("placeholder");
 });
 it("enforces shared selection, profile, and geography boundaries", () => {
   const id = crypto.randomUUID();
@@ -457,22 +408,12 @@ it("enforces shared selection, profile, and geography boundaries", () => {
     expect(() => validateSelection({ ...input, audience: "public" })).toThrow();
   }
   expect(() => validateWallItems([], Infinity)).toThrow();
-  for (const input of [
-    { name: " " },
-    { name: "x".repeat(61) },
-    { name: "Reader", bio: "x".repeat(161) },
-  ]) {
+  for (const input of [{ name: " " }, { name: "x".repeat(61) }, { name: "Reader", bio: "x".repeat(161) }]) {
     expect(() => validateProfile(input)).toThrow();
   }
   expect(() => validateGeography({})).not.toThrow();
-  expect(() =>
-    validateGeography({ city: "Reykjavík", country: "IS" }),
-  ).not.toThrow();
-  for (const input of [
-    { city: "x".repeat(121) },
-    { country: "ZZ" },
-    { country: "usa" },
-  ]) {
+  expect(() => validateGeography({ city: "Reykjavík", country: "IS" })).not.toThrow();
+  for (const input of [{ city: "x".repeat(121) }, { country: "ZZ" }, { country: "usa" }]) {
     expect(() => validateGeography(input)).toThrow();
   }
 });
@@ -495,12 +436,8 @@ it("checks username availability for an account without reserving it", async () 
       username: "available-name",
     }),
   ).toBe(false);
-  await expect(
-    a.as.query(api.profiles.usernameAvailable, { username: "Invalid_Name" }),
-  ).rejects.toThrow();
-  await expect(
-    t.query(api.profiles.usernameAvailable, { username: "available-name" }),
-  ).rejects.toThrow();
+  await expect(a.as.query(api.profiles.usernameAvailable, { username: "Invalid_Name" })).rejects.toThrow();
+  await expect(t.query(api.profiles.usernameAvailable, { username: "available-name" })).rejects.toThrow();
 });
 
 it("lists incoming requests only, removing accepted and blocked connections", async () => {
@@ -583,9 +520,7 @@ it("embeds the viewer’s relationship in browse lists and leaves guests without
       blockRevision: 0,
     },
   });
-  expect(
-    seen((await a.as.query(api.profiles.search, { query: "browse" })).page),
-  ).toMatchObject({
+  expect(seen((await a.as.query(api.profiles.search, { query: "browse" })).page)).toMatchObject({
     [pb.profileId]: { state: "pending" },
   });
   expect(seen((await t.query(api.profiles.discover, {})).page)).toEqual({

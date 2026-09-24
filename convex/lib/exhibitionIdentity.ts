@@ -32,10 +32,7 @@ function nodeText(root: Node): string {
   const parts: string[] = [];
   while (pending.length) {
     const node = pending.pop()!;
-    if (
-      "tagName" in node
-      && ["script", "style", "noscript"].includes(node.tagName)
-    ) {
+    if ("tagName" in node && ["script", "style", "noscript"].includes(node.tagName)) {
       continue;
     }
     if ("value" in node) parts.push(node.value);
@@ -55,26 +52,16 @@ function imageKey(value: string, pageUrl: string): string | null {
   }
 }
 
-export function artworkImageEvidence(
-  html: string,
-  pageUrl: string,
-  imageUrl: string,
-): Evidence {
+export function artworkImageEvidence(html: string, pageUrl: string, imageUrl: string): Evidence {
   const nodes = elements(parse(html));
   const matched = imageKey(imageUrl, pageUrl);
   const works: PageFields[] = [];
   for (const node of nodes.filter(
-    (node) =>
-      node.tagName === "script"
-      && attribute(node, "type") === "application/ld+json",
+    (node) => node.tagName === "script" && attribute(node, "type") === "application/ld+json",
   )) {
     let json: unknown;
     try {
-      json = JSON.parse(
-        node.childNodes
-          .map((child) => ("value" in child ? child.value : ""))
-          .join(""),
-      );
+      json = JSON.parse(node.childNodes.map((child) => ("value" in child ? child.value : "")).join(""));
     } catch {
       continue;
     }
@@ -87,26 +74,16 @@ export function artworkImageEvidence(
       }
       if (!value || typeof value !== "object") continue;
       const record = value as Record<string, unknown>;
-      pending.push(
-        ...Object.values(record).filter(
-          (value) => value && typeof value === "object",
-        ),
-      );
-      const types = Array.isArray(record["@type"])
-        ? record["@type"]
-        : [record["@type"]];
+      pending.push(...Object.values(record).filter((value) => value && typeof value === "object"));
+      const types = Array.isArray(record["@type"]) ? record["@type"] : [record["@type"]];
       if (
         !types.some((type) => type === "Painting" || type === "VisualArtwork")
-        || !jsonLdUrls(record.image).some(
-          (image) => imageKey(image, pageUrl) === matched,
-        )
+        || !jsonLdUrls(record.image).some((image) => imageKey(image, pageUrl) === matched)
       ) {
         continue;
       }
       const title = jsonLdText(record.name);
-      const artist = jsonLdText(
-        record.creator ?? record.artist ?? record.author,
-      );
+      const artist = jsonLdText(record.creator ?? record.artist ?? record.author);
       if (!title || !artist) continue;
       const identifier = jsonLdText(record.identifier);
       const fields = {
@@ -115,14 +92,9 @@ export function artworkImageEvidence(
         date: jsonLdText(record.dateCreated),
         medium: jsonLdText(record.artMedium ?? record.material),
         creditLine: jsonLdText(record.creditText),
-        accession:
-          identifier && !/^https?:/i.test(identifier) ? identifier : undefined,
+        accession: identifier && !/^https?:/i.test(identifier) ? identifier : undefined,
       };
-      works.push(
-        Object.fromEntries(
-          Object.entries(fields).filter(([, value]) => value !== undefined),
-        ),
-      );
+      works.push(Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)));
     }
   }
   if (works.length) {
@@ -139,18 +111,12 @@ export function artworkImageEvidence(
     const sources = [
       attribute(image, "src"),
       attribute(image, "data-src"),
-      ...(attribute(image, "srcset") ?? "")
-        .split(",")
-        .map((entry) => entry.trim().split(/\s+/)[0]),
+      ...(attribute(image, "srcset") ?? "").split(",").map((entry) => entry.trim().split(/\s+/)[0]),
     ];
-    if (
-      !sources.some((source) => source && imageKey(source, pageUrl) === matched)
-    ) {
+    if (!sources.some((source) => source && imageKey(source, pageUrl) === matched)) {
       continue;
     }
-    const captionNodes = children.filter(
-      (node) => node.tagName === "figcaption",
-    );
+    const captionNodes = children.filter((node) => node.tagName === "figcaption");
     if (captionNodes.length !== 1) continue;
     const caption = nodeText(captionNodes[0]);
     if (caption && caption.length <= 2000) captions.add(caption);

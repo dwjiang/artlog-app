@@ -5,10 +5,7 @@ export const MAX_DOCENT_SENTENCES = 4;
 export const MAX_SENTENCE_CHARS = 240;
 export const MIN_SENTENCE_WORDS = 4;
 
-export function validateDocent(
-  sentences: DocentSentence[],
-  sheetIds: ReadonlySet<string>,
-): DocentSentence[] {
+export function validateDocent(sentences: DocentSentence[], sheetIds: ReadonlySet<string>): DocentSentence[] {
   const kept: DocentSentence[] = [];
   const seen = new Set<string>();
   for (const candidate of sentences) {
@@ -16,11 +13,7 @@ export function validateDocent(
     const sentence = candidate.sentence.replace(/\s+/g, " ").trim();
     const factIds = [...new Set(candidate.factIds)];
     if (!factIds.length || factIds.some((id) => !sheetIds.has(id))) continue;
-    if (
-      !sentence
-      || sentence.length > MAX_SENTENCE_CHARS
-      || sentence.split(" ").length < MIN_SENTENCE_WORDS
-    ) {
+    if (!sentence || sentence.length > MAX_SENTENCE_CHARS || sentence.split(" ").length < MIN_SENTENCE_WORDS) {
       continue;
     }
     if (seen.has(sentence)) continue;

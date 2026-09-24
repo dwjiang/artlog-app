@@ -29,9 +29,7 @@ beforeEach(() => {
 
 it("reads a cached file’s duration without starting playback", async () => {
   mockCachedUri.mockResolvedValue("file:///cache/narration/guide.mp3");
-  const { result } = await renderHook(() =>
-    useCachedNarrationDuration("current research"),
-  );
+  const { result } = await renderHook(() => useCachedNarrationDuration("current research"));
   await waitFor(() => expect(result.current).toBe(79.8));
   expect(mockSources).toContain("file:///cache/narration/guide.mp3");
   expect(mockPlay).not.toHaveBeenCalled();
@@ -39,8 +37,7 @@ it("reads a cached file’s duration without starting playback", async () => {
 
 it("leaves the duration unknown when the cache is missing or cannot be read", async () => {
   const { result, rerender } = await renderHook(
-    ({ research }: { research: string }) =>
-      useCachedNarrationDuration(research),
+    ({ research }: { research: string }) => useCachedNarrationDuration(research),
     { initialProps: { research: "missing" } },
   );
   expect(result.current).toBeUndefined();
@@ -53,20 +50,15 @@ it("leaves the duration unknown when the cache is missing or cannot be read", as
 it("does not show a previous player’s duration while the new cached file is loading", async () => {
   mockStaleStatus = true;
   mockCachedUri.mockResolvedValue("file:///cache/narration/current.mp3");
-  const { result } = await renderHook(() =>
-    useCachedNarrationDuration("current"),
-  );
-  await waitFor(() =>
-    expect(mockSources).toContain("file:///cache/narration/current.mp3"),
-  );
+  const { result } = await renderHook(() => useCachedNarrationDuration("current"));
+  await waitFor(() => expect(mockSources).toContain("file:///cache/narration/current.mp3"));
   expect(result.current).toBeUndefined();
 });
 
 it("clears the previous duration when the artwork or its research changes", async () => {
   mockCachedUri.mockResolvedValueOnce("file:///cache/narration/first.mp3");
   const { result, rerender } = await renderHook(
-    ({ research }: { research: string }) =>
-      useCachedNarrationDuration(research),
+    ({ research }: { research: string }) => useCachedNarrationDuration(research),
     { initialProps: { research: "first" } },
   );
   await waitFor(() => expect(result.current).toBe(79.8));
@@ -82,8 +74,7 @@ it("ignores a late cache lookup for a previous artwork", async () => {
     }),
   );
   const { result, rerender } = await renderHook(
-    ({ research }: { research: string }) =>
-      useCachedNarrationDuration(research),
+    ({ research }: { research: string }) => useCachedNarrationDuration(research),
     { initialProps: { research: "first" } },
   );
   await rerender({ research: "second" });

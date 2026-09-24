@@ -11,9 +11,7 @@ export const seenVisitsKey = (owner: string) => `seenVisits:${owner}`;
 export function parseSeenVisits(value: string | undefined): string[] {
   try {
     const parsed: unknown = JSON.parse(value ?? "[]");
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string")
-      : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
   } catch {
     return [];
   }
@@ -52,9 +50,6 @@ export function markVisitSeen(localId: string, owner: string): void {
 }
 
 /** Open visits and manually added ones are never "new"; only a visit that ended and has not been opened since. */
-export function isVisitNew(
-  visit: Pick<Visit, "localId" | "endedAt">,
-  seen: Set<string>,
-): boolean {
+export function isVisitNew(visit: Pick<Visit, "localId" | "endedAt">, seen: Set<string>): boolean {
   return visit.endedAt !== null && !seen.has(visit.localId);
 }

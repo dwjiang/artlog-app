@@ -19,10 +19,7 @@ export const introArtworks = {
 
 export function ArtworkCollage({ welcome = false }: { welcome?: boolean }) {
   const { width, height, fontScale } = useWindowDimensions();
-  const size = Math.min(
-    width - Spacing.content * 2,
-    height < 760 || fontScale > 1.3 ? 280 : 360,
-  );
+  const size = Math.min(width - Spacing.content * 2, height < 760 || fontScale > 1.3 ? 280 : 360);
   const prints = welcome
     ? [
         {
@@ -78,41 +75,24 @@ export function ArtworkCollage({ welcome = false }: { welcome?: boolean }) {
       ];
   return (
     <View style={styles.center}>
-      <View
-        accessibilityElementsHidden
-        style={{ width: size, height: size * (welcome ? 0.83 : 0.68) }}
-      >
-        {prints.map(
-          ({
-            artwork,
-            left,
-            top,
-            width: printWidth,
-            height: printHeight,
-            rotate,
-          }) => (
-            <View
-              key={artwork.title}
-              style={[
-                styles.print,
-                {
-                  left: left * size,
-                  top: top * size,
-                  width: printWidth * size,
-                  height: printHeight * size,
-                  transform: [{ rotate }],
-                },
-              ]}
-            >
-              <Image
-                source={artwork.source}
-                contentFit="cover"
-                style={styles.image}
-                accessible={false}
-              />
-            </View>
-          ),
-        )}
+      <View accessibilityElementsHidden style={{ width: size, height: size * (welcome ? 0.83 : 0.68) }}>
+        {prints.map(({ artwork, left, top, width: printWidth, height: printHeight, rotate }) => (
+          <View
+            key={artwork.title}
+            style={[
+              styles.print,
+              {
+                left: left * size,
+                top: top * size,
+                width: printWidth * size,
+                height: printHeight * size,
+                transform: [{ rotate }],
+              },
+            ]}
+          >
+            <Image source={artwork.source} contentFit="cover" style={styles.image} accessible={false} />
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -134,17 +114,10 @@ export function ArtworkStrip() {
   );
 }
 
-export function ArtworkMedallions({
-  expanded = false,
-}: {
-  expanded?: boolean;
-}) {
+export function ArtworkMedallions({ expanded = false }: { expanded?: boolean }) {
   return (
     <View accessibilityElementsHidden style={styles.medallions}>
-      {(expanded
-        ? Object.values(introArtworks)
-        : [introArtworks.pearl, introArtworks.lilies]
-      ).map((artwork, index) => (
+      {(expanded ? Object.values(introArtworks) : [introArtworks.pearl, introArtworks.lilies]).map((artwork, index) => (
         <Image
           key={artwork.title}
           source={artwork.source}

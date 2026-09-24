@@ -3,11 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { FieldInput } from "../field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import {
-  SNAPSHOT_FIELDS,
-  type SnapshotDraft,
-  type SnapshotField,
-} from "@/lib/result/snapshot";
+import { SNAPSHOT_FIELDS, type SnapshotDraft, type SnapshotField } from "@/lib/result/snapshot";
 
 export const FIELD_LABELS: Record<SnapshotField, string> = {
   title: "Title",

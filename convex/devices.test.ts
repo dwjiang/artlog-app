@@ -4,21 +4,14 @@ import { api, internal } from "./_generated/api";
 import { requireAttestedWrite, type AttestedWriteArgs } from "./devices";
 
 import { sha256 } from "./lib/appAttest";
-import {
-  authenticatorData,
-  makeSigner,
-  signAssertion,
-} from "./lib/appAttest.fixtures";
+import { authenticatorData, makeSigner, signAssertion } from "./lib/appAttest.fixtures";
 import { harness, signIn, type Harness, type SignedIn } from "./test.helpers";
 
 const APP_ID = "TEAMID.app.artlog.ios";
 
 afterEach(() => vi.unstubAllEnvs());
 
-async function registered(
-  t: Harness,
-  platform: "ios" | "simulator" = "simulator",
-) {
+async function registered(t: Harness, platform: "ios" | "simulator" = "simulator") {
   const user = await signIn(t);
   const { deviceId } = await user.as.mutation(api.devices.registerDevice, {
     platform,
@@ -33,12 +26,8 @@ async function assertWrite(user: SignedIn, args: AttestedWriteArgs) {
   });
 }
 
-async function challenge(
-  user: SignedIn,
-  purpose: "attest" | "assert" = "assert",
-) {
-  return (await user.as.mutation(api.devices.createChallenge, { purpose }))
-    .nonce;
+async function challenge(user: SignedIn, purpose: "attest" | "assert" = "assert") {
+  return (await user.as.mutation(api.devices.createChallenge, { purpose })).nonce;
 }
 
 describe("registerDevice", () => {
@@ -82,9 +71,9 @@ describe("registerDevice", () => {
 
   it("rejects unauthenticated callers", async () => {
     const t = harness();
-    await expect(
-      t.mutation(api.devices.registerDevice, { platform: "simulator" }),
-    ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+    await expect(t.mutation(api.devices.registerDevice, { platform: "simulator" })).rejects.toMatchObject({
+      data: { code: "unauthenticated" },
+    });
   });
 
   it("rejects banned devices everywhere a device is required", async () => {
@@ -92,12 +81,10 @@ describe("registerDevice", () => {
     const { as, deviceId } = await registered(t);
     await t.run((ctx) => ctx.db.patch(deviceId, { banned: true }));
 
-    await expect(
-      as.mutation(api.devices.registerDevice, { platform: "simulator" }),
-    ).rejects.toMatchObject({ data: { code: "device_banned" } });
-    await expect(
-      as.mutation(api.devices.createChallenge, { purpose: "assert" }),
-    ).rejects.toMatchObject({
+    await expect(as.mutation(api.devices.registerDevice, { platform: "simulator" })).rejects.toMatchObject({
+      data: { code: "device_banned" },
+    });
+    await expect(as.mutation(api.devices.createChallenge, { purpose: "assert" })).rejects.toMatchObject({
       data: { code: "device_banned" },
     });
   });
@@ -110,9 +97,7 @@ describe("registerDevice", () => {
         platform: "simulator",
       });
     }
-    await expect(
-      user.as.mutation(api.devices.registerDevice, { platform: "simulator" }),
-    ).rejects.toMatchObject({
+    await expect(user.as.mutation(api.devices.registerDevice, { platform: "simulator" })).rejects.toMatchObject({
       data: { code: "rate_limited", name: "registerDevice" },
     });
   });
@@ -142,9 +127,7 @@ describe("challenges and attested writes", () => {
   it("requires a registered device to mint a challenge", async () => {
     const t = harness();
     const user = await signIn(t);
-    await expect(
-      user.as.mutation(api.devices.createChallenge, { purpose: "attest" }),
-    ).rejects.toMatchObject({
+    await expect(user.as.mutation(api.devices.createChallenge, { purpose: "attest" })).rejects.toMatchObject({
       data: { code: "device_not_registered" },
     });
   });
@@ -239,11 +222,7 @@ describe("challenges and attested writes", () => {
     const payload = '{"objectId":"abc"}';
 
     const nonce1 = await challenge(phone);
-    const assertion1 = await signAssertion(
-      signer,
-      authenticatorData(rpIdHash, 1),
-      `${nonce1}.${payload}`,
-    );
+    const assertion1 = await signAssertion(signer, authenticatorData(rpIdHash, 1), `${nonce1}.${payload}`);
     expect(
       await assertWrite(phone, {
         nonce: nonce1,
@@ -251,9 +230,7 @@ describe("challenges and attested writes", () => {
         payload,
       }),
     ).toEqual({ ok: true, counter: 1 });
-    expect(
-      (await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter,
-    ).toBe(1);
+    expect((await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter).toBe(1);
     expect(await phone.as.query(api.devices.me, {})).toMatchObject({
       attested: true,
     });
@@ -267,26 +244,14 @@ describe("challenges and attested writes", () => {
     ).rejects.toMatchObject({ data: { code: "challenge_invalid" } });
 
     const nonce2 = await challenge(phone);
-    const stale = await signAssertion(
-      signer,
-      authenticatorData(rpIdHash, 1),
-      `${nonce2}.${payload}`,
-    );
-    await expect(
-      assertWrite(phone, { nonce: nonce2, assertionBase64: stale, payload }),
-    ).rejects.toMatchObject({
+    const stale = await signAssertion(signer, authenticatorData(rpIdHash, 1), `${nonce2}.${payload}`);
+    await expect(assertWrite(phone, { nonce: nonce2, assertionBase64: stale, payload })).rejects.toMatchObject({
       data: { code: "invalid_assertion", reason: "counter_not_increasing" },
     });
 
     const nonce3 = await challenge(phone);
-    const forged = await signAssertion(
-      signer,
-      authenticatorData(rpIdHash, 2),
-      `${nonce3}.{"objectId":"xyz"}`,
-    );
-    await expect(
-      assertWrite(phone, { nonce: nonce3, assertionBase64: forged, payload }),
-    ).rejects.toMatchObject({
+    const forged = await signAssertion(signer, authenticatorData(rpIdHash, 2), `${nonce3}.{"objectId":"xyz"}`);
+    await expect(assertWrite(phone, { nonce: nonce3, assertionBase64: forged, payload })).rejects.toMatchObject({
       data: { code: "invalid_assertion", reason: "invalid_signature" },
     });
   });
@@ -320,9 +285,7 @@ describe("attestDevice", () => {
         deviceId: first.deviceId,
       }),
     ).rejects.toMatchObject({ data: { code: "device_already_attested" } });
-    expect(
-      (await t.run((ctx) => ctx.db.get(first.deviceId)))?.attestCounter,
-    ).toBe(3);
+    expect((await t.run((ctx) => ctx.db.get(first.deviceId)))?.attestCounter).toBe(3);
   });
 
   it("rechecks a device ban when verification finishes", async () => {
@@ -337,9 +300,7 @@ describe("attestDevice", () => {
         counter: 0,
       }),
     ).rejects.toMatchObject({ data: { code: "device_banned" } });
-    expect(
-      (await t.run((ctx) => ctx.db.get(user.deviceId)))?.attestedAt,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(user.deviceId)))?.attestedAt).toBeUndefined();
   });
 
   it("fails closed when the App ID is not configured", async () => {
@@ -361,19 +322,13 @@ describe("attestDevice", () => {
     const nonce = await challenge(user, "attest");
     const args = { keyId: "a2V5", attestationBase64: "AAAA", nonce };
 
-    await expect(
-      user.as.action(api.devices.attestDevice, args),
-    ).rejects.toMatchObject({
+    await expect(user.as.action(api.devices.attestDevice, args)).rejects.toMatchObject({
       data: { code: "invalid_attestation" },
     });
-    await expect(
-      user.as.action(api.devices.attestDevice, args),
-    ).rejects.toMatchObject({
+    await expect(user.as.action(api.devices.attestDevice, args)).rejects.toMatchObject({
       data: { code: "challenge_invalid" },
     });
-    expect(
-      (await t.run((ctx) => ctx.db.get(user.deviceId)))?.attestedAt,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(user.deviceId)))?.attestedAt).toBeUndefined();
   });
 
   it("requires a registered device", async () => {
@@ -415,9 +370,7 @@ describe("assertSmoke", () => {
     expect(await phone.as.mutation(api.devices.assertSmoke, args)).toEqual({
       ok: false,
     });
-    expect(
-      (await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter,
-    ).toBe(1);
+    expect((await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter).toBe(1);
   });
 
   it("rejects altered payloads and another device’s challenge without advancing the counter", async () => {
@@ -433,11 +386,7 @@ describe("assertSmoke", () => {
       counter: 0,
     });
     const nonce = await challenge(phone);
-    const assertionBase64 = await signAssertion(
-      signer,
-      authenticatorData(await sha256(APP_ID), 1),
-      `${nonce}.{}`,
-    );
+    const assertionBase64 = await signAssertion(signer, authenticatorData(await sha256(APP_ID), 1), `${nonce}.{}`);
     expect(
       await phone.as.mutation(api.devices.assertSmoke, {
         nonce,
@@ -452,17 +401,13 @@ describe("assertSmoke", () => {
         payloadJson: "{}",
       }),
     ).toEqual({ ok: false });
-    expect(
-      (await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter,
-    ).toBe(0);
+    expect((await t.run((ctx) => ctx.db.get(phone.deviceId)))?.attestCounter).toBe(0);
   });
 
   it("requires authentication and never reports a simulator bypass as a verified assertion", async () => {
     const t = harness();
     const args = { nonce: "nonce", assertionBase64: "", payloadJson: "{}" };
-    await expect(
-      t.mutation(api.devices.assertSmoke, args),
-    ).rejects.toMatchObject({
+    await expect(t.mutation(api.devices.assertSmoke, args)).rejects.toMatchObject({
       data: { code: "unauthenticated" },
     });
     for (const platform of ["simulator", "ios"] as const) {

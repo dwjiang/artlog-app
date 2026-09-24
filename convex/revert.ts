@@ -2,12 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { removeContribution } from "./contributionRemoval";
 import { feedbackChanged } from "./feedbackReplay";
 import { readyForReview, reassessProposal } from "./placements";
@@ -28,11 +23,7 @@ const cleanupPhase = v.union(
   v.literal("contributions"),
 );
 
-export async function beginRevert(
-  ctx: MutationCtx,
-  object: Doc<"objects">,
-  reason: string,
-): Promise<void> {
+export async function beginRevert(ctx: MutationCtx, object: Doc<"objects">, reason: string): Promise<void> {
   if (object.reverted) return;
   await ctx.db.patch(object._id, {
     reverted: true,
@@ -40,10 +31,7 @@ export async function beginRevert(
     thumbnailStorageId: undefined,
     ...(object.thumbnailStorageId ? { imageRef: undefined } : {}),
   });
-  if (
-    object.thumbnailStorageId
-    && (await ctx.db.system.get(object.thumbnailStorageId))
-  ) {
+  if (object.thumbnailStorageId && (await ctx.db.system.get(object.thumbnailStorageId))) {
     await ctx.storage.delete(object.thumbnailStorageId);
   }
 }
@@ -72,9 +60,7 @@ export const cleanupObjectPage = internalMutation({
       case "vectors": {
         const page = await ctx.db
           .query("vectors")
-          .withIndex("by_objectId_modelVersion_source", (q) =>
-            q.eq("objectId", objectId),
-          )
+          .withIndex("by_objectId_modelVersion_source", (q) => q.eq("objectId", objectId))
           .paginate(options);
         for (const row of page.page) await ctx.db.delete(row._id);
         await bumpCounter(ctx, "vectors", -page.page.length);
@@ -107,9 +93,7 @@ export const cleanupObjectPage = internalMutation({
       case "contributions": {
         const page = await ctx.db
           .query("contributions")
-          .withIndex("by_object_device", (q) =>
-            q.eq("indexedObjectId", objectId),
-          )
+          .withIndex("by_object_device", (q) => q.eq("indexedObjectId", objectId))
           .paginate(options);
         for (const row of page.page) {
           await removeContribution(ctx, row, "object_reverted");
@@ -129,12 +113,7 @@ export const revertObjectById = internalAction({
       reason,
     });
     // Restarting after an interrupted action is safe: deletion, closing and rejection are idempotent.
-    for (const phase of [
-      "vectors",
-      "descriptors",
-      "placements",
-      "contributions",
-    ] as const) {
+    for (const phase of ["vectors", "descriptors", "placements", "contributions"] as const) {
       let cursor: string | null = null;
       do {
         cursor = await ctx.runMutation(internal.revert.cleanupObjectPage, {
@@ -162,13 +141,8 @@ function paging(cursor: string | null) {
   return { cursor, numItems: CHUNK, maximumBytesRead: CHUNK_BYTES };
 }
 
-async function resetMultiView(
-  ctx: MutationCtx,
-  row: Doc<"feedback">,
-): Promise<number> {
-  const vector = row.multiViewVectorId
-    ? await ctx.db.get(row.multiViewVectorId)
-    : null;
+async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
+  const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
   if (vector) {
     await ctx.db.delete(vector._id);
     await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
@@ -191,9 +165,7 @@ export const requeueDuplicateViews = internalMutation({
   handler: async (ctx, { vectorId, cursor }) => {
     const page = await ctx.db
       .query("feedback")
-      .withIndex("by_multiViewDuplicateVectorId", (q) =>
-        q.eq("multiViewDuplicateVectorId", vectorId),
-      )
+      .withIndex("by_multiViewDuplicateVectorId", (q) => q.eq("multiViewDuplicateVectorId", vectorId))
       .paginate(paging(cursor));
     for (const row of page.page) await resetMultiView(ctx, row);
     if (!page.isDone) {
@@ -237,9 +209,7 @@ export const revertDevice = internalMutation({
       if (existing.phase !== "complete") {
         await ctx.db.patch(existing._id, {
           resumeRevision: existing.resumeRevision + 1,
-          ...(existing.phase === "stalled"
-            ? { phase: "settling", settleAttempts: 0 }
-            : {}),
+          ...(existing.phase === "stalled" ? { phase: "settling", settleAttempts: 0 } : {}),
         });
         await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, {
           jobId: existing._id,
@@ -295,48 +265,32 @@ export const cleanupDevicePage = internalMutation({
         if (dependency.objectId) {
           const entryRebuild = await ctx.db
             .query("entryRebuilds")
-            .withIndex("by_object", (q) =>
-              q.eq("objectId", dependency.objectId!),
-            )
+            .withIndex("by_object", (q) => q.eq("objectId", dependency.objectId!))
             .first();
           const feedbackRebuild = await ctx.db
             .query("feedbackRebuilds")
-            .withIndex("by_object", (q) =>
-              q.eq("objectId", dependency.objectId!),
-            )
+            .withIndex("by_object", (q) => q.eq("objectId", dependency.objectId!))
             .first();
           if (entryRebuild || feedbackRebuild) {
             if (retry && entryRebuild) {
-              await ctx.scheduler.runAfter(
-                0,
-                internal.contributionRemoval.rebuildPage,
-                {
-                  jobId: entryRebuild._id,
-                },
-              );
+              await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, {
+                jobId: entryRebuild._id,
+              });
             }
             if (retry && feedbackRebuild) {
-              await ctx.scheduler.runAfter(
-                0,
-                internal.feedbackReplay.rebuildPage,
-                {
-                  jobId: feedbackRebuild._id,
-                },
-              );
+              await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, {
+                jobId: feedbackRebuild._id,
+              });
             }
             continue;
           }
           const object = await ctx.db.get(dependency.objectId);
           if (object?.reverted && object.revertCompletedAt === undefined) {
             if (retry) {
-              await ctx.scheduler.runAfter(
-                0,
-                internal.revert.revertObjectById,
-                {
-                  objectId: object._id,
-                  reason: object.revertedReason ?? job.reason,
-                },
-              );
+              await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
+                objectId: object._id,
+                reason: object.revertedReason ?? job.reason,
+              });
             }
             continue;
           }
@@ -346,9 +300,7 @@ export const cleanupDevicePage = internalMutation({
           && (await ctx.db
             .query("mediaAssets")
             .withIndex("by_contribution_revoked", (q) =>
-              q
-                .eq("provenance.contributionId", dependency.contributionId)
-                .eq("revokedAt", undefined),
+              q.eq("provenance.contributionId", dependency.contributionId).eq("revokedAt", undefined),
             )
             .first())
         ) {
@@ -361,10 +313,7 @@ export const cleanupDevicePage = internalMutation({
           const row = await ctx.db.get(dependency.feedbackId);
           if (
             row?.multiViewAgreement
-            && [
-              row.multiViewAgreement.firstDeviceId,
-              row.multiViewAgreement.secondDeviceId,
-            ].includes(deviceId)
+            && [row.multiViewAgreement.firstDeviceId, row.multiViewAgreement.secondDeviceId].includes(deviceId)
           ) {
             if (retry) {
               await ctx.scheduler.runAfter(0, internal.promotion.reassessView, {
@@ -378,20 +327,14 @@ export const cleanupDevicePage = internalMutation({
           dependency.vectorId
           && (await ctx.db
             .query("feedback")
-            .withIndex("by_multiViewDuplicateVectorId", (q) =>
-              q.eq("multiViewDuplicateVectorId", dependency.vectorId),
-            )
+            .withIndex("by_multiViewDuplicateVectorId", (q) => q.eq("multiViewDuplicateVectorId", dependency.vectorId))
             .first())
         ) {
           if (retry) {
-            await ctx.scheduler.runAfter(
-              0,
-              internal.revert.requeueDuplicateViews,
-              {
-                vectorId: dependency.vectorId,
-                cursor: null,
-              },
-            );
+            await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
+              vectorId: dependency.vectorId,
+              cursor: null,
+            });
           }
           continue;
         }
@@ -403,15 +346,11 @@ export const cleanupDevicePage = internalMutation({
             .first())
         ) {
           if (retry) {
-            await ctx.scheduler.runAfter(
-              0,
-              internal.revert.cleanupScanVectors,
-              {
-                scanId: dependency.scanId,
-                jobId,
-                cursor: null,
-              },
-            );
+            await ctx.scheduler.runAfter(0, internal.revert.cleanupScanVectors, {
+              scanId: dependency.scanId,
+              jobId,
+              cursor: null,
+            });
           }
           continue;
         }
@@ -419,33 +358,20 @@ export const cleanupDevicePage = internalMutation({
           const proposal = await ctx.db.get(dependency.proposalId);
           if (
             proposal?.status === "promoted"
-            && !readyForReview(
-              proposal.deviceIds,
-              proposal.firstSeenAt,
-              proposal.lastSeenAt,
-            )
+            && !readyForReview(proposal.deviceIds, proposal.firstSeenAt, proposal.lastSeenAt)
           ) {
             if (proposal.revertedAt === undefined) {
               if (retry) await reassessProposal(ctx, proposal._id);
               continue;
             }
-            const placement = proposal.promotion
-              ? await ctx.db.get(proposal.promotion.placementId)
-              : null;
-            const object =
-              proposal.kind === "new_object" && placement
-                ? await ctx.db.get(placement.objectId)
-                : null;
+            const placement = proposal.promotion ? await ctx.db.get(proposal.promotion.placementId) : null;
+            const object = proposal.kind === "new_object" && placement ? await ctx.db.get(placement.objectId) : null;
             if (object && object.revertCompletedAt === undefined) {
               if (retry) {
-                await ctx.scheduler.runAfter(
-                  0,
-                  internal.revert.revertObjectById,
-                  {
-                    objectId: object._id,
-                    reason: "proposal_evidence_removed",
-                  },
-                );
+                await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
+                  objectId: object._id,
+                  reason: "proposal_evidence_removed",
+                });
               }
               continue;
             }
@@ -535,14 +461,10 @@ export const cleanupDevicePage = internalMutation({
         job.phase === "firstWitness"
           ? ctx.db
               .query("feedback")
-              .withIndex("by_multiViewFirstDevice", (q) =>
-                q.eq("multiViewAgreement.firstDeviceId", deviceId),
-              )
+              .withIndex("by_multiViewFirstDevice", (q) => q.eq("multiViewAgreement.firstDeviceId", deviceId))
           : ctx.db
               .query("feedback")
-              .withIndex("by_multiViewSecondDevice", (q) =>
-                q.eq("multiViewAgreement.secondDeviceId", deviceId),
-              );
+              .withIndex("by_multiViewSecondDevice", (q) => q.eq("multiViewAgreement.secondDeviceId", deviceId));
       const page = await query.paginate(options);
       for (const row of page.page) {
         await ctx.scheduler.runAfter(0, internal.promotion.reassessView, {
@@ -647,10 +569,7 @@ export const revertRightsObjects = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, { objectIds, proposalIds, target, cursor }) => {
-    const reason =
-      target.kind === "venue"
-        ? `opt_out: ${target.venueId}`
-        : `takedown: ${target.takedownId}`;
+    const reason = target.kind === "venue" ? `opt_out: ${target.venueId}` : `takedown: ${target.takedownId}`;
     for (const proposalId of proposalIds) {
       await ctx.runMutation(internal.placements.revertMove, { proposalId });
     }
@@ -662,8 +581,7 @@ export const revertRightsObjects = internalAction({
     }
     if (cursor === null) {
       await ctx.runMutation(internal.revert.completeRightsRequest, {
-        requestId:
-          target.kind === "venue" ? target.optOutId : target.takedownId,
+        requestId: target.kind === "venue" ? target.optOutId : target.takedownId,
       });
     } else if (target.kind === "venue") {
       await ctx.scheduler.runAfter(0, internal.revert.revertVenueObjects, {

@@ -89,11 +89,7 @@ it("typing over a verified field opens its lock and typing the verified value ba
 });
 
 it("typing over an unverified field marks it edited and reverting clears it", () => {
-  let state = setFieldValue(
-    formStateFromFlow(verified),
-    "medium",
-    "bronze, cast 1916",
-  );
+  let state = setFieldValue(formStateFromFlow(verified), "medium", "bronze, cast 1916");
   expect(isEdited(state.medium)).toBe(true);
   state = setFieldValue(state, "medium", " bronze ");
   expect(isEdited(state.medium)).toBe(false);
@@ -107,11 +103,7 @@ it("builds the contribution’s fields with per-field edit flags and needs a tit
     date: { value: "1880", edited: false },
     medium: { value: "bronze", edited: false },
   });
-  const edited = setFieldValue(
-    unlockField(base, "artist"),
-    "accession",
-    " 1917.42 ",
-  );
+  const edited = setFieldValue(unlockField(base, "artist"), "accession", " 1917.42 ");
   expect(toSubmittedFields(edited)).toMatchObject({
     artist: { value: "Auguste Rodin", edited: true },
     accession: { value: "1917.42", edited: true },

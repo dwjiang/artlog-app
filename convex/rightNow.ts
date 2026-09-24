@@ -2,12 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { isEnabled } from "./lib/flags";
 import { limitDevice } from "./lib/rateLimits";
 import { regionDomains } from "./lib/regions";
@@ -21,10 +16,7 @@ import { rightNowCard, type RightNowCard } from "./lib/validators";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const PENDING_MS = 60 * 1000;
 
-export function artistKey(
-  artistId: string | undefined,
-  artist: string,
-): string {
+export function artistKey(artistId: string | undefined, artist: string): string {
   return artistId ?? `name:${normalizeText(artist)}`;
 }
 
@@ -47,17 +39,9 @@ export const load = internalQuery({
 
 type Waiting = { scanId: Id<"scans">; generation: number };
 
-async function applyCard(
-  ctx: MutationCtx,
-  target: Waiting,
-  card: RightNowCard,
-): Promise<void> {
+async function applyCard(ctx: MutationCtx, target: Waiting, card: RightNowCard): Promise<void> {
   const scan = await ctx.db.get(target.scanId);
-  if (
-    scan
-    && scan.generation === target.generation
-    && scan.status === "identified"
-  ) {
+  if (scan && scan.generation === target.generation && scan.status === "identified") {
     await ctx.db.patch(scan._id, { rightNow: card, updatedAt: Date.now() });
   }
 }
@@ -71,19 +55,12 @@ export const claim = internalMutation({
     scanId: v.id("scans"),
     generation: v.number(),
   },
-  returns: v.union(
-    v.literal("hit"),
-    v.literal("empty"),
-    v.literal("pending"),
-    v.object({ claimId: v.string() }),
-  ),
+  returns: v.union(v.literal("hit"), v.literal("empty"), v.literal("pending"), v.object({ claimId: v.string() })),
   handler: async (ctx, { artistKey: artistId, region, scanId, generation }) => {
     const now = Date.now();
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) =>
-        q.eq("artistId", artistId).eq("region", region),
-      )
+      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
       .unique();
     if (row && row.fetchedAt > now - CACHE_MS) {
       if (row.empty) return "empty";
@@ -143,9 +120,7 @@ export const write = internalMutation({
   handler: async (ctx, { artistKey: artistId, region, claimId, card }) => {
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) =>
-        q.eq("artistId", artistId).eq("region", region),
-      )
+      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
       .unique();
     if (!row || row.claimId !== claimId) return false;
     await ctx.db.patch(row._id, {
@@ -173,9 +148,7 @@ export const release = internalMutation({
   handler: async (ctx, { artistKey: artistId, region, claimId }) => {
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) =>
-        q.eq("artistId", artistId).eq("region", region),
-      )
+      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
       .unique();
     if (!row || row.claimId !== claimId) return null;
     if (row.fetchedAt === 0) await ctx.db.delete(row._id);
@@ -243,9 +216,7 @@ export const fetch = internalAction({
         region,
         accepted: card !== null,
         claim: firstSentence(response.answer ?? ""),
-        top: top
-          ? { url: top.url, score: top.score, publishedDate: top.publishedDate }
-          : null,
+        top: top ? { url: top.url, score: top.score, publishedDate: top.publishedDate } : null,
       });
       written = await ctx.runMutation(internal.rightNow.write, {
         artistKey: key,

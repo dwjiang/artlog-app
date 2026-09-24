@@ -1,9 +1,5 @@
 import { widgetLayout, widgetPresentation } from "./widget-layout";
-import {
-  defaultWidgetSettings,
-  widgetCaptions,
-  widgetFrames,
-} from "./widget-settings";
+import { defaultWidgetSettings, widgetCaptions, widgetFrames } from "./widget-settings";
 import type { PreparedWidgetArtwork } from "./widget-collection";
 
 const painting: PreparedWidgetArtwork = {
@@ -32,22 +28,12 @@ it("preserves full painting proportions and keeps every element within the widge
             },
             size,
           );
-          expect(layout.image!.width / layout.image!.height).toBeCloseTo(
-            aspect,
-          );
-          for (const element of [
-            ...layout.rectangles,
-            ...layout.texts,
-            layout.image!,
-          ]) {
+          expect(layout.image!.width / layout.image!.height).toBeCloseTo(aspect);
+          for (const element of [...layout.rectangles, ...layout.texts, layout.image!]) {
             expect(element.x).toBeGreaterThanOrEqual(15);
             expect(element.y).toBeGreaterThanOrEqual(15);
-            expect(element.x + element.width).toBeLessThanOrEqual(
-              layout.width - 15,
-            );
-            expect(element.y + element.height).toBeLessThanOrEqual(
-              layout.height - 15,
-            );
+            expect(element.x + element.width).toBeLessThanOrEqual(layout.width - 15);
+            expect(element.y + element.height).toBeLessThanOrEqual(layout.height - 15);
           }
           if (size === "small") {
             expect(layout.rectangles).toEqual([]);
@@ -62,9 +48,7 @@ it("preserves full painting proportions and keeps every element within the widge
 it("wraps long titles, places panoramic captions below the painting, and honors caption choices", () => {
   const full = widgetLayout(painting, defaultWidgetSettings, "medium");
   expect(full.texts[0].y).toBeGreaterThan(full.image!.y + full.image!.height);
-  expect(full.texts.map((row) => row.text).join(" ")).toContain(
-    "Visited Sep 8, 2026",
-  );
+  expect(full.texts.map((row) => row.text).join(" ")).toContain("Visited Sep 8, 2026");
   const portrait = widgetLayout(
     { ...painting, title: "Girl with a Pearl Earring", aspect: 0.75 },
     defaultWidgetSettings,
@@ -76,22 +60,14 @@ it("wraps long titles, places panoramic captions below the painting, and honors 
       .map((row) => row.text)
       .join(" "),
   ).toBe("Girl with a Pearl Earring");
-  expect(portrait.texts[0].x).toBeGreaterThan(
-    portrait.image!.x + portrait.image!.width,
-  );
-  const imageOnly = widgetLayout(
-    painting,
-    { ...defaultWidgetSettings, caption: "none" },
-    "medium",
-  );
+  expect(portrait.texts[0].x).toBeGreaterThan(portrait.image!.x + portrait.image!.width);
+  const imageOnly = widgetLayout(painting, { ...defaultWidgetSettings, caption: "none" }, "medium");
   expect(imageOnly.texts).toEqual([]);
   expect(imageOnly.image!.x + imageOnly.image!.width / 2).toBe(167);
   expect(
-    widgetLayout(
-      painting,
-      { ...defaultWidgetSettings, caption: "artwork" },
-      "medium",
-    ).texts.some((row) => row.text.includes("Visited")),
+    widgetLayout(painting, { ...defaultWidgetSettings, caption: "artwork" }, "medium").texts.some((row) =>
+      row.text.includes("Visited"),
+    ),
   ).toBe(false);
 });
 
@@ -99,7 +75,5 @@ it("opens settings when the selected source has no available images", () => {
   const empty = widgetPresentation(undefined, defaultWidgetSettings);
   expect(empty.url).toBe("artlog://widgets");
   expect(empty.small.image).toBeUndefined();
-  expect(empty.medium.texts.map((row) => row.text).join(" ")).toContain(
-    "Open Artlog",
-  );
+  expect(empty.medium.texts.map((row) => row.text).join(" ")).toContain("Open Artlog");
 });

@@ -1,7 +1,4 @@
-import type {
-  DocentSentence,
-  FactSheetEntry,
-} from "../../convex/lib/validators";
+import type { DocentSentence, FactSheetEntry } from "../../convex/lib/validators";
 
 export const GUIDE_MODEL = "nvidia/Nemotron-3-Ultra-550b-a55b";
 export const GUIDE_REASONING = "low";
@@ -98,40 +95,22 @@ export function normalizePassage(text: string): string {
 
 // A sentence is grounded only if the model can point at the evidence: its support span must
 // appear verbatim in one of the facts it cites. Paraphrase and invention have no such span.
-export function unsupportedLines(
-  lines: GuideLine[],
-  facts: readonly { id: string; text: string }[],
-): GuideLine[] {
-  const texts = new Map(
-    facts.map((fact) => [fact.id, normalizePassage(fact.text)]),
-  );
+export function unsupportedLines(lines: GuideLine[], facts: readonly { id: string; text: string }[]): GuideLine[] {
+  const texts = new Map(facts.map((fact) => [fact.id, normalizePassage(fact.text)]));
   return lines.filter((line) => {
     const span = normalizePassage(line.support);
-    return (
-      span.length < 8
-      || !line.fact_ids.some((id) => texts.get(id)?.includes(span))
-    );
+    return span.length < 8 || !line.fact_ids.some((id) => texts.get(id)?.includes(span));
   });
 }
 
-export function guideOpening(artwork: {
-  title: string;
-  artist: string;
-  date?: string;
-}): string {
+export function guideOpening(artwork: { title: string; artist: string; date?: string }): string {
   const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
   const identity = `This is ${normalize(artwork.title)}, by ${normalize(artwork.artist)}`;
   const date = normalize(artwork.date ?? "");
-  return date
-    ? `${identity}, dated ${date}.`
-    : `${identity}. Its date is unknown.`;
+  return date ? `${identity}, dated ${date}.` : `${identity}. Its date is unknown.`;
 }
 
-export function validateGuide(
-  value: unknown,
-  factIds: ReadonlySet<string>,
-  opening: string,
-): DocentSentence[] | null {
+export function validateGuide(value: unknown, factIds: ReadonlySet<string>, opening: string): DocentSentence[] | null {
   if (
     !Array.isArray(value)
     || value[0]?.sentence !== opening
@@ -144,9 +123,7 @@ export function validateGuide(
   if (!body || body.some((line) => line.sentence === opening)) return null;
   // Identification comes from the artwork record; only the researched body needs fact citations.
   const sentences = [{ sentence: opening, factIds: [] }, ...body];
-  return sentences.map((line) => line.sentence).join(" ").length <= 4000
-    ? sentences
-    : null;
+  return sentences.map((line) => line.sentence).join(" ").length <= 4000 ? sentences : null;
 }
 
 // Thin research (under eight prose facts) may run shorter than the 150-word target rather than pad.
@@ -156,10 +133,7 @@ export function guideWordFloor(factCount: number): number {
   return factCount < THIN_RESEARCH_FACTS ? 110 : 150;
 }
 
-export function validateGuideBody(
-  value: unknown,
-  factIds: ReadonlySet<string>,
-): DocentSentence[] | null {
+export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): DocentSentence[] | null {
   if (!Array.isArray(value) || !value.length || value.length > 24) return null;
   const sentences: DocentSentence[] = [];
   const seen = new Set<string>();
@@ -169,9 +143,7 @@ export function validateGuideBody(
       || typeof entry.sentence !== "string"
       || !Array.isArray(entry.factIds)
       || !entry.factIds.length
-      || entry.factIds.some(
-        (id: unknown) => typeof id !== "string" || !factIds.has(id),
-      )
+      || entry.factIds.some((id: unknown) => typeof id !== "string" || !factIds.has(id))
     ) {
       return null;
     }
@@ -193,9 +165,5 @@ export function validateGuideBody(
   const text = sentences.map((entry) => entry.sentence).join(" ");
   const words = text.split(/\s+/).length;
   // Shimmer reads 143–162 words a minute with these instructions: 150–200 words is about 60 to 90 seconds, 110 about 45.
-  return text.length <= 3500
-    && words >= guideWordFloor(factIds.size)
-    && words <= GUIDE_MAX_WORDS
-    ? sentences
-    : null;
+  return text.length <= 3500 && words >= guideWordFloor(factIds.size) && words <= GUIDE_MAX_WORDS ? sentences : null;
 }

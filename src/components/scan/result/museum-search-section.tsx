@@ -42,13 +42,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
         ) : (
           <FormSkeleton label="Loading museum result…" />
         )}
-        {search.restoreError && (
-          <GalleryButton
-            label="Try again"
-            variant="outlined"
-            onPress={search.retryRestore}
-          />
-        )}
+        {search.restoreError && <GalleryButton label="Try again" variant="outlined" onPress={search.retryRestore} />}
       </View>
     );
   }
@@ -64,11 +58,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
           capture={capture}
         />
       ) : search.running ? (
-        <View
-          accessibilityLiveRegion="polite"
-          accessibilityState={{ busy: true }}
-          style={styles.progress}
-        >
+        <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }} style={styles.progress}>
           <LoadingRing accessibilityLabel="Searching the museum’s collection…" />
           {search.progress && (
             <ThemedText type="small" themeColor="textSecondary">
@@ -77,9 +67,7 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
           )}
         </View>
       ) : (
-        search.message && (
-          <ThemedText themeColor="textSecondary">{search.message}</ThemedText>
-        )
+        search.message && <ThemedText themeColor="textSecondary">{search.message}</ThemedText>
       )}
     </View>
   );
@@ -97,12 +85,7 @@ function MuseumSearchResult({
   capture?: PendingScan;
 }) {
   const router = useRouter();
-  const {
-    form,
-    setForm,
-    error: formError,
-    retry: retryForm,
-  } = useLabelForm(scanId, flow, confirmedAt);
+  const { form, setForm, error: formError, retry: retryForm } = useLabelForm(scanId, flow, confirmedAt);
   const {
     saving,
     savedId,
@@ -118,18 +101,8 @@ function MuseumSearchResult({
   if (!form) {
     return (
       <View style={styles.section}>
-        {formError ? (
-          <ThemedText>{formError.message}</ThemedText>
-        ) : (
-          <FormSkeleton label="Loading your edits…" />
-        )}
-        {formError && (
-          <GalleryButton
-            label="Try again"
-            variant="outlined"
-            onPress={retryForm}
-          />
-        )}
+        {formError ? <ThemedText>{formError.message}</ThemedText> : <FormSkeleton label="Loading your edits…" />}
+        {formError && <GalleryButton label="Try again" variant="outlined" onPress={retryForm} />}
       </View>
     );
   }
@@ -154,20 +127,14 @@ function MuseumSearchResult({
   return (
     <>
       <ThemedText type="subtitle">{"Found on the museum's site"}</ThemedText>
-      {flow.sourceUrl && (
-        <SourceChip label="Museum page" url={flow.sourceUrl} />
-      )}
+      {flow.sourceUrl && <SourceChip label="Museum page" url={flow.sourceUrl} />}
       <VerifiedFieldsForm
         state={form}
         warnings={flow.warnings}
         editable={!saving && !sharing && !shared && !savedId}
-        onChange={(name, value) =>
-          setForm((current) => current && setFieldValue(current, name, value))
-        }
+        onChange={(name, value) => setForm((current) => current && setFieldValue(current, name, value))}
       />
-      {capture && !savedId && (
-        <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
-      )}
+      {capture && !savedId && <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />}
       <LabelActions
         canSave={canSaveLabel(form)}
         allowContribution={!!contribution}

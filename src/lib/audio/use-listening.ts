@@ -8,11 +8,7 @@ function useController() {
 }
 export function useListening() {
   const controller = useController();
-  const state = useSyncExternalStore(
-    controller.subscribe,
-    controller.snapshot,
-    controller.snapshot,
-  );
+  const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot);
   return { controller, ...state };
 }
 // Playback position updates four times a second; layout around the player only changes when a track loads or clears.

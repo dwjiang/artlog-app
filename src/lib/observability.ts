@@ -3,10 +3,7 @@ import { ConvexError } from "convex/values";
 
 import { isTransientError } from "./network-error";
 
-type DiagnosticData = Record<
-  string,
-  string | number | boolean | null | undefined
->;
+type DiagnosticData = Record<string, string | number | boolean | null | undefined>;
 type ReportOptions = { level?: "warning" | "error"; data?: DiagnosticData };
 
 const expectedCodes = new Set([
@@ -88,32 +85,22 @@ function errorCode(error: unknown): string | undefined {
 
 function message(error: unknown): string {
   if (typeof error === "string") return error;
-  if (
-    error
-    && typeof error === "object"
-    && "message" in error
-    && typeof error.message === "string"
-  ) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     return error.message;
   }
   return "Unknown error";
 }
 
 function expected(error: unknown): boolean {
-  const nativeTransferMessage = message(error).match(
-    /^Unable to (?:download|upload) a file:\s*(.*)$/,
-  )?.[1];
+  const nativeTransferMessage = message(error).match(/^Unable to (?:download|upload) a file:\s*(.*)$/)?.[1];
   return (
     isTransientError(error)
     || expectedCodes.has(errorCode(error) ?? "")
     || expectedCodes.has(message(error))
-    || (nativeTransferMessage !== undefined
-      && isTransientError(new Error(nativeTransferMessage)))
+    || (nativeTransferMessage !== undefined && isTransientError(new Error(nativeTransferMessage)))
     || (error instanceof Error && error.name === "AbortError")
     || expectedMessages.has(message(error))
-    || /^(Allow photo access in Settings\b|This visit is no longer available\b)/.test(
-      message(error),
-    )
+    || /^(Allow photo access in Settings\b|This visit is no longer available\b)/.test(message(error))
   );
 }
 
@@ -125,27 +112,16 @@ function redact(value: string): string {
     .replace(/data:[^\s]+/gi, "[image data]")
     .replace(/(?:https?|file|ph):\/\/[^\s"'<>]+/gi, "[url]")
     .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
-    .replace(
-      /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
-      "[token]",
-    )
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[token]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
-    .replace(
-      /\b(token|secret|password|authorization|nonce|assertionBase64)\s*[:=]\s*[^\s,;]+/gi,
-      "$1=[redacted]",
-    )
-    .replace(
-      /"(token|secret|password|authorization|nonce|assertionBase64)"\s*:\s*"[^"]*"/gi,
-      '"$1":"[redacted]"',
-    )
+    .replace(/\b(token|secret|password|authorization|nonce|assertionBase64)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/"(token|secret|password|authorization|nonce|assertionBase64)"\s*:\s*"[^"]*"/gi, '"$1":"[redacted]"')
     .replace(/\bFailed query:[\s\S]*/gi, "Database query failed")
     .replace(/\bparams:[\s\S]*/gi, "params: [redacted]")
     .slice(0, 1_000);
 }
 
-function safeData(
-  data: DiagnosticData | undefined,
-): DiagnosticData | undefined {
+function safeData(data: DiagnosticData | undefined): DiagnosticData | undefined {
   if (!data) return;
   return Object.fromEntries(
     Object.entries(data)
@@ -155,10 +131,7 @@ function safeData(
             key,
           ),
       )
-      .map(([key, value]) => [
-        key,
-        typeof value === "string" ? redact(value) : value,
-      ]),
+      .map(([key, value]) => [key, typeof value === "string" ? redact(value) : value]),
   );
 }
 
@@ -175,29 +148,19 @@ export function addBreadcrumb(operation: string, data?: DiagnosticData): void {
   }
 }
 
-export function reportError(
-  error: unknown,
-  operation: string,
-  options: ReportOptions = {},
-): void {
+export function reportError(error: unknown, operation: string, options: ReportOptions = {}): void {
   try {
     const chain: unknown[] = [error];
     // Wrappers keep user-facing copy; their cause holds the actionable native/server failure.
     while (chain.length < 5) {
       const last = chain.at(-1);
-      if (
-        !(last instanceof Error)
-        || !last.cause
-        || chain.includes(last.cause)
-      ) {
+      if (!(last instanceof Error) || !last.cause || chain.includes(last.cause)) {
         break;
       }
       chain.push(last.cause);
     }
     if (chain.some(expected)) return;
-    const objects = chain.filter(
-      (entry): entry is object => typeof entry === "object" && entry !== null,
-    );
+    const objects = chain.filter((entry): entry is object => typeof entry === "object" && entry !== null);
     if (objects.some((entry) => reported.has(entry))) return;
     for (const entry of objects) reported.add(entry);
     const cause = chain.at(-1);
@@ -235,9 +198,7 @@ export function reportError(
   }
 }
 
-export function sanitizeBreadcrumb(
-  breadcrumb: Sentry.Breadcrumb,
-): Sentry.Breadcrumb | null {
+export function sanitizeBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Breadcrumb | null {
   if (breadcrumb.category === "app") {
     return { ...breadcrumb, data: safeData(breadcrumb.data) };
   }
@@ -271,10 +232,7 @@ export function sanitizeEvent<T extends Sentry.Event>(event: T): T {
   }
   for (const exception of event.exception?.values ?? []) {
     if (exception.value) {
-      exception.value =
-        exception.type === "SyntaxError"
-          ? "Invalid data could not be parsed"
-          : redact(exception.value);
+      exception.value = exception.type === "SyntaxError" ? "Invalid data could not be parsed" : redact(exception.value);
     }
     for (const frame of exception.stacktrace?.frames ?? []) delete frame.vars;
   }

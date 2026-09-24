@@ -50,18 +50,10 @@ export function WallSheet({
           <RNHostView>
             <View style={{ flex: 1 }}>
               <View style={styles.sheetHeader}>
-                <Text
-                  variant="section"
-                  accessibilityRole="header"
-                  style={styles.sheetTitle}
-                >
+                <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
                   {title}
                 </Text>
-                <GalleryButton
-                  label={dismissLabel}
-                  fullWidth={false}
-                  onPress={onDismiss}
-                />
+                <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
               </View>
               {children}
             </View>

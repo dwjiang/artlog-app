@@ -10,18 +10,12 @@ describe("rate limits", () => {
     const deviceId = "device1" as Id<"devices">;
 
     for (let i = 0; i < 3; i++) {
-      await t.run((ctx) =>
-        limitDevice(ctx, "rejectPerWork", deviceId, "objectA"),
-      );
+      await t.run((ctx) => limitDevice(ctx, "rejectPerWork", deviceId, "objectA"));
     }
-    await expect(
-      t.run((ctx) => limitDevice(ctx, "rejectPerWork", deviceId, "objectA")),
-    ).rejects.toMatchObject({
+    await expect(t.run((ctx) => limitDevice(ctx, "rejectPerWork", deviceId, "objectA"))).rejects.toMatchObject({
       data: { code: "rate_limited", name: "rejectPerWork" },
     });
-    await expect(
-      t.run((ctx) => limitDevice(ctx, "rejectPerWork", deviceId, "objectB")),
-    ).resolves.toBeNull();
+    await expect(t.run((ctx) => limitDevice(ctx, "rejectPerWork", deviceId, "objectB"))).resolves.toBeNull();
   });
 
   it("reports when the caller may retry", async () => {
@@ -30,9 +24,7 @@ describe("rate limits", () => {
       await t.run((ctx) => limitKey(ctx, "rejectPerWork", "device2"));
     }
 
-    const error = await t
-      .run((ctx) => limitKey(ctx, "rejectPerWork", "device2"))
-      .catch((e) => e);
+    const error = await t.run((ctx) => limitKey(ctx, "rejectPerWork", "device2")).catch((e) => e);
     expect(error.data.code).toBe("rate_limited");
     expect(error.data.retryAfter).toBeGreaterThan(0);
   });
@@ -42,8 +34,6 @@ describe("rate limits", () => {
     for (let i = 0; i < 3; i++) {
       await t.run((ctx) => limitKey(ctx, "rejectPerWork", "device3"));
     }
-    await expect(
-      t.run((ctx) => limitKey(ctx, "rejectPerWork", "device4")),
-    ).resolves.toBeNull();
+    await expect(t.run((ctx) => limitKey(ctx, "rejectPerWork", "device4"))).resolves.toBeNull();
   });
 });

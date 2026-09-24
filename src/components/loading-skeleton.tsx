@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  StyleSheet,
-  View,
-  type DimensionValue,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -84,11 +78,7 @@ export function LoadingSkeleton({
   );
 }
 
-export function ParagraphSkeleton({
-  label = "Loading artwork information…",
-}: {
-  label?: string;
-}) {
+export function ParagraphSkeleton({ label = "Loading artwork information…" }: { label?: string }) {
   return (
     <LoadingSkeleton label={label}>
       <View style={{ gap: 11 }}>
@@ -117,19 +107,12 @@ export function TextSkeleton({
   );
 }
 
-export function PhotoStripSkeleton({
-  label = "Loading photos…",
-}: {
-  label?: string;
-}) {
+export function PhotoStripSkeleton({ label = "Loading photos…" }: { label?: string }) {
   return (
     <LoadingSkeleton label={label}>
       <View style={{ flexDirection: "row", gap: 12 }}>
         {[0, 1, 2].map((index) => (
-          <Ghost
-            key={index}
-            style={{ flex: 1, height: undefined, aspectRatio: 1 }}
-          />
+          <Ghost key={index} style={{ flex: 1, height: undefined, aspectRatio: 1 }} />
         ))}
       </View>
     </LoadingSkeleton>
@@ -151,13 +134,7 @@ export function FormSkeleton({ label }: { label: string }) {
   );
 }
 
-export function ImageSkeleton({
-  label = "Loading photo…",
-  style,
-}: {
-  label?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function ImageSkeleton({ label = "Loading photo…", style }: { label?: string; style?: StyleProp<ViewStyle> }) {
   return (
     <LoadingSkeleton label={label} style={style} fill>
       <Ghost style={{ height: "100%", minHeight: 1 }} />
@@ -177,20 +154,11 @@ export function ListSkeleton({
   grouped?: boolean;
 }) {
   return (
-    <LoadingSkeleton
-      label={label}
-      style={{ paddingHorizontal: 20, paddingVertical: 16 }}
-    >
-      {grouped && (
-        <Ghost width="38%" height={20} style={{ marginBottom: 12 }} />
-      )}
+    <LoadingSkeleton label={label} style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+      {grouped && <Ghost width="38%" height={20} style={{ marginBottom: 12 }} />}
       {Array.from({ length: rows }, (_, index) => (
         <View key={index} style={styles.row}>
-          <Ghost
-            width={avatar ? 44 : 56}
-            height={avatar ? 44 : 56}
-            round={avatar}
-          />
+          <Ghost width={avatar ? 44 : 56} height={avatar ? 44 : 56} round={avatar} />
           <View style={{ flex: 1, gap: 9 }}>
             <Ghost width={index % 2 ? "58%" : "72%"} height={17} />
             <Ghost width="87%" />
@@ -202,11 +170,7 @@ export function ListSkeleton({
   );
 }
 
-export function FeedSkeleton({
-  label = "Loading visits…",
-}: {
-  label?: string;
-}) {
+export function FeedSkeleton({ label = "Loading visits…" }: { label?: string }) {
   return (
     <LoadingSkeleton label={label}>
       {[0, 1].map((index) => (
@@ -230,11 +194,7 @@ export function FeedSkeleton({
   );
 }
 
-export function ArtworkSkeleton({
-  label = "Opening artwork…",
-}: {
-  label?: string;
-}) {
+export function ArtworkSkeleton({ label = "Opening artwork…" }: { label?: string }) {
   return (
     <LoadingSkeleton label={label} style={{ padding: 20 }}>
       <View style={{ gap: 24 }}>
@@ -276,13 +236,7 @@ export function ProfileSkeleton() {
   );
 }
 
-export function VisitSkeleton({
-  label = "Loading visit…",
-  heading = true,
-}: {
-  label?: string;
-  heading?: boolean;
-}) {
+export function VisitSkeleton({ label = "Loading visit…", heading = true }: { label?: string; heading?: boolean }) {
   return (
     <LoadingSkeleton label={label} style={{ padding: 20 }}>
       <View style={{ gap: 24 }}>

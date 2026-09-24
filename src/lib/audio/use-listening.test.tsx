@@ -1,11 +1,7 @@
 import { act, render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
-import {
-  ListeningController,
-  type AudioHandle,
-  type Playback,
-} from "./listening-controller";
+import { ListeningController, type AudioHandle, type Playback } from "./listening-controller";
 import { ListeningContext, useHasListeningTrack } from "./use-listening";
 
 let emit: (patch?: Partial<Playback>) => void = () => {};

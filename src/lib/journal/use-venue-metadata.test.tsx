@@ -58,12 +58,9 @@ it("keeps known museum metadata ready when deleting an artwork shrinks the reque
 });
 
 it("does not reuse another owner’s museum metadata", async () => {
-  const hook = await renderHook(
-    (owner: string) => useVenueMetadata(["met"], owner),
-    {
-      initialProps: "a",
-    },
-  );
+  const hook = await renderHook((owner: string) => useVenueMetadata(["met"], owner), {
+    initialProps: "a",
+  });
   await act(() => mockResolve?.([row("met")]));
   await hook.rerender("b");
   expect(hook.result.current.ready).toBe(false);
@@ -91,8 +88,6 @@ it("stays ready when Undo brings a museum back that was read earlier", async () 
   await hook.rerender(["met", "moma"]);
   expect(hook.result.current.ready).toBe(true);
   expect(hook.result.current.metadata.get("moma")?.name).toBe("moma");
-  await act(() =>
-    mockResolve?.([row("met"), { ...row("moma"), name: "MoMA" }]),
-  );
+  await act(() => mockResolve?.([row("met"), { ...row("moma"), name: "MoMA" }]));
   expect(hook.result.current.metadata.get("moma")?.name).toBe("MoMA");
 });

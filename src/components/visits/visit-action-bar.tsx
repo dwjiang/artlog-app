@@ -25,16 +25,10 @@ export function VisitActionBar({
   onSave: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
-  const [keyboardVisible, setKeyboardVisible] = useState(() =>
-    Keyboard.isVisible(),
-  );
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", () =>
-      setKeyboardVisible(true),
-    );
-    const hide = Keyboard.addListener("keyboardDidHide", () =>
-      setKeyboardVisible(false),
-    );
+    const show = Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
     return () => {
       show.remove();
       hide.remove();
@@ -79,9 +73,7 @@ export function VisitActionBar({
           textAlign: "center",
         }}
       >
-        {pendingPrivate
-          ? "Privacy change waiting to sync"
-          : "You choose what to share before anything is published."}
+        {pendingPrivate ? "Privacy change waiting to sync" : "You choose what to share before anything is published."}
       </Text>
     </View>
   );

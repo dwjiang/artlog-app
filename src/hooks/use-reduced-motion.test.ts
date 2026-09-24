@@ -5,9 +5,7 @@ import { useReducedMotion } from "./use-reduced-motion";
 beforeEach(() => {
   jest
     .spyOn(AccessibilityInfo, "addEventListener")
-    .mockImplementation((event, listener) =>
-      DeviceEventEmitter.addListener(event, listener),
-    );
+    .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
 });
 afterEach(() => jest.restoreAllMocks());
 

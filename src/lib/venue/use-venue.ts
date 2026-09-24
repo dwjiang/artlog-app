@@ -1,12 +1,7 @@
 import { socialErrorMessage } from "../../../shared/social/errors";
 import { prepareCaptureVisit } from "../journal/capture-visit";
 import { museumDay } from "../journal/visit-date";
-import {
-  captureOwner,
-  getLocalOwner,
-  subscribeOwnerChange,
-  useLocalOwner,
-} from "@/lib/account/owner-store";
+import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
 import { useConvexAuth, useQuery } from "convex/react";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
@@ -35,13 +30,7 @@ import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { refreshVenueTableInBackground } from "./refresh";
 import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from "./resolve";
-import {
-  applyVenueMetadata,
-  nearest,
-  openVenueDb,
-  venueCoordinates,
-  venueNameById,
-} from "./venue-db";
+import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from "./venue-db";
 import {
   endedToday,
   initialVenueState,
@@ -92,10 +81,7 @@ export type VenueController = {
    * The visit a save at this museum links to: the one on the books for the capture's day (today only while it is still
    * open), stretched to cover the shutter, or a new one dated by the capture.
    */
-  visitForSave(
-    venueId: Id<"museums">,
-    capturedAt: number,
-  ): Promise<CurrentVisit>;
+  visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit>;
   /** Flushes persisted visit starts and ends without blocking local resolution. */
   syncRemoteVisit(): Promise<void>;
   appStateChanged(status: AppStateStatus): void;
@@ -110,10 +96,7 @@ function parseSetting<T>(value: string | undefined): T | undefined {
   }
 }
 
-async function venueDay(
-  venueId: Id<"museums">,
-  at: number,
-): Promise<MuseumDay> {
+async function venueDay(venueId: Id<"museums">, at: number): Promise<MuseumDay> {
   const coordinates = await venueCoordinates(venueId);
   if (!coordinates) throw new Error("The museum coordinates are not available");
   return museumDay(coordinates, at);
@@ -123,21 +106,10 @@ async function venueDay(
  * Links a save to a visit already on the books for its museum and day, stretching the visit to cover the shutter.
  * Only a visit for today may stay `open`; one for an earlier day ends with its latest save.
  */
-async function joinVisit(
-  row: Visit,
-  capturedAt: number,
-  owner: string,
-  open: boolean,
-): Promise<CurrentVisit> {
-  const startedAt =
-    row.startedAt === null ? capturedAt : Math.min(row.startedAt, capturedAt);
+async function joinVisit(row: Visit, capturedAt: number, owner: string, open: boolean): Promise<CurrentVisit> {
+  const startedAt = row.startedAt === null ? capturedAt : Math.min(row.startedAt, capturedAt);
   const latest = Math.max(row.startedAt ?? capturedAt, capturedAt);
-  const endedAt =
-    row.endedAt === null
-      ? open
-        ? null
-        : latest
-      : Math.max(row.endedAt, latest);
+  const endedAt = row.endedAt === null ? (open ? null : latest) : Math.max(row.endedAt, latest);
   const fields = {
     ...(startedAt !== row.startedAt ? { startedAt } : {}),
     ...(endedAt !== row.endedAt ? { endedAt } : {}),
@@ -241,11 +213,9 @@ export function createVenueController(): VenueController {
     state = initialVenueState;
     for (const listener of listeners) listener();
   });
-  const currentVisitKey = (owner = getLocalOwner()) =>
-    `${CURRENT_VISIT_SETTING}:${owner}`;
+  const currentVisitKey = (owner = getLocalOwner()) => `${CURRENT_VISIT_SETTING}:${owner}`;
   const manualVisitKey = (owner = getLocalOwner()) => `manualVisit:${owner}`;
-  const endedVisitKey = (owner = getLocalOwner()) =>
-    `${ENDED_VISIT_SETTING}:${owner}`;
+  const endedVisitKey = (owner = getLocalOwner()) => `${ENDED_VISIT_SETTING}:${owner}`;
   const pickedKey = (owner: string) => `venuePick:${owner}`;
   const notHereKey = (owner: string) => `notHere:${owner}`;
 
@@ -302,12 +272,7 @@ export function createVenueController(): VenueController {
     for (const listener of listeners) listener();
   }
 
-  async function closeVisit(
-    visit: CurrentVisit,
-    now: number,
-    owner = getLocalOwner(),
-    manual = false,
-  ): Promise<void> {
+  async function closeVisit(visit: CurrentVisit, now: number, owner = getLocalOwner(), manual = false): Promise<void> {
     await patchVisit(visit.localId, { endedAt: now }, owner);
     if ((await getSetting(currentVisitKey(owner))) === visit.localId) {
       await removeSetting(currentVisitKey(owner));
@@ -321,11 +286,7 @@ export function createVenueController(): VenueController {
     void syncRemoteVisit();
   }
 
-  function endVisit(
-    visit: CurrentVisit,
-    now: number,
-    manual = false,
-  ): Promise<void> {
+  function endVisit(visit: CurrentVisit, now: number, manual = false): Promise<void> {
     const owner = getLocalOwner();
     return updateLocally(() => closeVisit(visit, now, owner, manual));
   }
@@ -340,10 +301,7 @@ export function createVenueController(): VenueController {
       if (row.startedAt === null || isVisitToday(row, now)) continue;
       const visit = currentVisit({ ...row, startedAt: row.startedAt });
       try {
-        const endedAt = Math.max(
-          visit.startedAt,
-          (await latestVisitActivity(visit.localId, owner)) ?? visit.startedAt,
-        );
+        const endedAt = Math.max(visit.startedAt, (await latestVisitActivity(visit.localId, owner)) ?? visit.startedAt);
         await updateLocally(() => closeVisit(visit, endedAt, owner));
       } catch (error) {
         reportError(error, "venue.visit.close");
@@ -356,10 +314,7 @@ export function createVenueController(): VenueController {
     return !endedToday(state, venueId, at);
   }
 
-  function visitForSave(
-    venueId: Id<"museums">,
-    capturedAt: number,
-  ): Promise<CurrentVisit> {
+  function visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit> {
     const ownership = captureOwner();
     const owner = ownership.owner;
     const checkOwner = () => {
@@ -368,11 +323,7 @@ export function createVenueController(): VenueController {
     return updateLocally(async () => {
       checkOwner();
       const current = state.visit;
-      if (
-        current
-        && current.venueId === venueId
-        && isVisitToday(current, capturedAt)
-      ) {
+      if (current && current.venueId === venueId && isVisitToday(current, capturedAt)) {
         if (capturedAt >= current.startedAt) return current;
         // The capture waited for its save: the visit began with this shutter.
         await patchVisit(current.localId, { startedAt: capturedAt }, owner);
@@ -395,10 +346,7 @@ export function createVenueController(): VenueController {
       if (existing) {
         visit = await joinVisit(existing, capturedAt, owner, today);
       } else {
-        const name =
-          state.venue?.venueId === venueId
-            ? state.venue.name
-            : await venueNameById(venueId);
+        const name = state.venue?.venueId === venueId ? state.venue.name : await venueNameById(venueId);
         checkOwner();
         if (!name) throw new Error("The museum is not available");
         visit = {
@@ -409,10 +357,7 @@ export function createVenueController(): VenueController {
           ...day,
         };
         // A visit for an earlier day is already over: it spans exactly the saves it gets.
-        await upsertVisit(
-          { ...visitRow(visit), ...(today ? {} : { endedAt: capturedAt }) },
-          owner,
-        );
+        await upsertVisit({ ...visitRow(visit), ...(today ? {} : { endedAt: capturedAt }) }, owner);
       }
       checkOwner();
       // The visit opens now only for today's captures, and never over a visit open elsewhere unless the phone is back at this museum.
@@ -436,17 +381,10 @@ export function createVenueController(): VenueController {
     });
   }
 
-  async function searchNearbyPlaces(
-    fix: { lat: number; lng: number },
-    quiet: boolean,
-  ): Promise<void> {
+  async function searchNearbyPlaces(fix: { lat: number; lng: number }, quiet: boolean): Promise<void> {
     const ownership = captureOwner();
     try {
-      const places = await getPoiSearch().searchNearby(
-        fix.lat,
-        fix.lng,
-        POI_RADIUS_M,
-      );
+      const places = await getPoiSearch().searchNearby(fix.lat, fix.lng, POI_RADIUS_M);
       if (!ownership.isCurrent()) return;
       dispatch({
         type: "poiOptions",
@@ -478,9 +416,7 @@ export function createVenueController(): VenueController {
     const endedRow = endedId ? await getVisit(endedId, owner) : undefined;
     const answers = {
       picked: parseSetting<VenuePick>(await getSetting(pickedKey(owner))),
-      notHere: parseSetting<VenueState["notHere"]>(
-        await getSetting(notHereKey(owner)),
-      ),
+      notHere: parseSetting<VenueState["notHere"]>(await getSetting(notHereKey(owner))),
     };
     if (!ownership.isCurrent()) return;
     const now = Date.now();
@@ -493,12 +429,7 @@ export function createVenueController(): VenueController {
           }
         : undefined;
     if (endedId && !ended) await removeSetting(endedVisitKey(owner));
-    if (
-      row
-      && row.startedAt !== null
-      && row.endedAt === null
-      && isVisitToday(row, now)
-    ) {
+    if (row && row.startedAt !== null && row.endedAt === null && isVisitToday(row, now)) {
       const manual = (await getSetting(manualVisitKey(owner))) === row.localId;
       if (!ownership.isCurrent()) return;
       dispatch({
@@ -544,9 +475,7 @@ export function createVenueController(): VenueController {
         lng: position.coords.longitude,
         at: Date.now(),
       };
-      const resolution = pickVenue(
-        await nearest(await openVenueDb(), fix, CHOOSE_RADIUS_M),
-      );
+      const resolution = pickVenue(await nearest(await openVenueDb(), fix, CHOOSE_RADIUS_M));
       if (!wanted()) return venueContext(state);
       if (__DEV__) {
         console.debug(
@@ -554,9 +483,7 @@ export function createVenueController(): VenueController {
           resolution.kind,
           resolution.kind === "none"
             ? ""
-            : resolution.options.map(
-                (row) => `${row.name} ${Math.round(row.distanceM)} m`,
-              ),
+            : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`),
         );
       }
       dispatch({ type: "resolved", fix, resolution, quiet });
@@ -593,26 +520,17 @@ export function createVenueController(): VenueController {
     const ownership = captureOwner();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<VenueContext>((settle) => {
-      timer = setTimeout(
-        () => settle(venueContext(state)),
-        SCAN_FIX_TIMEOUT_MS,
-      );
+      timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
     });
-    const context = await Promise.race([startResolve(true), timeout]).finally(
-      () => clearTimeout(timer),
-    );
+    const context = await Promise.race([startResolve(true), timeout]).finally(() => clearTimeout(timer));
     if (!ownership.isCurrent()) throw new Error("Journal owner changed");
     return prepareCaptureVisit(context, capturedAt);
   }
 
-  async function confirm(
-    option: VenueOption,
-    signal?: AbortSignal,
-  ): Promise<void> {
+  async function confirm(option: VenueOption, signal?: AbortSignal): Promise<void> {
     const ownership = captureOwner();
     const requestId = ++confirmationId;
-    const wanted = () =>
-      ownership.isCurrent() && requestId === confirmationId && !signal?.aborted;
+    const wanted = () => ownership.isCurrent() && requestId === confirmationId && !signal?.aborted;
     if (!wanted()) return;
     let venue: SeededOption;
     let day: MuseumDay;
@@ -627,9 +545,7 @@ export function createVenueController(): VenueController {
         kind: "seeded",
         venueId: row.id,
         name: row.name,
-        ...(option.distanceM === undefined
-          ? {}
-          : { distanceM: option.distanceM }),
+        ...(option.distanceM === undefined ? {} : { distanceM: option.distanceM }),
         ...(row.website ? { website: row.website } : {}),
       };
     }
@@ -710,10 +626,7 @@ export function visitByDefault(venueId: Id<"museums">, at?: number): boolean {
   return venueController.visitByDefault(venueId, at);
 }
 
-export function visitForSave(
-  venueId: Id<"museums">,
-  capturedAt: number,
-): Promise<CurrentVisit> {
+export function visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit> {
   return venueController.visitForSave(venueId, capturedAt);
 }
 
@@ -734,14 +647,8 @@ export type VenueView = {
   end: VenueController["end"];
 };
 
-export function useVenue(
-  controller: VenueController = venueController,
-): VenueView {
-  const snapshot = useSyncExternalStore(
-    controller.subscribe,
-    controller.getState,
-    controller.getState,
-  );
+export function useVenue(controller: VenueController = venueController): VenueView {
+  const snapshot = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
   return {
     status: snapshot.status,
     venue: snapshot.venue,
@@ -759,11 +666,7 @@ export function useVenue(
 }
 
 /** Mounted once under the database gate: resolves on launch and foreground, opens the sheet, syncs the visit. */
-export function VenueResolver({
-  controller = venueController,
-}: {
-  controller?: VenueController;
-}): null {
+export function VenueResolver({ controller = venueController }: { controller?: VenueController }): null {
   const owner = useLocalOwner();
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
@@ -785,10 +688,7 @@ export function VenueResolver({
         console.warn("Could not restore the visit", error);
       });
     refreshVenueTableInBackground();
-    const subscription = AppState.addEventListener(
-      "change",
-      controller.appStateChanged,
-    );
+    const subscription = AppState.addEventListener("change", controller.appStateChanged);
     return () => subscription.remove();
   }, [controller, owner]);
 

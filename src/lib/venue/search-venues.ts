@@ -10,15 +10,9 @@ let version = 0;
 onVenueMetadataChange(() => {
   version++;
 });
-const indexes = new WeakMap<
-  SQLiteDatabase,
-  { version: number; ready: Promise<void> }
->();
+const indexes = new WeakMap<SQLiteDatabase, { version: number; ready: Promise<void> }>();
 
-export async function searchVenues(
-  query: string,
-  database?: SQLiteDatabase,
-): Promise<VenueRow[]> {
+export async function searchVenues(query: string, database?: SQLiteDatabase): Promise<VenueRow[]> {
   const term = searchTerm(query);
   if (!term) return [];
   const words = normalizeSearch(term).match(/[\p{L}\p{N}]+/gu);

@@ -28,11 +28,7 @@ jest.mock("expo-router", () => {
     accessibilityLabel?: string;
     onPress: () => void;
   }) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      onPress={onPress}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
       <Text>{children}</Text>
     </Pressable>
   );
@@ -91,9 +87,7 @@ it("requests only the selected friend’s shared visits and stops after a block"
 });
 it("offers Share in the header", async () => {
   await render(<ProfileScreen profileId="friend" />);
-  expect(
-    screen.getByRole("button", { name: "Share profile" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
 });
 it("uses the same shared visit card as Home", async () => {
   mockVisits = [
@@ -118,10 +112,6 @@ it("uses the same shared visit card as Home", async () => {
   expect(screen.getByText("Museum of Modern Art · New York")).toBeOnTheScreen();
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", { name: "View Jamie Chen’s profile" }),
-  ).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", { name: "More options" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "View Jamie Chen’s profile" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "More options" })).toBeOnTheScreen();
 });

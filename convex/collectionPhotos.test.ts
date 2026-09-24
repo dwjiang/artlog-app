@@ -24,8 +24,7 @@ async function fixture() {
     snapshot: { title: "Water Lilies", artist: "Monet" },
     savedAt: 1,
   };
-  const scope = async (device = owner) =>
-    (await device.as.query(api.accounts.me, {})).scope;
+  const scope = async (device = owner) => (await device.as.query(api.accounts.me, {})).scope;
   const path = async (device = owner, query = "kind=crop") =>
     `/collection-photo?localId=${work.localId}&${query}&scope=${encodeURIComponent(await scope(device))}`;
   await owner.as.mutation(api.collections.saveToCollection, {
@@ -33,12 +32,7 @@ async function fixture() {
     suggested: null,
     scope: await scope(),
   });
-  const upload = async (
-    device = owner,
-    query = "kind=crop",
-    body = jpeg,
-    headers = {},
-  ) =>
+  const upload = async (device = owner, query = "kind=crop", body = jpeg, headers = {}) =>
     device.as.fetch(await path(device, query), {
       method: "POST",
       body,
@@ -67,25 +61,16 @@ it("keeps only the latest crop under concurrent uploads and validates content an
   const { t, owner, outsider, work, scope, path, upload } = await fixture();
   expect((await upload(outsider)).status).toBe(404);
   expect((await upload(owner, "kind=crop", new Uint8Array())).status).toBe(400);
-  expect(
-    (await upload(owner, "kind=crop", jpeg, { "Content-Length": "20000000" }))
-      .status,
-  ).toBe(413);
+  expect((await upload(owner, "kind=crop", jpeg, { "Content-Length": "20000000" })).status).toBe(413);
   // The full photo is an album row: kind=photo needs its photoId and the crop never takes one.
   expect((await upload(owner, "kind=photo")).status).toBe(400);
-  expect(
-    (await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status,
-  ).toBe(400);
-  expect(
-    (await upload(owner, `kind=photo&photoId=${crypto.randomUUID()}`)).status,
-  ).toBe(404);
+  expect((await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status).toBe(400);
+  expect((await upload(owner, `kind=photo&photoId=${crypto.randomUUID()}`)).status).toBe(404);
   const responses = await Promise.all([upload(), upload()]);
   const ids = await Promise.all(responses.map((r) => r.json()));
   expect(ids[0].storageId).not.toEqual(ids[1].storageId);
   expect(responses.every((response) => response.status === 200)).toBe(true);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_storage").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(1);
   await outsider.as.mutation(api.collections.saveToCollection, {
     ...work,
     scope: await scope(outsider),
@@ -120,9 +105,7 @@ it("deletion revokes every account device and cleans bytes immediately", async (
   });
   expect((await upload()).status).toBe(404);
   expect((await sibling.as.fetch(await path(sibling))).status).toBe(404);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_storage").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
 });
 
 it("replaces a crop for every account device, advances photo sync, and removes obsolete private bytes", async () => {
@@ -133,11 +116,7 @@ it("replaces a crop for every account device, advances photo sync, and removes o
   const next = await (await upload(owner, "kind=crop", changed)).json();
   expect(next.storageId).not.toBe(first.storageId);
   expect(next.photoUpdatedAt).toBeGreaterThan(first.photoUpdatedAt);
-  expect(
-    new Uint8Array(
-      await (await sibling.as.fetch(await path(sibling))).arrayBuffer(),
-    ),
-  ).toEqual(changed);
+  expect(new Uint8Array(await (await sibling.as.fetch(await path(sibling))).arrayBuffer())).toEqual(changed);
   const after = await sync(sibling, before.checkpoint);
   expect(after.saves[0]).toMatchObject({
     cropStorageId: next.storageId,

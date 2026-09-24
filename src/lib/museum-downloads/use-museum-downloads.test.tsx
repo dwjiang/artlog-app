@@ -13,12 +13,10 @@ jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => false }));
 
 it("keeps transfers running through Control Center and similar interruptions, and pauses them in the background", async () => {
   let onChange!: (state: AppStateStatus) => void;
-  jest
-    .spyOn(AppState, "addEventListener")
-    .mockImplementation((_type, listener) => {
-      onChange = listener;
-      return { remove: jest.fn() };
-    });
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
+    onChange = listener;
+    return { remove: jest.fn() };
+  });
   await render(<MuseumDownloadLifecycle />);
   onChange("inactive");
   expect(mockPauseAll).not.toHaveBeenCalled();

@@ -4,28 +4,17 @@ import { relationship as state } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { activeProfile, requireProfile } from "./lib/ownership";
-import {
-  acceptedRelationships,
-  canonicalPair,
-  checkRevision,
-  relationshipSnapshot,
-} from "./lib/friendships";
+import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from "./lib/friendships";
 import { limitKey } from "./lib/rateLimits";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
 // Revocations stay available after the counterpart is removed so a stale edge cannot hold a friend slot.
-async function participants(
-  ctx: QueryCtx,
-  profileId: Id<"profiles">,
-  revocation = false,
-) {
+async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation = false) {
   const actor = await requireProfile(ctx);
   if (actor.profile._id === profileId) {
     throw new ConvexError({ code: "invalid_relationship" });
   }
-  const other = revocation
-    ? await ctx.db.get(profileId)
-    : await activeProfile(ctx, profileId);
+  const other = revocation ? await ctx.db.get(profileId) : await activeProfile(ctx, profileId);
   if (!other) throw new ConvexError({ code: "not_found" });
   return actor;
 }
@@ -38,9 +27,7 @@ export const getState = query({
   },
 });
 
-function transition(
-  operation: "request" | "accept" | "decline" | "cancel" | "remove",
-) {
+function transition(operation: "request" | "accept" | "decline" | "cancel" | "remove") {
   return mutation({
     args,
     returns: state,
@@ -56,10 +43,7 @@ function transition(
         throw new ConvexError({ code: "invalid_relationship" });
       }
       // Repeating a completed revocation cannot restore access or consume a quota.
-      if (
-        ["decline", "cancel", "remove"].includes(operation)
-        && edge?.state === "none"
-      ) {
+      if (["decline", "cancel", "remove"].includes(operation) && edge?.state === "none") {
         return snapshot.state;
       }
       checkRevision(revision, edge?.revision ?? 0);
@@ -81,10 +65,7 @@ function transition(
         }
         next = "none";
       } else {
-        if (
-          edge?.state !== "pending"
-          || (operation === "cancel") !== (edge.requesterId === profile._id)
-        ) {
+        if (edge?.state !== "pending" || (operation === "cancel") !== (edge.requesterId === profile._id)) {
           throw new ConvexError({ code: "invalid_relationship" });
         }
         next = operation === "accept" ? "accepted" : "none";
@@ -96,15 +77,8 @@ function transition(
           }
         }
       }
-      await limitKey(
-        ctx,
-        operation === "request" ? "friendRequest" : "relationshipChange",
-        accountId,
-      );
-      const [firstProfileId, secondProfileId] = canonicalPair(
-        profile._id,
-        profileId,
-      );
+      await limitKey(ctx, operation === "request" ? "friendRequest" : "relationshipChange", accountId);
+      const [firstProfileId, secondProfileId] = canonicalPair(profile._id, profileId);
       const fields = {
         firstProfileId,
         secondProfileId,
@@ -143,10 +117,7 @@ export const block = mutation({
     };
     if (snapshot.block) await ctx.db.patch(snapshot.block._id, fields);
     else await ctx.db.insert("blocks", fields);
-    const [firstProfileId, secondProfileId] = canonicalPair(
-      profile._id,
-      profileId,
-    );
+    const [firstProfileId, secondProfileId] = canonicalPair(profile._id, profileId);
     const edge = {
       firstProfileId,
       secondProfileId,

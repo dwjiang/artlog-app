@@ -26,9 +26,7 @@ it.each([
   ["young", ["cotton"]],
   ["nothing here", []],
 ])("filters by title, artist or institution for %p", (query, expected) => {
-  expect(filterWorks(works, query).map((work) => work.localId)).toEqual(
-    expected,
-  );
+  expect(filterWorks(works, query).map((work) => work.localId)).toEqual(expected);
 });
 
 it("finds an artwork at any linked museum and excludes removed or foreign encounters", () => {
@@ -74,12 +72,7 @@ it("finds an artwork at any linked museum and excludes removed or foreign encoun
   const withVisits = () => [
     {
       ...works[2],
-      visitSearchTerms: linkedVisitSearchTerms(
-        "me",
-        encounters,
-        visits,
-        metadata,
-      ).get("art"),
+      visitSearchTerms: linkedVisitSearchTerms("me", encounters, visits, metadata).get("art"),
     },
   ];
   for (const query of ["rijksmuseum", "orsay", "paris", "amsterdam"]) {
@@ -87,13 +80,9 @@ it("finds an artwork at any linked museum and excludes removed or foreign encoun
   }
   expect(filterWorks(withVisits(), "Private Museum")).toEqual([]);
   const unlinked = encounters.map((encounter) =>
-    encounter.visitLocalId === "second"
-      ? { ...encounter, deletedAt: 1 }
-      : encounter,
+    encounter.visitLocalId === "second" ? { ...encounter, deletedAt: 1 } : encounter,
   );
-  expect(
-    linkedVisitSearchTerms("me", unlinked, visits, metadata).get("art"),
-  ).toEqual(["Rijksmuseum", "Amsterdam"]);
+  expect(linkedVisitSearchTerms("me", unlinked, visits, metadata).get("art")).toEqual(["Rijksmuseum", "Amsterdam"]);
 });
 
 it("normalizes accents and whitespace and searches dates, venue names and cities", () => {
@@ -107,13 +96,7 @@ it("normalizes accents and whitespace and searches dates, venue names and cities
       city: "París",
     },
   ];
-  for (const query of [
-    "nympheas",
-    "  MUSEE  ",
-    "1916",
-    "paris",
-    "Claude   Monet",
-  ]) {
+  for (const query of ["nympheas", "  MUSEE  ", "1916", "paris", "Claude   Monet"]) {
     expect(filterWorks(works, query)).toEqual(works);
   }
   expect(filterWorks(works, "m")).toEqual([]);

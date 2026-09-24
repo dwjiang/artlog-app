@@ -1,12 +1,7 @@
 import { expect, it } from "vitest";
 import { api, internal } from "./_generated/api";
 import { harness, signIn } from "./test.helpers";
-import {
-  befriend,
-  setVisitVisibility,
-  socialUser,
-  socialVisit,
-} from "./lib/socialTestFixtures";
+import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 
@@ -16,35 +11,25 @@ it("accepts public reports from registered devices, deduplicates account reporte
     guest = await seedDevice(t),
     stranger = await socialUser(t);
   const target = { kind: "profile" as const, profileId: author.profileId };
-  await expect(
-    t.mutation(api.reports.submit, { target, reason: "Spam" }),
-  ).rejects.toThrow();
+  await expect(t.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toThrow();
   const unregistered = await signIn(t);
-  await expect(
-    unregistered.as.mutation(api.reports.submit, { target, reason: "Spam" }),
-  ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
+  await expect(unregistered.as.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toMatchObject({
+    data: { code: "device_not_registered" },
+  });
   const id = await guest.as.mutation(api.reports.submit, {
     target,
     reason: "Spam",
   });
-  expect(
-    await guest.as.mutation(api.reports.submit, { target, reason: "Again" }),
-  ).toBe(id);
+  expect(await guest.as.mutation(api.reports.submit, { target, reason: "Again" })).toBe(id);
   const first = await stranger.as.mutation(api.reports.submit, {
     target,
     reason: "Spam",
   });
   const sibling = await seedDevice(t);
-  await t.run((ctx) =>
-    ctx.db.patch(sibling.deviceId, { accountId: stranger.accountId }),
-  );
-  expect(
-    await sibling.as.mutation(api.reports.submit, { target, reason: "Spam" }),
-  ).toBe(first);
+  await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: stranger.accountId }));
+  expect(await sibling.as.mutation(api.reports.submit, { target, reason: "Spam" })).toBe(first);
   const draft = await socialVisit(t, author);
-  await t.run((ctx) =>
-    ctx.db.patch(draft.visit._id, { reflection: "Public evidence" }),
-  );
+  await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Public evidence" }));
   const post = await author.as.mutation(api.sharedVisits.publish, {
     ...draft.selection,
     reflection: "Public evidence",
@@ -61,9 +46,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
     postId: post.postId,
     reflection: "Public evidence",
   });
-  expect(JSON.stringify(report?.evidence)).not.toMatch(
-    /PRIVATE|visitId|saveId|accountId|storage/,
-  );
+  expect(JSON.stringify(report?.evidence)).not.toMatch(/PRIVATE|visitId|saveId|accountId|storage/);
   await setVisitVisibility(t, author, draft.visit._id, "private");
   await expect(
     stranger.as.mutation(api.reports.submit, {
@@ -71,9 +54,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
       reason: "Abuse",
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  expect(
-    (await t.query(internal.review.getReport, { reportId }))?.evidence,
-  ).toEqual(report?.evidence);
+  expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual(report?.evidence);
 });
 it("records operator decisions and permanently removes a publication without changing its private journal", async () => {
   const t = harness(),
@@ -86,11 +67,7 @@ it("records operator decisions and permanently removes a publication without cha
     target: { kind: "sharedVisit", postId: post.postId! },
     reason: "Abuse",
   });
-  expect(
-    (await t.query(internal.review.listReports, {})).rows.map(
-      (r) => r.reportId,
-    ),
-  ).toEqual([reportId]);
+  expect((await t.query(internal.review.listReports, {})).rows.map((r) => r.reportId)).toEqual([reportId]);
   const decision = {
     reportId,
     operator: "operator@example.test",
@@ -99,18 +76,14 @@ it("records operator decisions and permanently removes a publication without cha
   };
   await t.mutation(internal.review.decideReport, decision);
   await t.mutation(internal.review.decideReport, decision);
-  expect(
-    (await t.query(internal.review.getReport, { reportId }))?.review,
-  ).toEqual({
+  expect((await t.query(internal.review.getReport, { reportId }))?.review).toEqual({
     operator: decision.operator,
     decision: "remove",
     reason: decision.reason,
     reviewedAt: expect.any(Number),
   });
   expect((await t.query(internal.review.listReports, {})).rows).toEqual([]);
-  await expect(
-    a.as.query(api.sharedVisits.get, { postId: post.postId! }),
-  ).rejects.toMatchObject({
+  await expect(a.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   const state = await a.as.query(api.sharedVisits.getState, {
@@ -127,12 +100,8 @@ it("records operator decisions and permanently removes a publication without cha
       revision: state.revision,
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe(
-    draft.visit.reflection,
-  );
-  expect((await t.run((ctx) => ctx.db.get(draft.saves[0].id)))?.note).toBe(
-    "PRIVATE NOTE",
-  );
+  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe(draft.visit.reflection);
+  expect((await t.run((ctx) => ctx.db.get(draft.saves[0].id)))?.note).toBe("PRIVATE NOTE");
   await expect(
     t.mutation(internal.review.decideReport, {
       ...decision,
@@ -183,19 +152,13 @@ it("captures only published wall text and retains removal even if an active flag
     reason: "Confirmed",
   });
   await t.run((ctx) => ctx.db.patch(itemId, { active: true }));
-  await expect(
-    t.run((ctx) => requirePublicWallItem(ctx, itemId)),
-  ).rejects.toMatchObject({
+  await expect(t.run((ctx) => requirePublicWallItem(ctx, itemId))).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   const item = await t.run((ctx) => ctx.db.get(itemId));
   expect(item?.noteRevision).toBe(1);
-  expect((await t.run((ctx) => ctx.db.get(item!.wallId)))?.layoutRevision).toBe(
-    2,
-  );
-  expect(
-    (await t.run((ctx) => ctx.db.get(a.profileId)))?.publishedWallCount,
-  ).toBe(0);
+  expect((await t.run((ctx) => ctx.db.get(item!.wallId)))?.layoutRevision).toBe(2);
+  expect((await t.run((ctx) => ctx.db.get(a.profileId)))?.publishedWallCount).toBe(0);
 });
 it("dismisses without removing content and prevents a disabled profile from recreating itself", async () => {
   const t = harness(),
@@ -212,9 +175,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
     decision: "dismiss",
     reason: "Allowed",
   });
-  expect(
-    await t.query(api.profiles.getPublic, { profileId: a.profileId }),
-  ).not.toBeNull();
+  expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).not.toBeNull();
   const reportId = await reporter.as.mutation(api.reports.submit, {
     target,
     reason: "New abuse",
@@ -233,9 +194,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
     }),
   ).rejects.toMatchObject({ data: { code: "profile_required" } });
   await t.run((ctx) => ctx.db.patch(a.profileId, { active: true }));
-  expect(
-    await t.query(api.profiles.getPublic, { profileId: a.profileId }),
-  ).toBeNull();
+  expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).toBeNull();
   await expect(
     a.as.mutation(internal.profilePhotoData.save, {
       profileId: a.profileId,
@@ -247,9 +206,7 @@ it("enforces ten daily reports per account across devices without charging dupli
   const t = harness(),
     reporter = await socialUser(t),
     sibling = await seedDevice(t);
-  await t.run((ctx) =>
-    ctx.db.patch(sibling.deviceId, { accountId: reporter.accountId }),
-  );
+  await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: reporter.accountId }));
   for (let i = 0; i < 10; i++) {
     const author = await socialUser(t);
     const input = {

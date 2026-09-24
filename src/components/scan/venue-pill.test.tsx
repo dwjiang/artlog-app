@@ -35,11 +35,7 @@ const visit = {
   timeZone: "America/Los_Angeles",
 };
 
-function view(
-  status: VenueView["status"],
-  venue?: VenueView["venue"],
-  current?: VenueView["visit"],
-): VenueView {
+function view(status: VenueView["status"], venue?: VenueView["venue"], current?: VenueView["visit"]): VenueView {
   return {
     status,
     venue,
@@ -63,9 +59,7 @@ it("keeps the visit count behind a ghost until its artworks are read", async () 
   mockView = view("resolved", legion, visit);
   mockLoading = true;
   const rendered = await render(<VenuePill />);
-  expect(
-    screen.getByLabelText("Loading visit artwork count"),
-  ).toBeOnTheScreen();
+  expect(screen.getByLabelText("Loading visit artwork count")).toBeOnTheScreen();
   expect(screen.queryByText("· 0")).toBeNull();
   mockLoading = false;
   await rendered.rerender(<VenuePill />);
@@ -75,9 +69,7 @@ it("keeps the visit count behind a ghost until its artworks are read", async () 
 it("names the museum the phone resolved and opens the visit sheet on tap", async () => {
   mockView = view("resolved", legion);
   await render(<VenuePill />);
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Legion of Honor" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
 });
 
@@ -94,16 +86,10 @@ it("shows the open visit with its artwork count", async () => {
 });
 
 it("does not count a visit paused away from the resolved venue", async () => {
-  mockView = view(
-    "resolved",
-    { ...legion, venueId: "id-other" as never, name: "de Young Museum" },
-    visit,
-  );
+  mockView = view("resolved", { ...legion, venueId: "id-other" as never, name: "de Young Museum" }, visit);
   mockWorks = [{ localId: "a" }];
   await render(<VenuePill />);
-  expect(
-    screen.getByRole("button", { name: "de Young Museum" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "de Young Museum" })).toBeOnTheScreen();
   expect(screen.queryByText("· 1")).toBeNull();
 });
 
@@ -127,12 +113,9 @@ it.each([
   ["none", "No museum nearby"],
   ["denied", "Location is off"],
   ["choose", "Which museum?"],
-] as [VenueView["status"], string][])(
-  "offers the picker when the status is %s",
-  async (status, label) => {
-    mockView = view(status);
-    await render(<VenuePill />);
-    await fireEvent.press(screen.getByRole("button", { name: label }));
-    expect(mockPush).toHaveBeenCalledWith("/venue-picker");
-  },
-);
+] as [VenueView["status"], string][])("offers the picker when the status is %s", async (status, label) => {
+  mockView = view(status);
+  await render(<VenuePill />);
+  await fireEvent.press(screen.getByRole("button", { name: label }));
+  expect(mockPush).toHaveBeenCalledWith("/venue-picker");
+});

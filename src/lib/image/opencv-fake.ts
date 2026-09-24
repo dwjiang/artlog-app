@@ -53,12 +53,7 @@ export function fakeOpenCV(options: FakeOpenCVOptions = {}): FakeOpenCV {
       },
     };
   }
-  function mat(
-    rows = 0,
-    cols = 0,
-    channels = 1,
-    data: ArrayLike<number> = [],
-  ): FakeMat {
+  function mat(rows = 0, cols = 0, channels = 1, data: ArrayLike<number> = []): FakeMat {
     return track({
       ...releasable(),
       rows,
@@ -93,8 +88,7 @@ export function fakeOpenCV(options: FakeOpenCVOptions = {}): FakeOpenCV {
       },
     },
     Size: {
-      create: (width: number, height: number) =>
-        track({ ...releasable(), width, height }),
+      create: (width: number, height: number) => track({ ...releasable(), width, height }),
     },
     OpenCV: {
       cvtColor(src: FakeMat, dst: FakeMat, code: unknown) {
@@ -133,13 +127,7 @@ export function fakeOpenCV(options: FakeOpenCVOptions = {}): FakeOpenCV {
           data: [options.laplacianStddev ?? 0],
         });
       },
-      threshold(
-        src: FakeMat,
-        dst: FakeMat,
-        thresh: number,
-        maxval: number,
-        type: unknown,
-      ) {
+      threshold(src: FakeMat, dst: FakeMat, thresh: number, maxval: number, type: unknown) {
         record("threshold", [thresh, maxval, type]);
         alive(src, "threshold");
         Object.assign(dst, { rows: src.rows, cols: src.cols, channels: 1 });
@@ -163,12 +151,7 @@ export function fakeOpenCV(options: FakeOpenCVOptions = {}): FakeOpenCV {
             length: keypoints.length,
             toArray: () => keypoints,
           }),
-          descriptors: mat(
-            keypoints.length,
-            cols,
-            1,
-            options.descriptors ?? new Uint8Array(keypoints.length * cols),
-          ),
+          descriptors: mat(keypoints.length, cols, 1, options.descriptors ?? new Uint8Array(keypoints.length * cols)),
         };
       },
     },

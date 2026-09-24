@@ -11,12 +11,7 @@ import { captureFileUri } from "../files/photos";
 
 export type PhotoUpload = { storageId: Id<"_storage">; photoUpdatedAt: number };
 
-function endpoint(
-  scope: string,
-  localId: string,
-  kind: CollectionPhotoKind,
-  photoId?: string,
-): string {
+function endpoint(scope: string, localId: string, kind: CollectionPhotoKind, photoId?: string): string {
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
   if (!site) throw new Error("EXPO_PUBLIC_CONVEX_SITE_URL is not configured");
   const url = new URL("/collection-photo", site);
@@ -45,11 +40,7 @@ export async function uploadCollectionPhoto(
   try {
     if (Math.max(source.width, source.height) > longSide) {
       rendered = await resize
-        .resize(
-          source.width >= source.height
-            ? { width: longSide }
-            : { height: longSide },
-        )
+        .resize(source.width >= source.height ? { width: longSide } : { height: longSide })
         .renderAsync();
     }
     // Re-encoding the rendered image omits the original camera and location metadata.
@@ -62,19 +53,16 @@ export async function uploadCollectionPhoto(
       throw new Error("Photo exceeds the upload limit");
     }
     if (!isCurrent()) throw new Error("Photo upload cancelled");
-    const response = await file.upload(
-      endpoint(scope, localId, kind, photoId),
-      {
-        httpMethod: "POST",
-        uploadType: UploadType.BINARY_CONTENT,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "image/jpeg",
-          "X-Photo-Width": String(rendered.width),
-          "X-Photo-Height": String(rendered.height),
-        },
+    const response = await file.upload(endpoint(scope, localId, kind, photoId), {
+      httpMethod: "POST",
+      uploadType: UploadType.BINARY_CONTENT,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "image/jpeg",
+        "X-Photo-Width": String(rendered.width),
+        "X-Photo-Height": String(rendered.height),
       },
-    );
+    });
     if (response.status !== 200) {
       throw new Error(`Photo upload failed with HTTP ${response.status}`);
     }
@@ -103,14 +91,10 @@ export async function downloadCollectionPhoto(
   const directory = new Directory(Paths.document, "collection-photos");
   directory.create({ intermediates: true, idempotent: true });
   const path = `collection-photos/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${photoId ?? kind}-${storageId}.jpg`;
-  await File.downloadFileAsync(
-    endpoint(scope, localId, kind, photoId),
-    new File(captureFileUri(path)),
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      idempotent: true,
-    },
-  );
+  await File.downloadFileAsync(endpoint(scope, localId, kind, photoId), new File(captureFileUri(path)), {
+    headers: { Authorization: `Bearer ${token}` },
+    idempotent: true,
+  });
   return path;
 }
 

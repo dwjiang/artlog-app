@@ -3,20 +3,13 @@ import { parseSeenVisits, seenVisitsKey } from "../../lib/journal/visit-seen";
 import { db } from "../client";
 import { notes, pendingScans, savedWorks, settings, visits } from "../schema";
 
-export async function claimLocalJournal(
-  source: string,
-  accountOwner: string,
-  claimId: string,
-): Promise<void> {
+export async function claimLocalJournal(source: string, accountOwner: string, claimId: string): Promise<void> {
   if (!source.startsWith("device:") || !accountOwner.startsWith("account:")) {
     throw new Error("Invalid journal claim");
   }
   db.transaction((tx) => {
     const key = `journalClaim:${source}:${claimId}`;
-    if (
-      tx.select().from(settings).where(eq(settings.key, key)).get()?.value
-      === accountOwner
-    ) {
+    if (tx.select().from(settings).where(eq(settings.key, key)).get()?.value === accountOwner) {
       return;
     }
     for (const table of [visits, savedWorks, pendingScans]) {
@@ -37,29 +30,14 @@ export async function claimLocalJournal(
         if (tx.select().from(settings).where(eq(settings.key, target)).get()) {
           throw new Error("Journal ownership collision");
         }
-        tx.update(settings)
-          .set({ key: target })
-          .where(eq(settings.key, draft.key))
-          .run();
+        tx.update(settings).set({ key: target }).where(eq(settings.key, draft.key)).run();
       }
     }
     // Composite foreign keys cascade ownership to associated saves, notes, and captures.
-    tx.update(visits)
-      .set({ owner: accountOwner })
-      .where(eq(visits.owner, source))
-      .run();
-    tx.update(savedWorks)
-      .set({ owner: accountOwner })
-      .where(eq(savedWorks.owner, source))
-      .run();
-    tx.update(notes)
-      .set({ owner: accountOwner })
-      .where(eq(notes.owner, source))
-      .run();
-    tx.update(pendingScans)
-      .set({ owner: accountOwner })
-      .where(eq(pendingScans.owner, source))
-      .run();
+    tx.update(visits).set({ owner: accountOwner }).where(eq(visits.owner, source)).run();
+    tx.update(savedWorks).set({ owner: accountOwner }).where(eq(savedWorks.owner, source)).run();
+    tx.update(notes).set({ owner: accountOwner }).where(eq(notes.owner, source)).run();
+    tx.update(pendingScans).set({ owner: accountOwner }).where(eq(pendingScans.owner, source)).run();
     // The open visit and today's hand-ended one follow the journal; an existing account value on this device wins.
     for (const preference of ["currentVisit", "endedVisit"]) {
       const current = tx
@@ -72,12 +50,7 @@ export async function claimLocalJournal(
         tx
           .select()
           .from(visits)
-          .where(
-            and(
-              eq(visits.owner, accountOwner),
-              eq(visits.localId, current.value),
-            ),
-          )
+          .where(and(eq(visits.owner, accountOwner), eq(visits.localId, current.value)))
           .get()
       ) {
         tx.insert(settings)
@@ -98,17 +71,8 @@ export async function claimLocalJournal(
       .get();
     if (seen) {
       const target = seenVisitsKey(accountOwner);
-      const existing = tx
-        .select()
-        .from(settings)
-        .where(eq(settings.key, target))
-        .get()?.value;
-      const value = JSON.stringify([
-        ...new Set([
-          ...parseSeenVisits(existing),
-          ...parseSeenVisits(seen.value),
-        ]),
-      ]);
+      const existing = tx.select().from(settings).where(eq(settings.key, target)).get()?.value;
+      const value = JSON.stringify([...new Set([...parseSeenVisits(existing), ...parseSeenVisits(seen.value)])]);
       tx.insert(settings)
         .values({ key: target, value })
         .onConflictDoUpdate({ target: settings.key, set: { value } })

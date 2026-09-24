@@ -51,10 +51,7 @@ it("leaves a miss unidentified with every candidate offered as a suggestion", ()
   const view = toResultViewState(missScan);
   expect(view.kind).toBe("unidentified");
   expect(view.primary).toBeUndefined();
-  expect(view.runnerUps.map((candidate) => candidate.objectId)).toEqual([
-    haystacks.objectId,
-    bridge.objectId,
-  ]);
+  expect(view.runnerUps.map((candidate) => candidate.objectId)).toEqual([haystacks.objectId, bridge.objectId]);
   expect(view.editable).toBe(true);
 });
 
@@ -80,9 +77,7 @@ it("keeps the primary while a rejection is unresolved and only hides it from the
 });
 
 it("ignores a chosen id that is not among the candidates", () => {
-  expect(
-    toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never }),
-  ).toMatchObject({
+  expect(toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never })).toMatchObject({
     kind: "soft",
     primary: softScan.best,
   });
@@ -105,9 +100,7 @@ it("passes unsupported and failed scans through with their errors", () => {
     kind: "failed",
     error: "scan_not_found",
   });
-  expect(
-    toResultViewState(new ConvexError({ code: "invalid_scan" })),
-  ).toMatchObject({
+  expect(toResultViewState(new ConvexError({ code: "invalid_scan" }))).toMatchObject({
     kind: "failed",
     error: "invalid_scan",
   });

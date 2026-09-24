@@ -22,9 +22,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
           <Pressable
             key={candidate.objectId}
             accessibilityRole="button"
-            accessibilityLabel={[candidate.title, candidate.artist, confidence]
-              .filter(Boolean)
-              .join(", ")}
+            accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
             onPress={() => onPick(candidate)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
           >
@@ -41,28 +39,16 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
             <View style={styles.text}>
               <ThemedText>{candidate.title}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[candidate.artist, candidate.institution]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {[candidate.artist, candidate.institution].filter(Boolean).join(" · ")}
               </ThemedText>
               {confidence && (
-                <ThemedText
-                  type="small"
-                  themeColor="textSecondary"
-                  style={styles.confidence}
-                >
+                <ThemedText type="small" themeColor="textSecondary" style={styles.confidence}>
                   {confidence}
                 </ThemedText>
               )}
-              {candidate.identityStatus === "tentative" && (
-                <TentativeOriginNotice />
-              )}
+              {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
             </View>
-            <Image
-              source="sf:chevron.right"
-              tintColor={Gallery.muted}
-              style={{ width: 12, height: 12 }}
-            />
+            <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
           </Pressable>
         );
       })}

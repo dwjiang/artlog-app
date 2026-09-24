@@ -1,9 +1,5 @@
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
-import {
-  ListeningController,
-  type AudioHandle,
-  type Playback,
-} from "./listening-controller";
+import { ListeningController, type AudioHandle, type Playback } from "./listening-controller";
 import { trackKey, type ListeningTrack } from "./narration";
 
 const track = (id: string): ListeningTrack => ({
@@ -25,10 +21,7 @@ class Player implements AudioHandle {
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
   seekTo = jest.fn(async () => {});
-  addListener(
-    _event: "playbackStatusUpdate",
-    callback: (value: Playback) => void,
-  ) {
+  addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
     this.callback = callback;
     return { remove: jest.fn() };
   }
@@ -93,10 +86,7 @@ it("deduplicates queued versions, reorders and removes without interrupting play
   controller.enqueue(track("b"));
   controller.enqueue(track("c"));
   controller.move(trackKey(track("c")), -1);
-  expect(controller.snapshot().queue.map((item) => item.work.title)).toEqual([
-    "c",
-    "b",
-  ]);
+  expect(controller.snapshot().queue.map((item) => item.work.title)).toEqual(["c", "b"]);
   controller.remove(trackKey(track("b")));
   expect(controller.snapshot().current?.work.title).toBe("a");
   expect(player.pause).not.toHaveBeenCalled();
@@ -224,9 +214,7 @@ it("shows the spoken transcript while retaining the original evidence for replay
   const { controller, play, deps } = setup();
   const original = track("a");
   await play(original);
-  expect(controller.snapshot().sentences).toEqual([
-    { sentence: "A spoken guide.", factIds: ["f1"] },
-  ]);
+  expect(controller.snapshot().sentences).toEqual([{ sentence: "A spoken guide.", factIds: ["f1"] }]);
   expect(controller.snapshot().current).toEqual(original);
   controller.restart();
   await Promise.resolve();

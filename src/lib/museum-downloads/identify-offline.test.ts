@@ -17,19 +17,14 @@ jest.mock("@/shared/offline/recognition", () => ({
   recognizeEntries: (...args: unknown[]) => mockRecognize(...args),
 }));
 
-const { modelVersion } = jest.requireActual<{ modelVersion: string }>(
-  "../../../shared/model/model-version.json",
-);
+const { modelVersion } = jest.requireActual<{ modelVersion: string }>("../../../shared/model/model-version.json");
 const capture = {
   vector: [1, 0],
   descriptors: new ArrayBuffer(0),
   keypoints: new ArrayBuffer(0),
   modelVersion,
 };
-const downloaded = (
-  id: string,
-  packModelVersion = modelVersion,
-): MuseumDownload => ({
+const downloaded = (id: string, packModelVersion = modelVersion): MuseumDownload => ({
   museum: { id } as never,
   status: "ready",
   completed: 1,
@@ -46,10 +41,7 @@ const entry = (objectId: string, vector: number[]) =>
     vectors: [vector],
     candidate: { object: { _id: objectId }, similarity: 0 },
   }) as unknown as MuseumEntry;
-const rankedIds = () =>
-  (mockRecognize.mock.calls[0][1] as MuseumEntry[]).map(
-    (match) => match.candidate.object._id,
-  );
+const rankedIds = () => (mockRecognize.mock.calls[0][1] as MuseumEntry[]).map((match) => match.candidate.object._id);
 
 beforeEach(() => {
   mockRead.mockReset();
@@ -87,9 +79,7 @@ it("ranks across every package built for the bundled model and skips the others"
     stale: downloaded("stale", "previous-model"),
   };
   mockRead.mockImplementation(async (pack: LocalPackage) => [
-    pack.folder === "one-v1"
-      ? entry("obj-far", [0, 1])
-      : entry("obj-near", [1, 0]),
+    pack.folder === "one-v1" ? entry("obj-far", [0, 1]) : entry("obj-near", [1, 0]),
   ]);
 
   await identifyOffline(capture);

@@ -39,10 +39,7 @@ function imageUrls(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
     if (typeof entry === "string") return [entry];
-    const url =
-      entry && typeof entry === "object"
-        ? (entry as { url?: unknown }).url
-        : undefined;
+    const url = entry && typeof entry === "object" ? (entry as { url?: unknown }).url : undefined;
     return typeof url === "string" ? [url] : [];
   });
 }
@@ -63,27 +60,20 @@ export function parseSearchResponse(json: unknown): TavilySearchResponse {
           url: row.url,
           title: typeof row.title === "string" ? row.title : "",
           content: typeof row.content === "string" ? row.content : "",
-          rawContent:
-            typeof row.raw_content === "string" ? row.raw_content : undefined,
+          rawContent: typeof row.raw_content === "string" ? row.raw_content : undefined,
           score: typeof row.score === "number" ? row.score : 0,
-          publishedDate:
-            typeof row.published_date === "string"
-              ? row.published_date
-              : undefined,
+          publishedDate: typeof row.published_date === "string" ? row.published_date : undefined,
           images: imageUrls(row.images),
         },
       ];
     }),
     credits: typeof usage?.credits === "number" ? usage.credits : undefined,
-    requestId:
-      typeof record.request_id === "string" ? record.request_id : undefined,
+    requestId: typeof record.request_id === "string" ? record.request_id : undefined,
   };
 }
 
 // Keep search cost and source scope predictable: basic depth, auto parameters off, domain filtering.
-export async function search(
-  request: TavilySearchRequest,
-): Promise<TavilySearchResponse> {
+export async function search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) throw new ConvexError({ code: "search_unconfigured" });
   const body = {

@@ -5,10 +5,7 @@ it("uses the captured token and abort signal for all four sharing operations", a
     ok: true,
     json: async () => ({ status: "success", value: null }),
   });
-  const transport = createVisitSharingTransport(
-    "https://example.convex.cloud",
-    fetcher,
-  );
+  const transport = createVisitSharingTransport("https://example.convex.cloud", fetcher);
   const context = {
     token: "captured-token",
     signal: new AbortController().signal,
@@ -24,9 +21,7 @@ it("uses the captured token and abort signal for all four sharing operations", a
   await transport.preview(args, context);
   await transport.publish(args, context);
   await transport.get({ postId: "post" }, context);
-  expect(
-    fetcher.mock.calls.map(([, options]) => JSON.parse(options.body).path),
-  ).toEqual([
+  expect(fetcher.mock.calls.map(([, options]) => JSON.parse(options.body).path)).toEqual([
     "sharedVisits:getState",
     "sharedVisits:preview",
     "sharedVisits:publish",

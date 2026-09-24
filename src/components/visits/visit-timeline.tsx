@@ -3,22 +3,12 @@ import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import { Link } from "expo-router";
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
-import {
-  countryName,
-  formatVisitDate,
-  groupHistoryByMonth,
-} from "@/lib/journal/history";
+import { countryName, formatVisitDate, groupHistoryByMonth } from "@/lib/journal/history";
 import { isVisitNew, useSeenVisits } from "@/lib/journal/visit-seen";
 import { useVenue } from "@/lib/venue/use-venue";
 import { activeVisit } from "@/lib/venue/venue-reducer";
@@ -35,11 +25,7 @@ export function VisitRow({
   isNew?: boolean;
   isOpen?: boolean;
 }) {
-  const place =
-    visit.city
-    || visit.regionName
-    || countryName(visit.country)
-    || "Location unavailable";
+  const place = visit.city || visit.regionName || countryName(visit.country) || "Location unavailable";
   const artworks = `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"}`;
   const meta = `${formatVisitDate(visit.visitedOn)} · ${place} · ${artworks}${shared ? " · Shared ✓" : ""}`;
   return (
@@ -60,11 +46,7 @@ export function VisitRow({
             <View style={styles.titleRow}>
               <Text style={styles.name}>{visit.venueName}</Text>
               <View style={styles.spacer} />
-              <VisitSymbol
-                name="chevron.right"
-                size={13}
-                color={Gallery.muted}
-              />
+              <VisitSymbol name="chevron.right" size={13} color={Gallery.muted} />
             </View>
             <Text style={styles.meta}>{meta}</Text>
           </View>
@@ -104,11 +86,7 @@ export function VisitTimeline({
     });
   }, [headerHeight, scrollResetKey]);
   const session = useSocialSession();
-  const sharing = useSocialQuery(
-    api.sharedVisits.listShared,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === "ready" ? {} : "skip", session.key);
   const shared = new Set(sharing.data);
   const seen = useSeenVisits(useLocalOwner());
   const venue = useVenue();
@@ -151,19 +129,9 @@ export function VisitTimeline({
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
       ListHeaderComponent={
-        header && (
-          <View
-            onLayout={(event) =>
-              setHeaderHeight(event.nativeEvent.layout.height)
-            }
-          >
-            {header}
-          </View>
-        )
+        header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>
       }
-      stickyHeaderIndices={
-        controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined
-      }
+      stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
       // Shorter content must still let the header scroll away without moving pinned controls.
       contentContainerStyle={{
         paddingBottom: activeVisit(venue) ? 110 : 30,
@@ -179,10 +147,7 @@ export function VisitTimeline({
         item.kind === "element" ? (
           item.element
         ) : item.kind === "month" ? (
-          <Text
-            accessibilityRole="header"
-            style={[visitStyles.eyebrow, styles.section]}
-          >
+          <Text accessibilityRole="header" style={[visitStyles.eyebrow, styles.section]}>
             {item.title}
           </Text>
         ) : (

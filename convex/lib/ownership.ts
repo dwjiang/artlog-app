@@ -1,19 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
-import {
-  type JournalOwner,
-  ownerKey,
-  sameOwner,
-} from "../../shared/journal/contracts";
+import { type JournalOwner, ownerKey, sameOwner } from "../../shared/journal/contracts";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import { findDeviceForUser, requireDevice } from "./auth";
 
 type ReadCtx = QueryCtx | MutationCtx;
-export async function ownerForDevice(
-  ctx: ReadCtx,
-  device: Doc<"devices">,
-): Promise<JournalOwner> {
+export async function ownerForDevice(ctx: ReadCtx, device: Doc<"devices">): Promise<JournalOwner> {
   if (device.accountId && (await ctx.db.get(device.accountId))) {
     return { kind: "account", accountId: device.accountId };
   }
@@ -29,10 +22,7 @@ export async function resolveOwner(ctx: ReadCtx, scope?: string) {
   }
   return { device, owner, scope: deviceScope(device, owner) };
 }
-export async function requireClaimComplete(
-  ctx: ReadCtx,
-  deviceId: Id<"devices">,
-): Promise<void> {
+export async function requireClaimComplete(ctx: ReadCtx, deviceId: Id<"devices">): Promise<void> {
   const claim = await ctx.db
     .query("journalClaims")
     .withIndex("by_deviceId", (q) => q.eq("deviceId", deviceId))
@@ -66,84 +56,49 @@ export async function requireProfile(ctx: ReadCtx) {
 }
 export async function activeProfile(ctx: ReadCtx, profileId: Id<"profiles">) {
   const profile = await ctx.db.get(profileId);
-  return profile?.active
-    && !profile.removal
-    && (await ctx.db.get(profile.accountId))
-    ? profile
-    : null;
+  return profile?.active && !profile.removal && (await ctx.db.get(profile.accountId)) ? profile : null;
 }
-export function findOwnedVisit(
-  ctx: ReadCtx,
-  owner: JournalOwner,
-  localId: string,
-) {
+export function findOwnedVisit(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   return ctx.db
     .query("visits")
-    .withIndex("by_owner_localId", (q) =>
-      q.eq("owner", owner).eq("localId", localId),
-    )
+    .withIndex("by_owner_localId", (q) => q.eq("owner", owner).eq("localId", localId))
     .unique();
 }
-export function findOwnedSave(
-  ctx: ReadCtx,
-  owner: JournalOwner,
-  localId: string,
-) {
+export function findOwnedSave(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   return ctx.db
     .query("collections")
-    .withIndex("by_owner_localId", (q) =>
-      q.eq("owner", owner).eq("localId", localId),
-    )
+    .withIndex("by_owner_localId", (q) => q.eq("owner", owner).eq("localId", localId))
     .unique();
 }
-export async function requireOwnedVisit(
-  ctx: ReadCtx,
-  owner: JournalOwner,
-  id: Id<"visits">,
-) {
+export async function requireOwnedVisit(ctx: ReadCtx, owner: JournalOwner, id: Id<"visits">) {
   const visit = await ctx.db.get(id);
   if (!visit || !sameOwner(visit.owner, owner)) {
     throw new ConvexError({ code: "not_found" });
   }
   return visit;
 }
-export async function requireOwnedSave(
-  ctx: ReadCtx,
-  owner: JournalOwner,
-  localId: string,
-) {
+export async function requireOwnedSave(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   const save = await findOwnedSave(ctx, owner, localId);
   if (!save || save.deletedAt !== undefined) {
     throw new ConvexError({ code: "not_found" });
   }
   return save;
 }
-export async function requireMembership(
-  ctx: ReadCtx,
-  save: Doc<"collections">,
-  visit: Doc<"visits">,
-): Promise<void> {
+export async function requireMembership(ctx: ReadCtx, save: Doc<"collections">, visit: Doc<"visits">): Promise<void> {
   if (!sameOwner(save.owner, visit.owner)) {
     throw new ConvexError({ code: "not_found" });
   }
   const encounter = await ctx.db
     .query("artworkEncounters")
-    .withIndex("by_save_visit", (q) =>
-      q.eq("saveId", save._id).eq("visitId", visit._id),
-    )
+    .withIndex("by_save_visit", (q) => q.eq("saveId", save._id).eq("visitId", visit._id))
     .unique();
   if (
-    encounter
-      ? encounter.deletedAt !== undefined
-      : save.visitId !== visit._id || save.visitLocalId !== visit.localId
+    encounter ? encounter.deletedAt !== undefined : save.visitId !== visit._id || save.visitLocalId !== visit.localId
   ) {
     throw new ConvexError({ code: "not_found" });
   }
 }
-export async function nextChangeVersion(
-  ctx: MutationCtx,
-  owner: JournalOwner,
-): Promise<number> {
+export async function nextChangeVersion(ctx: MutationCtx, owner: JournalOwner): Promise<number> {
   const state = await ctx.db
     .query("journalSyncState")
     .withIndex("by_owner", (q) => q.eq("owner", owner))

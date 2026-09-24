@@ -10,16 +10,12 @@ describe("venue table publication", () => {
     expect(await t.query(api.venueTable.latest)).toBeNull();
     expect(requestUpload.isInternal).toBe(true);
     expect(publish.isInternal).toBe(true);
-    expect(await t.mutation(internal.venueTable.requestUpload)).toEqual(
-      expect.any(String),
-    );
+    expect(await t.mutation(internal.venueTable.requestUpload)).toEqual(expect.any(String));
   });
 
   it("returns the greatest version even if an older table is published later", async () => {
     const t = harness();
-    const storageId = await t.run((ctx) =>
-      ctx.storage.store(new Blob(["SQLite fixture"])),
-    );
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["SQLite fixture"])));
     await t.mutation(internal.venueTable.publish, {
       storageId,
       rowCount: 42,
@@ -40,18 +36,14 @@ describe("venue table publication", () => {
 
   it("retries a publication idempotently and rejects conflicting reuse of a version", async () => {
     const t = harness();
-    const storageId = await t.run((ctx) =>
-      ctx.storage.store(new Blob(["SQLite fixture"])),
-    );
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["SQLite fixture"])));
     const args = { storageId, rowCount: 42, version: 200 };
     const id = await t.mutation(internal.venueTable.publish, args);
     expect(await t.mutation(internal.venueTable.publish, args)).toBe(id);
-    await expect(
-      t.mutation(internal.venueTable.publish, { ...args, rowCount: 43 }),
-    ).rejects.toThrow("already describes another asset");
-    expect(
-      await t.run((ctx) => ctx.db.query("venueTables").take(2)),
-    ).toHaveLength(1);
+    await expect(t.mutation(internal.venueTable.publish, { ...args, rowCount: 43 })).rejects.toThrow(
+      "already describes another asset",
+    );
+    expect(await t.run((ctx) => ctx.db.query("venueTables").take(2))).toHaveLength(1);
   });
 
   it.each([
@@ -62,20 +54,14 @@ describe("venue table publication", () => {
     { rowCount: 1, version: 1.5 },
   ])("rejects invalid metadata %j", async (metadata) => {
     const t = harness();
-    const storageId = await t.run((ctx) =>
-      ctx.storage.store(new Blob(["SQLite fixture"])),
-    );
-    await expect(
-      t.mutation(internal.venueTable.publish, { storageId, ...metadata }),
-    ).rejects.toThrow();
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["SQLite fixture"])));
+    await expect(t.mutation(internal.venueTable.publish, { storageId, ...metadata })).rejects.toThrow();
     expect(await t.query(api.venueTable.latest)).toBeNull();
   });
 
   it("rejects a missing upload and returns no broken download URL after deletion", async () => {
     const t = harness();
-    const storageId = await t.run((ctx) =>
-      ctx.storage.store(new Blob(["SQLite fixture"])),
-    );
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["SQLite fixture"])));
     await t.mutation(internal.venueTable.publish, {
       storageId,
       rowCount: 42,

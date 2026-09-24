@@ -1,13 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { internal } from "./_generated/api";
 import { feedbackChanged } from "./feedbackReplay";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  seedScan,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 import model from "../shared/model/model-version.json";
 
@@ -119,9 +113,7 @@ it("restarts a partial replay when new feedback arrives", async () => {
   const t = harness();
   const device = await seedDevice(t);
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scanId = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: device.deviceId }),
-  );
+  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: device.deviceId }));
   const add = (count: number) =>
     t.run(async (ctx) => {
       for (let i = 0; i < count; i++) {
@@ -136,9 +128,7 @@ it("restarts a partial replay when new feedback arrives", async () => {
       await feedbackChanged(ctx, work.objectId);
     });
   await add(75);
-  const job = (await t.run((ctx) =>
-    ctx.db.query("feedbackRebuilds").unique(),
-  ))!;
+  const job = (await t.run((ctx) => ctx.db.query("feedbackRebuilds").unique()))!;
   await t.mutation(internal.feedbackReplay.rebuildPage, { jobId: job._id });
   await add(1);
   await t.finishAllScheduledFunctions(vi.runAllTimers);

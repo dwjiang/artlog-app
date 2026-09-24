@@ -16,8 +16,7 @@ const committed = new Map<string, RemovedWork>();
 let hidden: RemovedWork[] = [];
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const listeners = new Set<() => void>();
-const key = (item: Pick<Removal, "owner" | "localId">) =>
-  `${item.owner}:${item.localId}`;
+const key = (item: Pick<Removal, "owner" | "localId">) => `${item.owner}:${item.localId}`;
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
@@ -25,16 +24,11 @@ function subscribe(listener: () => void) {
   };
 }
 function emit() {
-  hidden = [
-    ...committed.values(),
-    ...pending.filter((item) => item.status !== "failed"),
-  ];
+  hidden = [...committed.values(), ...pending.filter((item) => item.status !== "failed")];
   for (const listener of listeners) listener();
 }
 function update(item: Removal, status: Removal["status"]) {
-  pending = pending.map((row) =>
-    key(row) === key(item) ? { ...row, status } : row,
-  );
+  pending = pending.map((row) => (key(row) === key(item) ? { ...row, status } : row));
   emit();
 }
 export function undoRemoval(item: Pick<Removal, "owner" | "localId">) {

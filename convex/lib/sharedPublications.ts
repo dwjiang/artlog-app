@@ -2,13 +2,7 @@ import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import type { IndexRange, NamedTableInfo, Query } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 import { pagination, type JournalOwner } from "../../shared/journal/contracts";
-import {
-  isCalendarDate,
-  isRevision,
-  isUuid,
-  LIMITS,
-  utf8Bytes,
-} from "../../shared/journal/limits";
+import { isCalendarDate, isRevision, isUuid, LIMITS, utf8Bytes } from "../../shared/journal/limits";
 import {
   visitAudience,
   publicProfile,
@@ -19,11 +13,7 @@ import {
 } from "../../shared/social/contracts";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import {
-  findOwnedVisit,
-  requireMembership,
-  requireOwnedSave,
-} from "./ownership";
+import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
 import { projectProfile, projectSharedVisitCard } from "./projections";
 import { resolveDisplayAsset } from "./displayMedia";
 
@@ -69,28 +59,15 @@ export const SAVE_READ_RESERVE = 1.1 * 1024 * 1024;
 
 export async function readHeadroom(ctx: QueryCtx, reserve = 6 * 1024 * 1024) {
   const metrics = await ctx.meta.getTransactionMetrics();
-  return (
-    metrics.bytesRead.remaining > reserve
-    && metrics.databaseQueries.remaining > 100
-  );
+  return metrics.bytesRead.remaining > reserve && metrics.databaseQueries.remaining > 100;
 }
-export function publicationForVisit(
-  ctx: QueryCtx,
-  profileId: Id<"profiles">,
-  visitLocalId: string,
-) {
+export function publicationForVisit(ctx: QueryCtx, profileId: Id<"profiles">, visitLocalId: string) {
   return ctx.db
     .query("sharedVisits")
-    .withIndex("by_profile_visit", (q) =>
-      q.eq("profileId", profileId).eq("visitLocalId", visitLocalId),
-    )
+    .withIndex("by_profile_visit", (q) => q.eq("profileId", profileId).eq("visitLocalId", visitLocalId))
     .unique();
 }
-export async function ownedVisit(
-  ctx: QueryCtx,
-  owner: JournalOwner,
-  localId: string,
-) {
+export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: string) {
   if (!isUuid(localId)) throw new ConvexError({ code: "not_found" });
   const visit = await findOwnedVisit(ctx, owner, localId);
   if (!visit) throw new ConvexError({ code: "not_found" });
@@ -117,24 +94,17 @@ export async function selectedSaves(
     }
     const save = await requireOwnedSave(ctx, owner, localId);
     await requireMembership(ctx, save, visit);
-    for (const id of input.photoSelections?.find(
-      (row) => row.saveLocalId === localId,
-    )?.photoLocalIds ?? []) {
+    for (const id of input.photoSelections?.find((row) => row.saveLocalId === localId)?.photoLocalIds ?? []) {
       await ownedAlbumPhoto(ctx, save, id);
     }
     saves.push(save);
   }
   return { visit, saves };
 }
-export function publicationItems(
-  ctx: QueryCtx,
-  publicationId: Id<"sharedVisits">,
-) {
+export function publicationItems(ctx: QueryCtx, publicationId: Id<"sharedVisits">) {
   return ctx.db
     .query("sharedVisitItems")
-    .withIndex("by_publication_position", (q) =>
-      q.eq("publicationId", publicationId),
-    )
+    .withIndex("by_publication_position", (q) => q.eq("publicationId", publicationId))
     .take(LIMITS.selectedSaves + 1);
 }
 export async function header(
@@ -174,9 +144,7 @@ export async function stateForPublication(
         saveLocalId: item.saveLocalId,
         photoLocalIds: item.photoLocalIds!,
       })),
-    highlightLocalIds: items
-      .filter((item) => item.highlighted)
-      .map((item) => item.saveLocalId),
+    highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId),
     postId: publication?.postId ?? null,
     status: publication?.status ?? "private",
     removed: !!publication?.removal,
@@ -198,10 +166,7 @@ function artworkCursor(publication: Doc<"sharedVisits">, position: number) {
     position,
   });
 }
-function artworkPosition(
-  publication: Doc<"sharedVisits">,
-  cursor?: string | null,
-): number {
+function artworkPosition(publication: Doc<"sharedVisits">, cursor?: string | null): number {
   if (!cursor) return -1;
   try {
     const value = JSON.parse(cursor);
@@ -234,9 +199,7 @@ export async function projectArtworkPage(
   const start = artworkPosition(publication, input.cursor);
   const items = await ctx.db
     .query("sharedVisitItems")
-    .withIndex("by_publication_position", (q) =>
-      q.eq("publicationId", publication._id).gt("position", start),
-    )
+    .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id).gt("position", start))
     .take(LIMITS.selectedSaves + 1);
   const page: Infer<typeof sharedVisitCard>[] = [];
   let position = start,
@@ -288,10 +251,7 @@ export function historyCursor(scope: string, key: HistoryKey) {
     postId: key.postId,
   });
 }
-export function parseHistoryCursor(
-  scope: string,
-  cursor?: string | null,
-): HistoryKey | null {
+export function parseHistoryCursor(scope: string, cursor?: string | null): HistoryKey | null {
   if (cursor == null) return null;
   try {
     const value = JSON.parse(cursor);
@@ -313,10 +273,7 @@ export function parseHistoryCursor(
 }
 // Every history index ends in ['visitedOn', 'postId']; a stream binds the prefix so one head query serves all of them.
 type HistoryTail = IndexRange & {
-  eq(
-    field: "visitedOn",
-    value: string,
-  ): { lt(field: "postId", value: string): IndexRange };
+  eq(field: "visitedOn", value: string): { lt(field: "postId", value: string): IndexRange };
   lt(field: "visitedOn", value: string): IndexRange;
 };
 export type HistoryStream = (
@@ -327,29 +284,20 @@ export const profileHistory =
   (bound) =>
     ctx.db
       .query("sharedVisits")
-      .withIndex("by_profile_status_history", (q) =>
-        bound(q.eq("profileId", profileId).eq("status", "active")),
-      );
+      .withIndex("by_profile_status_history", (q) => bound(q.eq("profileId", profileId).eq("status", "active")));
 export const publicHistory =
   (ctx: QueryCtx): HistoryStream =>
   (bound) =>
     ctx.db
       .query("sharedVisits")
-      .withIndex("by_audience_status_history", (q) =>
-        bound(q.eq("audience", "public").eq("status", "active")),
-      );
-export async function historyHead(
-  stream: HistoryStream,
-  before: HistoryKey | null,
-) {
+      .withIndex("by_audience_status_history", (q) => bound(q.eq("audience", "public").eq("status", "active")));
+export async function historyHead(stream: HistoryStream, before: HistoryKey | null) {
   if (!before) {
     return stream((tail) => tail)
       .order("desc")
       .first();
   }
-  const sameDate = await stream((tail) =>
-    tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId),
-  )
+  const sameDate = await stream((tail) => tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId))
     .order("desc")
     .first();
   return (
@@ -366,12 +314,7 @@ export async function projectVisitAlbum(
   save: Doc<"collections">,
   postId: string,
 ): Promise<Infer<typeof sharedVisitCard>> {
-  const card = projectSharedVisitCard(
-    item,
-    save,
-    await resolveDisplayAsset(ctx, save),
-    postId,
-  );
+  const card = projectSharedVisitCard(item, save, await resolveDisplayAsset(ctx, save), postId);
   const photos = [];
   for (const localId of item.photoLocalIds ?? []) {
     try {
@@ -388,7 +331,5 @@ export async function projectVisitAlbum(
       }
     }
   }
-  return photos.length
-    ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos }
-    : card;
+  return photos.length ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos } : card;
 }

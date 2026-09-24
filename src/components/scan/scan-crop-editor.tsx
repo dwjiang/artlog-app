@@ -5,13 +5,7 @@ import { saveEditedScanCrop } from "@/lib/capture/edit-crop";
 import { flushQueue } from "@/lib/queue/queue";
 import { CropEditor } from "./crop-editor";
 
-export function ScanCropEditor({
-  capture,
-  onCancel,
-}: {
-  capture: PendingScan;
-  onCancel: () => void;
-}) {
+export function ScanCropEditor({ capture, onCancel }: { capture: PendingScan; onCancel: () => void }) {
   const router = useRouter(),
     navigation = useNavigation();
   useEffect(() => {
@@ -25,12 +19,7 @@ export function ScanCropEditor({
         saveLabel="Use crop and identify"
         onCancel={onCancel}
         onSave={async (crop, isCurrent) => {
-          const localId = await saveEditedScanCrop(
-            capture.localId,
-            crop,
-            capture.owner,
-            isCurrent,
-          );
+          const localId = await saveEditedScanCrop(capture.localId, crop, capture.owner, isCurrent);
           if (isCurrent()) {
             router.replace({
               pathname: "/result/[scanId]",

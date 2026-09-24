@@ -27,9 +27,7 @@ it("holds the app until migrations finish", async () => {
   mockState.error = undefined;
   await renderGate();
   expect(screen.queryByText("App ready")).toBeNull();
-  expect(
-    screen.getByRole("progressbar", { name: "Opening your collection" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Opening your collection" })).toBeOnTheScreen();
   expect(screen.queryByText("Opening your collection…")).toBeNull();
 });
 
@@ -46,8 +44,5 @@ it("explains a migration failure instead of rendering the app", async () => {
   expect(screen.getByText("Could not open the local database")).toBeTruthy();
   expect(screen.getByText("disk I/O error")).toBeTruthy();
   expect(screen.queryByText("App ready")).toBeNull();
-  expect(reportError).toHaveBeenCalledWith(
-    mockState.error,
-    "database.initialize",
-  );
+  expect(reportError).toHaveBeenCalledWith(mockState.error, "database.initialize");
 });

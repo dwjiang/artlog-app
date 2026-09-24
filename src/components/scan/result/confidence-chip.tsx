@@ -15,13 +15,7 @@ export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   failed: "Identification failed",
 };
 
-export function ConfidenceChip({
-  kind,
-  style,
-}: {
-  kind: ResultKind;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function ConfidenceChip({ kind, style }: { kind: ResultKind; style?: StyleProp<ViewStyle> }) {
   const label = CONFIDENCE_LABELS[kind];
   if (!label) return null;
   const hasMatch = kind === "confident";
@@ -37,10 +31,7 @@ export function ConfidenceChip({
         style,
       ]}
     >
-      <ThemedText
-        type="smallBold"
-        style={kind === "failed" ? styles.failed : undefined}
-      >
+      <ThemedText type="smallBold" style={kind === "failed" ? styles.failed : undefined}>
         {label}
       </ThemedText>
     </View>

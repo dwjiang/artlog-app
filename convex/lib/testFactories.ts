@@ -15,12 +15,8 @@ export function testVector(similarity = 1): number[] {
   return vector;
 }
 
-export async function seedDevice(
-  t: Harness,
-): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
-  const userId = await t.run((ctx) =>
-    ctx.db.insert("users", { isAnonymous: true }),
-  );
+export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
+  const userId = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
   const sessionId = await t.run((ctx) =>
     ctx.db.insert("authSessions", {
       userId,
@@ -66,14 +62,9 @@ export async function seedArtworkWithObject(
     vector?: number[];
     modelVersion?: string;
     descriptors?: OrbFeatures;
-    placement?: Omit<
-      Doc<"placements">,
-      "_id" | "_creationTime" | "objectId" | "identityStatus"
-    >;
+    placement?: Omit<Doc<"placements">, "_id" | "_creationTime" | "objectId" | "identityStatus">;
     artwork?: Partial<Omit<Doc<"artworks">, "_id" | "_creationTime">>;
-    object?: Partial<
-      Omit<Doc<"objects">, "_id" | "_creationTime" | "artworkId">
-    >;
+    object?: Partial<Omit<Doc<"objects">, "_id" | "_creationTime" | "artworkId">>;
   } = {},
 ) {
   const key = crypto.randomUUID();
@@ -108,10 +99,7 @@ export async function seedArtworkWithObject(
     ...options.object,
   });
   const vectorId = await ctx.db.insert("vectors", {
-    partition: JSON.stringify([
-      options.modelVersion ?? model.modelVersion,
-      "established",
-    ]),
+    partition: JSON.stringify([options.modelVersion ?? model.modelVersion, "established"]),
     objectId,
     modelVersion: options.modelVersion ?? model.modelVersion,
     source: "corpus",

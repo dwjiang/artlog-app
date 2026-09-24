@@ -1,10 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 
-import {
-  addBreadcrumb,
-  sanitizeBreadcrumb,
-  sanitizeEvent,
-} from "./observability";
+import { addBreadcrumb, sanitizeBreadcrumb, sanitizeEvent } from "./observability";
 
 // Load before database/auth modules so initialization failures are captured too.
 Sentry.init({

@@ -1,11 +1,5 @@
 import { Button, Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import {
-  accessibilityLabel,
-  contentShape,
-  font,
-  frame,
-  shapes,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, contentShape, font, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
@@ -27,19 +21,10 @@ export function SettingsScreen() {
   const signIn = useAccount();
   const { account } = signIn;
   const session = useSocialSession();
-  const { data: profile } = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
-  const detail = (section: string) => () =>
-    router.push({ pathname: "/settings-detail", params: { section } });
+  const { data: profile } = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
+  const detail = (section: string) => () => router.push({ pathname: "/settings-detail", params: { section } });
   const accountName = profile?.name ?? "Your Artlog account";
-  const accountDetail = account?.linked
-    ? profile
-      ? `@${profile.username}`
-      : account.email
-    : undefined;
+  const accountDetail = account?.linked ? (profile ? `@${profile.username}` : account.email) : undefined;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
@@ -51,10 +36,7 @@ export function SettingsScreen() {
         gap: 16,
       }}
     >
-      <ThemedText
-        variant={fontScale > 1.3 ? "display" : "pageTitle"}
-        accessibilityRole="header"
-      >
+      <ThemedText variant={fontScale > 1.3 ? "display" : "pageTitle"} accessibilityRole="header">
         Settings
       </ThemedText>
       {account?.linked ? (
@@ -74,11 +56,7 @@ export function SettingsScreen() {
             }}
           >
             {profile ? (
-              <ProfileAvatar
-                name={profile.name}
-                photoUrl={profile.photoUrl}
-                size={64}
-              />
+              <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={64} />
             ) : (
               <View
                 style={{
@@ -99,10 +77,7 @@ export function SettingsScreen() {
               </View>
             )}
             <View style={{ flex: 1, gap: 4 }}>
-              <ThemedText
-                variant="section"
-                style={{ fontSize: 24, lineHeight: 28 }}
-              >
+              <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>
                 {accountName}
               </ThemedText>
               {!!accountDetail && (
@@ -141,11 +116,7 @@ export function SettingsScreen() {
               </ThemedText>
             </View>
           </View>
-          <ThemedText
-            variant="display"
-            accessibilityRole="header"
-            style={{ fontSize: 28, lineHeight: 34 }}
-          >
+          <ThemedText variant="display" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>
             Share your collection
           </ThemedText>
           <ThemedText variant="body" themeColor="textSecondary">
@@ -160,80 +131,37 @@ export function SettingsScreen() {
         </View>
       )}
       <SettingsGroup title="Your journal">
-        <SettingsRow
-          label="General"
-          icon="gearshape"
-          onPress={detail("general")}
-        />
+        <SettingsRow label="General" icon="gearshape" onPress={detail("general")} />
         <SettingsRow
           label="Museum downloads"
           icon="arrow.down.to.line"
           onPress={() => router.push("/museum-downloads")}
         />
-        <SettingsRow
-          label="Widgets"
-          icon="square.grid.2x2"
-          onPress={() => router.push("/widgets")}
-        />
-        <SettingsRow
-          label="Visits"
-          icon="chart.bar"
-          onPress={detail("visits")}
-        />
+        <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
+        <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
+        {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
         {account?.linked && (
-          <SettingsRow
-            label="Leaderboards"
-            icon="trophy"
-            onPress={detail("leaderboards")}
-          />
+          <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push("/public-notes")} />
         )}
-        {account?.linked && (
-          <SettingsRow
-            label="Public notes"
-            icon="text.bubble"
-            onPress={() => router.push("/public-notes")}
-          />
-        )}
-        <SettingsRow
-          label="Contributions"
-          icon="person.2"
-          onPress={detail("contributions")}
-        />
+        <SettingsRow label="Contributions" icon="person.2" onPress={detail("contributions")} />
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
-        <SettingsRow
-          label="About"
-          icon="info.circle"
-          onPress={detail("about")}
-        />
+        <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
       </SettingsGroup>
       <ThemedText variant="metadata" themeColor="textSecondary">
-        Artlog · Version{" "}
-        {Constants.expoConfig?.version
-          ?? Constants.nativeAppVersion
-          ?? "Unknown"}
+        Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
       </ThemedText>
       {__DEV__ && (
         <SettingsGroup title="Developer">
-          <SettingsRow
-            label="Developer tools"
-            icon="wrench.and.screwdriver"
-            onPress={detail("developer")}
-          />
+          <SettingsRow label="Developer tools" icon="wrench.and.screwdriver" onPress={detail("developer")} />
         </SettingsGroup>
       )}
     </ScrollView>
   );
 }
 
-function SettingsGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={{ gap: 8 }}>
       <ThemedText variant="section" accessibilityRole="header">
@@ -275,36 +203,17 @@ function SettingsRow({
   onPress: () => void;
 }) {
   return (
-    <Host
-      matchContents={{ vertical: true }}
-      colorScheme="light"
-      style={{ width: "100%" }}
-    >
-      <Button
-        variant="text"
-        onPress={onPress}
-        modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}
-      >
+    <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
+      <Button variant="text" onPress={onPress} modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}>
         <Row
           spacing={16}
           alignment="center"
-          modifiers={[
-            frame({ maxWidth: Infinity, minHeight: 54 }),
-            contentShape(shapes.rectangle()),
-          ]}
+          modifiers={[frame({ maxWidth: Infinity, minHeight: 54 }), contentShape(shapes.rectangle())]}
         >
-          <Icon
-            name={icon}
-            size={22}
-            color={Gallery.ink}
-            modifiers={[frame({ width: 28 })]}
-          />
+          <Icon name={icon} size={22} color={Gallery.ink} modifiers={[frame({ width: 28 })]} />
           <NativeText
             textStyle={{ color: Gallery.ink }}
-            modifiers={[
-              font({ textStyle: "body" }),
-              frame({ maxWidth: Infinity, alignment: "leading" }),
-            ]}
+            modifiers={[font({ textStyle: "body" }), frame({ maxWidth: Infinity, alignment: "leading" })]}
           >
             {label}
           </NativeText>

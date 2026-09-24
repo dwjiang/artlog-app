@@ -3,12 +3,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  type ActionCtx,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { resolveFalseRejections } from "./feedback";
 import { requireDeviceFromAction } from "./lib/auth";
 import { isEnabled } from "./lib/flags";
@@ -61,11 +56,7 @@ import {
 import { allowedVenueUrl, fetchVenuePage, venueHosts } from "./lib/venueFetch";
 import { lifespan, type WikidataEntity } from "./lib/wikidata";
 import schema from "./schema";
-import {
-  MAX_OCR_LINE_CHARS,
-  MAX_OCR_LINES,
-  type OcrLine,
-} from "../shared/label/ocr-limits";
+import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES, type OcrLine } from "../shared/label/ocr-limits";
 
 // The label read and the moderation check are each retried at most once (tokenFactory.chatJson).
 const MAX_READ_CALLS = 4;
@@ -171,15 +162,10 @@ function readFields(reading: LabelReading): LabelFields {
   const fields: LabelFields = {};
   for (const name of FIELD_NAMES) {
     const key = READING_KEYS[name];
-    const value =
-      key === "title" && reading.title
-        ? titleWithoutDate(reading.title, reading.work_date)
-        : reading[key];
+    const value = key === "title" && reading.title ? titleWithoutDate(reading.title, reading.work_date) : reading[key];
     if (typeof value !== "string" || !value.trim()) continue;
     const confidence =
-      key in reading.confidence
-        ? reading.confidence[key as keyof LabelReading["confidence"]]
-        : undefined;
+      key in reading.confidence ? reading.confidence[key as keyof LabelReading["confidence"]] : undefined;
     fields[name] = labelField(value.trim(), "ocr", confidence);
   }
   return fields;
@@ -281,10 +267,7 @@ export const readLabel = action({
         });
         return flow;
       } catch (error) {
-        if (
-          error instanceof ConvexError
-          && typeof error.data.calls === "number"
-        ) {
+        if (error instanceof ConvexError && typeof error.data.calls === "number") {
           calls += error.data.calls;
         }
         throw error;
@@ -299,11 +282,7 @@ export const readLabel = action({
     }),
 });
 
-async function searchMuseumSite(
-  ctx: ActionCtx,
-  hosts: string[],
-  pair: TavilyPair,
-): Promise<TavilyEvidence | null> {
+async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPair): Promise<TavilyEvidence | null> {
   const response = await searchWithCredit(ctx, {
     query: `"${pair.title.replace(/"/g, "")}" ${pair.artist}`,
     includeDomains: hosts,
@@ -334,17 +313,12 @@ export async function moderateVerifiedFields(
 ): Promise<"clear" | "flagged"> {
   if (
     stored?.moderation === "clear"
-    && FIELD_NAMES.every(
-      (name) => fields[name]?.value === stored.fields[name]?.value,
-    )
+    && FIELD_NAMES.every((name) => fields[name]?.value === stored.fields[name]?.value)
   ) {
     return "clear";
   }
   const values = FIELD_NAMES.map((name) => fields[name]?.value);
-  const reserved =
-    process.env.MODERATION_MODEL && values.some(Boolean)
-      ? MAX_MODERATION_CALLS
-      : 0;
+  const reserved = process.env.MODERATION_MODEL && values.some(Boolean) ? MAX_MODERATION_CALLS : 0;
   const day = reserved
     ? await ctx.runMutation(internal.spend.reserve, {
         kind: "tokenFactory",
@@ -380,8 +354,7 @@ export const verifyLabel = action({
       const { device, scan, venue } = await start(ctx, args.scanId);
       const stored = scan.labelFlow;
       const input: LabelInput = trimInput(args.fields);
-      const unchanged = (name: LabelFieldName) =>
-        stored?.fields[name]?.value === input[name];
+      const unchanged = (name: LabelFieldName) => stored?.fields[name]?.value === input[name];
       const pairUnchanged = unchanged("title") && unchanged("artist");
       const objectUnchanged = pairUnchanged && unchanged("accession");
       const retained = (name: LabelFieldName) => {
@@ -390,11 +363,7 @@ export const verifyLabel = action({
           return undefined;
         }
         // Wikidata identifies a named work; museum and image evidence also binds its accession.
-        return (
-          previous.evidence === "wikidata" ? pairUnchanged : objectUnchanged
-        )
-          ? previous
-          : undefined;
+        return (previous.evidence === "wikidata" ? pairUnchanged : objectUnchanged) ? previous : undefined;
       };
       if (
         args.imageCheck
@@ -421,35 +390,23 @@ export const verifyLabel = action({
         const value = input[name];
         if (value === undefined) continue;
         const previous = unchanged(name) ? stored?.fields[name] : undefined;
-        fields[name] =
-          retained(name) ?? labelField(value, "ocr", previous?.confidence);
+        fields[name] = retained(name) ?? labelField(value, "ocr", previous?.confidence);
       }
-      const museum = (name: LabelFieldName) =>
-        fields[name] !== undefined
-        && MUSEUM_EVIDENCE.has(fields[name].evidence);
+      const museum = (name: LabelFieldName) => fields[name] !== undefined && MUSEUM_EVIDENCE.has(fields[name].evidence);
       const verified = (name: LabelFieldName) =>
-        fields[name] !== undefined
-        && LOCKING_EVIDENCE.has(fields[name].evidence);
+        fields[name] !== undefined && LOCKING_EVIDENCE.has(fields[name].evidence);
       let sourceUrl = objectUnchanged ? stored?.sourceUrl : undefined;
-      let identityImageUrl = objectUnchanged
-        ? stored?.identityImageUrl
-        : undefined;
+      let identityImageUrl = objectUnchanged ? stored?.identityImageUrl : undefined;
       let wikidataId = pairUnchanged ? stored?.wikidataId : undefined;
       let imageUrls = objectUnchanged ? stored?.imageUrls : undefined;
 
-      const accession = venue
-        ? await verifyAccession(venue, hosts, input)
-        : null;
+      const accession = venue ? await verifyAccession(venue, hosts, input) : null;
       if (accession) {
         for (const name of ["title", "accession"] as const) {
           const field = fields[name];
           if (field) fields[name] = withEvidence(field, "accession");
         }
-        if (
-          fields.artist
-          && accession.fields.artist
-          && personMatches(fields.artist.value, accession.fields.artist)
-        ) {
+        if (fields.artist && accession.fields.artist && personMatches(fields.artist.value, accession.fields.artist)) {
           fields.artist = withEvidence(fields.artist, "accession");
         }
         for (const name of FIELD_NAMES) {
@@ -466,17 +423,11 @@ export const verifyLabel = action({
       let countryMatch: boolean | undefined;
       // A title/artist pair cannot bind a Wikidata ID to the specific museum object, even if its names agree.
       const museumIdentity =
-        museum("title")
-        || museum("artist")
-        || museum("accession")
-        || identityImageUrl !== undefined;
+        museum("title") || museum("artist") || museum("accession") || identityImageUrl !== undefined;
       if (museumIdentity) wikidataId = undefined;
       if (input.artist) {
         try {
-          const pair =
-            input.title && !museumIdentity
-              ? await findWikidataPainting(input.title, input.artist)
-              : null;
+          const pair = input.title && !museumIdentity ? await findWikidataPainting(input.title, input.artist) : null;
           if (pair) {
             wikidataId = pair.paintingId;
             for (const name of ["title", "artist"] as const) {
@@ -490,20 +441,12 @@ export const verifyLabel = action({
           if (artist) countryMatch = await venueCountryMatch(artist, venue);
         } catch (error) {
           await reportBackendError(error, "label.wikidata");
-          console.warn(
-            "Wikidata unavailable; skipping the plausibility checks",
-            error,
-          );
+          console.warn("Wikidata unavailable; skipping the plausibility checks", error);
           artist = undefined;
         }
       }
 
-      if (
-        input.title
-        && input.artist
-        && hosts.length
-        && !(verified("title") && verified("artist"))
-      ) {
+      if (input.title && input.artist && hosts.length && !(verified("title") && verified("artist"))) {
         const evidence = await searchMuseumSite(ctx, hosts, {
           title: input.title,
           artist: input.artist,
@@ -531,19 +474,10 @@ export const verifyLabel = action({
               date: input.date,
               venueCountryMatch: countryMatch,
             });
-      if (
-        warnings.includes("artist_not_found")
-        && fields.artist
-        && !museum("artist")
-        && !retained("artist")
-      ) {
+      if (warnings.includes("artist_not_found") && fields.artist && !museum("artist") && !retained("artist")) {
         fields.artist = withEvidence(fields.artist, "weak");
       }
-      if (
-        warnings.includes("date_outside_lifespan")
-        && fields.date
-        && !museum("date")
-      ) {
+      if (warnings.includes("date_outside_lifespan") && fields.date && !museum("date")) {
         fields.date = withEvidence(fields.date, "weak");
       }
 

@@ -4,12 +4,7 @@ import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { query } from "./_generated/server";
 import { requireDevice } from "./lib/auth";
 import { renderedNarration } from "./lib/narrationCache";
-import {
-  docentSentence,
-  factChip,
-  rightsStatus,
-  type FactSheetEntry,
-} from "./lib/validators";
+import { docentSentence, factChip, rightsStatus, type FactSheetEntry } from "./lib/validators";
 
 const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
   id,
@@ -59,15 +54,9 @@ export const enrichment = query({
     return {
       docent: artwork.docent?.en,
       factSheet: artwork.factSheet?.map(chip),
-      narrationFacts: narrationFacts.length
-        ? narrationFacts.map(chip)
-        : undefined,
-      narrationResearchUpdatedAt: narrationFacts.length
-        ? artwork.factSheetUpdatedAt
-        : undefined,
-      narrationRenderId: narrationFacts.length
-        ? (await renderedNarration(ctx, artwork))?.renderId
-        : undefined,
+      narrationFacts: narrationFacts.length ? narrationFacts.map(chip) : undefined,
+      narrationResearchUpdatedAt: narrationFacts.length ? artwork.factSheetUpdatedAt : undefined,
+      narrationRenderId: narrationFacts.length ? (await renderedNarration(ctx, artwork))?.renderId : undefined,
       narrationOpening: guideOpening(artwork),
       rightsStatus: artwork.rightsStatus,
       thumbnailUrl,

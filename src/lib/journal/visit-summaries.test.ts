@@ -1,12 +1,6 @@
 import type { ArtworkEncounter, Visit, SavedWork } from "@/db/schema";
 import type { VenueRow } from "../venue/resolve";
-import {
-  mappedMuseums,
-  searchVisitSummaries,
-  visitCounts,
-  visitSummaries,
-  visitsAtPlace,
-} from "./visit-summaries";
+import { mappedMuseums, searchVisitSummaries, visitCounts, visitSummaries, visitsAtPlace } from "./visit-summaries";
 import { groupHistoryByMonth } from "./history";
 const visit = (localId: string, visitedOn: string, venueId = "museum"): Visit =>
   ({
@@ -19,11 +13,7 @@ const visit = (localId: string, visitedOn: string, venueId = "museum"): Visit =>
     reflection: "private",
     revision: 0,
   }) as Visit;
-const work = (
-  localId: string,
-  visitLocalId: string | null,
-  extra = {},
-): SavedWork =>
+const work = (localId: string, visitLocalId: string | null, extra = {}): SavedWork =>
   ({
     owner: "a",
     localId,
@@ -49,11 +39,7 @@ const metadata = new Map<string, VenueRow>([
 ]);
 const summaries = () =>
   visitSummaries(
-    [
-      visit("old", "2024-01-01"),
-      visit("repeat", "2024-02-29"),
-      visit("new", "2024-02-29", "unmapped"),
-    ],
+    [visit("old", "2024-01-01"), visit("repeat", "2024-02-29"), visit("new", "2024-02-29", "unmapped")],
     [
       work("painting", "old"),
       work("import", null),
@@ -75,42 +61,31 @@ it("sorts repeat and empty visits newest first and groups calendar months", () =
   const rows = summaries();
   expect(rows.map((row) => row.localId)).toEqual(["repeat", "new", "old"]);
   expect(rows.map((row) => row.works.length)).toEqual([0, 0, 1]);
-  expect(groupHistoryByMonth(rows).map((group) => group.title)).toEqual([
-    "February 2024",
-    "January 2024",
-  ]);
+  expect(groupHistoryByMonth(rows).map((group) => group.title)).toEqual(["February 2024", "January 2024"]);
   expect(visitCounts(rows)).toEqual({ museums: 2, visits: 3 });
 });
 it("searches museum, country, place, date, and saved art while retaining whole visits", () => {
   for (const query of ["orsay", "France", "Paris", "2024-01-01", "Monet"]) {
-    expect(
-      searchVisitSummaries(summaries(), query).map((row) => row.localId),
-    ).toContain("old");
+    expect(searchVisitSummaries(summaries(), query).map((row) => row.localId)).toContain("old");
   }
   expect(searchVisitSummaries(summaries(), "Monet")).toHaveLength(1);
   expect(searchVisitSummaries(summaries(), "private")).toEqual([]);
   expect(searchVisitSummaries(summaries(), "x")).toEqual([]);
 });
 it("maps each museum once and keeps unmapped visits in the timeline", () => {
-  expect(mappedMuseums(summaries()).map((row) => row.localId)).toEqual([
-    "repeat",
-  ]);
+  expect(mappedMuseums(summaries()).map((row) => row.localId)).toEqual(["repeat"]);
   expect(visitsAtPlace(summaries(), "paris")).toHaveLength(2);
   expect(summaries()).toHaveLength(3);
 });
 it("never includes another owner’s visits", () => {
-  expect(
-    visitSummaries([visit("secret", "2024-01-01")], [], metadata, "b"),
-  ).toEqual([]);
+  expect(visitSummaries([visit("secret", "2024-01-01")], [], metadata, "b")).toEqual([]);
 });
 
 it("uses bundled region labels when a museum has no city metadata", () => {
   const rows = visitSummaries(
     [visit("one", "2024-01-01")],
     [],
-    new Map([
-      ["museum", { region: "new-york", lat: 40, lng: -73 } as VenueRow],
-    ]),
+    new Map([["museum", { region: "new-york", lat: 40, lng: -73 } as VenueRow]]),
     "a",
   );
   expect(rows[0].location).toBe("New York, United States");

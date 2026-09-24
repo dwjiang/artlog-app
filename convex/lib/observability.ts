@@ -93,11 +93,7 @@ const TIMEOUT_MS = 1500;
 let cached: { dsn: string; transport: Transport } | undefined;
 
 function errorData(error: unknown): { code?: string; reason?: string } {
-  if (
-    !(error instanceof ConvexError)
-    || !error.data
-    || typeof error.data !== "object"
-  ) {
+  if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") {
     return {};
   }
   const { code, reason } = error.data as Record<string, unknown>;
@@ -108,12 +104,7 @@ function errorData(error: unknown): { code?: string; reason?: string } {
 }
 
 function frames(error: unknown) {
-  const stack =
-    error instanceof Error
-      ? error.stack
-      : typeof error === "string"
-        ? error
-        : undefined;
+  const stack = error instanceof Error ? error.stack : typeof error === "string" ? error : undefined;
   return parseStack(stack ?? "")
     .flatMap((frame) => {
       const path =
@@ -138,57 +129,45 @@ function transportFor(dsn: string): Transport | undefined {
   const parsed = makeDsn(dsn);
   if (!parsed || parsed.protocol !== "https") return;
   const url = getEnvelopeEndpointWithUrlEncodedAuth(parsed);
-  const transport = createTransport(
-    { recordDroppedEvent: () => {}, bufferSize: 10 },
-    async ({ body }) => {
-      const controller = new AbortController();
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const response = await Promise.race([
-          fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-sentry-envelope" },
-            body:
-              typeof body === "string" ? body : new TextDecoder().decode(body),
-            signal: controller.signal,
-          }),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => {
-              controller.abort();
-              reject(new Error("Sentry timeout"));
-            }, TIMEOUT_MS);
-          }),
-        ]);
-        return {
-          statusCode: response.status,
-          headers: {
-            "x-sentry-rate-limits": response.headers.get(
-              "x-sentry-rate-limits",
-            ),
-            "retry-after": response.headers.get("retry-after"),
-          },
-        };
-      } finally {
-        clearTimeout(timer);
-      }
-    },
-  );
+  const transport = createTransport({ recordDroppedEvent: () => {}, bufferSize: 10 }, async ({ body }) => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const response = await Promise.race([
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-sentry-envelope" },
+          body: typeof body === "string" ? body : new TextDecoder().decode(body),
+          signal: controller.signal,
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error("Sentry timeout"));
+          }, TIMEOUT_MS);
+        }),
+      ]);
+      return {
+        statusCode: response.status,
+        headers: {
+          "x-sentry-rate-limits": response.headers.get("x-sentry-rate-limits"),
+          "retry-after": response.headers.get("retry-after"),
+        },
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  });
   cached = { dsn, transport };
   return transport;
 }
 
-export async function reportBackendError(
-  error: unknown,
-  operation: string,
-): Promise<string | null> {
+export async function reportBackendError(error: unknown, operation: string): Promise<string | null> {
   try {
     const dsn = process.env.SENTRY_DSN;
     if (!dsn) return null;
     const { code, reason } = errorData(error);
-    if (
-      (code && expectedCodes.has(code))
-      || (error instanceof Error && error.name === "AbortError")
-    ) {
+    if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
       return null;
     }
     const transport = transportFor(dsn);
@@ -196,10 +175,7 @@ export async function reportBackendError(
     const eventId = crypto.randomUUID().replaceAll("-", "");
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
-      reason
-      && /^(http_[45]\d\d|bad_response|truncated|timeout|network|invalid_output)$/.test(
-        reason,
-      )
+      reason && /^(http_[45]\d\d|bad_response|truncated|timeout|network|invalid_output)$/.test(reason)
         ? reason
         : undefined;
     // Error messages, ConvexError.data, arguments and SDK global scopes can contain user content.
@@ -219,10 +195,7 @@ export async function reportBackendError(
       exception: {
         values: [
           {
-            type:
-              error instanceof Error && errorTypes.has(error.name)
-                ? error.name
-                : "Error",
+            type: error instanceof Error && errorTypes.has(error.name) ? error.name : "Error",
             value: safeCode ?? "Backend operation failed",
             stacktrace: { frames: frames(error) },
           },
@@ -230,23 +203,14 @@ export async function reportBackendError(
       },
       fingerprint: ["convex", operation, safeCode ?? "{{ default }}"],
     };
-    const result = await transport.send(
-      createEnvelope({ event_id: eventId }, [[{ type: "event" }, event]]),
-    );
-    return result.statusCode
-      && result.statusCode >= 200
-      && result.statusCode < 300
-      ? eventId
-      : null;
+    const result = await transport.send(createEnvelope({ event_id: eventId }, [[{ type: "event" }, event]]));
+    return result.statusCode && result.statusCode >= 200 && result.statusCode < 300 ? eventId : null;
   } catch {
     return null;
   }
 }
 
-export async function withErrorReporting<T>(
-  operation: string,
-  run: () => Promise<T>,
-): Promise<T> {
+export async function withErrorReporting<T>(operation: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {

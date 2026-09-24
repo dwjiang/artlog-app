@@ -8,10 +8,7 @@ export const unstable_settings = {
 export default function ScanLayout() {
   return (
     <Stack screenOptions={NavigationTheme}>
-      <Stack.Screen
-        name="scan"
-        options={{ title: "Scan", headerShown: false }}
-      />
+      <Stack.Screen name="scan" options={{ title: "Scan", headerShown: false }} />
     </Stack>
   );
 }

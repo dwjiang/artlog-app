@@ -1,28 +1,14 @@
 import { ConvexError, type Infer } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
-import type {
-  displayMediaContext,
-  displayMedia,
-} from "../../shared/social/contracts";
+import type { displayMediaContext, displayMedia } from "../../shared/social/contracts";
 
-export async function ownedAlbumPhoto(
-  ctx: QueryCtx,
-  save: Doc<"collections">,
-  localId: string,
-) {
+export async function ownedAlbumPhoto(ctx: QueryCtx, save: Doc<"collections">, localId: string) {
   const photo = await ctx.db
     .query("artworkPhotos")
-    .withIndex("by_owner_localId", (q) =>
-      q.eq("owner", save.owner).eq("localId", localId),
-    )
+    .withIndex("by_owner_localId", (q) => q.eq("owner", save.owner).eq("localId", localId))
     .unique();
-  if (
-    !photo
-    || photo.saveId !== save._id
-    || photo.deletedAt !== undefined
-    || save.deletedAt !== undefined
-  ) {
+  if (!photo || photo.saveId !== save._id || photo.deletedAt !== undefined || save.deletedAt !== undefined) {
     throw new ConvexError({ code: "not_found" });
   }
   return photo;
@@ -42,15 +28,10 @@ export async function selectedPhotoMedia(
   };
 }
 
-export async function invalidateAlbumPhoto(
-  ctx: MutationCtx,
-  photo: Doc<"artworkPhotos">,
-) {
+export async function invalidateAlbumPhoto(ctx: MutationCtx, photo: Doc<"artworkPhotos">) {
   const items = await ctx.db
     .query("wallItems")
-    .withIndex("by_save_active", (q) =>
-      q.eq("saveId", photo.saveId).eq("active", true),
-    )
+    .withIndex("by_save_active", (q) => q.eq("saveId", photo.saveId).eq("active", true))
     .take(101);
   for (const item of items) {
     if (item.active && item.photoLocalId === photo.localId) {

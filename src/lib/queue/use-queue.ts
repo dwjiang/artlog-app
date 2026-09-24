@@ -20,10 +20,7 @@ export type QueueState = {
 /** Pending counts unfinished requests; items keep every unsaved capture available to resume. */
 export function useQueue(): QueueState {
   const owner = useLocalOwner();
-  const [albumRevision, refreshAlbum] = useReducer(
-    (revision: number) => revision + 1,
-    0,
-  );
+  const [albumRevision, refreshAlbum] = useReducer((revision: number) => revision + 1, 0);
   useEffect(() => {
     // Drizzle observes only the base table; saving changes the joined album table.
     const subscription = addDatabaseChangeListener(({ tableName }) => {
@@ -31,19 +28,13 @@ export function useQueue(): QueueState {
     });
     return () => subscription.remove();
   }, []);
-  const {
-    data: rows,
-    updatedAt,
-    error,
-  } = useLiveQuery(pendingScansQuery(owner), [owner, albumRevision]);
+  const { data: rows, updatedAt, error } = useLiveQuery(pendingScansQuery(owner), [owner, albumRevision]);
   useEffect(() => {
     if (error) reportError(error, "queue.load");
   }, [error]);
   const data = rows.filter((row) => row.owner === owner);
   return {
-    pending: data.filter(
-      (row) => row.status === "queued" || row.status === "identifying",
-    ).length,
+    pending: data.filter((row) => row.status === "queued" || row.status === "identifying").length,
     items: data,
     loading: !updatedAt && !error,
     error,

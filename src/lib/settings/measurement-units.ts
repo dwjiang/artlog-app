@@ -8,16 +8,12 @@ export async function getMeasurementUnits(): Promise<MeasurementUnits> {
   return (await getSetting(KEY)) === "imperial" ? "imperial" : "metric";
 }
 
-export async function setMeasurementUnits(
-  units: MeasurementUnits,
-): Promise<void> {
+export async function setMeasurementUnits(units: MeasurementUnits): Promise<void> {
   await setSetting(KEY, units);
   for (const listener of listeners) listener(units);
 }
 
-export function subscribeMeasurementUnits(
-  listener: (units: MeasurementUnits) => void,
-): () => void {
+export function subscribeMeasurementUnits(listener: (units: MeasurementUnits) => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

@@ -2,13 +2,7 @@ import { Image } from "expo-image";
 import { View } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { AudioIcon } from "./audio-icon";
-export function ArtworkThumbnail({
-  uri,
-  size = 44,
-}: {
-  uri?: string;
-  size?: number;
-}) {
+export function ArtworkThumbnail({ uri, size = 44 }: { uri?: string; size?: number }) {
   return (
     <View
       style={{
@@ -22,11 +16,7 @@ export function ArtworkThumbnail({
       }}
     >
       {uri ? (
-        <Image
-          source={uri}
-          contentFit="cover"
-          style={{ width: "100%", height: "100%" }}
-        />
+        <Image source={uri} contentFit="cover" style={{ width: "100%", height: "100%" }} />
       ) : (
         <AudioIcon name="photo" color={Gallery.muted} />
       )}

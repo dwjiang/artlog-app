@@ -1,27 +1,15 @@
 import { type Infer, v } from "convex/values";
 
-export const rightsStatus = v.union(
-  v.literal("public_domain"),
-  v.literal("in_copyright"),
-  v.literal("unknown"),
-);
+export const rightsStatus = v.union(v.literal("public_domain"), v.literal("in_copyright"), v.literal("unknown"));
 export type RightsStatus = Infer<typeof rightsStatus>;
 
-export const multiplicity = v.union(
-  v.literal("unique"),
-  v.literal("multiple"),
-  v.literal("unknown"),
-);
+export const multiplicity = v.union(v.literal("unique"), v.literal("multiple"), v.literal("unknown"));
 export type Multiplicity = Infer<typeof multiplicity>;
 
 export const objectSource = v.union(v.literal("corpus"), v.literal("user"));
 export type ObjectSource = Infer<typeof objectSource>;
 
-export const vectorSource = v.union(
-  v.literal("corpus"),
-  v.literal("user"),
-  v.literal("user_scan"),
-);
+export const vectorSource = v.union(v.literal("corpus"), v.literal("user"), v.literal("user_scan"));
 export type VectorSource = Infer<typeof vectorSource>;
 
 export const placementSource = v.union(
@@ -41,28 +29,14 @@ export const checklistExhibition = v.object({
   sourceUrl: v.string(),
 });
 
-export const seedSource = v.union(
-  v.literal("wikidata"),
-  v.literal("poi"),
-  v.literal("manual"),
-);
+export const seedSource = v.union(v.literal("wikidata"), v.literal("poi"), v.literal("manual"));
 export type SeedSource = Infer<typeof seedSource>;
 
-export const identityStatus = v.union(
-  v.literal("established"),
-  v.literal("tentative"),
-);
-export const contributionStatus = v.union(
-  v.literal("tentative"),
-  v.literal("rejected"),
-);
+export const identityStatus = v.union(v.literal("established"), v.literal("tentative"));
+export const contributionStatus = v.union(v.literal("tentative"), v.literal("rejected"));
 export type ContributionStatus = Infer<typeof contributionStatus>;
 
-export const proposalStatus = v.union(
-  v.literal("pending"),
-  v.literal("promoted"),
-  v.literal("rejected"),
-);
+export const proposalStatus = v.union(v.literal("pending"), v.literal("promoted"), v.literal("rejected"));
 export type ProposalStatus = Infer<typeof proposalStatus>;
 
 export const proposalKind = v.union(v.literal("move"), v.literal("new_object"));
@@ -76,11 +50,7 @@ export const scanStatus = v.union(
 );
 export type ScanStatus = Infer<typeof scanStatus>;
 
-export const matchOutcome = v.union(
-  v.literal("confident"),
-  v.literal("soft"),
-  v.literal("miss"),
-);
+export const matchOutcome = v.union(v.literal("confident"), v.literal("soft"), v.literal("miss"));
 export type MatchOutcome = Infer<typeof matchOutcome>;
 
 export const labelEvidence = v.union(
@@ -95,11 +65,7 @@ export const labelEvidence = v.union(
 export type LabelEvidence = Infer<typeof labelEvidence>;
 
 // A contribution field keeps the label evidence it was verified with; editing it downgrades to user_edited.
-export const evidenceKind = v.union(
-  ...labelEvidence.members,
-  v.literal("agreement"),
-  v.literal("user_edited"),
-);
+export const evidenceKind = v.union(...labelEvidence.members, v.literal("agreement"), v.literal("user_edited"));
 export type EvidenceKind = Infer<typeof evidenceKind>;
 
 export const contributionRejectedReason = v.union(
@@ -108,9 +74,7 @@ export const contributionRejectedReason = v.union(
   v.literal("withdrawn"),
   v.literal("object_reverted"),
 );
-export type ContributionRejectedReason = Infer<
-  typeof contributionRejectedReason
->;
+export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;
 
 export const candidateSignal = v.object({
   identityStatus,
@@ -124,12 +88,7 @@ export const candidateSignal = v.object({
 export type CandidateSignal = Infer<typeof candidateSignal>;
 
 export const feedbackResolution = v.object({
-  kind: v.union(
-    v.literal("runner_up"),
-    v.literal("label"),
-    v.literal("unresolved"),
-    v.literal("false_rejection"),
-  ),
+  kind: v.union(v.literal("runner_up"), v.literal("label"), v.literal("unresolved"), v.literal("false_rejection")),
   objectId: v.optional(v.id("objects")),
   contributionId: v.optional(v.id("contributions")),
 });
@@ -187,11 +146,7 @@ export type Embedding = Infer<typeof embedding>;
 
 export const devicePlatform = v.union(v.literal("ios"), v.literal("simulator"));
 
-export const challengePurpose = v.union(
-  v.literal("attest"),
-  v.literal("assert"),
-  v.literal("apple"),
-);
+export const challengePurpose = v.union(v.literal("attest"), v.literal("assert"), v.literal("apple"));
 
 export const labelField = v.object({
   value: v.string(),
@@ -224,11 +179,7 @@ export const labelFlow = v.object({
   fields: labelFields,
   evidence: v.array(labelEvidence),
   warnings: v.array(labelWarning),
-  moderation: v.union(
-    v.literal("clear"),
-    v.literal("flagged"),
-    v.literal("unchecked"),
-  ),
+  moderation: v.union(v.literal("clear"), v.literal("flagged"), v.literal("unchecked")),
   promptVersion: v.optional(v.string()),
   rawOcr: v.optional(v.any()),
   sourceUrl: v.optional(v.string()),

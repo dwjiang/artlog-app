@@ -1,9 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import {
-  MAX_NOTE_LENGTH,
-  NOTE_LENGTH_MESSAGE,
-} from "../../../shared/collection/collection-limits";
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "../../../shared/collection/collection-limits";
 import { requestCollectionSync } from "../../lib/account/sync-events";
 
 import { getLocalOwner } from "../../lib/account/owner-store";
@@ -27,18 +24,13 @@ export async function setNote(
       .run();
     tx.update(savedWorks)
       .set({ syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
-      .where(
-        and(eq(savedWorks.owner, owner), eq(savedWorks.localId, savedLocalId)),
-      )
+      .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, savedLocalId)))
       .run();
   });
   requestCollectionSync();
 }
 
-export async function getNote(
-  savedLocalId: string,
-  owner = getLocalOwner(),
-): Promise<Note | undefined> {
+export async function getNote(savedLocalId: string, owner = getLocalOwner()): Promise<Note | undefined> {
   return db
     .select()
     .from(notes)

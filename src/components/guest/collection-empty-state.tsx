@@ -6,11 +6,7 @@ import { Spacing, Typography } from "@/constants/theme";
 import { ArtworkCollage } from "./artwork-preview";
 import { VisitKeepsake } from "./visit-keepsake";
 
-export function CollectionEmptyState({
-  kind,
-}: {
-  kind: "artworks" | "visits";
-}) {
+export function CollectionEmptyState({ kind }: { kind: "artworks" | "visits" }) {
   const visits = kind === "visits";
   const { fontScale } = useWindowDimensions();
   return (
@@ -20,10 +16,7 @@ export function CollectionEmptyState({
         <Text
           variant="display"
           accessibilityRole="header"
-          style={[
-            styles.title,
-            fontScale > 1.3 && { ...Typography.display, maxWidth: "100%" },
-          ]}
+          style={[styles.title, fontScale > 1.3 && { ...Typography.display, maxWidth: "100%" }]}
         >
           {visits ? "No visits yet." : "No saved artworks yet."}
         </Text>
@@ -37,14 +30,10 @@ export function CollectionEmptyState({
         label={visits ? "Add visit" : "Scan artwork"}
         variant="filled"
         fullWidth
-        onPress={() =>
-          visits ? router.push("/visit-create") : router.navigate("/scan")
-        }
+        onPress={() => (visits ? router.push("/visit-create") : router.navigate("/scan"))}
       />
       <Text variant="metadata" themeColor="textSecondary">
-        {visits
-          ? "Your visits stay private until you share them."
-          : "No account needed to start."}
+        {visits ? "Your visits stay private until you share them." : "No account needed to start."}
       </Text>
     </View>
   );

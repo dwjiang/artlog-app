@@ -23,9 +23,7 @@ let instance: CoremlEmbed | null | undefined;
 export function getCoremlEmbed(): CoremlEmbed {
   instance ??= requireOptionalNativeModule<CoremlEmbed>("CoremlEmbed");
   if (!instance) {
-    throw new Error(
-      "The CoremlEmbed native module is unavailable; rebuild the dev client",
-    );
+    throw new Error("The CoremlEmbed native module is unavailable; rebuild the dev client");
   }
   return instance;
 }

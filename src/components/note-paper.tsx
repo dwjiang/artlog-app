@@ -3,13 +3,7 @@ import { View } from "react-native";
 import { ThemedText as Text } from "./themed-text";
 import { Gallery } from "@/constants/theme";
 
-export function NotePaper({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label?: string;
-}) {
+export function NotePaper({ children, label }: { children: ReactNode; label?: string }) {
   return (
     <View
       style={{

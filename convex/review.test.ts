@@ -3,13 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  seedArtworkWithObject,
-  seedContribution,
-  seedDevice,
-  seedMuseum,
-  seedScan,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 const factSheet = [
@@ -55,28 +49,22 @@ describe("review.replaceFactSheet", () => {
     const open = await t.query(internal.review.listCorrections, {});
     expect(open).toHaveLength(1);
     expect(open[0].message).toBe("The source is also wrong.");
-    expect(
-      await t.query(internal.review.listCorrections, { status: "resolved" }),
-    ).toMatchObject([{ _id: correction._id }]);
-    expect(
-      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
-    ).toBe(true);
+    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toMatchObject([
+      { _id: correction._id },
+    ]);
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
     await t.mutation(internal.review.replaceFactSheet, {
       artworkId,
       factSheet,
       correctionIds: [open[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect(
-      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
   });
 
   it("rejects a correction from another artwork without changing either report or sheet", async () => {
     const { t, artworkId, correction } = await fixture();
-    const other = await t.run((ctx) =>
-      seedArtworkWithObject(ctx, { artwork: { factSheet } }),
-    );
+    const other = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet } }));
     await expect(
       t.mutation(internal.review.replaceFactSheet, {
         artworkId: other.artworkId,
@@ -84,12 +72,8 @@ describe("review.replaceFactSheet", () => {
         correctionIds: [correction._id],
       }),
     ).rejects.toMatchObject({ data: { code: "invalid_correction" } });
-    expect(
-      (await t.run((ctx) => ctx.db.get(other.artworkId)))?.factSheet,
-    ).toEqual(factSheet);
-    expect(
-      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
-    ).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(other.artworkId)))?.factSheet).toEqual(factSheet);
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -102,9 +86,7 @@ describe("review.replaceFactSheet", () => {
         correctionIds: Array(101).fill(correction._id),
       }),
     ).rejects.toMatchObject({ data: { code: "too_many_corrections" } });
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheet).toEqual(
-      factSheet,
-    );
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheet).toEqual(factSheet);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -115,9 +97,7 @@ describe("review.replaceFactSheet", () => {
       factSheet,
       correctionIds: [],
     });
-    expect(
-      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
-    ).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -150,9 +130,7 @@ describe("review.replaceFactSheet", () => {
       correctionIds: [remaining[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect(
-      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
   });
 });
 
@@ -195,13 +173,8 @@ describe("review queues", () => {
       await proposal([user.deviceId]);
       return { venueId, flagged, pending, ready };
     });
-    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject(
-      [{ _id: seeded.flagged.objectId }],
-    );
-    const { rows: pending } = await t.query(
-      internal.review.listContributions,
-      {},
-    );
+    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([{ _id: seeded.flagged.objectId }]);
+    const { rows: pending } = await t.query(internal.review.listContributions, {});
     expect(pending).toMatchObject([
       {
         _id: seeded.pending,
@@ -219,9 +192,9 @@ describe("review queues", () => {
         })
       ).rows,
     ).toHaveLength(1);
-    expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject(
-      [{ _id: seeded.ready, readyForReview: true }],
-    );
+    expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([
+      { _id: seeded.ready, readyForReview: true },
+    ]);
   });
 });
 
@@ -251,8 +224,10 @@ it("can list pending contributions that were accepted within document limits", a
   let cursor: string | null = null;
   let pages = 0;
   do {
-    const result: FunctionReturnType<typeof internal.review.listContributions> =
-      await t.query(internal.review.listContributions, { cursor });
+    const result: FunctionReturnType<typeof internal.review.listContributions> = await t.query(
+      internal.review.listContributions,
+      { cursor },
+    );
     ids.push(...result.rows.map((row) => row._id));
     cursor = result.cursor;
     pages++;

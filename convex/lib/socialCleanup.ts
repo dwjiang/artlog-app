@@ -4,10 +4,7 @@ import { deleteUnreferencedPhoto } from "./collectionPhotos";
 import { changeEngagement, engagement } from "./visitReactions";
 
 const BATCH = 50;
-export async function purgeSocialBatch(
-  ctx: MutationCtx,
-  accountId: Id<"accounts">,
-): Promise<boolean> {
+export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts">): Promise<boolean> {
   const scores = await ctx.db
     .query("leaderboardScores")
     .withIndex("by_account_metric_period", (q) => q.eq("accountId", accountId))
@@ -61,15 +58,11 @@ export async function purgeSocialBatch(
   if (publication) {
     const reactions = await ctx.db
       .query("visitLikes")
-      .withIndex("by_publication", (q) =>
-        q.eq("publicationId", publication._id),
-      )
+      .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
       .take(BATCH);
     const discussion = await ctx.db
       .query("visitComments")
-      .withIndex("by_publication", (q) =>
-        q.eq("publicationId", publication._id),
-      )
+      .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
       .take(BATCH);
     for (const row of [...reactions, ...discussion]) {
       await ctx.db.delete(row._id);
@@ -77,9 +70,7 @@ export async function purgeSocialBatch(
     if (reactions.length === BATCH || discussion.length === BATCH) return true;
     const items = await ctx.db
       .query("sharedVisitItems")
-      .withIndex("by_publication_position", (q) =>
-        q.eq("publicationId", publication._id),
-      )
+      .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id))
       .take(BATCH);
     for (const item of items) await ctx.db.delete(item._id);
     if (items.length < BATCH) {
@@ -110,9 +101,7 @@ export async function purgeSocialBatch(
     ? []
     : await ctx.db
         .query("friendships")
-        .withIndex("by_second_state", (q) =>
-          q.eq("secondProfileId", profile._id),
-        )
+        .withIndex("by_second_state", (q) => q.eq("secondProfileId", profile._id))
         .take(BATCH);
   if (first.length || second.length) {
     for (const edge of [...first, ...second]) await ctx.db.delete(edge._id);
@@ -139,10 +128,7 @@ export async function purgeSocialBatch(
   return true;
 }
 // True when a full batch was removed and more rows may remain.
-export async function purgeSaveMediaBatch(
-  ctx: MutationCtx,
-  saveId: Id<"collections">,
-): Promise<boolean> {
+export async function purgeSaveMediaBatch(ctx: MutationCtx, saveId: Id<"collections">): Promise<boolean> {
   const photos = await ctx.db
     .query("artworkPhotos")
     .withIndex("by_saveId", (q) => q.eq("saveId", saveId))

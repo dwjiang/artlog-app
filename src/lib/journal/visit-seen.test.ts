@@ -17,18 +17,12 @@ it("shows a closed visit as new until it is opened, never an open or manual one"
   expect(isVisitNew({ localId: "open", endedAt: null }, seen)).toBe(false);
   markVisitSeen("closed", "device:a");
   markVisitSeen("closed", "device:a");
-  expect(db.select().from(settings).all()).toEqual([
-    { key: "seenVisits:device:a", value: '["closed"]' },
-  ]);
-  expect(
-    isVisitNew({ localId: "closed", endedAt: 5 }, new Set(["closed"])),
-  ).toBe(false);
+  expect(db.select().from(settings).all()).toEqual([{ key: "seenVisits:device:a", value: '["closed"]' }]);
+  expect(isVisitNew({ localId: "closed", endedAt: 5 }, new Set(["closed"]))).toBe(false);
 });
 
 it("keeps seen visits per owner and survives an unreadable value", async () => {
-  db.insert(settings)
-    .values({ key: "seenVisits:device:b", value: "not json" })
-    .run();
+  db.insert(settings).values({ key: "seenVisits:device:b", value: "not json" }).run();
   markVisitSeen("x", "device:b");
   markVisitSeen("y", "device:c");
   const { result } = await renderHook(() => useSeenVisits("device:b"));

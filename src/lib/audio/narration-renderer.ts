@@ -6,9 +6,7 @@ import type { DocentSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
 
 type Rendered = { uri: string; sentences: DocentSentence[]; renderId: string };
-type Generate = (args: {
-  artworkId: ListeningTrack["work"]["artworkId"];
-}) => Promise<Rendered>;
+type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered>;
 
 function cacheDirectory() {
   return new Directory(Paths.cache, "narration");
@@ -39,20 +37,14 @@ export function createNarrationRenderer(generate: Generate) {
         const transcript = new File(directory, `${renderId}.json`);
         if (!file.exists || !file.size || !transcript.exists) return undefined;
         try {
-          const sentences = validateGuide(
-            JSON.parse(transcript.textSync()),
-            factIds,
-            opening,
-          );
+          const sentences = validateGuide(JSON.parse(transcript.textSync()), factIds, opening);
           return sentences ? { uri: file.uri, sentences, renderId } : undefined;
         } catch {
           return undefined; /* A missing or damaged transcript is downloaded with its audio again. */
         }
       };
       if (request.signal.aborted) throw new Error("Narration cancelled.");
-      const known = track.work.renderId
-        ? local(track.work.renderId)
-        : undefined;
+      const known = track.work.renderId ? local(track.work.renderId) : undefined;
       if (known) return known;
       const audio = await generate({ artworkId: track.work.artworkId });
       if (request.signal.aborted) throw new Error("Narration cancelled.");
@@ -63,10 +55,7 @@ export function createNarrationRenderer(generate: Generate) {
       const file = new File(directory, `${audio.renderId}.mp3`);
       const transcript = new File(directory, `${audio.renderId}.json`);
       const timeout = setTimeout(() => request.abort(), 30_000);
-      const partial = new File(
-        directory,
-        `${audio.renderId}-${randomUUID()}.partial`,
-      );
+      const partial = new File(directory, `${audio.renderId}-${randomUUID()}.partial`);
       try {
         const response = await fetch(audio.uri, { signal: request.signal });
         if (!response.ok) throw new Error("Narration download failed.");

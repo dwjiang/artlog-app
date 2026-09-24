@@ -99,11 +99,7 @@ jest.mock("../collection/wall-gallery", () => ({
     return (
       <View>
         {props.pieces.map((piece) => (
-          <Pressable
-            key={piece.localId}
-            accessibilityRole="button"
-            onPress={() => props.onSelect(piece)}
-          >
+          <Pressable key={piece.localId} accessibilityRole="button" onPress={() => props.onSelect(piece)}>
             <Text>{piece.artwork.title}</Text>
           </Pressable>
         ))}
@@ -137,10 +133,7 @@ it("previews the full visitor wall and reveals only selected notes when opening 
   expect(mockGallery).toHaveBeenLastCalledWith(
     expect.objectContaining({
       color: "#45524B",
-      pieces: [
-        expect.objectContaining({ localId: "a", layout }),
-        expect.objectContaining({ localId: "b" }),
-      ],
+      pieces: [expect.objectContaining({ localId: "a", layout }), expect.objectContaining({ localId: "b" })],
     }),
   );
   await fireEvent.press(screen.getByRole("button", { name: "One" }));
@@ -157,9 +150,7 @@ it("previews the full visitor wall and reveals only selected notes when opening 
 });
 it("applies unsaved choices in preview, keeps them on return, and publishes only on save", async () => {
   const view = await render(<PublicNotesScreen />);
-  await fireEvent.press(
-    screen.getAllByRole("switch", { name: "Show note on public wall" })[1],
-  );
+  await fireEvent.press(screen.getAllByRole("switch", { name: "Show note on public wall" })[1]);
   expect(mockSetDraft).toHaveBeenCalledWith([{ itemId: "b", visible: true }]);
   mockWall.noteDraft = [
     { itemId: "a", visible: false },
@@ -173,9 +164,7 @@ it("applies unsaved choices in preview, keeps them on return, and publishes only
   expect(mockPublish).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Back to wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "Edit" }));
-  expect(
-    screen.getAllByRole("switch", { name: "Show note on public wall" })[1],
-  ).toHaveProp(
+  expect(screen.getAllByRole("switch", { name: "Show note on public wall" })[1]).toHaveProp(
     "accessibilityState",
     expect.objectContaining({ checked: true }),
   );
@@ -193,9 +182,7 @@ it("waits for the first wall read, then invites a note from the wall when none c
   await view.rerender(<PublicNotesScreen />);
   expect(screen.getByText("No notes to share yet.")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Go to your wall" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Go to your wall" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockNavigate).toHaveBeenCalledWith({
     pathname: "/collection",

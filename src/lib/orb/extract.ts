@@ -28,19 +28,13 @@ export function extractOrb(
 ): Promise<OrbFeatureBuffers> {
   return withGray(cropUri, cv, ({ gray, width, height }, opencv) => {
     if (width !== height) {
-      throw new Error(
-        `ORB expects the letterboxed square crop, got ${width}×${height}`,
-      );
+      throw new Error(`ORB expects the letterboxed square crop, got ${width}×${height}`);
     }
     return toOrbFeatures(detectOrb(gray, maxKeypoints, opencv), maxKeypoints);
   });
 }
 
-function detectOrb(
-  gray: Mat,
-  maxKeypoints: number,
-  { OpenCV }: FastOpenCV,
-): OrbDetection {
+function detectOrb(gray: Mat, maxKeypoints: number, { OpenCV }: FastOpenCV): OrbDetection {
   const detector = OpenCV.ORB_create(maxKeypoints);
   try {
     const { keypoints, descriptors } = OpenCV.detectAndCompute(detector, gray);
@@ -68,20 +62,13 @@ function detectOrb(
   }
 }
 
-export function toOrbFeatures(
-  detection: OrbDetection,
-  maxKeypoints: number,
-): OrbFeatureBuffers {
+export function toOrbFeatures(detection: OrbDetection, maxKeypoints: number): OrbFeatureBuffers {
   const { keypoints, descriptors, descriptorBytes } = detection;
   if (descriptorBytes !== DESCRIPTOR_BYTES) {
-    throw new Error(
-      `ORB produced ${descriptorBytes}-byte descriptors, expected ${DESCRIPTOR_BYTES}`,
-    );
+    throw new Error(`ORB produced ${descriptorBytes}-byte descriptors, expected ${DESCRIPTOR_BYTES}`);
   }
   if (descriptors.length !== keypoints.length * DESCRIPTOR_BYTES) {
-    throw new Error(
-      `ORB produced ${descriptors.length} descriptor bytes for ${keypoints.length} keypoints`,
-    );
+    throw new Error(`ORB produced ${descriptors.length} descriptor bytes for ${keypoints.length} keypoints`);
   }
   // ORB's retainBest keeps ties past the cap; truncating in output order matches orb.py.
   const count = Math.min(keypoints.length, maxKeypoints);

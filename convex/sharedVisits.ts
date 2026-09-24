@@ -12,24 +12,13 @@ import {
 } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  activeProfile,
-  optionalProfile,
-  requireProfile,
-} from "./lib/ownership";
+import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectArtwork, projectProfile } from "./lib/projections";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
-import {
-  readablePublication,
-  requireSharedVisit,
-  requireSharedVisitItem,
-} from "./lib/publicationAccess";
+import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
 import { resolveDisplayAsset } from "./lib/displayMedia";
-import {
-  projectArtworkStory,
-  publicArtworkStory,
-} from "./lib/publicArtworkStory";
+import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import {
   checkPublicationRevision,
   compareHistory,
@@ -62,11 +51,7 @@ export const getState = query({
   handler: async (ctx, { visitLocalId }) => {
     const { profile, owner } = await requireProfile(ctx);
     const visit = await ownedVisit(ctx, owner, visitLocalId);
-    return stateForPublication(
-      ctx,
-      await publicationForVisit(ctx, profile._id, visitLocalId),
-      visit,
-    );
+    return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId), visit);
   },
 });
 // Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit.
@@ -77,13 +62,9 @@ export const listShared = query({
     const { profile } = await requireProfile(ctx);
     const publications = await ctx.db
       .query("sharedVisits")
-      .withIndex("by_profile_status_history", (q) =>
-        q.eq("profileId", profile._id).eq("status", "active"),
-      )
+      .withIndex("by_profile_status_history", (q) => q.eq("profileId", profile._id).eq("status", "active"))
       .take(1000);
-    return publications
-      .filter((publication) => !publication.removal)
-      .map((publication) => publication.visitLocalId);
+    return publications.filter((publication) => !publication.removal).map((publication) => publication.visitLocalId);
   },
 });
 export const preview = query({
@@ -116,16 +97,11 @@ export const preview = query({
         saveLocalId: save.localId,
       };
       const photos = await Promise.all(
-        (
-          input.photoSelections?.find((row) => row.saveLocalId === save.localId)
-            ?.photoLocalIds ?? []
-        ).map((id) => selectedPhotoMedia(ctx, save, id, reference)),
+        (input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds ?? []).map((id) =>
+          selectedPhotoMedia(ctx, save, id, reference),
+        ),
       );
-      const artwork = projectArtwork(
-        save,
-        await resolveDisplayAsset(ctx, save),
-        reference,
-      );
+      const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
       artworks.push({
         saveLocalId: save.localId,
         artwork: photos.length ? { ...artwork, media: photos[0] } : artwork,
@@ -147,16 +123,9 @@ export const publish = mutation({
   returns: publicationState,
   handler: async (ctx, input) => {
     const { profile, owner, accountId } = await requireProfile(ctx);
-    const publication = await publicationForVisit(
-      ctx,
-      profile._id,
-      input.visitLocalId,
-    );
+    const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
     if (publication?.removal) throw new ConvexError({ code: "not_found" });
-    checkPublicationRevision(
-      input.revision,
-      publication?.publicationRevision ?? 0,
-    );
+    checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
     const { visit, saves } = await selectedSaves(ctx, owner, input);
     await limitKey(ctx, "publishVisit", accountId);
     const fields = {
@@ -184,20 +153,13 @@ export const publish = mutation({
       if (!selected.has(item.saveId)) await ctx.db.delete(item._id);
     }
     const ordered = [
-      ...(input.highlightLocalIds ?? []).flatMap((id) =>
-        saves.filter((save) => save.localId === id),
-      ),
-      ...saves.filter(
-        (save) => !input.highlightLocalIds?.includes(save.localId),
-      ),
+      ...(input.highlightLocalIds ?? []).flatMap((id) => saves.filter((save) => save.localId === id)),
+      ...saves.filter((save) => !input.highlightLocalIds?.includes(save.localId)),
     ];
     for (const [position, save] of ordered.entries()) {
       const item = previous.find((item) => item.saveId === save._id);
-      const photoLocalIds = input.photoSelections?.find(
-        (row) => row.saveLocalId === save.localId,
-      )?.photoLocalIds;
-      const highlighted =
-        input.highlightLocalIds?.includes(save.localId) ?? position < 3;
+      const photoLocalIds = input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds;
+      const highlighted = input.highlightLocalIds?.includes(save.localId) ?? position < 3;
       if (item) {
         await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
       } else {
@@ -220,11 +182,7 @@ export const get = query({
   handler: async (ctx, input) => {
     const profile = await optionalProfile(ctx);
     if (!isUuid(input.postId)) throw new ConvexError({ code: "not_found" });
-    const {
-      publication,
-      profile: author,
-      visit,
-    } = await requireSharedVisit(ctx, input.postId, profile?._id);
+    const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile?._id);
     return {
       ...(await header(ctx, publication, author, visit)),
       artworks: await projectArtworkPage(ctx, publication, visit, input),
@@ -239,12 +197,7 @@ export const getArtwork = query({
   }),
   handler: async (ctx, { postId, itemId }) => {
     const profile = await optionalProfile(ctx);
-    const { item, save } = await requireSharedVisitItem(
-      ctx,
-      postId,
-      itemId,
-      profile?._id,
-    );
+    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
     const enrichment = await projectArtworkStory(ctx, save);
     return {
       ...(await projectVisitAlbum(ctx, item, save, postId)),
@@ -275,16 +228,9 @@ async function historyPage(
     last = before;
   while (scanned < LIMITS.maxPage && page.length < numItems) {
     const stream = streams
-      .filter(
-        (s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } =>
-          !!s.head,
-      )
+      .filter((s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } => !!s.head)
       .sort((a, b) => -compareHistory(a.head, b.head))[0];
-    if (
-      !stream
-      || !(await readHeadroom(ctx))
-      || projected + 3 > PAGE_ARTWORKS
-    ) {
+    if (!stream || !(await readHeadroom(ctx)) || projected + 3 > PAGE_ARTWORKS) {
       break;
     }
     const candidate = stream.head;
@@ -306,20 +252,13 @@ async function historyPage(
     }
     last = candidate;
     scanned++;
-    streams.find((s) => s.source === stream.source)!.head = await historyHead(
-      stream.source,
-      candidate,
-    );
+    streams.find((s) => s.source === stream.source)!.head = await historyHead(stream.source, candidate);
   }
   const isDone = streams.every((s) => !s.head);
   return {
     page,
     isDone,
-    cursor: isDone
-      ? null
-      : last
-        ? historyCursor(scope, last)
-        : (input.cursor ?? null),
+    cursor: isDone ? null : last ? historyCursor(scope, last) : (input.cursor ?? null),
   };
 }
 const historyResult = v.object({
@@ -332,13 +271,7 @@ export const listPublic = query({
   returns: historyResult,
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    return historyPage(
-      ctx,
-      viewer?._id,
-      [publicHistory(ctx)],
-      `public:${viewer?._id ?? "guest"}`,
-      input,
-    );
+    return historyPage(ctx, viewer?._id, [publicHistory(ctx)], `public:${viewer?._id ?? "guest"}`, input);
   },
 });
 export const listFeed = query({
@@ -350,11 +283,7 @@ export const listFeed = query({
     const edges = await acceptedRelationships(ctx, profile._id);
     const authors = edges
       .slice(0, LIMITS.friends)
-      .map((edge) =>
-        edge.firstProfileId === profile._id
-          ? edge.secondProfileId
-          : edge.firstProfileId,
-      );
+      .map((edge) => (edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId));
     return historyPage(
       ctx,
       profile._id,
@@ -374,11 +303,7 @@ export const listByProfile = query({
     }
     if (viewer && viewer._id !== input.profileId) {
       // A block in either direction hides every post, so skip the per-candidate scan that would reject them all.
-      const { block, reverseBlock } = await relationshipSnapshot(
-        ctx,
-        input.profileId,
-        viewer._id,
-      );
+      const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
       if (block?.active || reverseBlock?.active) {
         return { page: [], cursor: null, isDone: true };
       }

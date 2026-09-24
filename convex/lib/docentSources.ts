@@ -63,9 +63,9 @@ function bareHost(url: string): string {
 }
 
 export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
-  const itemIds = SUMMARY_PROPERTIES.filter(
-    ({ kind }) => kind === "item",
-  ).flatMap(({ property }) => itemValues(entity, property));
+  const itemIds = SUMMARY_PROPERTIES.filter(({ kind }) => kind === "item").flatMap(({ property }) =>
+    itemValues(entity, property),
+  );
   const labels = itemIds.length ? await getEntities(itemIds, "labels") : {};
   const lines: string[] = [];
   const label = entityLabel(entity);
@@ -73,9 +73,7 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
   for (const { property, name, kind } of SUMMARY_PROPERTIES) {
     let values: string[] = [];
     if (kind === "item") {
-      values = itemValues(entity, property).flatMap((id) =>
-        labels[id] ? [entityLabel(labels[id]) ?? id] : [],
-      );
+      values = itemValues(entity, property).flatMap((id) => (labels[id] ? [entityLabel(labels[id]) ?? id] : []));
     } else if (kind === "time") {
       values = yearValues(entity, property).map(String);
     } else if (kind === "string") values = stringValues(entity, property);
@@ -83,8 +81,7 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
       values = monolingualValues(entity, property);
     } else {
       values = quantityValues(entity, property).map(
-        ({ amount, unit }) =>
-          `${amount}${UNITS[unit] ? ` ${UNITS[unit]}` : ""}`,
+        ({ amount, unit }) => `${amount}${UNITS[unit] ? ` ${UNITS[unit]}` : ""}`,
       );
     }
     if (values.length) {
@@ -98,21 +95,14 @@ function sourceIdentity(value: string): string {
   const url = new URL(value);
   if (bareHost(value) === "metmuseum.org") {
     const objectId =
-      url.pathname.match(
-        /^\/(?:[a-z]{2}\/)?art\/collection\/search\/(\d+)\/?$/,
-      )?.[1]
-      ?? (url.pathname === "/exhibitions/view"
-        ? url.searchParams.get("oid")
-        : null);
+      url.pathname.match(/^\/(?:[a-z]{2}\/)?art\/collection\/search\/(\d+)\/?$/)?.[1]
+      ?? (url.pathname === "/exhibitions/view" ? url.searchParams.get("oid") : null);
     if (objectId && /^\d+$/.test(objectId)) {
       return `metmuseum.org/art/collection/search/${objectId}`;
     }
   }
   const query = [...url.searchParams.entries()]
-    .filter(
-      ([key]) =>
-        !key.startsWith("utm_") && !["lang", "fbclid", "gclid"].includes(key),
-    )
+    .filter(([key]) => !key.startsWith("utm_") && !["lang", "fbclid", "gclid"].includes(key))
     .sort();
   const suffix = new URLSearchParams(query).toString();
   let path = url.pathname;
@@ -124,11 +114,7 @@ function sourceIdentity(value: string): string {
   return `${bareHost(value)}${path.replace(/ /g, "_").replace(/\/$/, "")}${suffix ? `?${suffix}` : ""}`;
 }
 
-function linksToArtwork(
-  text: string,
-  pageUrl: string,
-  anchors: Set<string>,
-): boolean {
+function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): boolean {
   if (
     !/\/(?:essays|perspectives|exhibitions|press|press-releases|stories|articles|blog)\//.test(
       new URL(pageUrl).pathname,
@@ -159,10 +145,7 @@ function plainMarkdown(text: string): string {
 
 // The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
 // are counted so the caller can retry later instead of caching an empty sheet.
-export async function gatherSources(
-  ctx: ActionCtx,
-  input: SourceInput,
-): Promise<GatheredSources> {
+export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
   const sources: SourceDoc[] = [];
   let failures = 0;
   if (input.pageUrl && input.owner) {
@@ -180,12 +163,7 @@ export async function gatherSources(
         });
       }
     } catch (error) {
-      if (
-        !(
-          error instanceof ConvexError
-          && error.data.code === "qr_host_not_allowed"
-        )
-      ) {
+      if (!(error instanceof ConvexError && error.data.code === "qr_host_not_allowed")) {
         failures++;
       }
       await reportBackendError(error, "docent.ownerPage");
@@ -219,29 +197,17 @@ export async function gatherSources(
   if (!response) failures++;
   const anchors = new Set([
     ...(input.pageUrl ? [sourceIdentity(input.pageUrl)] : []),
-    ...(input.artwork.wikidataId
-      ? [
-          sourceIdentity(
-            `https://www.wikidata.org/wiki/${input.artwork.wikidataId}`,
-          ),
-        ]
-      : []),
+    ...(input.artwork.wikidataId ? [sourceIdentity(`https://www.wikidata.org/wiki/${input.artwork.wikidataId}`)] : []),
   ]);
   for (const result of response?.results ?? []) {
     const score = sourceScore(result.url);
     const content = result.rawContent?.trim() || result.content.trim();
     if (score === null || !content) continue;
     // A trusted domain can describe another work with the same title; require the known identity.
-    if (
-      anchors.size
-      && !anchors.has(sourceIdentity(result.url))
-      && !linksToArtwork(content, result.url, anchors)
-    ) {
+    if (anchors.size && !anchors.has(sourceIdentity(result.url)) && !linksToArtwork(content, result.url, anchors)) {
       continue;
     }
-    const text = `${result.title}\n${plainMarkdown(content)}`
-      .trim()
-      .slice(0, MAX_SOURCE_CHARS);
+    const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
     // Search can return the owner's page again. Facts resolve their source by URL, so keep one
     // source per URL: the longer text, under the first label and score.
     const existing = sources.find((source) => source.url === result.url);

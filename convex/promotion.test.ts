@@ -26,24 +26,12 @@ async function fixture() {
   const bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const run = () => t.action(internal.promotion.run, {});
-  const get = <
-    T extends "contributions" | "objects" | "devices" | "artworks" | "feedback",
-  >(
-    id: Id<T>,
-  ) => t.run((ctx) => ctx.db.get(id)) as Promise<Doc<T> | null>;
-  const all = <
-    T extends
-      | "objects"
-      | "artworks"
-      | "vectors"
-      | "descriptors"
-      | "placements"
-      | "contributions",
-  >(
+  const get = <T extends "contributions" | "objects" | "devices" | "artworks" | "feedback">(id: Id<T>) =>
+    t.run((ctx) => ctx.db.get(id)) as Promise<Doc<T> | null>;
+  const all = <T extends "objects" | "artworks" | "vectors" | "descriptors" | "placements" | "contributions">(
     table: T,
   ) => t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
-  const seed = (overrides: Parameters<typeof seedContribution>[1]) =>
-    t.run((ctx) => seedContribution(ctx, overrides));
+  const seed = (overrides: Parameters<typeof seedContribution>[1]) => t.run((ctx) => seedContribution(ctx, overrides));
   return { t, alice, bob, venueId, run, get, all, seed };
 }
 
@@ -94,10 +82,7 @@ describe("multi-view vectors from resolved rejections", () => {
       }),
     }));
     const feedback = (
-      row: Omit<
-        Parameters<typeof seedFeedback>[1],
-        "objectId" | "rejectedObjectId"
-      > & {
+      row: Omit<Parameters<typeof seedFeedback>[1], "objectId" | "rejectedObjectId"> & {
         objectId?: Id<"objects">;
       },
     ) =>
@@ -108,23 +93,12 @@ describe("multi-view vectors from resolved rejections", () => {
           ...row,
         }),
       );
-    const userScanVectors = async () =>
-      (await base.all("vectors")).filter((row) => row.source === "user_scan");
+    const userScanVectors = async () => (await base.all("vectors")).filter((row) => row.source === "user_scan");
     return { ...base, work, feedback, userScanVectors };
   }
 
   it("adds one user_scan vector per resolution once two devices resolved to the work at the venue", async () => {
-    const {
-      t,
-      alice,
-      bob,
-      venueId,
-      run,
-      get,
-      feedback,
-      userScanVectors,
-      work,
-    } = await multiViewFixture();
+    const { t, alice, bob, venueId, run, get, feedback, userScanVectors, work } = await multiViewFixture();
     const first = await feedback({
       deviceId: alice.deviceId,
       venueId,
@@ -165,8 +139,7 @@ describe("multi-view vectors from resolved rejections", () => {
   });
 
   it("adds nothing for a single device and keeps its resolution waiting for a partner", async () => {
-    const { alice, venueId, run, get, feedback, userScanVectors } =
-      await multiViewFixture();
+    const { alice, venueId, run, get, feedback, userScanVectors } = await multiViewFixture();
     const rows = [
       await feedback({
         deviceId: alice.deviceId,
@@ -185,8 +158,7 @@ describe("multi-view vectors from resolved rejections", () => {
   });
 
   it("suppresses near-duplicate views and settles rows that can never qualify", async () => {
-    const { t, alice, bob, venueId, run, get, feedback, userScanVectors } =
-      await multiViewFixture();
+    const { t, alice, bob, venueId, run, get, feedback, userScanVectors } = await multiViewFixture();
     const elsewhere = await t.run((ctx) => seedMuseum(ctx));
     const first = await feedback({
       deviceId: alice.deviceId,
@@ -224,17 +196,7 @@ describe("multi-view vectors from resolved rejections", () => {
   });
 
   it("settles resolutions to a reverted work without adding vectors", async () => {
-    const {
-      t,
-      alice,
-      bob,
-      venueId,
-      run,
-      get,
-      feedback,
-      userScanVectors,
-      work,
-    } = await multiViewFixture();
+    const { t, alice, bob, venueId, run, get, feedback, userScanVectors, work } = await multiViewFixture();
     await t.run((ctx) => ctx.db.patch(work.objectId, { reverted: true }));
     const rows = [
       await feedback({ deviceId: alice.deviceId, venueId }),
@@ -256,17 +218,9 @@ describe("multi-view regression guards", () => {
   it("advances past a full page of waiting feedback and revisits it when a partner arrives", async () => {
     const { t, alice, bob, venueId, run, all } = await fixture();
     const [waiting, ready, wrong] = await t.run(async (ctx) =>
-      Promise.all([
-        seedArtworkWithObject(ctx),
-        seedArtworkWithObject(ctx),
-        seedArtworkWithObject(ctx),
-      ]),
+      Promise.all([seedArtworkWithObject(ctx), seedArtworkWithObject(ctx), seedArtworkWithObject(ctx)]),
     );
-    const add = (
-      objectId: Id<"objects">,
-      deviceId: Id<"devices">,
-      vector = testVector(0.9),
-    ) =>
+    const add = (objectId: Id<"objects">, deviceId: Id<"devices">, vector = testVector(0.9)) =>
       t.run((ctx) =>
         seedFeedback(ctx, {
           objectId,
@@ -285,10 +239,7 @@ describe("multi-view regression guards", () => {
     await run();
     await run();
     expect(
-      (await all("vectors")).filter(
-        (row) =>
-          row.objectId === waiting.objectId && row.source === "user_scan",
-      ),
+      (await all("vectors")).filter((row) => row.objectId === waiting.objectId && row.source === "user_scan"),
     ).toHaveLength(2);
   });
 
@@ -339,8 +290,7 @@ describe("multi-view paginated validation", () => {
     const [work, wrong] = await t.run(async (ctx) =>
       Promise.all([seedArtworkWithObject(ctx), seedArtworkWithObject(ctx)]),
     );
-    const axis = (i: number) =>
-      Array.from({ length: model.embeddingDim }, (_, j) => Number(j === i));
+    const axis = (i: number) => Array.from({ length: model.embeddingDim }, (_, j) => Number(j === i));
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = batch * 50; i < (batch + 1) * 50; i++) {
@@ -378,9 +328,7 @@ describe("multi-view paginated validation", () => {
     expect(await t.run((ctx) => ctx.db.get(duplicate))).toMatchObject({
       multiViewAt: expect.any(Number),
     });
-    expect(
-      (await t.run((ctx) => ctx.db.get(duplicate)))?.multiViewVectorId,
-    ).toBeUndefined();
+    expect((await t.run((ctx) => ctx.db.get(duplicate)))?.multiViewVectorId).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.get(unique))).toMatchObject({
       multiViewVectorId: expect.any(String),
     });
@@ -416,11 +364,7 @@ describe("multi-view paginated validation", () => {
         cursor: null,
       }),
     ).toEqual({ inserted: false, cursor: null });
-    expect(
-      (await all("vectors")).filter((row) => row.source === "user_scan"),
-    ).toEqual([]);
-    expect(
-      (await t.run((ctx) => ctx.db.get(first)))?.multiViewAt,
-    ).toBeUndefined();
+    expect((await all("vectors")).filter((row) => row.source === "user_scan")).toEqual([]);
+    expect((await t.run((ctx) => ctx.db.get(first)))?.multiViewAt).toBeUndefined();
   });
 });

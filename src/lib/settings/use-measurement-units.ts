@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 
-import {
-  getMeasurementUnits,
-  subscribeMeasurementUnits,
-  type MeasurementUnits,
-} from "./measurement-units";
+import { getMeasurementUnits, subscribeMeasurementUnits, type MeasurementUnits } from "./measurement-units";
 
 export function useMeasurementUnits() {
   const [state, setState] = useState<{

@@ -1,16 +1,10 @@
 type Dictionary = Record<string, unknown>;
 
 function dictionary(value: unknown): Dictionary {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Dictionary)
-    : {};
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Dictionary) : {};
 }
 
-function coordinate(
-  value: unknown,
-  reference: unknown,
-  limit: number,
-): number | undefined {
+function coordinate(value: unknown, reference: unknown, limit: number): number | undefined {
   let degrees: number;
   if (
     Array.isArray(value)
@@ -50,9 +44,7 @@ function captureTime(value: unknown, offset: unknown): number | undefined {
   }
   const withOffset =
     typeof offset === "string" && /^[+-]\d{2}:\d{2}$/.test(offset)
-      ? Date.parse(
-          `${value.slice(0, 10).replaceAll(":", "-")}T${value.slice(11)}${offset}`,
-        )
+      ? Date.parse(`${value.slice(0, 10).replaceAll(":", "-")}T${value.slice(11)}${offset}`)
       : NaN;
   // EXIF without an offset is a local wall-clock time, not UTC.
   const timestamp = Number.isFinite(withOffset)
@@ -70,23 +62,13 @@ export function extractCaptureMeta(exif: Dictionary | null | undefined): {
   const flat = exif ?? {};
   const gps = dictionary(flat["{GPS}"]);
   const photo = dictionary(flat["{Exif}"]);
-  const lat = coordinate(
-    flat.GPSLatitude ?? gps.Latitude,
-    flat.GPSLatitudeRef ?? gps.LatitudeRef,
-    90,
-  );
-  const lng = coordinate(
-    flat.GPSLongitude ?? gps.Longitude,
-    flat.GPSLongitudeRef ?? gps.LongitudeRef,
-    180,
-  );
+  const lat = coordinate(flat.GPSLatitude ?? gps.Latitude, flat.GPSLatitudeRef ?? gps.LatitudeRef, 90);
+  const lng = coordinate(flat.GPSLongitude ?? gps.Longitude, flat.GPSLongitudeRef ?? gps.LongitudeRef, 180);
   return {
     ...(lat === undefined ? {} : { lat }),
     ...(lng === undefined ? {} : { lng }),
     capturedAt:
-      captureTime(
-        flat.DateTimeOriginal ?? photo.DateTimeOriginal,
-        flat.OffsetTimeOriginal ?? photo.OffsetTimeOriginal,
-      ) ?? Date.now(),
+      captureTime(flat.DateTimeOriginal ?? photo.DateTimeOriginal, flat.OffsetTimeOriginal ?? photo.OffsetTimeOriginal)
+      ?? Date.now(),
   };
 }

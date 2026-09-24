@@ -12,11 +12,7 @@ import { convex } from "@/lib/convex-client";
 import { signInAnonymously } from "@/lib/device-identity";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { addBreadcrumb, reportError } from "@/lib/observability";
-import {
-  completeJournalClaim,
-  pauseCollectionSync,
-  resumeCollectionSync,
-} from "./collection-sync";
+import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from "./collection-sync";
 
 export function useAccount() {
   const ready = useDeviceReady();
@@ -32,9 +28,7 @@ export function useAccount() {
       .then((value) => {
         if (active) setAvailable(value);
       })
-      .catch((cause: unknown) =>
-        reportError(cause, "auth.apple_availability", { level: "warning" }),
-      );
+      .catch((cause: unknown) => reportError(cause, "auth.apple_availability", { level: "warning" }));
     return () => {
       active = false;
     };
@@ -54,19 +48,9 @@ export function useAccount() {
       await operation();
       addBreadcrumb(`${name}.success`);
     } catch (cause) {
-      if (
-        !(
-          cause
-          && typeof cause === "object"
-          && "code" in cause
-          && cause.code === "ERR_REQUEST_CANCELED"
-        )
-      ) {
+      if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED")) {
         reportError(cause, name);
-        setError(
-          socialErrorMessage(cause)
-            ?? "Couldn’t update your account. Check your connection and try again.",
-        );
+        setError(socialErrorMessage(cause) ?? "Couldn’t update your account. Check your connection and try again.");
       }
     } finally {
       inFlight.current = false;
@@ -109,10 +93,7 @@ export function useAccount() {
   const disconnect = (remove: boolean) =>
     perform(remove ? "auth.delete_account" : "auth.sign_out", async () => {
       if (account?.accountId) await completeJournalClaim(account);
-      await convex.mutation(
-        remove ? api.accounts.deleteAccount : api.accounts.unlink,
-        {},
-      );
+      await convex.mutation(remove ? api.accounts.deleteAccount : api.accounts.unlink, {});
       switchOwner(anonymousOwner());
       await setSetting("activeJournalOwner", anonymousOwner());
       await endSession();

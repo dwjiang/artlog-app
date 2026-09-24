@@ -1,22 +1,12 @@
 import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
-import {
-  ActionSheetIOS,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActionSheetIOS, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { Gallery, Typography } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
-import type {
-  PublicProfile,
-  SharedArtwork,
-  SharedVisit,
-} from "@/lib/social/types";
+import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
 import { ProfileAvatar } from "./profile-avatar";
 import { socialStyles } from "./social-styles";
 import { VisitSymbol } from "../visits/visit-ui";
@@ -36,22 +26,12 @@ export function ProfileIdentity({
   const router = useRouter();
   const content = (
     <>
-      <ProfileAvatar
-        name={profile.name}
-        photoUrl={profile.photoUrl}
-        size={showChevron ? 64 : 44}
-      />
+      <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text
-          style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}
-        >
-          {profile.name}
-        </Text>
+        <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
         <Text style={socialStyles.caption}>@{profile.username}</Text>
       </View>
-      {friend && (
-        <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>
-      )}
+      {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
       {showChevron && (
         <Text style={{ color: Gallery.muted }} accessible={false}>
           ›
@@ -90,23 +70,19 @@ type Candidate = {
 };
 
 /** One slot per leading artwork, so every ranked highlight appears; spare slots take their extra selected photos. */
-function previewCandidates(
-  artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[],
-): Candidate[] {
+function previewCandidates(artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[]): Candidate[] {
   const shown = artworks.slice(0, 3);
   const candidates: Candidate[] = [];
   shown.forEach(({ itemId, artwork, photos }, index) => {
     const reserved = shown.length - index - 1;
     const limit = Math.max(1, 3 - candidates.length - reserved);
-    (photos?.length ? photos : [artwork.media])
-      .slice(0, limit)
-      .forEach((media, photo) =>
-        candidates.push({
-          key: `${itemId ?? index}:${photo}`,
-          media,
-          title: photo ? `${artwork.title}, photo ${photo + 1}` : artwork.title,
-        }),
-      );
+    (photos?.length ? photos : [artwork.media]).slice(0, limit).forEach((media, photo) =>
+      candidates.push({
+        key: `${itemId ?? index}:${photo}`,
+        media,
+        title: photo ? `${artwork.title}, photo ${photo + 1}` : artwork.title,
+      }),
+    );
   });
   return candidates;
 }
@@ -124,17 +100,11 @@ export function VisitArtworks({
   const [width, setWidth] = useState(0);
   const candidates = previewCandidates(artworks);
   const fit = (count: number) =>
-    (width - GAP * (count - 1))
-    / candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
-  const count =
-    [3, 2].find((n) => n <= candidates.length && fit(n) >= MIN_HEIGHT)
-    ?? Math.min(1, candidates.length);
+    (width - GAP * (count - 1)) / candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
+  const count = [3, 2].find((n) => n <= candidates.length && fit(n) >= MIN_HEIGHT) ?? Math.min(1, candidates.length);
   const preview = candidates.slice(0, count);
   const ratios = preview.map(aspect);
-  const height = Math.min(
-    count === 1 ? width * 1.25 : compact ? 236 : 300,
-    Math.max(0, fit(count)),
-  );
+  const height = Math.min(count === 1 ? width * 1.25 : compact ? 236 : 300, Math.max(0, fit(count)));
   return (
     <View
       testID="visit-artworks"
@@ -151,18 +121,10 @@ export function VisitArtworks({
               overflow: "hidden",
             }}
           >
-            <DisplayMedia
-              media={media}
-              label={title}
-              token={token}
-              width={height * ratios[index]}
-              height={height}
-            />
+            <DisplayMedia media={media} label={title} token={token} width={height * ratios[index]} height={height} />
           </View>
         ))}
-      {!preview.length && (
-        <Text style={socialStyles.caption}>No artwork previews.</Text>
-      )}
+      {!preview.length && <Text style={socialStyles.caption}>No artwork previews.</Text>}
     </View>
   );
 }
@@ -190,11 +152,7 @@ export function VisitCard({
   const openMenu = () =>
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: [
-          "View visit",
-          `View ${visit.author.name}’s profile`,
-          "Cancel",
-        ],
+        options: ["View visit", `View ${visit.author.name}’s profile`, "Cancel"],
         cancelButtonIndex: 2,
       },
       (index) => {
@@ -213,10 +171,7 @@ export function VisitCard({
       token={token}
       showAuthor={showAuthor}
       reactions={
-        <VisitReactions
-          visit={{ ...visit, media: visit.artworks.page[0]?.artwork.media }}
-          onOpenVisit={openVisit}
-        />
+        <VisitReactions visit={{ ...visit, media: visit.artworks.page[0]?.artwork.media }} onOpenVisit={openVisit} />
       }
       onOpenVisit={openVisit}
       onOpenProfile={openProfile}
@@ -255,10 +210,7 @@ export function VisitFeedCard({
   reactions?: ReactNode;
 }) {
   const { fontScale } = useWindowDimensions();
-  const photoCount = artworks.reduce(
-    (sum, item) => sum + (item.photos?.length ?? 0),
-    0,
-  );
+  const photoCount = artworks.reduce((sum, item) => sum + (item.photos?.length ?? 0), 0);
   const date = (
     <Text accessibilityLabel={visitDate(visitedOn)} style={styles.feedDate}>
       {visitDate(visitedOn, undefined, "short")}
@@ -305,12 +257,7 @@ export function VisitFeedCard({
   return (
     <View style={[styles.card, !inset && { marginHorizontal: 0 }]}>
       {showAuthor ? (
-        <View
-          style={[
-            styles.feedHeading,
-            fontScale > 1.4 && { flexDirection: "column" },
-          ]}
-        >
+        <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: "column" }]}>
           {onOpenProfile ? (
             <Pressable
               accessibilityRole="button"
@@ -325,11 +272,7 @@ export function VisitFeedCard({
             <View style={styles.feedIdentity}>{identity}</View>
           )}
           {onOpenMenu ? (
-            <GalleryIconButton
-              icon="ellipsis"
-              label="More options"
-              onPress={onOpenMenu}
-            />
+            <GalleryIconButton icon="ellipsis" label="More options" onPress={onOpenMenu} />
           ) : (
             <Text style={styles.feedDate} accessible={false}>
               ···
@@ -355,10 +298,7 @@ export function VisitFeedCard({
           art
         ))}
       {!!notes && (
-        <Text
-          selectable
-          style={[styles.notes, artworks.length > 0 && { marginTop: 8 }]}
-        >
+        <Text selectable style={[styles.notes, artworks.length > 0 && { marginTop: 8 }]}>
           {notes}
         </Text>
       )}

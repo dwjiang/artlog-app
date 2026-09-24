@@ -1,25 +1,14 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
-import {
-  internalMutation,
-  internalQuery,
-  query,
-  type QueryCtx,
-} from "./_generated/server";
+import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { sameOwner } from "../shared/journal/contracts";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import { requireDevice } from "./lib/auth";
 import { isSupported } from "./lib/modelVersion";
 import { displayLabelFlow } from "./lib/labelVerify";
-import {
-  docentSentence,
-  factChip,
-  labelFlowDisplay,
-  rightsStatus,
-  snapshotFields,
-} from "./lib/validators";
+import { docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from "./lib/validators";
 import schema from "./schema";
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -75,9 +64,7 @@ export const create = internalMutation({
     const owner = await ownerForDevice(ctx, device);
     const existing = await ctx.db
       .query("scans")
-      .withIndex("by_device_localId", (q) =>
-        q.eq("deviceId", args.deviceId).eq("localId", args.localId),
-      )
+      .withIndex("by_device_localId", (q) => q.eq("deviceId", args.deviceId).eq("localId", args.localId))
       .unique();
     const restart =
       existing
@@ -88,11 +75,7 @@ export const create = internalMutation({
         || existing.modelVersion !== args.modelVersion);
     if (args.visitId) {
       const visit = await ctx.db.get(args.visitId);
-      if (
-        !visit
-        || !sameOwner(visit.owner, owner)
-        || visit.venueId !== args.venueId
-      ) {
+      if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
         throw new ConvexError({ code: "not_found" });
       }
     }
@@ -149,9 +132,7 @@ export const setResult = internalMutation({
     const valid = async (match: NonNullable<typeof args.best>) => {
       const object = await ctx.db.get(match.objectId);
       return (
-        !!object
-        && object.identityStatus === match.identityStatus
-        && (await eligibleObject(ctx, object, scan.venueId))
+        !!object && object.identityStatus === match.identityStatus && (await eligibleObject(ctx, object, scan.venueId))
       );
     };
     const best = args.best && (await valid(args.best)) ? args.best : undefined;
@@ -174,11 +155,7 @@ export const setResult = internalMutation({
       error: args.error,
       updatedAt: Date.now(),
     });
-    if (
-      outcome === "confident"
-      && scan.visitId
-      && args.best?.gallery !== undefined
-    ) {
+    if (outcome === "confident" && scan.visitId && args.best?.gallery !== undefined) {
       const visit = await ctx.db.get(scan.visitId);
       const device = await ctx.db.get(scan.deviceId);
       if (
@@ -186,8 +163,7 @@ export const setResult = internalMutation({
         && device
         && sameOwner(visit.owner, await ownerForDevice(ctx, device))
         && visit.venueId === scan.venueId
-        && (visit.lastConfidentAt === undefined
-          || scan.capturedAt >= visit.lastConfidentAt)
+        && (visit.lastConfidentAt === undefined || scan.capturedAt >= visit.lastConfidentAt)
       ) {
         await ctx.db.patch(visit._id, {
           lastConfidentGallery: args.best.gallery,
@@ -207,10 +183,7 @@ async function joinCandidate(
   candidate: Infer<typeof displayCandidate>;
   artwork: Doc<"artworks">;
 } | null> {
-  const [object, artwork] = await Promise.all([
-    ctx.db.get(match.objectId),
-    ctx.db.get(match.artworkId),
-  ]);
+  const [object, artwork] = await Promise.all([ctx.db.get(match.objectId), ctx.db.get(match.artworkId)]);
   if (!object || !artwork || !(await eligibleObject(ctx, object, venueId))) {
     return null;
   }
@@ -238,23 +211,13 @@ async function joinCandidate(
   };
 }
 
-async function displayScan(
-  ctx: QueryCtx,
-  scan: Doc<"scans">,
-): Promise<ScanDisplay> {
+async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDisplay> {
   const [best, runnerUps] = await Promise.all([
     scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null,
-    Promise.all(
-      (scan.runnerUps ?? []).map((match) =>
-        joinCandidate(ctx, match, scan.venueId),
-      ),
-    ),
+    Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
   ]);
   const prose =
-    scan.outcome === "confident"
-    && best?.candidate.identityStatus === "established"
-      ? best?.artwork
-      : undefined;
+    scan.outcome === "confident" && best?.candidate.identityStatus === "established" ? best?.artwork : undefined;
   return {
     scanId: scan._id,
     localId: scan.localId,
@@ -265,9 +228,7 @@ async function displayScan(
     outcome: scan.outcome,
     calibratorVersion: scan.calibratorVersion,
     best: best?.candidate,
-    runnerUps: runnerUps.flatMap((joined) =>
-      joined ? [joined.candidate] : [],
-    ),
+    runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
     docent: prose?.docent?.en,
     factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
       id,

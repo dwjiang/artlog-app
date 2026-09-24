@@ -7,10 +7,7 @@ export type SpendKind = "tokenFactory" | "tavily";
 
 type SpendField = "tokenFactoryCalls" | "tavilyCredits";
 
-const kinds: Record<
-  SpendKind,
-  { field: SpendField; env: string; defaultCap: number }
-> = {
+const kinds: Record<SpendKind, { field: SpendField; env: string; defaultCap: number }> = {
   tokenFactory: {
     field: "tokenFactoryCalls",
     env: "DAILY_TOKEN_FACTORY_CALL_CAP",
@@ -26,37 +23,26 @@ const kinds: Record<
 export function dailyCap(kind: SpendKind): number {
   const raw = process.env[kinds[kind].env];
   const parsed = raw === undefined ? NaN : Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0
-    ? parsed
-    : kinds[kind].defaultCap;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : kinds[kind].defaultCap;
 }
 
 export function utcDay(now: number = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-async function getDay(
-  ctx: QueryCtx | MutationCtx,
-  day: string,
-): Promise<Doc<"dailySpend"> | null> {
+async function getDay(ctx: QueryCtx | MutationCtx, day: string): Promise<Doc<"dailySpend"> | null> {
   return ctx.db
     .query("dailySpend")
     .withIndex("by_day", (q) => q.eq("day", day))
     .unique();
 }
 
-export async function spentToday(
-  ctx: QueryCtx | MutationCtx,
-  kind: SpendKind,
-): Promise<number> {
+export async function spentToday(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<number> {
   const row = await getDay(ctx, utcDay());
   return row ? row[kinds[kind].field] : 0;
 }
 
-export async function assertUnderCap(
-  ctx: QueryCtx | MutationCtx,
-  kind: SpendKind,
-): Promise<void> {
+export async function assertUnderCap(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<void> {
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
   if (spent >= cap) {
@@ -72,16 +58,11 @@ function requireAmount(amount: number): void {
   }
 }
 
-async function adjustSpend(
-  ctx: MutationCtx,
-  day: string,
-  delta: SpendDelta,
-): Promise<void> {
+async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Promise<void> {
   const now = Date.now();
   const row = await getDay(ctx, day);
   const next = {
-    tokenFactoryCalls:
-      (row?.tokenFactoryCalls ?? 0) + (delta.tokenFactoryCalls ?? 0),
+    tokenFactoryCalls: (row?.tokenFactoryCalls ?? 0) + (delta.tokenFactoryCalls ?? 0),
     tavilyCredits: (row?.tavilyCredits ?? 0) + (delta.tavilyCredits ?? 0),
     updatedAt: now,
   };
@@ -91,10 +72,7 @@ async function adjustSpend(
   else await ctx.db.insert("dailySpend", { day, ...next });
 }
 
-export async function recordSpend(
-  ctx: MutationCtx,
-  delta: SpendDelta,
-): Promise<void> {
+export async function recordSpend(ctx: MutationCtx, delta: SpendDelta): Promise<void> {
   requireAmount(delta.tokenFactoryCalls ?? 0);
   requireAmount(delta.tavilyCredits ?? 0);
   await adjustSpend(ctx, utcDay(), delta);
@@ -105,11 +83,7 @@ export async function recordSpend(
  * callers cannot collectively overshoot. Returns the UTC day to pass to `reconcileSpend` exactly
  * once when usage is known; retain the reservation after an ambiguous timeout.
  */
-export async function reserveSpend(
-  ctx: MutationCtx,
-  kind: SpendKind,
-  amount: number,
-): Promise<string> {
+export async function reserveSpend(ctx: MutationCtx, kind: SpendKind, amount: number): Promise<string> {
   requireAmount(amount);
   const day = utcDay();
   const spent = await spentToday(ctx, kind);

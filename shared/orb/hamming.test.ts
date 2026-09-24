@@ -1,10 +1,6 @@
 import { descriptorWords, hammingDistance32 } from "./hamming";
 import { mulberry32 } from "./homography";
-import {
-  featuresFromDescriptors,
-  makeRandomFeatures,
-  withFlippedBits,
-} from "./test-fixtures";
+import { featuresFromDescriptors, makeRandomFeatures, withFlippedBits } from "./test-fixtures";
 
 function naiveDistance(a: Uint8Array, b: Uint8Array): number {
   let distance = 0;
@@ -27,12 +23,7 @@ describe("hammingDistance32", () => {
   });
 
   it("is 256 between all-ones and all-zeros", () => {
-    const words = descriptorWords(
-      featuresFromDescriptors([
-        new Uint8Array(32).fill(0xff),
-        new Uint8Array(32),
-      ]),
-    );
+    const words = descriptorWords(featuresFromDescriptors([new Uint8Array(32).fill(0xff), new Uint8Array(32)]));
 
     expect(hammingDistance32(words, 0, words, 8)).toBe(256);
   });
@@ -40,9 +31,7 @@ describe("hammingDistance32", () => {
   it("is 1 for a single flipped bit anywhere in the descriptor", () => {
     const base = new Uint8Array(32).fill(0x3c);
     for (const bit of [0, 7, 8, 31, 32, 127, 128, 200, 255]) {
-      const words = descriptorWords(
-        featuresFromDescriptors([base, withFlippedBits(base, [bit])]),
-      );
+      const words = descriptorWords(featuresFromDescriptors([base, withFlippedBits(base, [bit])]));
 
       expect(hammingDistance32(words, 0, words, 8)).toBe(1);
     }

@@ -15,13 +15,9 @@ import {
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
 import type { WidgetPresentation } from "./widget-layout";
 
-function ArtlogWidget(
-  props: WidgetPresentation,
-  environment: WidgetEnvironment & { width?: number; height?: number },
-) {
+function ArtlogWidget(props: WidgetPresentation, environment: WidgetEnvironment & { width?: number; height?: number }) {
   "widget";
-  const layout =
-    environment.widgetFamily === "systemSmall" ? props.small : props.medium;
+  const layout = environment.widgetFamily === "systemSmall" ? props.small : props.medium;
   const scale = Math.min(
     (environment.width ?? layout.width) / layout.width,
     (environment.height ?? layout.height) / layout.height,

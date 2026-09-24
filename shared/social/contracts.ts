@@ -1,11 +1,5 @@
 import { ConvexError, type Infer, v } from "convex/values";
-import {
-  isCountry,
-  isRevision,
-  isUuid,
-  LIMITS,
-  normalizeSearch,
-} from "../journal/limits";
+import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
 
 export const publicProfile = v.object({
   profileId: v.id("profiles"),
@@ -16,18 +10,7 @@ export const publicProfile = v.object({
   publishedWallCount: v.number(),
 });
 export const frame = v.union(
-  ...(
-    [
-      "gilt",
-      "baroque",
-      "walnut",
-      "oak",
-      "black",
-      "white",
-      "mat",
-      "none",
-    ] as const
-  ).map(v.literal),
+  ...(["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const).map(v.literal),
 );
 export const wallLayout = v.object({
   x: v.number(),
@@ -36,11 +19,7 @@ export const wallLayout = v.object({
   layer: v.number(),
   frame,
 });
-export const relationshipState = v.union(
-  v.literal("none"),
-  v.literal("pending"),
-  v.literal("accepted"),
-);
+export const relationshipState = v.union(v.literal("none"), v.literal("pending"), v.literal("accepted"));
 export const relationship = v.object({
   state: relationshipState,
   revision: v.number(),
@@ -54,10 +33,7 @@ export const browsedProfile = v.object({
   relationship: v.optional(relationship),
 });
 export const visitAudience = v.literal("public");
-export const publicationStatus = v.union(
-  v.literal("private"),
-  v.literal("active"),
-);
+export const publicationStatus = v.union(v.literal("private"), v.literal("active"));
 export const sharedVisitMediaContext = v.object({
   kind: v.literal("sharedVisit"),
   postId: v.string(),
@@ -69,20 +45,14 @@ export const wallItemMediaContext = v.object({
   itemId: v.id("wallItems"),
   photoLocalId: v.optional(v.string()),
 });
-export const publicMediaContext = v.union(
-  wallItemMediaContext,
-  sharedVisitMediaContext,
-);
+export const publicMediaContext = v.union(wallItemMediaContext, sharedVisitMediaContext);
 export const previewMediaContext = v.object({
   kind: v.literal("sharedVisitPreview"),
   visitLocalId: v.string(),
   saveLocalId: v.string(),
   photoLocalId: v.optional(v.string()),
 });
-export const displayMediaContext = v.union(
-  publicMediaContext,
-  previewMediaContext,
-);
+export const displayMediaContext = v.union(publicMediaContext, previewMediaContext);
 export const mediaContext = v.union(
   v.object({ kind: v.literal("owner"), saveLocalId: v.string() }),
   displayMediaContext,
@@ -178,10 +148,7 @@ export const reportEvidence = v.union(
     reflection: v.string(),
   }),
 );
-export const reportDecision = v.union(
-  v.literal("dismiss"),
-  v.literal("remove"),
-);
+export const reportDecision = v.union(v.literal("dismiss"), v.literal("remove"));
 export const reportReview = v.object({
   operator: v.string(),
   decision: reportDecision,
@@ -201,11 +168,7 @@ export const sharedSelection = v.object({
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
   highlightLocalIds: v.optional(v.array(v.string())),
 });
-export function validateProfile(input: {
-  username?: string;
-  name: string;
-  bio?: string;
-}) {
+export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
   const bio = input.bio?.trim();
   if (
@@ -233,13 +196,9 @@ export function validateSearch(query: string): string {
   }
   return normalized;
 }
-export function validateGeography(input: {
-  city?: string;
-  country?: string;
-}): void {
+export function validateGeography(input: { city?: string; country?: string }): void {
   if (
-    (input.city !== undefined
-      && (!input.city.trim() || input.city.length > LIMITS.city))
+    (input.city !== undefined && (!input.city.trim() || input.city.length > LIMITS.city))
     || (input.country !== undefined && !isCountry(input.country))
   ) {
     throw new ConvexError({ code: "invalid_venue" });
@@ -268,9 +227,7 @@ export function isPublicMediaUrl(value: string): boolean {
       && !url.username
       && !url.password
       && !/(^|\.)convex\.(cloud|site)$/.test(url.hostname)
-      && !/collection.?photos?|\/api\/storage|owner.?photos?/i.test(
-        url.pathname,
-      )
+      && !/collection.?photos?|\/api\/storage|owner.?photos?/i.test(url.pathname)
     );
   } catch {
     return false;
@@ -278,17 +235,14 @@ export function isPublicMediaUrl(value: string): boolean {
 }
 export function validateMedia(input: Infer<typeof mediaSource>): void {
   if (
-    ![input.width, input.height].every(
-      (n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535,
-    )
+    ![input.width, input.height].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535)
     || (input.credit?.length ?? 0) > LIMITS.snapshot
     || (input.kind === "catalog"
       && (!isPublicMediaUrl(input.url)
         || !isPublicMediaUrl(input.sourceUrl)
         || !["public_domain", "licensed"].includes(input.rights)))
     || (input.kind === "derivative"
-      && (input.rights !== "contributor_consent"
-        || Math.max(input.width, input.height) > 256))
+      && (input.rights !== "contributor_consent" || Math.max(input.width, input.height) > 256))
   ) {
     throw new ConvexError({ code: "invalid_media" });
   }
@@ -297,8 +251,7 @@ export function validateMediaContext(input: Infer<typeof mediaContext>): void {
   if (
     (input.kind === "owner" && !isUuid(input.saveLocalId))
     || (input.kind === "sharedVisit" && !isUuid(input.postId))
-    || (input.kind === "sharedVisitPreview"
-      && (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))
+    || (input.kind === "sharedVisitPreview" && (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))
   ) {
     throw new ConvexError({ code: "invalid_media" });
   }
@@ -316,12 +269,10 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
   }
   if (
     (input.highlightLocalIds?.length ?? 0) > 3
-    || new Set(input.highlightLocalIds).size
-      !== (input.highlightLocalIds?.length ?? 0)
+    || new Set(input.highlightLocalIds).size !== (input.highlightLocalIds?.length ?? 0)
     || input.highlightLocalIds?.some((id) => !input.saveLocalIds.includes(id))
     || (input.photoSelections?.length ?? 0) > LIMITS.selectedSaves
-    || new Set(input.photoSelections?.map((row) => row.saveLocalId)).size
-      !== (input.photoSelections?.length ?? 0)
+    || new Set(input.photoSelections?.map((row) => row.saveLocalId)).size !== (input.photoSelections?.length ?? 0)
     || input.photoSelections?.some(
       (row) =>
         !input.saveLocalIds.includes(row.saveLocalId)
@@ -342,9 +293,7 @@ export function validateRelationship(input: {
 }): void {
   if (
     input.firstProfileId >= input.secondProfileId
-    || ![input.firstProfileId, input.secondProfileId].includes(
-      input.requesterId,
-    )
+    || ![input.firstProfileId, input.secondProfileId].includes(input.requesterId)
     || !isRevision(input.revision)
   ) {
     throw new ConvexError({ code: "invalid_relationship" });

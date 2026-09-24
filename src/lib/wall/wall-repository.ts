@@ -1,10 +1,5 @@
 import { convexErrorCode } from "../network-error";
-import type {
-  LayoutInput,
-  OwnerWall,
-  VisibilityInput,
-  WallTransport,
-} from "./wall-transport";
+import type { LayoutInput, OwnerWall, VisibilityInput, WallTransport } from "./wall-transport";
 
 type LayoutDraft = Omit<LayoutInput, "scope" | "revision">;
 type NoteDraft = VisibilityInput["changes"];
@@ -61,22 +56,12 @@ export function createWallRepository(deps: Dependencies) {
     const session = deps.capture(),
       version = generation,
       controller = new AbortController();
-    if (
-      disposed
-      || !session.scope
-      || !session.token
-      || !session.owner.startsWith("account:")
-    ) {
+    if (disposed || !session.scope || !session.token || !session.owner.startsWith("account:")) {
       throw new Error("Wall account is not ready");
     }
     requests.add(controller);
     function check() {
-      if (
-        disposed
-        || version !== generation
-        || !session.isCurrent()
-        || controller.signal.aborted
-      ) {
+      if (disposed || version !== generation || !session.isCurrent() || controller.signal.aborted) {
         throw new Error("Wall request cancelled");
       }
     }
@@ -135,10 +120,7 @@ export function createWallRepository(deps: Dependencies) {
               },
               current.context,
             )
-          : await deps.transport.setNoteVisibility(
-              { scope: current.scope, changes: noteDraft },
-              current.context,
-            );
+          : await deps.transport.setNoteVisibility({ scope: current.scope, changes: noteDraft }, current.context);
       current.check();
       if (result.scope !== current.scope) {
         throw new Error("Wall account changed");
@@ -146,12 +128,8 @@ export function createWallRepository(deps: Dependencies) {
       if (kind === "layout") layoutRevision = result.revision;
       update({
         acknowledged: result,
-        ...(kind === "layout" && state.layoutDraft === layoutDraft
-          ? { layoutDraft: null }
-          : {}),
-        ...(kind === "notes" && state.noteDraft === noteDraft
-          ? { noteDraft: [], needsNoteConfirmation: false }
-          : {}),
+        ...(kind === "layout" && state.layoutDraft === layoutDraft ? { layoutDraft: null } : {}),
+        ...(kind === "notes" && state.noteDraft === noteDraft ? { noteDraft: [], needsNoteConfirmation: false } : {}),
       });
     } catch (error) {
       current.check();
@@ -205,14 +183,10 @@ export function createWallRepository(deps: Dependencies) {
         },
       });
     },
-    setNoteDraft: (
-      changes: { itemId: NoteDraft[number]["itemId"]; visible: boolean }[],
-    ) => {
+    setNoteDraft: (changes: { itemId: NoteDraft[number]["itemId"]; visible: boolean }[]) => {
       if (!state.acknowledged) throw new Error("Refresh your wall first");
       const noteDraft = changes.map((change) => {
-        const item = state.acknowledged!.items.find(
-          (item) => item.itemId === change.itemId,
-        );
+        const item = state.acknowledged!.items.find((item) => item.itemId === change.itemId);
         if (!item || (change.visible && !item.noteEligible)) {
           throw new Error("Note is unavailable");
         }
@@ -226,10 +200,7 @@ export function createWallRepository(deps: Dependencies) {
       const current = request();
       try {
         await current.ready();
-        const result = await deps.transport.listMine(
-          { scope: current.scope, cursor },
-          current.context,
-        );
+        const result = await deps.transport.listMine({ scope: current.scope, cursor }, current.context);
         current.check();
         return result;
       } finally {

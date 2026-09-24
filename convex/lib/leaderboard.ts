@@ -41,9 +41,7 @@ export async function recordVisitScore(
   const onDay = (date: string) =>
     ctx.db
       .query("visits")
-      .withIndex("by_owner_venue_history", (q) =>
-        q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date),
-      )
+      .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date))
       .take(2);
   if (previousDay && !(await onDay(previousDay)).length) {
     await increment(ctx, owner.accountId, "visits", previousDay, -1);
@@ -65,21 +63,14 @@ export async function recordArtworkScore(
     ? await ctx.db
         .query("collections")
         .withIndex("by_owner_artwork_savedAt", (q) =>
-          q
-            .eq("owner", owner)
-            .eq("artworkId", save.artworkId)
-            .eq("deletedAt", undefined),
+          q.eq("owner", owner).eq("artworkId", save.artworkId).eq("deletedAt", undefined),
         )
         .take(2)
     : [];
   const other = matches.find((row) => row.localId !== save.localId);
   const firstMonth = (row?: JournalSave | null) => {
-    const dates = [other, row].flatMap((entry) =>
-      entry && entry.deletedAt === undefined ? [entry.savedAt] : [],
-    );
-    return dates.length
-      ? new Date(Math.min(...dates)).toISOString().slice(0, 7)
-      : undefined;
+    const dates = [other, row].flatMap((entry) => (entry && entry.deletedAt === undefined ? [entry.savedAt] : []));
+    return dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 7) : undefined;
   };
   const before = firstMonth(previous),
     after = firstMonth(save);

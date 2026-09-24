@@ -93,8 +93,7 @@ export function CollectionArtworks({
           <View style={{ flex: 1 }}>
             {showCount && (
               <Text variant="metadata" themeColor="textSecondary">
-                {filtered.length}{" "}
-                {filtered.length === 1 ? "artwork" : "artworks"}
+                {filtered.length} {filtered.length === 1 ? "artwork" : "artworks"}
               </Text>
             )}
           </View>
@@ -124,11 +123,7 @@ export function CollectionArtworks({
       addWorks(section.data);
     }
   } else {
-    addWorks(
-      [...filtered].sort(
-        (a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId),
-      ),
-    );
+    addWorks([...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId)));
   }
   const empty = initialLoading ? (
     <VisitSkeleton heading={false} label="Opening collection…" />
@@ -174,17 +169,12 @@ export function CollectionArtworks({
               <Text style={{ color: Gallery.muted, fontSize: 13 }}>
                 Sign in to share your wall and connect with friends.
               </Text>
-              <GalleryButton
-                label="Sign in"
-                onPress={() => router.push(signInRoute("wall"))}
-              />
+              <GalleryButton label="Sign in" onPress={() => router.push(signInRoute("wall"))} />
             </View>
           )}
         </>
       }
-      stickyHeaderIndices={
-        controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined
-      }
+      stickyHeaderIndices={controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined}
       renderItem={({ item }) => {
         if (item.kind === "element") return item.element;
         if (item.kind === "artist") {
@@ -212,15 +202,9 @@ export function CollectionArtworks({
             }}
           >
             {item.works.map((work) => {
-              const hung = wall.draft?.items.some(
-                (piece) => piece.saveLocalId === work.localId,
-              );
+              const hung = wall.draft?.items.some((piece) => piece.saveLocalId === work.localId);
               return (
-                <WorkLink
-                  key={work.localId}
-                  work={work}
-                  style={{ width: tileWidth, gap: 8 }}
-                >
+                <WorkLink key={work.localId} work={work} style={{ width: tileWidth, gap: 8 }}>
                   <View style={{ padding: 12, backgroundColor: Gallery.fill }}>
                     <SavedWorkImage
                       contain

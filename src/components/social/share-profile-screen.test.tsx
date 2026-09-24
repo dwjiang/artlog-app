@@ -1,9 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { ShareProfileScreen } from "./share-profile-screen";
 
 const mockBack = jest.fn(),
@@ -87,9 +82,7 @@ it("shows the profile identity and shares a PNG QR code through the native share
   };
   await render(<ShareProfileScreen />);
   expect(screen.getByRole("header", { name: "Jamie Lee" })).toBeOnTheScreen();
-  expect(
-    screen.getByLabelText("QR code for Jamie Lee’s Artlog profile"),
-  ).toBeOnTheScreen();
+  expect(screen.getByLabelText("QR code for Jamie Lee’s Artlog profile")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
   await waitFor(() =>
     expect(mockShare).toHaveBeenCalledWith(
@@ -97,9 +90,7 @@ it("shows the profile identity and shares a PNG QR code through the native share
       expect.objectContaining({ mimeType: "image/png", UTI: "public.png" }),
     ),
   );
-  expect(mockManipulate).toHaveBeenCalledWith(
-    expect.stringMatching(/^data:image\/gif;base64,/),
-  );
+  expect(mockManipulate).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/gif;base64,/));
   expect(mockReleaseImage).toHaveBeenCalledTimes(1);
   expect(mockReleaseContext).toHaveBeenCalledTimes(1);
   expect(mockDelete).toHaveBeenCalledTimes(1);
@@ -121,9 +112,7 @@ it("allows retry when QR image preparation fails before creating a context", asy
   });
   await render(<ShareProfileScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Your QR code could not be shared. Try again.",
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Your QR code could not be shared. Try again.");
   expect(screen.getByRole("button", { name: "Share QR code" })).toBeEnabled();
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
   await waitFor(() => expect(mockShare).toHaveBeenCalledTimes(1));

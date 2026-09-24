@@ -17,8 +17,7 @@ jest.mock("react-native-reanimated", () => ({
   },
 }));
 jest.mock("react-native-worklets", () => ({
-  scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) =>
-    fn(...args),
+  scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
 }));
 jest.mock("react-native-gesture-handler", () => {
   const pan = () => {
@@ -55,18 +54,9 @@ const piece: WallPiece = {
 
 it("opens artwork without a numbered wall label", async () => {
   const onSelect = jest.fn();
-  await render(
-    <WallGallery
-      pieces={[piece]}
-      color="#FCFCF9"
-      width={390}
-      onSelect={onSelect}
-    />,
-  );
+  await render(<WallGallery pieces={[piece]} color="#FCFCF9" width={390} onSelect={onSelect} />);
   expect(screen.queryByText("1")).toBeNull();
-  await fireEvent.press(
-    screen.getByRole("button", { name: "Water Lilies, Claude Monet" }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
   expect(onSelect).toHaveBeenCalledWith(piece);
 });
 
@@ -83,12 +73,8 @@ it("keeps accessible resizing on the selected wall artwork", async () => {
       onMove={onMove}
     />,
   );
-  await fireEvent(
-    screen.getByRole("adjustable", { name: "Artwork size" }),
-    "accessibilityAction",
-    {
-      nativeEvent: { actionName: "increment" },
-    },
-  );
+  await fireEvent(screen.getByRole("adjustable", { name: "Artwork size" }), "accessibilityAction", {
+    nativeEvent: { actionName: "increment" },
+  });
   expect(onMove).toHaveBeenCalledWith("art", { ...piece.layout, width: 0.44 });
 });

@@ -35,12 +35,8 @@ it("preserves capture dates, real times, empty visits, and UUID idempotence", as
   });
   const second = await upsert({ localId: crypto.randomUUID() });
   expect(second._id).not.toBe(first._id);
-  expect(await t.run((ctx) => ctx.db.query("visits").collect())).toHaveLength(
-    2,
-  );
-  expect(await t.run((ctx) => ctx.db.query("collections").collect())).toEqual(
-    [],
-  );
+  expect(await t.run((ctx) => ctx.db.query("visits").collect())).toHaveLength(2);
+  expect(await t.run((ctx) => ctx.db.query("collections").collect())).toEqual([]);
 });
 it("supports a manual visit without inventing timestamps", async () => {
   const { upsert } = await fixture();
@@ -70,9 +66,9 @@ it("isolates owners and prevents changing the venue of an existing visit", async
     visit,
   });
   expect(second._id).not.toBe(first._id);
-  await expect(
-    other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit }),
-  ).rejects.toMatchObject({ data: { code: "sync_scope_changed" } });
+  await expect(other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit })).rejects.toMatchObject({
+    data: { code: "sync_scope_changed" },
+  });
   const venueId = await t.run(seedMuseum);
   await expect(upsert({ venueId })).rejects.toMatchObject({
     data: { code: "invalid_visit" },
@@ -81,10 +77,7 @@ it("isolates owners and prevents changing the venue of an existing visit", async
 it("pages history by calendar date and UUID, including empty repeats and museum filters", async () => {
   const { t, user, visit } = await fixture();
   const secondVenue = await t.run(seedMuseum);
-  const ids = Array.from(
-    { length: 23 },
-    (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
-  );
+  const ids = Array.from({ length: 23 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
     since: 0,
@@ -105,33 +98,29 @@ it("pages history by calendar date and UUID, including empty repeats and museum 
     scope: user.scope,
     venueId: visit.venueId,
   });
-  expect(first.page.map((row) => row.localId)).toEqual(
-    ids.toReversed().slice(0, 20),
-  );
+  expect(first.page.map((row) => row.localId)).toEqual(ids.toReversed().slice(0, 20));
   const last = await user.as.query(api.visits.history, {
     scope: user.scope,
     venueId: visit.venueId,
     cursor: first.cursor,
   });
-  expect(last.page.map((row) => row.localId)).toEqual(
-    ids.toReversed().slice(20),
-  );
+  expect(last.page.map((row) => row.localId)).toEqual(ids.toReversed().slice(20));
   expect(last).toMatchObject({ cursor: null, isDone: true });
-  await expect(
-    user.as.query(api.visits.history, { scope: user.scope, limit: 51 }),
-  ).rejects.toMatchObject({ data: { code: "invalid_pagination" } });
+  await expect(user.as.query(api.visits.history, { scope: user.scope, limit: 51 })).rejects.toMatchObject({
+    data: { code: "invalid_pagination" },
+  });
 });
 it("hides foreign detail and membership and keeps a visit after its last save is removed", async () => {
   const { t, user, visit, upsert } = await fixture();
   await upsert();
   const other = await seedDevice(t);
   for (const localId of [visit.localId, crypto.randomUUID()]) {
-    await expect(
-      other.as.query(api.visits.detail, { scope: other.scope, localId }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
-    await expect(
-      other.as.query(api.visits.savedWorks, { scope: other.scope, localId }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
+    await expect(other.as.query(api.visits.detail, { scope: other.scope, localId })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    await expect(other.as.query(api.visits.savedWorks, { scope: other.scope, localId })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
   }
   const saves = Array.from({ length: 3 }, () => ({
     localId: crypto.randomUUID(),
@@ -157,9 +146,7 @@ it("hides foreign detail and membership and keeps a visit after its last save is
     limit: 2,
     cursor: page.cursor,
   });
-  expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(
-    saves.map((row) => row.localId).sort(),
-  );
+  expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(saves.map((row) => row.localId).sort());
   for (const save of saves) {
     await user.as.mutation(api.collections.remove, {
       scope: user.scope,

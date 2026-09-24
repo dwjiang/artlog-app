@@ -6,12 +6,7 @@ import model from "../shared/model/model-version.json";
 import { api } from "./_generated/api";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 it.skipIf(process.env.BENCH !== "1")(
@@ -52,13 +47,9 @@ it.skipIf(process.env.BENCH !== "1")(
       scope: (await user.as.query(api.accounts.me, {})).scope,
     });
     const elapsed = performance.now() - started;
-    stdout.write(
-      `identify convex-test: ${elapsed.toFixed(1)} ms (2,000 vectors, 20 descriptor rows, top 10 ORB)\n`,
-    );
+    stdout.write(`identify convex-test: ${elapsed.toFixed(1)} ms (2,000 vectors, 20 descriptor rows, top 10 ORB)\n`);
     expect(result.status).toBe("identified");
-    expect(
-      (await t.run((ctx) => ctx.db.get(result.scanId)))?.best?.corners,
-    ).toHaveLength(4);
+    expect((await t.run((ctx) => ctx.db.get(result.scanId)))?.best?.corners).toHaveLength(4);
   },
   30_000,
 );

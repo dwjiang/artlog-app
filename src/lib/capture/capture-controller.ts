@@ -17,13 +17,7 @@ import type { CaptureInput, Quad } from "./stages";
 export const RETRY_MOVEMENT = 0.1;
 /** Continuous absence of any rectangle after a failure that also rearms automatic scanning. */
 export const RETRY_ABSENCE_MS = 700;
-export type CapturePhase =
-  | "searching"
-  | "capturing"
-  | "processing"
-  | "revealing"
-  | "retry"
-  | "result";
+export type CapturePhase = "searching" | "capturing" | "processing" | "revealing" | "retry" | "result";
 export type CaptureAttempt = {
   id: number;
   source: CaptureInput["source"];
@@ -106,15 +100,8 @@ export class CaptureController {
     });
   }
 
-  begin(
-    source: CaptureInput["source"],
-    quad: Quad | null = null,
-  ): CaptureAttempt | undefined {
-    if (
-      !this.active
-      || this.state.occupied
-      || !["searching", "retry"].includes(this.state.phase)
-    ) {
+  begin(source: CaptureInput["source"], quad: Quad | null = null): CaptureAttempt | undefined {
+    if (!this.active || this.state.occupied || !["searching", "retry"].includes(this.state.phase)) {
       return;
     }
     if (this.attempt) this.attempt.valid = false;
@@ -147,12 +134,7 @@ export class CaptureController {
     this.update({
       phase: "retry",
       message,
-      rearm:
-        attempt.source === "camera"
-          ? attempt.quad
-            ? "reframe"
-            : "shutter"
-          : undefined,
+      rearm: attempt.source === "camera" ? (attempt.quad ? "reframe" : "shutter") : undefined,
     });
   }
 
@@ -175,11 +157,7 @@ export class CaptureController {
    * `RETRY_MOVEMENT` (a shutter failure has no corners, so it has to leave the frame) or be absent
    * for `RETRY_ABSENCE_MS`, then hold steady for a fresh window.
    */
-  observe(
-    detection: RectDetection,
-    preview: FrameSize,
-    now: number,
-  ): CaptureAttempt | undefined {
+  observe(detection: RectDetection, preview: FrameSize, now: number): CaptureAttempt | undefined {
     if (
       !this.active
       || this.state.occupied
@@ -207,9 +185,7 @@ export class CaptureController {
         if (
           !this.failedQuad
           || observations.some(
-            (o) =>
-              maxCornerDistance(toQuad(o.corners), this.failedQuad!, detection)
-              < RETRY_MOVEMENT * diagonal,
+            (o) => maxCornerDistance(toQuad(o.corners), this.failedQuad!, detection) < RETRY_MOVEMENT * diagonal,
           )
         ) {
           return;
@@ -224,9 +200,7 @@ export class CaptureController {
       const visible = previewQuad(quad, detection, preview);
       return containsPoint(quad, [0.5, 0.5]) && isUsableQuad(visible);
     });
-    const candidates = visibleObservations.filter(
-      (o) => framingGuidance(toQuad(o.corners), detection) === null,
-    );
+    const candidates = visibleObservations.filter((o) => framingGuidance(toQuad(o.corners), detection) === null);
     // Invalid framing must not contribute time to a future stable window.
     if (!candidates.length) {
       this.tracker.reset();
@@ -252,11 +226,7 @@ export class CaptureController {
     );
     if (!tracked.captureQuad || tracked.guidance !== "ready") return;
     const quad = tracked.captureQuad;
-    if (
-      !candidates.some(
-        (o) => maxCornerDistance(toQuad(o.corners), quad, detection) < 0.001,
-      )
-    ) {
+    if (!candidates.some((o) => maxCornerDistance(toQuad(o.corners), quad, detection) < 0.001)) {
       return;
     }
     return this.begin("camera", quad);

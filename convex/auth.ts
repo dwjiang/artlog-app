@@ -1,9 +1,5 @@
 import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials";
-import {
-  convexAuth,
-  createAccount,
-  getAuthUserId,
-} from "@convex-dev/auth/server";
+import { convexAuth, createAccount, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -18,13 +14,8 @@ const anonymous = ConvexCredentials({
       throw new ConvexError({ code: "invalid_device_credential" });
     }
     // The phone keeps a random 256-bit credential; only its hash is stored on the server.
-    const hash = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(secret),
-    );
-    const accountId = Array.from(new Uint8Array(hash), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
+    const accountId = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const { user } = await createAccount(ctx, {
       provider: "anonymous",
       account: { id: accountId },
@@ -43,16 +34,10 @@ const appleNative = ConvexCredentials({
       throw new ConvexError({ code: "device_not_registered" });
     }
     const userId = device.authUserId as Id<"users">;
-    if (
-      typeof params.identityToken !== "string"
-      || typeof params.nonce !== "string"
-    ) {
+    if (typeof params.identityToken !== "string" || typeof params.nonce !== "string") {
       throw new ConvexError({ code: "invalid_apple_identity" });
     }
-    const { sub, email } = await verifyAppleIdentityToken(
-      params.identityToken,
-      params.nonce,
-    );
+    const { sub, email } = await verifyAppleIdentityToken(params.identityToken, params.nonce);
     await ctx.runMutation(internal.appleLogin.recordVerifiedIdentity, {
       sub,
       email,
@@ -79,9 +64,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         if (!current) throw new ConvexError({ code: "unauthenticated" });
         return current;
       }
-      return (
-        args.existingUserId ?? ctx.db.insert("users", { isAnonymous: true })
-      );
+      return args.existingUserId ?? ctx.db.insert("users", { isAnonymous: true });
     },
   },
 });

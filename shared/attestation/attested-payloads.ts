@@ -6,11 +6,7 @@ export function placementProposalPayload(scanId: string): string {
   return stableStringify({ operation: "proposePlacement", scanId });
 }
 
-export function contributionPayload(input: {
-  scanId: string;
-  cropStorageId: string;
-  fields: object;
-}): string {
+export function contributionPayload(input: { scanId: string; cropStorageId: string; fields: object }): string {
   return stableStringify({ operation: "contribute", ...input });
 }
 

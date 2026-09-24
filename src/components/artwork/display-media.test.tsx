@@ -27,12 +27,8 @@ beforeEach(() => {
 });
 
 it("reveals the image when loaded and removes the ghost after failure", async () => {
-  const view = await render(
-    <DisplayMedia media={catalog} label="Saved title" width={200} />,
-  );
-  expect(
-    screen.getByRole("progressbar", { name: "Loading image: Saved title" }),
-  ).toHaveStyle({
+  const view = await render(<DisplayMedia media={catalog} label="Saved title" width={200} />);
+  expect(screen.getByRole("progressbar", { name: "Loading image: Saved title" })).toHaveStyle({
     position: "absolute",
   });
   await fireEvent(screen.getByRole("image", { name: "Saved title" }), "load");
@@ -42,11 +38,7 @@ it("reveals the image when loaded and removes the ghost after failure", async ()
     height: 100,
   });
   await view.rerender(
-    <DisplayMedia
-      media={{ ...catalog, url: "https://museum.example/new.jpg" }}
-      label="Saved title"
-      width={200}
-    />,
+    <DisplayMedia media={{ ...catalog, url: "https://museum.example/new.jpg" }} label="Saved title" width={200} />,
   );
   expect(screen.getByRole("progressbar")).toBeOnTheScreen();
   await fireEvent(screen.getByRole("image", { name: "Saved title" }), "error");
@@ -55,9 +47,7 @@ it("reveals the image when loaded and removes the ghost after failure", async ()
 });
 
 it("sizes eligible catalog images by dimensions and allows normal caching", async () => {
-  await render(
-    <DisplayMedia media={catalog} label="Saved title" width={200} />,
-  );
+  await render(<DisplayMedia media={catalog} label="Saved title" width={200} />);
   expect(screen.getByRole("image", { name: "Saved title" })).toHaveStyle({
     width: 200,
     height: 100,
@@ -65,41 +55,25 @@ it("sizes eligible catalog images by dimensions and allows normal caching", asyn
   expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
 });
 it("serves derivatives through the context route with caching disabled", async () => {
-  await render(
-    <DisplayMedia media={derivative} label="Saved title" width={100} />,
-  );
+  await render(<DisplayMedia media={derivative} label="Saved title" width={100} />);
   const image = screen.getByRole("image", { name: "Saved title" });
   expect(image).toHaveStyle({ width: 100, height: 200 });
   expect(image.props.cachePolicy).toBe("none");
-  expect(image.props.source.uri).toBe(
-    "https://test.convex.site/display-media?kind=wallItem&itemId=item-a",
-  );
+  expect(image.props.source.uri).toBe("https://test.convex.site/display-media?kind=wallItem&itemId=item-a");
 });
 it("renders accessible square placeholders for absent and broken images and recovers for a new source", async () => {
   const view = await render(
-    <DisplayMedia
-      media={{ kind: "placeholder", width: 1, height: 1 }}
-      label="Saved title"
-      width={100}
-    />,
+    <DisplayMedia media={{ kind: "placeholder", width: 1, height: 1 }} label="Saved title" width={100} />,
   );
-  expect(
-    screen.getByRole("image", { name: "Saved title: image unavailable" }),
-  ).toHaveStyle({
+  expect(screen.getByRole("image", { name: "Saved title: image unavailable" })).toHaveStyle({
     width: 100,
     height: 100,
   });
-  await view.rerender(
-    <DisplayMedia media={catalog} label="Saved title" width={100} />,
-  );
+  await view.rerender(<DisplayMedia media={catalog} label="Saved title" width={100} />);
   await fireEvent(screen.getByRole("image"), "error", { error: "Unavailable" });
   expect(screen.getByText("Image unavailable")).toBeOnTheScreen();
   await view.rerender(
-    <DisplayMedia
-      media={{ ...catalog, url: "https://museum.example/new.jpg" }}
-      label="Saved title"
-      width={100}
-    />,
+    <DisplayMedia media={{ ...catalog, url: "https://museum.example/new.jpg" }} label="Saved title" width={100} />,
   );
   expect(screen.getByRole("image", { name: "Saved title" })).toBeOnTheScreen();
 });
@@ -112,21 +86,10 @@ it("serves shared visits with optional credentials and requires them only for pr
       itemId: "shared-item" as never,
     },
   };
-  const view = await render(
-    <DisplayMedia media={media} label="Saved title" width={100} />,
-  );
-  expect(screen.getByRole("image").props.source.uri).toContain(
-    "kind=sharedVisit&itemId=shared-item&postId=post-a",
-  );
+  const view = await render(<DisplayMedia media={media} label="Saved title" width={100} />);
+  expect(screen.getByRole("image").props.source.uri).toContain("kind=sharedVisit&itemId=shared-item&postId=post-a");
   expect(screen.getByRole("image").props.source.headers).toBeUndefined();
-  await view.rerender(
-    <DisplayMedia
-      media={media}
-      label="Saved title"
-      width={100}
-      token="token-a"
-    />,
-  );
+  await view.rerender(<DisplayMedia media={media} label="Saved title" width={100} token="token-a" />);
   expect(screen.getByRole("image").props.source.headers).toEqual({
     Authorization: "Bearer token-a",
   });
@@ -138,31 +101,15 @@ it("serves shared visits with optional credentials and requires them only for pr
       saveLocalId: "save-a",
     },
   };
-  await view.rerender(
-    <DisplayMedia media={preview} label="Saved title" width={100} />,
-  );
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} />);
   expect(screen.getByText("Image unavailable")).toBeOnTheScreen();
-  await view.rerender(
-    <DisplayMedia
-      media={preview}
-      label="Saved title"
-      width={100}
-      token="token-a"
-    />,
-  );
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token="token-a" />);
   expect(screen.getByRole("image").props.source.uri).toContain(
     "kind=sharedVisitPreview&visitLocalId=visit-a&saveLocalId=save-a",
   );
   expect(screen.getByRole("image").props.source.headers).toEqual({
     Authorization: "Bearer token-a",
   });
-  await view.rerender(
-    <DisplayMedia
-      media={preview}
-      label="Saved title"
-      width={100}
-      token={null}
-    />,
-  );
+  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token={null} />);
   expect(screen.getByText("Image unavailable")).toBeOnTheScreen();
 });

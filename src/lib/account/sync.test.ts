@@ -2,12 +2,7 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { db } from "@/db/client";
 import * as saves from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
-import {
-  notes,
-  pendingScans,
-  savedWorks,
-  visits as visitTable,
-} from "@/db/schema";
+import { notes, pendingScans, savedWorks, visits as visitTable } from "@/db/schema";
 import { getLocalOwner } from "./owner-store";
 import { syncJournal, type SyncContext, type SyncDependencies } from "./sync";
 
@@ -50,10 +45,7 @@ const remote: Doc<"collections"> = {
 };
 let checkpoint: string | undefined;
 let deps: SyncDependencies;
-const api = jest.fn<
-  ReturnType<SyncDependencies["sync"]>,
-  Parameters<SyncDependencies["sync"]>
->();
+const api = jest.fn<ReturnType<SyncDependencies["sync"]>, Parameters<SyncDependencies["sync"]>>();
 const empty = {
   venues: [],
   acceptedVisits: [],
@@ -106,9 +98,7 @@ it("pushes scoped snapshots, applies parents before saves, acknowledges and chec
   });
   api.mockResolvedValueOnce({
     ...empty,
-    acceptedSaves: [
-      { localId: "local", updatedAt: 20, updatedBy: context.deviceId },
-    ],
+    acceptedSaves: [{ localId: "local", updatedAt: 20, updatedBy: context.deviceId }],
     visits: [remoteVisit],
     saves: [remote],
   });
@@ -189,14 +179,9 @@ it("sends empty visits before save batches and leaves hidden account work suspen
       savedAt: i,
     })),
   );
-  await saves.insertSavedWork(
-    { localId: "hidden", title: "Hidden", artist: "", savedAt: 0 },
-    "account:hidden",
-  );
+  await saves.insertSavedWork({ localId: "hidden", title: "Hidden", artist: "", savedAt: 0 }, "account:hidden");
   await syncJournal(deps, context);
-  expect(
-    api.mock.calls.map(([args]) => args.visits.length + args.saves.length),
-  ).toEqual([50, 21]);
+  expect(api.mock.calls.map(([args]) => args.visits.length + args.saves.length)).toEqual([50, 21]);
   expect(api.mock.calls[0][0].visits).toHaveLength(1);
   expect(await saves.listUnsynced()).toEqual([]);
   expect(await saves.listUnsynced("account:hidden")).toHaveLength(1);
@@ -256,14 +241,10 @@ it("removes the local crop file a newer remote crop displaced", async () => {
   api.mockResolvedValueOnce({
     ...empty,
     visits: [remoteVisit],
-    saves: [
-      { ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 5 },
-    ],
+    saves: [{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 5 }],
   });
   await syncJournal(deps, context);
-  expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith([
-    "crops/old.preview.jpg",
-  ]);
+  expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith(["crops/old.preview.jpg"]);
   expect(await saves.getSavedWork(remote.localId)).toMatchObject({
     cropPath: null,
     cropStorageId: "new",

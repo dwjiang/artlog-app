@@ -25,9 +25,7 @@ it("replaces a note per saved work", async () => {
     updatedAt: 20,
   });
   expect(await repo.getNote("saved-2")).toMatchObject({ text: "Other" });
-  await expect(repo.setNote("missing", "orphan")).rejects.toThrow(
-    "FOREIGN KEY",
-  );
+  await expect(repo.setNote("missing", "orphan")).rejects.toThrow("FOREIGN KEY");
 });
 
 it("rejects oversized notes without changing the saved note or its sync state", async () => {

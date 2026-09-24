@@ -1,27 +1,15 @@
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { ConvexError, type Infer, v } from "convex/values";
 import { isRevision, LIMITS } from "../shared/journal/limits";
-import {
-  validateWallItems,
-  wallArtwork,
-  wallLayout,
-} from "../shared/social/contracts";
+import { validateWallItems, wallArtwork, wallLayout } from "../shared/social/contracts";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { mutation, query, type QueryCtx } from "./_generated/server";
-import {
-  activeProfile,
-  requireClaimComplete,
-  requireOwnedSave,
-  requireProfile,
-} from "./lib/ownership";
+import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile } from "./lib/ownership";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import { projectWallArtwork } from "./lib/projections";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
-import {
-  projectArtworkStory,
-  publicArtworkStory,
-} from "./lib/publicArtworkStory";
+import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 const selection = v.object({
@@ -60,30 +48,19 @@ async function activeItems(ctx: QueryCtx, wall: Doc<"walls"> | null) {
   return wall
     ? ctx.db
         .query("wallItems")
-        .withIndex("by_wall_active", (q) =>
-          q.eq("wallId", wall._id).eq("active", true),
-        )
+        .withIndex("by_wall_active", (q) => q.eq("wallId", wall._id).eq("active", true))
         .take(LIMITS.wallItems)
     : [];
 }
 async function currentProjection(ctx: QueryCtx, item: Doc<"wallItems">) {
   try {
     const current = await requirePublicWallItem(ctx, item._id);
-    const projection = projectWallArtwork(
-      current.item,
-      current.save,
-      await resolveDisplayAsset(ctx, current.save),
-    );
+    const projection = projectWallArtwork(current.item, current.save, await resolveDisplayAsset(ctx, current.save));
     if (item.photoLocalId) {
-      projection.artwork.media = await selectedPhotoMedia(
-        ctx,
-        current.save,
-        item.photoLocalId,
-        {
-          kind: "wallItem",
-          itemId: item._id,
-        },
-      );
+      projection.artwork.media = await selectedPhotoMedia(ctx, current.save, item.photoLocalId, {
+        kind: "wallItem",
+        itemId: item._id,
+      });
     }
     return { ...current, projection };
   } catch (error) {
@@ -181,11 +158,7 @@ export const getArtwork = query({
   },
 });
 const sameLayout = (a: Infer<typeof wallLayout>, b: Infer<typeof wallLayout>) =>
-  a.x === b.x
-  && a.y === b.y
-  && a.width === b.width
-  && a.layer === b.layer
-  && a.frame === b.frame;
+  a.x === b.x && a.y === b.y && a.width === b.width && a.layer === b.layer && a.frame === b.frame;
 
 export const setLayout = mutation({
   args: {
@@ -252,9 +225,7 @@ export const setLayout = mutation({
     for (const item of selected) {
       const existing = await ctx.db
         .query("wallItems")
-        .withIndex("by_wall_placement", (q) =>
-          q.eq("wallId", wallId).eq("placementId", item.placementId),
-        )
+        .withIndex("by_wall_placement", (q) => q.eq("wallId", wallId).eq("placementId", item.placementId))
         .unique();
       if (existing && existing.saveId !== item.save._id) {
         throw new ConvexError({ code: "invalid_wall" });
@@ -280,10 +251,7 @@ export const setLayout = mutation({
           noteRevision: 0,
         });
       }
-      if (
-        !(await resolveDisplayAsset(ctx, item.save))
-        && (await contributionSource(ctx, item.save))
-      ) {
+      if (!(await resolveDisplayAsset(ctx, item.save)) && (await contributionSource(ctx, item.save))) {
         await ctx.scheduler.runAfter(0, internal.displayMediaPrepare.prepare, {
           saveId: item.save._id,
         });

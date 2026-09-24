@@ -1,10 +1,4 @@
-import {
-  captureFileUri,
-  deleteCapture,
-  persistCapture,
-  persistLabelPhoto,
-  scanPreviewPath,
-} from "./photos";
+import { captureFileUri, deleteCapture, persistCapture, persistLabelPhoto, scanPreviewPath } from "./photos";
 
 const mockCreate = jest.fn();
 const mockMove = jest.fn();
@@ -30,9 +24,7 @@ jest.mock("expo-file-system", () => {
   class Node {
     uri: string;
     constructor(...parts: (string | Node)[]) {
-      this.uri = parts
-        .map((part) => (typeof part === "string" ? part : part.uri))
-        .join("/");
+      this.uri = parts.map((part) => (typeof part === "string" ? part : part.uri)).join("/");
     }
     get exists() {
       return mockExisting.has(this.uri);
@@ -104,33 +96,24 @@ it.each([
   { x: 0, y: 85, width: 512, height: 341 },
   { x: 85, y: 0, width: 341, height: 512 },
   { x: 0, y: 0, width: 512, height: 512 },
-])(
-  "stores only the artwork in the preview while retaining the original model file: %j",
-  async (bounds) => {
-    const files = await persistCapture({
-      photoUri: "file:///tmp/photo.jpg",
-      cropUri: "file:///tmp/model.jpg",
-      localId: "scan",
-      contentBounds: bounds,
-    });
-    expect(mockCrop).toHaveBeenCalledWith({
-      originX: bounds.x,
-      originY: bounds.y,
-      width: bounds.width,
-      height: bounds.height,
-    });
-    expect(mockMove).toHaveBeenCalledWith(
-      "file:///tmp/model.jpg",
-      captureFileUri(files.cropPath),
-    );
-    expect(mockMove).toHaveBeenCalledWith(
-      "file:///tmp/preview.jpg",
-      captureFileUri(scanPreviewPath(files.cropPath)),
-    );
-    expect(mockReleaseImage).toHaveBeenCalledTimes(1);
-    expect(mockReleaseContext).toHaveBeenCalledTimes(1);
-  },
-);
+])("stores only the artwork in the preview while retaining the original model file: %j", async (bounds) => {
+  const files = await persistCapture({
+    photoUri: "file:///tmp/photo.jpg",
+    cropUri: "file:///tmp/model.jpg",
+    localId: "scan",
+    contentBounds: bounds,
+  });
+  expect(mockCrop).toHaveBeenCalledWith({
+    originX: bounds.x,
+    originY: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  });
+  expect(mockMove).toHaveBeenCalledWith("file:///tmp/model.jpg", captureFileUri(files.cropPath));
+  expect(mockMove).toHaveBeenCalledWith("file:///tmp/preview.jpg", captureFileUri(scanPreviewPath(files.cropPath)));
+  expect(mockReleaseImage).toHaveBeenCalledTimes(1);
+  expect(mockReleaseContext).toHaveBeenCalledTimes(1);
+});
 
 it("releases decoded images and leaves capture files in place when preview encoding fails", async () => {
   mockSave.mockRejectedValueOnce(new Error("Encoding failed"));
@@ -148,20 +131,17 @@ it("releases decoded images and leaves capture files in place when preview encod
 });
 
 it("keeps each offline label photo at a distinct path so a completed read cannot delete a newer shot", async () => {
-  await expect(
-    persistLabelPhoto({ photoUri: "file:///tmp/label.jpg", localId: "cap-3" }),
-  ).resolves.toBe("labels/cap-3-1.jpg");
-  await expect(
-    persistLabelPhoto({ photoUri: "file:///tmp/retake.jpg", localId: "cap-3" }),
-  ).resolves.toBe("labels/cap-3-2.jpg");
+  await expect(persistLabelPhoto({ photoUri: "file:///tmp/label.jpg", localId: "cap-3" })).resolves.toBe(
+    "labels/cap-3-1.jpg",
+  );
+  await expect(persistLabelPhoto({ photoUri: "file:///tmp/retake.jpg", localId: "cap-3" })).resolves.toBe(
+    "labels/cap-3-2.jpg",
+  );
   expect(mockCreate).toHaveBeenCalledWith("file:///documents/labels", {
     intermediates: true,
     idempotent: true,
   });
-  expect(mockMove).toHaveBeenCalledWith(
-    "file:///tmp/label.jpg",
-    "file:///documents/labels/cap-3-1.jpg",
-  );
+  expect(mockMove).toHaveBeenCalledWith("file:///tmp/label.jpg", "file:///documents/labels/cap-3-1.jpg");
 });
 
 it("falls back to .jpg when the source has no extension", async () => {
@@ -191,9 +171,7 @@ it("deletes only the files that still exist", () => {
     ["file:///documents/crops/cap-1.preview.jpg"],
     ["file:///documents/labels/cap-1.jpg"],
   ]);
-  expect(() =>
-    deleteCapture({ photoPath: null, cropPath: undefined }),
-  ).not.toThrow();
+  expect(() => deleteCapture({ photoPath: null, cropPath: undefined })).not.toThrow();
 });
 
 it("finds persisted files after the app data container moves", async () => {
@@ -204,9 +182,7 @@ it("finds persisted files after the app data container moves", async () => {
     contentBounds,
   });
   mockDocumentsUri = "file:///new-container/documents";
-  expect(captureFileUri(files.cropPath)).toBe(
-    "file:///new-container/documents/crops/cap-1.jpg",
-  );
+  expect(captureFileUri(files.cropPath)).toBe("file:///new-container/documents/crops/cap-1.jpg");
   mockExisting.add("file:///new-container/documents/photos/cap-1.jpg");
   mockExisting.add("file:///new-container/documents/crops/cap-1.jpg");
   deleteCapture(files);

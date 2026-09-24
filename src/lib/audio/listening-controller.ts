@@ -33,14 +33,8 @@ export type AudioHandle = {
   remove(): void;
   setPlaybackRate(rate: number): void;
   volume: number;
-  setActiveForLockScreen(
-    active: boolean,
-    metadata?: { title: string; artist: string; artworkUrl?: string },
-  ): void;
-  addListener(
-    event: "playbackStatusUpdate",
-    callback: (status: Playback) => void,
-  ): { remove(): void };
+  setActiveForLockScreen(active: boolean, metadata?: { title: string; artist: string; artworkUrl?: string }): void;
+  addListener(event: "playbackStatusUpdate", callback: (status: Playback) => void): { remove(): void };
 };
 export type ListeningState = {
   sentences?: DocentSentence[];
@@ -57,14 +51,9 @@ export type ListeningState = {
   volume: number;
   revision: number;
 };
-type Progress = Record<
-  string,
-  { position: number; duration: number; text: string }
->;
+type Progress = Record<string, { position: number; duration: number; text: string }>;
 export type ListeningDependencies = {
-  render(
-    track: ListeningTrack,
-  ): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number }>;
+  render(track: ListeningTrack): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number }>;
   cancel(): void;
   create(uri: string): AudioHandle;
   configure(): Promise<void>;
@@ -111,8 +100,7 @@ export class ListeningController {
       };
     }
   }
-  isPlaybackRequested = () =>
-    this.state.phase === "loading" ? this.desiredPlaying : this.state.playing;
+  isPlaybackRequested = () => (this.state.phase === "loading" ? this.desiredPlaying : this.state.playing);
   progressFor(track: ListeningTrack) {
     const saved = this.progress[trackKey(track)];
     return saved?.text === researchKey(track) ? saved : undefined;
@@ -136,14 +124,11 @@ export class ListeningController {
     this.dependencies.cancel();
     this.desiredPlaying = autoplay;
     const saved = this.progressFor(track);
-    const position =
-      saved && saved.position < saved.duration - 0.5 ? saved.position : 0;
+    const position = saved && saved.position < saved.duration - 0.5 ? saved.position : 0;
     this.update({
       current: track,
       sentences: undefined,
-      queue: this.state.queue.filter(
-        (item) => item.work.artworkId !== track.work.artworkId,
-      ),
+      queue: this.state.queue.filter((item) => item.work.artworkId !== track.work.artworkId),
       phase: "loading",
       playing: false,
       position,
@@ -172,62 +157,55 @@ export class ListeningController {
         duration: rendered.duration ?? saved?.duration ?? 0,
         sentences: rendered.sentences,
       });
-      this.subscription = player.addListener(
-        "playbackStatusUpdate",
-        (status) => {
-          if (generation !== this.generation) return;
-          if (status.playbackState === "error") {
-            this.fail("Audio couldn’t play. Tap Retry.");
-            return;
-          }
-          if (!status.isLoaded) return;
-          if (!starting) {
-            starting = true;
-            const duration = status.duration || rendered.duration || 0;
-            this.update({ duration });
-            void player
-              .seekTo(Math.min(position, duration))
-              .then(() => {
-                if (generation !== this.generation) return;
-                started = true;
-                clearTimeout(this.loadTimeout);
-                player.setActiveForLockScreen(true, {
-                  title: track.work.title,
-                  artist: track.work.artist,
-                  artworkUrl: track.work.imageUri,
-                });
-                this.update({ phase: "ready" });
-                if (this.desiredPlaying) player.play();
-              })
-              .catch(() => {
-                if (generation === this.generation) {
-                  this.fail("Audio couldn’t start. Tap Retry.");
-                }
+      this.subscription = player.addListener("playbackStatusUpdate", (status) => {
+        if (generation !== this.generation) return;
+        if (status.playbackState === "error") {
+          this.fail("Audio couldn’t play. Tap Retry.");
+          return;
+        }
+        if (!status.isLoaded) return;
+        if (!starting) {
+          starting = true;
+          const duration = status.duration || rendered.duration || 0;
+          this.update({ duration });
+          void player
+            .seekTo(Math.min(position, duration))
+            .then(() => {
+              if (generation !== this.generation) return;
+              started = true;
+              clearTimeout(this.loadTimeout);
+              player.setActiveForLockScreen(true, {
+                title: track.work.title,
+                artist: track.work.artist,
+                artworkUrl: track.work.imageUri,
               });
+              this.update({ phase: "ready" });
+              if (this.desiredPlaying) player.play();
+            })
+            .catch(() => {
+              if (generation === this.generation) {
+                this.fail("Audio couldn’t start. Tap Retry.");
+              }
+            });
+        }
+        if (!started) return;
+        this.update({
+          position: status.currentTime,
+          duration: status.duration || this.state.duration,
+          playing: status.playing,
+        });
+        this.remember();
+        if (status.didJustFinish && !finished) {
+          finished = true;
+          const next = this.state.queue[0];
+          if (next) {
+            void this.play(next, !this.state.pauseBetween, this.state.pauseBetween);
+          } else {
+            this.desiredPlaying = false;
+            this.update({ playing: false, position: this.state.duration });
           }
-          if (!started) return;
-          this.update({
-            position: status.currentTime,
-            duration: status.duration || this.state.duration,
-            playing: status.playing,
-          });
-          this.remember();
-          if (status.didJustFinish && !finished) {
-            finished = true;
-            const next = this.state.queue[0];
-            if (next) {
-              void this.play(
-                next,
-                !this.state.pauseBetween,
-                this.state.pauseBetween,
-              );
-            } else {
-              this.desiredPlaying = false;
-              this.update({ playing: false, position: this.state.duration });
-            }
-          }
-        },
-      );
+        }
+      });
     } catch (error) {
       if (generation === this.generation) this.fail(preparationError(error));
     }
@@ -283,11 +261,7 @@ export class ListeningController {
   };
   enqueue = (track: ListeningTrack) => {
     if (this.state.current?.work.artworkId === track.work.artworkId) return;
-    if (
-      this.state.queue.some(
-        (item) => item.work.artworkId === track.work.artworkId,
-      )
-    ) {
+    if (this.state.queue.some((item) => item.work.artworkId === track.work.artworkId)) {
       return;
     }
     this.update({ queue: [...this.state.queue, track] });

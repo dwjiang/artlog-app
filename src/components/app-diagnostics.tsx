@@ -13,9 +13,7 @@ export function AppDiagnostics() {
     addBreadcrumb("navigation.changed", { route });
   }, [route]);
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) =>
-      addBreadcrumb("app.state", { state }),
-    );
+    const subscription = AppState.addEventListener("change", (state) => addBreadcrumb("app.state", { state }));
     return () => subscription.remove();
   }, []);
   return null;

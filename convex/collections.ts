@@ -1,18 +1,10 @@
-import {
-  pageArgs,
-  pagination,
-  validateSave,
-} from "../shared/journal/contracts";
+import { pageArgs, pagination, validateSave } from "../shared/journal/contracts";
 import { ConvexError, v } from "convex/values";
 
 import { feedbackChanged } from "./feedbackReplay";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import { mutation, query } from "./_generated/server";
-import {
-  requireJournalOwner,
-  findOwnedSave,
-  nextChangeVersion,
-} from "./lib/ownership";
+import { requireJournalOwner, findOwnedSave, nextChangeVersion } from "./lib/ownership";
 import { upsertJournalSave } from "./lib/journal";
 import { invalidateDeletedSave } from "./lib/publicationAccess";
 import schema from "./schema";
@@ -61,17 +53,11 @@ export const saveToCollection = mutation({
         throw new ConvexError({ code: "invalid_scan" });
       }
       // A scan identified before its museum's visit existed may be saved into that visit; any other context is a different save.
-      if (
-        scan.venueId !== saved.venueId
-        || (scan.visitId !== undefined && scan.visitId !== saved.visitId)
-      ) {
+      if (scan.venueId !== saved.venueId || (scan.visitId !== undefined && scan.visitId !== saved.visitId)) {
         throw new ConvexError({ code: "not_found" });
       }
     }
-    if (
-      existing
-      && (existing.confirmationRecorded || existing.deletedAt !== undefined)
-    ) {
+    if (existing && (existing.confirmationRecorded || existing.deletedAt !== undefined)) {
       return {
         collectionId: existing._id,
         updatedAt: existing.updatedAt,
@@ -87,16 +73,13 @@ export const saveToCollection = mutation({
       ...(scanId ? { scanId } : {}),
     });
     // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
-    const artwork =
-      object && suggested ? await ctx.db.get(object.artworkId) : null;
+    const artwork = object && suggested ? await ctx.db.get(object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
     if (
       object
       && suggested
       && scan
-      && ![scan.best, ...(scan.runnerUps ?? [])].some(
-        (candidate) => candidate?.objectId === object._id,
-      )
+      && ![scan.best, ...(scan.runnerUps ?? [])].some((candidate) => candidate?.objectId === object._id)
     ) {
       throw new ConvexError({ code: "invalid_object" });
     }
@@ -150,9 +133,7 @@ export const listMine = query({
     const { owner } = await requireJournalOwner(ctx, args.scope);
     const result = await ctx.db
       .query("collections")
-      .withIndex("by_owner_savedAt", (q) =>
-        q.eq("owner", owner).eq("deletedAt", undefined),
-      )
+      .withIndex("by_owner_savedAt", (q) => q.eq("owner", owner).eq("deletedAt", undefined))
       .order("desc")
       .paginate(pagination(args));
     return {

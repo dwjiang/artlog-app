@@ -7,34 +7,17 @@ import model from "../shared/model/model-version.json";
 import { placementProposalPayload } from "../shared/attestation/attested-payloads";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  internalQuery,
-  mutation,
-  type ActionCtx,
-} from "./_generated/server";
+import { action, internalQuery, mutation, type ActionCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { requireDeviceFromAction } from "./lib/auth";
 import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
-import {
-  MAX_CANDIDATES,
-  MAX_ORB_VERIFICATIONS,
-  runPipeline,
-} from "./lib/identifyPipeline";
-import {
-  eligibleObject,
-  eligibleVector,
-  recognitionPartition,
-} from "./lib/recognitionEligibility";
+import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
+import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { loadOrb } from "./lib/orbStorage";
 import { isSupported, validateVector } from "./lib/modelVersion";
-import {
-  decodeOrbFeatures,
-  OrbFormatError,
-  type OrbFeatures,
-} from "../shared/orb/features";
+import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/orb/features";
 import type { VerifyResult } from "../shared/orb/verify";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
@@ -66,17 +49,11 @@ export const loadCandidates = internalQuery({
     now: v.number(),
   },
   returns: v.array(loadedCandidate),
-  handler: async (
-    ctx,
-    { vectorIds, scores, now, venueId },
-  ): Promise<LoadedCandidate[]> => {
+  handler: async (ctx, { vectorIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
     if (vectorIds.length !== scores.length || vectorIds.length > 32) {
       throw new ConvexError({ code: "bad_candidates" });
     }
-    const byObject = new Map<
-      Id<"objects">,
-      { object: Doc<"objects">; similarity: number }
-    >();
+    const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
     for (let i = 0; i < vectorIds.length; i++) {
       const vector = await ctx.db.get(vectorIds[i]);
       if (!vector || !(await eligibleVector(ctx, vector))) continue;
@@ -89,9 +66,7 @@ export const loadCandidates = internalQuery({
         byObject.set(object._id, { object, similarity: scores[i] });
       }
     }
-    const ranked = [...byObject.values()]
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 20);
+    const ranked = [...byObject.values()].sort((a, b) => b.similarity - a.similarity).slice(0, 20);
     const candidates: LoadedCandidate[] = [];
     for (const { object, similarity } of ranked) {
       const [artwork, descriptors, owner] = await Promise.all([
@@ -117,8 +92,7 @@ export const loadCandidates = internalQuery({
       });
     }
     for (let i = 0; i < candidates.length; i++) {
-      candidates[i].runnerUpSimilarity =
-        candidates[i === 0 ? 1 : 0]?.similarity ?? 0;
+      candidates[i].runnerUpSimilarity = candidates[i === 0 ? 1 : 0]?.similarity ?? 0;
     }
     return candidates;
   },
@@ -139,9 +113,7 @@ export const loadContext = internalQuery({
     }
     if (
       scan.visitId
-      && (!visit
-        || !sameOwner(visit.owner, await ownerForDevice(ctx, device))
-        || visit.venueId !== scan.venueId)
+      && (!visit || !sameOwner(visit.owner, await ownerForDevice(ctx, device)) || visit.venueId !== scan.venueId)
     ) {
       throw new ConvexError({ code: "not_found" });
     }
@@ -182,10 +154,7 @@ export const proposeFromScan = mutation({
   },
 });
 
-function candidateSignals(
-  scored: ScoredCandidate<LoadedCandidate>[],
-  verifications: Map<Id<"objects">, VerifyResult>,
-) {
+function candidateSignals(scored: ScoredCandidate<LoadedCandidate>[], verifications: Map<Id<"objects">, VerifyResult>) {
   return scored.map(({ candidate, probability, features }) => {
     const verification = verifications.get(candidate.object._id);
     return {
@@ -200,22 +169,14 @@ function candidateSignals(
   });
 }
 
-async function runScan(
-  ctx: ActionCtx,
-  scan: Doc<"scans">,
-  query: OrbFeatures,
-): Promise<ScanDisplay> {
+async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): Promise<ScanDisplay> {
   const search = (venueId?: Id<"museums">) =>
     ctx.vectorSearch("vectors", "by_vector", {
       vector: scan.vector,
       limit: MAX_CANDIDATES,
-      filter: (q) =>
-        q.eq("partition", recognitionPartition(scan.modelVersion, venueId)),
+      filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion, venueId)),
     });
-  const [established, tentative] = await Promise.all([
-    search(),
-    scan.venueId ? search(scan.venueId) : [],
-  ]);
+  const [established, tentative] = await Promise.all([search(), scan.venueId ? search(scan.venueId) : []]);
   const now = Date.now();
   const load = (matches: typeof established) =>
     ctx.runQuery(internal.identify.loadCandidates, {
@@ -224,25 +185,18 @@ async function runScan(
       venueId: scan.venueId,
       now,
     });
-  const [establishedCandidates, tentativeCandidates, context] =
-    await Promise.all([
-      load(established),
-      load(tentative),
-      ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
-    ]);
+  const [establishedCandidates, tentativeCandidates, context] = await Promise.all([
+    load(established),
+    load(tentative),
+    ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
+  ]);
   const candidates = [...establishedCandidates, ...tentativeCandidates];
-  const references = [establishedCandidates, tentativeCandidates].flatMap(
-    (group) =>
-      group
-        .filter((candidate) => candidate.orbStorageId !== undefined)
-        .slice(0, MAX_ORB_VERIFICATIONS),
+  const references = [establishedCandidates, tentativeCandidates].flatMap((group) =>
+    group.filter((candidate) => candidate.orbStorageId !== undefined).slice(0, MAX_ORB_VERIFICATIONS),
   );
   await Promise.all(
     references.map(async (candidate) => {
-      Object.assign(
-        candidate,
-        await loadOrb(ctx, candidate.orbStorageId!, candidate.keypointCount!),
-      );
+      Object.assign(candidate, await loadOrb(ctx, candidate.orbStorageId!, candidate.keypointCount!));
     }),
   );
   const { decision, verifications } = runPipeline({
@@ -254,22 +208,15 @@ async function runScan(
     inputSize: model.inputSize,
   });
   const top = decision.best;
-  const verification = top
-    ? verifications.get(top.candidate.object._id)
-    : undefined;
+  const verification = top ? verifications.get(top.candidate.object._id) : undefined;
   const best = top
     ? {
         identityStatus: top.candidate.object.identityStatus,
         objectId: top.candidate.object._id,
         artworkId: top.candidate.artwork._id,
         probability: top.probability,
-        gallery:
-          top.candidate.placement?.venueId === scan.venueId
-            ? top.candidate.placement?.gallery
-            : undefined,
-        corners: verification?.verified
-          ? (verification.corners ?? undefined)
-          : undefined,
+        gallery: top.candidate.placement?.venueId === scan.venueId ? top.candidate.placement?.gallery : undefined,
+        corners: verification?.verified ? (verification.corners ?? undefined) : undefined,
       }
     : undefined;
   await ctx.runMutation(internal.scans.setResult, {
@@ -284,10 +231,7 @@ async function runScan(
       artworkId: candidate.artwork._id,
       probability,
     })),
-    candidateSignals: candidateSignals(
-      [...(top ? [top] : []), ...decision.runnerUps],
-      verifications,
-    ),
+    candidateSignals: candidateSignals([...(top ? [top] : []), ...decision.runnerUps], verifications),
     calibratorVersion: decision.calibratorVersion,
   });
   if (decision.outcome === "confident" && top && best) {
@@ -311,10 +255,7 @@ async function runScan(
   });
 }
 
-export function decodeQuery(
-  descriptors: ArrayBuffer,
-  keypoints: ArrayBuffer,
-): OrbFeatures {
+export function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
   try {
     return decodeOrbFeatures(descriptors, keypoints);
   } catch (error) {

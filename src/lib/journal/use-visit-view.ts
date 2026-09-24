@@ -13,10 +13,7 @@ export function useVisitView(owner: string) {
   const key = `visit-view:${owner}`;
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      getSetting(key),
-      getSetting(`remember-visit-view:${owner}`),
-    ])
+    void Promise.all([getSetting(key), getSetting(`remember-visit-view:${owner}`)])
       .then(([value, remember]) => {
         if (active && !changed.current) {
           setMode(remember !== "false" && value === "list" ? "list" : "globe");

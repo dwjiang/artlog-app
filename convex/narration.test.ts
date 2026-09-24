@@ -1,8 +1,4 @@
-import {
-  guideBodyFixture,
-  guideFixture,
-  researchFixture,
-} from "../shared/audio/guide-fixtures";
+import { guideBodyFixture, guideFixture, researchFixture } from "../shared/audio/guide-fixtures";
 import { afterEach, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
@@ -72,29 +68,20 @@ it("generates Shimmer with the museum instructions once and shares cached audio 
   const other = await seedDevice(t);
   expect(await other.as.action(api.narration.render, args)).toEqual(first);
   expect(fetcher).toHaveBeenCalledTimes(2);
-  const options = (
-    fetcher.mock.calls[1] as unknown as [string, RequestInit]
-  )[1];
+  const options = (fetcher.mock.calls[1] as unknown as [string, RequestInit])[1];
   expect(JSON.parse(options.body as string)).toMatchObject({
     voice: "shimmer",
     model: "gpt-4o-mini-tts-2025-12-15",
     input: guideFixture.map((line) => line.sentence).join(" "),
     response_format: "mp3",
   });
-  expect(JSON.parse(options.body as string).instructions).toContain(
-    "museum guide",
-  );
+  expect(JSON.parse(options.body as string).instructions).toContain("museum guide");
   expect(first.uri).toBeTruthy();
   expect(first.renderId).toBeTruthy();
   expect(first.sentences).toEqual(guideFixture);
-  const authoring = JSON.parse(
-    (fetcher.mock.calls[0] as unknown as [string, RequestInit])[1]
-      .body as string,
-  );
+  const authoring = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
   expect(authoring.model).toBe("nvidia/Nemotron-3-Ultra-550b-a55b");
-  expect(JSON.parse(authoring.messages[1].content).research).toEqual(
-    researchFixture,
-  );
+  expect(JSON.parse(authoring.messages[1].content).research).toEqual(researchFixture);
   const spend = await t.run((ctx) => ctx.db.query("dailySpend").take(1));
   expect(spend[0].tokenFactoryCalls).toBe(1);
   expect(JSON.stringify(first)).not.toContain("test-only-secret");
@@ -106,9 +93,7 @@ it("rejects unauthenticated, unregistered and banned callers before spending", a
     data: { code: "unauthenticated" },
   });
   const unknown = await signIn(t);
-  await expect(
-    unknown.as.action(api.narration.render, args),
-  ).rejects.toMatchObject({
+  await expect(unknown.as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "device_not_registered" },
   });
   await t.run((ctx) => ctx.db.patch(deviceId, { banned: true }));
@@ -162,21 +147,14 @@ it("is independent of the written docent and re-renders only when the research i
     ...fact,
     text: `${fact.text} Corrected evidence.`,
   }));
-  await t.run((ctx) =>
-    ctx.db.patch(artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }),
-  );
+  await t.run((ctx) => ctx.db.patch(artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }));
   const updated = await as.action(api.narration.render, args);
   expect(updated.renderId).not.toBe(first.renderId);
   expect(
-    JSON.parse(
-      (fetcher.mock.calls[2] as unknown as [string, RequestInit])[1]
-        .body as string,
-    ).messages[1].content,
+    JSON.parse((fetcher.mock.calls[2] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   ).toContain("Corrected evidence.");
   expect(fetcher).toHaveBeenCalledTimes(4);
-  expect(fetcher.mock.calls.every(([url]) => !url.includes("tavily"))).toBe(
-    true,
-  );
+  expect(fetcher.mock.calls.every(([url]) => !url.includes("tavily"))).toBe(true);
   expect(await rows()).toHaveLength(1);
   expect(await t.run((ctx) => ctx.storage.get(previous))).toBeNull();
 });
@@ -191,25 +169,14 @@ it("re-renders from corrected artwork metadata even when the research is unchang
       date: "1917",
     }),
   );
-  const opening =
-    "This is Nymphéas, by Attributed to Claude Monet, dated 1917.";
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationOpening,
-  ).toBe(opening);
+  const opening = "This is Nymphéas, by Attributed to Claude Monet, dated 1917.";
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationOpening).toBe(opening);
   const updated = await as.action(api.narration.render, args);
   expect(updated.renderId).not.toBe(first.renderId);
-  expect(updated.sentences).toEqual([
-    { sentence: opening, factIds: [] },
-    ...guideBodyFixture,
-  ]);
+  expect(updated.sentences).toEqual([{ sentence: opening, factIds: [] }, ...guideBodyFixture]);
   expect(fetcher).toHaveBeenCalledTimes(4);
-  const speech = JSON.parse(
-    (fetcher.mock.calls[3] as unknown as [string, RequestInit])[1]
-      .body as string,
-  );
-  expect(
-    speech.input.startsWith(`${opening} ${guideBodyFixture[0].sentence}`),
-  ).toBe(true);
+  const speech = JSON.parse((fetcher.mock.calls[3] as unknown as [string, RequestInit])[1].body as string);
+  expect(speech.input.startsWith(`${opening} ${guideBodyFixture[0].sentence}`)).toBe(true);
 });
 
 it("re-renders audio that was made with another voice or model", async () => {
@@ -217,9 +184,7 @@ it("re-renders audio that was made with another voice or model", async () => {
   const first = await as.action(api.narration.render, args);
   const entry = (await rows())[0];
   await t.run((ctx) => ctx.db.patch(entry._id, { voice: "previous-voice" }));
-  expect((await as.action(api.narration.render, args)).renderId).not.toBe(
-    first.renderId,
-  );
+  expect((await as.action(api.narration.render, args)).renderId).not.toBe(first.renderId);
   await t.run(async (ctx) => {
     const row = (await ctx.db.query("narrationAudio").take(1))[0];
     await ctx.db.patch(row._id, { guideModel: "previous-model" });
@@ -230,17 +195,11 @@ it("re-renders audio that was made with another voice or model", async () => {
 
 it("tells the client which render is current only while it is fresh", async () => {
   const { t, as, args, artworkId } = await setup();
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId,
-  ).toBeUndefined();
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
   const first = await as.action(api.narration.render, args);
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId,
-  ).toBe(first.renderId);
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBe(first.renderId);
   await t.run((ctx) => ctx.db.patch(artworkId, { factSheetUpdatedAt: 6 }));
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId,
-  ).toBeUndefined();
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
 });
 
 it("clears every rendering and its audio so the next play renders again", async () => {
@@ -250,18 +209,14 @@ it("clears every rendering and its audio so the next play renders again", async 
   expect(await t.mutation(internal.narration.clear, {})).toBe(1);
   expect(await rows()).toHaveLength(0);
   expect(await t.run((ctx) => ctx.storage.get(storageId))).toBeNull();
-  expect((await as.action(api.narration.render, args)).renderId).not.toBe(
-    first.renderId,
-  );
+  expect((await as.action(api.narration.render, args)).renderId).not.toBe(first.renderId);
   expect(fetcher).toHaveBeenCalledTimes(4);
 });
 
 it("releases failed generations, hides provider response details, and permits retry", async () => {
   const { t, as, args, fetcher, rows } = await setup();
   fetcher.mockResolvedValueOnce(completion());
-  fetcher.mockResolvedValueOnce(
-    new Response("Sensitive provider error", { status: 429 }),
-  );
+  fetcher.mockResolvedValueOnce(new Response("Sensitive provider error", { status: 429 }));
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_provider_failed" },
   });
@@ -295,9 +250,7 @@ it("allows only one generation claim and rejects a late completion after a stale
       })
     ).owned,
   ).toBe(true);
-  const storageId = await t.run((ctx) =>
-    ctx.storage.store(new Blob(["obsolete"])),
-  );
+  const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["obsolete"])));
   await t.mutation(internal.narration.finish, {
     ...args,
     claim: "first",
@@ -313,10 +266,7 @@ it("allows only one generation claim and rejects a late completion after a stale
 it("takes over a shared generation once its owner releases it instead of waiting out the poll", async () => {
   vi.useFakeTimers();
   const { t, as, args, fetcher } = await setup();
-  expect(
-    (await as.mutation(internal.narration.claim, { ...args, claim: "failing" }))
-      .owned,
-  ).toBe(true);
+  expect((await as.mutation(internal.narration.claim, { ...args, claim: "failing" })).owned).toBe(true);
   const waiting = as.action(api.narration.render, args);
   await vi.advanceTimersByTimeAsync(3000);
   expect(fetcher).not.toHaveBeenCalled();
@@ -339,9 +289,7 @@ it("deletes its audio when the research changes while it is being spoken", async
     data: { code: "narration_unavailable" },
   });
   expect(await rows()).toHaveLength(0);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_storage").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
 });
 
 it("retries once naming the sentence whose evidence span is not verbatim, then speaks the fixed script", async () => {
@@ -355,37 +303,22 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
     },
   ];
   fetcher.mockResolvedValueOnce(completion(invented));
-  expect((await as.action(api.narration.render, args)).sentences).toEqual(
-    guideFixture,
-  );
+  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(3);
-  const retry = JSON.parse(
-    (fetcher.mock.calls[1] as unknown as [string, RequestInit])[1]
-      .body as string,
-  );
+  const retry = JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
   expect(retry.messages[1].content).toContain("lilies float serenely");
   expect(retry.messages[1].content).toContain("not verbatim");
-  expect(
-    (await t.run((ctx) => ctx.db.query("dailySpend").take(1)))[0]
-      .tokenFactoryCalls,
-  ).toBe(2);
+  expect((await t.run((ctx) => ctx.db.query("dailySpend").take(1)))[0].tokenFactoryCalls).toBe(2);
 });
 
 it("asks for the thin-research length, not the full one, when a script from thin research is too short", async () => {
   const { as, args, fetcher } = await setup();
   fetcher.mockResolvedValueOnce(completion(script.slice(0, 2)));
-  expect((await as.action(api.narration.render, args)).sentences).toEqual(
-    guideFixture,
-  );
+  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
   const retry = JSON.parse(
-    JSON.parse(
-      (fetcher.mock.calls[1] as unknown as [string, RequestInit])[1]
-        .body as string,
-    ).messages[1].content,
+    JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   );
-  expect(retry.previousAttemptProblems).toContain(
-    "110 to 200 words after the opening",
-  );
+  expect(retry.previousAttemptProblems).toContain("110 to 200 words after the opening");
 });
 
 it("rejects invented citations before generating speech and releases the claim for retry", async () => {
@@ -413,9 +346,7 @@ it("rejects invented citations before generating speech and releases the claim f
   });
   expect(fetcher).toHaveBeenCalledTimes(2);
   expect(await rows()).toHaveLength(0);
-  expect((await as.action(api.narration.render, args)).sentences).toEqual(
-    guideFixture,
-  );
+  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
 });
 
 it("observes the existing Token Factory spend cap before authoring or speaking", async () => {

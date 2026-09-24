@@ -5,11 +5,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
-import {
-  canSave,
-  draftFromCandidate,
-  type SnapshotDraft,
-} from "@/lib/result/snapshot";
+import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/themed-text";
@@ -71,8 +67,7 @@ export function ResultCard({
   const [editingDetails, setEditingDetails] = useState(manual);
   const { bottom } = useSafeAreaInsets();
   const editable = !saving && !savedId;
-  const suggestions =
-    editable && view.kind !== "confident" ? view.runnerUps : [];
+  const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   const photos = useCapturePhotos(
     captureInput
       ? {
@@ -92,10 +87,7 @@ export function ResultCard({
           tintColor={Gallery.ink}
           hidesSharedBackground
         >
-          <Stack.Toolbar.MenuAction
-            disabled={!editable}
-            onPress={() => setEditingDetails((value) => !value)}
-          >
+          <Stack.Toolbar.MenuAction disabled={!editable} onPress={() => setEditingDetails((value) => !value)}>
             {editingDetails ? "Done editing" : "Edit details"}
           </Stack.Toolbar.MenuAction>
           {view.kind === "confident" && (
@@ -103,10 +95,7 @@ export function ResultCard({
               Scan the label
             </Stack.Toolbar.MenuAction>
           )}
-          <Stack.Toolbar.MenuAction
-            disabled={photos.unavailable}
-            onPress={photos.open}
-          >
+          <Stack.Toolbar.MenuAction disabled={photos.unavailable} onPress={photos.open}>
             {photos.label}
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
@@ -120,9 +109,7 @@ export function ResultCard({
         {header}
         <View style={styles.identity}>
           <ThemedText type="title" style={{ fontSize: 36, lineHeight: 42 }}>
-            {view.kind === "soft"
-              ? `Could this be ${draft.title}?`
-              : draft.title || "Unidentified artwork"}
+            {view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
           </ThemedText>
           {!editingDetails && (
             <>
@@ -134,9 +121,7 @@ export function ResultCard({
               )}
               {view.kind === "confident" && (
                 <ThemedText variant="metadata" themeColor="textSecondary">
-                  {[draft.medium, draft.institution]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[draft.medium, draft.institution].filter(Boolean).join(" · ")}
                 </ThemedText>
               )}
             </>
@@ -150,32 +135,26 @@ export function ResultCard({
             scanId={captureInput?.scanId}
             savedId={savedId}
             imageUri={
-              captureInput?.capture
-                ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath))
-                : undefined
+              captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
             }
           />
         )}
         {!view.primary && !editingDetails && (
           <ThemedText themeColor="textSecondary">
-            We couldn’t identify this artwork yet. Keep the photo and add what
-            you know.
+            We couldn’t identify this artwork yet. Keep the photo and add what you know.
           </ThemedText>
         )}
         {view.kind === "soft" && (
           <>
             <ThemedText themeColor="textSecondary">
-              The image looks similar, but we’re not sure. Scan the museum label
-              to confirm the details.
+              The image looks similar, but we’re not sure. Scan the museum label to confirm the details.
             </ThemedText>
             <ThemedText variant="metadata" themeColor="textSecondary">
               Possible artist · {draft.artist || "Unknown"}
             </ThemedText>
           </>
         )}
-        {view.primary?.identityStatus === "tentative" && (
-          <TentativeOriginNotice />
-        )}
+        {view.primary?.identityStatus === "tentative" && <TentativeOriginNotice />}
         {!editingDetails && view.kind === "unidentified" && (
           <View
             style={{

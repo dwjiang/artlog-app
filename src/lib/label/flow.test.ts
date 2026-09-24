@@ -2,19 +2,11 @@ import { ConvexError } from "convex/values";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
-import {
-  LabelFlowError,
-  runLabelFlow,
-  toLabelInput,
-  type LabelApi,
-  type LabelStage,
-} from "./flow";
+import { LabelFlowError, runLabelFlow, toLabelInput, type LabelApi, type LabelStage } from "./flow";
 
 const scanId = "scan-1" as Id<"scans">;
 
-function flow(
-  partial: Partial<LabelFlowDisplay> & Pick<LabelFlowDisplay, "stage">,
-): LabelFlowDisplay {
+function flow(partial: Partial<LabelFlowDisplay> & Pick<LabelFlowDisplay, "stage">): LabelFlowDisplay {
   return {
     fields: {},
     evidence: [],
@@ -57,9 +49,7 @@ function fakeApi() {
   return {
     fetchQr: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => qr),
     readLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => read),
-    verifyLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(
-      async () => verified,
-    ),
+    verifyLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => verified),
   } satisfies LabelApi;
 }
 
@@ -141,48 +131,38 @@ it.each([
     1,
   ],
   ["no image near the scan", null, 1],
-])(
-  "compares the verifier’s images and re-verifies only after %s",
-  async (_case, check, verifyCalls) => {
-    const api = fakeApi();
-    api.verifyLabel
-      .mockResolvedValueOnce(verified)
-      .mockResolvedValueOnce(upgraded);
-    const checkImages = jest.fn(async () => check);
-    const stages: LabelStage[] = [];
-    const result = await runLabelFlow({
+])("compares the verifier’s images and re-verifies only after %s", async (_case, check, verifyCalls) => {
+  const api = fakeApi();
+  api.verifyLabel.mockResolvedValueOnce(verified).mockResolvedValueOnce(upgraded);
+  const checkImages = jest.fn(async () => check);
+  const stages: LabelStage[] = [];
+  const result = await runLabelFlow({
+    scanId,
+    labelPhotoUri: "file:///tmp/label.jpg",
+    api,
+    readText,
+    checkImages,
+    onStage: (stage) => stages.push(stage),
+  });
+  expect(checkImages).toHaveBeenCalledWith(["https://museum.example/a.jpg", "https://museum.example/b.jpg"]);
+  expect(api.verifyLabel).toHaveBeenCalledTimes(verifyCalls);
+  expect(stages).toEqual(["read", "verify", "image-check", "done"]);
+  if (verifyCalls === 2) {
+    // The verified values go back unchanged (including the date the verifier added), so the server skips its searches.
+    expect(api.verifyLabel).toHaveBeenLastCalledWith({
       scanId,
-      labelPhotoUri: "file:///tmp/label.jpg",
-      api,
-      readText,
-      checkImages,
-      onStage: (stage) => stages.push(stage),
+      fields: { title: "Water Lilies", artist: "Claude Monet", date: "1916" },
+      imageCheck: check,
     });
-    expect(checkImages).toHaveBeenCalledWith([
-      "https://museum.example/a.jpg",
-      "https://museum.example/b.jpg",
-    ]);
-    expect(api.verifyLabel).toHaveBeenCalledTimes(verifyCalls);
-    expect(stages).toEqual(["read", "verify", "image-check", "done"]);
-    if (verifyCalls === 2) {
-      // The verified values go back unchanged (including the date the verifier added), so the server skips its searches.
-      expect(api.verifyLabel).toHaveBeenLastCalledWith({
-        scanId,
-        fields: { title: "Water Lilies", artist: "Claude Monet", date: "1916" },
-        imageCheck: check,
-      });
-      expect(result).toBe(upgraded);
-    } else {
-      expect(result).toBe(verified);
-    }
-  },
-);
+    expect(result).toBe(upgraded);
+  } else {
+    expect(result).toBe(verified);
+  }
+});
 
 it("skips the image check without images or without the scan’s features and survives a failing check", async () => {
   const api = fakeApi();
-  api.verifyLabel.mockResolvedValue(
-    flow({ ...verified, imageUrls: undefined }),
-  );
+  api.verifyLabel.mockResolvedValue(flow({ ...verified, imageUrls: undefined }));
   const checkImages = jest.fn(async () => null);
   await runLabelFlow({
     scanId,
@@ -215,17 +195,12 @@ it("skips the image check without images or without the scan’s features and su
     checkImages: failing,
   });
   expect(result).toBe(verified);
-  expect(console.warn).toHaveBeenCalledWith(
-    "Image check failed; keeping the text verification",
-    expect.any(Error),
-  );
+  expect(console.warn).toHaveBeenCalledWith("Image check failed; keeping the text verification", expect.any(Error));
 });
 
 it("stops with the sharper-shot message when the reader found nothing", async () => {
   const api = fakeApi();
-  api.readLabel.mockResolvedValue(
-    flow({ stage: "read", moderation: "flagged" }),
-  );
+  api.readLabel.mockResolvedValue(flow({ stage: "read", moderation: "flagged" }));
   await expect(
     runLabelFlow({
       scanId,
@@ -259,36 +234,16 @@ it("sends nothing when the phone recognizes no text on the photo", async () => {
 });
 
 it.each([
-  [
-    new ConvexError({ code: "feature_off" }),
-    "feature_off",
-    "Label reading is paused right now",
-  ],
-  [
-    new ConvexError({ code: "rate_limited", retryAfter: 60_000 }),
-    "rate_limited",
-    "Try again in a minute",
-  ],
-  [
-    new ConvexError({ code: "model_error" }),
-    "model_error",
-    "Couldn’t read the label — try a sharper shot",
-  ],
+  [new ConvexError({ code: "feature_off" }), "feature_off", "Label reading is paused right now"],
+  [new ConvexError({ code: "rate_limited", retryAfter: 60_000 }), "rate_limited", "Try again in a minute"],
+  [new ConvexError({ code: "model_error" }), "model_error", "Couldn’t read the label — try a sharper shot"],
   [
     new ConvexError({ code: "qr_no_artwork" }),
     "qr_no_artwork",
     "That QR code doesn’t point to the museum’s collection",
   ],
-  [
-    new Error("Network request failed"),
-    "network",
-    "No connection — try again when you’re back online",
-  ],
-  [
-    new ConvexError({ code: "something_new" }),
-    "something_new",
-    "Couldn’t verify the label right now",
-  ],
+  [new Error("Network request failed"), "network", "No connection — try again when you’re back online"],
+  [new ConvexError({ code: "something_new" }), "something_new", "Couldn’t verify the label right now"],
 ])("maps %s to a user message", async (error, code, message) => {
   const api = fakeApi();
   api.readLabel.mockRejectedValue(error);
@@ -321,9 +276,7 @@ it("turns the reader’s fields into the verifier’s input, dropping blanks", (
 
 it("rejects a moderated verification without reporting completion", async () => {
   const api = fakeApi();
-  api.verifyLabel.mockResolvedValue(
-    flow({ stage: "verified", moderation: "flagged" }),
-  );
+  api.verifyLabel.mockResolvedValue(flow({ stage: "verified", moderation: "flagged" }));
   const stages: LabelStage[] = [];
   await expect(
     runLabelFlow({

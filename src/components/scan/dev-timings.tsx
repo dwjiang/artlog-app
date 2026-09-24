@@ -5,13 +5,8 @@ import { Colors, Spacing } from "@/constants/theme";
 import type { CaptureTimings } from "@/lib/capture/stages";
 import { useDevTimings } from "@/lib/settings/use-dev-timings";
 
-export function formatCaptureTimings({
-  total,
-  ...stages
-}: CaptureTimings): string {
-  const parts = Object.entries(stages).map(
-    ([stage, ms]) => `${stage} ${Math.round(ms)}`,
-  );
+export function formatCaptureTimings({ total, ...stages }: CaptureTimings): string {
+  const parts = Object.entries(stages).map(([stage, ms]) => `${stage} ${Math.round(ms)}`);
   return [`Capture ${Math.round(total)} ms`, ...parts].join(" · ");
 }
 

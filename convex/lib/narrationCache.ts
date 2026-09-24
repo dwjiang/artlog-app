@@ -22,10 +22,7 @@ export function narrationProvenance(artwork: Doc<"artworks">) {
   };
 }
 
-export function narrationCurrent(
-  entry: Doc<"narrationAudio">,
-  artwork: Doc<"artworks">,
-): boolean {
+export function narrationCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
   const provenance = narrationProvenance(artwork);
   return (
     entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt
@@ -43,20 +40,11 @@ export function narrationEntry(ctx: QueryCtx, artworkId: Id<"artworks">) {
     .unique();
 }
 
-export async function renderedNarration(
-  ctx: QueryCtx,
-  artwork: Doc<"artworks">,
-): Promise<RenderedNarration | null> {
+export async function renderedNarration(ctx: QueryCtx, artwork: Doc<"artworks">): Promise<RenderedNarration | null> {
   const entry = await narrationEntry(ctx, artwork._id);
-  if (
-    !entry?.storageId
-    || !entry.sentences
-    || !narrationCurrent(entry, artwork)
-  ) {
+  if (!entry?.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) {
     return null;
   }
   const uri = await ctx.storage.getUrl(entry.storageId);
-  return uri
-    ? { uri, sentences: entry.sentences, renderId: entry.claim }
-    : null;
+  return uri ? { uri, sentences: entry.sentences, renderId: entry.claim } : null;
 }

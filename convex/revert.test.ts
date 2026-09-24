@@ -102,19 +102,10 @@ async function fixture() {
   >(
     id: Id<T>,
   ) => t.run((ctx) => ctx.db.get(id)) as Promise<Doc<T> | null>;
-  const all = <
-    T extends
-      | "objects"
-      | "vectors"
-      | "descriptors"
-      | "placements"
-      | "contributions",
-  >(
-    table: T,
-  ) => t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
+  const all = <T extends "objects" | "vectors" | "descriptors" | "placements" | "contributions">(table: T) =>
+    t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
   const finish = () => t.finishAllScheduledFunctions(vi.runAllTimers);
-  const scheduled = () =>
-    t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
   return { t, alice, bob, venueId, get, all, finish, scheduled };
 }
 
@@ -139,24 +130,18 @@ describe("revertObject", () => {
       objectId: first.objectId,
       reason: "test",
     });
-    expect(
-      await t.run((ctx) => ctx.db.system.get("_storage", storageId)),
-    ).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).not.toBeNull();
     await t.action(internal.revert.revertObjectById, {
       objectId: second.objectId,
       reason: "test",
     });
-    expect(
-      await t.run((ctx) => ctx.db.system.get("_storage", storageId)),
-    ).toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).toBeNull();
   });
 
   it("removes the work from identification, closes its placement, deletes the crop and rejects its contributions", async () => {
     const { t, alice, venueId, get, all } = await fixture();
     const cropStorageId = await t.run((ctx) =>
-      ctx.storage.store(
-        new Blob([new Uint8Array(1000)], { type: "image/jpeg" }),
-      ),
+      ctx.storage.store(new Blob([new Uint8Array(1000)], { type: "image/jpeg" })),
     );
     const contributionId = await t.run((ctx) =>
       seedContribution(ctx, {
@@ -172,9 +157,7 @@ describe("revertObject", () => {
         },
       }),
     );
-    await t.run(async (ctx) =>
-      publishContribution(ctx, (await ctx.db.get(contributionId))!),
-    );
+    await t.run(async (ctx) => publishContribution(ctx, (await ctx.db.get(contributionId))!));
     const [object] = await all("objects");
     const capture = () => ({
       localId: crypto.randomUUID(),
@@ -203,12 +186,8 @@ describe("revertObject", () => {
     expect((await get(object._id))?.thumbnailStorageId).toBeUndefined();
     expect(await all("vectors")).toEqual([]);
     expect(await all("descriptors")).toEqual([]);
-    expect(await all("placements")).toMatchObject([
-      { objectId: object._id, closedAt: Date.now() },
-    ]);
-    expect(
-      await t.run((ctx) => ctx.db.system.get("_storage", cropStorageId)),
-    ).toBeNull();
+    expect(await all("placements")).toMatchObject([{ objectId: object._id, closedAt: Date.now() }]);
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", cropStorageId))).toBeNull();
     expect(await get(contributionId)).toMatchObject({
       status: "rejected",
       rejectedReason: "object_reverted",
@@ -333,13 +312,7 @@ describe("applyTakedown", () => {
       factSheetNeedsReview: true,
       enrichGeneration: 4,
     });
-    for (const field of [
-      "factSheet",
-      "factSheetUpdatedAt",
-      "docent",
-      "docentUpdatedAt",
-      "enrichClaimedAt",
-    ] as const) {
+    for (const field of ["factSheet", "factSheetUpdatedAt", "docent", "docentUpdatedAt", "enrichClaimedAt"] as const) {
       expect(artwork?.[field]).toBeUndefined();
     }
     await finish();
@@ -358,9 +331,7 @@ describe("applyTakedown", () => {
       factSheet,
       docent,
     });
-    expect((await all("vectors")).map((row) => row.objectId)).toEqual([
-      seeded.other.objectId,
-    ]);
+    expect((await all("vectors")).map((row) => row.objectId)).toEqual([seeded.other.objectId]);
     expect(
       await t.mutation(internal.docent.claim, {
         artworkId: seeded.corpus.artworkId,
@@ -370,9 +341,7 @@ describe("applyTakedown", () => {
 
   it("hides a single object immediately and completes its cleanup before marking the takedown applied", async () => {
     const { t, alice, venueId, get, finish } = await fixture();
-    const { objectId, artworkId } = await t.run((ctx) =>
-      seedUserObject(ctx, { venueId, deviceIds: [alice.deviceId] }),
-    );
+    const { objectId, artworkId } = await t.run((ctx) => seedUserObject(ctx, { venueId, deviceIds: [alice.deviceId] }));
     const takedownId = await t.mutation(internal.revert.applyTakedown, {
       objectId,
       requester: "estate@example.org",
@@ -388,9 +357,9 @@ describe("applyTakedown", () => {
       appliedAt: Date.now(),
     });
     expect((await get(artworkId))?.factSheetNeedsReview).toBeUndefined();
-    await expect(
-      t.mutation(internal.revert.applyTakedown, { requester: "x" }),
-    ).rejects.toMatchObject({ data: { code: "takedown_target" } });
+    await expect(t.mutation(internal.revert.applyTakedown, { requester: "x" })).rejects.toMatchObject({
+      data: { code: "takedown_target" },
+    });
     await expect(
       t.mutation(internal.revert.applyTakedown, {
         objectId,
@@ -431,11 +400,7 @@ describe("cascade transaction limits", () => {
       appliedAt: expect.any(Number),
     });
     expect(await t.run((ctx) => ctx.db.query("vectors").first())).toBeNull();
-    expect(
-      (await t.run((ctx) => ctx.db.query("objects").collect())).every(
-        (row) => row.reverted,
-      ),
-    ).toBe(true);
+    expect((await t.run((ctx) => ctx.db.query("objects").collect())).every((row) => row.reverted)).toBe(true);
   });
 });
 
@@ -444,9 +409,7 @@ describe("object cleanup resumption", () => {
     const t = harness({ transactionLimits: true });
     const device = await seedDevice(t);
     const venueId = await t.run((ctx) => seedMuseum(ctx));
-    const work = await t.run((ctx) =>
-      seedUserObject(ctx, { venueId, deviceIds: [device.deviceId] }),
-    );
+    const work = await t.run((ctx) => seedUserObject(ctx, { venueId, deviceIds: [device.deviceId] }));
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = 0; i < 50; i++) {
@@ -506,9 +469,7 @@ describe("object cleanup resumption", () => {
     const rows = await t.run((ctx) => ctx.db.query("contributions").collect());
     expect(rows).toHaveLength(80);
     expect(rows.every((row) => row.status === "rejected")).toBe(true);
-    expect(
-      rows.filter((row) => row.rejectedReason === "device_reverted"),
-    ).toHaveLength(2);
+    expect(rows.filter((row) => row.rejectedReason === "device_reverted")).toHaveLength(2);
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       vectors: 0,
     });
@@ -518,64 +479,56 @@ describe("object cleanup resumption", () => {
   });
 });
 
-it.each(["first", "second"] as const)(
-  "removes views when their %s agreement witness is banned",
-  async (witness) => {
-    vi.useFakeTimers();
-    const t = harness();
-    const alice = await seedDevice(t);
-    const bob = await seedDevice(t);
-    const venueId = await t.run(seedMuseum);
-    const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-    const wrong = await t.run((ctx) => seedArtworkWithObject(ctx));
-    for (const [deviceId, vector] of [
-      [alice.deviceId, testVector(0.9)],
-      [bob.deviceId, testVector(0.8)],
-    ] as const) {
-      await t.run(async (ctx) => {
-        const scanId = await seedScan(ctx, { deviceId, venueId });
-        await ctx.db.insert("feedback", {
-          scanId,
-          deviceId,
-          vector,
-          modelVersion: model.modelVersion,
-          venueId,
-          rejectedObjectId: wrong.objectId,
-          score: 0.8,
-          margin: 0.1,
-          orbInliers: 20,
-          probability: 0.9,
-          calibratorVersion: "lr-v1",
-          venueMismatch: false,
-          penaltyAdded: 0,
-          resolution: { kind: "runner_up", objectId: work.objectId },
-          createdAt: Date.now(),
-        });
+it.each(["first", "second"] as const)("removes views when their %s agreement witness is banned", async (witness) => {
+  vi.useFakeTimers();
+  const t = harness();
+  const alice = await seedDevice(t);
+  const bob = await seedDevice(t);
+  const venueId = await t.run(seedMuseum);
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const wrong = await t.run((ctx) => seedArtworkWithObject(ctx));
+  for (const [deviceId, vector] of [
+    [alice.deviceId, testVector(0.9)],
+    [bob.deviceId, testVector(0.8)],
+  ] as const) {
+    await t.run(async (ctx) => {
+      const scanId = await seedScan(ctx, { deviceId, venueId });
+      await ctx.db.insert("feedback", {
+        scanId,
+        deviceId,
+        vector,
+        modelVersion: model.modelVersion,
+        venueId,
+        rejectedObjectId: wrong.objectId,
+        score: 0.8,
+        margin: 0.1,
+        orbInliers: 20,
+        probability: 0.9,
+        calibratorVersion: "lr-v1",
+        venueMismatch: false,
+        penaltyAdded: 0,
+        resolution: { kind: "runner_up", objectId: work.objectId },
+        createdAt: Date.now(),
       });
-    }
-    expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(
-      2,
-    );
-    await t.mutation(internal.revert.revertDevice, {
-      deviceId: witness === "first" ? alice.deviceId : bob.deviceId,
-      reason: "poisoning",
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-    await t.action(internal.promotion.run, {});
-    const remaining = await t.run((ctx) =>
-      ctx.db
-        .query("vectors")
-        .withIndex("by_objectId_modelVersion_source", (q) =>
-          q
-            .eq("objectId", work.objectId)
-            .eq("modelVersion", model.modelVersion)
-            .eq("source", "user_scan"),
-        )
-        .collect(),
-    );
-    expect(remaining).toHaveLength(0);
-  },
-);
+  }
+  expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
+  await t.mutation(internal.revert.revertDevice, {
+    deviceId: witness === "first" ? alice.deviceId : bob.deviceId,
+    reason: "poisoning",
+  });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.action(internal.promotion.run, {});
+  const remaining = await t.run((ctx) =>
+    ctx.db
+      .query("vectors")
+      .withIndex("by_objectId_modelVersion_source", (q) =>
+        q.eq("objectId", work.objectId).eq("modelVersion", model.modelVersion).eq("source", "user_scan"),
+      )
+      .collect(),
+  );
+  expect(remaining).toHaveLength(0);
+});
 
 it("reconsiders duplicate views across witness pages and restores them with clean agreement", async () => {
   const { t, alice, bob, venueId, finish } = await fixture();
@@ -652,16 +605,10 @@ it("removes a taken-down object from a previously identified scan card", async (
     objectId: work.objectId,
     requester: "owner",
   });
-  expect(
-    (await user.as.query(api.scans.get, { scanId }))?.best,
-  ).toBeUndefined();
+  expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect((await t.run((ctx) => ctx.db.get(requestId)))?.appliedAt).toEqual(
-    expect.any(Number),
-  );
-  expect(
-    (await user.as.query(api.scans.get, { scanId }))?.best,
-  ).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get(requestId)))?.appliedAt).toEqual(expect.any(Number));
+  expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();
   const cached = await user.as.action(api.identify.identify, {
     localId: (await t.run((ctx) => ctx.db.get(scanId)))!.localId,
     vector: testVector(),
@@ -718,9 +665,7 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
   const remaining = await t.run((ctx) =>
     ctx.db
       .query("vectors")
-      .withIndex("by_objectId_modelVersion_source", (q) =>
-        q.eq("objectId", work.objectId),
-      )
+      .withIndex("by_objectId_modelVersion_source", (q) => q.eq("objectId", work.objectId))
       .collect(),
   );
   expect(remaining.map((row) => row.source)).toEqual(["corpus"]);
@@ -736,9 +681,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
   async (removal) => {
     vi.useFakeTimers();
     const t = harness({ transactionLimits: true });
-    const [alice, bob, carol, dan] = await Promise.all(
-      Array.from({ length: 4 }, () => seedDevice(t)),
-    );
+    const [alice, bob, carol, dan] = await Promise.all(Array.from({ length: 4 }, () => seedDevice(t)));
     const venueA = await t.run(seedMuseum);
     const venueB = await t.run(seedMuseum);
     const work = await t.run((ctx) => seedArtworkWithObject(ctx));
@@ -746,10 +689,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
     for (const [deviceId, venueId, vector] of [
       [alice.deviceId, venueA, testVector(0.9)],
       [bob.deviceId, venueA, testVector(0.8)],
-      ...Array.from(
-        { length: 35 },
-        () => [carol.deviceId, venueB, testVector(0.9)] as const,
-      ),
+      ...Array.from({ length: 35 }, () => [carol.deviceId, venueB, testVector(0.9)] as const),
       [dan.deviceId, venueB, testVector(0.8)],
     ] as const) {
       await t.run(async (ctx) => {
@@ -773,9 +713,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
         });
       });
     }
-    expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(
-      2,
-    );
+    expect((await t.action(internal.promotion.run, {})).multiViewVectors).toBe(2);
     if (removal === "ban") {
       await t.mutation(internal.revert.revertDevice, {
         deviceId: alice.deviceId,
@@ -793,10 +731,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
       ctx.db
         .query("vectors")
         .withIndex("by_objectId_modelVersion_source", (q) =>
-          q
-            .eq("objectId", work.objectId)
-            .eq("modelVersion", model.modelVersion)
-            .eq("source", "user_scan"),
+          q.eq("objectId", work.objectId).eq("modelVersion", model.modelVersion).eq("source", "user_scan"),
         )
         .collect(),
     );
@@ -858,9 +793,7 @@ it("backs off while a dependency waits, parks a ban that never settles, and resu
     }),
   ).toMatchObject({ phase: "complete", settled: 1, settleAttempts: 0 });
   expect(await t.run((ctx) => ctx.db.get(work.vectorId))).toBeNull();
-  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toHaveProperty(
-    "revertCompletedAt",
-  );
+  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toHaveProperty("revertCompletedAt");
 });
 
 it("removes every scan-owned vector across pages while preserving corpus vectors", async () => {
@@ -868,9 +801,7 @@ it("removes every scan-owned vector across pages while preserving corpus vectors
   const t = harness({ transactionLimits: true });
   const alice = await seedDevice(t);
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scanId = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: alice.deviceId }),
-  );
+  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: alice.deviceId }));
   for (let page = 0; page < 3; page++) {
     await t.run(async (ctx) => {
       for (let i = 0; i < 25; i++) {
@@ -913,23 +844,16 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
     bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scanId = await t.run((ctx) =>
-    seedScan(ctx, { deviceId: alice.deviceId }),
-  );
+  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: alice.deviceId }));
   const { contributionId, objectId, jobId } = await t.run(async (ctx) => {
     await ctx.db.patch(alice.deviceId, { banned: true });
-    const cropStorageId = await ctx.storage.store(
-      new Blob(["crop"], { type: "image/jpeg" }),
-    );
+    const cropStorageId = await ctx.storage.store(new Blob(["crop"], { type: "image/jpeg" }));
     const contributionId = await seedContribution(ctx, {
       deviceId: bob.deviceId,
       venueId,
       cropStorageId,
     });
-    const objectId = await publishContribution(
-      ctx,
-      (await ctx.db.get(contributionId))!,
-    );
+    const objectId = await publishContribution(ctx, (await ctx.db.get(contributionId))!);
     const object = (await ctx.db.get(objectId))!;
     await ctx.db.insert("vectors", {
       objectId: work.objectId,
@@ -976,9 +900,7 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
       deviceId: alice.deviceId,
     }),
   ).toMatchObject({ phase: "stalled", settled: 0 });
-  expect(
-    await t.run((ctx) => ctx.db.query("entryRebuilds").collect()),
-  ).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("entryRebuilds").collect())).toHaveLength(1);
   expect(
     await t.run((ctx) =>
       ctx.db
@@ -998,12 +920,8 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
       deviceId: alice.deviceId,
     }),
   ).toMatchObject({ phase: "complete", settled: 3 });
-  expect(await t.run((ctx) => ctx.db.query("entryRebuilds").collect())).toEqual(
-    [],
-  );
-  expect(
-    await t.run((ctx) => ctx.db.query("feedbackRebuilds").collect()),
-  ).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("entryRebuilds").collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("feedbackRebuilds").collect())).toEqual([]);
   expect(
     await t.run((ctx) =>
       ctx.db

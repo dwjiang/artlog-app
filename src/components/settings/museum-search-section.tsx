@@ -14,19 +14,11 @@ import { useMuseumSearchConsent } from "@/lib/settings/use-museum-search-consent
 export const MUSEUM_SEARCH_SETTING = "Search museum sites for my scans";
 
 /** Turning the switch on asks the owner to present the consent sheet; consent itself is stored by that sheet. */
-export function MuseumSearchSection({
-  onRequestConsent,
-}: {
-  onRequestConsent: () => void;
-}) {
+export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: () => void }) {
   const { consent, failed } = useMuseumSearchConsent(useScreenActive());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
-  const footer =
-    error
-    ?? (failed
-      ? "Couldn't read your choice. Reopen Settings to try again."
-      : undefined);
+  const footer = error ?? (failed ? "Couldn't read your choice. Reopen Settings to try again." : undefined);
 
   async function change(enabled: boolean) {
     setError(undefined);
@@ -54,15 +46,9 @@ export function MuseumSearchSection({
         ...SettingsOutline,
       }}
     >
-      <Host
-        matchContents={{ vertical: true }}
-        colorScheme="light"
-        style={{ width: "100%" }}
-      >
+      <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
         {consent === undefined && !failed ? (
-          <LoadingRing
-            accessibilityLabel={`Loading ${MUSEUM_SEARCH_SETTING.toLowerCase()}`}
-          />
+          <LoadingRing accessibilityLabel={`Loading ${MUSEUM_SEARCH_SETTING.toLowerCase()}`} />
         ) : (
           <Switch
             label={MUSEUM_SEARCH_SETTING}

@@ -11,8 +11,7 @@ import { Gallery, SettingsOutline } from "@/constants/theme";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
-const ANTON_LICENSE_URL =
-  "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
+const ANTON_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
 
 export function AboutSection() {
   const [error, setError] = useState<string>();
@@ -32,18 +31,11 @@ export function AboutSection() {
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
       <View style={{ gap: 6, paddingTop: 18 }}>
-        <ThemedText
-          variant="wordmark"
-          style={{ fontSize: 64, lineHeight: 76 }}
-          accessibilityRole="header"
-        >
+        <ThemedText variant="wordmark" style={{ fontSize: 64, lineHeight: 76 }} accessibilityRole="header">
           Artlog
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Version{" "}
-          {Constants.expoConfig?.version
-            ?? Constants.nativeAppVersion
-            ?? "Unknown"}
+          Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
         </ThemedText>
       </View>
       <View accessibilityElementsHidden style={{ height: 220 }}>
@@ -141,22 +133,14 @@ export function AboutSection() {
               borderTopColor: SettingsOutline.borderColor,
             })}
           >
-            <Image
-              source={`sf:${icon}`}
-              tintColor={Gallery.ink}
-              style={{ width: 18, height: 18 }}
-            />
+            <Image source={`sf:${icon}`} tintColor={Gallery.ink} style={{ width: 18, height: 18 }} />
             <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
             {detail ? (
               <ThemedText type="small" themeColor="textSecondary">
                 {detail}
               </ThemedText>
             ) : (
-              <Image
-                source="sf:chevron.right"
-                tintColor={Gallery.muted}
-                style={{ width: 10, height: 12 }}
-              />
+              <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 10, height: 12 }} />
             )}
           </Pressable>
         ))}
@@ -170,18 +154,15 @@ export function AboutSection() {
         type="small"
         themeColor="textSecondary"
         onPress={() => {
-          void open(
-            "https://commons.wikimedia.org/wiki/File:Art_Institute_of_Chicago_from_across_Michigan_Avenue.jpg",
-          );
+          void open("https://commons.wikimedia.org/wiki/File:Art_Institute_of_Chicago_from_across_Michigan_Avenue.jpg");
         }}
         accessibilityRole="link"
       >
-        Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0.
-        Displayed cropped.
+        Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0. Displayed cropped.
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors.
-        Licensed under the SIL Open Font License, Version 1.1.
+        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors. Licensed under the SIL Open Font License,
+        Version 1.1.
       </ThemedText>
     </ScrollView>
   );

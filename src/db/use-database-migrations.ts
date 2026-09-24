@@ -26,9 +26,7 @@ export function useDatabaseMigrations(): MigrationState {
       })
       .catch((error: unknown) => {
         if (active) {
-          setOwnerError(
-            error instanceof Error ? error : new Error(String(error)),
-          );
+          setOwnerError(error instanceof Error ? error : new Error(String(error)));
         }
       });
     return () => {

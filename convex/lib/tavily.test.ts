@@ -65,11 +65,7 @@ describe("Tavily search", () => {
           },
           { bogus: true },
         ],
-        images: [
-          { url: "https://a.example/i.jpg", description: "d" },
-          "https://a.example/j.jpg",
-          7,
-        ],
+        images: [{ url: "https://a.example/i.jpg", description: "d" }, "https://a.example/j.jpg", 7],
         usage: { credits: 2 },
         answer: "text",
       }),
@@ -146,21 +142,15 @@ describe("Tavily search", () => {
 
   it("maps failures to search_error and refuses to run without a key", async () => {
     fetchMock.mockResolvedValueOnce(new Response("nope", { status: 432 }));
-    await expect(
-      search({ query: "q", includeDomains: ["a.example"] }),
-    ).rejects.toMatchObject({
+    await expect(search({ query: "q", includeDomains: ["a.example"] })).rejects.toMatchObject({
       data: { code: "search_error", reason: "http_432" },
     });
     fetchMock.mockResolvedValueOnce(new Response("not json"));
-    await expect(
-      search({ query: "q", includeDomains: ["a.example"] }),
-    ).rejects.toMatchObject({
+    await expect(search({ query: "q", includeDomains: ["a.example"] })).rejects.toMatchObject({
       data: { code: "search_error", reason: "bad_json" },
     });
     vi.stubEnv("TAVILY_API_KEY", "");
-    await expect(
-      search({ query: "q", includeDomains: ["a.example"] }),
-    ).rejects.toMatchObject({
+    await expect(search({ query: "q", includeDomains: ["a.example"] })).rejects.toMatchObject({
       data: { code: "search_unconfigured" },
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);

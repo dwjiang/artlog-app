@@ -1,19 +1,6 @@
-import type {
-  ArtworkEncounter,
-  ArtworkPhoto,
-  SavedWork,
-  Visit,
-} from "@/db/schema";
-import {
-  widgetArtworkUrl,
-  widgetCollection,
-  widgetVisitDate,
-} from "./widget-collection";
-import {
-  defaultWidgetSettings,
-  readWidgetSettings,
-  widgetSettingsKey,
-} from "./widget-settings";
+import type { ArtworkEncounter, ArtworkPhoto, SavedWork, Visit } from "@/db/schema";
+import { widgetArtworkUrl, widgetCollection, widgetVisitDate } from "./widget-collection";
+import { defaultWidgetSettings, readWidgetSettings, widgetSettingsKey } from "./widget-settings";
 
 const works = [
   {
@@ -119,9 +106,7 @@ it("does not replace an unavailable selected visit or painting with unrelated ar
 it("keeps visit calendar dates independent of the device time zone", () => {
   expect(widgetVisitDate("2026-09-08")).toBe("Sep 8, 2026");
   expect(widgetVisitDate()).toBe("");
-  expect(widgetArtworkUrl({ id: "art/1", visitId: "visit 1" })).toBe(
-    "artlog://saved/art%2F1?visitId=visit%201",
-  );
+  expect(widgetArtworkUrl({ id: "art/1", visitId: "visit 1" })).toBe("artlog://saved/art%2F1?visitId=visit%201");
 });
 
 it("round-trips preferences and recovers malformed local settings", () => {
@@ -133,15 +118,8 @@ it("round-trips preferences and recovers malformed local settings", () => {
     caption: "none",
   };
   expect(readWidgetSettings(JSON.stringify(selected))).toEqual(selected);
-  for (const value of [
-    undefined,
-    "null",
-    "invalid",
-    '{"source":{"kind":"visit"}}',
-  ]) {
+  for (const value of [undefined, "null", "invalid", '{"source":{"kind":"visit"}}']) {
     expect(readWidgetSettings(value)).toEqual(defaultWidgetSettings);
   }
-  expect(widgetSettingsKey("account:one")).not.toBe(
-    widgetSettingsKey("account:two"),
-  );
+  expect(widgetSettingsKey("account:one")).not.toBe(widgetSettingsKey("account:two"));
 });

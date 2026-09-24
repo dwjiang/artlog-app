@@ -1,9 +1,6 @@
 import { useEffect } from "react";
 import { reportError } from "@/lib/observability";
-import {
-  PhotoStripSkeleton,
-  TextSkeleton,
-} from "@/components/loading-skeleton";
+import { PhotoStripSkeleton, TextSkeleton } from "@/components/loading-skeleton";
 import { LoadingImage } from "@/components/loading-image";
 import { ThemedText as Text } from "@/components/themed-text";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
@@ -29,10 +26,7 @@ export function WallPhotoPicker({
 }) {
   const owner = useLocalOwner();
   const { fontScale } = useWindowDimensions();
-  const { data, updatedAt, error } = useLiveQuery(
-    selectArtworkPhotos(savedId, owner),
-    [savedId, owner],
-  );
+  const { data, updatedAt, error } = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const queryError = error ?? visits.error;
   useEffect(() => {
@@ -40,10 +34,7 @@ export function WallPhotoPicker({
   }, [queryError]);
   const photos = data.filter((photo) => photo.owner === owner);
   const selected = photos.find((photo) => photo.localId === selectedId);
-  const selectedVisit = visits.data.find(
-    (visit) =>
-      visit.owner === owner && visit.localId === selected?.visitLocalId,
-  );
+  const selectedVisit = visits.data.find((visit) => visit.owner === owner && visit.localId === selected?.visitLocalId);
   if (error) {
     return (
       <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
@@ -60,16 +51,8 @@ export function WallPhotoPicker({
         contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
       >
         {photos.map((photo, index) => {
-          const visit = visits.data.find(
-            (visit) =>
-              visit.owner === owner && visit.localId === photo.visitLocalId,
-          );
-          const kind =
-            photo.kind === "full"
-              ? "Full painting"
-              : photo.kind === "detail"
-                ? "Detail"
-                : "Wall label";
+          const visit = visits.data.find((visit) => visit.owner === owner && visit.localId === photo.visitLocalId);
+          const kind = photo.kind === "full" ? "Full painting" : photo.kind === "detail" ? "Detail" : "Wall label";
           return (
             <Pressable
               key={photo.localId}
@@ -78,11 +61,7 @@ export function WallPhotoPicker({
               accessibilityHint={[
                 photo.caption,
                 kind,
-                visit
-                  ? formatVisitDate(visit.visitedOn)
-                  : visits.updatedAt
-                    ? "Not linked to a visit"
-                    : "",
+                visit ? formatVisitDate(visit.visitedOn) : visits.updatedAt ? "Not linked to a visit" : "",
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -93,8 +72,7 @@ export function WallPhotoPicker({
                 padding: 4,
                 gap: 6,
                 borderWidth: 2,
-                borderColor:
-                  photo.localId === selectedId ? Gallery.accent : "transparent",
+                borderColor: photo.localId === selectedId ? Gallery.accent : "transparent",
                 backgroundColor: Gallery.paper,
                 borderRadius: 2,
               }}
@@ -170,14 +148,8 @@ export function WallPhotoPicker({
       {compact && selected && (
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           {selected.caption
-            || (selected.kind === "full"
-              ? "Full painting"
-              : selected.kind === "detail"
-                ? "Detail"
-                : "Wall label")}
-          {selectedVisit
-            ? ` · ${formatVisitDate(selectedVisit.visitedOn)}`
-            : ""}
+            || (selected.kind === "full" ? "Full painting" : selected.kind === "detail" ? "Detail" : "Wall label")}
+          {selectedVisit ? ` · ${formatVisitDate(selectedVisit.visitedOn)}` : ""}
         </Text>
       )}
     </View>

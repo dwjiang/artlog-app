@@ -1,12 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { api, internal } from "../_generated/api";
 import { harness } from "../test.helpers";
-import {
-  befriend,
-  socialDerivative,
-  socialUser,
-  socialVisit,
-} from "./socialTestFixtures";
+import { befriend, socialDerivative, socialUser, socialVisit } from "./socialTestFixtures";
 
 it("revokes immediately, purges social references in batches, and deletes files after the last reference", async () => {
   vi.useFakeTimers();
@@ -74,14 +69,10 @@ it("revokes immediately, purges social references in batches, and deletes files 
     });
     expect(await t.run((ctx) => ctx.db.get(a.profileId))).not.toBeNull();
     await a.as.mutation(api.accounts.deleteAccount, {});
-    await expect(
-      b.as.query(api.sharedVisits.get, { postId: post.postId! }),
-    ).rejects.toMatchObject({
+    await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({
       data: { code: "not_found" },
     });
-    expect(
-      await t.run((ctx) => ctx.db.system.get("_storage", storageId)),
-    ).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).not.toBeNull();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     for (const table of [
       "sharedVisits",
@@ -99,9 +90,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     }
     expect(await t.run((ctx) => ctx.db.get(a.profileId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.get(b.profileId))).not.toBeNull();
-    expect(
-      await t.run((ctx) => ctx.db.system.get("_storage", storageId)),
-    ).toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).toBeNull();
     const report = await t.query(internal.review.getReport, { reportId });
     expect(report?.reporter).toBeUndefined();
     expect(report?.evidence.kind).toBe("profile");

@@ -18,12 +18,10 @@ it("verifies Apple issuer, product audience, expiry, RS256 and nonce before retu
   vi.mocked(jwtVerify).mockResolvedValue({
     payload: { sub: "apple-user", email: "me@example.com", nonce: "challenge" },
   } as never);
-  await expect(verifyAppleIdentityToken("token", "challenge")).resolves.toEqual(
-    {
-      sub: "apple-user",
-      email: "me@example.com",
-    },
-  );
+  await expect(verifyAppleIdentityToken("token", "challenge")).resolves.toEqual({
+    sub: "apple-user",
+    email: "me@example.com",
+  });
   expect(jwtVerify).toHaveBeenCalledWith("token", "apple-keys", {
     issuer: "https://appleid.apple.com",
     audience: "app.artlog.ios",
@@ -32,30 +30,21 @@ it("verifies Apple issuer, product audience, expiry, RS256 and nonce before retu
   });
 });
 
-it.each(["wrong audience", "expired", "invalid signature"])(
-  "rejects %s",
-  async (reason) => {
-    vi.mocked(jwtVerify).mockRejectedValue(new Error(reason));
-    await expect(
-      verifyAppleIdentityToken("token", "challenge"),
-    ).rejects.toThrow(reason);
-  },
-);
+it.each(["wrong audience", "expired", "invalid signature"])("rejects %s", async (reason) => {
+  vi.mocked(jwtVerify).mockRejectedValue(new Error(reason));
+  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow(reason);
+});
 
 it.each([
   { sub: "", nonce: "challenge" },
   { sub: "user", nonce: "other" },
 ])("rejects invalid claims %j", async (payload) => {
   vi.mocked(jwtVerify).mockResolvedValue({ payload } as never);
-  await expect(
-    verifyAppleIdentityToken("token", "challenge"),
-  ).rejects.toThrow();
+  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow();
 });
 
 it("fails closed when the product audience is not configured", async () => {
   vi.stubEnv("APPLE_BUNDLE_ID", "");
-  await expect(
-    verifyAppleIdentityToken("token", "challenge"),
-  ).rejects.toThrow();
+  await expect(verifyAppleIdentityToken("token", "challenge")).rejects.toThrow();
   expect(jwtVerify).not.toHaveBeenCalled();
 });

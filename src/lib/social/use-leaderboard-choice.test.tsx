@@ -61,7 +61,5 @@ it("keeps browsing available when preferences cannot save", async () => {
   const hook = await renderHook(useLeaderboardChoice);
   await act(() => hook.result.current.changeChoice({ period: "all" }));
   expect(hook.result.current.choice.period).toBe("all");
-  await waitFor(() =>
-    expect(hook.result.current.error).toMatch(/could not be remembered/),
-  );
+  await waitFor(() => expect(hook.result.current.error).toMatch(/could not be remembered/));
 });
