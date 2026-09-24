@@ -1,15 +1,11 @@
 import type { Id } from "../../../convex/_generated/dataModel";
 import { calendarDate } from "../../../shared/journal/limits";
-import {
-  CHOOSE_RADIUS_M,
-  haversineMeters,
-  type Coordinate,
-  type VenueCandidate,
-  type VenueResolution,
-} from "./resolve";
+import { type Coordinate, type VenueCandidate, type VenueResolution } from "./resolve";
 
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
+/** How long "Not here" keeps the museums it was tapped over from resolving or opening the sheet. */
+export const NOT_HERE_MS = 2 * 60 * 60 * 1000;
 
 /** A calendar day in a museum's time zone; visits and hand-picked museums both live by it. */
 export type MuseumDay = Pick<CurrentVisit, "visitedOn" | "timeZone">;
@@ -53,6 +49,9 @@ export type CurrentVisit = {
   remoteVisitId?: Id<"visits">;
 };
 
+/** A museum confirmed in the sheet and the museum day it was confirmed on. */
+export type VenuePick = { venueId: Id<"museums"> } & MuseumDay;
+
 export type Fix = Coordinate & { at: number };
 export type VenueStatus = "idle" | "locating" | "resolved" | "choose" | "none" | "denied";
 
@@ -66,28 +65,42 @@ export type VenueState = {
   fix?: Fix;
   /** Changes whenever the picker should open; consumers react to the change, not the value. */
   prompt: number;
-  /** Where "Not here" was tapped; no prompt reappears within 400 m of it until a venue is confirmed. */
-  dismissedNear?: Coordinate;
+  /** For the rest of its day, a fix that lists this museum resolves to it instead of asking again, until a visit elsewhere takes over. */
+  picked?: VenuePick;
+  /** When "Not here" lapses for each option key it was tapped over. */
+  notHere: Record<string, number>;
   /** A visit ended by hand today; location alone starts no new visit at that museum until tomorrow. */
   ended?: Pick<CurrentVisit, "venueId" | "visitedOn" | "timeZone">;
   error?: string;
 };
 
+/** `quiet` resolutions never open the sheet; a scan's is quiet so the sheet never covers the camera or result. */
 export type VenueEvent =
-  | { type: "hydrated"; visit?: CurrentVisit; ended?: VenueState["ended"] }
+  | {
+      type: "hydrated";
+      visit?: CurrentVisit;
+      ended?: VenueState["ended"];
+      picked?: VenuePick;
+      notHere?: VenueState["notHere"];
+    }
   | { type: "locating" }
   | { type: "denied" }
   | { type: "failed"; error: string }
-  | { type: "resolved"; fix: Fix; resolution: VenueResolution }
-  | { type: "poiOptions"; options: PoiOption[] }
-  | { type: "chosen"; option: SeededOption; replaces: VenueOption }
+  | { type: "resolved"; fix: Fix; resolution: VenueResolution; quiet?: boolean }
+  | { type: "poiOptions"; options: PoiOption[]; quiet?: boolean }
+  | { type: "chosen"; option: SeededOption; replaces: VenueOption; day: MuseumDay }
   | { type: "visitStarted"; visit: CurrentVisit }
   | { type: "visitEnded"; localId: string; manual?: boolean }
   | { type: "remoteVisit"; localId: string; remoteVisitId: Id<"visits"> }
-  | { type: "dismissed" }
+  | { type: "dismissed"; at: number }
   | { type: "backgrounded" };
 
-export const initialVenueState: VenueState = { status: "idle", options: [], prompt: 0 };
+export const initialVenueState: VenueState = {
+  status: "idle",
+  options: [],
+  prompt: 0,
+  notHere: {},
+};
 
 export type VenueContext = {
   venueId?: Id<"museums">;
@@ -133,18 +146,25 @@ export function venueContext(state: VenueState): VenueContext {
   };
 }
 
-function promptAllowed(state: VenueState, at: Coordinate): boolean {
+function isNotHere(state: VenueState, key: string, at: number): boolean {
+  return (state.notHere[key] ?? 0) > at;
+}
+
+/** Any listed option under "Not here" means the person already turned this spot down. */
+function promptAllowed(state: VenueState, options: VenueOption[], at: number): boolean {
   return (
-    state.dismissedNear === undefined || haversineMeters(state.dismissedNear, at) > CHOOSE_RADIUS_M
+    options.length > 0 && options.every((option) => !isNotHere(state, venueOptionKey(option), at))
   );
 }
 
 export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
   switch (event.type) {
-    case "hydrated":
-      if (!event.visit) return { ...state, visit: undefined, ended: event.ended };
+    case "hydrated": {
+      const answers = { picked: event.picked, notHere: event.notHere ?? {} };
+      if (!event.visit) return { ...state, ...answers, visit: undefined, ended: event.ended };
       return {
         ...state,
+        ...answers,
         visit: event.visit,
         ended: undefined,
         venue: {
@@ -156,6 +176,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
             : {}),
         },
       };
+    }
     case "locating":
       return { ...state, status: "locating", error: undefined };
     case "denied":
@@ -177,7 +198,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         return { ...state, status: "resolved", fix, error: undefined };
       const base = { ...state, fix, error: undefined };
       if (resolution.kind === "auto") {
-        if (!promptAllowed(state, fix)) {
+        if (isNotHere(state, resolution.venue.id, fix.at)) {
           return {
             ...base,
             status: "none",
@@ -194,17 +215,20 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       }
       if (resolution.kind === "choose") {
         const options = resolution.options.map(toSeededOption);
-        const current =
-          state.visit && isVisitToday(state.visit, fix.at)
-            ? options.find((option) => option.venueId === state.visit?.venueId)
+        const listedToday = (kept?: MuseumDay & { venueId: Id<"museums"> }) =>
+          kept && isVisitToday(kept, fix.at)
+            ? options.find((option) => option.venueId === kept.venueId)
             : undefined;
+        // Picking from the list sets today's visit elsewhere aside; a visit taking over since then drops the pick.
+        const current = listedToday(state.picked) ?? listedToday(state.visit);
         if (current) return { ...base, status: "resolved", venue: current, options };
         return {
           ...base,
           status: "choose",
           venue: undefined,
           options,
-          prompt: promptAllowed(state, fix) ? state.prompt + 1 : state.prompt,
+          prompt:
+            !event.quiet && promptAllowed(state, options, fix.at) ? state.prompt + 1 : state.prompt,
         };
       }
       // Leaving the radius pauses the visit; it resumes on return the same day and closes with the day, a new venue, or End.
@@ -213,7 +237,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
     case "poiOptions": {
       if (state.status !== "none" || !state.fix) return state;
       const prompt =
-        event.options.length > 0 && promptAllowed(state, state.fix)
+        !event.quiet && promptAllowed(state, event.options, state.fix.at)
           ? state.prompt + 1
           : state.prompt;
       return { ...state, options: event.options, prompt };
@@ -230,18 +254,33 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       ];
       // Confirming the museum ended by hand today says its visits are wanted again; saves there default to one.
       const ended = state.ended?.venueId === event.option.venueId ? undefined : state.ended;
+      const notHere = Object.fromEntries(
+        Object.entries(state.notHere).filter(
+          ([key]) => key !== selectedKey && key !== event.option.venueId,
+        ),
+      );
       return {
         ...state,
         status: "resolved",
         venue: event.option,
         options,
-        dismissedNear: undefined,
+        picked: { venueId: event.option.venueId, ...event.day },
+        notHere,
         ended,
         error: undefined,
       };
     }
-    case "visitStarted":
-      return { ...state, visit: event.visit, ended: undefined };
+    case "visitStarted": {
+      const tookOver =
+        event.visit.localId !== state.visit?.localId &&
+        event.visit.venueId !== state.picked?.venueId;
+      return {
+        ...state,
+        visit: event.visit,
+        ended: undefined,
+        picked: tookOver ? undefined : state.picked,
+      };
+    }
     case "visitEnded": {
       const visit = state.visit;
       if (visit?.localId !== event.localId) return state;
@@ -261,14 +300,21 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (state.visit?.localId !== event.localId) return state;
       return { ...state, visit: { ...state.visit, remoteVisitId: event.remoteVisitId } };
     case "dismissed": {
-      // "Not here" rejects the resolved venue and its visit; a visit paused elsewhere stays open.
+      // "Not here" rejects the listed options, the resolved venue and its visit; a visit paused elsewhere stays open.
       const rejected = state.visit !== undefined && state.visit.venueId === state.venue?.venueId;
+      const keys = new Set(state.options.map(venueOptionKey));
+      if (state.venue) keys.add(state.venue.venueId);
+      const notHere = Object.fromEntries([
+        ...Object.entries(state.notHere).filter(([, until]) => until > event.at),
+        ...[...keys].map((key) => [key, event.at + NOT_HERE_MS] as const),
+      ]);
       return {
         ...state,
         status: state.status === "resolved" ? "none" : state.status,
         venue: undefined,
         visit: rejected ? undefined : state.visit,
-        dismissedNear: state.fix ? { lat: state.fix.lat, lng: state.fix.lng } : state.dismissedNear,
+        picked: state.picked && keys.has(state.picked.venueId) ? undefined : state.picked,
+        notHere,
       };
     }
     case "backgrounded":

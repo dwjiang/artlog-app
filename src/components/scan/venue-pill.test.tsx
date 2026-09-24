@@ -46,6 +46,7 @@ function view(
     resolve: jest.fn(),
     confirm: jest.fn(),
     dismiss: jest.fn(),
+    declinePrompt: jest.fn(),
     end: jest.fn(),
   };
 }

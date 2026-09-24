@@ -193,6 +193,7 @@ beforeEach(() => {
     resolve: jest.fn(),
     confirm: jest.fn(),
     dismiss: jest.fn(),
+    declinePrompt: jest.fn(),
     end: jest.fn(),
   };
   mockDetectorActive.length = 0;

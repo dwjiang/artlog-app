@@ -57,6 +57,7 @@ import {
   type VenueContext,
   type VenueEvent,
   type VenueOption,
+  type VenuePick,
   type VenueState,
 } from "./venue-reducer";
 
@@ -81,6 +82,8 @@ export type VenueController = {
   /** A tap in the sheet resolves that museum; MapKit places are confirmed on the server first. The visit starts with the first save. */
   confirm(option: VenueOption, signal?: AbortSignal): Promise<void>;
   dismiss(): void;
+  /** Swiping the location prompt away declines it like `dismiss`, unless a museum resolved while it was open. */
+  declinePrompt(): void;
   /** Closes the open visit only while it is still `localId`; saving a stale end-visit review is otherwise a no-op. */
   end(localId: string): Promise<void>;
   /** Whether a save at this museum joins or starts its visit unless the person chooses otherwise; false for the rest of the day after "End visit" there. */
@@ -94,6 +97,15 @@ export type VenueController = {
   syncRemoteVisit(): Promise<void>;
   appStateChanged(status: AppStateStatus): void;
 };
+
+function parseSetting<T>(value: string | undefined): T | undefined {
+  if (value === undefined) return undefined;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return undefined;
+  }
+}
 
 async function venueDay(venueId: Id<"museums">, at: number): Promise<MuseumDay> {
   const coordinates = await venueCoordinates(venueId);
@@ -214,6 +226,23 @@ export function createVenueController(): VenueController {
   const currentVisitKey = (owner = getLocalOwner()) => `${CURRENT_VISIT_SETTING}:${owner}`;
   const manualVisitKey = (owner = getLocalOwner()) => `manualVisit:${owner}`;
   const endedVisitKey = (owner = getLocalOwner()) => `${ENDED_VISIT_SETTING}:${owner}`;
+  const pickedKey = (owner: string) => `venuePick:${owner}`;
+  const notHereKey = (owner: string) => `notHere:${owner}`;
+
+  /** Keeps the sheet's answers across relaunches; the state already holds them, so a failed write only costs that. */
+  async function saveAnswers(
+    owner: string,
+    { picked, notHere }: Pick<VenueState, "picked" | "notHere">,
+  ): Promise<void> {
+    try {
+      await setSetting(notHereKey(owner), JSON.stringify(notHere));
+      if (picked) await setSetting(pickedKey(owner), JSON.stringify(picked));
+      else await removeSetting(pickedKey(owner));
+    } catch (error) {
+      reportError(error, "venue.answers.save");
+      console.warn("Could not save the museum answer", error);
+    }
+  }
 
   async function syncRemoteVisit(): Promise<void> {
     const current = captureOwner();
@@ -342,20 +371,29 @@ export function createVenueController(): VenueController {
           await setSetting(manualVisitKey(owner), visit.localId);
         }
         await setSetting(currentVisitKey(owner), visit.localId);
-        if (ownership.isCurrent()) dispatch({ type: "visitStarted", visit });
+        if (ownership.isCurrent()) {
+          const picked = state.picked;
+          dispatch({ type: "visitStarted", visit });
+          // A visit taking over drops the pick from the list; a relaunch must not restore it.
+          if (state.picked !== picked) await saveAnswers(owner, state);
+        }
       }
       void syncRemoteVisit();
       return visit;
     });
   }
 
-  async function searchNearbyPlaces(fix: { lat: number; lng: number }): Promise<void> {
+  async function searchNearbyPlaces(
+    fix: { lat: number; lng: number },
+    quiet: boolean,
+  ): Promise<void> {
     const ownership = captureOwner();
     try {
       const places = await getPoiSearch().searchNearby(fix.lat, fix.lng, POI_RADIUS_M);
       if (!ownership.isCurrent()) return;
       dispatch({
         type: "poiOptions",
+        quiet,
         options: places.map((place) => ({
           kind: "poi",
           name: place.name,
@@ -381,6 +419,10 @@ export function createVenueController(): VenueController {
     const row = localId ? await getVisit(localId, owner) : undefined;
     const endedId = await getSetting(endedVisitKey(owner));
     const endedRow = endedId ? await getVisit(endedId, owner) : undefined;
+    const answers = {
+      picked: parseSetting<VenuePick>(await getSetting(pickedKey(owner))),
+      notHere: parseSetting<VenueState["notHere"]>(await getSetting(notHereKey(owner))),
+    };
     if (!ownership.isCurrent()) return;
     const now = Date.now();
     const ended =
@@ -394,15 +436,16 @@ export function createVenueController(): VenueController {
       dispatch({
         type: "hydrated",
         visit: { ...currentVisit({ ...row, startedAt: row.startedAt }), manual },
+        ...answers,
       });
     } else {
       if (localId) await removeSetting(currentVisitKey(owner));
-      dispatch({ type: "hydrated", ended });
+      dispatch({ type: "hydrated", ended, ...answers });
     }
     await closeStaleVisits(now, owner);
   }
 
-  async function runResolve(): Promise<VenueContext> {
+  async function runResolve(quiet: boolean): Promise<VenueContext> {
     void syncRemoteVisit();
     // A museum picked by hand stands for the rest of its day there, visit or not; location takes over again the next day.
     if (state.venue?.manual && isVisitToday(state.venue.manual, Date.now()))
@@ -435,10 +478,11 @@ export function createVenueController(): VenueController {
             ? ""
             : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`),
         );
-      dispatch({ type: "resolved", fix, resolution });
+      dispatch({ type: "resolved", fix, resolution, quiet });
       addBreadcrumb("venue.resolved", { kind: resolution.kind });
       await closeStaleVisits(fix.at, getLocalOwner());
-      if (state.status === "none" && resolution.kind === "none") await searchNearbyPlaces(fix);
+      if (state.status === "none" && resolution.kind === "none")
+        await searchNearbyPlaces(fix, quiet);
       return venueContext(state);
     } catch (error) {
       if (!wanted()) return venueContext(state);
@@ -449,11 +493,15 @@ export function createVenueController(): VenueController {
     }
   }
 
-  function resolve(): Promise<VenueContext> {
-    inFlight ??= runResolve().finally(() => {
+  function startResolve(quiet: boolean): Promise<VenueContext> {
+    inFlight ??= runResolve(quiet).finally(() => {
       inFlight = undefined;
     });
     return inFlight;
+  }
+
+  function resolve(): Promise<VenueContext> {
+    return startResolve(false);
   }
 
   async function resolveForScan(capturedAt: number): Promise<VenueContext> {
@@ -462,7 +510,9 @@ export function createVenueController(): VenueController {
     const timeout = new Promise<VenueContext>((settle) => {
       timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
     });
-    const context = await Promise.race([resolve(), timeout]).finally(() => clearTimeout(timer));
+    const context = await Promise.race([startResolve(true), timeout]).finally(() =>
+      clearTimeout(timer),
+    );
     if (!ownership.isCurrent()) throw new Error("Journal owner changed");
     return prepareCaptureVisit(context, capturedAt);
   }
@@ -473,11 +523,14 @@ export function createVenueController(): VenueController {
     const wanted = () => ownership.isCurrent() && requestId === confirmationId && !signal?.aborted;
     if (!wanted()) return;
     let venue: SeededOption;
+    let day: MuseumDay;
     if (option.kind === "seeded") {
       venue = option;
+      day = option.manual ?? (await venueDay(option.venueId, Date.now()));
     } else {
       const row = await confirmPlace(option, wanted);
       if (!row) return;
+      day = museumDay(row, Date.now());
       venue = {
         kind: "seeded",
         venueId: row.id,
@@ -496,20 +549,28 @@ export function createVenueController(): VenueController {
         if (!wanted()) return;
       }
       selectionRevision++;
-      dispatch({ type: "chosen", option: venue, replaces: option });
+      dispatch({ type: "chosen", option: venue, replaces: option, day });
+      await saveAnswers(ownership.owner, state);
     });
   }
 
   function dismiss(): void {
     confirmationId++;
+    const owner = getLocalOwner();
     const before = state.visit;
-    dispatch({ type: "dismissed" });
+    dispatch({ type: "dismissed", at: Date.now() });
+    const answers = { picked: state.picked, notHere: state.notHere };
+    void updateLocally(() => saveAnswers(owner, answers));
     if (before && !state.visit) {
       void endVisit(before, Date.now()).catch((error: unknown) => {
         reportError(error, "venue.visit.end");
         console.warn("Could not end the visit", error);
       });
     }
+  }
+
+  function declinePrompt(): void {
+    if (!state.venue) dismiss();
   }
 
   async function end(localId: string): Promise<void> {
@@ -532,6 +593,7 @@ export function createVenueController(): VenueController {
     resolveForScan,
     confirm,
     dismiss,
+    declinePrompt,
     end,
     visitByDefault,
     visitForSave,
@@ -570,6 +632,7 @@ export type VenueView = {
   resolve: VenueController["resolve"];
   confirm: VenueController["confirm"];
   dismiss: VenueController["dismiss"];
+  declinePrompt: VenueController["declinePrompt"];
   end: VenueController["end"];
 };
 
@@ -590,6 +653,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     resolve: controller.resolve,
     confirm: controller.confirm,
     dismiss: controller.dismiss,
+    declinePrompt: controller.declinePrompt,
     end: controller.end,
   };
 }

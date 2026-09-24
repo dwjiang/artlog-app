@@ -19,6 +19,7 @@ const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockConfirm = jest.fn();
 const mockDismiss = jest.fn();
+const mockDeclinePrompt = jest.fn();
 const mockResolve = jest.fn();
 const mockEnd = jest.fn();
 let mockView: VenueView;
@@ -87,6 +88,7 @@ beforeEach(async () => {
     resolve: mockResolve,
     confirm: mockConfirm,
     dismiss: mockDismiss,
+    declinePrompt: mockDeclinePrompt,
     end: mockEnd,
   };
 });
@@ -240,6 +242,25 @@ describe("choosing a museum", () => {
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(mockConfirm).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("declines the location prompt when it is swiped away, like the no-museum exit", async () => {
+    mockParams = { mode: "choose" };
+    const view = await render(<VenuePickerSheet />);
+    await view.unmount();
+    expect(mockDeclinePrompt).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).not.toHaveBeenCalled();
+  });
+
+  it("declines nothing when the prompt closes after a choice, or a sheet opened by hand is swiped away", async () => {
+    mockParams = { mode: "choose" };
+    const prompt = await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
+    await prompt.unmount();
+    mockParams = {};
+    const byHand = await render(<VenuePickerSheet />);
+    await byHand.unmount();
+    expect(mockDeclinePrompt).not.toHaveBeenCalled();
   });
 
   it("explains an empty result and a denied permission with a way to Settings", async () => {
