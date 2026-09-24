@@ -44,6 +44,7 @@ export function CardHeader({
       <View style={[styles.frame, { aspectRatio }]}>
         {available ? (
           <Image
+            cachePolicy="memory"
             source={cropUri}
             contentFit="contain"
             accessibilityLabel="Your photo of this painting"

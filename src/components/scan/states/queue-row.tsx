@@ -62,7 +62,12 @@ export function QueueRow({
         accessibilityState={{ disabled: discarding, busy: discarding }}
         style={({ pressed }) => [styles.capture, pressed && styles.pressed]}
       >
-        <Image source={captureFileUri(scanPreviewPath(item.cropPath))} contentFit="cover" style={styles.thumbnail} />
+        <Image
+          cachePolicy="memory"
+          source={captureFileUri(scanPreviewPath(item.cropPath))}
+          contentFit="cover"
+          style={styles.thumbnail}
+        />
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>
             {title}

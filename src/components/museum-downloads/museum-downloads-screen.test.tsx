@@ -6,7 +6,8 @@ import { MuseumDownloadsScreen } from "./museum-downloads-screen";
 
 const museum: MuseumSummary = {
   id: "chicago" as never,
-  key: "chicago",
+  // The real key selects the bundled hero image in the row and the detail view.
+  key: "wikidata:Q239303",
   name: "Art Institute of Chicago",
   city: "Chicago",
   lat: 1,

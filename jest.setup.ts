@@ -28,6 +28,13 @@ jest.mock("expo-audio", () => ({
   })),
 }));
 
+// expo-media-library subclasses its native classes on import, which jest-expo does not mock; saving and settings load it.
+jest.mock("expo-media-library", () => ({
+  Asset: { create: jest.fn() },
+  getPermissionsAsync: jest.fn(async () => ({ status: "undetermined", granted: false })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "denied", granted: false })),
+}));
+
 // Jest does not load .env files; route modules construct the Convex client at import time.
 process.env.EXPO_PUBLIC_CONVEX_URL ??= "https://test.convex.cloud";
 

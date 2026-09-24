@@ -132,6 +132,7 @@ export function CropEditor({
       {preview ? (
         <View style={styles.preview}>
           <Image
+            cachePolicy="memory"
             source={preview.previewUri}
             contentFit="contain"
             style={StyleSheet.absoluteFill}

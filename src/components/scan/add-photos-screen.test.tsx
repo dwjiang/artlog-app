@@ -65,6 +65,11 @@ jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
   captureFileUri: (path: string) => `file:///${path}`,
 }));
+const mockKeepPhotos = jest.fn();
+jest.mock("@/lib/files/kept-photos", () => ({
+  keepPhotos: (...args: unknown[]) => mockKeepPhotos(...args),
+  shrinkLibraryPhoto: async (uri: string) => uri,
+}));
 jest.mock("@/lib/account/collection-sync", () => ({
   flushJournal: async () => {},
 }));
@@ -193,6 +198,7 @@ it("retains an edited visit after leaving the session and saves only new photos 
   expect(await screen.findByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
   expect(screen.getByText("Other museum · 2 Sep 2026")).toBeOnTheScreen();
   expect(screen.getAllByLabelText("Saved photo preview")).toHaveLength(1);
+  expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "detail.jpg" })]);
   expect(selectArtworkPhotos("artwork").all()).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -381,6 +387,7 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
     venueId: "museum-met",
     venueName: "The Met",
   });
+  expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "other.jpg", kind: "full" })]);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
 });
 

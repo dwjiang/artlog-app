@@ -17,6 +17,7 @@ import { convex } from "@/lib/convex-client";
 import { visitForSave } from "@/lib/venue/use-venue";
 import { venueNameById } from "@/lib/venue/venue-db";
 import { captureVisitChoice } from "../capture/visit-choice";
+import { keepPhotos } from "@/lib/files/kept-photos";
 import { scanPreviewPath } from "@/lib/files/photos";
 import type { ContributeInput } from "../label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
@@ -167,6 +168,7 @@ export async function saveResult({
     current.owner,
   );
   clearPhotoDraft(current.owner, capture.photoPath);
+  void keepPhotos(additional);
   const synced = (async () => {
     if (!current.scope || !current.isCurrent()) return;
     // A failed flush only matters while the visit is still local; saveToCollection reports that itself.

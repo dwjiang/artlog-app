@@ -287,7 +287,7 @@ export function MuseumRow({
           style={styles.rowOpen}
         >
           {hero(museum) ? (
-            <Image source={hero(museum)} style={styles.thumb} contentFit="cover" />
+            <Image source={hero(museum)} cachePolicy="memory" style={styles.thumb} contentFit="cover" />
           ) : (
             <View style={[styles.thumb, styles.placeholder]}>
               <DownloadIcon name="building.columns" size={25} color={Gallery.muted} />
@@ -382,7 +382,13 @@ export function MuseumDetail({
     <>
       <View style={styles.hero}>
         {hero(museum) ? (
-          <Image source={hero(museum)} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
+          <Image
+            source={hero(museum)}
+            cachePolicy="memory"
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            contentPosition="center"
+          />
         ) : (
           <DownloadIcon name="building.columns" color={Gallery.muted} size={72} />
         )}
@@ -410,6 +416,7 @@ export function MuseumDetail({
                   accessibilityLabel={preview.title}
                   accessible
                   source={previewUri(pack, index) ?? preview.url}
+                  cachePolicy={previewUri(pack, index) ? "memory" : "disk"}
                   contentFit="cover"
                   style={{
                     flex: fontScale > 1.4 ? undefined : 1,

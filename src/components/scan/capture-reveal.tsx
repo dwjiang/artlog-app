@@ -149,6 +149,7 @@ export function CaptureReveal({
     >
       <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
         <Image
+          cachePolicy="memory"
           source={photo ?? photoUri}
           contentFit={fit}
           style={StyleSheet.absoluteFill}
@@ -163,6 +164,7 @@ export function CaptureReveal({
           style={[StyleSheet.absoluteFill, liftedBackgroundStyle]}
         >
           <Image
+            cachePolicy="memory"
             source={photo ?? photoUri}
             contentFit={fit}
             blurRadius={12}
@@ -177,6 +179,7 @@ export function CaptureReveal({
           <Animated.View style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]} />
           <View style={[StyleSheet.absoluteFill, styles.crop]}>
             <Image
+              cachePolicy="memory"
               source={crop}
               contentFit="fill"
               onDisplay={() => setDisplayed(true)}

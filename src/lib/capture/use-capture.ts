@@ -2,7 +2,7 @@ import { reportError, addBreadcrumb } from "@/lib/observability";
 import { getVisit } from "@/db/repos/visits";
 import { useAction } from "convex/react";
 import * as Haptics from "expo-haptics";
-import type { ImageRef } from "expo-image";
+import type { ImageRef } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { AccessibilityInfo } from "react-native";
 
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
+import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
+import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { api } from "../../../convex/_generated/api";
 import { venueIdAt } from "@/lib/venue/venue-db";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
@@ -138,6 +140,7 @@ export function useCapture({
     revealFinished.current = false;
     pendingResult.current = undefined;
     setTimings(undefined);
+    let cameraPhotoUri: string | undefined;
     try {
       // A chosen visit is checked before the photo is taken, so a missing one costs no shutter press.
       let chosen: VenueContext | undefined;
@@ -155,6 +158,7 @@ export function useCapture({
         };
       }
       const input = await getInput();
+      if (input?.source === "camera") cameraPhotoUri = input.photoUri;
       if (!current()) return;
       if (!input) {
         (onCancel ?? reset)();
@@ -249,6 +253,8 @@ export function useCapture({
         );
       }
     } finally {
+      // Successful captures move the file into Documents; every other exit leaves it here.
+      if (cameraPhotoUri) removeCameraTempFile(cameraPhotoUri);
       controller.finish(attempt);
     }
   }
@@ -303,7 +309,7 @@ export function useCapture({
         const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
         if (lat !== undefined && lng !== undefined) position = { lat, lng };
         return {
-          photoUri: photo.uri,
+          photoUri: await shrinkLibraryPhoto(photo.uri),
           quad: null,
           source: "library",
           capturedAt,

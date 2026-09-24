@@ -23,6 +23,7 @@ export function CropCorners({
   return (
     <View style={styles.canvas} onLayout={({ nativeEvent: { layout } }) => setFrame(layout)}>
       <Image
+        cachePolicy="memory"
         source={uri}
         contentFit="contain"
         style={StyleSheet.absoluteFill}

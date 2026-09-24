@@ -1,8 +1,9 @@
-import { Image, type ImageRef } from "expo-image";
+import type { ImageRef } from "expo-image-manipulator";
+import { loadLocalImage } from "@/lib/files/local-image";
 import { PRESENTATION_LOAD_TIMEOUT_MS, PresentationImages } from "./presentation-images";
 
-jest.mock("expo-image", () => ({ Image: { loadAsync: jest.fn() } }));
-const load = jest.mocked(Image.loadAsync);
+jest.mock("@/lib/files/local-image", () => ({ loadLocalImage: jest.fn() }));
+const load = jest.mocked(loadLocalImage);
 const image = () => ({ release: jest.fn() }) as unknown as ImageRef;
 
 beforeEach(() => {

@@ -43,6 +43,10 @@ jest.mock("@/lib/venue/venue-db", () => ({
   venueNameById: async (id: string) => (id === "museum-met" ? "The Met" : undefined),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
+const mockKeepPhotos = jest.fn();
+jest.mock("@/lib/files/kept-photos", () => ({
+  keepPhotos: (...args: unknown[]) => mockKeepPhotos(...args),
+}));
 
 const capture = {
   localId: "5a1f0c4e-3d2b-4e8a-9f61-0c7d2b9e4a10",
@@ -389,7 +393,7 @@ it("saves an unknown artwork without forcing a title", async () => {
   });
 });
 
-it("commits a three-photo draft to one artwork and clears the draft", async () => {
+it("commits a three-photo draft to one artwork, hands every photo to keeping, and clears the draft", async () => {
   writePhotoDraft(capture.owner, capture.photoPath, [
     { localId: "detail", path: "detail.jpg", capturedAt: 1235, kind: "detail" },
     {
@@ -411,6 +415,11 @@ it("commits a three-photo draft to one artwork and clears the draft", async () =
       .all()
       .map((photo) => photo.kind),
   ).toEqual(["full", "detail", "label"]);
+  expect(mockKeepPhotos).toHaveBeenCalledWith([
+    expect.objectContaining({ path: capture.photoPath, kind: "full" }),
+    expect.objectContaining({ path: "detail.jpg", kind: "detail" }),
+    expect.objectContaining({ path: "label.jpg", kind: "label" }),
+  ]);
   expect(readPhotoDraft(capture.owner, capture.photoPath)).toEqual([]);
   expect(db.select().from(savedWorks).all()).toHaveLength(1);
 });
@@ -460,6 +469,7 @@ it("keeps the capture under the scan id so a second save of the same scan reuses
   expect(again.localId).toBe(first.localId);
   expect(db.select().from(savedWorks).all()).toHaveLength(1);
   expect(selectArtworkPhotos(first.localId).all()).toHaveLength(1);
+  expect(mockKeepPhotos).toHaveBeenLastCalledWith([]);
   expect(mockMutation).toHaveBeenCalledTimes(1);
 });
 
