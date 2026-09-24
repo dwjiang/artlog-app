@@ -130,7 +130,6 @@ function RootLayout() {
                     <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
                     <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
                     <Stack.Screen name="share-profile" options={{ title: "Share profile" }} />
-                    <Stack.Screen name="public-notes" options={{ title: "Public notes" }} />
                     <Stack.Screen
                       name="create-profile"
                       options={{
