@@ -4,7 +4,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Typography } from "@/constants/theme";
+import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { captureOwner, useOwnerGeneration } from "@/lib/account/owner-store";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { formatVisitDate } from "@/lib/journal/history";
@@ -25,6 +25,7 @@ import { showToast } from "@/lib/ui/toast";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { VisitActionBar } from "./visit-action-bar";
+import { ToastPill } from "../toast-pill";
 
 export function VisitDetailScreen() {
   const { visitId, endVisit } = useLocalSearchParams<{
@@ -90,6 +91,9 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   }>();
   const isPublic = (endingVisit ? draftVisibility : visit.visibility) === "public";
   const active = isPublic && sharing.acknowledged?.status === "active";
+  // The status check only decides what this screen offers for a public visit; sharing itself reports its own errors.
+  // A retry clears the error as it starts, so the pill steps aside and returns only if the retry fails too.
+  const shareCheckFailed = isPublic && !sharing.profileRequired && !!sharing.error;
   // Visits start private, so an unsynced private row only means a pending change once a published version exists.
   const pendingPrivate =
     !endingVisit && signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === "active";
@@ -241,152 +245,77 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <View style={styles.page}>
-        <VisitPage>
-          {saveError && (
-            <Text accessibilityRole="alert" style={styles.error}>
-              {saveError}
-            </Text>
-          )}
-          {visibilityError && (
-            <View
-              style={{
-                gap: 8,
-                padding: 14,
-                backgroundColor: "#FFF4DE",
-                borderLeftWidth: 3,
-                borderLeftColor: Gallery.warning,
-              }}
-            >
+        <View style={{ flex: 1 }}>
+          <VisitPage>
+            {saveError && (
               <Text accessibilityRole="alert" style={styles.error}>
-                {visibilityError.message}
+                {saveError}
               </Text>
-              <GalleryButton
-                label="Retry visibility"
-                disabled={changingVisibility}
-                onPress={() => {
-                  void changeVisibility(visibilityError.next);
+            )}
+            {visibilityError && (
+              <View
+                style={{
+                  gap: 8,
+                  padding: 14,
+                  backgroundColor: "#FFF4DE",
+                  borderLeftWidth: 3,
+                  borderLeftColor: Gallery.warning,
                 }}
-              />
-            </View>
-          )}
-          {sharing.error && (
-            <Text accessibilityRole="alert" style={styles.error}>
-              {sharing.error}
-            </Text>
-          )}
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>
-              {privacyPending ? "Privacy change pending" : isPublic ? "Public visit" : "Private visit"}
-            </Text>
-            <Text
-              selectable
-              accessibilityRole="header"
-              style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}
-            >
-              {visit.venueName}
-            </Text>
-            <Text selectable style={styles.caption}>
-              {formatVisitDate(visit.visitedOn)}
-              {visit.location ? ` · ${visit.location}` : ""}
-            </Text>
-          </View>
-          {privacyPending && !visibilityError && (
-            <View
-              style={{
-                padding: 14,
-                backgroundColor: "#FFF4DE",
-                borderLeftWidth: 3,
-                borderLeftColor: Gallery.warning,
-              }}
-            >
-              <Text style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}>
-                Waiting to sync. The published visit is still visible.
-              </Text>
-            </View>
-          )}
-          <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
-          <View>
-            <View style={styles.sectionLabel}>
-              <Text accessibilityRole="header" style={detail.sectionTitle}>
-                {visit.works.length
-                  ? `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"} saved`
-                  : "Your artworks"}
-              </Text>
-              {!!visit.works.length && (
+              >
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {visibilityError.message}
+                </Text>
                 <GalleryButton
-                  label="Link artwork"
-                  icon="plus"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/link-artwork",
-                      params: { visitId: visit.localId },
-                    })
-                  }
+                  label="Retry visibility"
+                  disabled={changingVisibility}
+                  onPress={() => {
+                    void changeVisibility(visibilityError.next);
+                  }}
                 />
-              )}
+              </View>
+            )}
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>
+                {privacyPending ? "Privacy change pending" : isPublic ? "Public visit" : "Private visit"}
+              </Text>
+              <Text
+                selectable
+                accessibilityRole="header"
+                style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}
+              >
+                {visit.venueName}
+              </Text>
+              <Text selectable style={styles.caption}>
+                {formatVisitDate(visit.visitedOn)}
+                {visit.location ? ` · ${visit.location}` : ""}
+              </Text>
             </View>
-            {visit.works.length > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                justifyContent: "space-between",
-                columnGap: 13,
-                rowGap: 20,
-                paddingTop: 4,
-              }}
-            >
-              {filtered.map((work) => {
-                const album = photos.data.filter(
-                  (photo) =>
-                    photo.owner === visit.owner
-                    && photo.savedLocalId === work.localId
-                    && photo.visitLocalId === visit.localId,
-                );
-                const cover =
-                  album.find((photo) => photo.kind === "full")
-                  ?? album.find((photo) => photo.kind !== "label")
-                  ?? album[0];
-                return (
-                  <WorkLink
-                    key={work.localId}
-                    work={work}
-                    visitId={visit.localId}
-                    style={{
-                      width: fontScale > 1.4 ? "100%" : "48%",
-                      flexShrink: 1,
-                    }}
-                  >
-                    <LocalVisitGalleryArtwork
-                      title={work.title}
-                      artist={work.artist}
-                      photoCount={album.length}
-                      path={cover?.path ?? work.cropPath}
-                      syncing={!cover && cropSyncing(work)}
-                    />
-                  </WorkLink>
-                );
-              })}
-            </View>
-            {!filtered.length
-              && (search.trim() ? (
-                <SearchEmptyState
-                  title="No artworks found."
-                  detail="Try an artist or artwork title."
-                  onClear={() => setSearch("")}
-                />
-              ) : (
-                <EmptyState
-                  inset={false}
-                  title="No artworks linked to this visit."
-                  detail="Link a saved artwork to this visit."
-                  visual={<EmptySymbol name="photo.on.rectangle" />}
-                >
+            {privacyPending && !visibilityError && (
+              <View
+                style={{
+                  padding: 14,
+                  backgroundColor: "#FFF4DE",
+                  borderLeftWidth: 3,
+                  borderLeftColor: Gallery.warning,
+                }}
+              >
+                <Text style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}>
+                  Waiting to sync. The published visit is still visible.
+                </Text>
+              </View>
+            )}
+            <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
+            <View>
+              <View style={styles.sectionLabel}>
+                <Text accessibilityRole="header" style={detail.sectionTitle}>
+                  {visit.works.length
+                    ? `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"} saved`
+                    : "Your artworks"}
+                </Text>
+                {!!visit.works.length && (
                   <GalleryButton
                     label="Link artwork"
                     icon="plus"
-                    variant="filled"
-                    fullWidth
                     onPress={() =>
                       router.push({
                         pathname: "/link-artwork",
@@ -394,10 +323,97 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                       })
                     }
                   />
-                </EmptyState>
-              ))}
-          </View>
-        </VisitPage>
+                )}
+              </View>
+              {visit.works.length > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  justifyContent: "space-between",
+                  columnGap: 13,
+                  rowGap: 20,
+                  paddingTop: 4,
+                }}
+              >
+                {filtered.map((work) => {
+                  const album = photos.data.filter(
+                    (photo) =>
+                      photo.owner === visit.owner
+                      && photo.savedLocalId === work.localId
+                      && photo.visitLocalId === visit.localId,
+                  );
+                  const cover =
+                    album.find((photo) => photo.kind === "full")
+                    ?? album.find((photo) => photo.kind !== "label")
+                    ?? album[0];
+                  return (
+                    <WorkLink
+                      key={work.localId}
+                      work={work}
+                      visitId={visit.localId}
+                      style={{
+                        width: fontScale > 1.4 ? "100%" : "48%",
+                        flexShrink: 1,
+                      }}
+                    >
+                      <LocalVisitGalleryArtwork
+                        title={work.title}
+                        artist={work.artist}
+                        photoCount={album.length}
+                        path={cover?.path ?? work.cropPath}
+                        syncing={!cover && cropSyncing(work)}
+                      />
+                    </WorkLink>
+                  );
+                })}
+              </View>
+              {!filtered.length
+                && (search.trim() ? (
+                  <SearchEmptyState
+                    title="No artworks found."
+                    detail="Try an artist or artwork title."
+                    onClear={() => setSearch("")}
+                  />
+                ) : (
+                  <EmptyState
+                    inset={false}
+                    title="No artworks linked to this visit."
+                    detail="Link a saved artwork to this visit."
+                    visual={<EmptySymbol name="photo.on.rectangle" />}
+                  >
+                    <GalleryButton
+                      label="Link artwork"
+                      icon="plus"
+                      variant="filled"
+                      fullWidth
+                      onPress={() =>
+                        router.push({
+                          pathname: "/link-artwork",
+                          params: { visitId: visit.localId },
+                        })
+                      }
+                    />
+                  </EmptyState>
+                ))}
+            </View>
+          </VisitPage>
+          {shareCheckFailed && (
+            <View pointerEvents="box-none" style={detail.toast}>
+              <ToastPill
+                message="Couldn’t check the shared version."
+                actions={[
+                  {
+                    label: "Retry",
+                    onPress: () => {
+                      void controller.load();
+                    },
+                  },
+                ]}
+              />
+            </View>
+          )}
+        </View>
         <VisitActionBar
           endingVisit={endingVisit}
           isPublic={isPublic}
@@ -419,4 +435,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
 
 const detail = StyleSheet.create({
   sectionTitle: { ...Typography.section, color: Gallery.ink },
+  toast: {
+    position: "absolute",
+    left: Spacing.content,
+    right: Spacing.content,
+    bottom: Spacing.two,
+    alignItems: "center",
+  },
 });

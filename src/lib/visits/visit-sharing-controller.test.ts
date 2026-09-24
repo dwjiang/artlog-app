@@ -101,6 +101,18 @@ it("flushes before every request and sends no request when sync fails", async ()
   await load;
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
+it("clears a failed load's error while its retry runs and after it succeeds", async () => {
+  flush.mockRejectedValueOnce(new Error("offline"));
+  await controller.load();
+  expect(controller.getSnapshot().error).toBeDefined();
+  const gate = deferred<void>();
+  flush.mockReturnValueOnce(gate.promise);
+  const retry = controller.load();
+  expect(controller.getSnapshot()).toMatchObject({ busy: true, error: undefined });
+  gate.resolve();
+  expect(await retry).toBe(true);
+  expect(controller.getSnapshot()).toMatchObject({ busy: false, error: undefined });
+});
 it("invalidates a preview when the saved note changes without a publication revision change", async () => {
   await controller.load();
   await controller.preview();
