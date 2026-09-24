@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
+import { StyleSheet } from "react-native";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -114,6 +115,26 @@ it("keeps the public wall as the account collection view", async () => {
   expect(screen.getByText("Collection wall")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Wall" })).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
+});
+
+it("keeps the hidden section laid out behind the shown one", async () => {
+  switchOwner("account:sections", "scope-sections");
+  await render(<CollectionScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  expect(await screen.findByText("No visits yet.")).toBeVisible();
+  const wall = screen.getByText("Collection wall", { includeHiddenElements: true });
+  expect(screen.queryByText("Collection wall")).toBeNull();
+  expect(wall).not.toBeVisible();
+  // Fabric never mounts a `display: "none"` subtree, so its SwiftUI controls would first size themselves when shown.
+  for (let node: typeof wall | null = wall; node; node = node.parent) {
+    expect(StyleSheet.flatten(node.props.style)?.display).not.toBe("none");
+  }
+  // react-native-screens scrolls the first subview chain to the top when the tab is tapped again.
+  expect(
+    screen
+      .getAllByText(/^(No visits yet\.|Collection wall)$/, { includeHiddenElements: true })
+      .map((node) => node.props.children),
+  ).toEqual(["No visits yet.", "Collection wall"]);
 });
 
 it("invites the first scan while the collection is empty", async () => {
