@@ -91,18 +91,34 @@ jest.mock("@expo/ui/swift-ui", () => {
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isConnected: true, isInternetReachable: true }),
 }));
-jest.mock("expo-router", () => ({
-  router: {
-    push: (...args: unknown[]) => mockPush(...args),
-    navigate: (...args: unknown[]) => mockPush(...args),
-    dismissAll: () => mockDismissAll(),
-  },
-  useRouter: () => ({ push: mockPush }),
-  Stack: {
-    Screen: () => null,
-    Toolbar: Object.assign(() => null, { Button: () => null }),
-  },
-}));
+jest.mock("expo-router", () => {
+  const { Pressable, View } = jest.requireActual("react-native");
+  return {
+    router: {
+      push: (...args: unknown[]) => mockPush(...args),
+      navigate: (...args: unknown[]) => mockPush(...args),
+      dismissAll: () => mockDismissAll(),
+    },
+    useRouter: () => ({ push: mockPush }),
+    Stack: {
+      Screen: () => null,
+      Toolbar: Object.assign(View, {
+        Button: ({
+          accessibilityLabel,
+          hidden,
+          onPress,
+        }: {
+          accessibilityLabel: string;
+          hidden?: boolean;
+          onPress: () => void;
+        }) =>
+          hidden ? null : (
+            <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} />
+          ),
+      }),
+    },
+  };
+});
 jest.mock("@/db/repos/settings", () => ({
   getSetting: async (key: string) => mockSettings.get(key),
   setSetting: async (key: string, value: string) => {
@@ -158,6 +174,7 @@ beforeEach(() => {
 it("lets a guest move from the Friends prompt to Global rankings and open a public profile", async () => {
   await render(<LeaderboardScreen />);
   expect(screen.getByRole("header", { name: "Sign in to see friends’ rankings." })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Join the leaderboard" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "global",

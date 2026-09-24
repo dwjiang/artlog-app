@@ -50,6 +50,7 @@ export function ChoiceMenu<T extends string>({
                 frame({
                   maxWidth: Infinity,
                   minHeight: 44 * Math.max(1, fontScale),
+                  alignment: "leading",
                 }),
                 contentShape(shapes.rectangle()),
               ]}
@@ -60,7 +61,6 @@ export function ChoiceMenu<T extends string>({
                   fontWeight: "400",
                   color: plain ? Gallery.accent : Gallery.ink,
                 }}
-                modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
               >
                 {selected}
               </NativeText>

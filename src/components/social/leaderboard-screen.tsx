@@ -46,6 +46,16 @@ export function LeaderboardScreen() {
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="person.2.badge.gearshape"
+          accessibilityLabel={visibility === "off" ? "Join the leaderboard" : "Manage participation"}
+          tintColor={Gallery.ink}
+          hidesSharedBackground
+          hidden={!canBrowse}
+          onPress={manageParticipation}
+        />
+      </Stack.Toolbar>
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -194,19 +204,10 @@ export function LeaderboardScreen() {
                 {preferenceError}
               </Text>
             )}
-            {rows.length > 0 && (
+            {rows.length > 0 && metric === "artworks" && (
               <Text style={styles.explanation}>
-                {metric === "visits"
-                  ? "One logged visit per museum, per day."
-                  : "Each artwork counts once. Extra photos and encounters don’t add to the total."}
+                Each artwork counts once. Extra photos and encounters don’t add to the total.
               </Text>
-            )}
-            {canBrowse && (
-              <GalleryButton
-                label={visibility === "off" ? "Join the leaderboard" : "Manage participation"}
-                fullWidth
-                onPress={manageParticipation}
-              />
             )}
           </View>
         }
