@@ -185,7 +185,7 @@ function QueueContent() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { flexGrow: 1, padding: Spacing.content, gap: Spacing.three },
+  content: { flexGrow: 1, padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   header: {
     flexDirection: "row",
     alignItems: "center",

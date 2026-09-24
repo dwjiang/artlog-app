@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.three,
     padding: Spacing.content,
+    paddingTop: Spacing.four,
     paddingBottom: Spacing.six,
   },
 });
