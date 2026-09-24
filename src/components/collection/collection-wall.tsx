@@ -427,22 +427,21 @@ export function CollectionWallContent({
                 label={
                   !wall.signedIn
                     ? "Sign in"
-                    : wall.profileRequired
-                      ? "Create profile"
-                      : !wall.draft
-                        ? "Load wall"
-                        : hasSavedArt
-                          ? "Choose artworks"
-                          : "Scan artwork"
+                    : !wall.draft && !wall.profileRequired
+                      ? "Load wall"
+                      : hasSavedArt
+                        ? "Choose artworks"
+                        : "Scan artwork"
                 }
                 variant="filled"
                 fullWidth
                 onPress={() => {
                   if (!wall.signedIn) router.push(signInRoute("wall"));
+                  else if (!wall.draft && !wall.profileRequired) void wall.refresh();
+                  else if (!hasSavedArt) router.navigate("/scan");
+                  // The wall is public, so its profile is created only once there is art to hang.
                   else if (wall.profileRequired) setProfile(true);
-                  else if (!wall.draft) void wall.refresh();
-                  else if (hasSavedArt) openPicker();
-                  else router.navigate("/scan");
+                  else openPicker();
                 }}
               />
             </EmptyState>
