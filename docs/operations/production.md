@@ -54,7 +54,7 @@ The [full corpus upload](../todos/production-upload/README.md) and
 | `FLAG_LABEL_FLOW`, `FLAG_MUSEUM_SEARCH` | `on`                                        |
 | `FLAG_RIGHT_NOW`                        | `off`                                       |
 | `DAILY_TOKEN_FACTORY_CALL_CAP`          | `2000`                                      |
-| `DAILY_TAVILY_CREDIT_CAP`               | `20`                                        |
+| `DAILY_TAVILY_CREDIT_CAP`               | `2000`                                      |
 | `SITE_URL`                              | `https://admired-goldfinch-660.convex.site` |
 | `LABEL_MODEL`, `FACT_SHEET_MODEL`       | `nvidia/nemotron-3-super-120b-a12b`         |
 | `DOCENT_MODEL`, `MODERATION_MODEL`      | `nvidia/Nemotron-3_5-Lightning`             |
