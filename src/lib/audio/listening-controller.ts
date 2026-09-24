@@ -32,7 +32,6 @@ export type AudioHandle = {
   seekTo(seconds: number): Promise<void>;
   remove(): void;
   setPlaybackRate(rate: number): void;
-  volume: number;
   setActiveForLockScreen(active: boolean, metadata?: { title: string; artist: string; artworkUrl?: string }): void;
   addListener(event: "playbackStatusUpdate", callback: (status: Playback) => void): { remove(): void };
 };
@@ -48,7 +47,6 @@ export type ListeningState = {
   waiting: boolean;
   pauseBetween: boolean;
   rate: number;
-  volume: number;
   revision: number;
 };
 type Progress = Record<string, { position: number; duration: number; text: string }>;
@@ -69,7 +67,6 @@ export class ListeningController {
     waiting: false,
     pauseBetween: true,
     rate: 1,
-    volume: 1,
     revision: 0,
   };
   private listeners = new Set<() => void>();
@@ -143,7 +140,6 @@ export class ListeningController {
       if (generation !== this.generation) return;
       const player = this.dependencies.create(rendered.uri);
       this.player = player;
-      player.volume = this.state.volume;
       player.setPlaybackRate(this.state.rate);
       let starting = false,
         started = false,
@@ -282,10 +278,6 @@ export class ListeningController {
   setRate = (rate: number) => {
     this.player?.setPlaybackRate(rate);
     this.update({ rate });
-  };
-  setVolume = (volume: number) => {
-    if (this.player) this.player.volume = volume;
-    this.update({ volume });
   };
   stop = () => {
     this.remember();

@@ -8,7 +8,6 @@ export function useListening() {
     duration: 0,
     pauseBetween: true,
     rate: 1,
-    volume: 1,
     controller: {
       progressFor: () => undefined,
       play: jest.fn(),

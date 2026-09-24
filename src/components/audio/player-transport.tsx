@@ -7,6 +7,7 @@ import { useListening } from "@/lib/audio/use-listening";
 import { audioTime } from "@/lib/audio/narration";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { LoadingRing } from "@/components/loading-ring";
+import { SystemVolumeSlider } from "../../../modules/system-volume/src";
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();
@@ -109,28 +110,9 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
       </View>
       <View style={styles.volume}>
         <AudioIcon name="speaker.fill" size={12} color={Gallery.muted} />
-        <Slider
-          accessibilityRole="adjustable"
-          accessibilityLabel="Narration volume"
-          accessibilityValue={{ text: `${Math.round(audio.volume * 100)}%` }}
-          accessibilityActions={[
-            { name: "increment", label: "Increase volume" },
-            { name: "decrement", label: "Decrease volume" },
-          ]}
-          onAccessibilityAction={({ nativeEvent }) =>
-            audio.controller.setVolume(
-              Math.max(0, Math.min(1, audio.volume + (nativeEvent.actionName === "increment" ? 0.1 : -0.1))),
-            )
-          }
-          value={audio.volume}
-          minimumValue={0}
-          maximumValue={1}
-          onValueChange={audio.controller.setVolume}
-          tapToSeek
-          thumbSize={1}
-          thumbTintColor="transparent"
-          minimumTrackTintColor={Gallery.muted}
-          maximumTrackTintColor={Gallery.softBorder}
+        <SystemVolumeSlider
+          minimumTrackColor={Gallery.muted}
+          maximumTrackColor={Gallery.softBorder}
           style={[styles.slider, { flex: 1 }]}
         />
         <AudioIcon name="speaker.wave.2.fill" size={16} color={Gallery.muted} />
