@@ -1,7 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -9,6 +8,7 @@ import { ArtworkStrip } from "@/components/guest/artwork-preview";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
+import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer, useProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
@@ -21,10 +21,9 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
   const { account, busy } = state;
   const owner = useLocalOwner();
   const router = useRouter();
-  const { bottom } = useSafeAreaInsets();
-  const { fontScale, height } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const sheetStyle = useFittedFormSheetStyle();
   const copy = signInContexts[context];
-  const initialDetent = height < 760 ? 0.8 : context === "visit" ? 0.5 : 0.62;
   const continuingVisit = context === "visit" && !!visitId;
   const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
   const setupOffer = useProfileSetupOffer();
@@ -49,16 +48,12 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          gestureEnabled: !busy,
-          sheetAllowedDetents: fontScale > 1.3 ? [1] : [initialDetent, 1],
-        }}
-      />
+      <Stack.Screen options={{ gestureEnabled: !busy }} />
       <ScrollView
-        style={styles.root}
+        style={[styles.root, sheetStyle]}
+        bounces={false}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.content, { paddingBottom: Math.max(20, bottom) }]}
+        contentContainerStyle={styles.content}
       >
         <View style={styles.preview}>
           <View style={styles.artworks}>
@@ -89,10 +84,11 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Gallery.paper },
+  root: { backgroundColor: Gallery.paper },
   content: {
     paddingHorizontal: 20,
     paddingTop: 24,
+    paddingBottom: 20,
     gap: 12,
     maxWidth: 520,
     width: "100%",

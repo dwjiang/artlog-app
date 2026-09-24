@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import { reportError } from "@/lib/observability";
 import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
 
@@ -18,6 +19,7 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
+  const fitted = useFittedSheetHeight();
 
   async function grant() {
     if (pending.current) return;
@@ -39,7 +41,7 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
   return (
     <BottomSheet
       contentPadding={0}
-      snapPoints={["full"]}
+      snapPoints={[fitted.height ? { height: fitted.height } : "half"]}
       containerColor={Colors.light.background}
       isPresented={open}
       onDismiss={() => {
@@ -47,7 +49,12 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
       }}
     >
       <RNHostView>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <ScrollView
+          style={{ height: fitted.height }}
+          contentContainerStyle={styles.content}
+          alwaysBounceVertical={false}
+          onContentSizeChange={fitted.onContentSizeChange}
+        >
           <ThemedText variant="display">{SEARCH_CONSENT_TITLE}</ThemedText>
           <View
             style={{
@@ -63,17 +70,19 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
               {error}
             </ThemedText>
           )}
-          <GalleryButton
-            label="Search this museum"
-            variant="filled"
-            fullWidth
-            busy={saving}
-            disabled={saving}
-            onPress={() => {
-              void grant();
-            }}
-          />
-          <GalleryButton label="Not now" fullWidth disabled={saving} onPress={onDismiss} />
+          <View style={styles.actions}>
+            <GalleryButton
+              label="Search this museum"
+              variant="filled"
+              fullWidth
+              busy={saving}
+              disabled={saving}
+              onPress={() => {
+                void grant();
+              }}
+            />
+            <GalleryButton label="Not now" fullWidth disabled={saving} onPress={onDismiss} />
+          </View>
         </ScrollView>
       </RNHostView>
     </BottomSheet>
@@ -81,11 +90,10 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1 },
   content: {
     gap: Spacing.three,
     padding: Spacing.content,
     paddingTop: Spacing.four,
-    paddingBottom: Spacing.six,
   },
+  actions: { gap: Spacing.two },
 });

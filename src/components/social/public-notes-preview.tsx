@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { WallSheet } from "@/components/collection/wall-sheet";
@@ -38,13 +38,8 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
       )}
       <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
       {selected && (
-        <WallSheet
-          title="Visitor preview"
-          dismissLabel="Back to wall"
-          size="large"
-          onDismiss={() => setSelectedId(undefined)}
-        >
-          <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+        <WallSheet title="Visitor preview" dismissLabel="Back to wall" onDismiss={() => setSelectedId(undefined)}>
+          <View style={{ paddingBottom: 30 }}>
             <PublishedArtwork
               key={selected.itemId}
               artwork={selected.artwork}
@@ -54,7 +49,7 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
               note={selected.note}
               enrichment={detail.data?.enrichment}
             />
-          </ScrollView>
+          </View>
         </WallSheet>
       )}
     </GestureHandlerRootView>

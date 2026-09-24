@@ -632,8 +632,25 @@ export function CollectionWallContent({
         </View>
       )}
       {picker && (
-        <WallSheet title="Choose artworks" size="large" onDismiss={() => setPicker(undefined)}>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
+        <WallSheet
+          title="Choose artworks"
+          onDismiss={() => setPicker(undefined)}
+          footer={
+            <View style={{ padding: 20, backgroundColor: Gallery.paper }}>
+              <GalleryButton
+                label={`Add ${picker.length > 0 ? picker.length : ""} ${picker.length === 1 ? "artwork" : "artworks"} to wall`.replace(
+                  "  ",
+                  " ",
+                )}
+                fullWidth
+                variant="filled"
+                disabled={picker.length === 0 || blocked}
+                onPress={addSelection}
+              />
+            </View>
+          }
+        >
+          <View style={{ padding: 20, gap: 12 }}>
             <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
             {available.map((item) => {
               const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
@@ -693,24 +710,6 @@ export function CollectionWallContent({
                 {wall.error}
               </Text>
             )}
-          </ScrollView>
-          <View
-            style={{
-              padding: 20,
-              paddingBottom: Math.max(insets.bottom, 20),
-              backgroundColor: Gallery.paper,
-            }}
-          >
-            <GalleryButton
-              label={`Add ${picker.length > 0 ? picker.length : ""} ${picker.length === 1 ? "artwork" : "artworks"} to wall`.replace(
-                "  ",
-                " ",
-              )}
-              fullWidth
-              variant="filled"
-              disabled={picker.length === 0 || blocked}
-              onPress={addSelection}
-            />
           </View>
         </WallSheet>
       )}

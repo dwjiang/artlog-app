@@ -9,6 +9,7 @@ import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
+import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { discardCapture } from "@/lib/capture/discard-capture";
 import { reportError } from "@/lib/observability";
@@ -27,6 +28,7 @@ export function QueueSheet() {
 function QueueContent() {
   const owner = useLocalOwner();
   const router = useRouter();
+  const sheetStyle = useFittedFormSheetStyle();
   const { items, loading, error } = useQueue();
   const pending = useRef(new Set<string>());
   const [retrying, setRetrying] = useState<string[]>([]);
@@ -86,7 +88,8 @@ function QueueContent() {
   // The scroll view stays the root: react-native-screens sizes a form sheet's first-child scroll view to the sheet.
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, sheetStyle]}
+      bounces={false}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
     >
@@ -168,7 +171,6 @@ function QueueContent() {
           </ThemedText>
         </View>
       )}
-      <View style={{ flex: 1, minHeight: 12 }} />
       {items.length > 0 && (
         <GalleryButton
           label="Keep scanning"
@@ -185,8 +187,8 @@ function QueueContent() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { flexGrow: 1, padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
+  container: { backgroundColor: Colors.light.background },
+  content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   header: {
     flexDirection: "row",
     alignItems: "center",
