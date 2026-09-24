@@ -108,6 +108,7 @@ export function LeaderboardScreen() {
         keyExtractor={(row) => row.profile.profileId}
         renderItem={({ item, index }) => {
           const own = item.profile.profileId === session.profileId;
+          const aboveOwn = rows[index + 1]?.profile.profileId === session.profileId;
           const tied = rows[index - 1]?.rank === item.rank || rows[index + 1]?.rank === item.rank;
           return (
             <Pressable
@@ -119,7 +120,12 @@ export function LeaderboardScreen() {
                   params: { profileId: item.profile.profileId },
                 })
               }
-              style={[styles.row, own && styles.ownRow, largeText && { flexWrap: "wrap" }]}
+              style={[
+                styles.row,
+                own && styles.ownRow,
+                aboveOwn && { borderBottomWidth: 0 },
+                largeText && { flexWrap: "wrap" },
+              ]}
             >
               <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
               <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
@@ -253,7 +259,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginHorizontal: 6,
     paddingHorizontal: 12,
-    marginVertical: 12,
     borderBottomWidth: 0,
   },
   rank: {
