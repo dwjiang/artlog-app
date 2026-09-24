@@ -9,7 +9,6 @@ type State = {
   layoutDraft: LayoutDraft | null;
   noteDraft: NoteDraft;
   pending: boolean;
-  needsNoteConfirmation: boolean;
 };
 type Session = {
   owner: string;
@@ -28,7 +27,6 @@ const empty = (): State => ({
   layoutDraft: null,
   noteDraft: [],
   pending: false,
-  needsNoteConfirmation: false,
 });
 
 export function createWallRepository(deps: Dependencies) {
@@ -130,14 +128,13 @@ export function createWallRepository(deps: Dependencies) {
       update({
         acknowledged: result,
         ...(kind === "layout" && state.layoutDraft === layoutDraft ? { layoutDraft: null } : {}),
-        ...(kind === "notes" && state.noteDraft === noteDraft ? { noteDraft: [], needsNoteConfirmation: false } : {}),
+        ...(kind === "notes" && state.noteDraft === noteDraft ? { noteDraft: [] } : {}),
       });
     } catch (error) {
       current.check();
       if (convexErrorCode(error) === "conflict") {
         update({
           noteDraft: [],
-          needsNoteConfirmation: true,
           acknowledged: null,
         });
         const fresh = await deps.transport.getMine(current.context);
@@ -193,7 +190,7 @@ export function createWallRepository(deps: Dependencies) {
         }
         return { ...change, noteRevision: item.noteRevision };
       });
-      update({ noteDraft, needsNoteConfirmation: false });
+      update({ noteDraft });
     },
     publishLayout: () => publish("layout"),
     publishNotes: () => publish("notes"),
@@ -212,7 +209,6 @@ export function createWallRepository(deps: Dependencies) {
       update({
         layoutDraft: null,
         noteDraft: [],
-        needsNoteConfirmation: false,
       }),
     dispose: () => {
       disposed = true;

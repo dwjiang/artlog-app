@@ -149,6 +149,7 @@ it("opens account management from the profile row", async () => {
   mockAccount = { linked: true, deviceCount: 2 };
   await render(<SettingsScreen />);
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Public notes" })).toBeNull();
   expect(screen.getByText("A", { includeHiddenElements: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: /Alex/ }));
   expect(mockPush).toHaveBeenCalledWith({

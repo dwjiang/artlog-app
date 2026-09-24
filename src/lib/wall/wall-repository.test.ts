@@ -181,7 +181,6 @@ it("refreshes conflicts and requires a new note confirmation using current revis
   });
   expect(repository.getSnapshot()).toMatchObject({
     noteDraft: [],
-    needsNoteConfirmation: true,
     acknowledged: { items: [{ noteRevision: 2 }] },
   });
   await repository.publishNotes();
@@ -204,7 +203,6 @@ it("keeps layout drafts after conflict but clears pending note confirmation", as
   expect(repository.getSnapshot()).toMatchObject({
     layoutDraft: draft,
     noteDraft: [],
-    needsNoteConfirmation: true,
   });
   repository.dispose();
 });
