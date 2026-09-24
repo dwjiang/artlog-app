@@ -33,6 +33,8 @@ export function GalleryButton({
   destructive = false,
   tone = "accent",
   size = "regular",
+  minHeight: minHeightOverride,
+  iconOnly = false,
 }: {
   label: string;
   accessibilityLabel?: string;
@@ -49,6 +51,9 @@ export function GalleryButton({
   destructive?: boolean;
   tone?: "accent" | "ink";
   size?: "regular" | "compact";
+  minHeight?: number;
+  /** Draws only `icon`; `label` remains the accessible name. */
+  iconOnly?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const expand = fullWidth ?? fontScale >= 1.5;
@@ -60,7 +65,7 @@ export function GalleryButton({
         ? Gallery.ink
         : Gallery.accent;
   const foreground = variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
-  const minHeight = variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44;
+  const minHeight = minHeightOverride ?? (variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44);
   useEffect(() => {
     if (busy) {
       AccessibilityInfo.announceForAccessibility(`${accessibilityLabel}. In progress.`);
@@ -126,19 +131,21 @@ export function GalleryButton({
               {icon && iconPosition === "leading" && (
                 <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 })]} />
               )}
-              <NativeText
-                textStyle={{ color: foreground }}
-                modifiers={[
-                  font({
-                    textStyle: size === "compact" ? "callout" : "body",
-                    weight: variant === "filled" ? "semibold" : "regular",
-                  }),
-                  fixedSize({ horizontal: false, vertical: true }),
-                  multilineTextAlignment(contentAlignment),
-                ]}
-              >
-                {label}
-              </NativeText>
+              {!iconOnly && (
+                <NativeText
+                  textStyle={{ color: foreground }}
+                  modifiers={[
+                    font({
+                      textStyle: size === "compact" ? "callout" : "body",
+                      weight: variant === "filled" ? "semibold" : "regular",
+                    }),
+                    fixedSize({ horizontal: false, vertical: true }),
+                    multilineTextAlignment(contentAlignment),
+                  ]}
+                >
+                  {label}
+                </NativeText>
+              )}
               {icon && iconPosition === "trailing" && <Icon name={icon} size={17} color={foreground} />}
             </Row>
           </Button>

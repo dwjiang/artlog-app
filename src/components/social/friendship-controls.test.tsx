@@ -1,6 +1,7 @@
 import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { CompactFriendshipControls, FriendshipControls } from "./friendship-controls";
 
 const mockPush = jest.fn(),
@@ -74,6 +75,34 @@ it("requires confirmation before removing an existing friend", async () => {
   await act(() => confirm?.onPress?.());
   expect(mockAct).toHaveBeenCalledWith("remove");
   alert.mockRestore();
+});
+
+it("unsends a sent friend request from the sent button", async () => {
+  mockState = { state: "pending", requesterId: "me", blocked: false, revision: 1 };
+  await render(
+    <FriendshipControls
+      profileId={"friend" as never}
+      session={{ ...guest, status: "ready", profileId: "me" as never }}
+    />,
+  );
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Friend request sent" }));
+  expect(mockAct).toHaveBeenCalledWith("cancel");
+});
+
+it("keeps the trailing action beside every friendship state", async () => {
+  const share = <GalleryButton label="Share profile" onPress={() => {}} />;
+  const ready = { ...guest, status: "ready" as const, profileId: "me" as never };
+  const view = await render(<FriendshipControls profileId={"friend" as never} session={guest} trailing={share} />);
+  expect(screen.getByRole("button", { name: "Add friend" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  expect(screen.getByLabelText("Loading friendship…")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  mockState = { state: "accepted", blocked: false };
+  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  expect(screen.getByRole("button", { name: "Remove friend" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
 });
 
 it("renders a known friend row without a relationship query and lets a stranger be added", async () => {

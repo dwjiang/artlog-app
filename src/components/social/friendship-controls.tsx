@@ -1,10 +1,11 @@
-import { Alert, StyleSheet, View } from "react-native";
+import type { ReactElement, ReactNode } from "react";
+import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import { Menu, Button } from "@expo/ui/swift-ui";
+import { Menu, Button, Spacer } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, frame, shapes } from "@expo/ui/swift-ui/modifiers";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { ThemedText as Text } from "@/components/themed-text";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { friendshipActions } from "@/lib/social/presentation";
@@ -17,9 +18,9 @@ import { signInRoute } from "@/lib/account/sign-in-context";
 
 const labels: Record<FriendshipAction, string> = {
   request: "Add friend",
-  accept: "Accept request",
+  accept: "Accept",
   decline: "Decline",
-  cancel: "Cancel request",
+  cancel: "Friend request sent",
   remove: "Remove friend",
 };
 
@@ -97,72 +98,81 @@ function CompactFriendshipAction({
   );
 }
 
+/** One row of profile actions that stacks at large text sizes; `trailing` keeps its own width. */
+export function ProfileActionRow({ actions, trailing }: { actions: ReactElement[]; trailing?: ReactNode }) {
+  const stacked = useWindowDimensions().fontScale >= 1.5;
+  return (
+    <View style={{ flexDirection: stacked ? "column" : "row", gap: Spacing.two }}>
+      {actions.map((action) => (
+        <View key={action.key} style={stacked ? undefined : { flex: 1 }}>
+          {action}
+        </View>
+      ))}
+      {trailing}
+    </View>
+  );
+}
+
+function FriendsMenu({ onRemove }: { onRemove: () => void }) {
+  return (
+    <Host
+      matchContents={{ vertical: true }}
+      colorScheme="light"
+      style={{ width: "100%", borderWidth: 1, borderColor: Gallery.accentBorder, borderRadius: Radius.button }}
+    >
+      <Menu
+        modifiers={[accessibilityLabel("Friends"), buttonStyle("plain")]}
+        label={
+          <Row
+            alignment="center"
+            modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}
+          >
+            {/* Balances the chevron so the label centers on the whole button. */}
+            <Spacer modifiers={[frame({ width: 32 })]} />
+            <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}>
+              <Icon name="checkmark" size={17} color={Gallery.ink} />
+              <NativeText textStyle={{ color: Gallery.ink, fontSize: 17 }}>Friends</NativeText>
+            </Row>
+            <Icon name="chevron.down" size={12} color={Gallery.ink} modifiers={[frame({ width: 32 })]} />
+          </Row>
+        }
+      >
+        <Button label="Remove friend" role="destructive" onPress={onRemove} />
+      </Menu>
+    </Host>
+  );
+}
+
 export function FriendshipControls({
   profileId,
   session,
+  trailing,
 }: {
   profileId: PublicProfile["profileId"];
   session: SocialSession;
+  trailing?: ReactNode;
 }) {
   const { state, busy, error, act, refresh } = useFriendship(profileId, session);
-  if (session.status === "signed-out" || session.status === "profile-required") {
-    return (
-      <GalleryButton
-        label="Add friend"
-        variant="outlined"
-        fullWidth
-        onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
-      />
-    );
-  }
-  if (profileId === session.profileId || session.status !== "ready") {
-    return null;
-  }
-  return (
-    <View style={{ gap: 8 }}>
-      {state && (state.blocked || (state.state === "pending" && state.requesterId !== session.profileId)) && (
-        <Text style={socialStyles.caption}>
-          {state.blocked ? "This connection is unavailable." : "Wants to be your friend"}
-        </Text>
-      )}
-      {state?.state === "accepted" && !state.blocked ? (
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: Gallery.accent,
-            borderRadius: 4,
-          }}
-        >
-          <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
-            <Menu
-              modifiers={[accessibilityLabel("Friends"), buttonStyle("plain")]}
-              label={
-                <Row
-                  spacing={6}
-                  alignment="center"
-                  modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}
-                >
-                  <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}>
-                    <Icon name="checkmark" size={17} color={Gallery.accent} />
-                    <NativeText textStyle={{ color: Gallery.accent, fontSize: 17 }}>Friends</NativeText>
-                  </Row>
-                  <Icon name="chevron.down" size={12} color={Gallery.accent} modifiers={[frame({ width: 32 })]} />
-                </Row>
-              }
-            >
-              <Button
-                label="Share profile"
-                onPress={() =>
-                  router.push({
-                    pathname: "/share-profile",
-                    params: { profileId },
-                  })
-                }
-              />
-              <Button
-                label="Remove friend"
-                role="destructive"
-                onPress={() => {
+  if (profileId === session.profileId) return null;
+  const ready = session.status === "ready";
+  const actions =
+    session.status === "signed-out" || session.status === "profile-required"
+      ? [
+          <GalleryButton
+            key="add"
+            label="Add friend"
+            variant="outlined"
+            fullWidth
+            onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
+          />,
+        ]
+      : !ready
+        ? []
+        : state?.state === "accepted" && !state.blocked
+          ? [
+              <FriendsMenu
+                key="friends"
+                onRemove={() => {
                   if (!busy) {
                     Alert.alert(
                       "Remove this friend?",
@@ -180,39 +190,39 @@ export function FriendshipControls({
                     );
                   }
                 }}
-              />
-            </Menu>
-          </Host>
-        </View>
-      ) : (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-          {state?.state === "pending" && state.requesterId === session.profileId && (
-            <GalleryButton
-              label="Request sent"
-              icon="checkmark"
-              variant="outlined"
-              fullWidth
-              disabled
-              onPress={() => {}}
-            />
-          )}
-          {state
-            && friendshipActions(state, session.profileId!).map((action) => (
-              <GalleryButton
-                key={action}
-                label={labels[action]}
-                disabled={busy}
-                variant={action === "request" || action === "accept" ? "filled" : "outlined"}
-                destructive={action === "remove"}
-                onPress={() => {
-                  void act(action);
-                }}
-              />
-            ))}
-        </View>
+              />,
+            ]
+          : state
+            ? friendshipActions(state, session.profileId!).map((action) => {
+                const primary = action === "request" || action === "accept";
+                return (
+                  <GalleryButton
+                    key={action}
+                    label={labels[action]}
+                    icon={action === "cancel" ? "checkmark" : undefined}
+                    fullWidth
+                    minHeight={44}
+                    disabled={busy}
+                    variant={primary ? "filled" : "outlined"}
+                    tone={primary ? "accent" : "ink"}
+                    onPress={() => {
+                      void act(action);
+                    }}
+                  />
+                );
+              })
+            : error
+              ? []
+              : [<TextSkeleton key="loading" label="Loading friendship…" width="100%" height={44} />];
+  return (
+    <View style={{ gap: Spacing.two }}>
+      {ready && state && (state.blocked || (state.state === "pending" && state.requesterId !== session.profileId)) && (
+        <Text style={socialStyles.caption}>
+          {state.blocked ? "This connection is unavailable." : "Sent you a friend request."}
+        </Text>
       )}
+      <ProfileActionRow actions={actions} trailing={trailing} />
       {busy && <LoadingRing accessibilityLabel="Updating friendship…" />}
-      {!state && !error && <TextSkeleton label="Loading friendship…" width="100%" height={44} />}
       {error && (
         <>
           <Text selectable accessibilityRole="alert" style={socialStyles.body}>
