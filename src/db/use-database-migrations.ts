@@ -6,6 +6,7 @@ import { getInstallationId } from "@/lib/installation-storage";
 
 import migrations from "./migrations/migrations";
 import { db, describeDatabase } from "./client";
+import { ensureSavedWorkPhotoTimestamp } from "./ensure-saved-work-photo-timestamp";
 
 export type MigrationState = { success: boolean; error?: Error };
 
@@ -20,6 +21,7 @@ export function useDatabaseMigrations(): MigrationState {
     void getSetting("activeJournalOwner")
       .then((stored) => {
         if (!active) return;
+        ensureSavedWorkPhotoTimestamp();
         initializeOwner(getInstallationId(), stored);
         setOwnerReady(true);
         if (__DEV__) console.debug("Local database ready", describeDatabase());
