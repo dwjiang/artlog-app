@@ -4,9 +4,18 @@ import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { query } from "./_generated/server";
 import { requireDevice } from "./lib/auth";
 import { renderedNarration } from "./lib/narrationCache";
-import { docentSentence, factChip, rightsStatus, type FactSheetEntry } from "./lib/validators";
+import {
+  docentSentence,
+  factChip,
+  rightsStatus,
+  type FactSheetEntry,
+} from "./lib/validators";
 
-const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({ id, sourceUrl, sourceLabel });
+const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
+  id,
+  sourceUrl,
+  sourceLabel,
+});
 
 // Artwork-level enrichment for a saved work: the snapshot never changes, this can.
 export const enrichment = query({
@@ -33,23 +42,29 @@ export const enrichment = query({
       for await (const object of ctx.db
         .query("objects")
         .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-        if (object.reverted || object.mergedInto || !object.thumbnailUrl) continue;
+        if (object.reverted || object.mergedInto || !object.thumbnailUrl) {
+          continue;
+        }
         thumbnailUrl = object.thumbnailUrl;
         break;
       }
     }
     const narrationFacts =
-      artwork.factSheet &&
-      !artwork.factSheetNeedsReview &&
-      !artwork.retiredAt &&
-      artwork.identityStatus === "established"
+      artwork.factSheet
+      && !artwork.factSheetNeedsReview
+      && !artwork.retiredAt
+      && artwork.identityStatus === "established"
         ? guideResearch(artwork.factSheet)
         : [];
     return {
       docent: artwork.docent?.en,
       factSheet: artwork.factSheet?.map(chip),
-      narrationFacts: narrationFacts.length ? narrationFacts.map(chip) : undefined,
-      narrationResearchUpdatedAt: narrationFacts.length ? artwork.factSheetUpdatedAt : undefined,
+      narrationFacts: narrationFacts.length
+        ? narrationFacts.map(chip)
+        : undefined,
+      narrationResearchUpdatedAt: narrationFacts.length
+        ? artwork.factSheetUpdatedAt
+        : undefined,
       narrationRenderId: narrationFacts.length
         ? (await renderedNarration(ctx, artwork))?.renderId
         : undefined,

@@ -1,10 +1,16 @@
 import type { NewPendingScan } from "../schema";
 import { confidentScan } from "@/components/scan/result/__fixtures__/scan";
 import { cacheOfflineResult, offlineResultQuery } from "./offline-scan-results";
-import { deletePendingScan, enqueuePendingScan, updateFeatures } from "./pending-scans";
+import {
+  deletePendingScan,
+  enqueuePendingScan,
+  updateFeatures,
+} from "./pending-scans";
 import { claimLocalJournal } from "./journal-claim";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 const capture: NewPendingScan = {
   localId: "offline",
   photoPath: "photos/offline.jpg",
@@ -21,14 +27,20 @@ const capture: NewPendingScan = {
 it("keeps cached results scoped to their owner and follows a claimed journal", async () => {
   await enqueuePendingScan(capture, "device:offline");
   await cacheOfflineResult(capture.localId, confidentScan, "device:offline");
-  expect(await offlineResultQuery(capture.localId, "account:someone-else")).toEqual([]);
+  expect(
+    await offlineResultQuery(capture.localId, "account:someone-else"),
+  ).toEqual([]);
   await claimLocalJournal("device:offline", "account:offline", "claim");
-  expect(await offlineResultQuery(capture.localId, "device:offline")).toEqual([]);
-  expect((await offlineResultQuery(capture.localId, "account:offline"))[0].result).toEqual(
-    confidentScan,
+  expect(await offlineResultQuery(capture.localId, "device:offline")).toEqual(
+    [],
   );
+  expect(
+    (await offlineResultQuery(capture.localId, "account:offline"))[0].result,
+  ).toEqual(confidentScan);
   await deletePendingScan(capture.localId, "account:offline");
-  expect(await offlineResultQuery(capture.localId, "account:offline")).toEqual([]);
+  expect(await offlineResultQuery(capture.localId, "account:offline")).toEqual(
+    [],
+  );
 });
 it("discards a cached match when a new crop changes the recognition input", async () => {
   await enqueuePendingScan(capture);

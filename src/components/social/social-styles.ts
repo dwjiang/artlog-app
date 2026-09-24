@@ -23,7 +23,12 @@ export const socialStyles = StyleSheet.create({
     width: "100%",
   },
   title: { ...Typography.section, color: Gallery.ink, textAlign: "center" },
-  body: { ...Typography.secondary, color: Gallery.muted, textAlign: "center", maxWidth: 420 },
+  body: {
+    ...Typography.secondary,
+    color: Gallery.muted,
+    textAlign: "center",
+    maxWidth: 420,
+  },
   caption: { ...Typography.metadata, color: Gallery.muted },
   footer: {
     paddingHorizontal: Spacing.content,

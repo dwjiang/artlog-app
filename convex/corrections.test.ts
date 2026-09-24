@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import model from "../shared/model/model-version.json";
 import { completion } from "./lib/labelFixtures";
-import { seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
+import {
+  seedArtworkWithObject,
+  seedDevice,
+  testVector,
+} from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 afterEach(() => {
@@ -28,7 +32,11 @@ const factSheet = [
     sourceScore: 1,
   },
 ];
-const docent = { en: [{ sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] }] };
+const docent = {
+  en: [
+    { sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] },
+  ],
+};
 
 async function fixture() {
   const t = harness();
@@ -38,7 +46,12 @@ async function fixture() {
       artwork: { factSheet, factSheetUpdatedAt: 1, docent, docentUpdatedAt: 2 },
     }),
   );
-  return { t, user, artworkId, artwork: () => t.run((ctx) => ctx.db.get(artworkId)) };
+  return {
+    t,
+    user,
+    artworkId,
+    artwork: () => t.run((ctx) => ctx.db.get(artworkId)),
+  };
 }
 
 describe("corrections.correctFact", () => {
@@ -64,7 +77,9 @@ describe("corrections.correctFact", () => {
       deviceId: user.deviceId,
       status: "open",
     });
-    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toEqual([]);
+    expect(
+      await t.query(internal.review.listCorrections, { status: "resolved" }),
+    ).toEqual([]);
   });
 
   it("keeps the sheet untouched until it is reviewed, then a rewritten sheet clears the flag", async () => {
@@ -82,7 +97,10 @@ describe("corrections.correctFact", () => {
       factId: "f1",
       message: "Wrong year.",
     });
-    await t.action(internal.docent.ensure, { artworkId, deviceId: user.deviceId });
+    await t.action(internal.docent.ensure, {
+      artworkId,
+      deviceId: user.deviceId,
+    });
     expect(await artwork()).toMatchObject({ factSheetNeedsReview: true });
     expect(await artwork()).not.toHaveProperty("docent");
     const corrections = await t.query(internal.review.listCorrections, {});
@@ -92,25 +110,43 @@ describe("corrections.correctFact", () => {
       correctionIds: corrections.map((correction) => correction._id),
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toHaveLength(1);
+    expect(
+      await t.query(internal.review.listCorrections, { status: "resolved" }),
+    ).toHaveLength(1);
     expect(await artwork()).toMatchObject({ factSheet: [factSheet[0]] });
     expect(await artwork()).not.toHaveProperty("docent");
     vi.stubEnv("NEBIUS_API_KEY", "test");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        completion(docent.en.map(({ sentence, factIds }) => ({ sentence, fact_ids: factIds }))),
+        completion(
+          docent.en.map(({ sentence, factIds }) => ({
+            sentence,
+            fact_ids: factIds,
+          })),
+        ),
       ),
     );
-    await t.action(internal.docent.ensure, { artworkId, deviceId: user.deviceId });
+    await t.action(internal.docent.ensure, {
+      artworkId,
+      deviceId: user.deviceId,
+    });
     expect(await artwork()).toMatchObject({ docent });
     expect(await artwork()).not.toHaveProperty("factSheetNeedsReview");
   });
 
   it.each([
     ["an unknown fact", { factId: "f9", message: "Wrong." }, "unknown_fact"],
-    ["an empty message", { factId: "f1", message: "   " }, "invalid_correction"],
-    ["an oversized message", { factId: "f1", message: "x".repeat(2001) }, "invalid_correction"],
+    [
+      "an empty message",
+      { factId: "f1", message: "   " },
+      "invalid_correction",
+    ],
+    [
+      "an oversized message",
+      { factId: "f1", message: "x".repeat(2001) },
+      "invalid_correction",
+    ],
     [
       "an oversized contact",
       { factId: "f1", message: "Wrong.", contact: "c".repeat(201) },
@@ -123,14 +159,20 @@ describe("corrections.correctFact", () => {
     ).rejects.toMatchObject({ data: { code } });
     expect(await artwork()).toMatchObject({ docent });
     expect(await artwork()).not.toHaveProperty("factSheetNeedsReview");
-    expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toEqual([]);
+    expect(
+      await t.run((ctx) => ctx.db.query("factCorrections").collect()),
+    ).toEqual([]);
   });
 
   it("requires a registered device and allows five corrections per device per day", async () => {
     const { t, user, artworkId } = await fixture();
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     await expect(
-      t.mutation(api.corrections.correctFact, { artworkId, factId: "f1", message: "Wrong." }),
+      t.mutation(api.corrections.correctFact, {
+        artworkId,
+        factId: "f1",
+        message: "Wrong.",
+      }),
     ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
     const unregistered = await signIn(t);
     await expect(
@@ -140,20 +182,25 @@ describe("corrections.correctFact", () => {
         message: "Wrong.",
       }),
     ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
-    for (let i = 0; i < 5; i++)
+    for (let i = 0; i < 5; i++) {
       await user.as.mutation(api.corrections.correctFact, {
         artworkId,
         factId: "f1",
         message: `Wrong ${i}.`,
       });
+    }
     await expect(
       user.as.mutation(api.corrections.correctFact, {
         artworkId,
         factId: "f1",
         message: "Wrong again.",
       }),
-    ).rejects.toMatchObject({ data: { code: "rate_limited", name: "correctFact" } });
-    expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toHaveLength(5);
+    ).rejects.toMatchObject({
+      data: { code: "rate_limited", name: "correctFact" },
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query("factCorrections").collect()),
+    ).toHaveLength(5);
   });
 });
 
@@ -214,7 +261,9 @@ it.each([false, true])(
       vi.fn(async () => {
         fetched();
         await responseGate;
-        return completion([{ sentence: "Monet painted this work in 1916.", fact_ids: ["f1"] }]);
+        return completion([
+          { sentence: "Monet painted this work in 1916.", fact_ids: ["f1"] },
+        ]);
       }),
     );
     const generating = t.action(internal.docent.ensure, {
@@ -237,9 +286,11 @@ it.each([false, true])(
     }
     finish();
     await generating;
-    expect((await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview).toBe(
-      reviewed ? undefined : true,
-    );
-    expect((await user.as.query(api.scans.get, { scanId }))?.docent).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview,
+    ).toBe(reviewed ? undefined : true);
+    expect(
+      (await user.as.query(api.scans.get, { scanId }))?.docent,
+    ).toBeUndefined();
   },
 );

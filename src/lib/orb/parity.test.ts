@@ -2,7 +2,9 @@ import { compareDescriptors, decodeBase64 } from "./parity";
 
 function rows(...values: number[]): ArrayBuffer {
   const bytes = new Uint8Array(values.length * 32);
-  values.forEach((value, index) => bytes.fill(value, index * 32, (index + 1) * 32));
+  values.forEach((value, index) =>
+    bytes.fill(value, index * 32, (index + 1) * 32),
+  );
   return bytes.buffer;
 }
 
@@ -42,5 +44,7 @@ it("treats rows differing in a single byte as different", () => {
 });
 
 it("decodes base64 into the fixture bytes", () => {
-  expect(Array.from(new Uint8Array(decodeBase64("AAEC/w==")))).toEqual([0, 1, 2, 255]);
+  expect(Array.from(new Uint8Array(decodeBase64("AAEC/w==")))).toEqual([
+    0, 1, 2, 255,
+  ]);
 });

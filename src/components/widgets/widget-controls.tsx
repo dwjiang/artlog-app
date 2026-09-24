@@ -1,4 +1,12 @@
-import { Button, Column, Host, Icon, RNHostView, Row, Text as NativeText } from "@expo/ui";
+import {
+  Button,
+  Column,
+  Host,
+  Icon,
+  RNHostView,
+  Row,
+  Text as NativeText,
+} from "@expo/ui";
 import {
   accessibilityAddTraits,
   accessibilityLabel,
@@ -31,7 +39,9 @@ export function WidgetSettingRow({
   children?: ReactNode;
 }) {
   return (
-    <View style={{ borderBottomWidth: 0.5, borderBottomColor: Gallery.softBorder }}>
+    <View
+      style={{ borderBottomWidth: 0.5, borderBottomColor: Gallery.softBorder }}
+    >
       <Host
         matchContents={{ vertical: true }}
         colorScheme="light"
@@ -43,7 +53,9 @@ export function WidgetSettingRow({
           onPress={onPress}
           modifiers={[
             buttonStyle("plain"),
-            accessibilityLabel([title, subtitle, detail].filter(Boolean).join(", ")),
+            accessibilityLabel(
+              [title, subtitle, detail].filter(Boolean).join(", "),
+            ),
             accessibilityAddTraits(selected ? ["isSelected"] : []),
             frame({ maxWidth: Infinity }),
           ]}
@@ -115,7 +127,9 @@ export function WidgetSettingRow({
                     borderRadius: 11,
                     borderWidth: 1.2,
                     borderColor: selected ? Gallery.ink : "#8E8E99",
-                    backgroundColor: selected ? Gallery.highlight : "transparent",
+                    backgroundColor: selected
+                      ? Gallery.highlight
+                      : "transparent",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -152,7 +166,12 @@ export function WidgetTile({
   children: ReactNode;
 }) {
   return (
-    <Host matchContents colorScheme="light" ignoreSafeArea="all" style={{ width }}>
+    <Host
+      matchContents
+      colorScheme="light"
+      ignoreSafeArea="all"
+      style={{ width }}
+    >
       <Button
         variant="text"
         onPress={onPress}

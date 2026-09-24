@@ -9,6 +9,9 @@ export function effectiveObjectPenalty(object: {
 }): number {
   return Math.max(
     object.calibratorPenalty,
-    Math.min(MAX_PENALTY, object.calibratorPenalty + (object.rejectionPenalty ?? 0)),
+    Math.min(
+      MAX_PENALTY,
+      object.calibratorPenalty + (object.rejectionPenalty ?? 0),
+    ),
   );
 }

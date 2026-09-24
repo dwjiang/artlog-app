@@ -14,7 +14,13 @@ jest.mock("../venue/venue-db", () => ({
   onVenueMetadataChange: () => () => {},
 }));
 const row = (id: string) =>
-  ({ id, name: id, region: "paris", lat: 48.8, lng: 2.3 }) as unknown as VenueRow;
+  ({
+    id,
+    name: id,
+    region: "paris",
+    lat: 48.8,
+    lng: 2.3,
+  }) as unknown as VenueRow;
 
 it("is not ready until the rows for the current museums have been read", async () => {
   const hook = await renderHook((ids: string[]) => useVenueMetadata(ids, "a"), {
@@ -52,9 +58,12 @@ it("keeps known museum metadata ready when deleting an artwork shrinks the reque
 });
 
 it("does not reuse another owner’s museum metadata", async () => {
-  const hook = await renderHook((owner: string) => useVenueMetadata(["met"], owner), {
-    initialProps: "a",
-  });
+  const hook = await renderHook(
+    (owner: string) => useVenueMetadata(["met"], owner),
+    {
+      initialProps: "a",
+    },
+  );
   await act(() => mockResolve?.([row("met")]));
   await hook.rerender("b");
   expect(hook.result.current.ready).toBe(false);
@@ -82,6 +91,8 @@ it("stays ready when Undo brings a museum back that was read earlier", async () 
   await hook.rerender(["met", "moma"]);
   expect(hook.result.current.ready).toBe(true);
   expect(hook.result.current.metadata.get("moma")?.name).toBe("moma");
-  await act(() => mockResolve?.([row("met"), { ...row("moma"), name: "MoMA" }]));
+  await act(() =>
+    mockResolve?.([row("met"), { ...row("moma"), name: "MoMA" }]),
+  );
   expect(hook.result.current.metadata.get("moma")?.name).toBe("MoMA");
 });

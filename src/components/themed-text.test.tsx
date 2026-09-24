@@ -19,10 +19,15 @@ describe("shared app text", () => {
       <>
         <ThemedText>Body copy</ThemedText>
         <ThemedText style={{ fontSize: 13 }}>Caption</ThemedText>
-        <ThemedText style={[{ fontSize: 24 }, { color: "red" }]}>Numeral</ThemedText>
+        <ThemedText style={[{ fontSize: 24 }, { color: "red" }]}>
+          Numeral
+        </ThemedText>
       </>,
     );
-    expect(screen.getByText("Body copy")).toHaveStyle({ fontSize: 16, lineHeight: 24 });
+    expect(screen.getByText("Body copy")).toHaveStyle({
+      fontSize: 16,
+      lineHeight: 24,
+    });
     expect(screen.getByText("Caption")).toHaveStyle({ fontSize: 13 });
     expect(screen.getByText("Caption")).not.toHaveStyle({ lineHeight: 24 });
     expect(screen.getByText("Numeral")).not.toHaveStyle({ lineHeight: 24 });
@@ -46,6 +51,8 @@ describe("shared app text", () => {
     );
     expect(screen.getByText("A long artist name — 藤田嗣治")).toBeOnTheScreen();
     expect(ref.mock.calls.length).toBeGreaterThan(initialMountCalls);
-    expect(ref.mock.calls.slice(initialMountCalls).some(([node]) => node === null)).toBe(true);
+    expect(
+      ref.mock.calls.slice(initialMountCalls).some(([node]) => node === null),
+    ).toBe(true);
   });
 });

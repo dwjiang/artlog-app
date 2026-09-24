@@ -13,7 +13,12 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { type ComponentProps, useEffect } from "react";
-import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  AccessibilityInfo,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { LoadingRing } from "@/components/loading-ring";
 
@@ -59,15 +64,27 @@ export function GalleryButton({
       : tone === "ink"
         ? Gallery.ink
         : Gallery.accent;
-  const foreground = variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
-  const minHeight = variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44;
+  const foreground =
+    variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
+  const minHeight =
+    variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44;
   useEffect(() => {
-    if (busy) AccessibilityInfo.announceForAccessibility(`${accessibilityLabel}. In progress.`);
+    if (busy) {
+      AccessibilityInfo.announceForAccessibility(
+        `${accessibilityLabel}. In progress.`,
+      );
+    }
   }, [busy, accessibilityLabel]);
 
   // The row lets the inner view hug the native button so the overlay covers only it, while a centered parent can still center the whole row.
   return (
-    <View style={{ flexDirection: "row", maxWidth: "100%", ...(expand ? { width: "100%" } : {}) }}>
+    <View
+      style={{
+        flexDirection: "row",
+        maxWidth: "100%",
+        ...(expand ? { width: "100%" } : {}),
+      }}
+    >
       <View style={{ maxWidth: "100%", ...(expand ? { flex: 1 } : {}) }}>
         {/* The enclosing screen handles insets; native safe areas would displace labels as the button scrolls. */}
         <Host
@@ -81,7 +98,9 @@ export function GalleryButton({
             borderRadius: Radius.button,
             backgroundColor: variant === "filled" ? accent : "transparent",
             borderWidth: variant === "outlined" ? 1 : 0,
-            borderColor: destructive ? Gallery.destructive : Gallery.accentBorder,
+            borderColor: destructive
+              ? Gallery.destructive
+              : Gallery.accentBorder,
             opacity: disabled && !busy ? 0.5 : 1,
             ...(expand ? { width: "100%" } : {}),
           }}
@@ -90,7 +109,9 @@ export function GalleryButton({
             onPress={onPress}
             disabled={disabled || busy}
             variant={variant}
-            style={{ paddingHorizontal: variant === "text" ? 0 : Spacing.compact }}
+            style={{
+              paddingHorizontal: variant === "text" ? 0 : Spacing.compact,
+            }}
             modifiers={[
               accessibilityLabelModifier(accessibilityLabel),
               accessibilityValue(busy ? busyLabel : ""),
@@ -114,7 +135,12 @@ export function GalleryButton({
               ]}
             >
               {icon && iconPosition === "leading" && (
-                <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 })]} />
+                <Icon
+                  name={icon}
+                  size={17}
+                  color={foreground}
+                  modifiers={[frame({ width: 24 })]}
+                />
               )}
               <NativeText
                 textStyle={{ color: foreground }}

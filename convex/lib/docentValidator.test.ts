@@ -11,9 +11,9 @@ describe("docent validator (shared fixture)", () => {
   it.each(fixture.cases.map((testCase) => [testCase.name, testCase] as const))(
     "%s",
     (_name, testCase) => {
-      expect(validateDocent(testCase.sentences, new Set(testCase.factIds))).toEqual(
-        testCase.expectedKept,
-      );
+      expect(
+        validateDocent(testCase.sentences, new Set(testCase.factIds)),
+      ).toEqual(testCase.expectedKept);
     },
   );
 });

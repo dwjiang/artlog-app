@@ -3,7 +3,11 @@ import type { Embedder, OrbExtractor } from "./stages";
 
 export const orb: OrbExtractor = { extract: (cropUri) => extractOrb(cropUri) };
 
-export type ScanFeatures = { vector: number[]; descriptors: ArrayBuffer; keypoints: ArrayBuffer };
+export type ScanFeatures = {
+  vector: number[];
+  descriptors: ArrayBuffer;
+  keypoints: ArrayBuffer;
+};
 
 export function roundVector(embedding: Float32Array): number[] {
   return Array.from(embedding, (value) => Number(value.toFixed(5)));

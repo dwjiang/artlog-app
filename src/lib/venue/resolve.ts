@@ -33,17 +33,28 @@ export type VenueResolution =
 export function haversineMeters(a: Coordinate, b: Coordinate): number {
   const rad = Math.PI / 180;
   const h =
-    Math.sin(((b.lat - a.lat) * rad) / 2) ** 2 +
-    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
+    Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
+    + Math.cos(a.lat * rad)
+      * Math.cos(b.lat * rad)
+      * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(Math.min(1, h)));
 }
 
-export type BoundingBox = { minLat: number; maxLat: number; minLng: number; maxLng: number };
+export type BoundingBox = {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+};
 
 /** A latitude/longitude box that contains every point within `radiusM`; callers filter by exact distance. */
-export function boundingBox({ lat, lng }: Coordinate, radiusM: number): BoundingBox {
+export function boundingBox(
+  { lat, lng }: Coordinate,
+  radiusM: number,
+): BoundingBox {
   const latDelta = radiusM / 111_000;
-  const lngDelta = radiusM / (111_000 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  const lngDelta =
+    radiusM / (111_000 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
   return {
     minLat: Math.max(-90, lat - latDelta),
     maxLat: Math.min(90, lat + latDelta),
@@ -74,16 +85,25 @@ export function pickVenue(candidates: VenueCandidate[]): VenueResolution {
   if (options.length >= 2) return { kind: "choose", options };
   const [nearest] = options;
   if (!nearest) return { kind: "none" };
-  if (nearest.distanceM <= AUTO_RADIUS_M) return { kind: "auto", venue: nearest, options };
+  if (nearest.distanceM <= AUTO_RADIUS_M) {
+    return { kind: "auto", venue: nearest, options };
+  }
   return { kind: "choose", options };
 }
 
-export function formatDistance(distanceM: number, units: MeasurementUnits = "metric"): string {
+export function formatDistance(
+  distanceM: number,
+  units: MeasurementUnits = "metric",
+): string {
   if (!Number.isFinite(distanceM)) return "";
   if (units === "imperial") {
-    if (distanceM < 1609.344) return `${Math.max(10, Math.round(distanceM / 0.3048 / 10) * 10)} ft`;
+    if (distanceM < 1609.344) {
+      return `${Math.max(10, Math.round(distanceM / 0.3048 / 10) * 10)} ft`;
+    }
     return `${(distanceM / 1609.344).toFixed(1)} mi`;
   }
-  if (distanceM < 1000) return `${Math.max(10, Math.round(distanceM / 10) * 10)} m`;
+  if (distanceM < 1000) {
+    return `${Math.max(10, Math.round(distanceM / 10) * 10)} m`;
+  }
   return `${(distanceM / 1000).toFixed(1)} km`;
 }

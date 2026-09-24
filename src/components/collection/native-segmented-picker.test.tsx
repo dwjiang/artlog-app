@@ -16,8 +16,12 @@ it("keeps icon options labeled and exposes the selected visit view", async () =>
       onChange={onChange}
     />,
   );
-  expect(screen.getByRole("button", { name: "Globe", selected: true })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "List", selected: false }));
+  expect(
+    screen.getByRole("button", { name: "Globe", selected: true }),
+  ).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "List", selected: false }),
+  );
   expect(onChange).toHaveBeenCalledWith("list");
   await screen.rerender(
     <NativeSegmentedPicker
@@ -28,8 +32,12 @@ it("keeps icon options labeled and exposes the selected visit view", async () =>
       onChange={onChange}
     />,
   );
-  expect(screen.getByRole("button", { name: "List", selected: true })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Globe", selected: false })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "List", selected: true }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Globe", selected: false }),
+  ).toBeOnTheScreen();
 });
 
 it("preserves selection and blocks changes while disabled", async () => {
@@ -47,8 +55,14 @@ it("preserves selection and blocks changes while disabled", async () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: "Wall", selected: true, disabled: true }),
+    screen.getByRole("button", {
+      name: "Wall",
+      selected: true,
+      disabled: true,
+    }),
   ).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Visits", disabled: true }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Visits", disabled: true }),
+  );
   expect(onChange).not.toHaveBeenCalled();
 });

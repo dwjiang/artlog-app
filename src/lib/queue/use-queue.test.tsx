@@ -10,8 +10,12 @@ const mockStopShares = jest.fn();
 let mockRows: Partial<PendingScan>[] = [];
 
 jest.mock("convex/react", () => ({ useConvexAuth: () => mockAuth }));
-jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: () => ({ data: mockRows }) }));
-jest.mock("@/db/repos/pending-scans", () => ({ pendingScansQuery: () => "query" }));
+jest.mock("drizzle-orm/expo-sqlite", () => ({
+  useLiveQuery: () => ({ data: mockRows }),
+}));
+jest.mock("@/db/repos/pending-scans", () => ({
+  pendingScansQuery: () => "query",
+}));
 jest.mock("./queue", () => ({ startQueueFlusher: () => mockStart() }));
 jest.mock("@/lib/label/share-saved-label", () => ({
   startPendingShareFlusher: () => mockStartShares(),
@@ -36,7 +40,12 @@ it("counts queued and identifying rows as pending while keeping failed and ready
   ];
   const hook = await renderHook(useQueue);
   expect(hook.result.current.pending).toBe(2);
-  expect(hook.result.current.items.map((row) => row.localId)).toEqual(["a", "b", "c", "d"]);
+  expect(hook.result.current.items.map((row) => row.localId)).toEqual([
+    "a",
+    "b",
+    "c",
+    "d",
+  ]);
 });
 
 it("starts the scan and share flushers only once the session is authenticated and stops both on unmount", async () => {

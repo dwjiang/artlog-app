@@ -17,7 +17,11 @@ export type Multiplicity = Infer<typeof multiplicity>;
 export const objectSource = v.union(v.literal("corpus"), v.literal("user"));
 export type ObjectSource = Infer<typeof objectSource>;
 
-export const vectorSource = v.union(v.literal("corpus"), v.literal("user"), v.literal("user_scan"));
+export const vectorSource = v.union(
+  v.literal("corpus"),
+  v.literal("user"),
+  v.literal("user_scan"),
+);
 export type VectorSource = Infer<typeof vectorSource>;
 
 export const placementSource = v.union(
@@ -37,11 +41,21 @@ export const checklistExhibition = v.object({
   sourceUrl: v.string(),
 });
 
-export const seedSource = v.union(v.literal("wikidata"), v.literal("poi"), v.literal("manual"));
+export const seedSource = v.union(
+  v.literal("wikidata"),
+  v.literal("poi"),
+  v.literal("manual"),
+);
 export type SeedSource = Infer<typeof seedSource>;
 
-export const identityStatus = v.union(v.literal("established"), v.literal("tentative"));
-export const contributionStatus = v.union(v.literal("tentative"), v.literal("rejected"));
+export const identityStatus = v.union(
+  v.literal("established"),
+  v.literal("tentative"),
+);
+export const contributionStatus = v.union(
+  v.literal("tentative"),
+  v.literal("rejected"),
+);
 export type ContributionStatus = Infer<typeof contributionStatus>;
 
 export const proposalStatus = v.union(
@@ -62,7 +76,11 @@ export const scanStatus = v.union(
 );
 export type ScanStatus = Infer<typeof scanStatus>;
 
-export const matchOutcome = v.union(v.literal("confident"), v.literal("soft"), v.literal("miss"));
+export const matchOutcome = v.union(
+  v.literal("confident"),
+  v.literal("soft"),
+  v.literal("miss"),
+);
 export type MatchOutcome = Infer<typeof matchOutcome>;
 
 export const labelEvidence = v.union(
@@ -90,7 +108,9 @@ export const contributionRejectedReason = v.union(
   v.literal("withdrawn"),
   v.literal("object_reverted"),
 );
-export type ContributionRejectedReason = Infer<typeof contributionRejectedReason>;
+export type ContributionRejectedReason = Infer<
+  typeof contributionRejectedReason
+>;
 
 export const candidateSignal = v.object({
   identityStatus,
@@ -204,7 +224,11 @@ export const labelFlow = v.object({
   fields: labelFields,
   evidence: v.array(labelEvidence),
   warnings: v.array(labelWarning),
-  moderation: v.union(v.literal("clear"), v.literal("flagged"), v.literal("unchecked")),
+  moderation: v.union(
+    v.literal("clear"),
+    v.literal("flagged"),
+    v.literal("unchecked"),
+  ),
   promptVersion: v.optional(v.string()),
   rawOcr: v.optional(v.any()),
   sourceUrl: v.optional(v.string()),

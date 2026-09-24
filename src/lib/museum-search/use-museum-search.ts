@@ -1,10 +1,20 @@
 import { reportError } from "@/lib/observability";
 import { useNetworkState } from "expo-network";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { ScanResult } from "@/lib/result/state";
 import { useMuseumSearchConsent } from "@/lib/settings/use-museum-search-consent";
-import { museumSearchMessage, type MuseumSearchOutcome, type MuseumSearchStage } from "./flow";
+import {
+  museumSearchMessage,
+  type MuseumSearchOutcome,
+  type MuseumSearchStage,
+} from "./flow";
 import { runMuseumSearchForScan } from "./museum-search-deps";
 import { restoreConfirmedMuseumFlow } from "./restore";
 
@@ -26,7 +36,10 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   const canRun = useRef(false);
   const stored = scan?.museumSearch;
   const automatic = scan?.best?.identityStatus !== "tentative";
-  const available = scan?.status === "identified" && scan.outcome !== "confident" && !!scan.venueId;
+  const available =
+    scan?.status === "identified"
+    && scan.outcome !== "confident"
+    && !!scan.venueId;
   useLayoutEffect(() => {
     canRun.current = active && online && available;
   }, [active, online, available]);
@@ -40,7 +53,14 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   }, []);
 
   const run = useCallback(async () => {
-    if (!scan || !canRun.current || inFlight.current || stored?.stage === "confirmed") return;
+    if (
+      !scan
+      || !canRun.current
+      || inFlight.current
+      || stored?.stage === "confirmed"
+    ) {
+      return;
+    }
     inFlight.current = true;
     attempted.current = true;
     setPhase({
@@ -69,16 +89,17 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
 
   useEffect(() => {
     if (
-      automatic &&
-      phase.stage !== "running" &&
-      available &&
-      active &&
-      online &&
-      consent === "granted" &&
-      !attempted.current &&
-      (!stored || stored.stage === "exhibitions")
-    )
+      automatic
+      && phase.stage !== "running"
+      && available
+      && active
+      && online
+      && consent === "granted"
+      && !attempted.current
+      && (!stored || stored.stage === "exhibitions")
+    ) {
       void run();
+    }
   }, [automatic, available, active, online, consent, stored, run, phase.stage]);
 
   useEffect(() => {
@@ -89,8 +110,12 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
         if (!current) return;
         setPhase((previous) => {
           if (!flow) return { stage: "none", reason: "model_error" };
-          if (previous.stage === "done" && previous.confirmedAt === stored.updatedAt)
+          if (
+            previous.stage === "done"
+            && previous.confirmedAt === stored.updatedAt
+          ) {
             return previous;
+          }
           return { stage: "done", flow, confirmedAt: stored.updatedAt };
         });
       },
@@ -116,7 +141,8 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
         : stored?.stage === "confirmed" && !flow
           ? "model_error"
           : undefined;
-  const hidden = reason !== undefined && museumSearchMessage(reason) === undefined;
+  const hidden =
+    reason !== undefined && museumSearchMessage(reason) === undefined;
 
   return {
     available: available && !hidden && online,
@@ -134,7 +160,9 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     progress: phase.stage === "running" ? phase.progress : undefined,
     message: reason === undefined ? undefined : museumSearchMessage(reason),
     visible:
-      available && !hidden && (consent !== "declined" || !!flow || restoring || restoreError),
+      available
+      && !hidden
+      && (consent !== "declined" || !!flow || restoring || restoreError),
   };
 }
 

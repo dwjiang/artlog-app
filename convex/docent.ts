@@ -43,7 +43,10 @@ const MAX_MODEL_CALLS = 4;
 // Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
 const MODEL_TIMEOUT_MS = 20_000;
 
-export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {
+export async function clearDocent(
+  ctx: MutationCtx,
+  artwork: Doc<"artworks">,
+): Promise<void> {
   await ctx.db.patch(artwork._id, {
     docent: undefined,
     docentUpdatedAt: undefined,
@@ -70,7 +73,14 @@ export const load = internalQuery({
     for await (const object of ctx.db
       .query("objects")
       .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-      if (object.reverted || object.mergedInto || !object.pageUrl || !object.ownerId) continue;
+      if (
+        object.reverted
+        || object.mergedInto
+        || !object.pageUrl
+        || !object.ownerId
+      ) {
+        continue;
+      }
       const museum = await ctx.db.get(object.ownerId);
       if (!museum || (await isVenueOptedOut(ctx, museum))) continue;
       pageUrl = object.pageUrl;
@@ -87,17 +97,25 @@ export const claim = internalMutation({
   handler: async (ctx, { artworkId }) => {
     const artwork = await ctx.db.get(artworkId);
     if (
-      !artwork ||
-      artwork.identityStatus !== "established" ||
-      artwork.docent?.en ||
-      artwork.factSheetNeedsReview
-    )
+      !artwork
+      || artwork.identityStatus !== "established"
+      || artwork.docent?.en
+      || artwork.factSheetNeedsReview
+    ) {
       return null;
+    }
     const now = Date.now();
-    if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS)
+    if (
+      artwork.enrichClaimedAt !== undefined
+      && artwork.enrichClaimedAt > now - CLAIM_MS
+    ) {
       return null;
+    }
     const generation = (artwork.enrichGeneration ?? 0) + 1;
-    await ctx.db.patch(artworkId, { enrichClaimedAt: now, enrichGeneration: generation });
+    await ctx.db.patch(artworkId, {
+      enrichClaimedAt: now,
+      enrichGeneration: generation,
+    });
     return generation;
   },
 });
@@ -115,12 +133,13 @@ export const writeEnrichment = internalMutation({
     const artwork = await ctx.db.get(artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     if (
-      artwork.identityStatus !== "established" ||
-      artwork.factSheetNeedsReview ||
-      artwork.enrichGeneration !== generation ||
-      artwork.enrichClaimedAt === undefined
-    )
+      artwork.identityStatus !== "established"
+      || artwork.factSheetNeedsReview
+      || artwork.enrichGeneration !== generation
+      || artwork.enrichClaimedAt === undefined
+    ) {
       return false;
+    }
     const now = Date.now();
     await ctx.db.patch(artworkId, {
       ...(factSheet ? { factSheet, factSheetUpdatedAt: now } : {}),
@@ -133,14 +152,21 @@ export const writeEnrichment = internalMutation({
 });
 
 export const invalidateDocent = internalMutation({
-  args: { artworkId: v.id("artworks"), includeResearch: v.optional(v.boolean()) },
+  args: {
+    artworkId: v.id("artworks"),
+    includeResearch: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, { artworkId, includeResearch }) => {
     const artwork = await ctx.db.get(artworkId);
     if (artwork) {
       await clearDocent(ctx, artwork);
-      if (includeResearch)
-        await ctx.db.patch(artworkId, { factSheet: undefined, factSheetUpdatedAt: undefined });
+      if (includeResearch) {
+        await ctx.db.patch(artworkId, {
+          factSheet: undefined,
+          factSheetUpdatedAt: undefined,
+        });
+      }
     }
     return null;
   },
@@ -159,15 +185,25 @@ async function generate(
   models: Models,
   artwork: Doc<"artworks">,
   context: { pageUrl?: string; owner: Doc<"museums"> | null },
-): Promise<{ factSheet?: FactSheetEntry[]; docentEn: DocentSentence[] } | null> {
-  const cached = artwork.factSheetUpdatedAt !== undefined ? artwork.factSheet : undefined;
+): Promise<{
+  factSheet?: FactSheetEntry[];
+  docentEn: DocentSentence[];
+} | null> {
+  const cached =
+    artwork.factSheetUpdatedAt !== undefined ? artwork.factSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
     // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.
     await ctx.runQuery(internal.spend.assertCap, { kind: "tokenFactory" });
-    sources = await gatherSources(ctx, { artwork, owner: context.owner, pageUrl: context.pageUrl });
+    sources = await gatherSources(ctx, {
+      artwork,
+      owner: context.owner,
+      pageUrl: context.pageUrl,
+    });
     // Nothing found because every source errored: release the claim and try again later.
-    if (!sources.sources.length) return sources.failures ? null : { factSheet: [], docentEn: [] };
+    if (!sources.sources.length) {
+      return sources.failures ? null : { factSheet: [], docentEn: [] };
+    }
   }
   const day = await ctx.runMutation(internal.spend.reserve, {
     kind: "tokenFactory",
@@ -204,14 +240,18 @@ async function generate(
       });
       calls += prose.calls;
       docentEn = validateDocent(
-        prose.value.map(({ sentence, fact_ids }) => ({ sentence, factIds: fact_ids })),
+        prose.value.map(({ sentence, fact_ids }) => ({
+          sentence,
+          factIds: fact_ids,
+        })),
         new Set(factSheet.map((fact) => fact.id)),
       );
     }
     return { ...(cached ? {} : { factSheet }), docentEn };
   } catch (error) {
-    if (error instanceof ConvexError && typeof error.data.calls === "number")
+    if (error instanceof ConvexError && typeof error.data.calls === "number") {
       calls += error.data.calls;
+    }
     throw error;
   } finally {
     await ctx.runMutation(internal.spend.reconcile, {
@@ -236,17 +276,20 @@ export const ensure = internalAction({
       );
       return null;
     }
-    const generation = await ctx.runMutation(internal.docent.claim, { artworkId });
+    const generation = await ctx.runMutation(internal.docent.claim, {
+      artworkId,
+    });
     if (generation === null) return null;
     let written = false;
     try {
       const context = await ctx.runQuery(internal.docent.load, { artworkId });
       if (
-        !context ||
-        context.artwork.enrichGeneration !== generation ||
-        context.artwork.factSheetNeedsReview
-      )
+        !context
+        || context.artwork.enrichGeneration !== generation
+        || context.artwork.factSheetNeedsReview
+      ) {
         return null;
+      }
       await limitDevice(ctx, "docent", deviceId);
       const result = await generate(ctx, models, context.artwork, context);
       if (!result) return null;
@@ -257,15 +300,21 @@ export const ensure = internalAction({
       });
     } catch (error) {
       if (
-        error instanceof ConvexError &&
-        (error.data.code === "spend_cap" || error.data.code === "rate_limited")
+        error instanceof ConvexError
+        && (error.data.code === "spend_cap"
+          || error.data.code === "rate_limited")
       ) {
         console.warn("Docent generation skipped", error.data);
         return null;
       }
       throw error;
     } finally {
-      if (!written) await ctx.runMutation(internal.enrich.releaseClaim, { artworkId, generation });
+      if (!written) {
+        await ctx.runMutation(internal.enrich.releaseClaim, {
+          artworkId,
+          generation,
+        });
+      }
     }
     return null;
   },

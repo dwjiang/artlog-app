@@ -25,11 +25,18 @@ export function useDatabaseMigrations(): MigrationState {
         if (__DEV__) console.debug("Local database ready", describeDatabase());
       })
       .catch((error: unknown) => {
-        if (active) setOwnerError(error instanceof Error ? error : new Error(String(error)));
+        if (active) {
+          setOwnerError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
       });
     return () => {
       active = false;
     };
   }, [state.success]);
-  return { success: state.success && ownerReady, error: state.error ?? ownerError };
+  return {
+    success: state.success && ownerReady,
+    error: state.error ?? ownerError,
+  };
 }

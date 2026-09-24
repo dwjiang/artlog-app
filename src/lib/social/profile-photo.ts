@@ -3,7 +3,10 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
 export async function chooseProfilePhoto(): Promise<string | undefined> {
-  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    quality: 1,
+  });
   if (result.canceled) return;
   const asset = result.assets[0];
   const side = Math.min(asset.width, asset.height);
@@ -20,7 +23,9 @@ export async function chooseProfilePhoto(): Promise<string | undefined> {
       .resize({ width: 256, height: 256 })
       .renderAsync();
     try {
-      return (await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 })).uri;
+      return (
+        await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 })
+      ).uri;
     } finally {
       rendered.release();
     }

@@ -13,10 +13,14 @@ export function useVisitView(owner: string) {
   const key = `visit-view:${owner}`;
   useEffect(() => {
     let active = true;
-    void Promise.all([getSetting(key), getSetting(`remember-visit-view:${owner}`)])
+    void Promise.all([
+      getSetting(key),
+      getSetting(`remember-visit-view:${owner}`),
+    ])
       .then(([value, remember]) => {
-        if (active && !changed.current)
+        if (active && !changed.current) {
           setMode(remember !== "false" && value === "list" ? "list" : "globe");
+        }
       })
       .catch((cause) => {
         reportError(cause, "journal.view.load");
@@ -35,8 +39,9 @@ export function useVisitView(owner: string) {
     setError(undefined);
     writes.current = writes.current
       .then(async () => {
-        if ((await getSetting(`remember-visit-view:${owner}`)) !== "false")
+        if ((await getSetting(`remember-visit-view:${owner}`)) !== "false") {
           await setSetting(key, value);
+        }
       })
       .catch((cause) => {
         reportError(cause, "journal.view.save");

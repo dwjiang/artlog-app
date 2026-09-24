@@ -3,7 +3,13 @@ import { View } from "react-native";
 import { ThemedText as Text } from "./themed-text";
 import { Gallery } from "@/constants/theme";
 
-export function NotePaper({ children, label }: { children: ReactNode; label?: string }) {
+export function NotePaper({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label?: string;
+}) {
   return (
     <View
       style={{
@@ -15,7 +21,14 @@ export function NotePaper({ children, label }: { children: ReactNode; label?: st
       }}
     >
       {label && (
-        <Text style={{ fontSize: 10, lineHeight: 16, letterSpacing: 1.2, color: Gallery.muted }}>
+        <Text
+          style={{
+            fontSize: 10,
+            lineHeight: 16,
+            letterSpacing: 1.2,
+            color: Gallery.muted,
+          }}
+        >
           {label.toUpperCase()}
         </Text>
       )}

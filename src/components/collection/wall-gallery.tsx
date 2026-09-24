@@ -3,7 +3,10 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Gallery } from "@/constants/theme";
@@ -114,7 +117,7 @@ function Hanging({
       offsetY.set((next.y - layout.y) * width);
     })
     .onEnd(() => {
-      if (onMove)
+      if (onMove) {
         scheduleOnRN(
           onMove,
           piece.localId,
@@ -123,6 +126,7 @@ function Hanging({
             y: layout.y + offsetY.get() / width,
           }),
         );
+      }
     })
     .onFinalize((_event, success) => {
       dragging.set(false);
@@ -135,16 +139,19 @@ function Hanging({
     .enabled(editing && selected)
     .blocksExternalGesture(pan)
     .onUpdate((event) => {
-      const next = constrainLayout(layout, { width: layout.width + event.translationX / width });
+      const next = constrainLayout(layout, {
+        width: layout.width + event.translationX / width,
+      });
       scale.set(next.width / layout.width);
     })
     .onEnd(() => {
-      if (onMove)
+      if (onMove) {
         scheduleOnRN(
           onMove,
           piece.localId,
           constrainLayout(layout, { width: layout.width * scale.get() }),
         );
+      }
     })
     .onFinalize((_event, success) => {
       if (!success) scale.set(1);
@@ -192,10 +199,16 @@ function Hanging({
           </View>
           <View style={styles.label}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
+              <Text
+                maxFontSizeMultiplier={1.3}
+                style={[styles.artist, { color: labelColor }]}
+              >
                 {piece.artwork.artist}
               </Text>
-              <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
+              <Text
+                maxFontSizeMultiplier={1.3}
+                style={[styles.title, { color: labelColor }]}
+              >
                 {piece.artwork.title}
               </Text>
             </View>
@@ -237,12 +250,19 @@ function Hanging({
                   now: Math.round(layout.width * 100),
                   text: `${Math.round(layout.width * 100)} percent of wall width`,
                 }}
-                accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+                accessibilityActions={[
+                  { name: "increment" },
+                  { name: "decrement" },
+                ]}
                 onAccessibilityAction={({ nativeEvent }) =>
                   onMove?.(
                     piece.localId,
                     constrainLayout(layout, {
-                      width: layout.width + (nativeEvent.actionName === "increment" ? 0.04 : -0.04),
+                      width:
+                        layout.width
+                        + (nativeEvent.actionName === "increment"
+                          ? 0.04
+                          : -0.04),
                     }),
                   )
                 }
@@ -270,11 +290,20 @@ function Hanging({
       </Animated.View>
     </Animated.View>
   );
-  return editing ? <GestureDetector gesture={pan}>{hanging}</GestureDetector> : hanging;
+  return editing ? (
+    <GestureDetector gesture={pan}>{hanging}</GestureDetector>
+  ) : (
+    hanging
+  );
 }
 
 const styles = StyleSheet.create({
-  label: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingTop: 8 },
+  label: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    paddingTop: 8,
+  },
   artist: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
   title: { fontSize: 12, lineHeight: 16 },
   editBadge: {

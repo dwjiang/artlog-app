@@ -7,8 +7,8 @@ import { measureCrop, type TriageMetrics } from "@/lib/capture/triage";
 import { extractOrb } from "./extract";
 import { compareDescriptors, decodeBase64, type OrbParity } from "./parity";
 
-export type OrbParityReport = OrbParity &
-  TriageMetrics & { extractMs: number; triageMs: number; device: string };
+export type OrbParityReport = OrbParity
+  & TriageMetrics & { extractMs: number; triageMs: number; device: string };
 
 /**
  * Dev-only tripwire for the phone ↔ Python ORB contract: extracts from the Python letterbox fixture
@@ -28,7 +28,10 @@ export async function runOrbParityCheck(): Promise<OrbParityReport> {
   const metrics = await measureCrop(asset.localUri);
   const triageMs = performance.now() - triageStarted;
   const report: OrbParityReport = {
-    ...compareDescriptors(features.descriptors, decodeBase64(fixture.descriptorsBase64)),
+    ...compareDescriptors(
+      features.descriptors,
+      decodeBase64(fixture.descriptorsBase64),
+    ),
     ...metrics,
     extractMs,
     triageMs,

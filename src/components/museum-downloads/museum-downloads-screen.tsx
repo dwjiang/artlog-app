@@ -67,10 +67,13 @@ export function MuseumDownloadsScreen() {
   const list = useRef<FlatList<MuseumSummary>>(null);
   const scrollOffset = useRef(0);
   const all = new Map(state.catalog.map((m) => [m.id, m]));
-  for (const row of Object.values(state.downloads))
+  for (const row of Object.values(state.downloads)) {
     if (!all.has(row.museum.id)) all.set(row.museum.id, row.museum);
+  }
   const museums = sortMuseums([...all.values()], query, sort, location);
-  const museum = selected ? all.get(selected as MuseumSummary["id"]) : undefined;
+  const museum = selected
+    ? all.get(selected as MuseumSummary["id"])
+    : undefined;
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -90,7 +93,9 @@ export function MuseumDownloadsScreen() {
     try {
       await action();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Couldn’t finish. Try again.");
+      showToast(
+        error instanceof Error ? error.message : "Couldn’t finish. Try again.",
+      );
     }
   }
   function start(museum: MuseumSummary) {
@@ -101,7 +106,8 @@ export function MuseumDownloadsScreen() {
     });
   }
   function remove(museum: MuseumSummary) {
-    const size = state.downloads[museum.id]?.active?.manifest.size ?? museum.size;
+    const size =
+      state.downloads[museum.id]?.active?.manifest.size ?? museum.size;
     Alert.alert(
       `Remove ${museum.name}?`,
       `Free ${formatDownloadSize(size)}. Your saved artworks, notes, and photos will stay.`,
@@ -122,14 +128,18 @@ export function MuseumDownloadsScreen() {
   }
   function menu(museum: MuseumSummary, action: string) {
     if (action === "remove") remove(museum);
-    if (action === "cancel") void perform(() => museumDownloads.cancel(museum.id));
-    if (action === "update")
+    if (action === "cancel") {
+      void perform(() => museumDownloads.cancel(museum.id));
+    }
+    if (action === "update") {
       void perform(async () => {
-        if (!(await museumDownloads.checkForUpdate(museum)))
+        if (!(await museumDownloads.checkForUpdate(museum))) {
           showToast("This museum is up to date.");
+        }
         const row = museumDownloads.getSnapshot().downloads[museum.id];
         if (row && errorText(row)) showToast(errorText(row)!);
       });
+    }
   }
   const close = () => {
     void perform(async () => {
@@ -139,7 +149,10 @@ export function MuseumDownloadsScreen() {
   };
   return (
     <View
-      style={[styles.screen, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) }]}
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 8) },
+      ]}
     >
       {museum ? (
         <MuseumDetail
@@ -157,7 +170,11 @@ export function MuseumDownloadsScreen() {
       ) : (
         <>
           <View style={styles.nav}>
-            <IconAction label="Close museum downloads" icon="xmark" onPress={close} />
+            <IconAction
+              label="Close museum downloads"
+              icon="xmark"
+              onPress={close}
+            />
           </View>
           <FlatList
             ref={list}
@@ -169,22 +186,37 @@ export function MuseumDownloadsScreen() {
               scrollOffset.current = event.nativeEvent.contentOffset.y;
             }}
             onLayout={() => {
-              if (scrollOffset.current)
-                list.current?.scrollToOffset({ offset: scrollOffset.current, animated: false });
+              if (scrollOffset.current) {
+                list.current?.scrollToOffset({
+                  offset: scrollOffset.current,
+                  animated: false,
+                });
+              }
             }}
             contentInsetAdjustmentBehavior="never"
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 20,
+            }}
             ListHeaderComponent={
               <>
                 <Text
                   accessibilityRole="header"
-                  style={[styles.title, fontScale > 1.4 && { fontSize: 28, lineHeight: 34 }]}
+                  style={[
+                    styles.title,
+                    fontScale > 1.4 && { fontSize: 28, lineHeight: 34 },
+                  ]}
                 >
                   Museum{"\n"}downloads
                 </Text>
                 <View style={styles.searchRow}>
                   <View style={styles.search}>
-                    <DownloadIcon name="magnifyingglass" size={16} color={Gallery.muted} />
+                    <DownloadIcon
+                      name="magnifyingglass"
+                      size={16}
+                      color={Gallery.muted}
+                    />
                     <TextInput
                       accessibilityLabel="Search museums"
                       placeholder="Museum or city"
@@ -200,12 +232,14 @@ export function MuseumDownloadsScreen() {
                     label={`Sort museums: ${museumSortLabels[sort]}`}
                     icon="arrow.up.arrow.down"
                     color={Gallery.accent}
-                    actions={Object.entries(museumSortLabels).map(([id, title]) => ({
-                      id,
-                      title,
-                      state: sort === id ? "on" : "off",
-                      attributes: { disabled: id === "nearest" && !location },
-                    }))}
+                    actions={Object.entries(museumSortLabels).map(
+                      ([id, title]) => ({
+                        id,
+                        title,
+                        state: sort === id ? "on" : "off",
+                        attributes: { disabled: id === "nearest" && !location },
+                      }),
+                    )}
                     onAction={(value) => {
                       sortChosen.current = true;
                       setSort(value as MuseumSort);
@@ -220,8 +254,10 @@ export function MuseumDownloadsScreen() {
               ) : (
                 <View style={{ paddingVertical: 24, gap: 12 }}>
                   <Text style={{ color: Gallery.muted }}>
-                    {state.error ??
-                      (query ? "No museums found." : "No museums available to download yet.")}
+                    {state.error
+                      ?? (query
+                        ? "No museums found."
+                        : "No museums available to download yet.")}
                   </Text>
                   {state.error && (
                     <DownloadButton
@@ -284,15 +320,25 @@ export function MuseumRow({
           style={styles.rowOpen}
         >
           {hero(museum) ? (
-            <Image source={hero(museum)} style={styles.thumb} contentFit="cover" />
+            <Image
+              source={hero(museum)}
+              style={styles.thumb}
+              contentFit="cover"
+            />
           ) : (
             <View style={[styles.thumb, styles.placeholder]}>
-              <DownloadIcon name="building.columns" size={25} color={Gallery.muted} />
+              <DownloadIcon
+                name="building.columns"
+                size={25}
+                color={Gallery.muted}
+              />
             </View>
           )}
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.rowName}>{museum.name}</Text>
-            <Text style={[styles.rowStatus, ready && { color: Gallery.success }]}>
+            <Text
+              style={[styles.rowStatus, ready && { color: Gallery.success }]}
+            >
               {ready
                 ? "✓ Ready offline"
                 : paused || downloading
@@ -304,7 +350,9 @@ export function MuseumRow({
         {!ready && (
           <IconAction
             label={`${label} ${museum.name}`}
-            icon={downloading ? "pause" : paused ? "play" : "arrow.down.to.line"}
+            icon={
+              downloading ? "pause" : paused ? "play" : "arrow.down.to.line"
+            }
             color={Gallery.accent}
             onPress={onAction}
           />
@@ -317,7 +365,11 @@ export function MuseumRow({
             actions={
               ready
                 ? [
-                    { id: "update", title: "Check for updates", image: "arrow.down.to.line" },
+                    {
+                      id: "update",
+                      title: "Check for updates",
+                      image: "arrow.down.to.line",
+                    },
                     {
                       id: "remove",
                       title: "Remove download",
@@ -363,7 +415,8 @@ export function MuseumDetail({
 }) {
   const { height, fontScale } = useWindowDimensions();
   const network = useNetworkState();
-  const offline = network.isConnected === false || network.isInternetReachable === false;
+  const offline =
+    network.isConnected === false || network.isInternetReachable === false;
   const active = row?.status === "downloading",
     paused = row?.status === "paused",
     ready = row?.status === "ready";
@@ -382,10 +435,18 @@ export function MuseumDetail({
             contentPosition="center"
           />
         ) : (
-          <DownloadIcon name="building.columns" color={Gallery.muted} size={72} />
+          <DownloadIcon
+            name="building.columns"
+            color={Gallery.muted}
+            size={72}
+          />
         )}
         <View style={styles.back}>
-          <IconAction label="Back to museum downloads" icon="chevron.left" onPress={onBack} />
+          <IconAction
+            label="Back to museum downloads"
+            icon="chevron.left"
+            onPress={onBack}
+          />
         </View>
       </View>
       <View style={[styles.sheet, { maxHeight: height - 180 }]}>
@@ -405,7 +466,11 @@ export function MuseumDetail({
           )}
           {!!previews.length && (
             <View
-              style={{ flexDirection: fontScale > 1.4 ? "column" : "row", gap: 8, marginTop: 19 }}
+              style={{
+                flexDirection: fontScale > 1.4 ? "column" : "row",
+                gap: 8,
+                marginTop: 19,
+              }}
             >
               {previews.map((preview, index) => (
                 <Image
@@ -414,14 +479,24 @@ export function MuseumDetail({
                   accessible
                   source={previewUri(pack, index) ?? preview.url}
                   contentFit="cover"
-                  style={{ flex: fontScale > 1.4 ? undefined : 1, aspectRatio: 1, borderRadius: 2 }}
+                  style={{
+                    flex: fontScale > 1.4 ? undefined : 1,
+                    aspectRatio: 1,
+                    borderRadius: 2,
+                  }}
                 />
               ))}
             </View>
           )}
           {(active || paused) && (
             <View style={styles.progressSection}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
                 <Text style={styles.progressLabel}>
                   {paused ? "Download paused" : "Downloading"}
                 </Text>
@@ -438,14 +513,19 @@ export function MuseumDetail({
           {ready && (
             <View style={styles.ready}>
               <DownloadIcon name="checkmark" size={15} />
-              <Text style={{ fontSize: 11, fontWeight: "600" }}>Ready offline</Text>
+              <Text style={{ fontSize: 11, fontWeight: "600" }}>
+                Ready offline
+              </Text>
             </View>
           )}
         </ScrollView>
         <View
           style={[
             styles.footer,
-            fontScale > 1.4 && { flexDirection: "column", alignItems: "stretch" },
+            fontScale > 1.4 && {
+              flexDirection: "column",
+              alignItems: "stretch",
+            },
           ]}
         >
           {active || paused ? (
@@ -462,7 +542,9 @@ export function MuseumDetail({
           ) : (
             <DownloadButton
               label={
-                offline ? "Connect to download" : `Download · ${formatDownloadSize(museum.size)}`
+                offline
+                  ? "Connect to download"
+                  : `Download · ${formatDownloadSize(museum.size)}`
               }
               icon="arrow.down.to.line"
               onPress={onStart}
@@ -475,9 +557,25 @@ export function MuseumDetail({
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
-  nav: { height: 47, paddingHorizontal: 16, alignItems: "flex-end", justifyContent: "center" },
-  title: { fontFamily: Fonts.display, fontSize: 34, lineHeight: 39, color: Gallery.ink },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20, marginBottom: 8 },
+  nav: {
+    height: 47,
+    paddingHorizontal: 16,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  title: {
+    fontFamily: Fonts.display,
+    fontSize: 34,
+    lineHeight: 39,
+    color: Gallery.ink,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    marginBottom: 8,
+  },
   search: {
     flex: 1,
     minHeight: 45,
@@ -490,7 +588,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: Gallery.surface,
   },
-  searchInput: { flex: 1, minWidth: 0, color: Gallery.ink, fontSize: 14, paddingVertical: 12 },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: Gallery.ink,
+    fontSize: 14,
+    paddingVertical: 12,
+  },
   row: { borderBottomWidth: 1, borderColor: Gallery.softBorder },
   rowOpen: {
     flex: 1,
@@ -501,8 +605,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   thumb: { width: 48, height: 48, borderRadius: 2 },
-  placeholder: { backgroundColor: Gallery.fill, alignItems: "center", justifyContent: "center" },
-  rowName: { color: Gallery.ink, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  placeholder: {
+    backgroundColor: Gallery.fill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowName: {
+    color: Gallery.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
   rowStatus: { color: Gallery.muted, fontSize: 11, lineHeight: 16 },
   hero: {
     flex: 1,

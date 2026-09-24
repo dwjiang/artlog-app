@@ -12,7 +12,11 @@ import {
 } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
+import {
+  activeProfile,
+  optionalProfile,
+  requireProfile,
+} from "./lib/ownership";
 import { projectArtwork, projectProfile } from "./lib/projections";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
 import {
@@ -22,7 +26,10 @@ import {
 } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
 import { resolveDisplayAsset } from "./lib/displayMedia";
-import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
+import {
+  projectArtworkStory,
+  publicArtworkStory,
+} from "./lib/publicArtworkStory";
 import {
   checkPublicationRevision,
   compareHistory,
@@ -100,8 +107,9 @@ export const preview = query({
     const { visit, saves } = await selectedSaves(ctx, owner, input, true);
     const artworks = [];
     for (const save of saves) {
-      if (!(await readHeadroom(ctx, SAVE_READ_RESERVE)))
+      if (!(await readHeadroom(ctx, SAVE_READ_RESERVE))) {
         throw new ConvexError({ code: "invalid_post" });
+      }
       const reference = {
         kind: "sharedVisitPreview" as const,
         visitLocalId: visit.localId,
@@ -109,11 +117,15 @@ export const preview = query({
       };
       const photos = await Promise.all(
         (
-          input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds ??
-          []
+          input.photoSelections?.find((row) => row.saveLocalId === save.localId)
+            ?.photoLocalIds ?? []
         ).map((id) => selectedPhotoMedia(ctx, save, id, reference)),
       );
-      const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
+      const artwork = projectArtwork(
+        save,
+        await resolveDisplayAsset(ctx, save),
+        reference,
+      );
       artworks.push({
         saveLocalId: save.localId,
         artwork: photos.length ? { ...artwork, media: photos[0] } : artwork,
@@ -135,9 +147,16 @@ export const publish = mutation({
   returns: publicationState,
   handler: async (ctx, input) => {
     const { profile, owner, accountId } = await requireProfile(ctx);
-    const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
+    const publication = await publicationForVisit(
+      ctx,
+      profile._id,
+      input.visitLocalId,
+    );
     if (publication?.removal) throw new ConvexError({ code: "not_found" });
-    checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
+    checkPublicationRevision(
+      input.revision,
+      publication?.publicationRevision ?? 0,
+    );
     const { visit, saves } = await selectedSaves(ctx, owner, input);
     await limitKey(ctx, "publishVisit", accountId);
     const fields = {
@@ -150,8 +169,8 @@ export const publish = mutation({
       publishedAt: publication?.publishedAt || Date.now(),
     };
     const publicationId =
-      publication?._id ??
-      (await ctx.db.insert("sharedVisits", {
+      publication?._id
+      ?? (await ctx.db.insert("sharedVisits", {
         ...fields,
         profileId: profile._id,
         postId: crypto.randomUUID(),
@@ -161,21 +180,27 @@ export const publish = mutation({
     if (publication) await ctx.db.patch(publicationId, fields);
     const previous = await publicationItems(ctx, publicationId);
     const selected = new Set(saves.map((save) => save._id));
-    for (const item of previous) if (!selected.has(item.saveId)) await ctx.db.delete(item._id);
+    for (const item of previous) {
+      if (!selected.has(item.saveId)) await ctx.db.delete(item._id);
+    }
     const ordered = [
       ...(input.highlightLocalIds ?? []).flatMap((id) =>
         saves.filter((save) => save.localId === id),
       ),
-      ...saves.filter((save) => !input.highlightLocalIds?.includes(save.localId)),
+      ...saves.filter(
+        (save) => !input.highlightLocalIds?.includes(save.localId),
+      ),
     ];
     for (const [position, save] of ordered.entries()) {
       const item = previous.find((item) => item.saveId === save._id);
       const photoLocalIds = input.photoSelections?.find(
         (row) => row.saveLocalId === save.localId,
       )?.photoLocalIds;
-      const highlighted = input.highlightLocalIds?.includes(save.localId) ?? position < 3;
-      if (item) await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
-      else
+      const highlighted =
+        input.highlightLocalIds?.includes(save.localId) ?? position < 3;
+      if (item) {
+        await ctx.db.patch(item._id, { position, photoLocalIds, highlighted });
+      } else {
         await ctx.db.insert("sharedVisitItems", {
           publicationId,
           saveId: save._id,
@@ -184,6 +209,7 @@ export const publish = mutation({
           photoLocalIds,
           highlighted,
         });
+      }
     }
     return stateForPublication(ctx, (await ctx.db.get(publicationId))!, visit);
   },
@@ -207,10 +233,18 @@ export const get = query({
 });
 export const getArtwork = query({
   args: { postId: v.string(), itemId: v.id("sharedVisitItems") },
-  returns: v.object({ ...sharedVisitCard.fields, enrichment: v.optional(publicArtworkStory) }),
+  returns: v.object({
+    ...sharedVisitCard.fields,
+    enrichment: v.optional(publicArtworkStory),
+  }),
   handler: async (ctx, { postId, itemId }) => {
     const profile = await optionalProfile(ctx);
-    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
+    const { item, save } = await requireSharedVisitItem(
+      ctx,
+      postId,
+      itemId,
+      profile?._id,
+    );
     const enrichment = await projectArtworkStory(ctx, save);
     return {
       ...(await projectVisitAlbum(ctx, item, save, postId)),
@@ -229,7 +263,10 @@ async function historyPage(
   const { numItems } = pagination(input);
   const before = parseHistoryCursor(scope, input.cursor);
   const streams = await Promise.all(
-    sources.map(async (source) => ({ source, head: await historyHead(source, before) })),
+    sources.map(async (source) => ({
+      source,
+      head: await historyHead(source, before),
+    })),
   );
   const page = [];
   let scanned = 0,
@@ -238,9 +275,18 @@ async function historyPage(
     last = before;
   while (scanned < LIMITS.maxPage && page.length < numItems) {
     const stream = streams
-      .filter((s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } => !!s.head)
+      .filter(
+        (s): s is { source: HistoryStream; head: Doc<"sharedVisits"> } =>
+          !!s.head,
+      )
       .sort((a, b) => -compareHistory(a.head, b.head))[0];
-    if (!stream || !(await readHeadroom(ctx)) || projected + 3 > PAGE_ARTWORKS) break;
+    if (
+      !stream
+      || !(await readHeadroom(ctx))
+      || projected + 3 > PAGE_ARTWORKS
+    ) {
+      break;
+    }
     const candidate = stream.head;
     const access = await readablePublication(ctx, candidate, viewerId);
     if (access) {
@@ -248,7 +294,10 @@ async function historyPage(
         limit: 3,
         highlightsOnly: true,
       });
-      const result = { ...(await header(ctx, candidate, access.profile, access.visit)), artworks };
+      const result = {
+        ...(await header(ctx, candidate, access.profile, access.visit)),
+        artworks,
+      };
       const size = utf8Bytes(result);
       if (page.length && bytes + size > PAGE_BYTES) break;
       page.push(result);
@@ -266,7 +315,11 @@ async function historyPage(
   return {
     page,
     isDone,
-    cursor: isDone ? null : last ? historyCursor(scope, last) : (input.cursor ?? null),
+    cursor: isDone
+      ? null
+      : last
+        ? historyCursor(scope, last)
+        : (input.cursor ?? null),
   };
 }
 const historyResult = v.object({
@@ -298,7 +351,9 @@ export const listFeed = query({
     const authors = edges
       .slice(0, LIMITS.friends)
       .map((edge) =>
-        edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId,
+        edge.firstProfileId === profile._id
+          ? edge.secondProfileId
+          : edge.firstProfileId,
       );
     return historyPage(
       ctx,
@@ -314,11 +369,19 @@ export const listByProfile = query({
   returns: historyResult,
   handler: async (ctx, input) => {
     const viewer = await optionalProfile(ctx);
-    if (!(await activeProfile(ctx, input.profileId))) throw new ConvexError({ code: "not_found" });
+    if (!(await activeProfile(ctx, input.profileId))) {
+      throw new ConvexError({ code: "not_found" });
+    }
     if (viewer && viewer._id !== input.profileId) {
       // A block in either direction hides every post, so skip the per-candidate scan that would reject them all.
-      const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
-      if (block?.active || reverseBlock?.active) return { page: [], cursor: null, isDone: true };
+      const { block, reverseBlock } = await relationshipSnapshot(
+        ctx,
+        input.profileId,
+        viewer._id,
+      );
+      if (block?.active || reverseBlock?.active) {
+        return { page: [], cursor: null, isDone: true };
+      }
     }
     return historyPage(
       ctx,

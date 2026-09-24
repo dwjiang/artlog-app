@@ -18,11 +18,16 @@ export const save = action({
   handler: async (ctx, input): Promise<Infer<typeof publicProfile>> =>
     withErrorReporting("profilePhotos.save", async () => {
       validateProfile(input);
-      const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
-      let photo: Id<"_storage"> | null | undefined = input.photo === null ? null : undefined;
+      const profileId = await ctx.runQuery(
+        internal.profilePhotoData.authorize,
+        {},
+      );
+      let photo: Id<"_storage"> | null | undefined =
+        input.photo === null ? null : undefined;
       if (input.photo) {
-        if (input.photo.byteLength > 512 * 1024)
+        if (input.photo.byteLength > 512 * 1024) {
           throw new ConvexError({ code: "invalid_profile_photo" });
+        }
         let encoded: Buffer;
         try {
           encoded = await sharp(Buffer.from(input.photo), {

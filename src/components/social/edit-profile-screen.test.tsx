@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { EditProfileForm } from "./edit-profile-screen";
 import { switchOwner } from "@/lib/account/owner-store";
-import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
+import {
+  chooseProfilePhoto,
+  profilePhotoBytes,
+} from "@/lib/social/profile-photo";
 const mockSave = jest.fn(),
   mockBack = jest.fn();
 jest.mock("convex/react", () => ({
@@ -54,9 +57,15 @@ beforeEach(() => {
 it("saves trimmed profile text while preserving an unchanged photo", async () => {
   await render(<EditProfileForm profile={profile} />);
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex Chen ");
-  await fireEvent.changeText(screen.getByLabelText("Introduction"), " A love of art. ");
+  await fireEvent.changeText(
+    screen.getByLabelText("Introduction"),
+    " A love of art. ",
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
-  expect(mockSave).toHaveBeenCalledWith({ name: "Alex Chen", bio: "A love of art." });
+  expect(mockSave).toHaveBeenCalledWith({
+    name: "Alex Chen",
+    bio: "A love of art.",
+  });
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 it("removes the photo explicitly and preserves the draft after a save failure", async () => {
@@ -64,7 +73,11 @@ it("removes the photo explicitly and preserves the draft after a save failure", 
   await render(<EditProfileForm profile={profile} />);
   await fireEvent.press(screen.getByRole("button", { name: "Remove photo" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
-  expect(mockSave).toHaveBeenCalledWith({ name: "Alex Morgan", bio: "", photo: null });
+  expect(mockSave).toHaveBeenCalledWith({
+    name: "Alex Morgan",
+    bio: "",
+    photo: null,
+  });
   expect(screen.getByText(/Your profile was not saved/)).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Add photo" })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();

@@ -4,7 +4,12 @@ import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { completion, jsonResponse } from "./lib/labelFixtures";
-import { seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
+import {
+  seedDevice,
+  seedMuseum,
+  seedScan,
+  testVector,
+} from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const TOKEN_FACTORY = "https://api.tokenfactory.nebius.com/v1/chat/completions";
@@ -24,26 +29,39 @@ const results = {
       score: 0.9,
       images: [red, blue],
     },
-    { url: WATER, title: "Water", content: "One painting.", score: 0.8, images: [lilies] },
+    {
+      url: WATER,
+      title: "Water",
+      content: "One painting.",
+      score: 0.8,
+      images: [lilies],
+    },
   ],
   usage: { credits: 1 },
 };
 const colourHtml = `<title>A Century of Colour</title><script type="application/ld+json">${JSON.stringify(
   [
     { "@type": "Painting", name: "Red", creator: "First Artist", image: red },
-    { "@type": "Painting", name: "Blue", creator: "Second Artist", image: blue },
+    {
+      "@type": "Painting",
+      name: "Blue",
+      creator: "Second Artist",
+      image: blue,
+    },
   ],
 )}</script>`;
-const waterHtml = `<title>Water</title><script type="application/ld+json">${JSON.stringify({
-  "@type": "VisualArtwork",
-  name: "Water Lilies",
-  creator: { "@type": "Person", name: "Claude Monet" },
-  dateCreated: "1919",
-  artMedium: "Oil on canvas",
-  identifier: "1998.325.2",
-  creditText: "Gift of Louise Reinhardt Smith, 1983",
-  image: lilies,
-})}</script>`;
+const waterHtml = `<title>Water</title><script type="application/ld+json">${JSON.stringify(
+  {
+    "@type": "VisualArtwork",
+    name: "Water Lilies",
+    creator: { "@type": "Person", name: "Claude Monet" },
+    dateCreated: "1919",
+    artMedium: "Oil on canvas",
+    identifier: "1998.325.2",
+    creditText: "Gift of Louise Reinhardt Smith, 1983",
+    image: lilies,
+  },
+)}</script>`;
 
 type Route = (url: URL, init?: RequestInit) => Response | undefined;
 const fetchMock = vi.fn<typeof fetch>();
@@ -58,8 +76,12 @@ beforeEach(() => {
       const response = route(url, init);
       if (response) return response;
     }
-    if (url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === MODERATION_MODEL)
+    if (
+      url.href === TOKEN_FACTORY
+      && JSON.parse(String(init?.body)).model === MODERATION_MODEL
+    ) {
       return completion({ flagged: false });
+    }
     throw new Error(`Unexpected fetch ${url.href}`);
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -75,10 +97,14 @@ afterEach(() => {
 });
 
 function tavily(response: unknown) {
-  routes.push((url) => (url.href === TAVILY ? jsonResponse(response) : undefined));
+  routes.push((url) =>
+    url.href === TAVILY ? jsonResponse(response) : undefined,
+  );
 }
 function page(href: string, html: string, init?: ResponseInit) {
-  routes.push((url) => (url.href === href ? new Response(html, init) : undefined));
+  routes.push((url) =>
+    url.href === href ? new Response(html, init) : undefined,
+  );
 }
 function exhibitionPages() {
   page(COLOUR, colourHtml);
@@ -87,7 +113,9 @@ function exhibitionPages() {
 const calls = (prefix: string) =>
   fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
 const venueFetches = () =>
-  fetchMock.mock.calls.filter(([url]) => new URL(String(url)).host.endsWith("metmuseum.org"));
+  fetchMock.mock.calls.filter(([url]) =>
+    new URL(String(url)).host.endsWith("metmuseum.org"),
+  );
 const pass = (url: string) => ({ url, cosine: 0.9, homographyValid: true });
 
 type MuseumOverrides = Partial<Omit<Doc<"museums">, "_id" | "_creationTime">>;
@@ -99,15 +127,26 @@ const MET: MuseumOverrides = {
 async function fixture(venue: MuseumOverrides | null = MET) {
   const t = harness();
   const user = await seedDevice(t);
-  const venueId = venue ? await t.run((ctx) => seedMuseum(ctx, venue)) : undefined;
-  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
+  const venueId = venue
+    ? await t.run((ctx) => seedMuseum(ctx, venue))
+    : undefined;
+  const scanId = await t.run((ctx) =>
+    seedScan(ctx, { deviceId: user.deviceId, venueId }),
+  );
   const stored = async () => (await t.run((ctx) => ctx.db.get(scanId)))!;
-  const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
-  const search = () => user.as.action(api.museumSearch.searchExhibitions, { scanId });
+  const spend = async () =>
+    (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
+  const search = () =>
+    user.as.action(api.museumSearch.searchExhibitions, { scanId });
   const confirm = (
     sourceUrl: string,
     imageCheck: { url: string; cosine: number; homographyValid: boolean },
-  ) => user.as.action(api.museumSearch.confirmSearchCandidate, { scanId, sourceUrl, imageCheck });
+  ) =>
+    user.as.action(api.museumSearch.confirmSearchCandidate, {
+      scanId,
+      sourceUrl,
+      imageCheck,
+    });
   return { t, user, venueId, scanId, stored, spend, search, confirm };
 }
 
@@ -149,7 +188,10 @@ describe("searchExhibitions", () => {
         {
           sourceUrl: COLOUR,
           imageUrls: [red, blue],
-          exhibition: { title: "A Century of Colour", content: "Two paintings." },
+          exhibition: {
+            title: "A Century of Colour",
+            content: "Two paintings.",
+          },
         },
         {
           sourceUrl: WATER,
@@ -167,7 +209,10 @@ describe("searchExhibitions", () => {
     expect(calls(TAVILY)).toHaveLength(1);
     expect(calls(TOKEN_FACTORY)).toHaveLength(0);
     expect(venueFetches()).toHaveLength(0);
-    expect(await spend()).toMatchObject({ tavilyCredits: 1, tokenFactoryCalls: 0 });
+    expect(await spend()).toMatchObject({
+      tavilyCredits: 1,
+      tokenFactoryCalls: 0,
+    });
   });
 
   it("refuses the flag off, other devices, ineligible scans, and venues without a site or opted out before any call", async () => {
@@ -190,16 +235,26 @@ describe("searchExhibitions", () => {
     );
     await t.run((ctx) => ctx.db.patch(scanId, { outcome: "confident" }));
     await rejects("invalid_scan");
-    await t.run((ctx) => ctx.db.patch(scanId, { outcome: "miss", status: "pending" }));
+    await t.run((ctx) =>
+      ctx.db.patch(scanId, { outcome: "miss", status: "pending" }),
+    );
     await rejects("invalid_scan");
-    await t.run((ctx) => ctx.db.patch(scanId, { status: "identified", venueId: undefined }));
+    await t.run((ctx) =>
+      ctx.db.patch(scanId, { status: "identified", venueId: undefined }),
+    );
     await rejects("invalid_scan");
     await t.run((ctx) => ctx.db.patch(scanId, { venueId }));
     await t.run((ctx) => ctx.db.patch(venueId!, { website: undefined }));
     await rejects("no_venue_site");
-    await t.run((ctx) => ctx.db.patch(venueId!, { website: "https://www.metmuseum.org/" }));
+    await t.run((ctx) =>
+      ctx.db.patch(venueId!, { website: "https://www.metmuseum.org/" }),
+    );
     const optOutId = await t.run((ctx) =>
-      ctx.db.insert("optOuts", { venueId, requester: "museum", receivedAt: Date.now() }),
+      ctx.db.insert("optOuts", {
+        venueId,
+        requester: "museum",
+        receivedAt: Date.now(),
+      }),
     );
     await rejects("venue_opted_out");
     await t.run((ctx) => ctx.db.delete(optOutId));
@@ -213,7 +268,11 @@ describe("searchExhibitions", () => {
     const { search, stored, spend } = await fixture();
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "0");
     const result = await search();
-    expect(result).toEqual({ stage: "none", reason: "cap", updatedAt: expect.any(Number) });
+    expect(result).toEqual({
+      stage: "none",
+      reason: "cap",
+      updatedAt: expect.any(Number),
+    });
     expect((await stored()).museumSearch).toEqual(result);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
@@ -235,7 +294,9 @@ describe("searchExhibitions", () => {
   it("refunds the credit when the search client is unconfigured", async () => {
     const { spend, search } = await fixture();
     vi.stubEnv("TAVILY_API_KEY", "");
-    await expect(search()).rejects.toMatchObject({ data: { code: "search_unconfigured" } });
+    await expect(search()).rejects.toMatchObject({
+      data: { code: "search_unconfigured" },
+    });
     expect(await spend()).toMatchObject({ tavilyCredits: 0 });
   });
 
@@ -270,7 +331,9 @@ describe("searchExhibitions", () => {
 
   it("preserves the latest search result when a capped retry supersedes an in-flight search", async () => {
     const { stored, spend, search } = await fixture();
-    const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
+    const pending = pauseNextFetch(
+      jsonResponse({ results: [], usage: { credits: 1 } }),
+    );
     const obsolete = expect(search()).rejects.toMatchObject({
       data: { code: "search_superseded" },
     });
@@ -287,8 +350,12 @@ describe("searchExhibitions", () => {
   it("rejects an obsolete result after the scan restarts and still settles spend", async () => {
     const { t, user, scanId, stored, spend, search } = await fixture();
     const original = await stored();
-    const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
-    const rejected = expect(search()).rejects.toMatchObject({ data: { code: "scan_restarted" } });
+    const pending = pauseNextFetch(
+      jsonResponse({ results: [], usage: { credits: 1 } }),
+    );
+    const rejected = expect(search()).rejects.toMatchObject({
+      data: { code: "scan_restarted" },
+    });
     await pending.started;
     await t.run((ctx) => ctx.db.patch(scanId, { status: "failed" }));
     const restarted = await t.mutation(internal.scans.create, {
@@ -322,8 +389,16 @@ describe("confirmSearchCandidate", () => {
       identityImageUrl: lilies,
       updatedAt: expect.any(Number),
       fields: {
-        title: { value: "Water Lilies", evidence: "tavily+image", locked: true },
-        artist: { value: "Claude Monet", evidence: "tavily+image", locked: true },
+        title: {
+          value: "Water Lilies",
+          evidence: "tavily+image",
+          locked: true,
+        },
+        artist: {
+          value: "Claude Monet",
+          evidence: "tavily+image",
+          locked: true,
+        },
         date: { value: "1919", evidence: "tavily", locked: true },
         accession: { value: "1998.325.2", evidence: "tavily", locked: true },
         medium: { value: "Oil on canvas", evidence: "tavily", locked: true },
@@ -343,10 +418,14 @@ describe("confirmSearchCandidate", () => {
       updatedAt: result.updatedAt,
     });
     // 04.07's contribute precondition on the stored scan.
-    expect(scan.labelFlow?.stage === "verified" && scan.labelFlow.moderation !== "flagged").toBe(
-      true,
-    );
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 1, tavilyCredits: 1 });
+    expect(
+      scan.labelFlow?.stage === "verified"
+        && scan.labelFlow.moderation !== "flagged",
+    ).toBe(true);
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 1,
+      tavilyCredits: 1,
+    });
     expect(calls(TAVILY)).toHaveLength(1);
     expect(venueFetches().map(([url]) => String(url))).toEqual([WATER]);
     const moderation = JSON.parse(String(calls(TOKEN_FACTORY)[0][1]?.body));
@@ -413,7 +492,9 @@ describe("confirmSearchCandidate", () => {
     { cosine: 0.99, homographyValid: false },
   ])("rejects the image check %j", async (check) => {
     const { stored, confirm } = await searched();
-    await expect(confirm(COLOUR, { url: blue, ...check })).rejects.toMatchObject({
+    await expect(
+      confirm(COLOUR, { url: blue, ...check }),
+    ).rejects.toMatchObject({
       data: { code: "image_mismatch" },
     });
     const scan = await stored();
@@ -455,7 +536,9 @@ describe("confirmSearchCandidate", () => {
     await expect(confirm(COLOUR, pass(blue))).rejects.toMatchObject({
       data: { code: "page_unavailable" },
     });
-    expect((await stored()).museumSearch).toMatchObject({ stage: "exhibitions" });
+    expect((await stored()).museumSearch).toMatchObject({
+      stage: "exhibitions",
+    });
     expect((await stored()).labelFlow).toBeUndefined();
     routes = [];
     page(COLOUR, colourHtml);
@@ -470,11 +553,12 @@ describe("confirmSearchCandidate", () => {
     tavily(results);
     page(
       COLOUR,
-      `<figure><img src="${red}"><figcaption>First Artist, Red.</figcaption></figure>` +
-        `<figure><img src="${blue}"><figcaption>Second Artist, Blue, 2020.</figcaption></figure>`,
+      `<figure><img src="${red}"><figcaption>First Artist, Red.</figcaption></figure>`
+        + `<figure><img src="${blue}"><figcaption>Second Artist, Blue, 2020.</figcaption></figure>`,
     );
     routes.push((url, init) =>
-      url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === "caption-model"
+      url.href === TOKEN_FACTORY
+      && JSON.parse(String(init?.body)).model === "caption-model"
         ? completion({ title: "Blue", artist: "Second Artist" })
         : undefined,
     );
@@ -486,13 +570,17 @@ describe("confirmSearchCandidate", () => {
     expect(JSON.parse(request.messages[1].content)).toEqual({
       caption: "Second Artist, Blue, 2020.",
     });
-    expect(await spend()).toMatchObject({ tavilyCredits: 1, tokenFactoryCalls: 2 });
+    expect(await spend()).toMatchObject({
+      tavilyCredits: 1,
+      tokenFactoryCalls: 2,
+    });
   });
 
   it("clears flagged fields and returns the flagged result again on a retry", async () => {
     const { stored, spend, confirm } = await searched();
     routes.push((url, init) =>
-      url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === MODERATION_MODEL
+      url.href === TOKEN_FACTORY
+      && JSON.parse(String(init?.body)).model === MODERATION_MODEL
         ? completion({ flagged: true })
         : undefined,
     );
@@ -551,7 +639,9 @@ describe("confirmSearchCandidate", () => {
     "limits paid confirmations while preserving free retries (flagged=%s)",
     async (flagged) => {
       const { stored, spend, confirm } = await searched();
-      routes.push((url) => (url.href === TOKEN_FACTORY ? completion({ flagged }) : undefined));
+      routes.push((url) =>
+        url.href === TOKEN_FACTORY ? completion({ flagged }) : undefined,
+      );
       const selections = [
         [COLOUR, blue],
         [WATER, lilies],
@@ -583,14 +673,19 @@ describe("confirmSearchCandidate", () => {
     expect(flow).toMatchObject({
       identityImageUrl: blue,
       sourceUrl: COLOUR,
-      fields: { title: { evidence: "tavily+image" }, artist: { evidence: "tavily+image" } },
+      fields: {
+        title: { evidence: "tavily+image" },
+        artist: { evidence: "tavily+image" },
+      },
     });
     expect(flow.wikidataId).toBeUndefined();
   });
 
   it("invalidates an in-flight retry when a retained candidate is confirmed", async () => {
     const { stored, spend, confirm, search } = await searched();
-    const pending = pauseNextFetch(jsonResponse({ results: [], usage: { credits: 1 } }));
+    const pending = pauseNextFetch(
+      jsonResponse({ results: [], usage: { credits: 1 } }),
+    );
     const obsolete = expect(search()).rejects.toMatchObject({
       data: { code: "search_superseded" },
     });
@@ -600,7 +695,10 @@ describe("confirmSearchCandidate", () => {
     pending.resume();
     await obsolete;
     expect(await stored()).toEqual(confirmed);
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 1, tavilyCredits: 2 });
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 1,
+      tavilyCredits: 2,
+    });
   });
 
   it("allows a new manual search after confirmation", async () => {
@@ -609,9 +707,16 @@ describe("confirmSearchCandidate", () => {
     routes = [];
     tavily({ results: [], usage: { credits: 1 } });
     const result = await search();
-    expect(result).toEqual({ stage: "exhibitions", candidates: [], updatedAt: expect.any(Number) });
+    expect(result).toEqual({
+      stage: "exhibitions",
+      candidates: [],
+      updatedAt: expect.any(Number),
+    });
     expect((await stored()).museumSearch).toEqual(result);
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 1, tavilyCredits: 2 });
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 1,
+      tavilyCredits: 2,
+    });
   });
 
   it("rejects a stale confirmation after the scan restarts", async () => {
@@ -619,9 +724,11 @@ describe("confirmSearchCandidate", () => {
     const original = await stored();
     routes = [];
     const pending = pauseNextFetch(new Response(waterHtml));
-    const rejected = expect(confirm(WATER, pass(lilies))).rejects.toMatchObject({
-      data: { code: "scan_restarted" },
-    });
+    const rejected = expect(confirm(WATER, pass(lilies))).rejects.toMatchObject(
+      {
+        data: { code: "scan_restarted" },
+      },
+    );
     await pending.started;
     await t.run((ctx) => ctx.db.patch(scanId, { status: "failed" }));
     await t.mutation(internal.scans.create, {

@@ -35,7 +35,10 @@ function selectObject(rows: Doc<"objects">[]): Resolution {
   return { object: active[0] };
 }
 
-async function resolveWork(ctx: QueryCtx, input: ChecklistWork): Promise<Resolution> {
+async function resolveWork(
+  ctx: QueryCtx,
+  input: ChecklistWork,
+): Promise<Resolution> {
   if ("objectKey" in input) {
     return selectObject(
       await ctx.db
@@ -50,7 +53,9 @@ async function resolveWork(ctx: QueryCtx, input: ChecklistWork): Promise<Resolut
         .withIndex("by_key", (q) => q.eq("key", input.ownerKey!))
         .unique()
     : null;
-  if (input.ownerKey !== undefined && !owner) return { reason: "owner_not_found" };
+  if (input.ownerKey !== undefined && !owner) {
+    return { reason: "owner_not_found" };
+  }
   if ("wikidataId" in input) {
     const artworks = await ctx.db
       .query("artworks")
@@ -69,7 +74,9 @@ async function resolveWork(ctx: QueryCtx, input: ChecklistWork): Promise<Resolut
       if (rows.length > MAX_MATCHES) return { reason: "too_many_matches" };
       return selectObject(rows.filter((row) => row.artworkId === artworkId));
     }
-    if (input.accession && !owner) return { reason: "accession_requires_owner" };
+    if (input.accession && !owner) {
+      return { reason: "accession_requires_owner" };
+    }
     const rows = await ctx.db
       .query("objects")
       .withIndex("by_artworkId_ownerId", (q) =>
@@ -106,21 +113,30 @@ export const ingestChecklist = internalMutation({
     unresolved: v.array(v.object({ input: checklistWork, reason: v.string() })),
   }),
   handler: async (ctx, args) => {
-    if (args.works.length > MAX_WORKS)
-      throw new ConvexError({ code: "checklist_too_large", maxWorks: MAX_WORKS });
+    if (args.works.length > MAX_WORKS) {
+      throw new ConvexError({
+        code: "checklist_too_large",
+        maxWorks: MAX_WORKS,
+      });
+    }
     const venue = await ctx.db
       .query("museums")
       .withIndex("by_key", (q) => q.eq("key", args.venueKey))
       .unique();
     if (!venue) throw new ConvexError({ code: "venue_not_found" });
-    if (await isVenueOptedOut(ctx, venue)) throw new ConvexError({ code: "venue_opted_out" });
+    if (await isVenueOptedOut(ctx, venue)) {
+      throw new ConvexError({ code: "venue_opted_out" });
+    }
     let source: URL;
     try {
       source = new URL(args.exhibition.sourceUrl);
     } catch {
       throw new ConvexError({ code: "invalid_checklist_source" });
     }
-    if (!["https:", "http:"].includes(source.protocol) || !args.exhibition.title.trim()) {
+    if (
+      !["https:", "http:"].includes(source.protocol)
+      || !args.exhibition.title.trim()
+    ) {
       throw new ConvexError({ code: "invalid_checklist_source" });
     }
     // The wire dates are inclusive host-local days, including DST changes.
@@ -128,11 +144,11 @@ export const ingestChecklist = internalMutation({
     const start = moment.tz(args.exhibition.from, "YYYY-MM-DD", true, timeZone);
     const end = moment.tz(args.exhibition.to, "YYYY-MM-DD", true, timeZone);
     if (
-      !start.isValid() ||
-      !end.isValid() ||
-      start.format("YYYY-MM-DD") !== args.exhibition.from ||
-      end.format("YYYY-MM-DD") !== args.exhibition.to ||
-      start.isAfter(end)
+      !start.isValid()
+      || !end.isValid()
+      || start.format("YYYY-MM-DD") !== args.exhibition.from
+      || end.format("YYYY-MM-DD") !== args.exhibition.to
+      || start.isAfter(end)
     ) {
       throw new ConvexError({ code: "invalid_checklist_window" });
     }
@@ -154,30 +170,39 @@ export const ingestChecklist = internalMutation({
       const rows = await ctx.db
         .query("placements")
         .withIndex("by_object_venue_source", (q) =>
-          q.eq("objectId", objectId).eq("venueId", venue._id).eq("source", "checklist"),
+          q
+            .eq("objectId", objectId)
+            .eq("venueId", venue._id)
+            .eq("source", "checklist"),
         )
         .take(MAX_MATCHES + 1);
-      if (rows.length > MAX_MATCHES)
-        throw new ConvexError({ code: "too_many_checklist_placements", objectId });
+      if (rows.length > MAX_MATCHES) {
+        throw new ConvexError({
+          code: "too_many_checklist_placements",
+          objectId,
+        });
+      }
       const overlapping = rows.filter(
         (row) =>
-          row.closedAt === undefined &&
-          (row.from ?? -Infinity) <= to &&
-          (row.to ?? Infinity) >= from,
+          row.closedAt === undefined
+          && (row.from ?? -Infinity) <= to
+          && (row.to ?? Infinity) >= from,
       );
       const identical = overlapping.find(
         (row) =>
-          row.from === from &&
-          row.to === to &&
-          row.gallery === args.gallery &&
-          row.onView &&
-          row.confidence === 0.85 &&
-          row.exhibition?.title === exhibition.title &&
-          row.exhibition.sourceUrl === exhibition.sourceUrl &&
-          row.exhibition.timeZone === timeZone,
+          row.from === from
+          && row.to === to
+          && row.gallery === args.gallery
+          && row.onView
+          && row.confidence === 0.85
+          && row.exhibition?.title === exhibition.title
+          && row.exhibition.sourceUrl === exhibition.sourceUrl
+          && row.exhibition.timeZone === timeZone,
       );
       for (const row of overlapping) {
-        if (row._id !== identical?._id) await ctx.db.patch(row._id, { closedAt: now });
+        if (row._id !== identical?._id) {
+          await ctx.db.patch(row._id, { closedAt: now });
+        }
       }
       if (!identical) {
         await ctx.db.insert("placements", {

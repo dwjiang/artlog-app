@@ -21,7 +21,9 @@ async function fixture() {
   const t = harness();
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const work = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { ownerId: venueId } }));
+  const work = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, { object: { ownerId: venueId } }),
+  );
   const args = {
     deviceId: user.deviceId,
     localId: "capture-1",
@@ -53,7 +55,12 @@ it("creates one pending scan per device and local capture id", async () => {
   });
   const other = await seedDevice(t);
   expect(
-    (await t.mutation(internal.scans.create, { ...args, deviceId: other.deviceId })).scan._id,
+    (
+      await t.mutation(internal.scans.create, {
+        ...args,
+        deviceId: other.deviceId,
+      })
+    ).scan._id,
   ).not.toBe(scanId);
 });
 
@@ -99,9 +106,9 @@ it.each(["public_domain", "in_copyright", "unknown"] as const)(
       rightsStatus,
     });
     for (const candidate of [result?.best, ...result!.runnerUps!]) {
-      if (rightsStatus === "public_domain")
+      if (rightsStatus === "public_domain") {
         expect(candidate?.thumbnailUrl).toBe("https://museum.example/work.jpg");
-      else expect(candidate).not.toHaveProperty("thumbnailUrl");
+      } else expect(candidate).not.toHaveProperty("thumbnailUrl");
     }
     expect(result).not.toHaveProperty("vector");
     expect(result).not.toHaveProperty("deviceId");
@@ -122,7 +129,12 @@ it.each(["confident", "soft"] as const)(
       },
     ];
     const docent = {
-      en: [{ sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] }],
+      en: [
+        {
+          sentence: "Monet painted these water lilies in 1916.",
+          factIds: ["f1"],
+        },
+      ],
     };
     await t.run((ctx) =>
       ctx.db.patch(work.artworkId, {
@@ -144,7 +156,11 @@ it.each(["confident", "soft"] as const)(
     if (outcome === "confident") {
       expect(result?.docent).toEqual(docent.en);
       expect(result?.factSheet).toEqual([
-        { id: "f1", sourceUrl: "https://www.metmuseum.org/art/1", sourceLabel: "The Met" },
+        {
+          id: "f1",
+          sourceUrl: "https://www.metmuseum.org/art/1",
+          sourceLabel: "The Met",
+        },
       ]);
     } else {
       expect(result?.docent).toBeUndefined();
@@ -162,14 +178,23 @@ it("updates gallery history only for a confident result and never rolls it backw
       lastConfidentAt: 100,
     }),
   );
-  const result = { generation: 0, status: "identified" as const, best, calibratorVersion: "lr-v1" };
+  const result = {
+    generation: 0,
+    status: "identified" as const,
+    best,
+    calibratorVersion: "lr-v1",
+  };
   const soft = await t.mutation(internal.scans.create, {
     ...args,
     localId: "soft",
     visitId,
     capturedAt: 150,
   });
-  await t.mutation(internal.scans.setResult, { ...result, scanId: soft.scan._id, outcome: "soft" });
+  await t.mutation(internal.scans.setResult, {
+    ...result,
+    scanId: soft.scan._id,
+    outcome: "soft",
+  });
   expect(await t.run((ctx) => ctx.db.get(visitId))).toMatchObject({
     lastConfidentGallery: "1",
     lastConfidentAt: 100,
@@ -189,7 +214,9 @@ it("updates gallery history only for a confident result and never rolls it backw
     lastConfidentGallery: "4",
     lastConfidentAt: 200,
   });
-  await t.run((ctx) => ctx.db.patch(visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }));
+  await t.run((ctx) =>
+    ctx.db.patch(visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }),
+  );
   const older = await t.mutation(internal.scans.create, {
     ...args,
     localId: "older",
@@ -210,7 +237,9 @@ it("updates gallery history only for a confident result and never rolls it backw
 it("refuses another device’s visit or a visit at another venue", async () => {
   const { t, user, venueId, args } = await fixture();
   const other = await seedDevice(t);
-  const visitId = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
+  const visitId = await t.run((ctx) =>
+    seedJournalVisit(ctx, other.deviceId, venueId),
+  );
   await expect(
     t.mutation(internal.scans.create, { ...args, localId: "foreign", visitId }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
@@ -222,7 +251,11 @@ it("refuses another device’s visit or a visit at another venue", async () => {
     }),
   );
   await expect(
-    t.mutation(internal.scans.create, { ...args, localId: "wrong-venue", visitId }),
+    t.mutation(internal.scans.create, {
+      ...args,
+      localId: "wrong-venue",
+      visitId,
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
 });
 
@@ -236,7 +269,11 @@ it("ignores results from an older payload after an unsupported capture is restar
     error: "Update the app to identify.",
   });
   const restarted = await t.mutation(internal.scans.create, args);
-  expect(restarted.scan).toMatchObject({ _id: scanId, status: "pending", generation: 1 });
+  expect(restarted.scan).toMatchObject({
+    _id: scanId,
+    status: "pending",
+    generation: 1,
+  });
   expect(restarted.scan.error).toBeUndefined();
   await t.mutation(internal.scans.setResult, {
     scanId,
@@ -298,19 +335,25 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     });
   };
   await write({ stage: "exhibitions", candidates: [candidate], updatedAt: 1 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
+  expect(
+    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
+  ).toEqual({
     stage: "exhibitions",
     candidates: [candidate],
     updatedAt: 1,
   });
   await write({ stage: "none", reason: "cap", updatedAt: 2 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
+  expect(
+    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
+  ).toEqual({
     stage: "none",
     reason: "cap",
     updatedAt: 2,
   });
   await write({ stage: "none", reason: "identity_unresolved", updatedAt: 3 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({
+  expect(
+    (await user.as.query(api.scans.get, { scanId }))?.museumSearch,
+  ).toMatchObject({
     reason: "identity_unresolved",
   });
 
@@ -319,7 +362,10 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     artist: labelField("Claude Monet", "tavily+image"),
     accession: labelField("1998.325.2", "tavily"),
   };
-  const selected = { sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrls[0] };
+  const selected = {
+    sourceUrl: candidate.sourceUrl,
+    imageUrl: candidate.imageUrls[0],
+  };
   await t.run((ctx) =>
     ctx.db.patch(scanId, {
       labelFlow: {
@@ -333,7 +379,12 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
         imageUrls: candidate.imageUrls,
         updatedAt: 4,
       },
-      museumSearch: { stage: "confirmed", candidates: [candidate], selected, updatedAt: 4 },
+      museumSearch: {
+        stage: "confirmed",
+        candidates: [candidate],
+        selected,
+        updatedAt: 4,
+      },
     }),
   );
   const confirmed = await user.as.query(api.scans.get, { scanId });
@@ -359,9 +410,12 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
   expect(confirmed).not.toHaveProperty("museumSearchRevision");
   const other = await seedDevice(t);
   expect(await other.as.query(api.scans.get, { scanId })).toBeNull();
-  expect(await t.query(internal.scans.getDisplay, { scanId, deviceId: user.deviceId })).toEqual(
-    confirmed,
-  );
+  expect(
+    await t.query(internal.scans.getDisplay, {
+      scanId,
+      deviceId: user.deviceId,
+    }),
+  ).toEqual(confirmed);
   await expect(
     t.query(internal.scans.getDisplay, { scanId, deviceId: other.deviceId }),
   ).rejects.toMatchObject({ data: { code: "scan_not_found" } });

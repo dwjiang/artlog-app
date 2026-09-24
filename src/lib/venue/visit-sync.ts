@@ -10,13 +10,16 @@ export async function resolveScanVisit(
   const current = captureOwner();
   let visit = await getVisit(localId, current.owner);
   if (!current.isCurrent()) throw new Error("Journal owner changed");
-  if (!visit || visit.venueId !== venueId)
+  if (!visit || visit.venueId !== venueId) {
     throw new Error("The capture is linked to an invalid visit");
+  }
   if (!visit.remoteVisitId) {
     await flushJournal();
     if (!current.isCurrent()) throw new Error("Journal owner changed");
     visit = await getVisit(localId, current.owner);
   }
-  if (!visit?.remoteVisitId) throw new Error("The capture visit could not be synchronized");
+  if (!visit?.remoteVisitId) {
+    throw new Error("The capture visit could not be synchronized");
+  }
   return visit.remoteVisitId;
 }

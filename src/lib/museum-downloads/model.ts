@@ -25,7 +25,10 @@ export function sortMuseums(
   const search = query.trim().normalize("NFKC").toLocaleLowerCase();
   return museums
     .filter((m) =>
-      `${m.name} ${m.city ?? ""}`.normalize("NFKC").toLocaleLowerCase().includes(search),
+      `${m.name} ${m.city ?? ""}`
+        .normalize("NFKC")
+        .toLocaleLowerCase()
+        .includes(search),
     )
     .sort(
       (a, b) =>
@@ -47,7 +50,10 @@ export function downloadProgress(row?: MuseumDownload): number {
   return row.pending
     ? Math.min(
         99,
-        Math.floor((row.completed / Math.max(1, row.pending.manifest.chunks.length)) * 100),
+        Math.floor(
+          (row.completed / Math.max(1, row.pending.manifest.chunks.length))
+            * 100,
+        ),
       )
     : 0;
 }

@@ -2,7 +2,13 @@ import { render, screen } from "@testing-library/react-native";
 import type { SavedWork } from "@/db/schema";
 import { ArtworkPreviews } from "./visit-ui";
 jest.mock("../collection/saved-work-image", () => ({
-  SavedWorkImage: ({ title, syncing }: { title: string; syncing?: boolean }) => {
+  SavedWorkImage: ({
+    title,
+    syncing,
+  }: {
+    title: string;
+    syncing?: boolean;
+  }) => {
     const { View } = jest.requireActual("react-native");
     return (
       <View
@@ -27,7 +33,12 @@ it("shows each artwork once across repeat visits before applying the preview lim
 });
 
 it("reports a crop the account holds but this phone has not downloaded as syncing", async () => {
-  const work = { owner: "me", localId: "garden", title: "Garden", cropPath: null } as SavedWork;
+  const work = {
+    owner: "me",
+    localId: "garden",
+    title: "Garden",
+    cropPath: null,
+  } as SavedWork;
   await render(
     <ArtworkPreviews
       works={[

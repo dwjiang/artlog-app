@@ -14,7 +14,8 @@ export const CONTRIBUTION_CROP_QUALITY = 0.85;
 async function renderWithin(uri: string, longSide: number): Promise<ImageRef> {
   const source = await ImageManipulator.manipulate(uri).renderAsync();
   if (Math.max(source.width, source.height) <= longSide) return source;
-  const size = source.width >= source.height ? { width: longSide } : { height: longSide };
+  const size =
+    source.width >= source.height ? { width: longSide } : { height: longSide };
   return ImageManipulator.manipulate(source).resize(size).renderAsync();
 }
 
@@ -29,7 +30,12 @@ export function removeFile(uri: string): void {
 }
 
 /** The contribution crop for upload: the letterboxed square at 256 px, JPEG 0.85, written to the cache; the caller removes it. */
-export async function resizeCropForContribution(cropUri: string): Promise<ImageResult> {
+export async function resizeCropForContribution(
+  cropUri: string,
+): Promise<ImageResult> {
   const image = await renderWithin(cropUri, CONTRIBUTION_CROP_SIZE);
-  return image.saveAsync({ format: SaveFormat.JPEG, compress: CONTRIBUTION_CROP_QUALITY });
+  return image.saveAsync({
+    format: SaveFormat.JPEG,
+    compress: CONTRIBUTION_CROP_QUALITY,
+  });
 }

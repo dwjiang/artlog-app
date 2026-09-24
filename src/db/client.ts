@@ -9,7 +9,10 @@ sqlite.execSync("PRAGMA foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });
 
-export function describeDatabase(): { path: string; appliedMigrations: number } {
+export function describeDatabase(): {
+  path: string;
+  appliedMigrations: number;
+} {
   const row = sqlite.getFirstSync<{ applied: number }>(
     "SELECT count(*) AS applied FROM __drizzle_migrations",
   );

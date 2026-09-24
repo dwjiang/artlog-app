@@ -1,10 +1,19 @@
 import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
-import { accessibilityLabel, buttonStyle, frame } from "@expo/ui/swift-ui/modifiers";
+import {
+  accessibilityLabel,
+  buttonStyle,
+  frame,
+} from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText as Text } from "@/components/themed-text";
 import { DocentSection } from "@/components/scan/result/docent-section";
@@ -17,29 +26,46 @@ import { AddSavedWorks } from "./add-saved-works";
 
 export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();
-  const [view, setView] = useState<PlayerView>(initialView === "queue" ? "queue" : "player");
+  const [view, setView] = useState<PlayerView>(
+    initialView === "queue" ? "queue" : "player",
+  );
   const audio = useListening();
   const { bottom } = useSafeAreaInsets();
   const { width, height, fontScale } = useWindowDimensions();
-  if (!audio.current)
+  if (!audio.current) {
     return (
       <View style={styles.empty}>
         <Text>No artwork is playing.</Text>
-        <AudioIconButton name="chevron.down" label="Close player" onPress={() => router.back()} />
+        <AudioIconButton
+          name="chevron.down"
+          label="Close player"
+          onPress={() => router.back()}
+        />
       </View>
     );
+  }
   const { work } = audio.current;
   function openArtwork() {
     router.back();
-    if (work.savedId)
-      router.push({ pathname: "/saved/[savedId]", params: { savedId: work.savedId } });
-    else if (work.scanId)
-      router.push({ pathname: "/result/[scanId]", params: { scanId: work.scanId } });
+    if (work.savedId) {
+      router.push({
+        pathname: "/saved/[savedId]",
+        params: { savedId: work.savedId },
+      });
+    } else if (work.scanId) {
+      router.push({
+        pathname: "/result/[scanId]",
+        params: { scanId: work.scanId },
+      });
+    }
   }
   const options = (
     <Host matchContents colorScheme="light">
       <Menu
-        modifiers={[buttonStyle("plain"), accessibilityLabel("Listening options")]}
+        modifiers={[
+          buttonStyle("plain"),
+          accessibilityLabel("Listening options"),
+        ]}
         label={
           <Icon
             name="ellipsis"
@@ -50,7 +76,11 @@ export function NowPlayingScreen() {
         }
       >
         {(work.savedId || work.scanId) && (
-          <Button label="View this artwork" systemImage="photo" onPress={openArtwork} />
+          <Button
+            label="View this artwork"
+            systemImage="photo"
+            onPress={openArtwork}
+          />
         )}
         <Button
           label="Restart narration"
@@ -130,7 +160,11 @@ export function NowPlayingScreen() {
           onPress={() => router.back()}
         />
         <Text variant="secondary" style={{ fontWeight: "600" }}>
-          {view === "player" ? "Now playing" : view === "transcript" ? "Transcript" : "Audio guide"}
+          {view === "player"
+            ? "Now playing"
+            : view === "transcript"
+              ? "Transcript"
+              : "Audio guide"}
         </Text>
         {view === "player" ? (
           options
@@ -144,8 +178,16 @@ export function NowPlayingScreen() {
         )}
       </View>
       {view === "player" && (
-        <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never">
-          <View style={[styles.artworkSpace, compact && { paddingVertical: Spacing.three }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentInsetAdjustmentBehavior="never"
+        >
+          <View
+            style={[
+              styles.artworkSpace,
+              compact && { paddingVertical: Spacing.three },
+            ]}
+          >
             {artwork}
           </View>
           <View style={styles.details}>
@@ -165,10 +207,15 @@ export function NowPlayingScreen() {
       {view === "transcript" && (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }}
+          contentContainerStyle={{
+            padding: Spacing.content,
+            gap: Spacing.three,
+          }}
         >
           <Text variant="display">{work.title}</Text>
-          <Text themeColor="textSecondary">Audio guide · Transcript & sources</Text>
+          <Text themeColor="textSecondary">
+            Audio guide · Transcript & sources
+          </Text>
           {audio.sentences ? (
             <DocentSection docent={audio.sentences} factSheet={work.facts} />
           ) : (
@@ -201,12 +248,25 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   scroll: { flex: 1, overflow: "hidden" },
-  artworkSpace: { alignItems: "center", justifyContent: "center", paddingVertical: Spacing.four },
-  artwork: { alignItems: "center", justifyContent: "center", backgroundColor: Gallery.fill },
+  artworkSpace: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.four,
+  },
+  artwork: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Gallery.fill,
+  },
   details: { paddingHorizontal: Spacing.content, gap: Spacing.two },
   metadata: { gap: Spacing.two, paddingBottom: Spacing.two },
   title: { fontSize: 30, lineHeight: 36 },
-  guideLabel: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: Spacing.two },
+  guideLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+  },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -215,7 +275,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     backgroundColor: Gallery.highlight,
   },
-  badgeText: { fontSize: 10, lineHeight: 14, fontWeight: "700", letterSpacing: 0.8 },
+  badgeText: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
   footer: {
     backgroundColor: Gallery.paper,
     borderTopWidth: StyleSheet.hairlineWidth,

@@ -10,12 +10,18 @@ export type DownloadSnapshot = {
 };
 export type DownloadDependencies = {
   read(): Promise<Pick<DownloadSnapshot, "catalog" | "downloads"> | undefined>;
-  write(snapshot: Pick<DownloadSnapshot, "catalog" | "downloads">): Promise<void>;
+  write(
+    snapshot: Pick<DownloadSnapshot, "catalog" | "downloads">,
+  ): Promise<void>;
   catalog(): Promise<MuseumSummary[]>;
   manifest(id: MuseumSummary["id"]): Promise<MuseumManifest | null>;
   online(): Promise<boolean>;
   folder(manifest: MuseumManifest): string;
-  download(pack: LocalPackage, index: number, signal: AbortSignal): Promise<void>;
+  download(
+    pack: LocalPackage,
+    index: number,
+    signal: AbortSignal,
+  ): Promise<void>;
   previews(pack: LocalPackage, signal: AbortSignal): Promise<void>;
   remove(folder: string): void;
   availableBytes(): number;
@@ -43,7 +49,9 @@ export class MuseumDownloadsController {
     this.snapshot = { ...this.snapshot, ...fields };
     for (const listener of this.listeners) listener();
     const { catalog, downloads } = this.snapshot;
-    const write = this.writes.catch(() => {}).then(() => this.deps.write({ catalog, downloads }));
+    const write = this.writes
+      .catch(() => {})
+      .then(() => this.deps.write({ catalog, downloads }));
     this.writes = write;
     await write;
   }
@@ -57,8 +65,9 @@ export class MuseumDownloadsController {
     (this.hydration ??= (async () => {
       const saved = await this.deps.read();
       if (saved) {
-        for (const row of Object.values(saved.downloads))
+        for (const row of Object.values(saved.downloads)) {
           if (row.status === "downloading") row.status = "paused";
+        }
         await this.publish({ ...saved, loaded: true });
       } else await this.publish({ loaded: true });
     })().catch((error) => {
@@ -81,9 +90,15 @@ export class MuseumDownloadsController {
     }
     await this.publish({ loading: true, error: undefined });
     try {
-      await this.publish({ catalog: await this.deps.catalog(), loading: false });
+      await this.publish({
+        catalog: await this.deps.catalog(),
+        loading: false,
+      });
     } catch {
-      await this.publish({ loading: false, error: "Couldn’t load museums. Try again." });
+      await this.publish({
+        loading: false,
+        error: "Couldn’t load museums. Try again.",
+      });
     }
   };
   start = async (museum: MuseumSummary): Promise<void> => {
@@ -93,19 +108,28 @@ export class MuseumDownloadsController {
     if (this.jobs.has(museum.id)) return;
     const abort = new AbortController();
     this.jobs.set(museum.id, abort);
-    const current = () => this.jobs.get(museum.id) === abort && !abort.signal.aborted;
+    const current = () =>
+      this.jobs.get(museum.id) === abort && !abort.signal.aborted;
     let row = this.snapshot.downloads[museum.id] ?? {
       museum,
       status: "paused" as const,
       completed: 0,
     };
     try {
-      await this.row(museum.id, { ...row, status: "downloading", error: undefined });
+      await this.row(museum.id, {
+        ...row,
+        status: "downloading",
+        error: undefined,
+      });
       const manifest = await this.deps.manifest(museum.id);
       if (!current()) return;
       if (!manifest) throw new Error("unavailable");
       if (row.active?.manifest.version === manifest.version) {
-        await this.row(museum.id, { ...row, status: "ready", error: undefined });
+        await this.row(museum.id, {
+          ...row,
+          status: "ready",
+          error: undefined,
+        });
         return;
       }
       if (row.pending?.manifest.version !== manifest.version) {
@@ -122,7 +146,9 @@ export class MuseumDownloadsController {
       const remaining = manifest.chunks
         .slice(row.completed)
         .reduce((sum, part) => sum + part.size, 0);
-      if (this.deps.availableBytes() < remaining + 5_000_000) throw new Error("space");
+      if (this.deps.availableBytes() < remaining + 5_000_000) {
+        throw new Error("space");
+      }
       for (let index = row.completed; index < manifest.chunks.length; index++) {
         if (!current()) return;
         await this.deps.download(row.pending!, index, abort.signal);
@@ -160,7 +186,9 @@ export class MuseumDownloadsController {
     this.jobs.get(id)?.abort();
     this.jobs.delete(id);
     const row = this.snapshot.downloads[id];
-    if (row?.status === "downloading") await this.row(id, { ...row, status: "paused" });
+    if (row?.status === "downloading") {
+      await this.row(id, { ...row, status: "paused" });
+    }
   };
   pauseAll = async () => {
     for (const id of this.jobs.keys()) await this.pause(id);
@@ -189,11 +217,16 @@ export class MuseumDownloadsController {
     if (row?.pending) this.deps.remove(row.pending.folder);
   };
   checkForUpdate = async (museum: MuseumSummary): Promise<boolean> => {
-    if (!(await this.deps.online())) throw new Error("Connect to check for updates.");
+    if (!(await this.deps.online())) {
+      throw new Error("Connect to check for updates.");
+    }
     const manifest = await this.deps.manifest(museum.id);
-    if (!manifest) throw new Error("This museum is no longer available to download.");
+    if (!manifest) {
+      throw new Error("This museum is no longer available to download.");
+    }
     const changed =
-      this.snapshot.downloads[museum.id]?.active?.manifest.version !== manifest.version;
+      this.snapshot.downloads[museum.id]?.active?.manifest.version
+      !== manifest.version;
     if (changed) await this.start(manifest);
     return changed;
   };

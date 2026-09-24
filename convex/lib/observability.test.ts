@@ -18,14 +18,19 @@ afterEach(() => {
 });
 
 it("sends code locations and operation names without error text, input, or credentials", async () => {
-  const error = Object.assign(new TypeError("private note alice@example.com token=secret"), {
-    photo: "secret image",
-  });
+  const error = Object.assign(
+    new TypeError("private note alice@example.com token=secret"),
+    {
+      photo: "secret image",
+    },
+  );
   error.stack = `${error.name}: ${error.message}\n    at handler (convex/docent.ts:45:9)\n    at fetch (https://example.com/private?token=secret:1:2)`;
   const id = await reportBackendError(error, "docent.ensure");
   expect(id).toMatch(/^[a-f0-9]{32}$/);
   const [url, init] = fetchMock.mock.calls[0];
-  expect(String(url)).toContain("https://example.ingest.sentry.io/api/123/envelope/");
+  expect(String(url)).toContain(
+    "https://example.ingest.sentry.io/api/123/envelope/",
+  );
   const body = String(init?.body);
   const event = JSON.parse(body.split("\n")[2]);
   expect(event).toMatchObject({
@@ -44,8 +49,16 @@ it("sends code locations and operation names without error text, input, or crede
     },
     fingerprint: ["convex", "docent.ensure", "{{ default }}"],
   });
-  for (const value of ["private note", "alice@", "secret", "photo", "user", "request"])
+  for (const value of [
+    "private note",
+    "alice@",
+    "secret",
+    "photo",
+    "user",
+    "request",
+  ]) {
     expect(body).not.toContain(value);
+  }
 });
 
 it.each([
@@ -59,17 +72,28 @@ it.each([
   "key_mismatch",
   "batch_too_large",
 ])("ignores expected %s failures", async (code) => {
-  expect(await reportBackendError(new ConvexError({ code }), "test.expected")).toBeNull();
+  expect(
+    await reportBackendError(new ConvexError({ code }), "test.expected"),
+  ).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
 it("reports provider failures using only known codes and safe status reasons", async () => {
   await reportBackendError(
-    new ConvexError({ code: "model_error", reason: "http_503", prompt: "private text" }),
+    new ConvexError({
+      code: "model_error",
+      reason: "http_503",
+      prompt: "private text",
+    }),
     "docent.ensure",
   );
-  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
-  expect(event.tags).toMatchObject({ error_code: "model_error", reason: "http_503" });
+  const event = JSON.parse(
+    String(fetchMock.mock.calls[0][1]?.body).split("\n")[2],
+  );
+  expect(event.tags).toMatchObject({
+    error_code: "model_error",
+    reason: "http_503",
+  });
   expect(event.fingerprint).toEqual(["convex", "docent.ensure", "model_error"]);
   expect(JSON.stringify(event)).not.toContain("private text");
 });
@@ -82,7 +106,9 @@ it("preserves the operation result and original error when reporting fails", asy
       throw failure;
     }),
   ).rejects.toBe(failure);
-  await expect(withErrorReporting("test.success", async () => 42)).resolves.toBe(42);
+  await expect(
+    withErrorReporting("test.success", async () => 42),
+  ).resolves.toBe(42);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
@@ -97,6 +123,8 @@ it("bounds reporting time even when the transport ignores cancellation", async (
 
 it("is a no-op when no backend DSN is configured", async () => {
   vi.stubEnv("SENTRY_DSN", "");
-  expect(await reportBackendError(new Error("failure"), "test.disabled")).toBeNull();
+  expect(
+    await reportBackendError(new Error("failure"), "test.disabled"),
+  ).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();
 });

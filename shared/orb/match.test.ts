@@ -7,7 +7,8 @@ import {
   withFlippedBits,
 } from "./test-fixtures";
 
-const bits = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
+const bits = (from: number, count: number) =>
+  Array.from({ length: count }, (_, i) => from + i);
 
 describe("matchDescriptors", () => {
   it("recovers most true correspondences on a synthetic pair with few false matches", () => {
@@ -18,9 +19,13 @@ describe("matchDescriptors", () => {
 
     const matches = matchDescriptors(query, ref);
 
-    const correct = matches.filter((m) => truthByQuery.get(m.queryIdx) === m.refIdx).length;
+    const correct = matches.filter(
+      (m) => truthByQuery.get(m.queryIdx) === m.refIdx,
+    ).length;
     expect(correct / truth.correspondences.length).toBeGreaterThanOrEqual(0.7);
-    expect((matches.length - correct) / matches.length).toBeLessThanOrEqual(0.05);
+    expect((matches.length - correct) / matches.length).toBeLessThanOrEqual(
+      0.05,
+    );
   });
 
   it("returns matches sorted by ascending distance", () => {
@@ -54,7 +59,9 @@ describe("matchDescriptors", () => {
     const at64 = featuresFromDescriptors([withFlippedBits(q, bits(0, 64))]);
     const at65 = featuresFromDescriptors([withFlippedBits(q, bits(0, 65))]);
 
-    expect(matchDescriptors(query, at64)).toEqual([{ queryIdx: 0, refIdx: 0, distance: 64 }]);
+    expect(matchDescriptors(query, at64)).toEqual([
+      { queryIdx: 0, refIdx: 0, distance: 64 },
+    ]);
     expect(matchDescriptors(query, at65)).toEqual([]);
   });
 

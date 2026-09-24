@@ -11,18 +11,32 @@ import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
-export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) {
+export function ArtworkEnrichment({
+  artworkId,
+}: {
+  artworkId: Id<"artworks">;
+}) {
   const ready = useDeviceReady();
   const enrichmentQuery = useMemo(
     (): RequestForQueries =>
-      ready ? { enrichment: { query: api.artworks.enrichment, args: { artworkId } } } : {},
+      ready
+        ? {
+            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
+          }
+        : {},
     [artworkId, ready],
   );
   const {
     enrichment,
-  }: { enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error } =
-    useQueries(enrichmentQuery);
-  if (!enrichment || (!(enrichment instanceof Error) && !enrichment.docent?.length)) return null;
+  }: {
+    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
+  } = useQueries(enrichmentQuery);
+  if (
+    !enrichment
+    || (!(enrichment instanceof Error) && !enrichment.docent?.length)
+  ) {
+    return null;
+  }
 
   return (
     <View style={styles.section}>
@@ -32,7 +46,10 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) 
           Details about this work are unavailable right now.
         </ThemedText>
       ) : (
-        <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} />
+        <DocentSection
+          docent={enrichment.docent}
+          factSheet={enrichment.factSheet}
+        />
       )}
     </View>
   );

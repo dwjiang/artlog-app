@@ -4,13 +4,18 @@ import {
   openingFixture,
   researchFixture,
 } from "@/shared/audio/guide-fixtures";
-import { cachedNarrationUri, createNarrationRenderer } from "./narration-renderer";
+import {
+  cachedNarrationUri,
+  createNarrationRenderer,
+} from "./narration-renderer";
 import type { ListeningTrack } from "./narration";
 
 const mockFiles = new Map<string, Uint8Array>();
 const mockFetch = jest.fn();
 jest.mock("expo-crypto", () => ({ randomUUID: () => "download" }));
-jest.mock("expo/fetch", () => ({ fetch: (...args: unknown[]) => mockFetch(...args) }));
+jest.mock("expo/fetch", () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
+}));
 jest.mock("expo-file-system", () => ({
   Paths: { cache: "file:///cache" },
   Directory: class {
@@ -32,7 +37,10 @@ jest.mock("expo-file-system", () => ({
       return mockFiles.get(this.uri)?.length ?? 0;
     }
     write(bytes: Uint8Array | string) {
-      mockFiles.set(this.uri, typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes);
+      mockFiles.set(
+        this.uri,
+        typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes,
+      );
     }
     textSync() {
       return new TextDecoder().decode(mockFiles.get(this.uri));
@@ -86,7 +94,9 @@ it("finds already downloaded audio for duration lookup without generating or fet
 
 it("has no cached duration source for missing, empty, or superseded audio", async () => {
   expect(await cachedNarrationUri("render-1")).toBeUndefined();
-  const first = await createNarrationRenderer(async () => generated).render(track);
+  const first = await createNarrationRenderer(async () => generated).render(
+    track,
+  );
   expect(await cachedNarrationUri("render-2")).toBeUndefined();
   mockFiles.set(first.uri, new Uint8Array());
   expect(await cachedNarrationUri("render-1")).toBeUndefined();
@@ -106,7 +116,10 @@ it("replays a known render offline without a backend or network request", async 
     sentences: generated.sentences,
     renderId: "render-1",
   });
-  expect([...mockFiles.keys()]).toEqual([first.uri, first.uri.replace(".mp3", ".json")]);
+  expect([...mockFiles.keys()]).toEqual([
+    first.uri,
+    first.uri.replace(".mp3", ".json"),
+  ]);
 });
 
 it("skips the download when the server names a render that is already on disk", async () => {
@@ -120,7 +133,10 @@ it("skips the download when the server names a render that is already on disk", 
 });
 
 it("fetches a re-rendered narration even when an older render is cached", async () => {
-  const renderer = createNarrationRenderer(async () => ({ ...generated, renderId: "render-2" }));
+  const renderer = createNarrationRenderer(async () => ({
+    ...generated,
+    renderId: "render-2",
+  }));
   mockFiles.set("file:///cache/narration/render-1.mp3", new Uint8Array([1]));
   mockFiles.set(
     "file:///cache/narration/render-1.json",
@@ -136,7 +152,10 @@ it("does not save a failed or empty download as playable audio", async () => {
   const renderer = createNarrationRenderer(async () => generated);
   mockFetch.mockResolvedValueOnce({ ok: false });
   await expect(renderer.render(track)).rejects.toThrow("download failed");
-  mockFetch.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    arrayBuffer: async () => new ArrayBuffer(0),
+  });
   await expect(renderer.render(track)).rejects.toThrow("empty");
   expect(mockFiles.size).toBe(0);
   expect((await renderer.render(track)).uri).toMatch(/\.mp3$/);
@@ -164,7 +183,10 @@ it("downloads a matching transcript again if the local transcript was corrupted"
   const generate = jest.fn(async () => generated);
   const renderer = createNarrationRenderer(generate);
   const first = await renderer.render(track);
-  mockFiles.set(first.uri.replace(".mp3", ".json"), new TextEncoder().encode("invalid json"));
+  mockFiles.set(
+    first.uri.replace(".mp3", ".json"),
+    new TextEncoder().encode("invalid json"),
+  );
   expect((await renderer.render(known)).sentences).toEqual(generated.sentences);
   expect(generate).toHaveBeenCalledTimes(2);
 });
@@ -186,6 +208,8 @@ it("replaces cached audio whose transcript lacks the required opening", async ()
     first.uri.replace(".mp3", ".json"),
     new TextEncoder().encode(JSON.stringify(guideBodyFixture)),
   );
-  expect((await renderer.render(known)).sentences[0].sentence).toBe(openingFixture);
+  expect((await renderer.render(known)).sentences[0].sentence).toBe(
+    openingFixture,
+  );
   expect(generate).toHaveBeenCalledTimes(2);
 });

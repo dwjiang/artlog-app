@@ -16,12 +16,20 @@ export const STEP_LABELS = {
 } as const;
 
 // The server runs the three verification checks inside one call, so their rows advance together.
-const ORDER: Record<LabelStage, number> = { qr: 0, read: 0, verify: 1, "image-check": 2, done: 3 };
+const ORDER: Record<LabelStage, number> = {
+  qr: 0,
+  read: 0,
+  verify: 1,
+  "image-check": 2,
+  done: 3,
+};
 const ICON_SIZE = 20;
 
 function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
   return [
-    qr ? { stage: "qr", label: STEP_LABELS.qr } : { stage: "read", label: STEP_LABELS.read },
+    qr
+      ? { stage: "qr", label: STEP_LABELS.qr }
+      : { stage: "read", label: STEP_LABELS.read },
     { stage: "verify", label: STEP_LABELS.records },
     { stage: "verify", label: STEP_LABELS.wikidata },
     { stage: "verify", label: STEP_LABELS.web },
@@ -30,7 +38,13 @@ function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
 }
 
 /** The label flow's stages as a vertical stepper: ticks behind, a spinner on the current group, grey ahead. */
-export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean }) {
+export function ProgressSteps({
+  stage,
+  qr,
+}: {
+  stage: LabelStage;
+  qr: boolean;
+}) {
   const current = ORDER[stage];
   const steps = stepsFor(qr);
   const firstActive = steps.findIndex((step) => ORDER[step.stage] === current);
@@ -60,7 +74,10 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
                 <View style={[styles.dot, active && styles.dotActive]} />
               )}
             </View>
-            <ThemedText style={{ flex: 1 }} themeColor={done || active ? "text" : "textSecondary"}>
+            <ThemedText
+              style={{ flex: 1 }}
+              themeColor={done || active ? "text" : "textSecondary"}
+            >
               {label}
             </ThemedText>
           </View>
@@ -73,7 +90,12 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
 const styles = StyleSheet.create({
   list: { gap: Spacing.three },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
-  icon: { width: ICON_SIZE, height: ICON_SIZE, alignItems: "center", justifyContent: "center" },
+  icon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   glyph: { width: ICON_SIZE, height: ICON_SIZE },
   dot: {
     width: Spacing.two,

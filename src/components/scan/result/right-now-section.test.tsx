@@ -4,7 +4,9 @@ import { RightNowSection } from "./right-now-section";
 import { rightNow } from "./__fixtures__/scan";
 
 const mockOpenBrowser = jest.fn();
-jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (url: string) => mockOpenBrowser(url),
+}));
 
 beforeEach(() => mockOpenBrowser.mockReset().mockResolvedValue(undefined));
 

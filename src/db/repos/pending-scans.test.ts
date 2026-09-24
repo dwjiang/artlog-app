@@ -1,14 +1,22 @@
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { NewPendingScan } from "../schema";
 import * as repo from "./pending-scans";
-import { clearDeletedAlbumPhotoPath, saveArtworkSession } from "./artwork-album";
+import {
+  clearDeletedAlbumPhotoPath,
+  saveArtworkSession,
+} from "./artwork-album";
 import { softDeleteSavedWork } from "./saved-works";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 
 const scanId = "scan-1" as Id<"scans">;
 
-function row(localId: string, overrides: Partial<NewPendingScan> = {}): NewPendingScan {
+function row(
+  localId: string,
+  overrides: Partial<NewPendingScan> = {},
+): NewPendingScan {
   return {
     localId,
     photoPath: `photos/${localId}.jpg`,
@@ -29,7 +37,10 @@ async function enqueueAll(...rows: NewPendingScan[]) {
 }
 
 it("stores features intact and lists queued rows oldest first", async () => {
-  await enqueueAll(row("later", { capturedAt: 200 }), row("earlier", { capturedAt: 100 }));
+  await enqueueAll(
+    row("later", { capturedAt: 200 }),
+    row("earlier", { capturedAt: 100 }),
+  );
   const flushable = await repo.listFlushable("model-v1");
   expect(flushable.map((entry) => entry.localId)).toEqual(["earlier", "later"]);
   const [earlier] = flushable;
@@ -52,7 +63,9 @@ it("walks a row from queued through identifying to identified", async () => {
   await repo.markIdentifying("a");
   expect((await repo.getPendingScan("a"))?.status).toBe("identifying");
   expect(await repo.listFlushable("model-v1")).toEqual([]);
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(["a"]);
+  expect(
+    (await repo.pendingScansQuery()).map((entry) => entry.localId),
+  ).toEqual(["a"]);
   await repo.markIdentified("a", scanId);
   expect(await repo.getPendingScan("a")).toMatchObject({
     status: "identified",
@@ -60,17 +73,21 @@ it("walks a row from queued through identifying to identified", async () => {
     lastError: null,
   });
   expect((await repo.getCaptureForScan(scanId))?.localId).toBe("a");
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(["a"]);
+  expect(
+    (await repo.pendingScansQuery()).map((entry) => entry.localId),
+  ).toEqual(["a"]);
   expect(await repo.listFlushable("model-v1")).toEqual([]);
   await repo.deletePendingScan("a");
 });
 
 it("keeps failed and waiting captures that already reference a server scan", async () => {
-  await enqueueAll(row("waiting", { scanId }), row("failed", { status: "failed", scanId }));
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual([
-    "waiting",
-    "failed",
-  ]);
+  await enqueueAll(
+    row("waiting", { scanId }),
+    row("failed", { status: "failed", scanId }),
+  );
+  expect(
+    (await repo.pendingScansQuery()).map((entry) => entry.localId),
+  ).toEqual(["waiting", "failed"]);
   await repo.deletePendingScan("waiting");
   await repo.deletePendingScan("failed");
 });
@@ -80,11 +97,13 @@ it("shows recent unsaved captures newest first and keeps other owners out", asyn
     row("recent-old"),
     row("recent-new", { capturedAt: 200, status: "identified", scanId }),
   );
-  await repo.enqueuePendingScan(row("other-owner", { capturedAt: 300 }), "device:other");
-  expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual([
-    "recent-new",
-    "recent-old",
-  ]);
+  await repo.enqueuePendingScan(
+    row("other-owner", { capturedAt: 300 }),
+    "device:other",
+  );
+  expect(
+    (await repo.pendingScansQuery()).map((entry) => entry.localId),
+  ).toEqual(["recent-new", "recent-old"]);
   await repo.deletePendingScan("recent-old");
   await repo.deletePendingScan("recent-new");
   await repo.deletePendingScan("other-owner", "device:other");
@@ -124,7 +143,9 @@ it("removes a saved capture from recent scans even after its artwork and album p
 
 it("counts attempts, gives up at the limit, and lets a manual retry start over", async () => {
   await enqueueAll(row("a"));
-  expect(await repo.recordAttemptFailure("a", "offline", { countAttempt: false })).toEqual({
+  expect(
+    await repo.recordAttemptFailure("a", "offline", { countAttempt: false }),
+  ).toEqual({
     status: "queued",
     attempts: 0,
   });
@@ -134,24 +155,36 @@ it("counts attempts, gives up at the limit, and lets a manual retry start over",
     lastError: "offline",
   });
   for (let attempt = 1; attempt < repo.MAX_IDENTIFY_ATTEMPTS; attempt++) {
-    expect(await repo.recordAttemptFailure("a", "bad_features", { countAttempt: true })).toEqual({
+    expect(
+      await repo.recordAttemptFailure("a", "bad_features", {
+        countAttempt: true,
+      }),
+    ).toEqual({
       status: "queued",
       attempts: attempt,
     });
   }
-  expect(await repo.recordAttemptFailure("a", "bad_features", { countAttempt: true })).toEqual({
+  expect(
+    await repo.recordAttemptFailure("a", "bad_features", {
+      countAttempt: true,
+    }),
+  ).toEqual({
     status: "failed",
     attempts: repo.MAX_IDENTIFY_ATTEMPTS,
   });
   expect(await repo.listFlushable("model-v1")).toEqual([]);
-  expect((await repo.pendingScansQuery()).map((entry) => entry.status)).toEqual(["failed"]);
+  expect((await repo.pendingScansQuery()).map((entry) => entry.status)).toEqual(
+    ["failed"],
+  );
   await repo.retryPendingScan("a");
   expect(await repo.getPendingScan("a")).toMatchObject({
     status: "queued",
     attempts: 0,
     lastError: null,
   });
-  await expect(repo.recordAttemptFailure("missing", "x", { countAttempt: true })).resolves.toEqual({
+  await expect(
+    repo.recordAttemptFailure("missing", "x", { countAttempt: true }),
+  ).resolves.toEqual({
     status: "failed",
     attempts: 0,
   });
@@ -167,7 +200,9 @@ it("gives failed rows another run after a model update", async () => {
     scanId,
   });
   expect(await repo.listFlushable("model-v1")).toEqual([]);
-  expect((await repo.listFlushable("model-v2")).map((entry) => entry.localId)).toEqual(["a"]);
+  expect(
+    (await repo.listFlushable("model-v2")).map((entry) => entry.localId),
+  ).toEqual(["a"]);
   await repo.updateFeatures("a", {
     vector: [1],
     descriptors: new Uint8Array([9]).buffer,
@@ -216,11 +251,18 @@ it("keeps a replacement label when an older read completes", async () => {
   await enqueueAll(row("replacement", { status: "identified", scanId }));
   await repo.setLabelPhoto("replacement", "labels/first.jpg");
   await repo.setLabelPhoto("replacement", "labels/second.jpg");
-  await repo.clearPendingLabel("replacement", { labelPhotoPath: "labels/first.jpg" });
+  await repo.clearPendingLabel("replacement", {
+    labelPhotoPath: "labels/first.jpg",
+  });
   expect(await repo.listPendingLabels()).toEqual([
-    expect.objectContaining({ localId: "replacement", labelPhotoPath: "labels/second.jpg" }),
+    expect.objectContaining({
+      localId: "replacement",
+      labelPhotoPath: "labels/second.jpg",
+    }),
   ]);
-  await repo.clearPendingLabel("replacement", { labelPhotoPath: "labels/second.jpg" });
+  await repo.clearPendingLabel("replacement", {
+    labelPhotoPath: "labels/second.jpg",
+  });
   expect(await repo.listPendingLabels()).toEqual([]);
   await repo.deletePendingScan("replacement");
 });

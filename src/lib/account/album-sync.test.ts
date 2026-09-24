@@ -3,7 +3,12 @@ import * as Sentry from "@sentry/react-native";
 import { db } from "@/db/client";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
-import { artworkPhotos, artworkEncounters, savedWorks, settings } from "@/db/schema";
+import {
+  artworkPhotos,
+  artworkEncounters,
+  savedWorks,
+  settings,
+} from "@/db/schema";
 import { syncArtworkAlbums } from "./album-sync";
 
 jest.mock("@/db/client", () => ({
@@ -29,7 +34,10 @@ const context = {
   accountId: null,
   owner,
 };
-const photo = (localId: string, fields: Partial<typeof artworkPhotos.$inferInsert> = {}) => ({
+const photo = (
+  localId: string,
+  fields: Partial<typeof artworkPhotos.$inferInsert> = {},
+) => ({
   owner,
   localId,
   savedLocalId: "work",
@@ -40,8 +48,14 @@ const photo = (localId: string, fields: Partial<typeof artworkPhotos.$inferInser
 });
 
 beforeEach(async () => {
-  for (const table of [artworkPhotos, artworkEncounters, savedWorks, settings])
+  for (const table of [
+    artworkPhotos,
+    artworkEncounters,
+    savedWorks,
+    settings,
+  ]) {
     db.delete(table).run();
+  }
   jest.clearAllMocks();
   mockMutation.mockResolvedValue({
     photos: [],
@@ -68,12 +82,16 @@ it("finishes the batch when one photo transfer fails, then rethrows so the queue
       photo("remote", { storageId: "cloud" as Id<"_storage"> }),
     ])
     .run();
-  mockUpload.mockImplementation(async (_token, _scope, _saveId, _kind, path) => {
-    if (path === "gone.jpg") throw new Error("missing file");
-    return { storageId: "uploaded", photoUpdatedAt: 0 };
-  });
+  mockUpload.mockImplementation(
+    async (_token, _scope, _saveId, _kind, path) => {
+      if (path === "gone.jpg") throw new Error("missing file");
+      return { storageId: "uploaded", photoUpdatedAt: 0 };
+    },
+  );
   mockDownload.mockResolvedValue("collection-photos/remote.jpg");
-  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow("missing file");
+  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow(
+    "missing file",
+  );
   const rows = Object.fromEntries(
     selectArtworkPhotos("work")
       .all()
@@ -97,7 +115,10 @@ it("removes the files of deleted album photos unless a live row still uses them"
     .values([
       photo("orphan", { path: "artwork-photos/orphan.jpg", deletedAt: 5 }),
       photo("seed", { path: "artwork-photos/seed.jpg", deletedAt: 5 }),
-      photo("live", { path: "artwork-photos/live.jpg", storageId: "cloud" as Id<"_storage"> }),
+      photo("live", {
+        path: "artwork-photos/live.jpg",
+        storageId: "cloud" as Id<"_storage">,
+      }),
     ])
     .run();
   await syncArtworkAlbums(context, "token", () => true);
@@ -117,12 +138,17 @@ it("removes the files of deleted album photos unless a live row still uses them"
 
 it("reports an album transfer failure before a later offline error while preserving the batch retry", async () => {
   db.insert(artworkPhotos)
-    .values([photo("first", { path: "first.jpg" }), photo("second", { path: "second.jpg" })])
+    .values([
+      photo("first", { path: "first.jpg" }),
+      photo("second", { path: "second.jpg" }),
+    ])
     .run();
   const corrupt = new Error("Album decoder could not read the saved image");
   const offline = new Error("Network request failed");
   mockUpload.mockRejectedValueOnce(corrupt).mockRejectedValueOnce(offline);
-  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toBe(offline);
+  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toBe(
+    offline,
+  );
   expect(mockUpload).toHaveBeenCalledTimes(2);
   expect(Sentry.captureException).toHaveBeenCalledTimes(1);
   expect(Sentry.captureException).toHaveBeenCalledWith(

@@ -4,10 +4,14 @@ jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 
 it("sends one abortable HTTP mutation with the captured token and scope", async () => {
   const controller = new AbortController();
-  const fetcher = jest
-    .fn()
-    .mockResolvedValue({ ok: true, json: async () => ({ status: "success", value: null }) });
-  const transport = createWallTransport("https://example.convex.cloud", fetcher);
+  const fetcher = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: "success", value: null }),
+  });
+  const transport = createWallTransport(
+    "https://example.convex.cloud",
+    fetcher,
+  );
   await transport.setLayout(
     { scope: "account:a:1", revision: 0, color: "#45524B", items: [] },
     { token: "captured-token", signal: controller.signal },
@@ -27,8 +31,13 @@ it("sends one abortable HTTP mutation with the captured token and scope", async 
 });
 
 it("does not retry a failed network request and preserves conflict error codes", async () => {
-  const fetcher = jest.fn().mockRejectedValueOnce(new Error("Network request failed"));
-  const transport = createWallTransport("https://example.convex.cloud", fetcher);
+  const fetcher = jest
+    .fn()
+    .mockRejectedValueOnce(new Error("Network request failed"));
+  const transport = createWallTransport(
+    "https://example.convex.cloud",
+    fetcher,
+  );
   const context = { token: "token", signal: new AbortController().signal };
   await expect(
     transport.setNoteVisibility({ scope: "account:a:1", changes: [] }, context),

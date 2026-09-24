@@ -10,12 +10,18 @@ import {
 } from "react-native";
 
 import { ScanScreen } from "./scan-screen";
-import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
+import type {
+  CaptureFeedback,
+  CaptureState,
+} from "@/lib/capture/capture-controller";
 import type { CaptureTimings } from "@/lib/capture/stages";
 import type { VenueView } from "@/lib/venue/use-venue";
 jest.mock("@/lib/audio/use-listening");
 
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
 let mockFocused = true;
 let mockGranted = true;
@@ -52,7 +58,9 @@ const mockResolveVenue = jest.fn();
 const mockSetParams = jest.fn();
 let mockParams: { visitId?: string } = {};
 let mockTabsListener:
-  | ((event: { data: { state: { index: number; routes: { name: string }[] } } }) => void)
+  | ((event: {
+      data: { state: { index: number; routes: { name: string }[] } };
+    }) => void)
   | undefined;
 let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: "frame-output" };
@@ -69,14 +77,17 @@ jest.mock("react-native-reanimated", () => {
   return {
     __esModule: true,
     default: { View },
-    useSharedValue: (value: number) => useRef({ get: () => value, set: jest.fn() }).current,
+    useSharedValue: (value: number) =>
+      useRef({ get: () => value, set: jest.fn() }).current,
     withTiming: (value: number) => value,
     cancelAnimation: jest.fn(),
     Easing: { linear: jest.fn() },
   };
 });
 
-jest.mock("./capture-context-button", () => ({ CaptureContextButton: () => null }));
+jest.mock("./capture-context-button", () => ({
+  CaptureContextButton: () => null,
+}));
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useRouter: () => ({ push: mockPush }),
@@ -99,7 +110,9 @@ jest.mock("./capture-visit-pill", () => ({
     return <Text>Adding to {visitId}</Text>;
   },
 }));
-jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => mockFocused }));
+jest.mock("expo-router/react-navigation", () => ({
+  useIsFocused: () => mockFocused,
+}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
@@ -155,7 +168,10 @@ jest.mock("@/lib/queue/use-queue", () => ({
   }),
 }));
 jest.mock("@/lib/capture/use-rect-detector", () => ({
-  useRectDetector: (active: boolean, callback: (detection: unknown) => void) => {
+  useRectDetector: (
+    active: boolean,
+    callback: (detection: unknown) => void,
+  ) => {
     mockOnDetection = callback;
     mockDetectorActive.push(active);
     return mockFrameOutput;
@@ -170,11 +186,17 @@ jest.mock("./capture-reveal", () => ({
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
-  jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(false);
+  jest
+    .spyOn(AccessibilityInfo, "isReduceMotionEnabled")
+    .mockResolvedValue(false);
+  jest
+    .spyOn(AccessibilityInfo, "isReduceTransparencyEnabled")
+    .mockResolvedValue(false);
   jest
     .spyOn(AccessibilityInfo, "addEventListener")
-    .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
+    .mockImplementation((event, listener) =>
+      DeviceEventEmitter.addListener(event, listener),
+    );
   mockFocused = true;
   mockParams = {};
   mockTabsListener = undefined;
@@ -188,7 +210,11 @@ beforeEach(() => {
   mockPending = 0;
   mockVenueView = {
     status: "resolved",
-    venue: { kind: "seeded", venueId: "museum-1" as never, name: "Legion of Honor" },
+    venue: {
+      kind: "seeded",
+      venueId: "museum-1" as never,
+      name: "Legion of Honor",
+    },
     options: [],
     resolve: jest.fn(),
     confirm: jest.fn(),
@@ -198,10 +224,12 @@ beforeEach(() => {
   };
   mockDetectorActive.length = 0;
   AppState.currentState = "active";
-  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
-    appStateListener = listener;
-    return { remove: jest.fn() };
-  });
+  jest
+    .spyOn(AppState, "addEventListener")
+    .mockImplementation((_event, listener) => {
+      appStateListener = listener;
+      return { remove: jest.fn() };
+    });
   mockPhoto.mockResolvedValue({ filePath: "/photo.jpg" });
   mockSelectionHaptic.mockResolvedValue(undefined);
   mockImpactHaptic.mockResolvedValue(undefined);
@@ -213,7 +241,9 @@ beforeEach(() => {
     visitId: "visit-1",
     visitLocalId: "local-visit",
   });
-  mockCapture.mockImplementation(async (takePhoto: () => Promise<unknown>) => takePhoto());
+  mockCapture.mockImplementation(async (takePhoto: () => Promise<unknown>) =>
+    takePhoto(),
+  );
   mockCaptureAutomatically.mockImplementation(
     async (_attempt: unknown, takePhoto: () => Promise<unknown>) => takePhoto(),
   );
@@ -237,7 +267,9 @@ it("streams frames to the detector without idle captions or an autoscan chip", a
   await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.queryByText("Point at an artwork. Hold steady to scan.")).toBeNull();
+  expect(
+    screen.queryByText("Point at an artwork. Hold steady to scan."),
+  ).toBeNull();
   expect(screen.queryByText("Hold steady")).toBeNull();
   expect(screen.queryByText(/auto scan/i)).toBeNull();
   expect(screen.queryByRole("button", { name: "Scan label" })).toBeNull();
@@ -282,7 +314,10 @@ it("takes a still only when the controller accepts a detection", async () => {
   expect(mockPhoto).not.toHaveBeenCalled();
   mockObserve.mockReturnValue(attempt);
   await act(() => mockOnDetection({}));
-  expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
+  expect(mockCaptureAutomatically).toHaveBeenCalledWith(
+    attempt,
+    expect.any(Function),
+  );
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   expect(mockCapture).not.toHaveBeenCalled();
 });
@@ -302,7 +337,9 @@ it("announces camera startup errors, keeps import available, and clears the erro
 
   await act(() => mockCameraProps.onStarted());
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.queryByText("Point at an artwork. Hold steady to scan.")).toBeNull();
+  expect(
+    screen.queryByText("Point at an artwork. Hold steady to scan."),
+  ).toBeNull();
   expect(screen.getByRole("button", { name: "Scan artwork" })).toBeEnabled();
 });
 
@@ -312,15 +349,21 @@ it("hides camera startup errors while an imported photo is processing or needs a
 
   mockState = { phase: "processing", occupied: true, source: "library" };
   await view.rerender(<ScanScreen />);
-  expect(screen.queryByText("Could not start the camera. You can import a photo.")).toBeNull();
+  expect(
+    screen.queryByText("Could not start the camera. You can import a photo."),
+  ).toBeNull();
   expect(screen.getByText("Identifying artwork")).toBeOnTheScreen();
 
   mockState = { phase: "retry", occupied: false, source: "library" };
   mockMessage = "Fit all corners";
   await view.rerender(<ScanScreen />);
-  expect(screen.queryByText("Could not start the camera. You can import a photo.")).toBeNull();
+  expect(
+    screen.queryByText("Could not start the camera. You can import a photo."),
+  ).toBeNull();
   expect(screen.getByRole("alert")).toHaveTextContent("Fit all corners");
-  expect(screen.getByRole("button", { name: "Choose another photo" })).toBeEnabled();
+  expect(
+    screen.getByRole("button", { name: "Choose another photo" }),
+  ).toBeEnabled();
 });
 
 it("shows camera startup progress only while the camera is meant to run", async () => {
@@ -337,7 +380,9 @@ it("shows camera startup progress only while the camera is meant to run", async 
   await view.rerender(<ScanScreen />);
   expect(mockCameraProps.isActive).toBe(false);
   expect(screen.queryByLabelText("Starting camera…")).toBeNull();
-  expect(screen.getByRole("button", { name: "Choose another photo" })).toBeEnabled();
+  expect(
+    screen.getByRole("button", { name: "Choose another photo" }),
+  ).toBeEnabled();
 });
 
 it("keeps the shutter as a manual fallback once the camera is ready", async () => {
@@ -399,19 +444,27 @@ it("reveals an imported photo and reports its failure while camera access is den
   mockGranted = false;
   mockCanRequest = false;
   mockPresentation = { attempt: { id: "import-1" } };
-  mockState = { phase: "retry", occupied: false, source: "library" } as CaptureState;
+  mockState = {
+    phase: "retry",
+    occupied: false,
+    source: "library",
+  } as CaptureState;
   mockMessage = "Picker unavailable";
   await render(<ScanScreen />);
   expect(screen.getByLabelText("Capture reveal")).toBeOnTheScreen();
   expect(screen.getByRole("alert")).toHaveTextContent(mockMessage);
-  expect(screen.getByRole("button", { name: "Import a photo" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Import a photo" }),
+  ).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Scan artwork" })).toBeNull();
 });
 
 it("keeps the venue and queue controls", async () => {
   mockPending = 2;
   await render(<ScanScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Legion of Honor" }),
+  );
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
   expect(screen.getByLabelText("Recent scans, 2 scans")).toBeOnTheScreen();
 });
@@ -421,8 +474,12 @@ it("keeps the venue and queue entry points reachable without camera access", asy
   mockCanRequest = false;
   mockPending = 1;
   await render(<ScanScreen />);
-  expect(screen.getByRole("button", { name: "Open Settings" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
+  expect(
+    screen.getByRole("button", { name: "Open Settings" }),
+  ).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Legion of Honor" }),
+  );
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
   expect(screen.getByLabelText("Recent scans, 1 scan")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Scan artwork" })).toBeNull();
@@ -430,11 +487,20 @@ it("keeps the venue and queue entry points reachable without camera access", asy
 
 it("shows corrective guidance and keeps detecting after a camera failure", async () => {
   mockMessage = "Adjust the angle to reduce glare";
-  mockState = { phase: "retry", source: "camera", occupied: false, rearm: "reframe" };
+  mockState = {
+    phase: "retry",
+    source: "camera",
+    occupied: false,
+    rearm: "reframe",
+  };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.getByRole("alert")).toHaveTextContent(/Adjust the angle to reduce glare/);
-  expect(screen.getByText("Move the camera to reframe, then hold steady.")).toBeOnTheScreen();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /Adjust the angle to reduce glare/,
+  );
+  expect(
+    screen.getByText("Move the camera to reframe, then hold steady."),
+  ).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Retake" })).toBeNull();
   expect(screen.getByRole("button", { name: "Scan artwork" })).toBeEnabled();
   expect(mockDetectorActive.at(-1)).toBe(true);
@@ -442,12 +508,23 @@ it("shows corrective guidance and keeps detecting after a camera failure", async
 
 it("asks for another shutter press after a shutter failure, which holding steady cannot rescan", async () => {
   mockMessage = "Adjust the angle to reduce glare";
-  mockState = { phase: "retry", source: "camera", occupied: false, rearm: "shutter" };
+  mockState = {
+    phase: "retry",
+    source: "camera",
+    occupied: false,
+    rearm: "shutter",
+  };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.getByRole("alert")).toHaveTextContent(/Adjust the angle to reduce glare/);
-  expect(screen.getByText("Reframe the artwork and tap the shutter.")).toBeOnTheScreen();
-  expect(screen.queryByText("Move the camera to reframe, then hold steady.")).toBeNull();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /Adjust the angle to reduce glare/,
+  );
+  expect(
+    screen.getByText("Reframe the artwork and tap the shutter."),
+  ).toBeOnTheScreen();
+  expect(
+    screen.queryByText("Move the camera to reframe, then hold steady."),
+  ).toBeNull();
 });
 
 it("offers both explicit actions after a failed import and keeps scanning paused", async () => {
@@ -455,17 +532,28 @@ it("offers both explicit actions after a failed import and keeps scanning paused
   mockState = { phase: "retry", source: "library", occupied: false };
   await render(<ScanScreen />);
   expect(mockDetectorActive.at(-1)).toBe(false);
-  await fireEvent.press(screen.getByRole("button", { name: "Choose another photo" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Choose another photo" }),
+  );
   expect(mockImport).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole("button", { name: "Use camera" }));
   expect(mockClearMessage).toHaveBeenCalledTimes(1);
 });
 
 it("shows the stage breakdown of the last capture in development", async () => {
-  mockTimings = { warp: 273.4, triage: 8.6, embed: 480.2, orb: 11.7, identify: 38.1, total: 812.0 };
+  mockTimings = {
+    warp: 273.4,
+    triage: 8.6,
+    embed: 480.2,
+    orb: 11.7,
+    identify: 38.1,
+    total: 812.0,
+  };
   await render(<ScanScreen />);
   expect(
-    screen.getByText("Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38"),
+    screen.getByText(
+      "Capture 812 ms · warp 273 · triage 9 · embed 480 · orb 12 · identify 38",
+    ),
   ).toBeOnTheScreen();
 });
 
@@ -482,7 +570,11 @@ it("keeps a chosen visit through sheets above the tab and drops it at the result
       data: {
         state: {
           index: 1,
-          routes: [{ name: "(home)" }, { name: "(scan)" }, { name: "(collection)" }],
+          routes: [
+            { name: "(home)" },
+            { name: "(scan)" },
+            { name: "(collection)" },
+          ],
         },
       },
     }),
@@ -493,7 +585,11 @@ it("keeps a chosen visit through sheets above the tab and drops it at the result
       data: {
         state: {
           index: 2,
-          routes: [{ name: "(home)" }, { name: "(scan)" }, { name: "(collection)" }],
+          routes: [
+            { name: "(home)" },
+            { name: "(scan)" },
+            { name: "(collection)" },
+          ],
         },
       },
     }),
@@ -513,7 +609,9 @@ it("pauses the camera and detection while reading tips and resumes on Ready to s
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
   await fireEvent.press(screen.getByRole("button", { name: "Camera tips" }));
-  expect(screen.getByLabelText("Example of an artwork framed straight on")).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("Example of an artwork framed straight on"),
+  ).toBeOnTheScreen();
   expect(mockCameraProps.isActive).toBe(false);
   expect(mockDetectorActive.at(-1)).toBe(false);
   await fireEvent.press(screen.getByRole("button", { name: "Ready to scan" }));
@@ -528,6 +626,8 @@ it("closes camera tips before opening the photo library", async () => {
   mockImport.mockImplementationOnce(async () => {
     expect(screen.queryByRole("button", { name: "Ready to scan" })).toBeNull();
   });
-  await fireEvent.press(screen.getByRole("button", { name: "Import a photo instead" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Import a photo instead" }),
+  );
   expect(mockImport).toHaveBeenCalledTimes(1);
 });

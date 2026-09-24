@@ -11,13 +11,19 @@ jest.mock("convex/react", () => ({
   useMutation: () => jest.fn(),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ status: "ready", key: "viewer", token: "visit-token" }),
+  useSocialSession: () => ({
+    status: "ready",
+    key: "viewer",
+    token: "visit-token",
+  }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: () => ({ data: undefined }),
 }));
-jest.mock("@/components/settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("@/components/settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
@@ -26,7 +32,11 @@ jest.mock("expo-image", () => ({
   },
 }));
 
-const artwork = (id: string, title: string, artist = "Claude Monet"): SharedArtwork => ({
+const artwork = (
+  id: string,
+  title: string,
+  artist = "Claude Monet",
+): SharedArtwork => ({
   itemId: id as never,
   artwork: {
     title,
@@ -89,7 +99,9 @@ it("shows the shared status, owner, place, reflection, and full artwork count", 
   expect(screen.getByText(/September 12, 2026.*Paris/s)).toBeOnTheScreen();
   expect(screen.getByText("The small details always win.")).toBeOnTheScreen();
   expect(screen.getByText("5 artworks shared")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View Alex Chen’s profile" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "View Alex Chen’s profile" }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/profile/[profileId]",
     params: { profileId: "alex" },
@@ -100,11 +112,17 @@ it("offers search at five artworks and matches titles or artists without case or
   const view = await render(<VisitScreen postId="post-a" />);
   const search = screen.getByLabelText("Search visit artworks");
   await fireEvent.changeText(search, "  LILIES  ");
-  expect(screen.getByRole("button", { name: "View Water Lilies" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "View Water Lilies" }),
+  ).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "View The Dance" })).toBeNull();
   await fireEvent.changeText(search, "cezanne");
-  expect(screen.getByRole("button", { name: "View Still Life" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "View Water Lilies" })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "View Still Life" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.queryByRole("button", { name: "View Water Lilies" }),
+  ).toBeNull();
   await fireEvent.changeText(search, "no match");
   expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
   mockPages.mockReturnValue(
@@ -116,11 +134,18 @@ it("offers search at five artworks and matches titles or artists without case or
 
 it("searches later pages and waits until all pages arrive before declaring no matches", async () => {
   mockPages.mockReturnValue(
-    pages({ first: { ...visit, artworkCount: 6 }, done: false, canLoadMore: true }),
+    pages({
+      first: { ...visit, artworkCount: 6 },
+      done: false,
+      canLoadMore: true,
+    }),
   );
   const view = await render(<VisitScreen postId="post-a" />);
   mockLoadMore.mockClear();
-  await fireEvent.changeText(screen.getByLabelText("Search visit artworks"), "Starry");
+  await fireEvent.changeText(
+    screen.getByLabelText("Search visit artworks"),
+    "Starry",
+  );
   expect(mockLoadMore).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("No artworks found.")).toBeNull();
   mockPages.mockReturnValue(
@@ -136,7 +161,9 @@ it("searches later pages and waits until all pages arrive before declaring no ma
     }),
   );
   await view.rerender(<VisitScreen postId="post-a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "View Starry Night" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "View Starry Night" }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/artwork",
     params: { kind: "visit", postId: "post-a", itemId: "f" },
@@ -155,8 +182,12 @@ it("distinguishes a visit without photos from a visit without artworks", async (
   const view = await render(<VisitScreen postId="post-a" />);
   expect(screen.getByText("2 photos")).toBeOnTheScreen();
   expect(screen.getByText("No photos")).toBeOnTheScreen();
-  mockPages.mockReturnValue(pages({ items: [], first: { ...visit, artworkCount: 0 } }));
+  mockPages.mockReturnValue(
+    pages({ items: [], first: { ...visit, artworkCount: 0 } }),
+  );
   await view.rerender(<VisitScreen postId="post-a" />);
   expect(screen.queryByText("A visit worth remembering.")).toBeNull();
-  expect(screen.getByText("This visit was shared without artworks.")).toBeOnTheScreen();
+  expect(
+    screen.getByText("This visit was shared without artworks."),
+  ).toBeOnTheScreen();
 });

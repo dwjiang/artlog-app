@@ -61,7 +61,9 @@ export function ProfileForm({
   }, [normalized]);
   const available = useSocialQuery(
     api.profiles.usernameAvailable,
-    validUsername && normalized === checkedUsername ? { username: normalized } : "skip",
+    validUsername && normalized === checkedUsername
+      ? { username: normalized }
+      : "skip",
     session.key,
   );
   const usernameMessage = profileCreated
@@ -96,18 +98,21 @@ export function ProfileForm({
       }
     } catch (cause) {
       reportError(cause, "profile.photo.choose");
-      if (mounted.current) setError("This photo could not be opened. Try another image.");
+      if (mounted.current) {
+        setError("This photo could not be opened. Try another image.");
+      }
     } finally {
       if (mounted.current) setBusy(false);
     }
   }
   async function submit() {
     if (
-      submitting.current ||
-      !name.trim() ||
-      (!created.current && (!validUsername || available.data === false))
-    )
+      submitting.current
+      || !name.trim()
+      || (!created.current && (!validUsername || available.data === false))
+    ) {
       return;
+    }
     const owner = captureOwner();
     submitting.current = true;
     setBusy(true);
@@ -116,22 +121,32 @@ export function ProfileForm({
       const bytes = photo ? await profilePhotoBytes(photo) : undefined;
       if (!owner.isCurrent() || !mounted.current) return;
       if (!created.current) {
-        await create({ name: name.trim(), username: normalized, bio: bio.trim() });
+        await create({
+          name: name.trim(),
+          username: normalized,
+          bio: bio.trim(),
+        });
         created.current = true;
         setProfileCreated(true);
       }
       if (!owner.isCurrent() || !mounted.current) return;
-      if (bytes) await savePhoto({ name: name.trim(), bio: bio.trim(), photo: bytes });
+      if (bytes) {
+        await savePhoto({ name: name.trim(), bio: bio.trim(), photo: bytes });
+      }
       if (owner.isCurrent() && mounted.current) onCreated();
     } catch (cause) {
-      reportError(cause, created.current ? "profile.photo.save" : "profile.create");
-      if (owner.isCurrent() && mounted.current)
+      reportError(
+        cause,
+        created.current ? "profile.photo.save" : "profile.create",
+      );
+      if (owner.isCurrent() && mounted.current) {
         setError(
           created.current
             ? "Your profile is ready, but the photo could not upload. Retry or continue without it."
-            : (socialErrorMessage(cause) ??
-                "Your profile could not be created. Your edits are kept. Try again."),
+            : (socialErrorMessage(cause)
+                ?? "Your profile could not be created. Your edits are kept. Try again."),
         );
+      }
     } finally {
       submitting.current = false;
       if (owner.isCurrent() && mounted.current) setBusy(false);
@@ -147,7 +162,9 @@ export function ProfileForm({
     >
       <View style={{ gap: 10 }}>
         <Text variant="pageTitle">Create a public profile.</Text>
-        <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>{introduction}</Text>
+        <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>
+          {introduction}
+        </Text>
       </View>
       <View style={{ alignItems: "center", gap: 8 }}>
         <ProfileAvatar name={name || "You"} photoUrl={photo} size={72} />
@@ -161,7 +178,12 @@ export function ProfileForm({
       </View>
       {[
         { label: "Name", value: name, change: setName, max: LIMITS.name },
-        { label: "Username", value: username, change: setUsername, max: LIMITS.usernameMax },
+        {
+          label: "Username",
+          value: username,
+          change: setUsername,
+          max: LIMITS.usernameMax,
+        },
         { label: "Introduction", value: bio, change: setBio, max: LIMITS.bio },
       ].map((field) => (
         <View key={field.label} style={{ gap: 8 }}>
@@ -187,10 +209,10 @@ export function ProfileForm({
               borderRadius: 8,
               borderWidth: 1,
               borderColor:
-                field.label === "Username" &&
-                !profileCreated &&
-                username &&
-                (!validUsername || available.data === false)
+                field.label === "Username"
+                && !profileCreated
+                && username
+                && (!validUsername || available.data === false)
                   ? Gallery.destructive
                   : Gallery.controlBorder,
               color: Gallery.ink,
@@ -205,7 +227,9 @@ export function ProfileForm({
                 fontSize: 13,
                 lineHeight: 18,
                 color:
-                  !profileCreated && (available.data === false || (!!username && !validUsername))
+                  !profileCreated
+                  && (available.data === false
+                    || (!!username && !validUsername))
                     ? Gallery.destructive
                     : Gallery.muted,
               }}
@@ -216,8 +240,8 @@ export function ProfileForm({
         </View>
       ))}
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
-        Your name, photo and introduction appear on your public profile. Visits and private notes
-        are separate.
+        Your name, photo and introduction appear on your public profile. Visits
+        and private notes are separate.
       </Text>
       {error && (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
@@ -229,7 +253,10 @@ export function ProfileForm({
         variant="filled"
         fullWidth
         busy={busy}
-        disabled={!name.trim() || (!profileCreated && (!validUsername || available.data === false))}
+        disabled={
+          !name.trim()
+          || (!profileCreated && (!validUsername || available.data === false))
+        }
         onPress={() => {
           void submit();
         }}

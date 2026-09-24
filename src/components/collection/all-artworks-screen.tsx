@@ -7,7 +7,12 @@ import { CollectionSearchField } from "./collection-search-field";
 
 export function AllArtworksScreen() {
   const [attempt, setAttempt] = useState(0);
-  return <AllArtworks key={attempt} onRetry={() => setAttempt((value) => value + 1)} />;
+  return (
+    <AllArtworks
+      key={attempt}
+      onRetry={() => setAttempt((value) => value + 1)}
+    />
+  );
 }
 
 function AllArtworks({ onRetry }: { onRetry: () => void }) {
@@ -26,7 +31,8 @@ function AllArtworks({ onRetry }: { onRetry: () => void }) {
             All artworks
           </ThemedText>
           <ThemedText variant="metadata" themeColor="textSecondary">
-            {data.works.length} {data.works.length === 1 ? "artwork" : "artworks"}
+            {data.works.length}{" "}
+            {data.works.length === 1 ? "artwork" : "artworks"}
           </ThemedText>
           <CollectionSearchField
             filled

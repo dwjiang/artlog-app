@@ -11,8 +11,11 @@ import {
 } from "./capture-reveal";
 
 let mockReduced = false;
-const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] = [];
-jest.mock("react-native-worklets", () => ({ scheduleOnRN: (fn: () => void) => fn() }));
+const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] =
+  [];
+jest.mock("react-native-worklets", () => ({
+  scheduleOnRN: (fn: () => void) => fn(),
+}));
 jest.mock("react-native-reanimated", () => {
   const { View } = jest.requireActual("react-native");
   const { useRef } = jest.requireActual("react");
@@ -20,9 +23,14 @@ jest.mock("react-native-reanimated", () => {
     __esModule: true,
     default: { View },
     useReducedMotion: () => mockReduced,
-    useSharedValue: (initial: number) => useRef({ get: () => initial, set: jest.fn() }).current,
+    useSharedValue: (initial: number) =>
+      useRef({ get: () => initial, set: jest.fn() }).current,
     useAnimatedStyle: (fn: () => unknown) => fn(),
-    withTiming: (value: number, config: { duration: number }, finish?: (done: boolean) => void) => {
+    withTiming: (
+      value: number,
+      config: { duration: number },
+      finish?: (done: boolean) => void,
+    ) => {
       mockAnimations.push({ duration: config.duration, finish });
       return value;
     },
@@ -70,7 +78,9 @@ it.each([false, true])(
   async (reduced) => {
     mockReduced = reduced;
     const complete = jest.fn();
-    const view = await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+    const view = await render(
+      <CaptureReveal presentation={presentation} onComplete={complete} />,
+    );
     await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
       nativeEvent: { layout: { width: 390, height: 844 } },
     });
@@ -81,12 +91,16 @@ it.each([false, true])(
     expect(complete).not.toHaveBeenCalled();
     if (!reduced) {
       await act(() =>
-        mockAnimations.find((animation) => animation.duration === STRAIGHTEN_MS)!.finish!(true),
+        mockAnimations.find(
+          (animation) => animation.duration === STRAIGHTEN_MS,
+        )!.finish!(true),
       );
       expect(complete).not.toHaveBeenCalled();
     }
     await act(() => mockAnimations.at(-1)!.finish!(true));
-    await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
+    await view.rerender(
+      <CaptureReveal presentation={presentation} onComplete={complete} />,
+    );
     await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
     expect(complete).toHaveBeenCalledTimes(1);
     expect(mockAnimations).toHaveLength(reduced ? 2 : 3);
@@ -95,7 +109,9 @@ it.each([false, true])(
 
 it("falls through once when image display fails or never arrives", async () => {
   const complete = jest.fn();
-  await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await render(
+    <CaptureReveal presentation={presentation} onComplete={complete} />,
+  );
   await fireEvent(screen.getByLabelText("Captured painting"), "error");
   await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
   expect(complete).toHaveBeenCalledTimes(1);
@@ -103,14 +119,18 @@ it("falls through once when image display fails or never arrives", async () => {
 
 it("does not strand a scan when the crop never displays", async () => {
   const complete = jest.fn();
-  await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await render(
+    <CaptureReveal presentation={presentation} onComplete={complete} />,
+  );
   await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
   expect(complete).toHaveBeenCalledTimes(1);
 });
 
 it("does not complete a cancelled shine", async () => {
   const complete = jest.fn();
-  await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await render(
+    <CaptureReveal presentation={presentation} onComplete={complete} />,
+  );
   await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
     nativeEvent: { layout: { width: 390, height: 844 } },
   });

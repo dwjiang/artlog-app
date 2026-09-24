@@ -9,7 +9,9 @@ let mockActive = true;
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => mockActive }));
+jest.mock("@/hooks/use-screen-active", () => ({
+  useScreenActive: () => mockActive,
+}));
 jest.mock("expo-router", () => ({ useRouter: () => mockRouter }));
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -36,7 +38,9 @@ it("waits for the active Home screen", async () => {
 it("does not onboard an existing linked account after signing out", async () => {
   switchOwner("account:existing");
   await render(<WelcomePrompt />);
-  await waitFor(async () => expect(await getSetting("welcome-seen")).toBe("true"));
+  await waitFor(async () =>
+    expect(await getSetting("welcome-seen")).toBe("true"),
+  );
   await act(() => switchOwner(anonymousOwner()));
   expect(mockPush).not.toHaveBeenCalled();
 });

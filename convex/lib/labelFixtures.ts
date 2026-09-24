@@ -9,27 +9,42 @@ const moma = (path: string) => `https://www.moma.org${path}`;
 export const tavilySeurat = {
   query: '"A Sunday on La Grande Jatte" Georges Seurat',
   images: [
-    artic("/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"),
+    artic(
+      "/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+    ),
     "https://shop.artic.edu/cdn/shop/files/60442_2_1024x728.jpg?v=1763657967",
     "https://archive.artic.edu/seurat/images/lagrandejatte.jpg",
   ],
   results: [
     {
-      url: artic("/artworks/150773/seated-woman-with-a-parasol-study-for-la-grande-jatte"),
+      url: artic(
+        "/artworks/150773/seated-woman-with-a-parasol-study-for-la-grande-jatte",
+      ),
       title:
         "Seated Woman with a Parasol (study for La Grande Jatte) | The Art Institute of Chicago",
       content:
         "During 1884 and 1885, Georges Seurat was hard at work on the most ambitious painting of his career, A Sunday on La Grande Jatte—1884, now a centerpiece of the Art Institute’s collection of 19th-century French painting.",
       score: 0.8536326,
-      images: [artic("/iiif/2/8769be30-7bda-37f2-16a8-30e5396d47dc/full/843,/0/default.jpg")],
+      images: [
+        artic(
+          "/iiif/2/8769be30-7bda-37f2-16a8-30e5396d47dc/full/843,/0/default.jpg",
+        ),
+      ],
     },
     {
-      url: artic("/artworks/61616/oil-sketch-for-a-sunday-on-la-grande-jatte-1884"),
-      title: 'Oil Sketch for "A Sunday on La Grande Jatte — 1884" | The Art Institute of Chicago',
+      url: artic(
+        "/artworks/61616/oil-sketch-for-a-sunday-on-la-grande-jatte-1884",
+      ),
+      title:
+        'Oil Sketch for "A Sunday on La Grande Jatte — 1884" | The Art Institute of Chicago',
       content:
         "This small oil on thin wood panel is one of over 20 painted studies Georges Seurat made for A Sunday on La Grande Jatte—1884.",
       score: 0.8497846,
-      images: [artic("/iiif/2/081be15c-8812-c174-eeb2-cf318a2e67cf/full/843,/0/default.jpg")],
+      images: [
+        artic(
+          "/iiif/2/081be15c-8812-c174-eeb2-cf318a2e67cf/full/843,/0/default.jpg",
+        ),
+      ],
     },
     {
       url: "https://shop.artic.edu/products/60442",
@@ -38,7 +53,9 @@ export const tavilySeurat = {
       content:
         "Poster developed from Georges Seurat’s A Sunday on La Grande Jatte—1884, 1884/86 from The Art Institute of Chicago’s collection.",
       score: 0.8430832,
-      images: ["https://shop.artic.edu/cdn/shop/files/60442_2_1200x853.jpg?v=1763657967"],
+      images: [
+        "https://shop.artic.edu/cdn/shop/files/60442_2_1200x853.jpg?v=1763657967",
+      ],
     },
     {
       url: artic("/artists/40810/georges-seurat"),
@@ -57,7 +74,9 @@ export const tavilySeurat = {
         "## Status\n:   On View, Gallery 240\n\n## Department\n:   Painting and Sculpture of Europe\n\n## Artist\n:   Georges Seurat\n\n## Title\n:   A Sunday on La Grande Jatte — 1884",
       score: 0.81133276,
       images: [
-        artic("/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"),
+        artic(
+          "/iiif/2/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg",
+        ),
         "https://artic-web.imgix.net/b55a24a5-ab1c-453e-9ecd-e30ee5473f6e/navigation-thumbnail-visit.jpg?auto=format&q=1",
       ],
     },
@@ -93,7 +112,9 @@ export const tavilyMonet = {
       content:
         "As part of his extensive gardening plans at Giverny, Monet had a pond dug and planted with lilies in 1893. Water Lilies by Claude Monet.",
       score: 0.79769903,
-      images: ["https://customprints.metmuseum.org/vitruvius/render/1200/489058.jpg"],
+      images: [
+        "https://customprints.metmuseum.org/vitruvius/render/1200/489058.jpg",
+      ],
     },
     {
       url: met("/perspectives/monet-conversation"),
@@ -118,7 +139,8 @@ export const tavilyMonet = {
     },
     {
       url: met("/art/collection/search/437127"),
-      title: "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
+      title:
+        "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
       content:
         "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas",
       score: 0.7610953,
@@ -165,7 +187,9 @@ export const tavilyRodin = {
       content:
         "A universal image of a man lost in thought, The Thinker has become one of the most celebrated sculptures in the history of art. Rodin originally planned to place the figure in the lintel above the doors.",
       score: 0.76972175,
-      images: ["https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A3.jpg"],
+      images: [
+        "https://web-drupal-cms-prod.clevelandart.org/sites/default/files/R1_A3.jpg",
+      ],
     },
   ],
   usage: { credits: 1 },
@@ -219,7 +243,10 @@ export const tavilyStarryNight = {
 };
 
 const item = (id: string) => ({
-  mainsnak: { snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id } } },
+  mainsnak: {
+    snaktype: "value",
+    datavalue: { type: "wikibase-entityid", value: { id } },
+  },
 });
 const time = (value: string) => ({
   mainsnak: {
@@ -236,7 +263,11 @@ export const wikidataSearchWaterLilies = {
       label: "Water Lilies",
       description: "series of approximately 250 paintings by Claude Monet",
     },
-    { id: "Q7973309", label: "Water Lilies", description: "1919 painting by Claude Monet" },
+    {
+      id: "Q7973309",
+      label: "Water Lilies",
+      description: "1919 painting by Claude Monet",
+    },
     {
       id: "Q93512",
       label: "Water Lilies",
@@ -248,7 +279,11 @@ export const wikidataSearchWaterLilies = {
 
 export const wikidataSearchMonet = {
   search: [
-    { id: "Q296", label: "Claude Monet", description: "French impressionist painter (1840–1926)" },
+    {
+      id: "Q296",
+      label: "Claude Monet",
+      description: "French impressionist painter (1840–1926)",
+    },
   ],
   success: 1,
 };
@@ -257,7 +292,11 @@ export const wikidataEntities: Record<string, object> = {
   Q1189907: {
     id: "Q1189907",
     labels: label("Water Lilies"),
-    claims: { P31: [item("Q15727816")], P170: [item("Q296")], P17: [item("Q142")] },
+    claims: {
+      P31: [item("Q15727816")],
+      P170: [item("Q296")],
+      P17: [item("Q142")],
+    },
   },
   Q7973309: {
     id: "Q7973309",
@@ -302,9 +341,13 @@ export const wikidataEntities: Record<string, object> = {
   },
 };
 
-export function wikidataEntitiesResponse(ids: string[]): { entities: Record<string, object> } {
+export function wikidataEntitiesResponse(ids: string[]): {
+  entities: Record<string, object>;
+} {
   const entities: Record<string, object> = {};
-  for (const id of ids) entities[id] = wikidataEntities[id] ?? { id, missing: "" };
+  for (const id of ids) {
+    entities[id] = wikidataEntities[id] ?? { id, missing: "" };
+  }
   return { entities };
 }
 
@@ -348,7 +391,12 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 export function completion(content: unknown, finishReason = "stop"): Response {
   return jsonResponse({
-    choices: [{ message: { content: JSON.stringify(content) }, finish_reason: finishReason }],
+    choices: [
+      {
+        message: { content: JSON.stringify(content) },
+        finish_reason: finishReason,
+      },
+    ],
   });
 }
 
@@ -360,5 +408,11 @@ export const labelReading = {
   medium: "Oil on canvas",
   accession: "1998.325.2",
   credit_line: "Gift of Louise Reinhardt Smith, 1983",
-  confidence: { title: 0.98, artist: 0.99, work_date: 0.9, medium: 0.95, accession: 0.8 },
+  confidence: {
+    title: 0.98,
+    artist: 0.99,
+    work_date: 0.9,
+    medium: 0.95,
+    accession: 0.8,
+  },
 };

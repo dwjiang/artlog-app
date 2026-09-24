@@ -16,7 +16,10 @@ export const unstable_settings = {
   anchor: "(home)",
 };
 
-type RouteState = { index?: number; routes: { name: string; state?: RouteState }[] };
+type RouteState = {
+  index?: number;
+  routes: { name: string; state?: RouteState }[];
+};
 
 /** The tab navigator's state, nested under expo-router's `__root` route and any wrapper above the tabs. */
 function findTabsState(state: RouteState | undefined): RouteState | undefined {
@@ -51,7 +54,8 @@ export default function TabsLayout() {
   const { venue, visit } = useVenue();
   const selectedTab = useSelectedTab();
   // The camera has the venue pill; the bar there would crowd the shutter. A visit paused away from its museum stays quiet.
-  const showVisitBar = !!activeVisit({ venue, visit }) && selectedTab !== "(scan)" && !hidden;
+  const showVisitBar =
+    !!activeVisit({ venue, visit }) && selectedTab !== "(scan)" && !hidden;
   return (
     <TabBarVisibility value={setHidden}>
       <View style={{ flex: 1 }}>
@@ -63,7 +67,9 @@ export default function TabsLayout() {
         >
           <NativeTabs.Trigger name="(home)">
             <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
+            <NativeTabs.Trigger.Icon
+              sf={{ default: "house", selected: "house.fill" }}
+            />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger name="(scan)">
             <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
@@ -72,7 +78,10 @@ export default function TabsLayout() {
           <NativeTabs.Trigger name="(collection)">
             <NativeTabs.Trigger.Label>Collection</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon
-              sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }}
+              sf={{
+                default: "square.grid.2x2",
+                selected: "square.grid.2x2.fill",
+              }}
             />
           </NativeTabs.Trigger>
         </NativeTabs>

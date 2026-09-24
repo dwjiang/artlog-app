@@ -21,7 +21,9 @@ import { GalleryButton } from "./gallery-button";
 import { NoteHeading } from "./note-editor";
 
 export function useArtworkEncounters(work: SavedWork) {
-  const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
+  const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [
+    work.owner,
+  ]);
   const visits = useLiveQuery(listVisits(work.owner), [work.owner]);
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
     work.localId,
@@ -36,10 +38,10 @@ export function useArtworkEncounters(work: SavedWork) {
     .flatMap((visit) => {
       const encounter = encounters.data.find(
         (row) =>
-          row.owner === work.owner &&
-          row.savedLocalId === work.localId &&
-          row.visitLocalId === visit.localId &&
-          row.deletedAt === null,
+          row.owner === work.owner
+          && row.savedLocalId === work.localId
+          && row.visitLocalId === visit.localId
+          && row.deletedAt === null,
       );
       return encounter
         ? [
@@ -48,9 +50,9 @@ export function useArtworkEncounters(work: SavedWork) {
               note: encounter.note,
               photoCount: photos.data.filter(
                 (photo) =>
-                  photo.owner === work.owner &&
-                  photo.savedLocalId === work.localId &&
-                  photo.visitLocalId === visit.localId,
+                  photo.owner === work.owner
+                  && photo.savedLocalId === work.localId
+                  && photo.visitLocalId === visit.localId,
               ).length,
             },
           ]
@@ -65,7 +67,13 @@ export function useArtworkEncounters(work: SavedWork) {
 
 type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 
-export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
+export function ArtworkVisitNote({
+  work,
+  encounter,
+}: {
+  work: SavedWork;
+  encounter: Encounter;
+}) {
   const [editing, setEditing] = useState(false),
     [note, setNote] = useState(""),
     [error, setError] = useState<string>();
@@ -75,7 +83,9 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
         {!editing && (
           <GalleryButton
             label={encounter.note ? "Edit" : "Add"}
-            accessibilityLabel={encounter.note ? "Edit encounter note" : "Add an encounter note"}
+            accessibilityLabel={
+              encounter.note ? "Edit encounter note" : "Add an encounter note"
+            }
             onPress={() => {
               setNote(encounter.note ?? "");
               setEditing(true);
@@ -100,7 +110,12 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
               label="Save encounter note"
               onPress={() => {
                 try {
-                  editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
+                  editEncounter(
+                    work.localId,
+                    encounter.visit.localId,
+                    { note },
+                    work.owner,
+                  );
                   setEditing(false);
                   setError(undefined);
                   showToast("Private note saved for this encounter.");
@@ -159,7 +174,10 @@ export function ArtworkEncounterList({
           accessibilityRole="button"
           accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
           onPress={() =>
-            router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })
+            router.push({
+              pathname: "/journal/[visitId]",
+              params: { visitId: visit.localId },
+            })
           }
           style={styles.visit}
         >
@@ -172,7 +190,9 @@ export function ArtworkEncounterList({
           <Text style={styles.visitName} numberOfLines={2}>
             {visit.venueName}
           </Text>
-          <Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
+          <Text style={styles.visitDate}>
+            {formatVisitDate(visit.visitedOn)}
+          </Text>
           <Image
             source="sf:chevron.right"
             tintColor={Gallery.muted}
@@ -181,8 +201,8 @@ export function ArtworkEncounterList({
           />
         </Pressable>
       ))}
-      {!encounters.length &&
-        (loadError ? (
+      {!encounters.length
+        && (loadError ? (
           <Text accessibilityRole="alert" style={styles.caption}>
             Visits couldn’t load. Close and reopen this artwork to try again.
           </Text>
@@ -198,7 +218,10 @@ export function ArtworkEncounterList({
               label="Link a visit"
               icon="plus"
               onPress={() =>
-                router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })
+                router.push({
+                  pathname: "/link-artwork",
+                  params: { savedId: work.localId },
+                })
               }
             />
           </EmptyState>

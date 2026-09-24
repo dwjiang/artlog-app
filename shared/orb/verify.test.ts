@@ -20,7 +20,9 @@ describe("verifyOrb", () => {
       [0, inputSize],
     ].map(([x, y]) => applyHomography(truth.H, x, y));
     result.corners!.forEach(([x, y], i) => {
-      expect(Math.hypot(x - expected[i][0], y - expected[i][1])).toBeLessThan(3);
+      expect(Math.hypot(x - expected[i][0], y - expected[i][1])).toBeLessThan(
+        3,
+      );
     });
   });
 
@@ -53,7 +55,11 @@ describe("verifyOrb", () => {
 
   it("rejects a mirrored homography even with many inliers", () => {
     const mirrored = [-1, 0, inputSize, 0, 1, 0, 0, 0, 1];
-    const { ref, query } = makeSyntheticPair({ seed: 15, inputSize, homography: mirrored });
+    const { ref, query } = makeSyntheticPair({
+      seed: 15,
+      inputSize,
+      homography: mirrored,
+    });
 
     const result = verifyOrb(query, ref, { inputSize });
 
@@ -63,7 +69,11 @@ describe("verifyOrb", () => {
 
   it("rejects a homography whose projected quad is too small", () => {
     const shrunk = [0.1, 0, 0, 0, 0.1, 0, 0, 0, 1];
-    const { ref, query } = makeSyntheticPair({ seed: 16, inputSize, homography: shrunk });
+    const { ref, query } = makeSyntheticPair({
+      seed: 16,
+      inputSize,
+      homography: shrunk,
+    });
 
     const result = verifyOrb(query, ref, { inputSize });
 

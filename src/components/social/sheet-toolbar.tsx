@@ -5,7 +5,11 @@ export function SheetToolbar() {
   const router = useRouter();
   return (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button onPress={() => router.back()} variant="done" tintColor={Gallery.ink}>
+      <Stack.Toolbar.Button
+        onPress={() => router.back()}
+        variant="done"
+        tintColor={Gallery.ink}
+      >
         Done
       </Stack.Toolbar.Button>
     </Stack.Toolbar>

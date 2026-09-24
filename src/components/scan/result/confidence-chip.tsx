@@ -30,11 +30,17 @@ export function ConfidenceChip({
       style={[
         styles.chip,
         hasMatch && styles.match,
-        kind === "soft" && { backgroundColor: "#FFF0D5", borderColor: "#C68A24" },
+        kind === "soft" && {
+          backgroundColor: "#FFF0D5",
+          borderColor: "#C68A24",
+        },
         style,
       ]}
     >
-      <ThemedText type="smallBold" style={kind === "failed" ? styles.failed : undefined}>
+      <ThemedText
+        type="smallBold"
+        style={kind === "failed" ? styles.failed : undefined}
+      >
         {label}
       </ThemedText>
     </View>

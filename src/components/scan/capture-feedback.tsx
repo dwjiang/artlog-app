@@ -1,7 +1,12 @@
 import { Canvas, Path } from "@shopify/react-native-skia";
 import { useEffect, useSyncExternalStore } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { cancelAnimation, Easing, useSharedValue, withTiming } from "react-native-reanimated";
+import {
+  cancelAnimation,
+  Easing,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import { Colors, Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -27,7 +32,11 @@ export function CaptureFeedback({
     controller.subscribeFeedback,
     () => detecting && (controller.getFeedback()?.progress ?? 0) > 0,
   );
-  const label = busy ? "Identifying artwork" : holding ? "Hold steady" : undefined;
+  const label = busy
+    ? "Identifying artwork"
+    : holding
+      ? "Hold steady"
+      : undefined;
   return (
     <View style={styles.feedback} accessibilityLiveRegion="polite">
       {label && <OverlayCaption>{label}</OverlayCaption>}
@@ -42,11 +51,19 @@ export function CaptureOutline({
   controller: CaptureController;
   preview: FrameSize;
 }) {
-  const feedback = useSyncExternalStore(controller.subscribeFeedback, controller.getFeedback);
+  const feedback = useSyncExternalStore(
+    controller.subscribeFeedback,
+    controller.getFeedback,
+  );
   if (!feedback || !preview.width || !preview.height) return null;
-  const corners = feedback.quad.map(([x, y]) => [x * preview.width, y * preview.height]);
+  const corners = feedback.quad.map(([x, y]) => [
+    x * preview.width,
+    y * preview.height,
+  ]);
   const holding = feedback.progress > 0;
-  const outline = corners.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ") + " Z";
+  const outline =
+    corners.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" ")
+    + " Z";
   const brackets = corners
     .map(([x, y], index) => {
       const tip = (neighbor: number[]) => {
@@ -113,7 +130,10 @@ export function CaptureShutter({
   const value = captured ? 1 : detecting ? progressed : 0;
   useEffect(() => {
     progress.set(
-      withTiming(value, { duration: reduced || value === 0 ? 0 : 80, easing: Easing.linear }),
+      withTiming(value, {
+        duration: reduced || value === 0 ? 0 : 80,
+        easing: Easing.linear,
+      }),
     );
     return () => cancelAnimation(progress);
   }, [value, progress, reduced]);
@@ -143,7 +163,10 @@ export function CaptureShutter({
         disabled={disabled}
         accessibilityState={{ disabled, busy }}
         onPress={onPress}
-        style={({ pressed }) => [styles.shutter, (pressed || disabled) && styles.dimmed]}
+        style={({ pressed }) => [
+          styles.shutter,
+          (pressed || disabled) && styles.dimmed,
+        ]}
       >
         <View style={styles.shutterInner} />
       </Pressable>
@@ -154,7 +177,13 @@ export function CaptureShutter({
 const styles = StyleSheet.create({
   feedback: { minHeight: 44, justifyContent: "center" },
   shutterContainer: { width: SHUTTER_SIZE, height: SHUTTER_SIZE },
-  ring: { position: "absolute", width: RING_SIZE, height: RING_SIZE, left: -7, top: -7 },
+  ring: {
+    position: "absolute",
+    width: RING_SIZE,
+    height: RING_SIZE,
+    left: -7,
+    top: -7,
+  },
   shutter: {
     width: SHUTTER_SIZE,
     height: SHUTTER_SIZE,

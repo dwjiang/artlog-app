@@ -26,7 +26,11 @@ jest.mock("@/lib/venue/venue-db", () => ({
 }));
 
 const capturedAt = Date.UTC(2026, 8, 1, 16);
-const atMuseum = { photoPath: "photo.jpg", venueId: "museum-met" as never, capturedAt };
+const atMuseum = {
+  photoPath: "photo.jpg",
+  venueId: "museum-met" as never,
+  capturedAt,
+};
 
 it("leads the save-bar row with the day so a long museum name truncates first", async () => {
   await render(<CaptureContextButton capture={atMuseum} variant="row" />);
@@ -35,12 +39,22 @@ it("leads the save-bar row with the day so a long museum name truncates first", 
       name: "Visit: 1 Sep 2026 · Metropolitan Museum of Art · Change",
     }),
   );
-  expect(mockPush).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/capture-context" }));
+  expect(mockPush).toHaveBeenCalledWith(
+    expect.objectContaining({ pathname: "/capture-context" }),
+  );
 });
 
 it("names a capture without a visit in both variants", async () => {
-  const view = await render(<CaptureContextButton capture={{ photoPath: "photo.jpg" }} />);
-  expect(await screen.findByRole("button", { name: "No visit · Change" })).toBeOnTheScreen();
-  await view.rerender(<CaptureContextButton capture={{ photoPath: "photo.jpg" }} variant="row" />);
-  expect(await screen.findByRole("button", { name: "Visit: None · Change" })).toBeOnTheScreen();
+  const view = await render(
+    <CaptureContextButton capture={{ photoPath: "photo.jpg" }} />,
+  );
+  expect(
+    await screen.findByRole("button", { name: "No visit · Change" }),
+  ).toBeOnTheScreen();
+  await view.rerender(
+    <CaptureContextButton capture={{ photoPath: "photo.jpg" }} variant="row" />,
+  );
+  expect(
+    await screen.findByRole("button", { name: "Visit: None · Change" }),
+  ).toBeOnTheScreen();
 });

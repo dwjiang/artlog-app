@@ -18,7 +18,9 @@ import { testVector } from "./lib/testFactories";
 function tavilySpent(): number {
   // Sourcing an unquoted CONVEX_DEPLOY_KEY line exports a stray empty `eyJ…` variable that the CLI refuses.
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key, value]) => !(key.startsWith("ey") && value === "")),
+    Object.entries(process.env).filter(
+      ([key, value]) => !(key.startsWith("ey") && value === ""),
+    ),
   ) as NodeJS.ProcessEnv;
   const output = execFileSync(
     "npx",
@@ -36,9 +38,14 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
   "searches the venue site for current exhibitions on the dev deployment",
   async () => {
     const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
-    const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as Id<"museums"> | undefined;
-    if (!url || !venueId)
-      throw new Error("CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required");
+    const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as
+      | Id<"museums">
+      | undefined;
+    if (!url || !venueId) {
+      throw new Error(
+        "CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required",
+      );
+    }
     const client = new ConvexHttpClient(url);
     const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
       b.toString(16).padStart(2, "0"),
@@ -50,7 +57,9 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
     const token = signedIn.tokens?.token;
     if (!token) throw new Error("Anonymous sign-in returned no token");
     client.setAuth(token);
-    await client.mutation(api.devices.registerDevice, { platform: "simulator" });
+    await client.mutation(api.devices.registerDevice, {
+      platform: "simulator",
+    });
     const pair = makeSyntheticPair({ count: 120 });
     const scan = await client.action(api.identify.identify, {
       localId: crypto.randomUUID(),
@@ -61,12 +70,16 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
       capturedAt: Date.now(),
       scope: (await client.query(api.accounts.me, {})).scope,
     });
-    stdout.write(`scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`);
+    stdout.write(
+      `scan ${scan.scanId} status=${scan.status} outcome=${scan.outcome}\n`,
+    );
     expect(scan.outcome).not.toBe("confident");
 
     const before = tavilySpent();
     const started = Date.now();
-    const result = await client.action(api.museumSearch.searchExhibitions, { scanId: scan.scanId });
+    const result = await client.action(api.museumSearch.searchExhibitions, {
+      scanId: scan.scanId,
+    });
     stdout.write(
       `searchExhibitions ${Date.now() - started} ms\n${JSON.stringify(result, null, 2)}\n`,
     );

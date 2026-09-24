@@ -9,16 +9,19 @@ export async function prepareCaptureVisit(
   capturedAt: number,
 ): Promise<VenueContext> {
   if (!isTimestamp(capturedAt)) throw new Error("Invalid capture date");
-  if (context.visitLocalId === undefined && context.visitId === undefined) return context;
+  if (context.visitLocalId === undefined && context.visitId === undefined) {
+    return context;
+  }
   const current = captureOwner();
   const visit = context.visitLocalId
     ? await getVisit(context.visitLocalId, current.owner)
     : undefined;
   if (!current.isCurrent()) throw new Error("Journal owner changed");
   if (
-    !visit ||
-    visit.venueId !== context.venueId ||
-    (context.visitId !== undefined && visit.remoteVisitId !== context.visitId)
+    !visit
+    || visit.venueId !== context.venueId
+    || (context.visitId !== undefined
+      && visit.remoteVisitId !== context.visitId)
   ) {
     throw new Error("The capture is linked to an invalid visit");
   }
@@ -26,7 +29,10 @@ export async function prepareCaptureVisit(
   if (visit.startedAt !== null && capturedAt < visit.startedAt) {
     await patchVisit(
       visit.localId,
-      { startedAt: capturedAt, visitedOn: calendarDate(capturedAt, visit.timeZone) },
+      {
+        startedAt: capturedAt,
+        visitedOn: calendarDate(capturedAt, visit.timeZone),
+      },
       current.owner,
     );
   }

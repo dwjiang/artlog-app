@@ -59,7 +59,13 @@ export function AddPhotosScreen() {
     objectId?: string;
   }>();
   const owner = useLocalOwner();
-  return <PhotoSession key={`${owner}:${params.draftId}`} {...params} owner={owner} />;
+  return (
+    <PhotoSession
+      key={`${owner}:${params.draftId}`}
+      {...params}
+      owner={owner}
+    />
+  );
 }
 function PhotoSession({
   draftId,
@@ -77,10 +83,11 @@ function PhotoSession({
   owner: string;
 }) {
   const { fontScale } = useWindowDimensions();
-  const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
+  const [target, setTarget] =
+    useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
-    if (savedId)
+    if (savedId) {
       void (async () => {
         try {
           const work = await getSavedWork(savedId, owner);
@@ -89,6 +96,7 @@ function PhotoSession({
           reportError(error, "capture.load_album");
         }
       })();
+    }
     return () => {
       current = false;
     };
@@ -100,10 +108,14 @@ function PhotoSession({
   const completion = albumCompletion ?? newArtwork.completion;
   const [kind, setKind] = useState<PhotoKind>("detail");
   const [selected, setSelected] = useState<string | undefined>(
-    () => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? "",
+    () =>
+      readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId
+      ?? "",
   );
   const [removed, setRemoved] = useState<DraftPhoto>();
-  const [operation, setOperation] = useState<"adding" | "saving" | "separating">(),
+  const [operation, setOperation] = useState<
+      "adding" | "saving" | "separating"
+    >(),
     [ready, setReady] = useState(false),
     [error, setError] = useState<string>();
   const busy = operation !== undefined;
@@ -142,7 +154,10 @@ function PhotoSession({
       const sources: { uri: string; capturedAt: number }[] = [];
       if (source === "camera") {
         const photo = await output.capturePhotoToFile({}, {});
-        sources.push({ uri: `file://${photo.filePath}`, capturedAt: Date.now() });
+        sources.push({
+          uri: `file://${photo.filePath}`,
+          capturedAt: Date.now(),
+        });
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
@@ -152,13 +167,14 @@ function PhotoSession({
           exif: true,
           quality: 1,
         });
-        if (!result.canceled)
+        if (!result.canceled) {
           sources.push(
             ...result.assets.map((photo) => ({
               uri: photo.uri,
               capturedAt: extractCaptureMeta(photo.exif).capturedAt,
             })),
           );
+        }
       }
       const next = [...photos];
       let checks = 0;
@@ -174,15 +190,22 @@ function PhotoSession({
           path,
           kind,
           capturedAt,
-          ...(kind === "full" ? { review: check ? "checking" : "uncertain" } : {}),
+          ...(kind === "full"
+            ? { review: check ? "checking" : "uncertain" }
+            : {}),
         };
         next.push(photo);
         // Persist each photo before asking the camera for another one.
         update([...next]);
         if (check) {
           checks++;
-          const target = savedId ? await getSavedWork(savedId, owner) : undefined;
-          const result = await checkAlbumPhoto(photo, target?.objectId ?? objectId);
+          const target = savedId
+            ? await getSavedWork(savedId, owner)
+            : undefined;
+          const result = await checkAlbumPhoto(
+            photo,
+            target?.objectId ?? objectId,
+          );
           if (!session.isOwnerCurrent()) return;
           Object.assign(photo, result);
           update([...next]);
@@ -204,11 +227,18 @@ function PhotoSession({
   async function sessionVisitId(): Promise<string | undefined> {
     const session = readPhotoSession(owner, draftId);
     const choice = captureVisitChoice(
-      { visitLocalId: visitId, venueId: saveCapture?.venueId, capturedAt: contextCapturedAt },
+      {
+        visitLocalId: visitId,
+        venueId: saveCapture?.venueId,
+        capturedAt: contextCapturedAt,
+      },
       session,
     );
-    if (choice.kind === "venue")
-      return (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId;
+    if (choice.kind === "venue") {
+      return (
+        await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())
+      ).localId;
+    }
     return choice.kind === "visit" ? choice.localId : undefined;
   }
   async function done() {
@@ -225,7 +255,9 @@ function PhotoSession({
       if (savedId) {
         if (!photos.length) return;
         const selectedVisitId = await sessionVisitId();
-        const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
+        const visit = selectedVisitId
+          ? await getVisit(selectedVisitId, owner)
+          : undefined;
         if (selectedVisitId && !visit) throw new Error("Visit unavailable");
         if (!session.isOwnerCurrent()) return;
         saveArtworkSession(
@@ -253,11 +285,15 @@ function PhotoSession({
         const input = readPhotoSession(owner, draftId).saveInput;
         if (!input) throw new Error("Capture unavailable");
         const capture = await getPendingScan(input.capture.localId, owner);
-        if (!capture || !session.isOwnerCurrent()) throw new Error("Capture unavailable");
+        if (!capture || !session.isOwnerCurrent()) {
+          throw new Error("Capture unavailable");
+        }
         await newArtwork.save({
           ...input,
           capture,
-          contribution: input.contribution ? { ...input.contribution, capture } : undefined,
+          contribution: input.contribution
+            ? { ...input.contribution, capture }
+            : undefined,
         });
       }
     } catch (error) {
@@ -275,10 +311,14 @@ function PhotoSession({
     setOperation("separating");
     try {
       const existing = photo.recognized
-        ? (await listSavedWorks(owner)).find((work) => work.objectId === photo.recognized!.objectId)
+        ? (await listSavedWorks(owner)).find(
+            (work) => work.objectId === photo.recognized!.objectId,
+          )
         : undefined;
       const selectedVisitId = await sessionVisitId();
-      const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
+      const visit = selectedVisitId
+        ? await getVisit(selectedVisitId, owner)
+        : undefined;
       if (selectedVisitId && !visit) throw new Error("Visit unavailable");
       if (!session.isOwnerCurrent()) return;
       const id = existing?.localId ?? randomUUID();
@@ -317,13 +357,15 @@ function PhotoSession({
       setSelected(undefined);
     } catch (error) {
       reportError(error, "capture.save_separate_photo");
-      setError("Could not save this photo separately. Your draft is still here.");
+      setError(
+        "Could not save this photo separately. Your draft is still here.",
+      );
     } finally {
       busyRef.current = false;
       setOperation(undefined);
     }
   }
-  if (completion)
+  if (completion) {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: Gallery.paper }}
@@ -335,7 +377,9 @@ function PhotoSession({
           inline
           sharedToIndex={newArtwork.shared?.status === "tentative"}
         />
-        <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}>
+        <View
+          style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}
+        >
           <ContributionStatus
             sharing={newArtwork.sharing}
             shared={newArtwork.shared}
@@ -347,9 +391,12 @@ function PhotoSession({
         </View>
       </ScrollView>
     );
+  }
   const photoCount = photos.length + (savedId ? 0 : 1);
   const shares =
-    !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
+    !savedId
+    && !!saveCapture
+    && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return (
     <ScrollView
       style={styles.screen}
@@ -359,7 +406,12 @@ function PhotoSession({
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: "Add photos" }} />
-      <View style={[styles.target, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+      <View
+        style={[
+          styles.target,
+          { flexDirection: "row", alignItems: "center", gap: 12 },
+        ]}
+      >
         <SavedWorkImage
           path={target?.cropPath ?? input?.capture.cropPath ?? null}
           title={target?.title ?? title ?? "Artwork"}
@@ -371,9 +423,9 @@ function PhotoSession({
             {target?.title || title || "Unidentified artwork"}
           </ThemedText>
           <ThemedText type="small" style={styles.hint}>
-            {target?.artist ||
-              input?.draft.artist ||
-              "Full views, details, and labels stay together."}
+            {target?.artist
+              || input?.draft.artist
+              || "Full views, details, and labels stay together."}
           </ThemedText>
         </View>
       </View>
@@ -429,7 +481,9 @@ function PhotoSession({
               onStarted={() => setReady(true)}
               onStopped={() => setReady(false)}
               onError={(error) => {
-                reportError(error, "camera.start", { data: { screen: "add_photos" } });
+                reportError(error, "camera.start", {
+                  data: { screen: "add_photos" },
+                });
                 setError("Camera unavailable. Add photos from your library.");
               }}
             />
@@ -496,7 +550,9 @@ function PhotoSession({
             onChangeText={(caption) =>
               update(
                 photos.map((photo) =>
-                  photo.localId === currentPhoto.localId ? { ...photo, caption } : photo,
+                  photo.localId === currentPhoto.localId
+                    ? { ...photo, caption }
+                    : photo,
                 ),
               )
             }
@@ -514,7 +570,11 @@ function PhotoSession({
               onPress={() => {
                 if (removed) removePhotoFile(removed.path);
                 setRemoved(currentPhoto);
-                update(photos.filter((photo) => photo.localId !== currentPhoto.localId));
+                update(
+                  photos.filter(
+                    (photo) => photo.localId !== currentPhoto.localId,
+                  ),
+                );
                 setSelected(undefined);
               }}
             />
@@ -549,13 +609,20 @@ function PhotoSession({
           )}
         </View>
       )}
-      <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
+      <ScrollView
+        horizontal
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ gap: 8 }}
+      >
         {photos.map((photo, i) => (
           <Pressable
             key={photo.localId}
             accessibilityRole="button"
             accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`}
-            accessibilityState={{ selected: selected === photo.localId, disabled: busy }}
+            accessibilityState={{
+              selected: selected === photo.localId,
+              disabled: busy,
+            }}
             disabled={busy}
             onPress={() => setSelected(photo.localId)}
             style={[
@@ -603,7 +670,10 @@ function PhotoSession({
         />
       )}
       {(error || newArtwork.error) && (
-        <ThemedText accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+        <ThemedText
+          accessibilityRole="alert"
+          style={{ color: Gallery.destructive }}
+        >
           {error || newArtwork.error}
         </ThemedText>
       )}
@@ -614,7 +684,9 @@ function PhotoSession({
           fullWidth
           busy={operation === "saving"}
           busyLabel="Saving photos…"
-          disabled={busy || !photoCount || photos.some((photo) => !!photo.review)}
+          disabled={
+            busy || !photoCount || photos.some((photo) => !!photo.review)
+          }
           onPress={() => {
             void done();
           }}
@@ -636,10 +708,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   hint: { color: Gallery.muted },
-  camera: { width: "100%", aspectRatio: 1, overflow: "hidden", backgroundColor: Gallery.fill },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  camera: {
+    width: "100%",
+    aspectRatio: 1,
+    overflow: "hidden",
+    backgroundColor: Gallery.fill,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   stacked: { flexDirection: "column", alignItems: "stretch" },
-  thumb: { borderWidth: 2, borderColor: "transparent", borderRadius: 2, overflow: "hidden" },
+  thumb: {
+    borderWidth: 2,
+    borderColor: "transparent",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
   thumbLabel: { textAlign: "center", color: Gallery.ink, paddingVertical: 4 },
   caption: {
     minHeight: 44,

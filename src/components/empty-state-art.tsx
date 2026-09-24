@@ -30,7 +30,10 @@ export function EmptyPaper({ kind }: { kind: "label" | "note" }) {
   return (
     <View accessibilityElementsHidden style={styles.paperArea}>
       <View
-        style={[styles.paper, { transform: [{ rotate: kind === "label" ? "-5deg" : "4deg" }] }]}
+        style={[
+          styles.paper,
+          { transform: [{ rotate: kind === "label" ? "-5deg" : "4deg" }] },
+        ]}
       >
         <Image
           source={kind === "label" ? "sf:building.columns" : "sf:quote.opening"}
@@ -39,7 +42,10 @@ export function EmptyPaper({ kind }: { kind: "label" | "note" }) {
           style={{ width: 27, height: 27 }}
         />
         {[0, 1, 2].map((line) => (
-          <View key={line} style={[styles.rule, { width: line === 2 ? "60%" : "100%" }]} />
+          <View
+            key={line}
+            style={[styles.rule, { width: line === 2 ? "60%" : "100%" }]}
+          />
         ))}
       </View>
     </View>
@@ -50,7 +56,10 @@ export function EmptyMap() {
   return (
     <View accessibilityElementsHidden style={styles.map}>
       {[30, 95, 160].map((left) => (
-        <View key={left} style={[styles.road, { left, transform: [{ rotate: "24deg" }] }]} />
+        <View
+          key={left}
+          style={[styles.road, { left, transform: [{ rotate: "24deg" }] }]}
+        />
       ))}
       <View style={[styles.road, { width: "100%", height: 14, top: 55 }]} />
       <View style={styles.park} />
@@ -96,7 +105,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignSelf: "center",
   },
-  road: { position: "absolute", width: 12, height: 170, top: -15, backgroundColor: Gallery.paper },
+  road: {
+    position: "absolute",
+    width: 12,
+    height: 170,
+    top: -15,
+    backgroundColor: Gallery.paper,
+  },
   park: {
     position: "absolute",
     width: 54,

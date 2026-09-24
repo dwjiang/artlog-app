@@ -35,7 +35,10 @@ export type PhotoSessionDraft = {
 function key(owner: string, draftId: string) {
   return `photoDraft:${owner}:${draftId}`;
 }
-export function readPhotoSession(owner: string, draftId: string): PhotoSessionDraft {
+export function readPhotoSession(
+  owner: string,
+  draftId: string,
+): PhotoSessionDraft {
   const value = db
     .select()
     .from(settings)
@@ -49,10 +52,10 @@ export function readPhotoSession(owner: string, draftId: string): PhotoSessionDr
       photos: Array.isArray(parsed.photos)
         ? parsed.photos.filter(
             (photo) =>
-              typeof photo?.localId === "string" &&
-              typeof photo?.path === "string" &&
-              ["full", "detail", "label"].includes(photo?.kind) &&
-              Number.isFinite(photo?.capturedAt),
+              typeof photo?.localId === "string"
+              && typeof photo?.path === "string"
+              && ["full", "detail", "label"].includes(photo?.kind)
+              && Number.isFinite(photo?.capturedAt),
           )
         : [],
     };
@@ -69,13 +72,20 @@ export function updatePhotoSession(
   draftId: string,
   patch: Partial<PhotoSessionDraft>,
 ) {
-  const value = JSON.stringify({ ...readPhotoSession(owner, draftId), ...patch });
+  const value = JSON.stringify({
+    ...readPhotoSession(owner, draftId),
+    ...patch,
+  });
   db.insert(settings)
     .values({ key: key(owner, draftId), value })
     .onConflictDoUpdate({ target: settings.key, set: { value } })
     .run();
 }
-export function writePhotoDraft(owner: string, draftId: string, photos: DraftPhoto[]) {
+export function writePhotoDraft(
+  owner: string,
+  draftId: string,
+  photos: DraftPhoto[],
+) {
   updatePhotoSession(owner, draftId, { photos });
 }
 export function clearPhotoDraft(owner: string, draftId: string) {
@@ -84,9 +94,13 @@ export function clearPhotoDraft(owner: string, draftId: string) {
     .run();
 }
 
-export function isLabelCapture(capture: { localId: string; owner: string; photoPath: string }) {
+export function isLabelCapture(capture: {
+  localId: string;
+  owner: string;
+  photoPath: string;
+}) {
   return (
-    readPhotoSession(capture.owner, capture.photoPath).primaryKind === "label" ||
-    findArtworkPhoto(capture.localId, capture.owner)?.kind === "label"
+    readPhotoSession(capture.owner, capture.photoPath).primaryKind === "label"
+    || findArtworkPhoto(capture.localId, capture.owner)?.kind === "label"
   );
 }

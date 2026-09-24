@@ -12,10 +12,14 @@ jest.mock("expo-glass-effect", () => ({
 }));
 
 it("replaces camera glass with an opaque backing when Reduce Transparency changes", async () => {
-  jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(false);
+  jest
+    .spyOn(AccessibilityInfo, "isReduceTransparencyEnabled")
+    .mockResolvedValue(false);
   jest
     .spyOn(AccessibilityInfo, "addEventListener")
-    .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
+    .mockImplementation((event, listener) =>
+      DeviceEventEmitter.addListener(event, listener),
+    );
   await render(
     <GlassSurface>
       <ThemedText>Capture artwork</ThemedText>

@@ -38,7 +38,9 @@ const mockWall = {
   repository: { setNoteDraft: mockSetDraft, publishNotes: mockPublish },
   setError: jest.fn(),
 };
-jest.mock("@/lib/ui/toast", () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+}));
 jest.mock("expo-router", () => {
   const { Pressable, Text } = jest.requireActual("react-native");
   const Toolbar = ({ children }: { children: React.ReactNode }) => children;
@@ -155,7 +157,9 @@ it("previews the full visitor wall and reveals only selected notes when opening 
 });
 it("applies unsaved choices in preview, keeps them on return, and publishes only on save", async () => {
   const view = await render(<PublicNotesScreen />);
-  await fireEvent.press(screen.getAllByRole("switch", { name: "Show note on public wall" })[1]);
+  await fireEvent.press(
+    screen.getAllByRole("switch", { name: "Show note on public wall" })[1],
+  );
   expect(mockSetDraft).toHaveBeenCalledWith([{ itemId: "b", visible: true }]);
   mockWall.noteDraft = [
     { itemId: "a", visible: false },
@@ -169,7 +173,9 @@ it("applies unsaved choices in preview, keeps them on return, and publishes only
   expect(mockPublish).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Back to wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "Edit" }));
-  expect(screen.getAllByRole("switch", { name: "Show note on public wall" })[1]).toHaveProp(
+  expect(
+    screen.getAllByRole("switch", { name: "Show note on public wall" })[1],
+  ).toHaveProp(
     "accessibilityState",
     expect.objectContaining({ checked: true }),
   );
@@ -187,7 +193,12 @@ it("waits for the first wall read, then invites a note from the wall when none c
   await view.rerender(<PublicNotesScreen />);
   expect(screen.getByText("No notes to share yet.")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Go to your wall" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Go to your wall" }),
+  );
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
-  expect(mockNavigate).toHaveBeenCalledWith({ pathname: "/collection", params: { view: "wall" } });
+  expect(mockNavigate).toHaveBeenCalledWith({
+    pathname: "/collection",
+    params: { view: "wall" },
+  });
 });

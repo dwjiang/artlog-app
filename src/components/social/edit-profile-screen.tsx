@@ -31,7 +31,7 @@ export function EditProfileScreen() {
     session.key,
   );
   if (session.status !== "ready") return <SocialGate session={session} />;
-  if (profile.data === null)
+  if (profile.data === null) {
     return (
       <SocialState
         title="Profile unavailable."
@@ -40,15 +40,21 @@ export function EditProfileScreen() {
         onAction={() => router.back()}
       />
     );
-  if (!profile.data)
+  }
+  if (!profile.data) {
     return (
       <SocialState
-        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
+        title={
+          profile.error
+            ? "Couldn’t load your profile."
+            : "Opening your profile…"
+        }
         loading={!profile.error}
         action={profile.error ? "Try again" : undefined}
         onAction={profile.refresh}
       />
     );
+  }
   return <EditProfileForm key={session.key} profile={profile.data} />;
 }
 
@@ -85,7 +91,9 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       }
     } catch (cause) {
       reportError(cause, "profile.photo.choose");
-      if (mounted.current) setError("This photo could not be opened. Try another image.");
+      if (mounted.current) {
+        setError("This photo could not be opened. Try another image.");
+      }
     } finally {
       if (mounted.current) setOperation(undefined);
     }
@@ -96,7 +104,8 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
     setOperation("save");
     setError(undefined);
     try {
-      const bytes = typeof photo === "string" ? await profilePhotoBytes(photo) : photo;
+      const bytes =
+        typeof photo === "string" ? await profilePhotoBytes(photo) : photo;
       if (!owner.isCurrent() || !mounted.current) return;
       await save({
         name: name.trim(),
@@ -109,13 +118,18 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       }
     } catch (cause) {
       reportError(cause, "profile.update");
-      if (owner.isCurrent() && mounted.current)
-        setError(socialErrorMessage(cause) ?? "Your profile was not saved. Please try again.");
+      if (owner.isCurrent() && mounted.current) {
+        setError(
+          socialErrorMessage(cause)
+            ?? "Your profile was not saved. Please try again.",
+        );
+      }
     } finally {
       if (owner.isCurrent() && mounted.current) setOperation(undefined);
     }
   }
-  const shownPhoto = photo === undefined ? profile.photoUrl : (photo ?? undefined);
+  const shownPhoto =
+    photo === undefined ? profile.photoUrl : (photo ?? undefined);
   return (
     <>
       <Stack.Toolbar placement="left">
@@ -159,7 +173,12 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
         </View>
         {[
           { label: "Name", value: name, change: setName, max: LIMITS.name },
-          { label: "Introduction", value: bio, change: setBio, max: LIMITS.bio },
+          {
+            label: "Introduction",
+            value: bio,
+            change: setBio,
+            max: LIMITS.bio,
+          },
         ].map((field) => (
           <View key={field.label} style={{ gap: 8 }}>
             <Text>{field.label}</Text>
@@ -188,13 +207,18 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
         ))}
         <View style={{ gap: 4 }}>
           <Text style={{ color: Gallery.muted }}>@{profile.username}</Text>
-          <Text style={{ color: Gallery.muted, fontSize: 13 }}>Usernames can’t be changed.</Text>
+          <Text style={{ color: Gallery.muted, fontSize: 13 }}>
+            Usernames can’t be changed.
+          </Text>
         </View>
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           Your photo, name and introduction appear on your public profile.
         </Text>
         {error && (
-          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+          <Text
+            accessibilityRole="alert"
+            style={{ color: Gallery.destructive }}
+          >
             {error}
           </Text>
         )}

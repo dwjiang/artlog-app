@@ -11,13 +11,20 @@ let mockAccount: unknown;
 let mockMine: unknown;
 const mockRead = jest.fn();
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
-jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: !mockOffline }) }));
+jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isConnected: !mockOffline }),
+}));
 jest.mock("../use-device-ready", () => ({ useDeviceReady: () => mockReady }));
 jest.mock("./use-social-query", () => ({
   useSocialQuery: (query: FunctionReference<"query">, args: unknown) => {
     const name = jest.requireActual("convex/server").getFunctionName(query);
     mockRead(name, args);
-    const value = args === "skip" ? undefined : name === "accounts:me" ? mockAccount : mockMine;
+    const value =
+      args === "skip"
+        ? undefined
+        : name === "accounts:me"
+          ? mockAccount
+          : mockMine;
     return {
       data: value instanceof Error ? undefined : value,
       error: value instanceof Error ? value : undefined,

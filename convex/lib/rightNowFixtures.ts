@@ -24,7 +24,8 @@ export const kusamaSf: RightNowFixture = {
     results: [
       {
         url: "https://www.sfchronicle.com/entertainment/arts-exhibits/article/yayoi-kusama-death-sfmoma-controversy-22406208.php",
-        title: "How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning",
+        title:
+          "How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning",
         content:
           "During the run of the show, the institution eventually acquired the “Infinity Mirror Room,” “Dreaming of Earth’s Sphericity, I Would Offer My Love” (2023).\n\nA party guest stands near Yayoi Kusama’s “Aspiring to Pumpkin’s Love, the Love in My Heart” in 2025. Her 2023 solo exhibition “Yayoi Kusama: Infinite Love” brought more than 170,000 visitors to the museum during its six-month run.\n\nCarlos Avila Gonzalez/S.F. Chronicle\n\nThis was Kusama at a major career pinnacle. [...] Subscribe\n\nArts & Entertainment//Arts & Exhibits\n\n# How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning\n\nBy Tony Bravo, Arts & Culture ColumnistUpdated\n\nYayoi Kusama, pictured here in Tokyo, in 2012. The artist died on Aug. 14, at age 97.\n\nItsuo Inouye/Associated Press\n\nFor many Bay Area museumgoers, Yayoi Kusama’s first solo Northern California exhibition at the San Francisco Museum of Modern Art in 2023 became the backdrop for selfies and Instagram reels. [...] Now, with news of Kusama’s death in Tokyo at 97 on Aug. 14, confirmed by the Yayoi Kusama Studio this week, the controversy that shadowed that SFMOMA show is inseparable from her local legacy.",
         score: 0.6964752,
@@ -33,7 +34,8 @@ export const kusamaSf: RightNowFixture = {
       },
       {
         url: "https://www.mercurynews.com/2026/08/26/yayoi-kusama-who-splashed-polka-dots-across-the-art-world-dies-at-97-in-tokyo",
-        title: "Yayoi Kusama, who splashed polka dots across the art world, dies at 97 in Tokyo",
+        title:
+          "Yayoi Kusama, who splashed polka dots across the art world, dies at 97 in Tokyo",
         content:
           "TOKYO (AP) — Japanese artist Yayoi Kusama, who splashed her signature polka dots on paintings, sculptures and museum installations around the world,",
         score: 0.35999444,
@@ -42,7 +44,8 @@ export const kusamaSf: RightNowFixture = {
       },
       {
         url: "https://www.mercurynews.com/2026/08/26/yayoi-kusama-who-splashed-polka-dots-across-art-world-dies-at-97/amp",
-        title: "Yayoi Kusama, who splashed polka dots across art world, dies at 97",
+        title:
+          "Yayoi Kusama, who splashed polka dots across art world, dies at 97",
         content:
           "TOKYO (AP) — Japanese artist Yayoi Kusama, who splashed her signature polka dots on paintings, sculptures and museum installations around the world,",
         score: 0.35770264,
@@ -75,7 +78,8 @@ export const kusamaNy: RightNowFixture = {
     results: [
       {
         url: "https://www.nytimes.com/2026/09/02/arts/design/yayoi-kusama-final-years.html",
-        title: "The Mysterious and Lonely Final Decade of Yayoi Kusama’s Life - The New York Times",
+        title:
+          "The Mysterious and Lonely Final Decade of Yayoi Kusama’s Life - The New York Times",
         content:
           "In April, the gallerist David Zwirner will exhibit a selection of Kusama’s final works in New York.\n\n“We’re so excited about the last decade,” the dealer said. “Arguably, this was the most extraordinary and successful decade of her career.”\n\nIt was also the most elusive, as the artist receded from view. [...] One of Kusama’s last public appearances was in 2017 at the opening of her museum in Tokyo. Longtime friends, curators and collectors said that she stopped receiving most guests in 2019 at the psychiatric hospital where she had lived for decades.\n\nYet her studio — a small group of assistants meant to carry out her artistic vision — was more prolific than ever, producing dozens of paintings and sculptures with her signature. [...] In 2024, a new pumpkin sculpture on the Yayoi Kusama Museum’s Tokyo rooftop prompted questions. Although it was signed and dated by the artist, it was created at a time when, according to those closest to her, she was mostly bedridden and making paintings with the help of assistants who carried small canvases to her.\n\nWe are having trouble retrieving the article content.\n\nPlease enable JavaScript in your browser settings.",
         score: 0.7125728,
@@ -180,7 +184,8 @@ export const crosbyNy: RightNowFixture = {
     results: [
       {
         url: "https://www.metmuseum.org/ru/exhibitions/the-face-of-life-modern-portraits-at-the-met%2Fa-contemporary-presence",
-        title: "The Face of Life: Modern Portraits at The Met - The Metropolitan Museum of Art",
+        title:
+          "The Face of Life: Modern Portraits at The Met - The Metropolitan Museum of Art",
         content:
           "Njideka Akunyili Crosby (Nigerian, 1983). Mother and Child, 2016. Acrylic, transfer printing, colored pencil, cut and pasted paper, and printed fabric on paper, 95 3/4 in. × 10 ft. 4 1/4 in. (243.2 × 315.6 cm). The Metropolitan Museum of Art, New York, Purchase, The Jacques and Natasha Gelman Foundation Gift, 2017 (2017.106). © Njideka Akunyili Crosby [...] his wife’s solitary presence. Crosby’s scene similarly carries traces of absent others. The wallpaper behind the double portrait is made from fabric commemorating her mother, Dora Akunyili, a Nigerian health official and social advocate who died in 2014. Created while the artist was pregnant, the work is a poignant meditation on memory, motherhood, and loss. [...] Akunyili Crosby sits in her Los Angeles living room, a space imbued with elements of personal history, facing a large black‑and‑white image of her maternal grandmother and youngest aunt. The terrazzo floor recalls her childhood home in Lagos and is formed from transfers of family photographs. The composition references Vilhelm Hammershøi, whose painting she re-created on the far wall. In his atmospheric domestic interiors, open doors reveal quiet rooms, often haunted by his wife’s solitary",
         score: 0.6609831,
@@ -339,7 +344,8 @@ export const banksyNy: RightNowFixture = {
     results: [
       {
         url: "https://gothamist.com/arts-entertainment/photo-hanksy-pays-tribute-to-stephen-colbert-with-a-col-bear",
-        title: "Photo: Hanksy Pays Tribute To Stephen Colbert With A Col-Bear - Gothamist",
+        title:
+          "Photo: Hanksy Pays Tribute To Stephen Colbert With A Col-Bear - Gothamist",
         content:
           'Earlier this week, Stephen Colbert addressed Banksy\'s month-long open air street art tour of the city by attempting to lure the reclusive street artist to come vandalize the walls of his studio (see the video below). And while Banksy has yet to draw Colbert riding a shark, NY-based street artist Hanksy did show up to place the above "Col-Bear" on the wall at W 54th Street between 10th and 11th Avenues. "It went up last night," Hanksy told us. "Kinda sorta probably in response to Colbert\'s [...] to Colbert\'s request for Banksy to come paint his wall Monday night." [...] A non-profit newsroom, powered by WNYC.\n\nDonate\n\nArts & Entertainment\n\n# Photo: Hanksy Pays Tribute To Stephen Colbert With A Col-Bear\n\n\n\nBy\n\nBen Yakas\n\nPublished Oct 10, 2013\n\nModified Oct 10, 2013\n\nShare\n\nNever miss a story\n\nBen Yakas/Gothamist\n\n\n\nBy\n\nBen Yakas\n\nPublished Oct 10, 2013\n\nModified Oct 10, 2013\n\nShare\n\nWe rely on your support to make local news available to all\n\nMake your contribution now and help Gothamist thrive in 2026.  Donate today',
         score: 0.20415178,
@@ -357,7 +363,8 @@ export const banksyNy: RightNowFixture = {
       },
       {
         url: "https://gothamist.com/arts-entertainment/a-lost-archive-of-nyc-911-street-art-memorials-comes-back-online",
-        title: "A lost archive of NYC 9/11 street art memorials comes back online",
+        title:
+          "A lost archive of NYC 9/11 street art memorials comes back online",
         content:
           "After the Twin Towers fell, life-size human silhouettes made of tape appeared throughout New York City. You'd see them on roll-down gates,",
         score: 0.036456086,

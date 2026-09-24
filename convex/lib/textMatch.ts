@@ -43,12 +43,16 @@ export function segments(value: string): string[] {
 }
 
 export function titleSimilarity(label: string, page: string): number {
-  return Math.max(0, ...segments(page).map((segment) => jaccard(label, segment)));
+  return Math.max(
+    0,
+    ...segments(page).map((segment) => jaccard(label, segment)),
+  );
 }
 
 export const TITLE_MATCH_THRESHOLD = 0.6;
 
-const DERIVATIVE_QUALIFIERS = /\b(?:study|studies|sketch|poster|print|copy|after|replica)\b/g;
+const DERIVATIVE_QUALIFIERS =
+  /\b(?:study|studies|sketch|poster|print|copy|after|replica)\b/g;
 
 export function titleQualifiersMatch(a: string, b: string): boolean {
   const qualifiers = (title: string) =>
@@ -63,12 +67,18 @@ export function titleQualifiersMatch(a: string, b: string): boolean {
 }
 
 export function titleMatches(label: string, page: string): boolean {
-  return titleQualifiersMatch(label, page) && titleSimilarity(label, page) >= TITLE_MATCH_THRESHOLD;
+  return (
+    titleQualifiersMatch(label, page)
+    && titleSimilarity(label, page) >= TITLE_MATCH_THRESHOLD
+  );
 }
 
 export function exactTitle(label: string, page: string): boolean {
   const wanted = normalizeText(label);
-  return wanted !== "" && segments(page).some((segment) => normalizeText(segment) === wanted);
+  return (
+    wanted !== ""
+    && segments(page).some((segment) => normalizeText(segment) === wanted)
+  );
 }
 
 export function mentions(text: string, phrase: string): boolean {
@@ -86,7 +96,9 @@ function personNameTokens(value: string): string[] {
   const parts = value
     .split(",")
     .map((part) =>
-      nameTokens(part).filter((token) => token !== "the" && !Object.hasOwn(NAME_QUALIFIERS, token)),
+      nameTokens(part).filter(
+        (token) => token !== "the" && !Object.hasOwn(NAME_QUALIFIERS, token),
+      ),
     )
     .filter((part) => part.length);
   // A comma separates family and given names; suffix-only parts have already been removed.
@@ -100,7 +112,9 @@ export function personMatches(a: string, b: string): boolean {
       .map((token) => NAME_QUALIFIERS[token])
       .find(Boolean);
   const [leftQualifier, rightQualifier] = [qualifier(a), qualifier(b)];
-  if (leftQualifier && rightQualifier && leftQualifier !== rightQualifier) return false;
+  if (leftQualifier && rightQualifier && leftQualifier !== rightQualifier) {
+    return false;
+  }
   const left = personNameTokens(a);
   const right = personNameTokens(b);
   if (!left.length || !right.length) return false;
@@ -110,9 +124,9 @@ export function personMatches(a: string, b: string): boolean {
   if (left.length === 1 || right.length === 1) return true;
   const [first, other] = [left[0], right[0]];
   return (
-    first === other ||
-    (first.length === 1 && other.startsWith(first)) ||
-    (other.length === 1 && first.startsWith(other))
+    first === other
+    || (first.length === 1 && other.startsWith(first))
+    || (other.length === 1 && first.startsWith(other))
   );
 }
 

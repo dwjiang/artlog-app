@@ -14,7 +14,11 @@ export type PhotoSyncDependencies = Pick<
   | "isPhotoFileReferenced"
   | "clearDeletedPhotoPaths"
 > & {
-  upload: (localId: string, kind: CollectionPhotoKind, path: string) => Promise<PhotoUpload>;
+  upload: (
+    localId: string,
+    kind: CollectionPhotoKind,
+    path: string,
+  ) => Promise<PhotoUpload>;
   download: (
     localId: string,
     kind: CollectionPhotoKind,
@@ -24,8 +28,9 @@ export type PhotoSyncDependencies = Pick<
 };
 
 /** A crop the account holds but this phone has not downloaded yet; the sync below fills cropPath. */
-export const cropSyncing = (work: Pick<SavedWork, "cropPath" | "cropStorageId">): boolean =>
-  !work.cropPath && !!work.cropStorageId;
+export const cropSyncing = (
+  work: Pick<SavedWork, "cropPath" | "cropStorageId">,
+): boolean => !work.cropPath && !!work.cropStorageId;
 
 export async function syncCollectionPhotos(
   deps: PhotoSyncDependencies,
@@ -37,7 +42,9 @@ export async function syncCollectionPhotos(
     for (const work of deleted) {
       for (const path of new Set([work.photoPath, work.cropPath])) {
         if (!isCurrent()) return;
-        if (path && !(await deps.isPhotoFileReferenced(path))) deps.removeFile(path);
+        if (path && !(await deps.isPhotoFileReferenced(path))) {
+          deps.removeFile(path);
+        }
       }
       await deps.clearDeletedPhotoPaths(work.localId);
     }
@@ -54,30 +61,45 @@ export async function syncCollectionPhotos(
       if (!current || current.deletedAt !== null) continue;
       try {
         if (current.cropPath && !current.cropStorageId) {
-          const uploaded = await deps.upload(work.localId, "crop", current.cropPath);
+          const uploaded = await deps.upload(
+            work.localId,
+            "crop",
+            current.cropPath,
+          );
           if (!isCurrent()) return;
           await deps.updatePhotoTransfer(
             work.localId,
-            { cropStorageId: uploaded.storageId, photoUpdatedAt: uploaded.photoUpdatedAt },
+            {
+              cropStorageId: uploaded.storageId,
+              photoUpdatedAt: uploaded.photoUpdatedAt,
+            },
             undefined,
             current,
           );
         } else if (!current.cropPath && current.cropStorageId) {
-          const downloaded = await deps.download(work.localId, "crop", current.cropStorageId);
+          const downloaded = await deps.download(
+            work.localId,
+            "crop",
+            current.cropStorageId,
+          );
           if (
-            !isCurrent() ||
-            !(await deps.updatePhotoTransfer(
+            !isCurrent()
+            || !(await deps.updatePhotoTransfer(
               work.localId,
               { cropPath: downloaded },
               undefined,
               current,
             ))
-          )
+          ) {
             deps.removeFile(downloaded);
+          }
         }
       } catch (error) {
         reportError(error, "sync.photos", {
-          data: { kind: "crop", direction: current.cropPath ? "upload" : "download" },
+          data: {
+            kind: "crop",
+            direction: current.cropPath ? "upload" : "download",
+          },
         });
         failure = error;
       }

@@ -46,7 +46,11 @@ export const visits = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.owner, table.localId] }),
-    index("visits_owner_history").on(table.owner, table.visitedOn, table.localId),
+    index("visits_owner_history").on(
+      table.owner,
+      table.visitedOn,
+      table.localId,
+    ),
   ],
 );
 
@@ -145,7 +149,9 @@ export const artworkEncounters = sqliteTable(
     revision: integer().notNull().default(0),
   },
   (table) => [
-    primaryKey({ columns: [table.owner, table.savedLocalId, table.visitLocalId] }),
+    primaryKey({
+      columns: [table.owner, table.savedLocalId, table.visitLocalId],
+    }),
     foreignKey({
       columns: [table.owner, table.savedLocalId],
       foreignColumns: [savedWorks.owner, savedWorks.localId],
@@ -159,7 +165,12 @@ export const artworkEncounters = sqliteTable(
 export type ArtworkPhoto = typeof artworkPhotos.$inferSelect;
 export type ArtworkEncounter = typeof artworkEncounters.$inferSelect;
 
-export const pendingScanStatuses = ["queued", "identifying", "identified", "failed"] as const;
+export const pendingScanStatuses = [
+  "queued",
+  "identifying",
+  "identified",
+  "failed",
+] as const;
 export type PendingScanStatus = (typeof pendingScanStatuses)[number];
 
 /** Every capture, sent or queued: the crop, vector and features stay here until the scan is saved or dismissed. */
@@ -194,7 +205,11 @@ export const pendingScans = sqliteTable(
       columns: [table.owner, table.visitLocalId],
       foreignColumns: [visits.owner, visits.localId],
     }).onUpdate("cascade"),
-    index("pendingScans_owner_status_capturedAt").on(table.owner, table.status, table.capturedAt),
+    index("pendingScans_owner_status_capturedAt").on(
+      table.owner,
+      table.status,
+      table.capturedAt,
+    ),
   ],
 );
 
@@ -222,9 +237,15 @@ export const settings = sqliteTable("settings", {
 });
 
 export type Visit = typeof visits.$inferSelect;
-export type NewVisit = Omit<typeof visits.$inferInsert, "owner"> & { owner?: string };
+export type NewVisit = Omit<typeof visits.$inferInsert, "owner"> & {
+  owner?: string;
+};
 export type SavedWork = typeof savedWorks.$inferSelect;
-export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, "owner"> & { owner?: string };
+export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, "owner"> & {
+  owner?: string;
+};
 export type Note = typeof notes.$inferSelect;
 export type PendingScan = typeof pendingScans.$inferSelect;
-export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, "owner"> & { owner?: string };
+export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, "owner"> & {
+  owner?: string;
+};

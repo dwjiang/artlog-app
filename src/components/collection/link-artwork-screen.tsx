@@ -28,7 +28,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListSkeleton } from "@/components/loading-skeleton";
 
 export function LinkArtworkScreen() {
-  const { savedId, visitId } = useLocalSearchParams<{ savedId?: string; visitId?: string }>();
+  const { savedId, visitId } = useLocalSearchParams<{
+    savedId?: string;
+    visitId?: string;
+  }>();
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -88,7 +91,9 @@ function LinkPicker({
           syncing: cropSyncing(row),
         }));
   const filtered = rows.filter((row) =>
-    normalizeSearch(`${row.title} ${row.subtitle}`).includes(normalizeSearch(search)),
+    normalizeSearch(`${row.title} ${row.subtitle}`).includes(
+      normalizeSearch(search),
+    ),
   );
   const query = savedId ? visits : works;
   const noun = savedId
@@ -98,7 +103,7 @@ function LinkPicker({
     : selected.length === 1
       ? "artwork"
       : "artworks";
-  if (!!savedId === !!visitId)
+  if (!!savedId === !!visitId) {
     return (
       <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
         <SocialState
@@ -109,9 +114,12 @@ function LinkPicker({
         />
       </View>
     );
+  }
   return (
     <>
-      <Stack.Screen options={{ title: savedId ? "Link a visit" : "Link artworks" }} />
+      <Stack.Screen
+        options={{ title: savedId ? "Link a visit" : "Link artworks" }}
+      />
       <FlatList
         style={{ backgroundColor: Gallery.paper }}
         contentInsetAdjustmentBehavior="automatic"
@@ -140,20 +148,30 @@ function LinkPicker({
               />
             )}
             {rows.length > 0 && (
-              <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>
-                Keep the artwork and its photos together across visits. Linking doesn’t copy or
-                share photos.
+              <Text
+                style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}
+              >
+                Keep the artwork and its photos together across visits. Linking
+                doesn’t copy or share photos.
               </Text>
             )}
             {savedId && rows.length > 0 && (
               <GalleryButton
                 label="Add a new visit"
                 icon="plus"
-                onPress={() => router.push({ pathname: "/visit-create", params: { savedId } })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/visit-create",
+                    params: { savedId },
+                  })
+                }
               />
             )}
             {error && (
-              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+              <Text
+                accessibilityRole="alert"
+                style={{ color: Gallery.destructive }}
+              >
                 {error}
               </Text>
             )}
@@ -164,7 +182,9 @@ function LinkPicker({
             visit = visitId ?? row.id;
           const linked = encounters.data.some(
             (entry) =>
-              entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
+              entry.owner === owner
+              && entry.savedLocalId === work
+              && entry.visitLocalId === visit,
           );
           return (
             <Pressable
@@ -177,7 +197,9 @@ function LinkPicker({
               disabled={linked}
               onPress={() => {
                 setSelected((ids) =>
-                  ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id],
+                  ids.includes(row.id)
+                    ? ids.filter((id) => id !== row.id)
+                    : [...ids, row.id],
                 );
               }}
               style={{
@@ -199,7 +221,9 @@ function LinkPicker({
                 />
               )}
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>
+                <Text
+                  style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}
+                >
                   {row.title}
                 </Text>
                 <Text style={{ fontSize: 13, color: Gallery.muted }}>
@@ -221,11 +245,17 @@ function LinkPicker({
               onAction={onRetry}
             />
           ) : !query.updatedAt && !rows.length ? (
-            <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} />
+            <ListSkeleton
+              label={savedId ? "Loading visits…" : "Loading artworks…"}
+            />
           ) : search.trim() ? (
             <SearchEmptyState
               title="No matches."
-              detail={savedId ? "Try a museum or visit date." : "Try another title or artist."}
+              detail={
+                savedId
+                  ? "Try a museum or visit date."
+                  : "Try another title or artist."
+              }
               onClear={clearSearch}
             />
           ) : (
@@ -244,14 +274,22 @@ function LinkPicker({
                 variant="filled"
                 fullWidth
                 onPress={() => {
-                  if (savedId) router.push({ pathname: "/visit-create", params: { savedId } });
-                  else {
+                  if (savedId) {
+                    router.push({
+                      pathname: "/visit-create",
+                      params: { savedId },
+                    });
+                  } else {
                     router.dismissAll();
                     router.navigate({ pathname: "/scan", params: { visitId } });
                   }
                 }}
               />
-              <GalleryButton label="Not now" fullWidth onPress={() => router.back()} />
+              <GalleryButton
+                label="Not now"
+                fullWidth
+                onPress={() => router.back()}
+              />
             </EmptyState>
           )
         }
@@ -274,10 +312,17 @@ function LinkPicker({
                 if (visitId) linkArtworksVisit(selected, visitId, owner);
                 else linkArtworkVisits(savedId!, selected, owner);
                 showToast(`${selected.length} ${noun} linked.`);
-                if (visitId)
-                  router.dismissTo({ pathname: "/journal/[visitId]", params: { visitId } });
-                else
-                  router.dismissTo({ pathname: "/saved/[savedId]", params: { savedId: savedId! } });
+                if (visitId) {
+                  router.dismissTo({
+                    pathname: "/journal/[visitId]",
+                    params: { visitId },
+                  });
+                } else {
+                  router.dismissTo({
+                    pathname: "/saved/[savedId]",
+                    params: { savedId: savedId! },
+                  });
+                }
               } catch (cause) {
                 reportError(cause, "collection.visit.link");
                 setError("Could not link your selection. Try again.");

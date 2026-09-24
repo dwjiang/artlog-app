@@ -38,7 +38,8 @@ export function CardHeader({
   const [failedUri, setFailedUri] = useState<string>();
   const [loaded, setLoaded] = useState<{ uri?: string; aspect: number }>();
   const available = cropUri && failedUri !== cropUri;
-  const aspectRatio = available && loaded?.uri === cropUri ? loaded.aspect : FALLBACK_ASPECT;
+  const aspectRatio =
+    available && loaded?.uri === cropUri ? loaded.aspect : FALLBACK_ASPECT;
   return (
     <View style={styles.header}>
       <View style={[styles.frame, { aspectRatio }]}>
@@ -49,7 +50,10 @@ export function CardHeader({
             accessibilityLabel="Your photo of this painting"
             style={styles.photo}
             onLoad={({ source }) =>
-              setLoaded({ uri: cropUri, aspect: photoFrameAspect(source.width, source.height) })
+              setLoaded({
+                uri: cropUri,
+                aspect: photoFrameAspect(source.width, source.height),
+              })
             }
             onError={(event) => {
               reportError(
@@ -73,7 +77,10 @@ export function CardHeader({
               Photo unavailable
             </ThemedText>
             {artworkTitle && (
-              <ThemedText themeColor="textSecondary" style={styles.placeholderText}>
+              <ThemedText
+                themeColor="textSecondary"
+                style={styles.placeholderText}
+              >
                 {artworkTitle}
               </ThemedText>
             )}
@@ -86,7 +93,11 @@ export function CardHeader({
             onPress={onAdjustCrop}
             style={({ pressed }) => [styles.crop, pressed && styles.pressed]}
           >
-            <Image source="sf:crop" tintColor={Gallery.ink} style={styles.cropIcon} />
+            <Image
+              source="sf:crop"
+              tintColor={Gallery.ink}
+              style={styles.cropIcon}
+            />
           </Pressable>
         )}
       </View>

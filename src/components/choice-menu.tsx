@@ -38,7 +38,11 @@ export function ChoiceMenu<T extends string>({
         borderRadius: 4,
       }}
     >
-      <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
+      <Host
+        matchContents={{ vertical: true }}
+        colorScheme="light"
+        style={{ width: "100%" }}
+      >
         <Menu
           modifiers={[
             accessibilityLabel(`${label}: ${selected}`),
@@ -51,7 +55,10 @@ export function ChoiceMenu<T extends string>({
               alignment="center"
               style={{ paddingHorizontal: 11 }}
               modifiers={[
-                frame({ maxWidth: Infinity, minHeight: 44 * Math.max(1, fontScale) }),
+                frame({
+                  maxWidth: Infinity,
+                  minHeight: 44 * Math.max(1, fontScale),
+                }),
                 contentShape(shapes.rectangle()),
               ]}
             >
@@ -61,11 +68,17 @@ export function ChoiceMenu<T extends string>({
                   fontWeight: "400",
                   color: plain ? Gallery.accent : Gallery.ink,
                 }}
-                modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
+                modifiers={[
+                  frame({ maxWidth: Infinity, alignment: "leading" }),
+                ]}
               >
                 {selected}
               </NativeText>
-              <Icon name="chevron.down" size={11} color={plain ? Gallery.accent : Gallery.muted} />
+              <Icon
+                name="chevron.down"
+                size={11}
+                color={plain ? Gallery.accent : Gallery.muted}
+              />
             </Row>
           }
         >

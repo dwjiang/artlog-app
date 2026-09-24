@@ -1,4 +1,10 @@
-import { DAY, HOUR, MINUTE, RateLimiter, type RateLimitConfig } from "@convex-dev/rate-limiter";
+import {
+  DAY,
+  HOUR,
+  MINUTE,
+  RateLimiter,
+  type RateLimitConfig,
+} from "@convex-dev/rate-limiter";
 import { ConvexError } from "convex/values";
 
 import { components } from "../_generated/api";
@@ -43,7 +49,11 @@ export async function limitKey(
 ): Promise<void> {
   const status = await limiter.limit(ctx, name, { key });
   if (!status.ok) {
-    throw new ConvexError({ code: "rate_limited", name, retryAfter: status.retryAfter });
+    throw new ConvexError({
+      code: "rate_limited",
+      name,
+      retryAfter: status.retryAfter,
+    });
   }
 }
 
@@ -53,5 +63,9 @@ export async function limitDevice(
   deviceId: Id<"devices">,
   extraKey?: string,
 ): Promise<void> {
-  await limitKey(ctx, name, extraKey === undefined ? deviceId : `${deviceId}:${extraKey}`);
+  await limitKey(
+    ctx,
+    name,
+    extraKey === undefined ? deviceId : `${deviceId}:${extraKey}`,
+  );
 }

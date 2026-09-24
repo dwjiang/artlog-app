@@ -2,14 +2,27 @@ import { ConvexError } from "convex/values";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
-import { LabelFlowError, runLabelFlow, toLabelInput, type LabelApi, type LabelStage } from "./flow";
+import {
+  LabelFlowError,
+  runLabelFlow,
+  toLabelInput,
+  type LabelApi,
+  type LabelStage,
+} from "./flow";
 
 const scanId = "scan-1" as Id<"scans">;
 
 function flow(
   partial: Partial<LabelFlowDisplay> & Pick<LabelFlowDisplay, "stage">,
 ): LabelFlowDisplay {
-  return { fields: {}, evidence: [], warnings: [], moderation: "clear", updatedAt: 1, ...partial };
+  return {
+    fields: {},
+    evidence: [],
+    warnings: [],
+    moderation: "clear",
+    updatedAt: 1,
+    ...partial,
+  };
 }
 
 const read = flow({
@@ -44,7 +57,9 @@ function fakeApi() {
   return {
     fetchQr: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => qr),
     readLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => read),
-    verifyLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(async () => verified),
+    verifyLabel: jest.fn<Promise<LabelFlowDisplay>, [unknown]>(
+      async () => verified,
+    ),
   } satisfies LabelApi;
 }
 
@@ -93,7 +108,10 @@ it("a QR code fetches the museum page instead of reading", async () => {
     readText,
     onStage: (stage) => stages.push(stage),
   });
-  expect(api.fetchQr).toHaveBeenCalledWith({ scanId, url: "https://museum.example/qr/1" });
+  expect(api.fetchQr).toHaveBeenCalledWith({
+    scanId,
+    url: "https://museum.example/qr/1",
+  });
   expect(api.readLabel).not.toHaveBeenCalled();
   expect(readText).not.toHaveBeenCalled();
   expect(api.verifyLabel).toHaveBeenCalledWith({
@@ -106,12 +124,20 @@ it("a QR code fetches the museum page instead of reading", async () => {
 it.each([
   [
     "a valid homography",
-    { url: "https://museum.example/b.jpg", cosine: 0.93, homographyValid: true },
+    {
+      url: "https://museum.example/b.jpg",
+      cosine: 0.93,
+      homographyValid: true,
+    },
     2,
   ],
   [
     "a failed homography",
-    { url: "https://museum.example/b.jpg", cosine: 0.93, homographyValid: false },
+    {
+      url: "https://museum.example/b.jpg",
+      cosine: 0.93,
+      homographyValid: false,
+    },
     1,
   ],
   ["no image near the scan", null, 1],
@@ -119,7 +145,9 @@ it.each([
   "compares the verifier’s images and re-verifies only after %s",
   async (_case, check, verifyCalls) => {
     const api = fakeApi();
-    api.verifyLabel.mockResolvedValueOnce(verified).mockResolvedValueOnce(upgraded);
+    api.verifyLabel
+      .mockResolvedValueOnce(verified)
+      .mockResolvedValueOnce(upgraded);
     const checkImages = jest.fn(async () => check);
     const stages: LabelStage[] = [];
     const result = await runLabelFlow({
@@ -152,7 +180,9 @@ it.each([
 
 it("skips the image check without images or without the scan’s features and survives a failing check", async () => {
   const api = fakeApi();
-  api.verifyLabel.mockResolvedValue(flow({ ...verified, imageUrls: undefined }));
+  api.verifyLabel.mockResolvedValue(
+    flow({ ...verified, imageUrls: undefined }),
+  );
   const checkImages = jest.fn(async () => null);
   await runLabelFlow({
     scanId,
@@ -193,9 +223,16 @@ it("skips the image check without images or without the scan’s features and su
 
 it("stops with the sharper-shot message when the reader found nothing", async () => {
   const api = fakeApi();
-  api.readLabel.mockResolvedValue(flow({ stage: "read", moderation: "flagged" }));
+  api.readLabel.mockResolvedValue(
+    flow({ stage: "read", moderation: "flagged" }),
+  );
   await expect(
-    runLabelFlow({ scanId, labelPhotoUri: "file:///tmp/label.jpg", api, readText }),
+    runLabelFlow({
+      scanId,
+      labelPhotoUri: "file:///tmp/label.jpg",
+      api,
+      readText,
+    }),
   ).rejects.toMatchObject({
     name: "LabelFlowError",
     code: "nothing_read",
@@ -211,13 +248,22 @@ it("sends nothing when the phone recognizes no text on the photo", async () => {
   const api = fakeApi();
   readText.mockResolvedValueOnce([]);
   await expect(
-    runLabelFlow({ scanId, labelPhotoUri: "file:///tmp/label.jpg", api, readText }),
+    runLabelFlow({
+      scanId,
+      labelPhotoUri: "file:///tmp/label.jpg",
+      api,
+      readText,
+    }),
   ).rejects.toMatchObject({ code: "nothing_read" });
   expect(api.readLabel).not.toHaveBeenCalled();
 });
 
 it.each([
-  [new ConvexError({ code: "feature_off" }), "feature_off", "Label reading is paused right now"],
+  [
+    new ConvexError({ code: "feature_off" }),
+    "feature_off",
+    "Label reading is paused right now",
+  ],
   [
     new ConvexError({ code: "rate_limited", retryAfter: 60_000 }),
     "rate_limited",
@@ -261,14 +307,23 @@ it("turns the reader’s fields into the verifier’s input, dropping blanks", (
     toLabelInput({
       title: { value: "Water Lilies", evidence: "ocr", locked: false },
       artist: { value: "", evidence: "ocr", locked: false },
-      creditLine: { value: "Gift of Louise Reinhardt Smith", evidence: "ocr", locked: false },
+      creditLine: {
+        value: "Gift of Louise Reinhardt Smith",
+        evidence: "ocr",
+        locked: false,
+      },
     }),
-  ).toEqual({ title: "Water Lilies", creditLine: "Gift of Louise Reinhardt Smith" });
+  ).toEqual({
+    title: "Water Lilies",
+    creditLine: "Gift of Louise Reinhardt Smith",
+  });
 });
 
 it("rejects a moderated verification without reporting completion", async () => {
   const api = fakeApi();
-  api.verifyLabel.mockResolvedValue(flow({ stage: "verified", moderation: "flagged" }));
+  api.verifyLabel.mockResolvedValue(
+    flow({ stage: "verified", moderation: "flagged" }),
+  );
   const stages: LabelStage[] = [];
   await expect(
     runLabelFlow({

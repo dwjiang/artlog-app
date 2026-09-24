@@ -41,15 +41,17 @@ export function VisitGlobe({
   const selectedId = session.selectedId ?? initialVenueId;
   const setSelectedId = (selectedId: string) => session.update({ selectedId });
   const [clusterIds, setClusterIds] = useState<string[]>([]);
-  const selected = museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
+  const selected =
+    museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
   const globe = useRef<GlobeCanvasHandle>(null);
   const { width } = useWindowDimensions();
-  if (!selected)
+  if (!selected) {
     return (
       <VisitMessage action="Show List" onAction={onList}>
         Globe locations are unavailable. Your visits are still in List.
       </VisitMessage>
     );
+  }
   const pins = museums.map((visit) => ({
     id: visit.venueId,
     latitude: visit.coordinates!.latitude,
@@ -59,7 +61,9 @@ export function VisitGlobe({
   const initialPin = pins.find((pin) => pin.id === initialVenueId) ?? pins[0];
   const place = placeIdentity(selected);
   const placeVisits = visitsAtPlace(visits, place.key);
-  const museumVisits = placeVisits.filter((visit) => visit.venueId === selected.venueId);
+  const museumVisits = placeVisits.filter(
+    (visit) => visit.venueId === selected.venueId,
+  );
   const counts = visitCounts(museumVisits);
   const previews = museumVisits.flatMap((visit) => visit.works);
   const artworkCount = new Set(previews.map((work) => work.localId)).size;
@@ -88,7 +92,10 @@ export function VisitGlobe({
               icon="arrow.up.left.and.arrow.down.right"
               onPress={() => {
                 globe.current?.settle();
-                router.push({ pathname: "/visit-globe", params: { venueId: selected.venueId } });
+                router.push({
+                  pathname: "/visit-globe",
+                  params: { venueId: selected.venueId },
+                });
               }}
             />
           </View>
@@ -102,7 +109,11 @@ export function VisitGlobe({
           onPress={() => {
             const destination = {
               pathname: "/visit-place" as const,
-              params: { placeKey: place.key, name: selected.venueName, venueId: selected.venueId },
+              params: {
+                placeKey: place.key,
+                name: selected.venueName,
+                venueId: selected.venueId,
+              },
             };
             if (expanded) router.dismissTo(destination);
             else router.push(destination);
@@ -113,11 +124,13 @@ export function VisitGlobe({
             <View style={{ flex: 1, gap: 3 }}>
               <Text variant="button">{selected.venueName}</Text>
               <Text style={styles.placeTitle}>
-                {[place.name, countryName(selected.country)].filter(Boolean).join(", ")}
+                {[place.name, countryName(selected.country)]
+                  .filter(Boolean)
+                  .join(", ")}
               </Text>
               <Text style={styles.counts}>
-                {counts.visits} {counts.visits === 1 ? "visit" : "visits"} · {artworkCount}{" "}
-                {artworkCount === 1 ? "artwork" : "artworks"}
+                {counts.visits} {counts.visits === 1 ? "visit" : "visits"} ·{" "}
+                {artworkCount} {artworkCount === 1 ? "artwork" : "artworks"}
               </Text>
             </View>
             <VisitSymbol name="chevron.right" size={13} color={Gallery.ink} />
@@ -188,7 +201,10 @@ function GlobeButton({
           name={icon}
           size={14}
           color={Gallery.accent}
-          modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
+          modifiers={[
+            frame({ width: 44, height: 44 }),
+            contentShape(shapes.rectangle()),
+          ]}
         />
       </Button>
     </Host>

@@ -7,10 +7,12 @@ import { Text } from "react-native";
 import RootLayout, { unstable_settings } from "@/app/_layout";
 
 jest.mock("@/lib/audio/listening-provider", () => ({
-  ListeningProvider: ({ children }: { children: import("react").ReactNode }) => children,
+  ListeningProvider: ({ children }: { children: import("react").ReactNode }) =>
+    children,
 }));
 jest.mock("@/components/audio/listening-root", () => ({
-  ListeningRoot: ({ children }: { children: import("react").ReactNode }) => children,
+  ListeningRoot: ({ children }: { children: import("react").ReactNode }) =>
+    children,
 }));
 jest.mock("@convex-dev/auth/react", () => ({
   ConvexAuthProvider: ({ children }: PropsWithChildren) => children,
@@ -21,7 +23,9 @@ jest.mock("@/components/database-gate", () => ({
 jest.mock("@/lib/convex-client", () => ({ convex: {} }));
 jest.mock("@/lib/installation-storage", () => ({ installationStorage: {} }));
 jest.mock("@/lib/device-identity", () => ({ DeviceIdentity: () => null }));
-jest.mock("@/lib/account/collection-sync", () => ({ CollectionSync: () => null }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  CollectionSync: () => null,
+}));
 jest.mock("@/lib/embed/embedder", () => ({ warmUpEmbedder: () => {} }));
 jest.mock("@/lib/queue/use-queue", () => ({ QueueFlusher: () => null }));
 jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({

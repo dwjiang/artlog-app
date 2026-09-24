@@ -47,9 +47,18 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
       }}
     >
       <RNHostView>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
           <ThemedText variant="display">{SEARCH_CONSENT_TITLE}</ThemedText>
-          <View style={{ padding: 16, backgroundColor: Gallery.fill, borderRadius: 8 }}>
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: Gallery.fill,
+              borderRadius: 8,
+            }}
+          >
             <ThemedText>{SEARCH_CONSENT_BODY}</ThemedText>
           </View>
           {error && (
@@ -67,7 +76,12 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
               void grant();
             }}
           />
-          <GalleryButton label="Not now" fullWidth disabled={saving} onPress={onDismiss} />
+          <GalleryButton
+            label="Not now"
+            fullWidth
+            disabled={saving}
+            onPress={onDismiss}
+          />
         </ScrollView>
       </RNHostView>
     </BottomSheet>
@@ -76,5 +90,9 @@ export function SearchConsentSheet({ open, onGranted, onDismiss }: Props) {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { gap: Spacing.three, padding: Spacing.content, paddingBottom: Spacing.six },
+  content: {
+    gap: Spacing.three,
+    padding: Spacing.content,
+    paddingBottom: Spacing.six,
+  },
 });

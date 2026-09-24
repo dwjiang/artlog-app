@@ -21,7 +21,11 @@ jest.mock("expo-audio", () => ({
   createAudioPlayer: jest.fn(),
   setAudioModeAsync: jest.fn(async () => {}),
   useAudioPlayer: jest.fn(() => ({ id: 0 })),
-  useAudioPlayerStatus: jest.fn(() => ({ id: 0, isLoaded: false, duration: 0 })),
+  useAudioPlayerStatus: jest.fn(() => ({
+    id: 0,
+    isLoaded: false,
+    duration: 0,
+  })),
 }));
 
 // Jest does not load .env files; route modules construct the Convex client at import time.

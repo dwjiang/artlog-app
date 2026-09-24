@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { assessPlausibility, lifespanWindow, parseYearRange } from "./plausibility";
+import {
+  assessPlausibility,
+  lifespanWindow,
+  parseYearRange,
+} from "./plausibility";
 
 describe("plausibility", () => {
   it.each([
@@ -18,24 +22,38 @@ describe("plausibility", () => {
   });
 
   it("builds the lifespan window from birth and death, birth only, or death only", () => {
-    expect(lifespanWindow({ birth: 1840, death: 1926 })).toEqual({ start: 1840, end: 1926 });
-    expect(lifespanWindow({ birth: 1980 }, 2026)).toEqual({ start: 1990, end: 2026 });
+    expect(lifespanWindow({ birth: 1840, death: 1926 })).toEqual({
+      start: 1840,
+      end: 1926,
+    });
+    expect(lifespanWindow({ birth: 1980 }, 2026)).toEqual({
+      start: 1990,
+      end: 2026,
+    });
     expect(lifespanWindow({ death: 1926 })).toEqual({ start: 1806, end: 1926 });
     expect(lifespanWindow({})).toBeNull();
   });
 
   it("warns when the date falls outside the artist lifespan and stays quiet inside it", () => {
     const lifespan = { birth: 1840, death: 1926 };
-    expect(assessPlausibility({ artistFound: true, lifespan, date: "1919" })).toEqual([]);
-    expect(assessPlausibility({ artistFound: true, lifespan, date: "1950" })).toEqual([
-      "date_outside_lifespan",
-    ]);
-    expect(assessPlausibility({ artistFound: true, lifespan, date: "1920–1930" })).toEqual([]);
-    expect(assessPlausibility({ artistFound: true, lifespan, date: "undated" })).toEqual([]);
+    expect(
+      assessPlausibility({ artistFound: true, lifespan, date: "1919" }),
+    ).toEqual([]);
+    expect(
+      assessPlausibility({ artistFound: true, lifespan, date: "1950" }),
+    ).toEqual(["date_outside_lifespan"]);
+    expect(
+      assessPlausibility({ artistFound: true, lifespan, date: "1920–1930" }),
+    ).toEqual([]);
+    expect(
+      assessPlausibility({ artistFound: true, lifespan, date: "undated" }),
+    ).toEqual([]);
   });
 
   it("reports an unresolved artist and an unlikely venue without inventing lifespan checks", () => {
-    expect(assessPlausibility({ artistFound: false, date: "1950" })).toEqual(["artist_not_found"]);
+    expect(assessPlausibility({ artistFound: false, date: "1950" })).toEqual([
+      "artist_not_found",
+    ]);
     expect(
       assessPlausibility({
         artistFound: true,
@@ -44,7 +62,9 @@ describe("plausibility", () => {
         venueCountryMatch: false,
       }),
     ).toEqual(["venue_unlikely"]);
-    expect(assessPlausibility({ artistFound: true, venueCountryMatch: true })).toEqual([]);
+    expect(
+      assessPlausibility({ artistFound: true, venueCountryMatch: true }),
+    ).toEqual([]);
     expect(assessPlausibility({})).toEqual([]);
   });
 });

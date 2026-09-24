@@ -14,7 +14,10 @@ export function VisitBar() {
       accessibilityLabel={`Visiting ${visit.venueName}`}
       accessibilityHint="Opens the current visit"
       onPress={() =>
-        router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })
+        router.push({
+          pathname: "/journal/[visitId]",
+          params: { visitId: visit.localId },
+        })
       }
       style={({ pressed }) => ({
         minHeight: 44,

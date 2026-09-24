@@ -35,8 +35,12 @@ it("preserves capture dates, real times, empty visits, and UUID idempotence", as
   });
   const second = await upsert({ localId: crypto.randomUUID() });
   expect(second._id).not.toBe(first._id);
-  expect(await t.run((ctx) => ctx.db.query("visits").collect())).toHaveLength(2);
-  expect(await t.run((ctx) => ctx.db.query("collections").collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("visits").collect())).toHaveLength(
+    2,
+  );
+  expect(await t.run((ctx) => ctx.db.query("collections").collect())).toEqual(
+    [],
+  );
 });
 it("supports a manual visit without inventing timestamps", async () => {
   const { upsert } = await fixture();
@@ -53,19 +57,26 @@ it.each([
   { startedAt: NaN },
 ])("validates visit input %j", async (invalid) => {
   const { upsert } = await fixture();
-  await expect(upsert(invalid)).rejects.toMatchObject({ data: { code: "invalid_visit" } });
+  await expect(upsert(invalid)).rejects.toMatchObject({
+    data: { code: "invalid_visit" },
+  });
 });
 it("isolates owners and prevents changing the venue of an existing visit", async () => {
   const { t, user, visit, upsert } = await fixture();
   const first = await upsert();
   const other = await seedDevice(t);
-  const second = await other.as.mutation(api.visits.upsertJournal, { scope: other.scope, visit });
+  const second = await other.as.mutation(api.visits.upsertJournal, {
+    scope: other.scope,
+    visit,
+  });
   expect(second._id).not.toBe(first._id);
   await expect(
     other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit }),
   ).rejects.toMatchObject({ data: { code: "sync_scope_changed" } });
   const venueId = await t.run(seedMuseum);
-  await expect(upsert({ venueId })).rejects.toMatchObject({ data: { code: "invalid_visit" } });
+  await expect(upsert({ venueId })).rejects.toMatchObject({
+    data: { code: "invalid_visit" },
+  });
 });
 it("pages history by calendar date and UUID, including empty repeats and museum filters", async () => {
   const { t, user, visit } = await fixture();
@@ -94,13 +105,17 @@ it("pages history by calendar date and UUID, including empty repeats and museum 
     scope: user.scope,
     venueId: visit.venueId,
   });
-  expect(first.page.map((row) => row.localId)).toEqual(ids.toReversed().slice(0, 20));
+  expect(first.page.map((row) => row.localId)).toEqual(
+    ids.toReversed().slice(0, 20),
+  );
   const last = await user.as.query(api.visits.history, {
     scope: user.scope,
     venueId: visit.venueId,
     cursor: first.cursor,
   });
-  expect(last.page.map((row) => row.localId)).toEqual(ids.toReversed().slice(20));
+  expect(last.page.map((row) => row.localId)).toEqual(
+    ids.toReversed().slice(20),
+  );
   expect(last).toMatchObject({ cursor: null, isDone: true });
   await expect(
     user.as.query(api.visits.history, { scope: user.scope, limit: 51 }),
@@ -125,7 +140,12 @@ it("hides foreign detail and membership and keeps a visit after its last save is
     savedAt: 1,
     snapshot: { title: "Painting", artist: "Artist" },
   }));
-  await user.as.mutation(api.sync.syncJournal, { scope: user.scope, since: 0, visits: [], saves });
+  await user.as.mutation(api.sync.syncJournal, {
+    scope: user.scope,
+    since: 0,
+    visits: [],
+    saves,
+  });
   const page = await user.as.query(api.visits.savedWorks, {
     scope: user.scope,
     localId: visit.localId,
@@ -140,13 +160,24 @@ it("hides foreign detail and membership and keeps a visit after its last save is
   expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(
     saves.map((row) => row.localId).sort(),
   );
-  for (const save of saves)
-    await user.as.mutation(api.collections.remove, { scope: user.scope, localId: save.localId });
+  for (const save of saves) {
+    await user.as.mutation(api.collections.remove, {
+      scope: user.scope,
+      localId: save.localId,
+    });
+  }
   expect(
-    (await user.as.query(api.visits.savedWorks, { scope: user.scope, localId: visit.localId }))
-      .page,
+    (
+      await user.as.query(api.visits.savedWorks, {
+        scope: user.scope,
+        localId: visit.localId,
+      })
+    ).page,
   ).toEqual([]);
   expect(
-    await user.as.query(api.visits.detail, { scope: user.scope, localId: visit.localId }),
+    await user.as.query(api.visits.detail, {
+      scope: user.scope,
+      localId: visit.localId,
+    }),
   ).toMatchObject({ localId: visit.localId });
 });

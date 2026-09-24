@@ -153,7 +153,9 @@
         "work_date": ["1993"],
         "medium": ["Acrylic on canvas"],
         "accession": ["1998.186"],
-        "credit_line": ["Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg"]
+        "credit_line": [
+          "Partial gift of Morgan Flagg in memory of his son Lawrence J. Flagg"
+        ]
       }
     },
     {
@@ -553,7 +555,11 @@
       "expected": {
         "title": ["Retrato de D. Alfonso XIII"],
         "artist": ["Gonzalo Bilbao"],
-        "artist_dates": ["1860 - 1938", "1860–1938", "Sevilla 1860 - Madrid 1938"],
+        "artist_dates": [
+          "1860 - 1938",
+          "1860–1938",
+          "Sevilla 1860 - Madrid 1938"
+        ],
         "work_date": ["1929"],
         "medium": [null],
         "accession": [null],
@@ -581,7 +587,10 @@
         "work_date": ["1895"],
         "medium": [null],
         "accession": [null],
-        "credit_line": ["Depósito del Museo del Prado(1962)", "Depósito del Museo del Prado (1962)"]
+        "credit_line": [
+          "Depósito del Museo del Prado(1962)",
+          "Depósito del Museo del Prado (1962)"
+        ]
       }
     }
   ]

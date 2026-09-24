@@ -15,7 +15,14 @@ export function LoadingImage(props: Props) {
   return <ImageContent key={props.uri} {...props} />;
 }
 
-function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError }: Props) {
+function ImageContent({
+  uri,
+  label,
+  style,
+  contentFit = "cover",
+  onLoad,
+  onError,
+}: Props) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   return (
     <View style={[{ overflow: "hidden" }, style]}>
@@ -26,7 +33,11 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
           accessibilityLabel={`${label}: image unavailable`}
           style={[
             StyleSheet.absoluteFill,
-            { alignItems: "center", justifyContent: "center", backgroundColor: Gallery.fill },
+            {
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: Gallery.fill,
+            },
           ]}
         >
           <Image
@@ -47,17 +58,24 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
             onLoad?.(event);
           }}
           onError={(event) => {
-            reportError(new Error(event?.error || "Image could not load"), "media.load", {
-              level: "warning",
-              data: { source: uri.startsWith("file:") ? "local" : "remote" },
-            });
+            reportError(
+              new Error(event?.error || "Image could not load"),
+              "media.load",
+              {
+                level: "warning",
+                data: { source: uri.startsWith("file:") ? "local" : "remote" },
+              },
+            );
             setState("failed");
             onError?.(event);
           }}
         />
       )}
       {state === "loading" && (
-        <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />
+        <ImageSkeleton
+          label={`Loading image: ${label}`}
+          style={StyleSheet.absoluteFill}
+        />
       )}
     </View>
   );

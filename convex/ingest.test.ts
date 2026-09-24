@@ -1,7 +1,11 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
-import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "convex/server";
+import {
+  getFunctionName,
+  type FunctionArgs,
+  type FunctionReturnType,
+} from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import model from "../shared/model/model-version.json";
@@ -68,20 +72,27 @@ const metObject = {
   medium: "Oil on canvas",
   source: "corpus" as const,
   sourceId: "436535",
-  imageRef: "https://images.metmuseum.org/CRDImages/ep/original/DP-42549-001.jpg",
+  imageRef:
+    "https://images.metmuseum.org/CRDImages/ep/original/DP-42549-001.jpg",
   pageUrl: "https://www.metmuseum.org/art/collection/search/436535",
-  thumbnailUrl: "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg",
+  thumbnailUrl:
+    "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg",
 };
 
 function vector(seed: number) {
-  return Array.from({ length: model.embeddingDim }, (_, i) => ((i + seed) % 7) / 7);
+  return Array.from(
+    { length: model.embeddingDim },
+    (_, i) => ((i + seed) % 7) / 7,
+  );
 }
 
 async function seeded() {
   const t = convexTest(schema, modules);
   await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
   await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
-  const { ids } = await t.mutation(internal.ingest.upsertObjects, { rows: [metObject] });
+  const { ids } = await t.mutation(internal.ingest.upsertObjects, {
+    rows: [metObject],
+  });
   return { t, objectId: ids["met:436535"] };
 }
 
@@ -102,7 +113,10 @@ describe("calibrator training exports", () => {
       rows: [{ ...metObject, key: "met:alias", mergedIntoKey: metObject.key }],
     });
     await t.run(async (ctx) => {
-      await ctx.db.patch(objectId, { calibratorPenalty: 0.3, rejectionPenalty: 0.2 });
+      await ctx.db.patch(objectId, {
+        calibratorPenalty: 0.3,
+        rejectionPenalty: 0.2,
+      });
       for (const [id, version] of [
         [objectId, "old"],
         [ids["met:alias"], model.modelVersion],
@@ -116,7 +130,9 @@ describe("calibrator training exports", () => {
         });
       }
     });
-    const page = await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion });
+    const page = await t.query(internal.ingest.exportVectors, {
+      modelVersion: model.modelVersion,
+    });
     expect(page.isDone).toBe(true);
     expect(page.page).toHaveLength(1);
     expect(page.page[0].object).toEqual({
@@ -130,7 +146,11 @@ describe("calibrator training exports", () => {
     expect(page.page[0].vector).toEqual(vector(1));
     await t.run((ctx) => ctx.db.patch(objectId, { reverted: true }));
     expect(
-      (await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion })).page,
+      (
+        await t.query(internal.ingest.exportVectors, {
+          modelVersion: model.modelVersion,
+        })
+      ).page,
     ).toEqual([]);
   });
 
@@ -195,14 +215,18 @@ describe("calibrator training exports", () => {
       },
     ]);
     await t.run((ctx) => ctx.db.patch(objectId, { mergedInto: objectId }));
-    expect((await t.action(internal.ingest.exportDescriptors, {})).page).toEqual([]);
+    expect(
+      (await t.action(internal.ingest.exportDescriptors, {})).page,
+    ).toEqual([]);
   });
 });
 
 describe("upserting museums and artworks", () => {
   it("inserts once, then updates the same row on a second upsert", async () => {
     const t = convexTest(schema, modules);
-    const first = await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
+    const first = await t.mutation(internal.ingest.upsertMuseums, {
+      rows: [met],
+    });
     const second = await t.mutation(internal.ingest.upsertMuseums, {
       rows: [{ ...met, name: "The Met", website: undefined }],
     });
@@ -217,10 +241,20 @@ describe("upserting museums and artworks", () => {
 
   it("keeps artwork enrichment while refreshing the ingested fields", async () => {
     const t = convexTest(schema, modules);
-    const { ids } = await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
+    const { ids } = await t.mutation(internal.ingest.upsertArtworks, {
+      rows: [wheatField],
+    });
     await t.run((ctx) =>
       ctx.db.patch(ids[wheatField.key], {
-        factSheet: [{ id: "f1", text: "x", sourceUrl: "u", sourceLabel: "l", sourceScore: 1 }],
+        factSheet: [
+          {
+            id: "f1",
+            text: "x",
+            sourceUrl: "u",
+            sourceLabel: "l",
+            sourceScore: 1,
+          },
+        ],
       }),
     );
     await t.mutation(internal.ingest.upsertArtworks, {
@@ -230,7 +264,9 @@ describe("upserting museums and artworks", () => {
     const artwork = await t.run((ctx) => ctx.db.get(ids[wheatField.key]));
     expect(artwork?.title).toBe("Wheatfield with Cypresses");
     expect(artwork?.factSheet).toHaveLength(1);
-    expect(await t.run((ctx) => ctx.db.query("artworks").collect())).toHaveLength(1);
+    expect(
+      await t.run((ctx) => ctx.db.query("artworks").collect()),
+    ).toHaveLength(1);
   });
 
   it("rejects batches over the row limit", async () => {
@@ -240,7 +276,9 @@ describe("upserting museums and artworks", () => {
       key: `poi:${i}`,
       wikidataId: undefined,
     }));
-    expect(await errorData(t.mutation(internal.ingest.upsertMuseums, { rows }))).toMatchObject({
+    expect(
+      await errorData(t.mutation(internal.ingest.upsertMuseums, { rows })),
+    ).toMatchObject({
       code: "batch_too_large",
     });
   });
@@ -255,18 +293,28 @@ describe("upserting objects", () => {
       title: "Cypresses",
       wikidataId: undefined,
     };
-    const { ids } = await t.mutation(internal.ingest.upsertArtworks, { rows: [corrected] });
+    const { ids } = await t.mutation(internal.ingest.upsertArtworks, {
+      rows: [corrected],
+    });
     await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, artworkKey: corrected.key }],
     });
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.artworkId).toBe(ids[corrected.key]);
-    const bindings = await t.run((ctx) => ctx.db.query("museumWorkIdentities").collect());
-    expect(bindings.every((binding) => binding.artworkId === ids[corrected.key])).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(objectId)))?.artworkId).toBe(
+      ids[corrected.key],
+    );
+    const bindings = await t.run((ctx) =>
+      ctx.db.query("museumWorkIdentities").collect(),
+    );
+    expect(
+      bindings.every((binding) => binding.artworkId === ids[corrected.key]),
+    ).toBe(true);
   });
 
   it("resolves artwork and owner keys and initializes counters only on insert", async () => {
     const { t, objectId } = await seeded();
-    await t.run((ctx) => ctx.db.patch(objectId, { confirmCount: 3, calibratorPenalty: 0.2 }));
+    await t.run((ctx) =>
+      ctx.db.patch(objectId, { confirmCount: 3, calibratorPenalty: 0.2 }),
+    );
 
     const again = await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, medium: "Oil on canvas (relined)" }],
@@ -307,14 +355,21 @@ describe("upserting objects", () => {
         }),
       ),
     ).toMatchObject({ code: "unknown_key", table: "objects" });
-    expect(await t.run((ctx) => ctx.db.query("objects").collect())).toHaveLength(1);
+    expect(
+      await t.run((ctx) => ctx.db.query("objects").collect()),
+    ).toHaveLength(1);
   });
 
   it("links mergedIntoKey to an earlier object", async () => {
     const { t, objectId } = await seeded();
     const { ids } = await t.mutation(internal.ingest.upsertObjects, {
       rows: [
-        { ...metObject, key: "wikidata:Q18891167", source: "corpus", mergedIntoKey: "met:436535" },
+        {
+          ...metObject,
+          key: "wikidata:Q18891167",
+          source: "corpus",
+          mergedIntoKey: "met:436535",
+        },
       ],
     });
     const merged = await t.run((ctx) => ctx.db.get(ids["wikidata:Q18891167"]));
@@ -326,7 +381,9 @@ describe("upserting objects", () => {
     await t.mutation(internal.ingest.setObjectPenalty, {
       rows: [{ objectKey: "met:436535", calibratorPenalty: 0.35 }],
     });
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.calibratorPenalty).toBe(0.35);
+    expect(
+      (await t.run((ctx) => ctx.db.get(objectId)))?.calibratorPenalty,
+    ).toBe(0.35);
   });
 });
 
@@ -357,7 +414,9 @@ describe("placements, vectors and descriptors", () => {
     );
     expect(placements).toHaveLength(2);
     expect(placements.find((p) => p.source === "feed")?.gallery).toBe("825");
-    expect(placements.find((p) => p.source === "wikidata")?.confidence).toBe(0.6);
+    expect(placements.find((p) => p.source === "wikidata")?.confidence).toBe(
+      0.6,
+    );
   });
 
   it("replaces corpus vectors by view and checks the dimension", async () => {
@@ -386,13 +445,21 @@ describe("placements, vectors and descriptors", () => {
         .collect(),
     );
     expect(vectors).toHaveLength(2);
-    expect(vectors.find((vec) => vec.viewKey === "primary")?.vector[1]).toBe(vector(2)[1]);
+    expect(vectors.find((vec) => vec.viewKey === "primary")?.vector[1]).toBe(
+      vector(2)[1],
+    );
 
     expect(
       await errorData(
-        t.mutation(internal.ingest.upsertVectors, { rows: [{ ...row, vector: [0.1, 0.2] }] }),
+        t.mutation(internal.ingest.upsertVectors, {
+          rows: [{ ...row, vector: [0.1, 0.2] }],
+        }),
       ),
-    ).toMatchObject({ code: "bad_dimension", expected: model.embeddingDim, actual: 2 });
+    ).toMatchObject({
+      code: "bad_dimension",
+      expected: model.embeddingDim,
+      actual: 2,
+    });
   });
 
   // A full 1536-dim batch under transaction limits takes ~2 s alone and more under parallel suite load.
@@ -407,7 +474,9 @@ describe("placements, vectors and descriptors", () => {
         ...metObject,
         key: `met:batch-${i}`,
       }));
-      const objects = await t.mutation(internal.ingest.upsertObjects, { rows: objectRows });
+      const objects = await t.mutation(internal.ingest.upsertObjects, {
+        rows: objectRows,
+      });
       const rows = objectRows.map(({ key }) => ({
         objectKey: key,
         modelVersion: model.modelVersion,
@@ -415,10 +484,15 @@ describe("placements, vectors and descriptors", () => {
         viewKey: key,
         vector: vector(1),
       }));
-      const original = await t.mutation(internal.ingest.upsertVectors, { rows });
+      const original = await t.mutation(internal.ingest.upsertVectors, {
+        rows,
+      });
       for (const view of ["second", "third"]) {
         await t.mutation(internal.ingest.upsertVectors, {
-          rows: rows.map((row) => ({ ...row, viewKey: `${row.viewKey}:${view}` })),
+          rows: rows.map((row) => ({
+            ...row,
+            viewKey: `${row.viewKey}:${view}`,
+          })),
         });
       }
 
@@ -426,24 +500,30 @@ describe("placements, vectors and descriptors", () => {
         rows: rows.map((row) => ({ ...row, vector: vector(2) })),
       });
       expect(updated.ids).toEqual(original.ids);
-      expect((await t.query(internal.ingest.counts, {})).vectors).toBe(MAX_BATCH_ROWS * 3);
+      expect((await t.query(internal.ingest.counts, {})).vectors).toBe(
+        MAX_BATCH_ROWS * 3,
+      );
       for (const object of [objectRows[0], objectRows[MAX_BATCH_ROWS - 1]]) {
         const vectors = await t.run((ctx) =>
           ctx.db
             .query("vectors")
             .withIndex("by_objectId_modelVersion_source", (q) =>
-              q.eq("objectId", objects.ids[object.key]).eq("modelVersion", model.modelVersion),
+              q
+                .eq("objectId", objects.ids[object.key])
+                .eq("modelVersion", model.modelVersion),
             )
             .collect(),
         );
         expect(vectors).toHaveLength(3);
-        expect(vectors.find((row) => row.viewKey === object.key)?.vector).toEqual(vector(2));
-        expect(vectors.find((row) => row.viewKey === `${object.key}:second`)?.vector).toEqual(
-          vector(1),
-        );
-        expect(vectors.find((row) => row.viewKey === `${object.key}:third`)?.vector).toEqual(
-          vector(1),
-        );
+        expect(
+          vectors.find((row) => row.viewKey === object.key)?.vector,
+        ).toEqual(vector(2));
+        expect(
+          vectors.find((row) => row.viewKey === `${object.key}:second`)?.vector,
+        ).toEqual(vector(1));
+        expect(
+          vectors.find((row) => row.viewKey === `${object.key}:third`)?.vector,
+        ).toEqual(vector(1));
       }
     },
   );
@@ -473,11 +553,17 @@ describe("placements, vectors and descriptors", () => {
     expect(stored[0].extractedFrom).toBe("contribution:abc");
     expect(stored[0]).not.toHaveProperty("descriptors");
     expect(stored[0]).not.toHaveProperty("keypoints");
-    expect(await t.run(async (ctx) => (await ctx.storage.get(stored[0].storageId))!.size)).toBe(96);
+    expect(
+      await t.run(
+        async (ctx) => (await ctx.storage.get(stored[0].storageId))!.size,
+      ),
+    ).toBe(96);
 
     expect(
       await errorData(
-        t.action(internal.ingest.upsertDescriptors, { rows: [{ ...row, keypointCount: 3 }] }),
+        t.action(internal.ingest.upsertDescriptors, {
+          rows: [{ ...row, keypointCount: 3 }],
+        }),
       ),
     ).toMatchObject({ code: "bad_descriptors" });
   });
@@ -486,8 +572,12 @@ describe("placements, vectors and descriptors", () => {
 describe("ORB file imports", () => {
   it("reuses identical bytes on replay and deletes the previous file when the bytes change", async () => {
     const { t } = await seeded();
-    const first = await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
-    const before = (await t.run((ctx) => ctx.db.get(first.ids[orbRow.objectKey])))!;
+    const first = await t.action(internal.ingest.upsertDescriptors, {
+      rows: [orbRow],
+    });
+    const before = (await t.run((ctx) =>
+      ctx.db.get(first.ids[orbRow.objectKey]),
+    ))!;
     expect(
       await t.action(internal.ingest.upsertDescriptors, {
         rows: [{ ...orbRow, extractedFrom: "new URL" }],
@@ -497,18 +587,33 @@ describe("ORB file imports", () => {
       storageId: before.storageId,
       extractedFrom: "new URL",
     });
-    expect(await t.run((ctx) => loadOrb(ctx, before.storageId, before.keypointCount))).toEqual({
+    expect(
+      await t.run((ctx) =>
+        loadOrb(ctx, before.storageId, before.keypointCount),
+      ),
+    ).toEqual({
       descriptors: orbRow.descriptors,
       keypoints: orbRow.keypoints,
     });
 
-    const changed = { ...orbRow, descriptors: new Uint8Array(64).fill(8).buffer };
-    expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
+    const changed = {
+      ...orbRow,
+      descriptors: new Uint8Array(64).fill(8).buffer,
+    };
+    expect(
+      await t.action(internal.ingest.upsertDescriptors, { rows: [changed] }),
+    ).toEqual(first);
     const after = (await t.run((ctx) => ctx.db.get(before._id)))!;
     expect(after.storageId).not.toBe(before.storageId);
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", before.storageId))).toBeNull();
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(1);
-    expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 1 });
+    expect(
+      await t.run((ctx) => ctx.db.system.get("_storage", before.storageId)),
+    ).toBeNull();
+    expect(
+      await t.run((ctx) => ctx.db.system.query("_storage").collect()),
+    ).toHaveLength(1);
+    expect(await t.query(internal.ingest.counts, {})).toMatchObject({
+      descriptors: 1,
+    });
   });
 
   it.each([false, true])(
@@ -521,8 +626,9 @@ describe("ORB file imports", () => {
             {
               ...ctx,
               runMutation: async (reference, args) => {
-                if (getFunctionName(reference) !== "ingest:commitDescriptors")
+                if (getFunctionName(reference) !== "ingest:commitDescriptors") {
                   return ctx.runMutation(reference, args);
+                }
                 if (afterCommit) await ctx.runMutation(reference, args);
                 throw new Error("connection lost");
               },
@@ -531,13 +637,19 @@ describe("ORB file imports", () => {
           ),
         ),
       ).rejects.toThrow("connection lost");
-      const beforeRetry = await t.run((ctx) => ctx.db.system.query("_storage").collect());
+      const beforeRetry = await t.run((ctx) =>
+        ctx.db.system.query("_storage").collect(),
+      );
       expect(beforeRetry).toHaveLength(afterCommit ? 1 : 0);
       await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
-      const files = await t.run((ctx) => ctx.db.system.query("_storage").collect());
+      const files = await t.run((ctx) =>
+        ctx.db.system.query("_storage").collect(),
+      );
       expect(files).toHaveLength(1);
       if (afterCommit) expect(files[0]._id).toBe(beforeRetry[0]._id);
-      expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 1 });
+      expect(await t.query(internal.ingest.counts, {})).toMatchObject({
+        descriptors: 1,
+      });
     },
   );
 
@@ -566,9 +678,15 @@ describe("ORB file imports", () => {
       ),
     ).rejects.toThrow("storage unavailable");
     expect(writes).toBe(2);
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
-    expect(await t.run((ctx) => ctx.db.query("descriptors").collect())).toEqual([]);
-    expect(await t.query(internal.ingest.counts, {})).toMatchObject({ descriptors: 0 });
+    expect(
+      await t.run((ctx) => ctx.db.system.query("_storage").collect()),
+    ).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("descriptors").collect())).toEqual(
+      [],
+    );
+    expect(await t.query(internal.ingest.counts, {})).toMatchObject({
+      descriptors: 0,
+    });
   });
 
   it("bounds exported file bytes even though the database references are small", async () => {
@@ -595,7 +713,10 @@ describe("ORB file imports", () => {
         ...reference
       } = (await ctx.db.query("descriptors").unique())!;
       for (let i = 0; i < 104; i++) {
-        const copy = await ctx.db.insert("objects", { ...object, key: `met:copy:${i}` });
+        const copy = await ctx.db.insert("objects", {
+          ...object,
+          key: `met:copy:${i}`,
+        });
         await ctx.db.insert("descriptors", { ...reference, objectId: copy });
       }
     });
@@ -603,7 +724,8 @@ describe("ORB file imports", () => {
     expect(first.page).toHaveLength(104);
     expect(
       first.page.reduce(
-        (sum, row) => sum + row.descriptors.byteLength + row.keypoints.byteLength,
+        (sum, row) =>
+          sum + row.descriptors.byteLength + row.keypoints.byteLength,
         0,
       ),
     ).toBeLessThanOrEqual(5_000_000);
@@ -631,7 +753,10 @@ describe("counts", () => {
     const { t: seededT } = await seeded();
     await seededT.mutation(internal.ingest.upsertMuseums, { rows: [met] });
     await seededT.mutation(internal.ingest.upsertArtworks, {
-      rows: [wheatField, { ...wheatField, key: "aic:1", wikidataId: undefined }],
+      rows: [
+        wheatField,
+        { ...wheatField, key: "aic:1", wikidataId: undefined },
+      ],
     });
     await seededT.mutation(internal.ingest.upsertPlacements, {
       rows: [
@@ -665,16 +790,24 @@ describe("exportVenues", () => {
       wikidataId: undefined,
       name: `Venue ${i}`,
     }));
-    await t.mutation(internal.ingest.upsertMuseums, { rows: rows.slice(0, MAX_BATCH_ROWS) });
+    await t.mutation(internal.ingest.upsertMuseums, {
+      rows: rows.slice(0, MAX_BATCH_ROWS),
+    });
     await t.mutation(internal.ingest.upsertMuseums, {
       rows: rows.slice(MAX_BATCH_ROWS, 2 * MAX_BATCH_ROWS),
     });
-    await t.mutation(internal.ingest.upsertMuseums, { rows: rows.slice(2 * MAX_BATCH_ROWS) });
+    await t.mutation(internal.ingest.upsertMuseums, {
+      rows: rows.slice(2 * MAX_BATCH_ROWS),
+    });
 
     const first = await t.query(internal.ingest.exportVenues, {});
     expect(first.page).toHaveLength(EXPORT_PAGE_SIZE);
     expect(first.isDone).toBe(false);
-    expect(first.page[0]).toMatchObject({ key: "poi:0", name: "Venue 0", region: "us-ny" });
+    expect(first.page[0]).toMatchObject({
+      key: "poi:0",
+      name: "Venue 0",
+      region: "us-ny",
+    });
     expect(Object.keys(first.page[0]).sort()).toEqual([
       "_id",
       "key",
@@ -685,7 +818,9 @@ describe("exportVenues", () => {
       "website",
     ]);
 
-    const second = await t.query(internal.ingest.exportVenues, { cursor: first.continueCursor });
+    const second = await t.query(internal.ingest.exportVenues, {
+      cursor: first.continueCursor,
+    });
     expect(second.page).toHaveLength(5);
     expect(second.isDone).toBe(true);
     const keys = new Set([...first.page, ...second.page].map((m) => m.key));
@@ -711,12 +846,18 @@ describe("corpus import invariants", () => {
     const stored = await t.run((ctx) =>
       ctx.db
         .query("vectors")
-        .withIndex("by_objectId_modelVersion_source", (q) => q.eq("objectId", objectId))
+        .withIndex("by_objectId_modelVersion_source", (q) =>
+          q.eq("objectId", objectId),
+        )
         .collect(),
     );
     expect(stored).toHaveLength(2);
-    expect(stored.find((row) => row.viewKey === "met:1")?.vector).toEqual(vector(0));
-    expect(stored.find((row) => row.viewKey === "wikidata:Q1")?.vector).toEqual(vector(9));
+    expect(stored.find((row) => row.viewKey === "met:1")?.vector).toEqual(
+      vector(0),
+    );
+    expect(stored.find((row) => row.viewKey === "wikidata:Q1")?.vector).toEqual(
+      vector(9),
+    );
     expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   });
 
@@ -726,7 +867,9 @@ describe("corpus import invariants", () => {
       rows: [{ ...wheatField, rightsStatus: "unknown" }],
     });
     expect(
-      await errorData(t.mutation(internal.ingest.upsertObjects, { rows: [metObject] })),
+      await errorData(
+        t.mutation(internal.ingest.upsertObjects, { rows: [metObject] }),
+      ),
     ).toMatchObject({ code: "thumbnail_rights" });
     expect(await t.query(internal.ingest.auditThumbnails, {})).toMatchObject({
       checked: 1,
@@ -736,8 +879,12 @@ describe("corpus import invariants", () => {
     await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, thumbnailUrl: undefined }],
     });
-    expect((await t.query(internal.ingest.auditThumbnails, {})).violations).toBe(0);
-    expect((await t.run((ctx) => ctx.db.get(objectId)))?.thumbnailUrl).toBeUndefined();
+    expect(
+      (await t.query(internal.ingest.auditThumbnails, {})).violations,
+    ).toBe(0);
+    expect(
+      (await t.run((ctx) => ctx.db.get(objectId)))?.thumbnailUrl,
+    ).toBeUndefined();
   });
 });
 
@@ -754,7 +901,9 @@ describe("rebuilding corpus views", () => {
       viewKey: metObject.key,
       vector: vector(1),
     };
-    const first = await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
+    const first = await t.mutation(internal.ingest.upsertVectors, {
+      rows: [row],
+    });
     const second = await t.mutation(internal.ingest.upsertVectors, {
       rows: [{ ...row, objectKey: "met:survivor" }],
     });
@@ -782,7 +931,11 @@ describe("merged museum identities", () => {
   it("resolves an alias accession and page to the surviving artwork", async () => {
     const { t, objectId } = await seeded();
     const original = await t.run((ctx) => ctx.db.get(objectId));
-    const alternate = { ...wheatField, key: "wikidata:Qalias", wikidataId: undefined };
+    const alternate = {
+      ...wheatField,
+      key: "wikidata:Qalias",
+      wikidataId: undefined,
+    };
     await t.mutation(internal.ingest.upsertArtworks, { rows: [alternate] });
     await t.mutation(internal.ingest.upsertObjects, {
       rows: [
@@ -795,8 +948,12 @@ describe("merged museum identities", () => {
         },
       ],
     });
-    const identities = await t.run((ctx) => ctx.db.query("museumWorkIdentities").collect());
+    const identities = await t.run((ctx) =>
+      ctx.db.query("museumWorkIdentities").collect(),
+    );
     expect(identities).toHaveLength(3);
-    expect(identities.every((row) => row.artworkId === original?.artworkId)).toBe(true);
+    expect(
+      identities.every((row) => row.artworkId === original?.artworkId),
+    ).toBe(true);
   });
 });

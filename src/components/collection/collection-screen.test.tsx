@@ -10,7 +10,9 @@ import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 jest.mock("@/lib/audio/use-listening");
 
-jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
+jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isInternetReachable: true }),
+}));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
 jest.mock("./collection-header", () => ({ CollectionHeader: () => null }));
 jest.mock("@/lib/wall/use-collection-wall", () => ({
@@ -19,7 +21,9 @@ jest.mock("@/lib/wall/use-collection-wall", () => ({
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({}) }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({}),
+}));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
 jest.mock("../visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
@@ -35,7 +39,8 @@ jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("expo-router", () => {
-  const { Pressable, TextInput, View, Text } = jest.requireActual("react-native");
+  const { Pressable, TextInput, View, Text } =
+    jest.requireActual("react-native");
   return {
     router: {
       push: jest.fn(),
@@ -56,11 +61,21 @@ jest.mock("expo-router", () => {
       children: ReactNode;
     }) => {
       mockHrefs.push(href);
-      return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
+      return asChild ? (
+        children
+      ) : (
+        <Pressable accessibilityRole="link">{children}</Pressable>
+      );
     },
     Stack: {
       Toolbar: Object.assign(View, {
-        Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => (
+        Button: ({
+          children,
+          onPress,
+        }: {
+          children: ReactNode;
+          onPress: () => void;
+        }) => (
           <Pressable accessibilityRole="button" onPress={onPress}>
             <Text>{children}</Text>
           </Pressable>
@@ -75,7 +90,9 @@ jest.mock("expo-router", () => {
       }) => (
         <TextInput
           placeholder={placeholder}
-          onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })}
+          onChangeText={(text: string) =>
+            onChangeText({ nativeEvent: { text } })
+          }
         />
       ),
     },
@@ -84,7 +101,13 @@ jest.mock("expo-router", () => {
 jest.mock("./collection-wall", () => {
   const { Text, View } = jest.requireActual("react-native");
   return {
-    CollectionWall: ({ header, controls }: { header: ReactNode; controls: ReactNode }) => (
+    CollectionWall: ({
+      header,
+      controls,
+    }: {
+      header: ReactNode;
+      controls: ReactNode;
+    }) => (
       <View>
         {header}
         {controls}
@@ -108,7 +131,10 @@ it("opens the local artwork collection for guests without a sign-in gate", async
 });
 
 const venueId = "museum-1" as Id<"museums">;
-const search = () => screen.getByPlaceholderText(/Title, artist, date or place|Search your visits/);
+const search = () =>
+  screen.getByPlaceholderText(
+    /Title, artist, date or place|Search your visits/,
+  );
 
 beforeEach(() => {
   mockParams = {};
@@ -127,7 +153,9 @@ it("keeps the public wall as the account collection view", async () => {
 it("invites the first scan while the collection is empty", async () => {
   await renderArchive();
   expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
-  expect(screen.getByText("Scan an artwork to add it to your collection.")).toBeOnTheScreen();
+  expect(
+    screen.getByText("Scan an artwork to add it to your collection."),
+  ).toBeOnTheScreen();
 });
 
 it("shows the first saved artwork without a sync prompt", async () => {
@@ -207,8 +235,14 @@ describe("with saved works", () => {
       await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
     ).toBeOnTheScreen();
     expect(
-      screen.getAllByRole("button", { name: /, / }).map((cell) => cell.props.accessibilityLabel),
-    ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
+      screen
+        .getAllByRole("button", { name: /, / })
+        .map((cell) => cell.props.accessibilityLabel),
+    ).toEqual([
+      "100% Cotton, Anon",
+      "Water Lilies, Claude Monet",
+      "Untitled, Unknown",
+    ]);
     expect(mockHrefs).toContainEqual({
       pathname: "/saved/[savedId]",
       params: { savedId: "lilies" },
@@ -223,7 +257,9 @@ describe("with saved works", () => {
     await fireEvent.changeText(search(), "MONET");
     expect(screen.getAllByRole("button", { name: /, / })).toHaveLength(1);
     await fireEvent.changeText(search(), "orsay");
-    expect(screen.getByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: "Water Lilies, Claude Monet" }),
+    ).toBeOnTheScreen();
     await fireEvent.changeText(search(), "vermeer ");
     expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
     await fireEvent.changeText(search(), "");
@@ -235,7 +271,9 @@ describe("with saved works", () => {
     expect(
       await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
     ).toBeOnTheScreen();
-    expect(screen.queryByText("Keep your collection across devices")).toBeNull();
+    expect(
+      screen.queryByText("Keep your collection across devices"),
+    ).toBeNull();
     await fireEvent.changeText(search(), "Monet");
     expect(screen.queryByText("100% Cotton")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
@@ -269,7 +307,12 @@ describe("with saved works", () => {
 
 it("immediately hides account works on sign-out and restores them on sign-in", async () => {
   await insertSavedWork(
-    { localId: "account-work", savedAt: 10, title: "Private account work", artist: "Reader" },
+    {
+      localId: "account-work",
+      savedAt: 10,
+      title: "Private account work",
+      artist: "Reader",
+    },
     "account:a",
   );
   switchOwner("account:a", "scope-a");
@@ -295,7 +338,9 @@ it("shows empty visits and calendar month groups, and searches them by country o
   await fireEvent.press(screen.getByRole("button", { name: "List" }));
   expect(screen.getByText("February 2024")).toBeOnTheScreen();
   expect(screen.getByText("Empty Museum")).toBeOnTheScreen();
-  expect(screen.getByText(/Location unavailable · 0 artworks/)).toBeOnTheScreen();
+  expect(
+    screen.getByText(/Location unavailable · 0 artworks/),
+  ).toBeOnTheScreen();
   await fireEvent.changeText(search(), "2024-02-29");
   expect(screen.getByText("Empty Museum")).toBeOnTheScreen();
   await fireEvent.changeText(search(), "missing");
@@ -307,8 +352,14 @@ it("shows the A–Z collection in artist order", async () => {
   await screen.findByText("Water Lilies");
   await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
   expect(
-    screen.getAllByRole("button", { name: /, / }).map((row) => row.props.accessibilityLabel),
-  ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
+    screen
+      .getAllByRole("button", { name: /, / })
+      .map((row) => row.props.accessibilityLabel),
+  ).toEqual([
+    "100% Cotton, Anon",
+    "Water Lilies, Claude Monet",
+    "Untitled, Unknown",
+  ]);
 });
 
 it("opens the requested collection section even after another section was selected", async () => {

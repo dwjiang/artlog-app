@@ -1,4 +1,7 @@
-import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
+import {
+  downloadCollectionPhoto,
+  uploadCollectionPhoto,
+} from "./photo-transfer";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 const mockUpload = jest.fn(),
@@ -17,7 +20,9 @@ jest.mock("expo-file-system", () => {
   class Node {
     uri: string;
     constructor(...parts: (string | Node)[]) {
-      this.uri = parts.map((p) => (typeof p === "string" ? p : p.uri)).join("/");
+      this.uri = parts
+        .map((p) => (typeof p === "string" ? p : p.uri))
+        .join("/");
     }
     create() {}
   }
@@ -83,7 +88,13 @@ beforeEach(() => {
 
 it("uploads a bounded JPEG copy with authentication while leaving the original file intact", async () => {
   expect(
-    await uploadCollectionPhoto("private-token", "scope", "save-1", "photo", "original.heic"),
+    await uploadCollectionPhoto(
+      "private-token",
+      "scope",
+      "save-1",
+      "photo",
+      "original.heic",
+    ),
   ).toEqual({ storageId: "photo-id", photoUpdatedAt: 1 });
   expect(mockResize).toHaveBeenCalledWith({ width: 2560 });
   expect(mockSave).toHaveBeenCalledWith({ format: "jpeg", compress: 0.85 });
@@ -125,7 +136,14 @@ it("cleans up a failed upload and reports the HTTP failure for retry", async () 
 
 it("does not upload after the account changes during encoding", async () => {
   await expect(
-    uploadCollectionPhoto("token", "scope", "a", "photo", "original.jpg", () => false),
+    uploadCollectionPhoto(
+      "token",
+      "scope",
+      "a",
+      "photo",
+      "original.jpg",
+      () => false,
+    ),
   ).rejects.toThrow("cancelled");
   expect(mockUpload).not.toHaveBeenCalled();
   expect(mockDelete).toHaveBeenCalledWith("file:///cache/encoded.jpg");

@@ -4,7 +4,9 @@ import { notes, savedWorks } from "../schema";
 import { getNote, setNote } from "./notes";
 import * as repo from "./saved-works";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 const deviceId = "this-device" as Id<"devices">;
 const remote: Doc<"collections"> = {
   _id: "collection-1" as Id<"collections">,
@@ -82,15 +84,28 @@ it("clears a date, medium, or institution removed on another device", async () =
 });
 
 it("keeps an in-flight note edit dirty even if the old upload is acknowledged", async () => {
-  await repo.insertSavedWork({ localId: "work", title: "Painting", artist: "Artist", savedAt: 1 });
+  await repo.insertSavedWork({
+    localId: "work",
+    title: "Painting",
+    artist: "Artist",
+    savedAt: 1,
+  });
   const [pending] = await repo.listUnsynced();
   await setNote("work", "Newer note", 12);
   await repo.markSynced([
-    { localId: "work", revision: pending.work.revision, updatedAt: 20, updatedBy: deviceId },
+    {
+      localId: "work",
+      revision: pending.work.revision,
+      updatedAt: 20,
+      updatedBy: deviceId,
+    },
   ]);
   await repo.upsertFromRemote([{ ...remote, updatedBy: deviceId }]);
   expect(await repo.listUnsynced()).toMatchObject([
-    { work: { localId: "work", syncedAt: null, revision: 1 }, note: "Newer note" },
+    {
+      work: { localId: "work", syncedAt: null, revision: 1 },
+      note: "Newer note",
+    },
   ]);
 });
 
@@ -169,21 +184,37 @@ it("applies remote deletion while a local note edit is pending", async () => {
 it.each([
   ["a", "z"],
   ["z", "a"],
-])("merges simultaneous edits consistently in %s then %s order", async (first, second) => {
-  for (const author of [first, second]) {
-    await repo.upsertFromRemote([{ ...remote, updatedBy: author as Id<"devices">, note: author }]);
-  }
-  expect(await getNote(remote.localId)).toMatchObject({ text: "z" });
-});
+])(
+  "merges simultaneous edits consistently in %s then %s order",
+  async (first, second) => {
+    for (const author of [first, second]) {
+      await repo.upsertFromRemote([
+        { ...remote, updatedBy: author as Id<"devices">, note: author },
+      ]);
+    }
+    expect(await getNote(remote.localId)).toMatchObject({ text: "z" });
+  },
+);
 
 it("does not move the confirmed version backward when an older upload response arrives", async () => {
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 30, note: "Latest note" }]);
-  await repo.markSynced([
-    { localId: remote.localId, revision: 0, updatedAt: 10, updatedBy: deviceId },
+  await repo.upsertFromRemote([
+    { ...remote, updatedAt: 30, note: "Latest note" },
   ]);
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 20, note: "Older note" }]);
+  await repo.markSynced([
+    {
+      localId: remote.localId,
+      revision: 0,
+      updatedAt: 10,
+      updatedBy: deviceId,
+    },
+  ]);
+  await repo.upsertFromRemote([
+    { ...remote, updatedAt: 20, note: "Older note" },
+  ]);
   expect(await getNote(remote.localId)).toMatchObject({ text: "Latest note" });
-  expect(await repo.getSavedWork(remote.localId)).toMatchObject({ syncedAt: 30 });
+  expect(await repo.getSavedWork(remote.localId)).toMatchObject({
+    syncedAt: 30,
+  });
 });
 
 it("accepts an image reference without replacing a newer local note or original photo", async () => {
@@ -202,7 +233,9 @@ it("accepts an image reference without replacing a newer local note or original 
     cropStorageId,
     syncedAt: null,
   });
-  expect(await getNote(remote.localId)).toMatchObject({ text: "Still uploading" });
+  expect(await getNote(remote.localId)).toMatchObject({
+    text: "Still uploading",
+  });
 });
 
 it("downloads a newer remote crop independently of note stamps, reports the displaced file, and ignores older crop replays", async () => {

@@ -12,7 +12,11 @@ export function SocialInvitation({
   children: ReactNode;
 }) {
   return (
-    <EmptyState title={title} detail={detail} visual={<ArtworkMedallions expanded />}>
+    <EmptyState
+      title={title}
+      detail={detail}
+      visual={<ArtworkMedallions expanded />}
+    >
       {children}
     </EmptyState>
   );

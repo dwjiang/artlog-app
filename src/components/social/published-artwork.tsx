@@ -1,6 +1,12 @@
 import { EmptySymbol } from "../empty-state";
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { socialStyles } from "./social-styles";
 import { Gallery, Typography } from "@/constants/theme";
@@ -10,7 +16,10 @@ import { WallFrame, wallFrameInset } from "../collection/wall-frame";
 import { DisplayMedia } from "../artwork/display-media";
 import { NoteHeading } from "../collection/note-editor";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import { DocentSection, type DocentSectionProps } from "../scan/result/docent-section";
+import {
+  DocentSection,
+  type DocentSectionProps,
+} from "../scan/result/docent-section";
 
 export function PublishedArtwork({
   artwork,
@@ -113,13 +122,14 @@ function PublishedArtworkGallery({
     setPage(next);
     gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
   };
-  if (!photos.length)
+  if (!photos.length) {
     return (
       <View style={styles.emptyGallery}>
         <EmptySymbol name="photo" />
         <Text style={styles.caption}>No photos shared for this artwork.</Text>
       </View>
     );
+  }
   return (
     <View>
       <ScrollView
@@ -132,7 +142,10 @@ function PublishedArtworkGallery({
           setPage(
             Math.max(
               0,
-              Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width)),
+              Math.min(
+                photos.length - 1,
+                Math.round(nativeEvent.contentOffset.x / width),
+              ),
             ),
           )
         }
@@ -145,7 +158,10 @@ function PublishedArtworkGallery({
                 <DisplayMedia
                   media={media}
                   label={`${title}, photo ${index + 1}`}
-                  width={Math.max(1, outerWidth - wallFrameInset(frame, outerWidth) * 2)}
+                  width={Math.max(
+                    1,
+                    outerWidth - wallFrameInset(frame, outerWidth) * 2,
+                  )}
                   token={token}
                 />
               </WallFrame>
@@ -175,7 +191,10 @@ function PublishedArtworkGallery({
             accessibilityLabel="Next photo"
             disabled={page >= photos.length - 1}
             onPress={() => goTo(page + 1)}
-            style={[styles.arrow, page >= photos.length - 1 && { opacity: 0.4 }]}
+            style={[
+              styles.arrow,
+              page >= photos.length - 1 && { opacity: 0.4 },
+            ]}
           >
             <Text style={styles.arrowText}>›</Text>
           </Pressable>
@@ -186,7 +205,12 @@ function PublishedArtworkGallery({
 }
 
 const styles = StyleSheet.create({
-  slide: { paddingTop: 8, paddingHorizontal: 20, alignItems: "center", justifyContent: "center" },
+  slide: {
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   galleryFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -194,15 +218,28 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 20,
   },
-  arrow: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  arrow: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   arrowText: { fontSize: 24, color: Gallery.ink },
   details: { padding: 20, gap: 16 },
   museumLabel: { gap: 4 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Gallery.separator },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Gallery.separator,
+  },
   artist: { ...Typography.display, color: Gallery.ink },
   title: { color: Gallery.ink, fontSize: 20, lineHeight: 26 },
   medium: { color: Gallery.muted, fontSize: 15, lineHeight: 22 },
-  note: { ...socialStyles.body, textAlign: "left", color: Gallery.ink, marginLeft: 24 },
+  note: {
+    ...socialStyles.body,
+    textAlign: "left",
+    color: Gallery.ink,
+    marginLeft: 24,
+  },
   caption: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   emptyGallery: {
     gap: 12,

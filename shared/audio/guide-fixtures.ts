@@ -1,4 +1,7 @@
-import type { DocentSentence, FactSheetEntry } from "../../convex/lib/validators";
+import type {
+  DocentSentence,
+  FactSheetEntry,
+} from "../../convex/lib/validators";
 
 export const researchFixture: FactSheetEntry[] = [
   {
@@ -16,7 +19,8 @@ export const researchFixture: FactSheetEntry[] = [
     sourceScore: 1,
   },
 ];
-export const openingFixture = "This is Water Lilies, by Claude Monet, dated 1916.";
+export const openingFixture =
+  "This is Water Lilies, by Claude Monet, dated 1916.";
 export const guideBodyFixture: DocentSentence[] = [
   {
     sentence:
@@ -34,7 +38,8 @@ export const guideBodyFixture: DocentSentence[] = [
     factIds: ["f1"],
   },
   {
-    sentence: "That is a useful detail to keep in mind as your eye moves around the painting.",
+    sentence:
+      "That is a useful detail to keep in mind as your eye moves around the painting.",
     factIds: ["f1"],
   },
   {

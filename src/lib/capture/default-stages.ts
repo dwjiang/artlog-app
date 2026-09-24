@@ -20,16 +20,22 @@ export const warper: Warper = {
       console.debug("Still analysis", {
         still: `${still.width}×${still.height}`,
         subjects: still.subjects.map(
-          (subject) => `${(subject.area * 100).toFixed(1)}% fill ${subject.quadFill.toFixed(3)}`,
+          (subject) =>
+            `${(subject.area * 100).toFixed(1)}% fill ${subject.quadFill.toFixed(3)}`,
         ),
         rectangles: still.rectangles.length,
         subjectNote: still.subjectNote,
         selected:
-          selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ") ?? "no boundary",
+          selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ")
+          ?? "no boundary",
       });
     }
     if (!selected) return null;
-    const result = await visionRect.warpAndLetterbox(path, toCorners(selected), size);
+    const result = await visionRect.warpAndLetterbox(
+      path,
+      toCorners(selected),
+      size,
+    );
     return {
       cropUri: `file://${result.cropPath}`,
       corners: toQuad(result.usedQuad),

@@ -19,15 +19,22 @@ it("centers the most recent museum and hides museums on the far side", () => {
   expect(point.y).toBeCloseTo(center.cy);
   expect(point.depth).toBeCloseTo(1);
   expect(
-    globeClusters([pin("Met", 40, -74), pin("far", -40, 106)], camera, 370, 337).map(
-      (group) => group.ids,
-    ),
+    globeClusters(
+      [pin("Met", 40, -74), pin("far", -40, 106)],
+      camera,
+      370,
+      337,
+    ).map((group) => group.ids),
   ).toEqual([["Met"]]);
 });
 it("clusters nearby museums, hits the visible cluster, and ignores empty space", () => {
   const camera = globeCamera(40.78, -73.96);
   const groups = globeClusters(
-    [pin("Met", 40.78, -73.96), pin("MoMA", 40.76, -73.97), pin("London", 51.5, -0.13)],
+    [
+      pin("Met", 40.78, -73.96),
+      pin("MoMA", 40.76, -73.97),
+      pin("London", 51.5, -0.13),
+    ],
     camera,
     370,
     337,
@@ -46,6 +53,11 @@ it("rotates across the date line and scales positions with zoom", () => {
   const camera = globeCamera(0, 0),
     center = globeGeometry(370, 337, 1);
   const normal = projectGlobePin(pin("east", 0, 30), camera, 370, 337);
-  const zoomed = projectGlobePin(pin("east", 0, 30), { ...camera, zoom: 2 }, 370, 337);
+  const zoomed = projectGlobePin(
+    pin("east", 0, 30),
+    { ...camera, zoom: 2 },
+    370,
+    337,
+  );
   expect(zoomed.x - center.cx).toBeCloseTo(2 * (normal.x - center.cx));
 });

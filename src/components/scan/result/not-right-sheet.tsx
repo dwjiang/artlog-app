@@ -40,12 +40,19 @@ export function NotRightSheet({
       onDismiss={onDismiss}
     >
       <RNHostView>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
           <ThemedText type="subtitle">
             {hasRunnerUps ? "Other possible matches" : "No other matches found"}
           </ThemedText>
           {notice && (
-            <ThemedText type="small" themeColor="error" accessibilityRole="alert">
+            <ThemedText
+              type="small"
+              themeColor="error"
+              accessibilityRole="alert"
+            >
               {notice}
             </ThemedText>
           )}
@@ -56,9 +63,19 @@ export function NotRightSheet({
             fullWidth
             onPress={onLabel}
           />
-          {onManual && <GalleryButton label="Enter details myself" fullWidth onPress={onManual} />}
+          {onManual && (
+            <GalleryButton
+              label="Enter details myself"
+              fullWidth
+              onPress={onManual}
+            />
+          )}
           {onSavePhoto && (
-            <GalleryButton label="Save just the photo" fullWidth onPress={onSavePhoto} />
+            <GalleryButton
+              label="Save just the photo"
+              fullWidth
+              onPress={onSavePhoto}
+            />
           )}
           <GalleryButton label="Back to result" fullWidth onPress={onDismiss} />
         </ScrollView>
@@ -69,5 +86,9 @@ export function NotRightSheet({
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { gap: Spacing.three, padding: Spacing.content, paddingBottom: Spacing.six },
+  content: {
+    gap: Spacing.three,
+    padding: Spacing.content,
+    paddingBottom: Spacing.six,
+  },
 });

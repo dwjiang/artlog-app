@@ -8,21 +8,32 @@ import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
-import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
+import {
+  useSocialSession,
+  type SocialSession,
+} from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { ThemedText as Text } from "../themed-text";
 import { VisitSymbol } from "../visits/visit-ui";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
-export type ReactionVisit = Pick<SharedVisit, "postId" | "author" | "venue" | "visitedOn"> & {
+export type ReactionVisit = Pick<
+  SharedVisit,
+  "postId" | "author" | "venue" | "visitedOn"
+> & {
   media?: SharedVisit["artworks"]["page"][number]["artwork"]["media"];
 };
-export type ReactionSummary = { likeCount: number; commentCount: number; liked: boolean };
+export type ReactionSummary = {
+  likeCount: number;
+  commentCount: number;
+  liked: boolean;
+};
 
 const reactionPaths = {
   heart:
     "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
-  comment: "M21 11.5a9 9 0 0 1-9 9 10 10 0 0 1-4.1-.9L3 21l1.4-4.7A9 9 0 1 1 21 11.5Z",
+  comment:
+    "M21 11.5a9 9 0 0 1-9 9 10 10 0 0 1-4.1-.9L3 21l1.4-4.7A9 9 0 1 1 21 11.5Z",
 };
 function ReactionIcon({
   kind,
@@ -71,7 +82,8 @@ function LiveReactions({
 }) {
   const router = useRouter();
   const ready =
-    !session.offline && ["ready", "signed-out", "profile-required"].includes(session.status);
+    !session.offline
+    && ["ready", "signed-out", "profile-required"].includes(session.status);
   const summary = useSocialQuery(
     api.visitReactions.getSummary,
     ready ? { postId: visit.postId } : "skip",
@@ -85,11 +97,16 @@ function LiveReactions({
   const join = () => {
     setSheet(null);
     router.push(
-      session.status === "profile-required" ? "/create-profile" : signInRoute("reactions"),
+      session.status === "profile-required"
+        ? "/create-profile"
+        : signInRoute("reactions"),
     );
   };
   const like = async () => {
-    if (session.status === "signed-out" || session.status === "profile-required") {
+    if (
+      session.status === "signed-out"
+      || session.status === "profile-required"
+    ) {
       join();
       return;
     }
@@ -100,7 +117,9 @@ function LiveReactions({
     try {
       await setLike({ postId: visit.postId, liked: !summary.data.liked });
     } catch (cause) {
-      setError(socialErrorMessage(cause) ?? "Couldn’t update your like. Try again.");
+      setError(
+        socialErrorMessage(cause) ?? "Couldn’t update your like. Try again.",
+      );
     } finally {
       pending.current = false;
       setBusy(false);
@@ -170,9 +189,15 @@ export function VisitReactionRow({
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike visit" : "Like visit"}
           accessibilityValue={{
-            text: summary ? `${count} ${count === 1 ? "like" : "likes"}` : "Loading likes",
+            text: summary
+              ? `${count} ${count === 1 ? "like" : "likes"}`
+              : "Loading likes",
           }}
-          accessibilityState={{ selected: liked, busy, disabled: disabled || busy }}
+          accessibilityState={{
+            selected: liked,
+            busy,
+            disabled: disabled || busy,
+          }}
           disabled={disabled || busy}
           onPress={onLike}
           style={styles.reaction}
@@ -195,7 +220,9 @@ export function VisitReactionRow({
           style={styles.reaction}
         >
           <ReactionIcon kind="comment" />
-          <Text style={[styles.count, { fontWeight: "500" }]}>{summary?.commentCount ?? "–"}</Text>
+          <Text style={[styles.count, { fontWeight: "500" }]}>
+            {summary?.commentCount ?? "–"}
+          </Text>
         </Pressable>
         {onOpenVisit && (
           <Pressable
@@ -247,7 +274,13 @@ export function VisitReactionRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44, flexWrap: "wrap" },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 44,
+    flexWrap: "wrap",
+  },
   reaction: {
     minWidth: 44,
     minHeight: 44,
@@ -256,7 +289,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
   },
-  count: { color: Gallery.ink, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  count: {
+    color: Gallery.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
   visit: {
     marginLeft: "auto",
     minHeight: 44,
@@ -265,7 +303,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
   },
-  link: { color: Gallery.accent, fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  link: {
+    color: Gallery.accent,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
   summary: { alignSelf: "flex-start", minHeight: 22, paddingTop: 2 },
   summaryText: { color: Gallery.ink, fontSize: 12, lineHeight: 18 },
   strong: { fontWeight: "600" },

@@ -41,9 +41,9 @@ export function useFriendship(
   const state =
     !enabled || query.error || !query.data
       ? undefined
-      : confirmed &&
-          confirmed.revision > query.data.revision &&
-          confirmed.blockRevision >= query.data.blockRevision
+      : confirmed
+          && confirmed.revision > query.data.revision
+          && confirmed.blockRevision >= query.data.blockRevision
         ? confirmed
         : query.data;
 
@@ -57,7 +57,8 @@ export function useFriendship(
     const client = new ConvexHttpClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
       auth: session.token,
       logger: false,
-      fetch: (input, options) => expoFetch(input, { ...options, signal: controller.signal }),
+      fetch: (input, options) =>
+        expoFetch(input, { ...options, signal: controller.signal }),
     });
     setBusy(true);
     setError(undefined);
@@ -76,17 +77,20 @@ export function useFriendship(
       if (!current()) return;
       reportError(cause, `friendship.${action}`);
       if (
-        convexErrorCode(cause) === "conflict" ||
-        convexErrorCode(cause) === "invalid_relationship"
+        convexErrorCode(cause) === "conflict"
+        || convexErrorCode(cause) === "invalid_relationship"
       ) {
         setConfirmed(undefined);
-        setError("This friendship changed. Review the updated options and try again.");
-        query.refresh();
-      } else
         setError(
-          socialErrorMessage(cause) ??
-            "Couldn’t update this friendship. Check your connection and try again.",
+          "This friendship changed. Review the updated options and try again.",
         );
+        query.refresh();
+      } else {
+        setError(
+          socialErrorMessage(cause)
+            ?? "Couldn’t update this friendship. Check your connection and try again.",
+        );
+      }
     } finally {
       if (current()) {
         request.current = null;
@@ -99,8 +103,8 @@ export function useFriendship(
     state,
     busy,
     error:
-      error ??
-      (query.error
+      error
+      ?? (query.error
         ? (socialErrorMessage(query.error) ?? "Couldn’t load this friendship.")
         : undefined),
     act,

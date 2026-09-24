@@ -27,16 +27,20 @@ export function PlayerTransport({
       <Slider
         accessibilityRole="adjustable"
         accessibilityLabel="Narration position"
-        accessibilityValue={{ text: `${audioTime(position)} of ${audioTime(audio.duration)}` }}
+        accessibilityValue={{
+          text: `${audioTime(position)} of ${audioTime(audio.duration)}`,
+        }}
         accessibilityActions={[
           { name: "increment", label: "Forward 15 seconds" },
           { name: "decrement", label: "Back 15 seconds" },
         ]}
         onAccessibilityAction={({ nativeEvent }) => {
-          if (ready)
+          if (ready) {
             void audio.controller.seek(
-              audio.position + (nativeEvent.actionName === "increment" ? 15 : -15),
+              audio.position
+                + (nativeEvent.actionName === "increment" ? 15 : -15),
             );
+          }
         }}
         value={audio.position}
         minimumValue={0}
@@ -92,7 +96,10 @@ export function PlayerTransport({
           }}
           disabled={audio.phase === "loading"}
           onPress={audio.controller.toggle}
-          style={({ pressed }) => [styles.play, { opacity: pressed ? 0.75 : 1 }]}
+          style={({ pressed }) => [
+            styles.play,
+            { opacity: pressed ? 0.75 : 1 },
+          ]}
         >
           {audio.phase === "loading" ? (
             <LoadingRing color={Gallery.surface} />
@@ -132,7 +139,11 @@ export function PlayerTransport({
             audio.controller.setVolume(
               Math.max(
                 0,
-                Math.min(1, audio.volume + (nativeEvent.actionName === "increment" ? 0.1 : -0.1)),
+                Math.min(
+                  1,
+                  audio.volume
+                    + (nativeEvent.actionName === "increment" ? 0.1 : -0.1),
+                ),
               ),
             )
           }
@@ -155,7 +166,9 @@ export function PlayerTransport({
           accessibilityLabel={`Playback speed, ${audio.rate} times`}
           onPress={() => {
             const rates = [1, 1.25, 1.5, 2];
-            audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
+            audio.controller.setRate(
+              rates[(rates.indexOf(audio.rate) + 1) % rates.length],
+            );
           }}
           style={styles.action}
         >
@@ -174,20 +187,34 @@ export function PlayerTransport({
           accessibilityRole="button"
           accessibilityLabel="Transcript and sources"
           accessibilityState={{ selected: view === "transcript" }}
-          onPress={() => onView(view === "transcript" ? "player" : "transcript")}
+          onPress={() =>
+            onView(view === "transcript" ? "player" : "transcript")
+          }
           style={[styles.action, view === "transcript" && styles.selected]}
         >
           <AudioIcon name="text.alignleft" size={18} />
-          <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>
+          <Text
+            style={[
+              styles.actionText,
+              view === "transcript" && styles.selectedText,
+            ]}
+          >
             Transcript
           </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Up next"
-          accessibilityState={{ selected: view === "queue" || view === "saved" }}
-          onPress={() => onView(view === "queue" || view === "saved" ? "player" : "queue")}
-          style={[styles.action, (view === "queue" || view === "saved") && styles.selected]}
+          accessibilityState={{
+            selected: view === "queue" || view === "saved",
+          }}
+          onPress={() =>
+            onView(view === "queue" || view === "saved" ? "player" : "queue")
+          }
+          style={[
+            styles.action,
+            (view === "queue" || view === "saved") && styles.selected,
+          ]}
         >
           <AudioIcon name="list.bullet" size={20} />
           <Text
@@ -210,8 +237,17 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.paper,
   },
   slider: { height: 44 },
-  times: { flexDirection: "row", justifyContent: "space-between", marginTop: -4 },
-  time: { fontSize: 12, lineHeight: 18, fontVariant: ["tabular-nums"], color: Gallery.muted },
+  times: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: -4,
+  },
+  time: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontVariant: ["tabular-nums"],
+    color: Gallery.muted,
+  },
   controls: {
     flexDirection: "row",
     justifyContent: "center",

@@ -2,7 +2,10 @@ import { Image } from "expo-image";
 import { Fragment, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import type { DocentSentence, FactChip } from "../../../../convex/lib/validators";
+import type {
+  DocentSentence,
+  FactChip,
+} from "../../../../convex/lib/validators";
 
 import { SourceLink } from "./source-chip";
 import { ThemedText } from "@/components/themed-text";
@@ -36,7 +39,11 @@ function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
       if (!fact) continue;
       let source = sources.find(({ url }) => url === fact.sourceUrl);
       if (!source) {
-        source = { number: sources.length + 1, label: fact.sourceLabel, url: fact.sourceUrl };
+        source = {
+          number: sources.length + 1,
+          label: fact.sourceLabel,
+          url: fact.sourceUrl,
+        };
         sources.push(source);
       }
       numbers.add(source.number);
@@ -51,7 +58,12 @@ function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
 }
 
 /** Cited docent prose: one paragraph with numbered markers, then the numbered sources. */
-export function DocentSection({ docent, factSheet, title, pending = false }: DocentSectionProps) {
+export function DocentSection({
+  docent,
+  factSheet,
+  title,
+  pending = false,
+}: DocentSectionProps) {
   const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!pending) return;
@@ -115,7 +127,11 @@ function CitedParagraph({ sentences, sources }: ReturnType<typeof citeDocent>) {
               <ThemedText type="link" style={styles.sourceLabel}>
                 {label}
               </ThemedText>
-              <Image source="sf:arrow.up.right" tintColor={Gallery.accent} style={styles.open} />
+              <Image
+                source="sf:arrow.up.right"
+                tintColor={Gallery.accent}
+                style={styles.open}
+              />
             </SourceLink>
           ))}
         </View>
@@ -145,8 +161,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: Gallery.fill,
   },
-  numberText: { fontSize: 11, lineHeight: 13, fontWeight: "600", color: Gallery.muted },
-  sources: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
+  numberText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "600",
+    color: Gallery.muted,
+  },
+  sources: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Gallery.separator,
+  },
   source: {
     flexDirection: "row",
     alignItems: "center",

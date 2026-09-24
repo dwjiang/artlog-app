@@ -27,7 +27,8 @@ type PendingShare = {
   state: ContributeInput["state"];
   museumSearchUpdatedAt?: number;
 };
-const key = (owner: string, scanId: string) => `pendingShare:${owner}:${scanId}`;
+const key = (owner: string, scanId: string) =>
+  `pendingShare:${owner}:${scanId}`;
 const inFlight = new Map<string, Promise<ContributionAttempt>>();
 
 /** Shares a saved work; a transport failure leaves the share queued for the next flush, other failures wait for the person. */
@@ -67,8 +68,15 @@ export function flushPendingShares(): Promise<void> {
   if (flushing) return flushing;
   flushing = (async () => {
     const current = captureOwner();
-    if (!current.scope || (await getNetworkStateAsync()).isInternetReachable === false) return;
-    for (const { key: id, value } of await listSettings(key(current.owner, ""))) {
+    if (
+      !current.scope
+      || (await getNetworkStateAsync()).isInternetReachable === false
+    ) {
+      return;
+    }
+    for (const { key: id, value } of await listSettings(
+      key(current.owner, ""),
+    )) {
       if (!current.isCurrent()) return;
       const share = JSON.parse(value) as PendingShare;
       const capture = await getPendingScan(share.captureLocalId, current.owner);
@@ -106,7 +114,9 @@ async function isSaved(
 ): Promise<boolean> {
   const photo = findArtworkPhoto(captureLocalId, owner);
   for (const localId of new Set([photo?.savedLocalId, share.savedLocalId])) {
-    if (localId && (await getSavedWork(localId, owner))?.deletedAt === null) return true;
+    if (localId && (await getSavedWork(localId, owner))?.deletedAt === null) {
+      return true;
+    }
   }
   return false;
 }
@@ -115,7 +125,9 @@ async function isSaved(
 export function startPendingShareFlusher(): () => void {
   void flushPendingShares();
   const network = addNetworkStateListener((state) => {
-    if (state.isInternetReachable ?? state.isConnected) void flushPendingShares();
+    if (state.isInternetReachable ?? state.isConnected) {
+      void flushPendingShares();
+    }
   });
   const appState = AppState.addEventListener("change", (state) => {
     if (state === "active") void flushPendingShares();

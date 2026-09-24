@@ -6,9 +6,15 @@ import type { PendingScan } from "@/db/schema";
 import type { IdentifyResponse } from "@/lib/capture/stages";
 import { createFlusher, type FlushDependencies } from "./flush";
 
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
-function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): PendingScan {
+function pendingScan(
+  localId: string,
+  overrides: Partial<PendingScan> = {},
+): PendingScan {
   return {
     owner: "device:test-installation",
     localId,
@@ -54,18 +60,19 @@ function fakeDependencies(rows: PendingScan[]) {
       [...store.values()]
         .filter(
           (row) =>
-            row.status === "queued" ||
-            (row.status === "failed" && row.attemptModelVersion !== modelVersion),
+            row.status === "queued"
+            || (row.status === "failed"
+              && row.attemptModelVersion !== modelVersion),
         )
         .sort((a, b) => a.capturedAt - b.capturedAt),
     ),
     listPendingLabels: jest.fn(async () =>
       [...store.values()].filter(
         (row) =>
-          row.status === "identified" &&
-          row.scanId &&
-          (row.labelPhotoPath || row.qrUrl) &&
-          row.attempts < 5,
+          row.status === "identified"
+          && row.scanId
+          && (row.labelPhotoPath || row.qrUrl)
+          && row.attempts < 5,
       ),
     ),
     clearPendingLabel: jest.fn(async (localId: string) => {
@@ -77,7 +84,11 @@ function fakeDependencies(rows: PendingScan[]) {
       });
     }),
     recordLabelFailure: jest.fn(
-      async (localId: string, error: string, { countAttempt }: { countAttempt: boolean }) => {
+      async (
+        localId: string,
+        error: string,
+        { countAttempt }: { countAttempt: boolean },
+      ) => {
         const row = store.get(localId)!;
         row.attempts += countAttempt ? 1 : 0;
         row.lastError = error;
@@ -90,14 +101,21 @@ function fakeDependencies(rows: PendingScan[]) {
     markIdentifying: jest.fn(async (localId: string) => {
       store.get(localId)!.status = "identifying";
     }),
-    recordResult: jest.fn(async (localId: string, response: IdentifyResponse) => {
-      Object.assign(store.get(localId)!, {
-        status: response.status === "unsupported_version" ? "failed" : "identified",
-        scanId: response.scanId,
-      });
-    }),
+    recordResult: jest.fn(
+      async (localId: string, response: IdentifyResponse) => {
+        Object.assign(store.get(localId)!, {
+          status:
+            response.status === "unsupported_version" ? "failed" : "identified",
+          scanId: response.scanId,
+        });
+      },
+    ),
     recordFailure: jest.fn(
-      async (localId: string, error: string, { countAttempt }: { countAttempt: boolean }) => {
+      async (
+        localId: string,
+        error: string,
+        { countAttempt }: { countAttempt: boolean },
+      ) => {
         const row = store.get(localId)!;
         row.attempts += countAttempt ? 1 : 0;
         row.lastError = error;
@@ -105,24 +123,31 @@ function fakeDependencies(rows: PendingScan[]) {
         return { status: row.status, attempts: row.attempts };
       },
     ),
-    resetAttemptsForModel: jest.fn(async (localId: string, attemptModelVersion: string) => {
-      Object.assign(store.get(localId)!, {
-        attemptModelVersion,
-        status: "queued",
-        attempts: 0,
-        lastError: null,
-      });
-    }),
-    updateFeatures: jest.fn(async (localId: string, features: Partial<PendingScan>) => {
-      Object.assign(store.get(localId)!, features, {
-        attemptModelVersion: features.modelVersion,
-        status: "queued",
-        attempts: 0,
-      });
-    }),
-    identify: jest.fn(async ({ localId }: { localId: string }) => identified(localId)),
+    resetAttemptsForModel: jest.fn(
+      async (localId: string, attemptModelVersion: string) => {
+        Object.assign(store.get(localId)!, {
+          attemptModelVersion,
+          status: "queued",
+          attempts: 0,
+          lastError: null,
+        });
+      },
+    ),
+    updateFeatures: jest.fn(
+      async (localId: string, features: Partial<PendingScan>) => {
+        Object.assign(store.get(localId)!, features, {
+          attemptModelVersion: features.modelVersion,
+          status: "queued",
+          attempts: 0,
+        });
+      },
+    ),
+    identify: jest.fn(async ({ localId }: { localId: string }) =>
+      identified(localId),
+    ),
     resolveVisitId: jest.fn(
-      async (_localId: string, _venueId: Id<"museums">) => "remote-visit" as Id<"visits">,
+      async (_localId: string, _venueId: Id<"museums">) =>
+        "remote-visit" as Id<"visits">,
     ),
     runLabelFlow: jest.fn(async () => {}),
     reembed: jest.fn(async () => ({
@@ -153,7 +178,10 @@ it("identifies queued rows oldest first and records each result", async () => {
     pendingScan("earlier", { capturedAt: 100 }),
   ]);
   await createFlusher(deps).start();
-  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(["earlier", "later"]);
+  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual([
+    "earlier",
+    "later",
+  ]);
   expect(deps.identify).toHaveBeenCalledWith({
     localId: "earlier",
     vector: [0.1],
@@ -167,8 +195,14 @@ it("identifies queued rows oldest first and records each result", async () => {
   expect(deps.markIdentifying.mock.invocationCallOrder[0]).toBeLessThan(
     deps.identify.mock.invocationCallOrder[0],
   );
-  expect(store.get("earlier")).toMatchObject({ status: "identified", scanId: "scan-earlier" });
-  expect(store.get("later")).toMatchObject({ status: "identified", scanId: "scan-later" });
+  expect(store.get("earlier")).toMatchObject({
+    status: "identified",
+    scanId: "scan-earlier",
+  });
+  expect(store.get("later")).toMatchObject({
+    status: "identified",
+    scanId: "scan-later",
+  });
   expect(deps.reembed).not.toHaveBeenCalled();
   expect(deps.runLabelFlow).not.toHaveBeenCalled();
 });
@@ -208,8 +242,13 @@ it("waits for the captured local visit before sending a queued scan", async () =
   );
   const flusher = createFlusher(deps);
   const running = flusher.start();
-  for (let tick = 0; deps.resolveVisitId.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.resolveVisitId.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   expect(deps.identify).not.toHaveBeenCalled();
   finish("original-remote-visit" as Id<"visits">);
   await running;
@@ -223,9 +262,14 @@ it("waits for the captured local visit before sending a queued scan", async () =
 
 it("retries a transient visit-sync failure without identifying without a visit or spending an attempt", async () => {
   const { deps, store } = fakeDependencies([
-    pendingScan("a", { venueId: "museum-1" as Id<"museums">, visitLocalId: "local-visit" }),
+    pendingScan("a", {
+      venueId: "museum-1" as Id<"museums">,
+      visitLocalId: "local-visit",
+    }),
   ]);
-  deps.resolveVisitId.mockRejectedValueOnce(new ConvexError({ code: "device_not_registered" }));
+  deps.resolveVisitId.mockRejectedValueOnce(
+    new ConvexError({ code: "device_not_registered" }),
+  );
   const flusher = createFlusher(deps);
   await flusher.start();
   expect(deps.identify).not.toHaveBeenCalled();
@@ -235,13 +279,18 @@ it("retries a transient visit-sync failure without identifying without a visit o
     visitLocalId: "local-visit",
   });
   await jest.advanceTimersByTimeAsync(2000);
-  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ visitId: "remote-visit" }));
+  expect(deps.identify).toHaveBeenCalledWith(
+    expect.objectContaining({ visitId: "remote-visit" }),
+  );
   flusher.stop();
 });
 
 it("does not identify after cleanup while its visit is syncing", async () => {
   const { deps, store } = fakeDependencies([
-    pendingScan("a", { venueId: "museum-1" as Id<"museums">, visitLocalId: "local-visit" }),
+    pendingScan("a", {
+      venueId: "museum-1" as Id<"museums">,
+      visitLocalId: "local-visit",
+    }),
   ]);
   let finish!: (id: Id<"visits">) => void;
   deps.resolveVisitId.mockReturnValueOnce(
@@ -251,8 +300,13 @@ it("does not identify after cleanup while its visit is syncing", async () => {
   );
   const flusher = createFlusher(deps);
   const running = flusher.start();
-  for (let tick = 0; deps.resolveVisitId.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.resolveVisitId.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   flusher.stop();
   finish("remote-visit" as Id<"visits">);
   await running;
@@ -279,8 +333,9 @@ it.each([
     const { deps } = fakeDependencies([pendingScan("a", row)]);
     deps.identify.mockResolvedValue(identified("a", outcome));
     await createFlusher(deps).start();
-    if (expected) expect(deps.runLabelFlow).toHaveBeenCalledWith("scan-a", expected);
-    else expect(deps.runLabelFlow).not.toHaveBeenCalled();
+    if (expected) {
+      expect(deps.runLabelFlow).toHaveBeenCalledWith("scan-a", expected);
+    } else expect(deps.runLabelFlow).not.toHaveBeenCalled();
   },
 );
 
@@ -312,7 +367,11 @@ it("re-embeds crops from an older model before sending them", async () => {
     expect.objectContaining({ vector: [9], modelVersion: "v1" }),
   );
   expect(deps.identify).toHaveBeenCalledWith(
-    expect.objectContaining({ localId: "old", vector: [9], modelVersion: "v1" }),
+    expect.objectContaining({
+      localId: "old",
+      vector: [9],
+      modelVersion: "v1",
+    }),
   );
   expect(deps.identify).toHaveBeenCalledWith(
     expect.objectContaining({ localId: "new", vector: [0.1] }),
@@ -351,7 +410,10 @@ it.each([
 );
 
 it("honors the server retry delay for the entire batch despite repeated flush triggers", async () => {
-  const { deps, store } = fakeDependencies([pendingScan("a"), pendingScan("b")]);
+  const { deps, store } = fakeDependencies([
+    pendingScan("a"),
+    pendingScan("b"),
+  ]);
   deps.identify.mockRejectedValueOnce(
     new ConvexError({ code: "rate_limited", retryAfter: 12_000 }),
   );
@@ -364,7 +426,10 @@ it("honors the server retry delay for the entire batch despite repeated flush tr
   expect(store.get("b")).toMatchObject({ status: "queued", attempts: 0 });
   await jest.advanceTimersByTimeAsync(1);
   expect(deps.identify).toHaveBeenCalledTimes(3);
-  expect([...store.values()].map((row) => row.status)).toEqual(["identified", "identified"]);
+  expect([...store.values()].map((row) => row.status)).toEqual([
+    "identified",
+    "identified",
+  ]);
   expect(jest.getTimerCount()).toBe(0);
   flusher.stop();
 });
@@ -399,7 +464,9 @@ it("counts other failures, keeps going, and gives up after five attempts", async
   }
   expect(store.get("bad")).toMatchObject({ status: "failed", attempts: 5 });
   expect(jest.getTimerCount()).toBe(0);
-  expect(deps.identify.mock.calls.filter(([args]) => args.localId === "good")).toHaveLength(1);
+  expect(
+    deps.identify.mock.calls.filter(([args]) => args.localId === "good"),
+  ).toHaveLength(1);
 });
 
 it("shares one run between concurrent callers and runs again for work that arrives meanwhile", async () => {
@@ -415,21 +482,31 @@ it("shares one run between concurrent callers and runs again for work that arriv
   const first = flusher.start();
   const second = flusher.flush();
   expect(second).toBe(first);
-  for (let tick = 0; deps.identify.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.identify.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   expect(deps.identify).toHaveBeenCalledTimes(1);
   store.set("b", pendingScan("b", { capturedAt: 200 }));
   const third = flusher.flush();
   expect(third).toBe(first);
   finish();
   await first;
-  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(["a", "b"]);
+  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual([
+    "a",
+    "b",
+  ]);
   expect(deps.listFlushable).toHaveBeenCalledTimes(2);
 });
 
 it("stops a scheduled retry and never rejects on a store failure", async () => {
   const { deps } = fakeDependencies([pendingScan("a")]);
-  deps.identify.mockRejectedValueOnce(new ConvexError({ code: "bad_features" }));
+  deps.identify.mockRejectedValueOnce(
+    new ConvexError({ code: "bad_features" }),
+  );
   const flusher = createFlusher(deps);
   await flusher.start();
   expect(jest.getTimerCount()).toBe(1);
@@ -437,7 +514,10 @@ it("stops a scheduled retry and never rejects on a store failure", async () => {
   expect(jest.getTimerCount()).toBe(0);
   deps.listFlushable.mockRejectedValueOnce(new Error("database locked"));
   await expect(flusher.start()).resolves.toBeUndefined();
-  expect(console.warn).toHaveBeenCalledWith("Queue flush failed", expect.any(Error));
+  expect(console.warn).toHaveBeenCalledWith(
+    "Queue flush failed",
+    expect.any(Error),
+  );
 });
 
 it("honors retry deadlines across repeated triggers while processing new captures", async () => {
@@ -459,7 +539,9 @@ it("honors retry deadlines across repeated triggers while processing new capture
 });
 
 it("does not use a newer row's shorter backoff to retry an older failure early", async () => {
-  const { deps, store } = fakeDependencies([pendingScan("old", { attempts: 3 })]);
+  const { deps, store } = fakeDependencies([
+    pendingScan("old", { attempts: 3 }),
+  ]);
   deps.identify.mockRejectedValue(new ConvexError({ code: "bad_features" }));
   const flusher = createFlusher(deps);
   await flusher.start();
@@ -473,7 +555,10 @@ it("does not use a newer row's shorter backoff to retry an older failure early",
 });
 
 it("ignores triggers before start and after stop, then resumes without overlapping the old request", async () => {
-  const { deps, store } = fakeDependencies([pendingScan("a"), pendingScan("b")]);
+  const { deps, store } = fakeDependencies([
+    pendingScan("a"),
+    pendingScan("b"),
+  ]);
   let finish!: () => void;
   deps.identify.mockImplementationOnce(
     () =>
@@ -485,8 +570,13 @@ it("ignores triggers before start and after stop, then resumes without overlappi
   await flusher.flush();
   expect(deps.listFlushable).not.toHaveBeenCalled();
   const first = flusher.start();
-  for (let tick = 0; deps.identify.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.identify.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   flusher.stop();
   await flusher.flush();
   const resumed = flusher.start();
@@ -494,32 +584,55 @@ it("ignores triggers before start and after stop, then resumes without overlappi
   expect(deps.identify).toHaveBeenCalledTimes(1);
   finish();
   await resumed;
-  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(["a", "b"]);
-  expect([...store.values()].map((row) => row.status)).toEqual(["identifying", "identified"]);
+  expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual([
+    "a",
+    "b",
+  ]);
+  expect([...store.values()].map((row) => row.status)).toEqual([
+    "identifying",
+    "identified",
+  ]);
 });
 
 it("leaves a crop queued if cleanup happens while it is being re-embedded", async () => {
-  const { deps, store } = fakeDependencies([pendingScan("a", { modelVersion: "v0" })]);
+  const { deps, store } = fakeDependencies([
+    pendingScan("a", { modelVersion: "v0" }),
+  ]);
   let finish!: () => void;
   deps.reembed.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
         finish = () =>
-          resolve({ vector: [1], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4) });
+          resolve({
+            vector: [1],
+            descriptors: new ArrayBuffer(4),
+            keypoints: new ArrayBuffer(4),
+          });
       }),
   );
   const flusher = createFlusher(deps);
   const running = flusher.start();
-  for (let tick = 0; deps.reembed.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.reembed.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   flusher.stop();
   finish();
   await running;
   expect(deps.updateFeatures).not.toHaveBeenCalled();
   expect(deps.identify).not.toHaveBeenCalled();
-  expect(store.get("a")).toMatchObject({ status: "queued", modelVersion: "v0" });
+  expect(store.get("a")).toMatchObject({
+    status: "queued",
+    modelVersion: "v0",
+  });
   await flusher.start();
-  expect(store.get("a")).toMatchObject({ status: "identified", modelVersion: "v1" });
+  expect(store.get("a")).toMatchObject({
+    status: "identified",
+    modelVersion: "v1",
+  });
 });
 
 it("releases a claimed row when cleanup happens before its request is sent", async () => {
@@ -533,8 +646,13 @@ it("releases a claimed row when cleanup happens before its request is sent", asy
   });
   const flusher = createFlusher(deps);
   const running = flusher.start();
-  for (let tick = 0; deps.markIdentifying.mock.calls.length === 0 && tick < 20; tick++)
+  for (
+    let tick = 0;
+    deps.markIdentifying.mock.calls.length === 0 && tick < 20;
+    tick++
+  ) {
     await Promise.resolve();
+  }
   flusher.stop();
   finish();
   await running;
@@ -545,7 +663,10 @@ it("releases a claimed row when cleanup happens before its request is sent", asy
 });
 
 it("honors a transport pause even when a concurrent caller requests another run", async () => {
-  const { deps, store } = fakeDependencies([pendingScan("a"), pendingScan("b")]);
+  const { deps, store } = fakeDependencies([
+    pendingScan("a"),
+    pendingScan("b"),
+  ]);
   deps.identify.mockRejectedValueOnce(new TypeError("Network request failed"));
   const flusher = createFlusher(deps);
   await Promise.all([flusher.start(), flusher.flush()]);
@@ -558,7 +679,10 @@ it("honors a transport pause even when a concurrent caller requests another run"
 it.each(["success", "failure"] as const)(
   "stops during an identify %s without sending another row or scheduling a retry",
   async (outcome) => {
-    const { deps, store } = fakeDependencies([pendingScan("a"), pendingScan("b")]);
+    const { deps, store } = fakeDependencies([
+      pendingScan("a"),
+      pendingScan("b"),
+    ]);
     let finish!: () => void;
     deps.identify.mockImplementationOnce(
       () =>
@@ -571,8 +695,13 @@ it.each(["success", "failure"] as const)(
     );
     const flusher = createFlusher(deps);
     const running = flusher.start();
-    for (let tick = 0; deps.identify.mock.calls.length === 0 && tick < 20; tick++)
+    for (
+      let tick = 0;
+      deps.identify.mock.calls.length === 0 && tick < 20;
+      tick++
+    ) {
       await Promise.resolve();
+    }
     flusher.stop();
     finish();
     await running;
@@ -599,7 +728,9 @@ it("discards an account response immediately even before effect cleanup stops it
 });
 
 it("reads a label-first capture even when the image matcher returned a confident guess", async () => {
-  const { deps } = fakeDependencies([pendingScan("label", { labelPhotoPath: "labels/label.jpg" })]);
+  const { deps } = fakeDependencies([
+    pendingScan("label", { labelPhotoPath: "labels/label.jpg" }),
+  ]);
   const flusher = createFlusher({ ...deps, isLabelCapture: () => true });
   await flusher.start();
   expect(deps.runLabelFlow).toHaveBeenCalledWith("scan-label", {

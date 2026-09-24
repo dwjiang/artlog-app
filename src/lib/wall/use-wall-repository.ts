@@ -10,7 +10,9 @@ function createSession() {
   let token: string | null = null;
   const repository = createWallRepository({
     transport: (() => {
-      const transport = createWallTransport(process.env.EXPO_PUBLIC_CONVEX_URL!);
+      const transport = createWallTransport(
+        process.env.EXPO_PUBLIC_CONVEX_URL!,
+      );
       return {
         ...transport,
         setLayout: async (...args: Parameters<typeof transport.setLayout>) => {
@@ -27,7 +29,9 @@ function createSession() {
     subscribeOwner,
     online: async () => {
       const network = await getNetworkStateAsync();
-      return network.isInternetReachable === true && network.isConnected === true;
+      return (
+        network.isInternetReachable === true && network.isConnected === true
+      );
     },
   });
   return {

@@ -1,11 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { WallDisplayScreen } from "./wall-display-screen";
 
 let mockWall: Partial<
   ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>
 > = { pieces: [], signedIn: true };
-jest.mock("@/lib/wall/use-collection-wall", () => ({ useCollectionWall: () => mockWall }));
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: () => mockWall,
+}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
@@ -14,7 +21,13 @@ jest.mock("@/lib/files/photos", () => ({
 }));
 jest.mock("./photo-visibility", () => ({ PhotoVisibility: () => null }));
 
-const layout = { x: 0.05, y: 0.06, width: 0.52, layer: 0, frame: "black" as const };
+const layout = {
+  x: 0.05,
+  y: 0.06,
+  width: 0.52,
+  layer: 0,
+  frame: "black" as const,
+};
 beforeAll(async () => {
   await insertSavedWork({
     localId: "lilies",
@@ -40,12 +53,19 @@ it("explains why a hung work cannot share its note until the note has synced", a
   mockWall = {
     signedIn: true,
     pieces: [],
-    draft: { color: "#FCFCF9", items: [{ placementId: "p", saveLocalId: "lilies", layout }] },
+    draft: {
+      color: "#FCFCF9",
+      items: [{ placementId: "p", saveLocalId: "lilies", layout }],
+    },
     setError: jest.fn(),
   };
   await render(<WallDisplayScreen savedId="lilies" />);
-  expect(await screen.findByRole("switch", { name: "Show note on public wall" })).toBeDisabled();
-  expect(screen.getByText("Add a note and let it sync before sharing it.")).toBeOnTheScreen();
+  expect(
+    await screen.findByRole("switch", { name: "Show note on public wall" }),
+  ).toBeDisabled();
+  expect(
+    screen.getByText("Add a note and let it sync before sharing it."),
+  ).toBeOnTheScreen();
 });
 
 it("saves a frame change for the hung placement", async () => {
@@ -54,7 +74,10 @@ it("saves a frame change for the hung placement", async () => {
   mockWall = {
     signedIn: true,
     pieces: [],
-    draft: { color: "#FCFCF9", items: [{ placementId: "p", saveLocalId: "lilies", layout }] },
+    draft: {
+      color: "#FCFCF9",
+      items: [{ placementId: "p", saveLocalId: "lilies", layout }],
+    },
     repository: { setLayoutDraft, publishLayout } as never,
     setError: jest.fn(),
   };
@@ -88,12 +111,17 @@ it("previews the selected artwork and offers all eight frames without preset siz
         },
       },
     ],
-    draft: { color: "#FCFCF9", items: [{ placementId: "p", saveLocalId: "lilies", layout }] },
+    draft: {
+      color: "#FCFCF9",
+      items: [{ placementId: "p", saveLocalId: "lilies", layout }],
+    },
     setError: jest.fn(),
   };
   await render(<WallDisplayScreen savedId="lilies" />);
   expect(
-    await screen.findByRole("image", { name: "Water Lilies, Black frame preview" }),
+    await screen.findByRole("image", {
+      name: "Water Lilies, Black frame preview",
+    }),
   ).toBeOnTheScreen();
   for (const name of [
     "Gilt",
@@ -107,8 +135,12 @@ it("previews the selected artwork and offers all eight frames without preset siz
   ]) {
     expect(screen.getByRole("button", { name })).toBeOnTheScreen();
   }
-  for (const name of ["S", "M", "L"]) expect(screen.queryByRole("button", { name })).toBeNull();
-  expect(screen.getByRole("header", { name: "Water Lilies" })).toBeOnTheScreen();
+  for (const name of ["S", "M", "L"]) {
+    expect(screen.queryByRole("button", { name })).toBeNull();
+  }
+  expect(
+    screen.getByRole("header", { name: "Water Lilies" }),
+  ).toBeOnTheScreen();
 });
 
 it("tells the owner when the artwork is not on the wall", async () => {
@@ -119,7 +151,9 @@ it("tells the owner when the artwork is not on the wall", async () => {
     setError: jest.fn(),
   };
   await render(<WallDisplayScreen savedId="lilies" />);
-  expect(await screen.findByText("This artwork is not on your wall.")).toBeOnTheScreen();
+  expect(
+    await screen.findByText("This artwork is not on your wall."),
+  ).toBeOnTheScreen();
 });
 
 it("re-reads the wall for a synced work so note eligibility reflects the latest sync", async () => {
@@ -148,6 +182,8 @@ it("re-reads the wall for a synced work so note eligibility reflects the latest 
   const view = await render(<WallDisplayScreen savedId="lilies" />);
   await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
   await view.rerender(<WallDisplayScreen savedId="unsynced" />);
-  expect(await screen.findByRole("header", { name: "Haystacks" })).toBeOnTheScreen();
+  expect(
+    await screen.findByRole("header", { name: "Haystacks" }),
+  ).toBeOnTheScreen();
   expect(refresh).toHaveBeenCalledTimes(1);
 });

@@ -5,7 +5,10 @@ import { Pressable } from "react-native";
 import { Gallery } from "@/constants/theme";
 import { ThemedText } from "./themed-text";
 
-type RouteState = { index?: number; routes: { name: string; state?: RouteState }[] };
+type RouteState = {
+  index?: number;
+  routes: { name: string; state?: RouteState }[];
+};
 
 // Screens with an in-content title leave the header title blank, so the back button cannot inherit it.
 const ROUTE_LABELS: Record<string, string> = {
@@ -25,10 +28,13 @@ const ROUTE_LABELS: Record<string, string> = {
   "all-artworks": "All artworks",
 };
 
-const focused = (state: RouteState) => state.routes[state.index ?? state.routes.length - 1];
+const focused = (state: RouteState) =>
+  state.routes[state.index ?? state.routes.length - 1];
 
 /** Names the deepest known screen under the focused one; a tab resolves to the screen it currently shows. */
-export function previousScreenLabel(state: RouteState | undefined): string | undefined {
+export function previousScreenLabel(
+  state: RouteState | undefined,
+): string | undefined {
   if (!state) return undefined;
   let route: RouteState["routes"][number] | undefined =
     state.routes[(state.index ?? state.routes.length - 1) - 1];
@@ -43,7 +49,9 @@ export function previousScreenLabel(state: RouteState | undefined): string | und
 export function GalleryBackToolbar() {
   const navigation = useNavigation();
   // Read once: a screen pushed on top later would otherwise shift which route counts as previous.
-  const [label] = useState(() => previousScreenLabel(navigation.getState()) ?? "Back");
+  const [label] = useState(
+    () => previousScreenLabel(navigation.getState()) ?? "Back",
+  );
   return (
     <>
       <Stack.Screen options={{ headerBackVisible: false }} />
@@ -53,14 +61,21 @@ export function GalleryBackToolbar() {
             accessibilityRole="button"
             accessibilityLabel={label === "Back" ? "Back" : `Back to ${label}`}
             onPress={() => router.back()}
-            style={{ flexDirection: "row", alignItems: "center", gap: 4, minHeight: 44 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              minHeight: 44,
+            }}
           >
             <Image
               source="sf:chevron.left"
               tintColor={Gallery.accent}
               style={{ width: 14, height: 22 }}
             />
-            <ThemedText style={{ color: Gallery.accent, fontSize: 17 }}>{label}</ThemedText>
+            <ThemedText style={{ color: Gallery.accent, fontSize: 17 }}>
+              {label}
+            </ThemedText>
           </Pressable>
         </Stack.Toolbar.View>
       </Stack.Toolbar>

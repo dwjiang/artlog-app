@@ -28,9 +28,11 @@ export const LABEL_FIELD_LABELS: Record<LabelFieldName, string> = {
 };
 
 export const WARNING_MESSAGES: Record<LabelWarning, string> = {
-  date_outside_lifespan: "The date is outside the artist’s lifespan — please check",
+  date_outside_lifespan:
+    "The date is outside the artist’s lifespan — please check",
   artist_not_found: "We couldn’t find this artist — please check the spelling",
-  venue_unlikely: "This artist isn’t usually shown at this museum — please check",
+  venue_unlikely:
+    "This artist isn’t usually shown at this museum — please check",
 };
 
 export type FieldState = {
@@ -45,7 +47,9 @@ export type FieldState = {
 };
 export type LabelFormState = Record<LabelFieldName, FieldState>;
 
-export type SubmittedFields = FunctionArgs<typeof api.contributions.contribute>["fields"];
+export type SubmittedFields = FunctionArgs<
+  typeof api.contributions.contribute
+>["fields"];
 
 export function formStateFromFlow(flow: LabelFlowDisplay): LabelFormState {
   const state = {} as LabelFormState;
@@ -63,8 +67,14 @@ export function formStateFromFlow(flow: LabelFlowDisplay): LabelFormState {
 }
 
 /** Opening the lock downgrades the field's evidence even before a keystroke. */
-export function unlockField(state: LabelFormState, name: LabelFieldName): LabelFormState {
-  return { ...state, [name]: { ...state[name], locked: false, unlocked: true } };
+export function unlockField(
+  state: LabelFormState,
+  name: LabelFieldName,
+): LabelFormState {
+  return {
+    ...state,
+    [name]: { ...state[name], locked: false, unlocked: true },
+  };
 }
 
 /** A verified field's lock follows its value, so a typo that is corrected does not leave the field downgraded. */
@@ -78,7 +88,12 @@ export function setFieldValue(
   const diverged = value.trim() !== field.original;
   return {
     ...state,
-    [name]: { ...field, value, locked: verified && !diverged, unlocked: verified && diverged },
+    [name]: {
+      ...field,
+      value,
+      locked: verified && !diverged,
+      unlocked: verified && diverged,
+    },
   };
 }
 
@@ -96,7 +111,9 @@ export function toVerifyInput(state: LabelFormState): LabelInput {
 }
 
 /** The contribution's fields; `null` until both a title and an artist are present (contributions.ts requires them). */
-export function toSubmittedFields(state: LabelFormState): SubmittedFields | null {
+export function toSubmittedFields(
+  state: LabelFormState,
+): SubmittedFields | null {
   const title = state.title.value.trim();
   const artist = state.artist.value.trim();
   if (!title || !artist) return null;
@@ -112,7 +129,10 @@ export function toSubmittedFields(state: LabelFormState): SubmittedFields | null
 }
 
 /** True when any value differs from what the stored flow holds, so a contribution must re-verify first. */
-export function differsFromFlow(state: LabelFormState, flow: LabelFlowDisplay): boolean {
+export function differsFromFlow(
+  state: LabelFormState,
+  flow: LabelFlowDisplay,
+): boolean {
   return LABEL_FIELD_NAMES.some(
     (name) => state[name].value.trim() !== (flow.fields[name]?.value ?? ""),
   );

@@ -7,17 +7,34 @@ import model from "../shared/model/model-version.json";
 import { placementProposalPayload } from "../shared/attestation/attested-payloads";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalQuery, mutation, type ActionCtx } from "./_generated/server";
+import {
+  action,
+  internalQuery,
+  mutation,
+  type ActionCtx,
+} from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { requireDeviceFromAction } from "./lib/auth";
 import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
-import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
-import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
+import {
+  MAX_CANDIDATES,
+  MAX_ORB_VERIFICATIONS,
+  runPipeline,
+} from "./lib/identifyPipeline";
+import {
+  eligibleObject,
+  eligibleVector,
+  recognitionPartition,
+} from "./lib/recognitionEligibility";
 import { loadOrb } from "./lib/orbStorage";
 import { isSupported, validateVector } from "./lib/modelVersion";
-import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/orb/features";
+import {
+  decodeOrbFeatures,
+  OrbFormatError,
+  type OrbFeatures,
+} from "../shared/orb/features";
 import type { VerifyResult } from "../shared/orb/verify";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
@@ -49,11 +66,17 @@ export const loadCandidates = internalQuery({
     now: v.number(),
   },
   returns: v.array(loadedCandidate),
-  handler: async (ctx, { vectorIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
+  handler: async (
+    ctx,
+    { vectorIds, scores, now, venueId },
+  ): Promise<LoadedCandidate[]> => {
     if (vectorIds.length !== scores.length || vectorIds.length > 32) {
       throw new ConvexError({ code: "bad_candidates" });
     }
-    const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
+    const byObject = new Map<
+      Id<"objects">,
+      { object: Doc<"objects">; similarity: number }
+    >();
     for (let i = 0; i < vectorIds.length; i++) {
       const vector = await ctx.db.get(vectorIds[i]);
       if (!vector || !(await eligibleVector(ctx, vector))) continue;
@@ -62,10 +85,13 @@ export const loadCandidates = internalQuery({
       if (object.mergedInto) object = await ctx.db.get(object.mergedInto);
       if (!object || !(await eligibleObject(ctx, object, venueId))) continue;
       const previous = byObject.get(object._id);
-      if (!previous || scores[i] > previous.similarity)
+      if (!previous || scores[i] > previous.similarity) {
         byObject.set(object._id, { object, similarity: scores[i] });
+      }
     }
-    const ranked = [...byObject.values()].sort((a, b) => b.similarity - a.similarity).slice(0, 20);
+    const ranked = [...byObject.values()]
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 20);
     const candidates: LoadedCandidate[] = [];
     for (const { object, similarity } of ranked) {
       const [artwork, descriptors, owner] = await Promise.all([
@@ -91,7 +117,8 @@ export const loadCandidates = internalQuery({
       });
     }
     for (let i = 0; i < candidates.length; i++) {
-      candidates[i].runnerUpSimilarity = candidates[i === 0 ? 1 : 0]?.similarity ?? 0;
+      candidates[i].runnerUpSimilarity =
+        candidates[i === 0 ? 1 : 0]?.similarity ?? 0;
     }
     return candidates;
   },
@@ -107,12 +134,14 @@ export const loadContext = internalQuery({
       scan.visitId ? ctx.db.get(scan.visitId) : null,
       ctx.db.get(scan.deviceId),
     ]);
-    if (!device || device.banned) throw new ConvexError({ code: "device_banned" });
+    if (!device || device.banned) {
+      throw new ConvexError({ code: "device_banned" });
+    }
     if (
-      scan.visitId &&
-      (!visit ||
-        !sameOwner(visit.owner, await ownerForDevice(ctx, device)) ||
-        visit.venueId !== scan.venueId)
+      scan.visitId
+      && (!visit
+        || !sameOwner(visit.owner, await ownerForDevice(ctx, device))
+        || visit.venueId !== scan.venueId)
     ) {
       throw new ConvexError({ code: "not_found" });
     }
@@ -134,12 +163,12 @@ export const proposeFromScan = mutation({
     });
     const scan = await ctx.db.get(args.scanId);
     if (
-      !scan ||
-      scan.deviceId !== device._id ||
-      !scan.venueId ||
-      scan.status !== "identified" ||
-      scan.outcome !== "confident" ||
-      !scan.best
+      !scan
+      || scan.deviceId !== device._id
+      || !scan.venueId
+      || scan.status !== "identified"
+      || scan.outcome !== "confident"
+      || !scan.best
     ) {
       throw new ConvexError({ code: "invalid_scan" });
     }
@@ -180,7 +209,8 @@ async function runScan(
     ctx.vectorSearch("vectors", "by_vector", {
       vector: scan.vector,
       limit: MAX_CANDIDATES,
-      filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion, venueId)),
+      filter: (q) =>
+        q.eq("partition", recognitionPartition(scan.modelVersion, venueId)),
     });
   const [established, tentative] = await Promise.all([
     search(),
@@ -194,16 +224,18 @@ async function runScan(
       venueId: scan.venueId,
       now,
     });
-  const [establishedCandidates, tentativeCandidates, context] = await Promise.all([
-    load(established),
-    load(tentative),
-    ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
-  ]);
+  const [establishedCandidates, tentativeCandidates, context] =
+    await Promise.all([
+      load(established),
+      load(tentative),
+      ctx.runQuery(internal.identify.loadContext, { scanId: scan._id }),
+    ]);
   const candidates = [...establishedCandidates, ...tentativeCandidates];
-  const references = [establishedCandidates, tentativeCandidates].flatMap((group) =>
-    group
-      .filter((candidate) => candidate.orbStorageId !== undefined)
-      .slice(0, MAX_ORB_VERIFICATIONS),
+  const references = [establishedCandidates, tentativeCandidates].flatMap(
+    (group) =>
+      group
+        .filter((candidate) => candidate.orbStorageId !== undefined)
+        .slice(0, MAX_ORB_VERIFICATIONS),
   );
   await Promise.all(
     references.map(async (candidate) => {
@@ -222,7 +254,9 @@ async function runScan(
     inputSize: model.inputSize,
   });
   const top = decision.best;
-  const verification = top ? verifications.get(top.candidate.object._id) : undefined;
+  const verification = top
+    ? verifications.get(top.candidate.object._id)
+    : undefined;
   const best = top
     ? {
         identityStatus: top.candidate.object.identityStatus,
@@ -233,7 +267,9 @@ async function runScan(
           top.candidate.placement?.venueId === scan.venueId
             ? top.candidate.placement?.gallery
             : undefined,
-        corners: verification?.verified ? (verification.corners ?? undefined) : undefined,
+        corners: verification?.verified
+          ? (verification.corners ?? undefined)
+          : undefined,
       }
     : undefined;
   await ctx.runMutation(internal.scans.setResult, {
@@ -269,14 +305,22 @@ async function runScan(
       deviceId: scan.deviceId,
     });
   }
-  return ctx.runQuery(internal.scans.getDisplay, { scanId: scan._id, deviceId: scan.deviceId });
+  return ctx.runQuery(internal.scans.getDisplay, {
+    scanId: scan._id,
+    deviceId: scan.deviceId,
+  });
 }
 
-export function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
+export function decodeQuery(
+  descriptors: ArrayBuffer,
+  keypoints: ArrayBuffer,
+): OrbFeatures {
   try {
     return decodeOrbFeatures(descriptors, keypoints);
   } catch (error) {
-    if (error instanceof OrbFormatError) throw new ConvexError({ code: "bad_features" });
+    if (error instanceof OrbFormatError) {
+      throw new ConvexError({ code: "bad_features" });
+    }
     throw error;
   }
 }
@@ -316,12 +360,15 @@ export const identify = action({
       });
       const scanId = scan._id;
       if (
-        existing &&
-        (scan.modelVersion !== args.modelVersion ||
-          scan.status === "identified" ||
-          scan.status === "unsupported_version")
+        existing
+        && (scan.modelVersion !== args.modelVersion
+          || scan.status === "identified"
+          || scan.status === "unsupported_version")
       ) {
-        return ctx.runQuery(internal.scans.getDisplay, { scanId, deviceId: device._id });
+        return ctx.runQuery(internal.scans.getDisplay, {
+          scanId,
+          deviceId: device._id,
+        });
       }
       if (!supported) {
         await ctx.runMutation(internal.scans.setResult, {
@@ -331,7 +378,10 @@ export const identify = action({
           calibratorVersion: DEFAULT_CALIBRATOR.version,
           error: "Update the app to identify.",
         });
-        return ctx.runQuery(internal.scans.getDisplay, { scanId, deviceId: device._id });
+        return ctx.runQuery(internal.scans.getDisplay, {
+          scanId,
+          deviceId: device._id,
+        });
       }
       return runScan(ctx, scan, query!);
     }),

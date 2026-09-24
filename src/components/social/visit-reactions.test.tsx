@@ -12,9 +12,14 @@ let mockComments: object[];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("convex/react", () => ({
   useMutation: (query: FunctionReference<"mutation">) => (args: unknown) =>
-    mockMutate(jest.requireActual("convex/server").getFunctionName(query), args),
+    mockMutate(
+      jest.requireActual("convex/server").getFunctionName(query),
+      args,
+    ),
 }));
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: mockSummary, refresh: mockRefresh }),
   useCursorPages: () => ({
@@ -68,7 +73,9 @@ it("shows the liked state and submits only one unlike while a request is pending
   await render(<VisitReactions visit={visit} />);
   expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
   const unlike = screen.getByRole("button", { name: "Unlike visit" });
-  expect(screen.getByRole("button", { name: "Unlike visit", selected: true })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Unlike visit", selected: true }),
+  ).toBeOnTheScreen();
   await fireEvent.press(unlike);
   await fireEvent.press(unlike);
   expect(mockMutate).toHaveBeenCalledTimes(1);
@@ -76,7 +83,9 @@ it("shows the liked state and submits only one unlike while a request is pending
     postId: "visit-a",
     liked: false,
   });
-  expect(screen.getByRole("button", { name: "Unlike visit", busy: true })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Unlike visit", busy: true }),
+  ).toBeDisabled();
   await act(() => resolve());
 });
 
@@ -84,14 +93,25 @@ it("keeps the like state and exposes retry after a failed write", async () => {
   mockMutate.mockRejectedValueOnce(new Error("Network"));
   await render(<VisitReactions visit={visit} />);
   await fireEvent.press(screen.getByRole("button", { name: "Unlike visit" }));
-  expect(screen.getByRole("button", { name: "Unlike visit", selected: true })).toBeOnTheScreen();
-  expect(screen.getByText("Couldn’t update your like. Try again.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Retry reactions" }));
+  expect(
+    screen.getByRole("button", { name: "Unlike visit", selected: true }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByText("Couldn’t update your like. Try again."),
+  ).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Retry reactions" }),
+  );
   expect(mockMutate).toHaveBeenCalledTimes(2);
 });
 
 it("lets guests read comments and asks them to sign in before reacting", async () => {
-  mockSession = { ...mockSession, status: "signed-out", profileId: undefined, token: null };
+  mockSession = {
+    ...mockSession,
+    status: "signed-out",
+    profileId: undefined,
+    token: null,
+  };
   mockComments = [
     {
       commentId: "comment",
@@ -102,22 +122,34 @@ it("lets guests read comments and asks them to sign in before reacting", async (
     },
   ];
   await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Open 2 comments" }),
+  );
   expect(screen.getByText("Beautiful light.")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Add a comment")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "reactions" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "reactions" },
+  });
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
 it("preserves a failed comment draft and reuses its request ID on retry", async () => {
   mockMutate.mockRejectedValueOnce(new Error("Network"));
   await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Open 2 comments" }),
+  );
   expect(screen.getByRole("button", { name: "Post comment" })).toBeDisabled();
-  await fireEvent.changeText(screen.getByLabelText("Add a comment"), "A familiar favorite.");
+  await fireEvent.changeText(
+    screen.getByLabelText("Add a comment"),
+    "A familiar favorite.",
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
-  expect(screen.getByLabelText("Add a comment").props.value).toBe("A familiar favorite.");
+  expect(screen.getByLabelText("Add a comment").props.value).toBe(
+    "A familiar favorite.",
+  );
   expect(
     screen.getByText("Couldn’t post your comment. Your text is still here."),
   ).toBeOnTheScreen();
@@ -127,9 +159,13 @@ it("preserves a failed comment draft and reuses its request ID on retry", async 
 });
 
 it("opens the likes list from the compact summary and dismisses it", async () => {
-  mockComments = [{ profileId: "friend", name: "Jules Morgan", username: "jules" }];
+  mockComments = [
+    { profileId: "friend", name: "Jules Morgan", username: "jules" },
+  ];
   await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "See who liked this visit" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "See who liked this visit" }),
+  );
   expect(screen.getByText("@jules")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Close likes" }));
   expect(screen.queryByText("@jules")).toBeNull();

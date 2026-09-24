@@ -31,7 +31,11 @@ import schema from "./schema";
 import { removeContribution } from "./contributionRemoval";
 import { contributionGroup } from "./lib/agreement";
 import { recognitionPartition } from "./lib/recognitionEligibility";
-import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
+import {
+  compatibleAnchor,
+  publishContribution,
+  replaysEntry,
+} from "./lib/tentativeEntries";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
@@ -94,8 +98,9 @@ function resolveField(
   input: { value: string; edited: boolean },
 ): ContributionField {
   const verified = flow.fields[name];
-  if (!verified || verified.value !== input.value.trim())
+  if (!verified || verified.value !== input.value.trim()) {
     throw new ConvexError({ code: "field_mismatch", field: name });
+  }
   return {
     value: verified.value,
     edited: input.edited,
@@ -103,24 +108,37 @@ function resolveField(
   };
 }
 
-function resolveFields(flow: LabelFlow, submitted: SubmittedFields): ContributionFields {
+function resolveFields(
+  flow: LabelFlow,
+  submitted: SubmittedFields,
+): ContributionFields {
   const fields: ContributionFields = {
     title: resolveField(flow, "title", submitted.title),
     artist: resolveField(flow, "artist", submitted.artist),
   };
   for (const name of FIELD_NAMES) {
     const input = submitted[name];
-    if (input && name !== "title" && name !== "artist")
+    if (input && name !== "title" && name !== "artist") {
       fields[name] = resolveField(flow, name, input);
+    }
   }
   return fields;
 }
 
 function evidenceOf(fields: ContributionFields): EvidenceKind[] {
-  return [...new Set(FIELD_NAMES.flatMap((name) => (fields[name] ? [fields[name].evidence] : [])))];
+  return [
+    ...new Set(
+      FIELD_NAMES.flatMap((name) =>
+        fields[name] ? [fields[name].evidence] : [],
+      ),
+    ),
+  ];
 }
 
-const duplicatePage = v.object({ duplicate: v.boolean(), cursor: v.union(v.string(), v.null()) });
+const duplicatePage = v.object({
+  duplicate: v.boolean(),
+  cursor: v.union(v.string(), v.null()),
+});
 type DuplicatePage = Infer<typeof duplicatePage>;
 const groupPage = v.object({
   duplicate: v.boolean(),
@@ -131,14 +149,24 @@ const groupPage = v.object({
 type GroupPage = Infer<typeof groupPage>;
 
 export const checkDuplicatePage = internalQuery({
-  args: { scanId: v.id("scans"), generation: v.number(), cursor: v.union(v.string(), v.null()) },
+  args: {
+    scanId: v.id("scans"),
+    generation: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  },
   returns: duplicatePage,
-  handler: async (ctx, { scanId, generation, cursor }): Promise<DuplicatePage> => {
+  handler: async (
+    ctx,
+    { scanId, generation, cursor },
+  ): Promise<DuplicatePage> => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== device._id || !scan.venueId)
+    if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
-    if (scan.generation !== generation) throw new ConvexError({ code: "scan_restarted" });
+    }
+    if (scan.generation !== generation) {
+      throw new ConvexError({ code: "scan_restarted" });
+    }
     const page = await ctx.db
       .query("contributions")
       .withIndex("by_device_venue_model", (q) =>
@@ -147,10 +175,16 @@ export const checkDuplicatePage = internalQuery({
           .eq("venueId", scan.venueId!)
           .eq("modelVersion", scan.modelVersion),
       )
-      .paginate({ cursor, numItems: DUPLICATE_PAGE_SIZE, maximumBytesRead: DUPLICATE_PAGE_BYTES });
+      .paginate({
+        cursor,
+        numItems: DUPLICATE_PAGE_SIZE,
+        maximumBytesRead: DUPLICATE_PAGE_BYTES,
+      });
     return {
       duplicate: page.page.some(
-        (row) => row.status !== "rejected" && cosine(row.vector, scan.vector) >= DUPLICATE_COSINE,
+        (row) =>
+          row.status !== "rejected"
+          && cosine(row.vector, scan.vector) >= DUPLICATE_COSINE,
       ),
       cursor: page.isDone ? null : page.continueCursor,
     };
@@ -162,7 +196,13 @@ async function deleteUnreferencedCrop(
   cropStorageId: Id<"_storage">,
 ): Promise<void> {
   const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) return;
+  if (
+    !crop
+    || crop.contentType !== CROP_CONTENT_TYPE
+    || crop.size > MAX_CROP_BYTES
+  ) {
+    return;
+  }
   const reference = await ctx.db
     .query("contributions")
     .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
@@ -177,15 +217,22 @@ async function validateSubmission(
   cropStorageId: Id<"_storage">,
 ): Promise<{ flow: LabelFlow; fields: ContributionFields }> {
   const venue = scan.venueId ? await ctx.db.get(scan.venueId) : null;
-  if (!venue || (await isVenueOptedOut(ctx, venue)))
+  if (!venue || (await isVenueOptedOut(ctx, venue))) {
     throw new ConvexError({ code: "invalid_venue" });
+  }
   const flow = scan.labelFlow;
-  if (!flow || flow.stage !== "verified" || flow.moderation === "flagged")
+  if (!flow || flow.stage !== "verified" || flow.moderation === "flagged") {
     throw new ConvexError({ code: "label_unverified" });
+  }
   const fields = resolveFields(flow, submitted);
   const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES)
+  if (
+    !crop
+    || crop.contentType !== CROP_CONTENT_TYPE
+    || crop.size > MAX_CROP_BYTES
+  ) {
     throw new ConvexError({ code: "bad_crop" });
+  }
   return { flow, fields };
 }
 
@@ -211,18 +258,24 @@ export const authorize = internalMutation({
     const { scanId, cropStorageId } = args;
     const device = await requireAttestedWrite(ctx, {
       ...args,
-      payload: contributionPayload({ scanId, cropStorageId, fields: args.fields }),
+      payload: contributionPayload({
+        scanId,
+        cropStorageId,
+        fields: args.fields,
+      }),
     });
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== device._id || !scan.venueId)
+    if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
+    }
     const existing = await ctx.db
       .query("contributions")
       .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
       .unique();
     if (existing) {
-      if (existing.cropStorageId !== cropStorageId)
+      if (existing.cropStorageId !== cropStorageId) {
         await deleteUnreferencedCrop(ctx, cropStorageId);
+      }
       return {
         kind: "existing",
         result: {
@@ -235,18 +288,32 @@ export const authorize = internalMutation({
     await validateSubmission(ctx, scan, args.fields, cropStorageId);
     // This transaction commits the charge and assertion before any search, including searches that fail.
     await limitDevice(ctx, "contribute", device._id);
-    return { kind: "authorized", scan, previousContributionId: device.lastContributionId ?? null };
+    return {
+      kind: "authorized",
+      scan,
+      previousContributionId: device.lastContributionId ?? null,
+    };
   },
 });
 
 export const findGroupPage = internalQuery({
-  args: { scanId: v.id("scans"), fields: submittedFields, cursor: v.union(v.string(), v.null()) },
+  args: {
+    scanId: v.id("scans"),
+    fields: submittedFields,
+    cursor: v.union(v.string(), v.null()),
+  },
   returns: groupPage,
   handler: async (ctx, { scanId, fields, cursor }): Promise<GroupPage> => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== device._id || !scan.venueId || !scan.labelFlow)
+    if (
+      !scan
+      || scan.deviceId !== device._id
+      || !scan.venueId
+      || !scan.labelFlow
+    ) {
       throw new ConvexError({ code: "invalid_scan" });
+    }
     const venue = await ctx.db.get(scan.venueId);
     const revision = venue?.contributionRevision ?? 0;
     const candidate = {
@@ -257,16 +324,29 @@ export const findGroupPage = internalQuery({
     };
     const page = await ctx.db
       .query("objects")
-      .withIndex("by_groupKey", (q) => q.eq("groupKey", contributionGroup(candidate)))
+      .withIndex("by_groupKey", (q) =>
+        q.eq("groupKey", contributionGroup(candidate)),
+      )
       .paginate({ cursor, numItems: 32 });
     for (const object of page.page) {
       if (object.reverted || object.mergedInto) continue;
-      if (await replaysEntry(ctx, candidate, object))
+      if (await replaysEntry(ctx, candidate, object)) {
         return { duplicate: true, revision, cursor: null };
-      if (await compatibleAnchor(ctx, candidate, object))
-        return { duplicate: false, objectId: object._id, revision, cursor: null };
+      }
+      if (await compatibleAnchor(ctx, candidate, object)) {
+        return {
+          duplicate: false,
+          objectId: object._id,
+          revision,
+          cursor: null,
+        };
+      }
     }
-    return { duplicate: false, revision, cursor: page.isDone ? null : page.continueCursor };
+    return {
+      duplicate: false,
+      revision,
+      cursor: page.isDone ? null : page.continueCursor,
+    };
   },
 });
 
@@ -289,16 +369,20 @@ export const commit = internalMutation({
     const { scanId, cropStorageId } = args;
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== device._id || !scan.venueId)
+    if (!scan || scan.deviceId !== device._id || !scan.venueId) {
       throw new ConvexError({ code: "invalid_scan" });
-    if (scan.generation !== args.generation) throw new ConvexError({ code: "scan_restarted" });
+    }
+    if (scan.generation !== args.generation) {
+      throw new ConvexError({ code: "scan_restarted" });
+    }
     const existing = await ctx.db
       .query("contributions")
       .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
       .unique();
     if (existing) {
-      if (existing.cropStorageId !== cropStorageId)
+      if (existing.cropStorageId !== cropStorageId) {
         await deleteUnreferencedCrop(ctx, cropStorageId);
+      }
       return {
         contributionId: existing._id,
         status: existing.status,
@@ -309,13 +393,23 @@ export const commit = internalMutation({
     if ((device.lastContributionId ?? null) !== args.previousContributionId) {
       throw new ConvexError({ code: "contributions_changed" });
     }
-    const { flow, fields } = await validateSubmission(ctx, scan, args.fields, cropStorageId);
+    const { flow, fields } = await validateSubmission(
+      ctx,
+      scan,
+      args.fields,
+      cropStorageId,
+    );
     const orb = await ctx.db.system.get("_storage", args.orbStorageId);
-    if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES))
+    if (
+      !orb
+      || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
+    ) {
       throw new ConvexError({ code: "bad_orb_file" });
+    }
     const venue = (await ctx.db.get(scan.venueId))!;
-    if ((venue.contributionRevision ?? 0) !== args.venueRevision)
+    if ((venue.contributionRevision ?? 0) !== args.venueRevision) {
       throw new ConvexError({ code: "contributions_changed" });
+    }
     const own = args.groupObjectId
       ? await ctx.db
           .query("contributions")
@@ -330,9 +424,13 @@ export const commit = internalMutation({
     const duplicate = args.duplicate || own !== null;
     const cropOwner = await ctx.db
       .query("contributions")
-      .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
+      .withIndex("by_cropStorageId", (q) =>
+        q.eq("cropStorageId", cropStorageId),
+      )
       .first();
-    if (!duplicate && cropOwner) throw new ConvexError({ code: "crop_already_shared" });
+    if (!duplicate && cropOwner) {
+      throw new ConvexError({ code: "crop_already_shared" });
+    }
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId);
     const contributionId = await ctx.db.insert("contributions", {
       deviceId: device._id,
@@ -350,14 +448,24 @@ export const commit = internalMutation({
       sourceUrl: flow.sourceUrl,
       identityImageUrl: flow.identityImageUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
-      wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
+      wikidataId:
+        fields.title.edited || fields.artist.edited
+          ? undefined
+          : flow.wikidataId,
       status: duplicate ? "rejected" : "tentative",
       rejectedReason: duplicate ? "duplicate" : undefined,
       createdAt: Date.now(),
     });
-    if (!duplicate)
-      await publishContribution(ctx, (await ctx.db.get(contributionId))!, args.groupObjectId);
-    await ctx.db.patch(venue._id, { contributionRevision: (venue.contributionRevision ?? 0) + 1 });
+    if (!duplicate) {
+      await publishContribution(
+        ctx,
+        (await ctx.db.get(contributionId))!,
+        args.groupObjectId,
+      );
+    }
+    await ctx.db.patch(venue._id, {
+      contributionRevision: (venue.contributionRevision ?? 0) + 1,
+    });
     await ctx.db.patch(device._id, { lastContributionId: contributionId });
     return duplicate
       ? { contributionId, status: "rejected", reason: "duplicate" }
@@ -379,21 +487,26 @@ export const contribute = action({
   handler: async (ctx, args): Promise<ContributionResult> =>
     withErrorReporting("contributions.contribute", async () => {
       const keypointCount = decodeQuery(args.descriptors, args.keypoints).count;
-      const { nonce, assertionBase64, descriptors, keypoints, ...submission } = args;
-      const authorization = await ctx.runMutation(internal.contributions.authorize, {
-        scanId: args.scanId,
-        cropStorageId: args.cropStorageId,
-        fields: args.fields,
-        nonce,
-        assertionBase64,
-      });
+      const { nonce, assertionBase64, descriptors, keypoints, ...submission } =
+        args;
+      const authorization = await ctx.runMutation(
+        internal.contributions.authorize,
+        {
+          scanId: args.scanId,
+          cropStorageId: args.cropStorageId,
+          fields: args.fields,
+          nonce,
+          assertionBase64,
+        },
+      );
       if (authorization.kind === "existing") return authorization.result;
       const { scan } = authorization;
       let previousContributionId = authorization.previousContributionId;
       const matches = await ctx.vectorSearch("vectors", "by_vector", {
         vector: scan.vector,
         limit: 3,
-        filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion)),
+        filter: (q) =>
+          q.eq("partition", recognitionPartition(scan.modelVersion)),
       });
       const established = await ctx.runQuery(internal.identify.loadCandidates, {
         vectorIds: matches.map((match) => match._id),
@@ -406,8 +519,8 @@ export const contribute = action({
         for (let attempt = 0; attempt < MAX_COMMIT_ATTEMPTS; attempt++) {
           let duplicate = established.some(
             (candidate) =>
-              candidate.object.identityStatus === "established" &&
-              candidate.similarity >= DUPLICATE_COSINE,
+              candidate.object.identityStatus === "established"
+              && candidate.similarity >= DUPLICATE_COSINE,
           );
           let cursor: string | null = null;
           do {
@@ -428,13 +541,20 @@ export const contribute = action({
             let venueRevision: number | undefined;
             let groupCursor: string | null = null;
             do {
-              const page: GroupPage = await ctx.runQuery(internal.contributions.findGroupPage, {
-                scanId: scan._id,
-                fields: args.fields,
-                cursor: groupCursor,
-              });
-              if (venueRevision !== undefined && venueRevision !== page.revision)
+              const page: GroupPage = await ctx.runQuery(
+                internal.contributions.findGroupPage,
+                {
+                  scanId: scan._id,
+                  fields: args.fields,
+                  cursor: groupCursor,
+                },
+              );
+              if (
+                venueRevision !== undefined
+                && venueRevision !== page.revision
+              ) {
                 throw new ConvexError({ code: "contributions_changed" });
+              }
               venueRevision = page.revision;
               duplicate ||= page.duplicate;
               groupObjectId = page.objectId;
@@ -452,15 +572,21 @@ export const contribute = action({
               orbSha256: orb.sha256,
             });
           } catch (error) {
-            if (!(error instanceof ConvexError) || error.data.code !== "contributions_changed")
+            if (
+              !(error instanceof ConvexError)
+              || error.data.code !== "contributions_changed"
+            ) {
               throw error;
+            }
             previousContributionId =
               (await requireDeviceFromAction(ctx)).lastContributionId ?? null;
           }
         }
         throw new ConvexError({ code: "contribution_busy" });
       } finally {
-        await ctx.runMutation(internal.orbFiles.discard, { storageIds: [orb.storageId] });
+        await ctx.runMutation(internal.orbFiles.discard, {
+          storageIds: [orb.storageId],
+        });
       }
     }),
 });
@@ -471,8 +597,9 @@ export const withdraw = mutation({
   handler: async (ctx, { contributionId }) => {
     const device = await requireDevice(ctx);
     const row = await ctx.db.get(contributionId);
-    if (!row || row.deviceId !== device._id)
+    if (!row || row.deviceId !== device._id) {
       throw new ConvexError({ code: "contribution_not_found" });
+    }
     await removeContribution(ctx, row, "withdrawn");
     return null;
   },

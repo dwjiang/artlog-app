@@ -9,7 +9,9 @@ export async function getDeviceAuthSecret(): Promise<string> {
   if (stored !== null) return stored;
 
   const bytes = await getRandomBytesAsync(32);
-  const secret = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const secret = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
   // Persist before signing in so a failed request or process restart reuses the same identity.
   await installationStorage.setItem(DEVICE_AUTH_SECRET, secret);
   return secret;

@@ -9,7 +9,10 @@ export type VisibilityInput = FunctionArgs<typeof api.walls.setNoteVisibility>;
 export type CollectionInput = FunctionArgs<typeof api.collections.listMine>;
 export type RequestContext = { token: string; signal: AbortSignal };
 
-export function createWallTransport(url: string, fetcher: typeof globalThis.fetch = expoFetch) {
+export function createWallTransport(
+  url: string,
+  fetcher: typeof globalThis.fetch = expoFetch,
+) {
   function client({ token, signal }: RequestContext) {
     return new ConvexHttpClient(url, {
       auth: token,
@@ -18,11 +21,14 @@ export function createWallTransport(url: string, fetcher: typeof globalThis.fetc
     });
   }
   return {
-    getMine: (context: RequestContext) => client(context).query(api.walls.getMine, {}),
+    getMine: (context: RequestContext) =>
+      client(context).query(api.walls.getMine, {}),
     setLayout: (args: LayoutInput, context: RequestContext) =>
       client(context).mutation(api.walls.setLayout, args, { skipQueue: true }),
     setNoteVisibility: (args: VisibilityInput, context: RequestContext) =>
-      client(context).mutation(api.walls.setNoteVisibility, args, { skipQueue: true }),
+      client(context).mutation(api.walls.setNoteVisibility, args, {
+        skipQueue: true,
+      }),
     listMine: (args: CollectionInput, context: RequestContext) =>
       client(context).query(api.collections.listMine, args),
   };

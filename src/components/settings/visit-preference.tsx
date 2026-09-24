@@ -1,7 +1,11 @@
 import { reportError } from "@/lib/observability";
 import { Switch } from "@expo/ui";
 import { useEffect, useState } from "react";
-import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
+import {
+  GroupedFooter,
+  GroupedSection,
+  ValueRow,
+} from "@/components/grouped-list";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 
@@ -50,8 +54,8 @@ function OwnedPreference() {
     <GroupedSection
       footer={
         <GroupedFooter tone={error ? "destructive" : "muted"}>
-          {error ??
-            "Open Visits in your last List or Globe view. When off, new sessions start with the globe."}
+          {error
+            ?? "Open Visits in your last List or Globe view. When off, new sessions start with the globe."}
         </GroupedFooter>
       }
     >

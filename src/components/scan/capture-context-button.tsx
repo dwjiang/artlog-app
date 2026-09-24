@@ -28,13 +28,18 @@ function visitSummary(
   visit: Pick<Visit, "venueName" | "visitedOn" | "timeZone">,
   now = Date.now(),
 ): VisitSummary {
-  return { name: visit.venueName, day: dayLabel(visit.visitedOn, isVisitToday(visit, now)) };
+  return {
+    name: visit.venueName,
+    day: dayLabel(visit.visitedOn, isVisitToday(visit, now)),
+  };
 }
 
 // The row leads with the day so a long museum name truncates before the date does.
 function formatVisit(summary: VisitSummary, variant: "chip" | "row"): string {
   if (summary === "none") return variant === "chip" ? "No visit" : "None";
-  if (summary === "unavailable") return variant === "chip" ? "Visit unavailable" : "Unavailable";
+  if (summary === "unavailable") {
+    return variant === "chip" ? "Visit unavailable" : "Unavailable";
+  }
   return variant === "chip"
     ? `${summary.name} · ${summary.day}`
     : `${summary.day} · ${summary.name}`;
@@ -45,13 +50,20 @@ export async function venueVisitLabel(
   venueId: Id<"museums">,
   capturedAt: number,
   now = Date.now(),
-): Promise<{ name: string; visitedOn: string; today: boolean; day: string } | undefined> {
+): Promise<
+  { name: string; visitedOn: string; today: boolean; day: string } | undefined
+> {
   const [venue] = await venueMetadataForIds([venueId]);
   if (!venue) return undefined;
   const timeZone = tzLookup(venue.lat, venue.lng);
   const visitedOn = calendarDate(capturedAt, timeZone);
   const today = isVisitToday({ visitedOn, timeZone }, now);
-  return { name: venue.name, visitedOn, today, day: dayLabel(visitedOn, today) };
+  return {
+    name: venue.name,
+    visitedOn,
+    today,
+    day: dayLabel(visitedOn, today),
+  };
 }
 
 export type CaptureContextCapture = {
@@ -87,7 +99,10 @@ export function CaptureContextButton({
           const visit = await getVisit(choice.localId, owner);
           next = visit ? visitSummary(visit) : "unavailable";
         } else if (choice.kind === "venue") {
-          const venue = await venueVisitLabel(choice.venueId, capturedAt ?? Date.now());
+          const venue = await venueVisitLabel(
+            choice.venueId,
+            capturedAt ?? Date.now(),
+          );
           next = venue ? { name: venue.name, day: venue.day } : "unavailable";
         }
         if (active) setSummary(next);
@@ -106,7 +121,9 @@ export function CaptureContextButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label ? `${row ? `Visit: ${label}` : label} · Change` : "Loading visit…"}
+      accessibilityLabel={
+        label ? `${row ? `Visit: ${label}` : label} · Change` : "Loading visit…"
+      }
       accessibilityHint="Chooses the visit for this artwork"
       accessibilityState={{ disabled: !!disabled || !label, busy: !label }}
       disabled={disabled || !label}
@@ -117,7 +134,8 @@ export function CaptureContextButton({
             draftId,
             visitId: visitLocalId ?? undefined,
             venueId: venueId ?? undefined,
-            capturedAt: capturedAt === undefined ? undefined : String(capturedAt),
+            capturedAt:
+              capturedAt === undefined ? undefined : String(capturedAt),
           },
         })
       }
@@ -132,7 +150,11 @@ export function CaptureContextButton({
           Visit
         </ThemedText>
       )}
-      <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
+      <Image
+        source="sf:mappin.and.ellipse"
+        tintColor={Gallery.ink}
+        style={styles.icon}
+      />
       {label ? (
         <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>
           {label}
@@ -140,7 +162,11 @@ export function CaptureContextButton({
       ) : (
         <TextSkeleton label="Loading visit…" width={140} />
       )}
-      <Image source="sf:chevron.down" tintColor={Gallery.ink} style={styles.chevron} />
+      <Image
+        source="sf:chevron.down"
+        tintColor={Gallery.ink}
+        style={styles.chevron}
+      />
     </Pressable>
   );
 }
@@ -161,7 +187,12 @@ const styles = StyleSheet.create({
     borderColor: Gallery.ink,
     backgroundColor: Gallery.surface,
   },
-  row: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: Spacing.two },
+  row: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
   pressed: { opacity: 0.6 },
   disabled: { opacity: 0.5 },
   icon: { width: 16, height: 16 },

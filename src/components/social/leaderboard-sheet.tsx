@@ -1,4 +1,10 @@
-import { BottomSheet, Host, RNHostView, ScrollView, VStack } from "@expo/ui/swift-ui";
+import {
+  BottomSheet,
+  Host,
+  RNHostView,
+  ScrollView,
+  VStack,
+} from "@expo/ui/swift-ui";
 import {
   presentationBackground,
   presentationDetents,
@@ -27,7 +33,11 @@ export function LeaderboardSheet({
   const [open, setOpen] = useState(true);
   return (
     <Host style={{ position: "absolute" }} pointerEvents="none">
-      <BottomSheet isPresented={open} onIsPresentedChange={setOpen} onDismiss={onDismiss}>
+      <BottomSheet
+        isPresented={open}
+        onIsPresentedChange={setOpen}
+        onDismiss={onDismiss}
+      >
         <VStack
           spacing={0}
           modifiers={[
@@ -63,7 +73,9 @@ export function LeaderboardSheet({
           </RNHostView>
           <ScrollView>
             <RNHostView matchContents>
-              <View style={{ width, padding: 20, paddingBottom: 40, gap: 22 }}>{children}</View>
+              <View style={{ width, padding: 20, paddingBottom: 40, gap: 22 }}>
+                {children}
+              </View>
             </RNHostView>
           </ScrollView>
         </VStack>

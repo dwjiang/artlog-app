@@ -25,7 +25,8 @@ import { checkImages, type ImageCheckDeps } from "./image-check";
 export type LabelSource = { labelPhotoUri?: string; qrUrl?: string };
 
 export const labelApi: LabelApi = {
-  fetchQr: (args: FunctionArgs<typeof api.label.fetchQr>) => convex.action(api.label.fetchQr, args),
+  fetchQr: (args: FunctionArgs<typeof api.label.fetchQr>) =>
+    convex.action(api.label.fetchQr, args),
   readLabel: (args: FunctionArgs<typeof api.label.readLabel>) =>
     convex.action(api.label.readLabel, args),
   verifyLabel: (args: FunctionArgs<typeof api.label.verifyLabel>) =>
@@ -69,7 +70,8 @@ export const imageCheckDeps: ImageCheckDeps = {
 export function imageCheckFor(
   scan: ScanFeatures,
 ): (urls: string[]) => ReturnType<typeof checkImages> {
-  return (urls) => checkImages(urls, scan, imageCheckDeps, { inputSize: model.inputSize });
+  return (urls) =>
+    checkImages(urls, scan, imageCheckDeps, { inputSize: model.inputSize });
 }
 
 /** The label flow for a scan captured on this phone, shared by the queue and label screen. */
@@ -95,6 +97,7 @@ export async function runLabelFlowForScan(
     },
     onStage,
     readText: readLabelText,
-    checkImages: capture && !isLabelCapture(capture) ? imageCheckFor(capture) : undefined,
+    checkImages:
+      capture && !isLabelCapture(capture) ? imageCheckFor(capture) : undefined,
   });
 }

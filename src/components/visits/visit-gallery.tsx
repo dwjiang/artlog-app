@@ -7,8 +7,13 @@ import { normalizeSearch } from "@/shared/journal/limits";
 import { WallFrame, wallFrameInset } from "../collection/wall-frame";
 import { SavedWorkImage } from "../collection/saved-work-image";
 
-export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
-  return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(normalizeSearch(query));
+export function matchesVisitSearch(
+  work: { title: string; artist: string | null },
+  query: string,
+) {
+  return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(
+    normalizeSearch(query),
+  );
 }
 
 export function VisitGallerySearch({
@@ -61,7 +66,8 @@ export function VisitGalleryArtwork({
   const { width } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
-  const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
+  const ratio =
+    Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const frameWidth = Math.max(stageWidth, (stageWidth / stageAspect) * ratio);
   return (
     <>
@@ -70,7 +76,9 @@ export function VisitGalleryArtwork({
         onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
       >
         <WallFrame frame="none" width={frameWidth}>
-          {children(Math.max(1, frameWidth - wallFrameInset("none", frameWidth) * 2))}
+          {children(
+            Math.max(1, frameWidth - wallFrameInset("none", frameWidth) * 2),
+          )}
         </WallFrame>
         {photoCount !== 1 && (
           <View style={styles.badge}>
@@ -109,7 +117,12 @@ export function LocalVisitGalleryArtwork({
   const [image, setImage] = useState<{ path: string | null; ratio: number }>();
   const ratio = image?.path === path ? image.ratio : 1;
   return (
-    <VisitGalleryArtwork title={title} artist={artist} photoCount={photoCount} aspectRatio={ratio}>
+    <VisitGalleryArtwork
+      title={title}
+      artist={artist}
+      photoCount={photoCount}
+      aspectRatio={ratio}
+    >
       {(width) => (
         <SavedWorkImage
           contain
@@ -117,7 +130,9 @@ export function LocalVisitGalleryArtwork({
           syncing={syncing}
           title={title}
           style={{ width, aspectRatio: ratio }}
-          onLoad={({ width: imageWidth, height }) => setImage({ path, ratio: imageWidth / height })}
+          onLoad={({ width: imageWidth, height }) =>
+            setImage({ path, ratio: imageWidth / height })
+          }
         />
       )}
     </VisitGalleryArtwork>
@@ -137,7 +152,13 @@ const styles = StyleSheet.create({
     borderColor: Gallery.controlBorder,
     borderRadius: 8,
   },
-  input: { flex: 1, minHeight: 44, color: Gallery.ink, fontSize: 17, paddingVertical: 10 },
+  input: {
+    flex: 1,
+    minHeight: 44,
+    color: Gallery.ink,
+    fontSize: 17,
+    paddingVertical: 10,
+  },
   stage: {
     aspectRatio: 1.04,
     width: "100%",
@@ -168,5 +189,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginHorizontal: 1,
   },
-  artist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2, marginHorizontal: 1 },
+  artist: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Gallery.muted,
+    marginTop: 2,
+    marginHorizontal: 1,
+  },
 });

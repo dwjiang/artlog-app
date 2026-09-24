@@ -14,7 +14,11 @@ import {
 } from "@/components/scan/result/__fixtures__/scan";
 
 it("is loading until the subscription answers or while the server is still identifying", () => {
-  expect(toResultViewState(undefined)).toEqual({ kind: "loading", runnerUps: [], editable: false });
+  expect(toResultViewState(undefined)).toEqual({
+    kind: "loading",
+    runnerUps: [],
+    editable: false,
+  });
   expect(toResultViewState(pendingScan).kind).toBe("loading");
 });
 
@@ -59,7 +63,11 @@ it("promotes a chosen runner-up to a maybe and drops rejected works from the sug
     chosenObjectId: bridge.objectId,
     rejectedObjectIds: [lilies.objectId],
   });
-  expect(view).toMatchObject({ kind: "soft", primary: bridge, runnerUps: [haystacks] });
+  expect(view).toMatchObject({
+    kind: "soft",
+    primary: bridge,
+    runnerUps: [haystacks],
+  });
   expect(view.docent).toBeUndefined();
 });
 
@@ -72,7 +80,9 @@ it("keeps the primary while a rejection is unresolved and only hides it from the
 });
 
 it("ignores a chosen id that is not among the candidates", () => {
-  expect(toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never })).toMatchObject({
+  expect(
+    toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never }),
+  ).toMatchObject({
     kind: "soft",
     primary: softScan.best,
   });
@@ -91,8 +101,13 @@ it("passes unsupported and failed scans through with their errors", () => {
     editable: false,
     error: "bad_features",
   });
-  expect(toResultViewState(null)).toMatchObject({ kind: "failed", error: "scan_not_found" });
-  expect(toResultViewState(new ConvexError({ code: "invalid_scan" }))).toMatchObject({
+  expect(toResultViewState(null)).toMatchObject({
+    kind: "failed",
+    error: "scan_not_found",
+  });
+  expect(
+    toResultViewState(new ConvexError({ code: "invalid_scan" })),
+  ).toMatchObject({
     kind: "failed",
     error: "invalid_scan",
   });

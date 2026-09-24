@@ -1,4 +1,7 @@
-import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
+import {
+  leaderboardMetric,
+  leaderboardVisibility,
+} from "../shared/social/leaderboard";
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -6,7 +9,11 @@ import { v } from "convex/values";
 import model from "../shared/model/model-version.json";
 import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
 import { albumPhoto, albumEncounter } from "../shared/collection/album";
-import { journalOwner, journalVisit, journalSave } from "../shared/journal/contracts";
+import {
+  journalOwner,
+  journalVisit,
+  journalSave,
+} from "../shared/journal/contracts";
 import {
   wallLayout,
   relationshipState,
@@ -75,7 +82,9 @@ export default defineSchema({
   museumDownloads: defineTable({
     venueId: v.id("museums"),
     published: v.optional(museumPackage),
-    building: v.optional(v.object({ ...packageFields, cursor: v.union(v.string(), v.null()) })),
+    building: v.optional(
+      v.object({ ...packageFields, cursor: v.union(v.string(), v.null()) }),
+    ),
   }).index("by_venue", ["venueId"]),
 
   artworks: defineTable({
@@ -164,7 +173,9 @@ export default defineSchema({
     closedAt: v.optional(v.number()),
     proposalId: v.optional(v.id("placementProposals")),
     closedByProposalId: v.optional(v.id("placementProposals")),
-    exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
+    exhibition: v.optional(
+      v.object({ ...checklistExhibition.fields, timeZone: v.string() }),
+    ),
   })
     .index("by_objectId", ["objectId"])
     .index("by_object_venue_source", ["objectId", "venueId", "source"])
@@ -211,8 +222,16 @@ export default defineSchema({
       dimensions: model.embeddingDim,
       filterFields: ["partition"],
     })
-    .index("by_objectId_modelVersion_source", ["objectId", "modelVersion", "source"])
-    .index("by_modelVersion_source_viewKey", ["modelVersion", "source", "viewKey"])
+    .index("by_objectId_modelVersion_source", [
+      "objectId",
+      "modelVersion",
+      "source",
+    ])
+    .index("by_modelVersion_source_viewKey", [
+      "modelVersion",
+      "source",
+      "viewKey",
+    ])
     .index("by_contributionId", ["contributionId"])
     .index("by_scanId", ["scanId"]),
 
@@ -280,7 +299,9 @@ export default defineSchema({
     fetchedAt: v.number(),
     pendingAt: v.optional(v.number()),
     claimId: v.optional(v.string()),
-    waiting: v.optional(v.array(v.object({ scanId: v.id("scans"), generation: v.number() }))),
+    waiting: v.optional(
+      v.array(v.object({ scanId: v.id("scans"), generation: v.number() })),
+    ),
   }).index("by_artist_region", ["artistId", "region"]),
 
   factCorrections: defineTable({
@@ -332,7 +353,11 @@ export default defineSchema({
     .index("by_device_venue_model", ["deviceId", "venueId", "modelVersion"])
     .index("by_status", ["status"])
     .index("by_object_device", ["indexedObjectId", "deviceId", "status"])
-    .index("by_object_status_created", ["indexedObjectId", "status", "createdAt"]),
+    .index("by_object_status_created", [
+      "indexedObjectId",
+      "status",
+      "createdAt",
+    ]),
 
   feedback: defineTable({
     scanId: v.id("scans"),
@@ -354,7 +379,10 @@ export default defineSchema({
     multiViewVectorId: v.optional(v.id("vectors")),
     multiViewDuplicateVectorId: v.optional(v.id("vectors")),
     multiViewAgreement: v.optional(
-      v.object({ firstDeviceId: v.id("devices"), secondDeviceId: v.id("devices") }),
+      v.object({
+        firstDeviceId: v.id("devices"),
+        secondDeviceId: v.id("devices"),
+      }),
     ),
     createdAt: v.number(),
   })
@@ -368,7 +396,11 @@ export default defineSchema({
       "venueId",
       "createdAt",
     ])
-    .index("by_resolution_multiView", ["resolution.kind", "multiViewAt", "createdAt"])
+    .index("by_resolution_multiView", [
+      "resolution.kind",
+      "multiViewAt",
+      "createdAt",
+    ])
     .index("by_multiViewFirstDevice", ["multiViewAgreement.firstDeviceId"])
     .index("by_multiViewDuplicateVectorId", ["multiViewDuplicateVectorId"])
     .index("by_multiViewSecondDevice", ["multiViewAgreement.secondDeviceId"]),
@@ -446,7 +478,9 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   }).index("by_device", ["deviceId"]),
 
-  promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),
+  promotionState: defineTable({
+    multiViewCursor: v.union(v.string(), v.null()),
+  }),
 
   museumWorkIdentities: defineTable({
     venueId: v.id("museums"),
@@ -510,7 +544,11 @@ export default defineSchema({
     accountId: v.optional(v.id("accounts")),
     scopeRevision: v.optional(v.number()),
     appleLinkProof: v.optional(
-      v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() }),
+      v.object({
+        sub: v.string(),
+        email: v.optional(v.string()),
+        expiresAt: v.number(),
+      }),
     ),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
@@ -559,7 +597,12 @@ export default defineSchema({
   })
     .index("by_owner_localId", ["owner", "localId"])
     .index("by_owner_history", ["owner", "visitedOn", "localId"])
-    .index("by_owner_venue_history", ["owner", "venueId", "visitedOn", "localId"])
+    .index("by_owner_venue_history", [
+      "owner",
+      "venueId",
+      "visitedOn",
+      "localId",
+    ])
     .index("by_owner_changeVersion", ["owner", "changeVersion"]),
 
   collections: defineTable({
@@ -576,7 +619,12 @@ export default defineSchema({
   })
     .index("by_owner_localId", ["owner", "localId"])
     .index("by_owner_savedAt", ["owner", "deletedAt", "savedAt", "localId"])
-    .index("by_owner_artwork_savedAt", ["owner", "artworkId", "deletedAt", "savedAt"])
+    .index("by_owner_artwork_savedAt", [
+      "owner",
+      "artworkId",
+      "deletedAt",
+      "savedAt",
+    ])
     .index("by_owner_changeVersion", ["owner", "changeVersion"])
     .index("by_visitId", ["visitId"])
     .index("by_cropStorageId_deletedAt", ["cropStorageId", "deletedAt"]),
@@ -609,13 +657,18 @@ export default defineSchema({
     .index("by_visitId", ["visitId"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"]),
 
-  journalSyncState: defineTable({ owner: journalOwner, version: v.number() }).index("by_owner", [
-    "owner",
-  ]),
+  journalSyncState: defineTable({
+    owner: journalOwner,
+    version: v.number(),
+  }).index("by_owner", ["owner"]),
   journalClaims: defineTable({
     deviceId: v.id("devices"),
     accountId: v.id("accounts"),
-    phase: v.union(v.literal("visits"), v.literal("saves"), v.literal("complete")),
+    phase: v.union(
+      v.literal("visits"),
+      v.literal("saves"),
+      v.literal("complete"),
+    ),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
   })
@@ -646,7 +699,10 @@ export default defineSchema({
     .index("by_username", ["username"])
     .index("by_active", ["active"])
     .index("by_leaderboard", ["leaderboardVisibility"])
-    .searchIndex("search_text", { searchField: "searchText", filterFields: ["active"] }),
+    .searchIndex("search_text", {
+      searchField: "searchText",
+      filterFields: ["active"],
+    }),
   walls: defineTable({
     profileId: v.id("profiles"),
     color: v.string(),
@@ -704,8 +760,18 @@ export default defineSchema({
   })
     .index("by_postId", ["postId"])
     .index("by_profile_visit", ["profileId", "visitLocalId"])
-    .index("by_audience_status_history", ["audience", "status", "visitedOn", "postId"])
-    .index("by_profile_status_history", ["profileId", "status", "visitedOn", "postId"])
+    .index("by_audience_status_history", [
+      "audience",
+      "status",
+      "visitedOn",
+      "postId",
+    ])
+    .index("by_profile_status_history", [
+      "profileId",
+      "status",
+      "visitedOn",
+      "postId",
+    ])
     .index("by_visitId", ["visitId"]),
   sharedVisitItems: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -760,7 +826,10 @@ export default defineSchema({
     .index("by_saveId", ["saveId"])
     .index("by_save_kind", ["saveId", "source.kind"])
     .index("by_storageId", ["storageId"])
-    .index("by_contribution_revoked", ["provenance.contributionId", "revokedAt"]),
+    .index("by_contribution_revoked", [
+      "provenance.contributionId",
+      "revokedAt",
+    ]),
   reports: defineTable({
     reporter: v.optional(journalOwner),
     target: reportTarget,

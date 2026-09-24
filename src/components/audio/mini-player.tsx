@@ -35,7 +35,10 @@ export function MiniPlayer() {
             <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600" }}>
               {audio.current.work.title}
             </Text>
-            <Text numberOfLines={1} style={{ fontSize: 11, color: Gallery.muted }}>
+            <Text
+              numberOfLines={1}
+              style={{ fontSize: 11, color: Gallery.muted }}
+            >
               {subtitle}
             </Text>
           </View>
@@ -82,6 +85,12 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 5,
   },
-  summary: { flex: 1, minHeight: 64, flexDirection: "row", alignItems: "center", gap: 10 },
+  summary: {
+    flex: 1,
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   track: { height: 2, backgroundColor: Gallery.softBorder },
 });

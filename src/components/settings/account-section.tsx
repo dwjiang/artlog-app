@@ -26,9 +26,11 @@ export function AccountSection() {
   }
   const session = useSocialSession();
   const profileRequired = session.status === "profile-required";
-  const status = error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
+  const status = error ? (
+    <GroupedFooter tone="destructive">{error}</GroupedFooter>
+  ) : undefined;
   // Offline, the account query never resolves; keep the sign-in row instead of an endless indicator.
-  if (!account?.linked)
+  if (!account?.linked) {
     return (
       <GroupedSection footer={status}>
         {(account === undefined && !session.offline) || busy ? (
@@ -42,11 +44,14 @@ export function AccountSection() {
         )}
       </GroupedSection>
     );
+  }
   return (
     <>
       {account.email && (
         <GroupedSection
-          footer={<GroupedFooter>Your account is connected with Apple.</GroupedFooter>}
+          footer={
+            <GroupedFooter>Your account is connected with Apple.</GroupedFooter>
+          }
         >
           <ValueRow label="Apple ID" value={account.email} />
         </GroupedSection>
@@ -54,7 +59,9 @@ export function AccountSection() {
       <GroupedSection footer={status}>
         <NavigationRow
           label={profileRequired ? "Create profile" : "Edit profile"}
-          onPress={() => router.push(profileRequired ? "/create-profile" : "/edit-profile")}
+          onPress={() =>
+            router.push(profileRequired ? "/create-profile" : "/edit-profile")
+          }
         />
       </GroupedSection>
       <GroupedSection>

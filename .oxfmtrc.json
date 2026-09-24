@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  // Generated, vendored, or exported by tools that rewrite them.
+  "printWidth": 80,
+  "experimentalOperatorPosition": "start",
   "ignorePatterns": [
     ".agents/",
     ".claude/",

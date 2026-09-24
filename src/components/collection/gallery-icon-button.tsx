@@ -47,7 +47,10 @@ export function GalleryIconButton({
             name={icon}
             size={21}
             color={color}
-            modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
+            modifiers={[
+              frame({ width: 44, height: 44 }),
+              contentShape(shapes.rectangle()),
+            ]}
           />
         )}
       </Button>

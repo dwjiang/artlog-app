@@ -83,7 +83,9 @@ export function SharePhotoPicker({
                 borderRadius: 2,
                 overflow: "hidden",
                 borderWidth: 2,
-                borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.fill,
+                borderColor: selected.includes(photo.localId)
+                  ? Gallery.accent
+                  : Gallery.fill,
                 backgroundColor: Gallery.fill,
                 padding: 8,
                 gap: 8,
@@ -97,9 +99,13 @@ export function SharePhotoPicker({
                   contentFit="contain"
                 />
               ) : (
-                <Text style={{ color: Gallery.muted }}>Photo unavailable on this iPhone.</Text>
+                <Text style={{ color: Gallery.muted }}>
+                  Photo unavailable on this iPhone.
+                </Text>
               )}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 <Text style={{ flex: 1, fontSize: 13, color: Gallery.ink }}>
                   {photo.kind === "full"
                     ? "Full artwork"
@@ -109,15 +115,23 @@ export function SharePhotoPicker({
                 </Text>
                 <Image
                   source={
-                    selected.includes(photo.localId) ? "sf:checkmark.circle.fill" : "sf:circle"
+                    selected.includes(photo.localId)
+                      ? "sf:checkmark.circle.fill"
+                      : "sf:circle"
                   }
                   accessible={false}
-                  tintColor={selected.includes(photo.localId) ? Gallery.accent : Gallery.muted}
+                  tintColor={
+                    selected.includes(photo.localId)
+                      ? Gallery.accent
+                      : Gallery.muted
+                  }
                   style={{ width: 18, height: 18 }}
                 />
               </View>
               {!!photo.caption && (
-                <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>
+                <Text style={{ color: Gallery.muted, fontSize: 13 }}>
+                  {photo.caption}
+                </Text>
               )}
             </Pressable>
           ))}

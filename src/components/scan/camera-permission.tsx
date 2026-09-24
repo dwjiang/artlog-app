@@ -24,25 +24,32 @@ export function CameraPermission({
   loading?: boolean;
   bottomInset?: number;
 }) {
-  const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
+  const { hasPermission, canRequestPermission, requestPermission } =
+    useCameraPermission();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
-  if (hasPermission)
+  if (hasPermission) {
     return (
       <>
         {children}
         {loading && (
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <LoadingRing accessibilityLabel="Starting camera…" style={{ flex: 1 }} />
+            <LoadingRing
+              accessibilityLabel="Starting camera…"
+              style={{ flex: 1 }}
+            />
           </View>
         )}
       </>
     );
+  }
   const invitation = (
     <EmptyState
       inset={false}
       visual={compact ? <EmptySymbol name="camera" /> : <ArtworkCollage />}
-      title={canRequestPermission ? "Camera access needed" : "Camera access is off."}
+      title={
+        canRequestPermission ? "Camera access needed" : "Camera access is off."
+      }
       detail={
         canRequestPermission
           ? "Point your camera at an artwork to learn more and keep it in your collection."
@@ -57,7 +64,9 @@ export function CameraPermission({
         onPress={() => {
           setBusy(true);
           setError(undefined);
-          void (canRequestPermission ? requestPermission() : Linking.openSettings())
+          void (
+            canRequestPermission ? requestPermission() : Linking.openSettings()
+          )
             .catch((error: unknown) => {
               reportError(error, "camera.request_permission");
               setError("Could not open camera permissions. Try again.");
@@ -66,7 +75,12 @@ export function CameraPermission({
         }}
       />
       {onImport && (
-        <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />
+        <GalleryButton
+          label="Import a photo"
+          variant="outlined"
+          fullWidth
+          onPress={onImport}
+        />
       )}
       {(error ?? notice) && (
         <ThemedText themeColor="error" accessibilityRole="alert">
@@ -81,7 +95,11 @@ export function CameraPermission({
     <ScrollView
       style={{ marginBottom: bottomInset }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20 }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: "center",
+        padding: 20,
+      }}
     >
       {invitation}
     </ScrollView>

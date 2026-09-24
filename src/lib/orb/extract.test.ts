@@ -1,4 +1,8 @@
-import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, decodeOrbFeatures } from "@/shared/orb/features";
+import {
+  DESCRIPTOR_BYTES,
+  KEYPOINT_BYTES,
+  decodeOrbFeatures,
+} from "@/shared/orb/features";
 import model from "../../../shared/model/model-version.json";
 
 import { fakeOpenCV, type FakeOpenCVOptions } from "@/lib/image/opencv-fake";
@@ -62,7 +66,11 @@ describe("toOrbFeatures", () => {
   it("returns empty buffers when nothing was detected", () => {
     expect(
       toOrbFeatures(
-        { keypoints: [], descriptors: new Uint8Array(0), descriptorBytes: DESCRIPTOR_BYTES },
+        {
+          keypoints: [],
+          descriptors: new Uint8Array(0),
+          descriptorBytes: DESCRIPTOR_BYTES,
+        },
         500,
       ),
     ).toEqual({
@@ -73,12 +81,16 @@ describe("toOrbFeatures", () => {
   });
 
   it("rejects descriptors that are not 32 bytes per keypoint", () => {
-    expect(() => toOrbFeatures({ keypoints, descriptors, descriptorBytes: 64 }, 500)).toThrow(
-      "64-byte descriptors, expected 32",
-    );
+    expect(() =>
+      toOrbFeatures({ keypoints, descriptors, descriptorBytes: 64 }, 500),
+    ).toThrow("64-byte descriptors, expected 32");
     expect(() =>
       toOrbFeatures(
-        { keypoints, descriptors: descriptors.subarray(0, 95), descriptorBytes: DESCRIPTOR_BYTES },
+        {
+          keypoints,
+          descriptors: descriptors.subarray(0, 95),
+          descriptorBytes: DESCRIPTOR_BYTES,
+        },
         500,
       ),
     ).toThrow("95 descriptor bytes for 3 keypoints");
@@ -99,9 +111,14 @@ describe("extractOrb", () => {
     const fake = crop();
     const features = await extractOrb("file:///crop.jpg", undefined, fake.cv);
     expect(mockBase64).toHaveBeenCalledWith("file:///crop.jpg");
-    expect(fake.calls).toContainEqual({ name: "ORB_create", args: [model.orbMaxKeypoints] });
+    expect(fake.calls).toContainEqual({
+      name: "ORB_create",
+      args: [model.orbMaxKeypoints],
+    });
     expect(features.count).toBe(3);
-    expect(decodeOrbFeatures(features.descriptors, features.keypoints).count).toBe(3);
+    expect(
+      decodeOrbFeatures(features.descriptors, features.keypoints).count,
+    ).toBe(3);
     expect(fake.leaked()).toEqual([]);
   });
 
@@ -116,7 +133,10 @@ describe("extractOrb", () => {
   });
 
   it("releases native objects when the descriptor shape is wrong", async () => {
-    const fake = crop({ descriptorCols: 16, descriptors: new Uint8Array(keypoints.length * 16) });
+    const fake = crop({
+      descriptorCols: 16,
+      descriptors: new Uint8Array(keypoints.length * 16),
+    });
     await expect(extractOrb("file:///crop.jpg", 500, fake.cv)).rejects.toThrow(
       "16-byte descriptors",
     );

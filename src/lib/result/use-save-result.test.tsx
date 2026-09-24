@@ -7,7 +7,10 @@ import { saveResult } from "./save";
 import { useSaveResult } from "./use-save-result";
 import { reportError } from "@/lib/observability";
 
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
 jest.mock("expo-haptics", () => ({
   notificationAsync: async () => {},
@@ -77,12 +80,20 @@ it("ends the sharing state and offers a retry when the share attempt itself fail
     hook.result.current.save({
       capture,
       contribution,
-      draft: { title: "Water Lilies", artist: "", date: "", medium: "", institution: "" },
+      draft: {
+        title: "Water Lilies",
+        artist: "",
+        date: "",
+        medium: "",
+        institution: "",
+      },
     }),
   );
   await waitFor(() => expect(hook.result.current.sharing).toBe(false));
   expect(hook.result.current.savedId).toBe("saved-1");
-  expect(hook.result.current.shareError).toBe("Couldn’t save to the shared index right now");
+  expect(hook.result.current.shareError).toBe(
+    "Couldn’t save to the shared index right now",
+  );
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "result.share");
   jest.mocked(shareSavedLabel).mockResolvedValue({ result: outcome });
   await act(() => hook.result.current.retrySharing());
@@ -101,7 +112,13 @@ it("reports a failed local save while leaving the draft available to retry", asy
   await act(() =>
     hook.result.current.save({
       capture,
-      draft: { title: "Private title", artist: "", date: "", medium: "", institution: "" },
+      draft: {
+        title: "Private title",
+        artist: "",
+        date: "",
+        medium: "",
+        institution: "",
+      },
     }),
   );
   expect(reportError).toHaveBeenCalledWith(error, "result.save");

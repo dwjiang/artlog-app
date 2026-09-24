@@ -49,7 +49,10 @@ export function VisitPlaceScreen() {
             detail="Your saved visits to this place will appear here."
             visual={<EmptySymbol name="building.columns" />}
           >
-            <GalleryButton label="Back to Collection" onPress={() => router.back()} />
+            <GalleryButton
+              label="Back to Collection"
+              onPress={() => router.back()}
+            />
           </EmptyState>
         </VisitPage>
       ) : (
@@ -63,9 +66,15 @@ export function VisitPlaceScreen() {
               <Text style={[Typography.pageTitle, { color: Gallery.ink }]}>
                 {name || matches[0].venueName}
               </Text>
-              <Text style={{ color: Gallery.muted }}>{matches[0].location}</Text>
+              <Text style={{ color: Gallery.muted }}>
+                {matches[0].location}
+              </Text>
               <View
-                style={{ flexDirection: "row", justifyContent: "space-between", paddingTop: 20 }}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingTop: 20,
+                }}
               >
                 <Text variant="section">Your visits</Text>
                 <Text style={{ color: Gallery.muted }}>{matches.length}</Text>
@@ -77,15 +86,23 @@ export function VisitPlaceScreen() {
               accessibilityRole="button"
               accessibilityLabel={`View visit on ${formatVisitDate(visit.visitedOn)}`}
               onPress={() =>
-                router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })
+                router.push({
+                  pathname: "/journal/[visitId]",
+                  params: { visitId: visit.localId },
+                })
               }
               style={{ gap: 12 }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "600" }}>{formatVisitDate(visit.visitedOn)}</Text>
+                  <Text style={{ fontWeight: "600" }}>
+                    {formatVisitDate(visit.visitedOn)}
+                  </Text>
                   <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-                    {visit.works.length} {visit.works.length === 1 ? "artwork" : "artworks"}
+                    {visit.works.length}{" "}
+                    {visit.works.length === 1 ? "artwork" : "artworks"}
                   </Text>
                 </View>
                 <Text style={{ color: Gallery.accent }}>View visit →</Text>
@@ -95,7 +112,11 @@ export function VisitPlaceScreen() {
                   path={visit.works[0].cropPath}
                   title={visit.works[0].title}
                   contain
-                  style={{ width: "100%", height: 220, backgroundColor: Gallery.fill }}
+                  style={{
+                    width: "100%",
+                    height: 220,
+                    backgroundColor: Gallery.fill,
+                  }}
                 />
               )}
             </Pressable>
@@ -107,7 +128,10 @@ export function VisitPlaceScreen() {
               variant="outlined"
               fullWidth
               onPress={() =>
-                router.push({ pathname: "/visit-create", params: { venueId: matches[0].venueId } })
+                router.push({
+                  pathname: "/visit-create",
+                  params: { venueId: matches[0].venueId },
+                })
               }
             />
           }
@@ -130,7 +154,9 @@ function ExpandedGlobe() {
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
+        <Stack.Toolbar.Button onPress={() => router.back()}>
+          Done
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -144,7 +170,8 @@ function ExpandedGlobe() {
           <>
             <View style={{ padding: 20, gap: 12 }}>
               <Text style={{ color: Gallery.muted }}>
-                {counts.museums} {counts.museums === 1 ? "museum" : "museums"} · {places}{" "}
+                {counts.museums} {counts.museums === 1 ? "museum" : "museums"} ·{" "}
+                {places}{" "}
                 {citiesKnown
                   ? places === 1
                     ? "city"
@@ -172,7 +199,9 @@ function ExpandedGlobe() {
                 onList={() => setMode("list")}
               />
             ) : (
-              visits.map((visit) => <VisitRow key={visit.localId} visit={visit} />)
+              visits.map((visit) => (
+                <VisitRow key={visit.localId} visit={visit} />
+              ))
             )}
           </>
         )}

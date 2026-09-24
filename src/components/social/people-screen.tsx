@@ -22,8 +22,11 @@ import { ListSkeleton } from "@/components/loading-skeleton";
 import { FriendsInvitation } from "./friends-invitation";
 
 type BrowsedProfile = PublicProfile & { relationship?: Relationship };
-const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) =>
-  result;
+const searchPage = (result: {
+  page: BrowsedProfile[];
+  cursor: string | null;
+  isDone: boolean;
+}) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
 
 export function PeopleScreen() {
@@ -66,12 +69,12 @@ export function PeopleScreen() {
     profileId,
   );
   const emptyFriends =
-    filter === "friends" &&
-    session.status === "ready" &&
-    !friends.loading &&
-    !friends.error &&
-    friends.data?.length === 0 &&
-    !text.trim();
+    filter === "friends"
+    && session.status === "ready"
+    && !friends.loading
+    && !friends.error
+    && friends.data?.length === 0
+    && !text.trim();
   const explore = () => {
     setText("");
     setFilter("all");
@@ -99,8 +102,8 @@ export function PeopleScreen() {
             : filter === "friends"
               ? (friends.data ?? []).filter(
                   (person) =>
-                    !text.trim() ||
-                    `${person.name} ${person.username}`
+                    !text.trim()
+                    || `${person.name} ${person.username}`
                       .toLowerCase()
                       .includes(text.trim().toLowerCase()),
                 )
@@ -130,15 +133,24 @@ export function PeopleScreen() {
               session={session}
               relationship={relationship(item, people.refresh)}
               friend={
-                filter === "friends" ||
-                item.relationship?.state === "accepted" ||
-                friends.data?.some((friend) => friend.profileId === item.profileId)
+                filter === "friends"
+                || item.relationship?.state === "accepted"
+                || friends.data?.some(
+                  (friend) => friend.profileId === item.profileId,
+                )
               }
             />
           </View>
         )}
         ListHeaderComponent={
-          <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: 12,
+              gap: 12,
+            }}
+          >
             <Text variant="pageTitle" accessibilityRole="header">
               Friends
             </Text>
@@ -170,12 +182,18 @@ export function PeopleScreen() {
               <View style={{ gap: 10 }}>
                 <Text variant="section">
                   Requests{" "}
-                  <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text>
+                  <Text style={{ backgroundColor: Gallery.highlight }}>
+                    {requests.data.length}
+                  </Text>
                 </Text>
                 {requests.data.map((person) => (
                   <View
                     key={person.profileId}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
                   >
                     <View style={{ flex: 1 }}>
                       <ProfileIdentity profile={person} />
@@ -192,16 +210,28 @@ export function PeopleScreen() {
             )}
             {filter === "friends" && !!friends.data?.length && (
               <Text variant="section">
-                Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text>
+                Your friends{" "}
+                <Text style={{ color: Gallery.muted }}>
+                  {friends.data.length}
+                </Text>
               </Text>
             )}
             {filter === "friends" && requests.error && (
-              <GalleryButton label="Retry friend requests" onPress={requests.refresh} />
+              <GalleryButton
+                label="Retry friend requests"
+                onPress={requests.refresh}
+              />
             )}
           </View>
         }
         ItemSeparatorComponent={() => (
-          <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />
+          <View
+            style={{
+              height: 0.5,
+              marginHorizontal: 24,
+              backgroundColor: Gallery.separator,
+            }}
+          />
         )}
         ListEmptyComponent={
           guestFriends ? (
@@ -222,7 +252,12 @@ export function PeopleScreen() {
                 title={"No friends added yet."}
                 detail="Search by name or username to add your first friend."
               >
-                <GalleryButton label="Find friends" variant="filled" fullWidth onPress={explore} />
+                <GalleryButton
+                  label="Find friends"
+                  variant="filled"
+                  fullWidth
+                  onPress={explore}
+                />
               </SocialInvitation>
             ) : text.trim() ? (
               <SearchEmptyState
@@ -273,16 +308,26 @@ export function PeopleScreen() {
         ListFooterComponent={
           filter === "all" ? (
             searching ? (
-              <PageFooter {...results} count={results.items.length} noun="friends" />
+              <PageFooter
+                {...results}
+                count={results.items.length}
+                noun="friends"
+              />
             ) : !text.trim() ? (
               discovery.done && !discovery.error ? (
                 discovery.items.length > 0 ? (
-                  <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>
+                  <Text
+                    style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}
+                  >
                     Search by name or username.
                   </Text>
                 ) : null
               ) : (
-                <PageFooter {...discovery} count={discovery.items.length} noun="friends" />
+                <PageFooter
+                  {...discovery}
+                  count={discovery.items.length}
+                  noun="friends"
+                />
               )
             ) : null
           ) : null

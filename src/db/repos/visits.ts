@@ -6,7 +6,13 @@ import { visitInput } from "../../lib/journal/visit-payload";
 import { getLocalOwner } from "../../lib/account/owner-store";
 import { requestCollectionSync } from "../../lib/account/sync-events";
 import { db } from "../client";
-import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from "../schema";
+import {
+  artworkEncounters,
+  savedWorks,
+  visits,
+  type NewVisit,
+  type Visit,
+} from "../schema";
 
 /** Sync state is owned by markVisitsSynced and upsertVisitsFromRemote; callers describe only the visit itself. */
 export type VisitDraft = Omit<
@@ -21,8 +27,8 @@ export async function upsertVisit(
   validateVisit(visitInput(visit));
   db.transaction((tx) => {
     if (
-      artworkLocalId &&
-      !tx
+      artworkLocalId
+      && !tx
         .select()
         .from(savedWorks)
         .where(
@@ -41,24 +47,34 @@ export async function upsertVisit(
       .from(visits)
       .where(and(eq(visits.owner, owner), eq(visits.localId, visit.localId)))
       .get();
-    if (existing && existing.venueId !== visit.venueId)
+    if (existing && existing.venueId !== visit.venueId) {
       throw new ConvexError({ code: "invalid_visit" });
+    }
     const fields = {
-      ...visitInput({ ...visit, visibility: visit.visibility ?? existing?.visibility }),
+      ...visitInput({
+        ...visit,
+        visibility: visit.visibility ?? existing?.visibility,
+      }),
       venueName: visit.venueName,
       reflection: visit.reflection ?? null,
       startedAt: visit.startedAt ?? null,
       endedAt: visit.endedAt ?? null,
     };
     if (
-      !existing ||
-      Object.entries(fields).some(([key, value]) => existing[key as keyof Visit] !== value)
+      !existing
+      || Object.entries(fields).some(
+        ([key, value]) => existing[key as keyof Visit] !== value,
+      )
     ) {
       tx.insert(visits)
         .values({ ...fields, owner })
         .onConflictDoUpdate({
           target: [visits.owner, visits.localId],
-          set: { ...fields, syncedAt: null, revision: sql`${visits.revision} + 1` },
+          set: {
+            ...fields,
+            syncedAt: null,
+            revision: sql`${visits.revision} + 1`,
+          },
         })
         .run();
     }
@@ -74,9 +90,13 @@ export async function upsertVisit(
           ),
         )
         .get();
-      if (!encounter || encounter.deletedAt !== null)
+      if (!encounter || encounter.deletedAt !== null) {
         tx.insert(artworkEncounters)
-          .values({ owner, savedLocalId: artworkLocalId, visitLocalId: visit.localId })
+          .values({
+            owner,
+            savedLocalId: artworkLocalId,
+            visitLocalId: visit.localId,
+          })
           .onConflictDoUpdate({
             target: [
               artworkEncounters.owner,
@@ -90,6 +110,7 @@ export async function upsertVisit(
             },
           })
           .run();
+      }
     }
   });
   requestCollectionSync();
@@ -125,7 +146,13 @@ export async function listOpenVisits(owner = getLocalOwner()) {
   return db
     .select()
     .from(visits)
-    .where(and(eq(visits.owner, owner), isNotNull(visits.startedAt), isNull(visits.endedAt)))
+    .where(
+      and(
+        eq(visits.owner, owner),
+        isNotNull(visits.startedAt),
+        isNull(visits.endedAt),
+      ),
+    )
     .orderBy(visits.startedAt)
     .all();
 }
@@ -159,7 +186,15 @@ export async function latestVisitActivity(
 export async function patchVisit(
   localId: string,
   fields: Partial<
-    Pick<Visit, "visitedOn" | "timeZone" | "startedAt" | "endedAt" | "reflection" | "visibility">
+    Pick<
+      Visit,
+      | "visitedOn"
+      | "timeZone"
+      | "startedAt"
+      | "endedAt"
+      | "reflection"
+      | "visibility"
+    >
   >,
   owner = getLocalOwner(),
   { sync = true } = {},
@@ -204,7 +239,10 @@ export async function markVisitsSynced(
 ) {
   db.transaction((tx) => {
     for (const row of rows) {
-      const target = and(eq(visits.owner, owner), eq(visits.localId, row.localId));
+      const target = and(
+        eq(visits.owner, owner),
+        eq(visits.localId, row.localId),
+      );
       tx.update(visits).set({ remoteVisitId: row.visitId }).where(target).run();
       tx.update(visits)
         .set({ syncedAt: row.updatedAt, syncedBy: row.updatedBy })
@@ -213,20 +251,28 @@ export async function markVisitsSynced(
     }
   });
 }
-export async function upsertVisitsFromRemote(rows: Doc<"visits">[], owner = getLocalOwner()) {
+export async function upsertVisitsFromRemote(
+  rows: Doc<"visits">[],
+  owner = getLocalOwner(),
+) {
   db.transaction((tx) => {
     for (const row of rows) {
       // The server accepted the row at updatedAt on its clock; a device running behind must not reject it.
       validateVisit(row, Math.max(Date.now(), row.updatedAt));
-      const target = and(eq(visits.owner, owner), eq(visits.localId, row.localId));
+      const target = and(
+        eq(visits.owner, owner),
+        eq(visits.localId, row.localId),
+      );
       const existing = tx.select().from(visits).where(target).get();
       if (
-        existing &&
-        (existing.syncedAt === null ||
-          existing.syncedAt > row.updatedAt ||
-          (existing.syncedAt === row.updatedAt && (existing.syncedBy ?? "") > row.updatedBy))
-      )
+        existing
+        && (existing.syncedAt === null
+          || existing.syncedAt > row.updatedAt
+          || (existing.syncedAt === row.updatedAt
+            && (existing.syncedBy ?? "") > row.updatedBy))
+      ) {
         continue;
+      }
       const fields = {
         owner,
         localId: row.localId,
@@ -244,7 +290,10 @@ export async function upsertVisitsFromRemote(rows: Doc<"visits">[], owner = getL
       };
       tx.insert(visits)
         .values(fields)
-        .onConflictDoUpdate({ target: [visits.owner, visits.localId], set: fields })
+        .onConflictDoUpdate({
+          target: [visits.owner, visits.localId],
+          set: fields,
+        })
         .run();
     }
   });

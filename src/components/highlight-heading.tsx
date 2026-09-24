@@ -14,7 +14,11 @@ export function HighlightHeading({
       <ThemedText
         variant="section"
         accessibilityRole="header"
-        style={small ? { fontSize: 16, lineHeight: 21 } : { fontSize: 18, lineHeight: 24 }}
+        style={
+          small
+            ? { fontSize: 16, lineHeight: 21 }
+            : { fontSize: 18, lineHeight: 24 }
+        }
       >
         {children}
       </ThemedText>

@@ -19,7 +19,11 @@ import { VisitCard } from "./visit-card";
 import { socialStyles } from "./social-styles";
 import { ProfileSkeleton } from "@/components/loading-skeleton";
 
-const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
+const visitPage = (page: {
+  page: SharedVisit[];
+  cursor: string | null;
+  isDone: boolean;
+}) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
 
 export function ProfileScreen({ profileId }: { profileId: string }) {
@@ -28,15 +32,25 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const [tab, setTab] = useState<"wall" | "visits">("wall");
   const scroll = useRef<ScrollView>(null),
     offsets = useRef({ wall: 0, visits: 0 });
-  const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
+  const args =
+    profileId && !session.offline
+      ? { profileId: profileId as Id<"profiles"> }
+      : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
-  const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : "skip", session.key);
-  const relationship = useSocialQuery(
-    api.friendships.getState,
-    session.status === "ready" && session.profileId !== profileId ? args : "skip",
+  const wall = useSocialQuery(
+    api.walls.getPublic,
+    profile.data ? args : "skip",
     session.key,
   );
-  const canReadVisits = !session.offline && !!profile.data && !relationship.data?.blocked;
+  const relationship = useSocialQuery(
+    api.friendships.getState,
+    session.status === "ready" && session.profileId !== profileId
+      ? args
+      : "skip",
+    session.key,
+  );
+  const canReadVisits =
+    !session.offline && !!profile.data && !relationship.data?.blocked;
   const visits = useCursorPages(
     api.sharedVisits.listByProfile,
     canReadVisits ? { profileId: profileId as Id<"profiles"> } : "skip",
@@ -51,7 +65,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     );
   }
   if (session.offline) return <SocialGate session={session} />;
-  if (!profileId || profile.data === null)
+  if (!profileId || profile.data === null) {
     return (
       <SocialState
         action="Back to Home"
@@ -63,7 +77,8 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         detail="This public profile is no longer available."
       />
     );
-  if (profile.error)
+  }
+  if (profile.error) {
     return (
       <SocialState
         title="Couldn’t load this profile."
@@ -72,12 +87,17 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         onAction={profile.refresh}
       />
     );
-  if (!profile.data)
+  }
+  if (!profile.data) {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView
+        style={socialStyles.root}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <ProfileSkeleton />
       </ScrollView>
     );
+  }
   const person = profile.data;
   return (
     <GestureHandlerRootView style={socialStyles.root}>
@@ -89,7 +109,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           tintColor={Gallery.ink}
           hidesSharedBackground
           onPress={() =>
-            router.push({ pathname: "/share-profile", params: { profileId: person.profileId } })
+            router.push({
+              pathname: "/share-profile",
+              params: { profileId: person.profileId },
+            })
           }
         >
           Share
@@ -160,7 +183,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               wall={wall.data}
               arrangedBy={person.name.split(" ")[0]}
               onSelect={(item) =>
-                router.push({ pathname: "/artwork", params: { kind: "wall", itemId: item.itemId } })
+                router.push({
+                  pathname: "/artwork",
+                  params: { kind: "wall", itemId: item.itemId },
+                })
               }
             />
           ) : (
@@ -175,14 +201,21 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         ) : (
           <View>
             {visits.items.map((visit) => (
-              <VisitCard key={visit.postId} visit={visit} token={session.token} />
-            ))}
-            {visits.done && !visits.loading && !visits.items.length && !visits.error && (
-              <EmptyState
-                title="No shared visits yet."
-                detail={`When ${person.name.split(" ")[0]} shares a museum visit, it will appear here.`}
+              <VisitCard
+                key={visit.postId}
+                visit={visit}
+                token={session.token}
               />
-            )}
+            ))}
+            {visits.done
+              && !visits.loading
+              && !visits.items.length
+              && !visits.error && (
+                <EmptyState
+                  title="No shared visits yet."
+                  detail={`When ${person.name.split(" ")[0]} shares a museum visit, it will appear here.`}
+                />
+              )}
             <PageFooter {...visits} count={visits.items.length} />
           </View>
         )}

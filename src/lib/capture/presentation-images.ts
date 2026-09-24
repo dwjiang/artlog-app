@@ -22,8 +22,9 @@ export class PresentationImages {
         return image;
       })
       .catch((error: unknown) => {
-        if (!this.released && !expired)
+        if (!this.released && !expired) {
           reportError(error, "capture.load_presentation", { level: "warning" });
+        }
         return undefined;
       });
     try {

@@ -15,15 +15,43 @@ export const widgetFrames = [
     light: "transparent",
     dark: "transparent",
   },
-  { value: "black", name: "Black", color: "#1C1A18", light: "#48443F", dark: "#0D0C0B" },
-  { value: "oak", name: "Oak", color: "#C4A066", light: "#DCC08C", dark: "#96703F" },
-  { value: "walnut", name: "Walnut", color: "#45301F", light: "#6B4E35", dark: "#2A1C13" },
-  { value: "gilt", name: "Gilt", color: "#B3924B", light: "#E3C77A", dark: "#8A6A2A" },
+  {
+    value: "black",
+    name: "Black",
+    color: "#1C1A18",
+    light: "#48443F",
+    dark: "#0D0C0B",
+  },
+  {
+    value: "oak",
+    name: "Oak",
+    color: "#C4A066",
+    light: "#DCC08C",
+    dark: "#96703F",
+  },
+  {
+    value: "walnut",
+    name: "Walnut",
+    color: "#45301F",
+    light: "#6B4E35",
+    dark: "#2A1C13",
+  },
+  {
+    value: "gilt",
+    name: "Gilt",
+    color: "#B3924B",
+    light: "#E3C77A",
+    dark: "#8A6A2A",
+  },
 ] as const;
 
 export const widgetCaptions = [
   { value: "none", name: "None", description: "Show only the painting." },
-  { value: "artwork", name: "Title + artist", description: "Keep the artwork information." },
+  {
+    value: "artwork",
+    name: "Title + artist",
+    description: "Keep the artwork information.",
+  },
   {
     value: "visit",
     name: "Title + artist + visit",
@@ -58,14 +86,18 @@ export function readWidgetSettings(value?: string): WidgetSettings {
     const source = parsed.source;
     return {
       source:
-        source &&
-        (source.kind === "visit" || source.kind === "artwork") &&
-        typeof source.id === "string" &&
-        source.id.length
+        source
+        && (source.kind === "visit" || source.kind === "artwork")
+        && typeof source.id === "string"
+        && source.id.length
           ? { kind: source.kind, id: source.id }
           : defaultWidgetSettings.source,
-      color: widgetColors.some((option) => option.value === parsed.color) ? parsed.color : "paper",
-      frame: widgetFrames.some((option) => option.value === parsed.frame) ? parsed.frame : "oak",
+      color: widgetColors.some((option) => option.value === parsed.color)
+        ? parsed.color
+        : "paper",
+      frame: widgetFrames.some((option) => option.value === parsed.frame)
+        ? parsed.frame
+        : "oak",
       caption: widgetCaptions.some((option) => option.value === parsed.caption)
         ? parsed.caption
         : "visit",

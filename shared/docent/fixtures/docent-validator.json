@@ -5,14 +5,20 @@
       "name": "all valid",
       "factIds": ["f1", "f2", "f3"],
       "sentences": [
-        { "sentence": "Harbor at Dawn is an oil painting by Mira Vale.", "factIds": ["f1"] },
+        {
+          "sentence": "Harbor at Dawn is an oil painting by Mira Vale.",
+          "factIds": ["f1"]
+        },
         {
           "sentence": "It was painted in 1912 and depicts three fishing boats.",
           "factIds": ["f2", "f3"]
         }
       ],
       "expectedKept": [
-        { "sentence": "Harbor at Dawn is an oil painting by Mira Vale.", "factIds": ["f1"] },
+        {
+          "sentence": "Harbor at Dawn is an oil painting by Mira Vale.",
+          "factIds": ["f1"]
+        },
         {
           "sentence": "It was painted in 1912 and depicts three fishing boats.",
           "factIds": ["f2", "f3"]
@@ -23,35 +29,68 @@
       "name": "empty ids dropped",
       "factIds": ["f1", "f2"],
       "sentences": [
-        { "sentence": "The attribution remains disputed among scholars.", "factIds": [] },
-        { "sentence": "The Blue Room is attributed to Elias Rowan.", "factIds": ["f1"] }
+        {
+          "sentence": "The attribution remains disputed among scholars.",
+          "factIds": []
+        },
+        {
+          "sentence": "The Blue Room is attributed to Elias Rowan.",
+          "factIds": ["f1"]
+        }
       ],
       "expectedKept": [
-        { "sentence": "The Blue Room is attributed to Elias Rowan.", "factIds": ["f1"] }
+        {
+          "sentence": "The Blue Room is attributed to Elias Rowan.",
+          "factIds": ["f1"]
+        }
       ]
     },
     {
       "name": "unknown id dropped",
       "factIds": ["f1", "f2"],
       "sentences": [
-        { "sentence": "The painting entered the North Gallery in 1951.", "factIds": ["f1", "f9"] },
-        { "sentence": "A 1988 treatment removed discolored varnish.", "factIds": ["f2"] }
+        {
+          "sentence": "The painting entered the North Gallery in 1951.",
+          "factIds": ["f1", "f9"]
+        },
+        {
+          "sentence": "A 1988 treatment removed discolored varnish.",
+          "factIds": ["f2"]
+        }
       ],
       "expectedKept": [
-        { "sentence": "A 1988 treatment removed discolored varnish.", "factIds": ["f2"] }
+        {
+          "sentence": "A 1988 treatment removed discolored varnish.",
+          "factIds": ["f2"]
+        }
       ]
     },
     {
       "name": "duplicate sentence dropped",
       "factIds": ["f1", "f2"],
       "sentences": [
-        { "sentence": "The canvas measures 60 by 80 centimeters.", "factIds": ["f1"] },
-        { "sentence": "The canvas measures 60 by 80 centimeters.", "factIds": ["f2"] },
-        { "sentence": "The identity of the boat owners is unknown.", "factIds": ["f2"] }
+        {
+          "sentence": "The canvas measures 60 by 80 centimeters.",
+          "factIds": ["f1"]
+        },
+        {
+          "sentence": "The canvas measures 60 by 80 centimeters.",
+          "factIds": ["f2"]
+        },
+        {
+          "sentence": "The identity of the boat owners is unknown.",
+          "factIds": ["f2"]
+        }
       ],
       "expectedKept": [
-        { "sentence": "The canvas measures 60 by 80 centimeters.", "factIds": ["f1"] },
-        { "sentence": "The identity of the boat owners is unknown.", "factIds": ["f2"] }
+        {
+          "sentence": "The canvas measures 60 by 80 centimeters.",
+          "factIds": ["f1"]
+        },
+        {
+          "sentence": "The identity of the boat owners is unknown.",
+          "factIds": ["f2"]
+        }
       ]
     },
     {
@@ -62,10 +101,16 @@
           "sentence": "This sentence keeps going far beyond what a docent would ever say on a wall label, listing the provenance, the exhibitions, the conservation campaigns, the loans, the publications, the catalogue numbers, the frame history and every gallery the painting has hung in since it was acquired.",
           "factIds": ["f1"]
         },
-        { "sentence": "A pale orange sun appears above the harbor.", "factIds": ["f2"] }
+        {
+          "sentence": "A pale orange sun appears above the harbor.",
+          "factIds": ["f2"]
+        }
       ],
       "expectedKept": [
-        { "sentence": "A pale orange sun appears above the harbor.", "factIds": ["f2"] }
+        {
+          "sentence": "A pale orange sun appears above the harbor.",
+          "factIds": ["f2"]
+        }
       ]
     },
     {
@@ -75,7 +120,9 @@
         { "sentence": "Painted in 1912.", "factIds": ["f1"] },
         { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
       ],
-      "expectedKept": [{ "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }]
+      "expectedKept": [
+        { "sentence": "It depicts three fishing boats.", "factIds": ["f2"] }
+      ]
     },
     {
       "name": "at most four kept",
@@ -99,14 +146,23 @@
       "factIds": ["f1", "f2", "f3"],
       "sentences": [
         { "sentence": "The work was first shown in 1959.", "factIds": [] },
-        { "sentence": "The museum acquired the work in 1987.", "factIds": ["f1"] },
+        {
+          "sentence": "The museum acquired the work in 1987.",
+          "factIds": ["f1"]
+        },
         { "sentence": "Too short here.", "factIds": ["f2"] },
-        { "sentence": "The museum acquired the work in 1987.", "factIds": ["f1", "f3"] },
+        {
+          "sentence": "The museum acquired the work in 1987.",
+          "factIds": ["f1", "f3"]
+        },
         { "sentence": "Its frame is a later replacement.", "factIds": ["f7"] },
         { "sentence": "The sitter has not been identified.", "factIds": ["f3"] }
       ],
       "expectedKept": [
-        { "sentence": "The museum acquired the work in 1987.", "factIds": ["f1"] },
+        {
+          "sentence": "The museum acquired the work in 1987.",
+          "factIds": ["f1"]
+        },
         { "sentence": "The sitter has not been identified.", "factIds": ["f3"] }
       ]
     },
@@ -114,10 +170,18 @@
       "name": "whitespace normalized and repeated ids removed",
       "factIds": ["f1", "f2"],
       "sentences": [
-        { "sentence": "  The  painting was cleaned\nin 1988. ", "factIds": ["f1", "f1", "f2"] },
+        {
+          "sentence": "  The  painting was cleaned\nin 1988. ",
+          "factIds": ["f1", "f1", "f2"]
+        },
         { "sentence": "The painting was cleaned in 1988.", "factIds": ["f2"] }
       ],
-      "expectedKept": [{ "sentence": "The painting was cleaned in 1988.", "factIds": ["f1", "f2"] }]
+      "expectedKept": [
+        {
+          "sentence": "The painting was cleaned in 1988.",
+          "factIds": ["f1", "f2"]
+        }
+      ]
     },
     {
       "name": "blank sentence dropped",
@@ -126,7 +190,9 @@
         { "sentence": "   ", "factIds": ["f1"] },
         { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
       ],
-      "expectedKept": [{ "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }]
+      "expectedKept": [
+        { "sentence": "The harbor scene remains on view.", "factIds": ["f1"] }
+      ]
     },
     {
       "name": "UTF-16 character limit includes surrogate pairs",
@@ -138,16 +204,23 @@
         },
         { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
+      "expectedKept": [
+        { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
+      ]
     },
     {
       "name": "ECMAScript whitespace includes BOM and excludes NEL",
       "factIds": ["f1"],
       "sentences": [
-        { "sentence": "\ufeffThe\u00a0painting\u2028shows\tthree boats.\ufeff", "factIds": ["f1"] },
+        {
+          "sentence": "\ufeffThe\u00a0painting\u2028shows\tthree boats.\ufeff",
+          "factIds": ["f1"]
+        },
         { "sentence": "The\u0085painting shows boats.", "factIds": ["f1"] }
       ],
-      "expectedKept": [{ "sentence": "The painting shows three boats.", "factIds": ["f1"] }]
+      "expectedKept": [
+        { "sentence": "The painting shows three boats.", "factIds": ["f1"] }
+      ]
     }
   ]
 }

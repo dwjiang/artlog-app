@@ -3,7 +3,8 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import type { LabelFormState } from "./fields";
 
-const key = (scanId: Id<"scans">, owner: string) => `labelDraft:${owner}:${scanId}`;
+const key = (scanId: Id<"scans">, owner: string) =>
+  `labelDraft:${owner}:${scanId}`;
 
 type LabelDraft = { state: LabelFormState; museumSearchUpdatedAt?: number };
 
@@ -15,7 +16,9 @@ export async function loadLabelDraft(
   const stored = await getSetting(key(scanId, owner));
   if (stored === undefined) return;
   const draft = JSON.parse(stored) as LabelDraft;
-  return draft.museumSearchUpdatedAt === museumSearchUpdatedAt ? draft.state : undefined;
+  return draft.museumSearchUpdatedAt === museumSearchUpdatedAt
+    ? draft.state
+    : undefined;
 }
 
 // Keep the original values and unlocks before verification can replace the server's fields.
@@ -31,6 +34,9 @@ export function saveLabelDraft(
   );
 }
 
-export function clearLabelDraft(scanId: Id<"scans">, owner = getLocalOwner()): Promise<void> {
+export function clearLabelDraft(
+  scanId: Id<"scans">,
+  owner = getLocalOwner(),
+): Promise<void> {
   return removeSetting(key(scanId, owner));
 }

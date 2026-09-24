@@ -5,10 +5,18 @@ import type { ListeningTrack } from "@/lib/audio/narration";
 import { ListenActions } from "./listen-actions";
 
 const artworkId = "artwork-1" as Id<"artworks">;
-const facts = [{ id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" }];
+const facts = [
+  { id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" },
+];
 const opening = "This is Water Lilies by Claude Monet.";
 const track: ListeningTrack = {
-  work: { artworkId, title: "Water Lilies", artist: "Claude Monet", facts, opening },
+  work: {
+    artworkId,
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    facts,
+    opening,
+  },
 };
 const mockController = {
   play: jest.fn(),
@@ -23,7 +31,9 @@ let mockCachedDuration: number | undefined;
 
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
-  useQueries: () => ({ enrichment: { narrationFacts: mockFacts, narrationOpening: opening } }),
+  useQueries: () => ({
+    enrichment: { narrationFacts: mockFacts, narrationOpening: opening },
+  }),
 }));
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({ ...mockAudio, controller: mockController }),
@@ -66,9 +76,16 @@ async function renderActions() {
 it("starts the artwork guide and opens its player from the listen row", async () => {
   await renderActions();
   expect(screen.getByText(/AI-generated voice/)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Listen to this work" }),
+  );
   expect(mockController.play).toHaveBeenCalledWith({
-    work: expect.objectContaining({ artworkId, scanId: "scan-1", facts, opening }),
+    work: expect.objectContaining({
+      artworkId,
+      scanId: "scan-1",
+      facts,
+      opening,
+    }),
   });
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
@@ -87,17 +104,31 @@ it("shows the exact cached duration before anything has played this session", as
 });
 
 it("resumes the current guide and shows its remaining time", async () => {
-  mockAudio = { ...mockAudio, current: track, phase: "ready", position: 40, duration: 120 };
+  mockAudio = {
+    ...mockAudio,
+    current: track,
+    phase: "ready",
+    position: 40,
+    duration: 120,
+  };
   await renderActions();
   expect(screen.getByText("1:20 left · AI-generated voice")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Resume listening" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Resume listening" }),
+  );
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockController.play).not.toHaveBeenCalled();
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
 
 it("opens a playing guide without interrupting it", async () => {
-  mockAudio = { ...mockAudio, current: track, phase: "ready", playing: true, duration: 120 };
+  mockAudio = {
+    ...mockAudio,
+    current: track,
+    phase: "ready",
+    playing: true,
+    duration: 120,
+  };
   await renderActions();
   await fireEvent.press(screen.getByRole("button", { name: "Now playing" }));
   expect(mockController.toggle).not.toHaveBeenCalled();
@@ -107,7 +138,9 @@ it("opens a playing guide without interrupting it", async () => {
 it("keeps preparation labeled and prevents duplicate playback requests", async () => {
   mockAudio = { ...mockAudio, current: track, phase: "loading" };
   await renderActions();
-  const preparing = screen.getByRole("button", { name: "Preparing narration…" });
+  const preparing = screen.getByRole("button", {
+    name: "Preparing narration…",
+  });
   expect(preparing).toBeDisabled();
   expect(preparing).toBeBusy();
   await fireEvent.press(preparing);
@@ -118,7 +151,9 @@ it("keeps preparation labeled and prevents duplicate playback requests", async (
 it("offers retry when the current narration fails", async () => {
   mockAudio = { ...mockAudio, current: track, phase: "error" };
   await renderActions();
-  await fireEvent.press(screen.getByRole("button", { name: "Retry narration" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Retry narration" }),
+  );
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
@@ -126,7 +161,9 @@ it("offers retry when the current narration fails", async () => {
 it("queues a newly recognized artwork while another guide continues playing", async () => {
   mockAudio = {
     ...mockAudio,
-    current: { work: { ...track.work, artworkId: "artwork-2" as Id<"artworks"> } },
+    current: {
+      work: { ...track.work, artworkId: "artwork-2" as Id<"artworks"> },
+    },
     phase: "ready",
     playing: true,
   };
@@ -145,7 +182,9 @@ it("queues a newly recognized artwork while another guide continues playing", as
 it("marks queued artworks as added and prevents duplicate additions", async () => {
   mockAudio = {
     ...mockAudio,
-    current: { work: { ...track.work, artworkId: "artwork-2" as Id<"artworks"> } },
+    current: {
+      work: { ...track.work, artworkId: "artwork-2" as Id<"artworks"> },
+    },
     queue: [track],
     phase: "ready",
   };
@@ -172,13 +211,19 @@ it("does not offer to queue the current artwork again when its research changes"
     phase: "ready",
   };
   await renderActions();
-  expect(screen.getByRole("button", { name: "Already in player" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
+  expect(
+    screen.getByRole("button", { name: "Already in player" }),
+  ).toBeDisabled();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Listen to this work" }),
+  );
   expect(mockController.play).toHaveBeenCalledTimes(1);
 });
 
 it("omits the listen row when no narration research is available", async () => {
   mockFacts = [];
   await renderActions();
-  expect(screen.queryByRole("button", { name: "Listen to this work" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Listen to this work" }),
+  ).toBeNull();
 });

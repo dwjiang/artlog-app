@@ -1,4 +1,7 @@
-import { isPhotoFileReferenced, upsertFromRemote } from "../../db/repos/saved-works";
+import {
+  isPhotoFileReferenced,
+  upsertFromRemote,
+} from "../../db/repos/saved-works";
 import { upsertVisitsFromRemote } from "../../db/repos/visits";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -14,7 +17,11 @@ import {
 } from "../../db/repos/artwork-album";
 import { getSetting, setSetting } from "../../db/repos/settings";
 import { convex } from "../convex-client";
-import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
+import {
+  downloadCollectionPhoto,
+  removePhotoFile,
+  uploadCollectionPhoto,
+} from "./photo-transfer";
 import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
 import type { SyncContext } from "./sync";
 import { reportError } from "../observability";
@@ -29,7 +36,9 @@ export async function syncArtworkAlbums(
     if (!deleted.length) break;
     for (const photo of deleted) {
       if (!isCurrent()) return;
-      if (!(await isPhotoFileReferenced(photo.path))) removePhotoFile(photo.path);
+      if (!(await isPhotoFileReferenced(photo.path))) {
+        removePhotoFile(photo.path);
+      }
       clearDeletedAlbumPhotoPath(photo.localId, context.owner);
     }
   }
@@ -46,18 +55,21 @@ export async function syncArtworkAlbums(
     if (!isCurrent()) return;
     await upsertVisitsFromRemote(result.visits, context.owner);
     if (!isCurrent()) return;
-    await removeUnreferencedPhotos(await upsertFromRemote(result.saves, context.owner));
+    await removeUnreferencedPhotos(
+      await upsertFromRemote(result.saves, context.owner),
+    );
     if (!isCurrent()) return;
     acknowledgeAlbum(pending, context.owner);
     applyAlbum(result.photos, result.encounters, context.owner);
     since = result.checkpoint;
     await setSetting(key, String(since));
     if (
-      !result.hasMore &&
-      !pendingAlbum(context.owner).photos.length &&
-      !pendingAlbum(context.owner).encounters.length
-    )
+      !result.hasMore
+      && !pendingAlbum(context.owner).photos.length
+      && !pendingAlbum(context.owner).encounters.length
+    ) {
       break;
+    }
   }
   // One photo that keeps failing must not stop the others: finish the batch, then rethrow so the queue retries.
   while (isCurrent()) {
@@ -77,7 +89,9 @@ export async function syncArtworkAlbums(
             isCurrent,
             photo.localId,
           );
-          if (isCurrent()) updateAlbumTransfer(photo.localId, { storageId }, context.owner);
+          if (isCurrent()) {
+            updateAlbumTransfer(photo.localId, { storageId }, context.owner);
+          }
         } else if (!photo.path && photo.storageId) {
           const path = await downloadCollectionPhoto(
             token,
@@ -87,12 +101,19 @@ export async function syncArtworkAlbums(
             photo.storageId,
             photo.localId,
           );
-          if (!isCurrent() || !updateAlbumTransfer(photo.localId, { path }, context.owner))
+          if (
+            !isCurrent()
+            || !updateAlbumTransfer(photo.localId, { path }, context.owner)
+          ) {
             removePhotoFile(path);
+          }
         }
       } catch (error) {
         reportError(error, "sync.photos", {
-          data: { kind: "album", direction: photo.path ? "upload" : "download" },
+          data: {
+            kind: "album",
+            direction: photo.path ? "upload" : "download",
+          },
         });
         failure = error;
       }

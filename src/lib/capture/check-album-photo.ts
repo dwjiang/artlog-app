@@ -39,7 +39,10 @@ export async function checkAlbumPhoto(
         capturedAt: photo.capturedAt,
       }),
       new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error("Recognition timed out")), 15_000);
+        timeout = setTimeout(
+          () => reject(new Error("Recognition timed out")),
+          15_000,
+        );
       }),
     ]);
     const classification = albumMatch(result, targetObjectId);

@@ -22,7 +22,11 @@ import { nextWallLayout } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
 import { ArtworkAlbum } from "./artwork-album";
 import { GalleryButton } from "./gallery-button";
-import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from "./artwork-encounters";
+import {
+  ArtworkEncounterList,
+  ArtworkVisitNote,
+  useArtworkEncounters,
+} from "./artwork-encounters";
 import { ArtworkQueryState } from "./artwork-query-state";
 
 export type SavedWorkScreenProps = {
@@ -31,7 +35,12 @@ export type SavedWorkScreenProps = {
   photoId?: string;
   editNote?: boolean;
 };
-export function SavedWorkScreen({ savedId, visitId, photoId, editNote }: SavedWorkScreenProps) {
+export function SavedWorkScreen({
+  savedId,
+  visitId,
+  photoId,
+  editNote,
+}: SavedWorkScreenProps) {
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -54,15 +63,16 @@ function SavedWorkQuery({
   editNote,
   onRetry,
 }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
-  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [
-    savedId,
-    owner,
-  ]);
+  const { data, error, updatedAt } = useLiveQuery(
+    selectSavedWork(savedId, owner),
+    [savedId, owner],
+  );
   useEffect(() => {
     if (error) reportError(error, "collection.artwork.load");
   }, [error]);
   const work = data.find(
-    (row) => row.owner === owner && row.localId === savedId && row.deletedAt === null,
+    (row) =>
+      row.owner === owner && row.localId === savedId && row.deletedAt === null,
   );
   return work ? (
     <SavedArtwork
@@ -73,7 +83,12 @@ function SavedWorkQuery({
       editNote={editNote}
     />
   ) : (
-    <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />
+    <ArtworkQueryState
+      item="Artwork"
+      loading={!updatedAt}
+      error={error}
+      onRetry={onRetry}
+    />
   );
 }
 function Divider() {
@@ -97,13 +112,17 @@ function SavedArtwork({
     loading: loadingEncounters,
     error: encounterError,
   } = useArtworkEncounters(work);
-  const currentEncounter = encounters.find(({ visit }) => visit.localId === visitId);
-  const { data: photos } = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
-    work.localId,
-    work.owner,
-  ]);
+  const currentEncounter = encounters.find(
+    ({ visit }) => visit.localId === visitId,
+  );
+  const { data: photos } = useLiveQuery(
+    selectArtworkPhotos(work.localId, work.owner),
+    [work.localId, work.owner],
+  );
   const wallPhoto = photos.find((photo) => photo.kind !== "label") ?? photos[0];
-  const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
+  const hung = wall.draft?.items.find(
+    (item) => item.saveLocalId === work.localId,
+  );
   const wallFull = !hung && (wall.draft?.items.length ?? 0) >= LIMITS.wallItems;
   async function saveLayout() {
     wall.setError(undefined);
@@ -111,7 +130,9 @@ function SavedArtwork({
       await wall.repository.publishLayout();
     } catch (cause) {
       reportError(cause, "wall.layout.publish");
-      wall.setError("Your wall change was not saved. Tap Retry to save these changes.");
+      wall.setError(
+        "Your wall change was not saved. Tap Retry to save these changes.",
+      );
     }
   }
   function toggleWall(value: boolean) {
@@ -134,7 +155,10 @@ function SavedArtwork({
             ...wall.draft,
             items: wall.draft.items
               .filter((item) => item.saveLocalId !== work.localId)
-              .map((item, layer) => ({ ...item, layout: { ...item.layout, layer } })),
+              .map((item, layer) => ({
+                ...item,
+                layout: { ...item.layout, layer },
+              })),
           },
     );
     void saveLayout();
@@ -160,15 +184,17 @@ function SavedArtwork({
               title={work.title}
               artist={work.artist}
               savedId={work.localId}
-              imageUri={work.cropPath ? captureFileUri(work.cropPath) : undefined}
+              imageUri={
+                work.cropPath ? captureFileUri(work.cropPath) : undefined
+              }
             />
           )}
         </ArtworkAlbum>
         {wall.signedIn && !work.syncedAt && (
           <View style={{ padding: 14, gap: 12, backgroundColor: "#EEF2FF" }}>
             <Text style={{ fontSize: 14, lineHeight: 21 }}>
-              Saved on this iPhone. Waiting to sync before this artwork can appear on your public
-              wall.
+              Saved on this iPhone. Waiting to sync before this artwork can
+              appear on your public wall.
             </Text>
             <Text variant="metadata">On your wall · Waiting for sync</Text>
             <GalleryButton label="Back" onPress={() => router.back()} />
@@ -178,7 +204,10 @@ function SavedArtwork({
           label="Adjust crop"
           icon="crop"
           onPress={() =>
-            router.push({ pathname: "/adjust-crop", params: { savedId: work.localId } })
+            router.push({
+              pathname: "/adjust-crop",
+              params: { savedId: work.localId },
+            })
           }
         />
         <Divider />
@@ -197,12 +226,18 @@ function SavedArtwork({
             (item) => item.saveLocalId === work.localId && item.noteVisible,
           )}
         />
-        {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
+        {currentEncounter && (
+          <ArtworkVisitNote work={work} encounter={currentEncounter} />
+        )}
         {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
         {!!wall.draft && (
           <>
             <Divider />
-            <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent}>
+            <Host
+              matchContents={{ vertical: true }}
+              colorScheme="light"
+              seedColor={Gallery.accent}
+            >
               <Switch
                 label="On your wall"
                 value={!!hung}
@@ -212,7 +247,8 @@ function SavedArtwork({
             </Host>
             {wallFull && (
               <Text style={styles.caption}>
-                Your wall holds {LIMITS.wallItems} artworks. Take one off to hang this piece.
+                Your wall holds {LIMITS.wallItems} artworks. Take one off to
+                hang this piece.
               </Text>
             )}
             {hung && (
@@ -222,7 +258,10 @@ function SavedArtwork({
                   accessibilityRole="button"
                   accessibilityLabel="Wall display options"
                   onPress={() =>
-                    router.push({ pathname: "/wall-display", params: { savedId: work.localId } })
+                    router.push({
+                      pathname: "/wall-display",
+                      params: { savedId: work.localId },
+                    })
                   }
                   style={styles.row}
                 >
@@ -246,7 +285,10 @@ function SavedArtwork({
         )}
         {wall.error && (
           <View style={{ gap: 8 }}>
-            <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+            <Text
+              accessibilityRole="alert"
+              style={{ color: Gallery.destructive }}
+            >
               {wall.error}
             </Text>
             <GalleryButton
@@ -259,15 +301,26 @@ function SavedArtwork({
             />
           </View>
         )}
-        {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
+        {wall.pending && (
+          <LoadingRing accessibilityLabel="Saving wall changes…" />
+        )}
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Gallery.separator },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Gallery.separator,
+  },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  row: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 6 },
+  row: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 6,
+  },
   rowLabel: { flex: 1, fontSize: 17, lineHeight: 23, color: Gallery.ink },
 });

@@ -45,13 +45,19 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
       keyId = await appAttest.generateKey();
       await installationStorage.setItem(APP_ATTEST_KEY_ID, keyId);
     }
-    if (pendingAttestation?.keyId !== keyId || pendingAttestation.deviceId !== result.deviceId) {
+    if (
+      pendingAttestation?.keyId !== keyId
+      || pendingAttestation.deviceId !== result.deviceId
+    ) {
       const { nonce } = await fns.createChallenge({ purpose: "attest" });
       pendingAttestation = { deviceId: result.deviceId, keyId, nonce };
     }
     const request = pendingAttestation;
     try {
-      request.attestationBase64 ??= await appAttest.attestKey(keyId, request.nonce);
+      request.attestationBase64 ??= await appAttest.attestKey(
+        keyId,
+        request.nonce,
+      );
       await fns.attestDevice({
         keyId,
         attestationBase64: request.attestationBase64,
@@ -73,10 +79,10 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
 
 function requiresNewKey(code: string | undefined): boolean {
   return (
-    code === "key_mismatch" ||
-    code === "invalid_attestation" ||
-    code === "challenge_invalid" ||
-    code === "ERR_APP_INTEGRITY_INVALID_KEY"
+    code === "key_mismatch"
+    || code === "invalid_attestation"
+    || code === "challenge_invalid"
+    || code === "ERR_APP_INTEGRITY_INVALID_KEY"
   );
 }
 
@@ -84,10 +90,10 @@ function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) return;
   const data = "data" in error ? error.data : error;
   if (
-    typeof data === "object" &&
-    data !== null &&
-    "code" in data &&
-    typeof data.code === "string"
+    typeof data === "object"
+    && data !== null
+    && "code" in data
+    && typeof data.code === "string"
   ) {
     return data.code;
   }
@@ -97,7 +103,10 @@ function canRetrySetup(error: unknown): boolean {
   const code = errorCode(error);
   if (requiresNewKey(code)) return false;
   // DeviceCheck configuration/key failures need investigation, not an endless loop of new keys.
-  return !code?.startsWith("ERR_APP_INTEGRITY_") || code === "ERR_APP_INTEGRITY_SERVER_UNAVAILABLE";
+  return (
+    !code?.startsWith("ERR_APP_INTEGRITY_")
+    || code === "ERR_APP_INTEGRITY_SERVER_UNAVAILABLE"
+  );
 }
 
 // Module-level so registration runs once per app launch even if the hook remounts.
@@ -131,12 +140,14 @@ export function useDeviceIdentity(): void {
       pendingAttestation = null;
       pending = signInAnonymously(signIn);
     } else {
-      registration ??= registerAndAttest({ registerDevice, createChallenge, attestDevice }).catch(
-        (error: unknown) => {
-          registration = null;
-          throw error;
-        },
-      );
+      registration ??= registerAndAttest({
+        registerDevice,
+        createChallenge,
+        attestDevice,
+      }).catch((error: unknown) => {
+        registration = null;
+        throw error;
+      });
       pending = registration;
     }
 
@@ -146,9 +157,13 @@ export function useDeviceIdentity(): void {
       if (!active) return;
       console.warn("Device identity setup failed", error);
       const retrying = canRetrySetup(error);
-      reportError(error, isAuthenticated ? "auth.device_registration" : "auth.anonymous_sign_in", {
-        data: { attempt: attempt + 1, retrying },
-      });
+      reportError(
+        error,
+        isAuthenticated ? "auth.device_registration" : "auth.anonymous_sign_in",
+        {
+          data: { attempt: attempt + 1, retrying },
+        },
+      );
       if (!retrying) return;
       retry = setTimeout(
         () => setAttempt((value) => value + 1),
@@ -159,7 +174,15 @@ export function useDeviceIdentity(): void {
       active = false;
       clearTimeout(retry);
     };
-  }, [isAuthenticated, isLoading, signIn, registerDevice, createChallenge, attestDevice, attempt]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    signIn,
+    registerDevice,
+    createChallenge,
+    attestDevice,
+    attempt,
+  ]);
 }
 
 export function DeviceIdentity(): null {

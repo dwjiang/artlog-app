@@ -34,8 +34,13 @@ async function fixture() {
     storage: { get: getStored },
   });
   const publish = async () => {
-    const state = await a.as.mutation(api.sharedVisits.publish, draft.selection);
-    const post = await a.as.query(api.sharedVisits.get, { postId: state.postId! });
+    const state = await a.as.mutation(
+      api.sharedVisits.publish,
+      draft.selection,
+    );
+    const post = await a.as.query(api.sharedVisits.get, {
+      postId: state.postId!,
+    });
     return {
       kind: "sharedVisit" as const,
       postId: state.postId!,
@@ -59,7 +64,9 @@ it("displays eligible draft media only to the owner without publishing or exposi
   const denied = await serveSharedMedia(transport(b), previewContext);
   expect(denied.status).toBe(404);
   expect(denied.headers.get("Cache-Control")).toBe("private, no-store");
-  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
+  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual(
+    [],
+  );
 });
 it("serves public media without friendship and rechecks publication, selection, and media eligibility", async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();
@@ -136,7 +143,9 @@ it("checks current contribution consent and never serves the source crop as a de
   const { t, a, b, asset, transport, publish } = await fixture();
   const context = await publish();
   await befriend(a, b);
-  await t.run((ctx) => ctx.db.patch(asset.contributionId, { displayMediaRevokedAt: Date.now() }));
+  await t.run((ctx) =>
+    ctx.db.patch(asset.contributionId, { displayMediaRevokedAt: Date.now() }),
+  );
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
   expect(
     (
@@ -147,7 +156,9 @@ it("checks current contribution consent and never serves the source crop as a de
     ).artwork.media.kind,
   ).toBe("placeholder");
   await t.run(async (ctx) => {
-    await ctx.db.patch(asset.contributionId, { displayMediaRevokedAt: undefined });
+    await ctx.db.patch(asset.contributionId, {
+      displayMediaRevokedAt: undefined,
+    });
     await ctx.db.patch(asset.id, { storageId: asset.sourceStorageId });
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);

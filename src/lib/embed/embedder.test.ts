@@ -9,10 +9,14 @@ function fakeNative(overrides: Partial<CoremlEmbed> = {}) {
     inputSize: model.inputSize,
     embeddingDim: model.embeddingDim,
     weightsSha256: "weights",
-    warmUp: jest.fn().mockResolvedValue({ loadMs: 4100, predictMs: 66, alreadyLoaded: false }),
+    warmUp: jest
+      .fn()
+      .mockResolvedValue({ loadMs: 4100, predictMs: 66, alreadyLoaded: false }),
     embed: jest
       .fn()
-      .mockResolvedValue(Array.from({ length: model.embeddingDim }, (_, i) => (i === 0 ? 1 : 0))),
+      .mockResolvedValue(
+        Array.from({ length: model.embeddingDim }, (_, i) => (i === 0 ? 1 : 0)),
+      ),
     ...overrides,
   };
 }
@@ -40,7 +44,9 @@ it("rejects a bundled model whose version differs from shared/model/model-versio
 
 it("explains a build without the model asset", async () => {
   const embedder = createEmbedder(() => fakeNative({ modelVersion: null }));
-  await expect(embedder.embed("file:///tmp/crop.jpg")).rejects.toThrow("git lfs pull");
+  await expect(embedder.embed("file:///tmp/crop.jpg")).rejects.toThrow(
+    "git lfs pull",
+  );
 });
 
 it("rejects warm-up without throwing synchronously when the model asset is missing", async () => {
@@ -69,7 +75,9 @@ it("rejects warm-up when the native module is missing and allows a later retry",
 it("rejects warm-up for a mismatched model version before calling the native model", async () => {
   const native = fakeNative({ modelVersion: "wrong-version" });
   const embedder = createEmbedder(() => native);
-  await expect(embedder.warmUp()).rejects.toThrow("Embedding model version mismatch");
+  await expect(embedder.warmUp()).rejects.toThrow(
+    "Embedding model version mismatch",
+  );
   expect(native.warmUp).not.toHaveBeenCalled();
 });
 
@@ -80,7 +88,10 @@ it("warms up once for concurrent callers and again after a failure", async () =>
     .mockResolvedValue({ loadMs: 4100, predictMs: 66, alreadyLoaded: false });
   const embedder = createEmbedder(() => fakeNative({ warmUp }));
   await expect(embedder.warmUp()).rejects.toThrow("Neural Engine unavailable");
-  const [first, second] = await Promise.all([embedder.warmUp(), embedder.warmUp()]);
+  const [first, second] = await Promise.all([
+    embedder.warmUp(),
+    embedder.warmUp(),
+  ]);
   expect(first).toBe(second);
   await embedder.warmUp();
   expect(warmUp).toHaveBeenCalledTimes(2);

@@ -2,7 +2,12 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { db } from "@/db/client";
 import * as saves from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
-import { notes, pendingScans, savedWorks, visits as visitTable } from "@/db/schema";
+import {
+  notes,
+  pendingScans,
+  savedWorks,
+  visits as visitTable,
+} from "@/db/schema";
 import { getLocalOwner } from "./owner-store";
 import { syncJournal, type SyncContext, type SyncDependencies } from "./sync";
 
@@ -45,7 +50,10 @@ const remote: Doc<"collections"> = {
 };
 let checkpoint: string | undefined;
 let deps: SyncDependencies;
-const api = jest.fn<ReturnType<SyncDependencies["sync"]>, Parameters<SyncDependencies["sync"]>>();
+const api = jest.fn<
+  ReturnType<SyncDependencies["sync"]>,
+  Parameters<SyncDependencies["sync"]>
+>();
 const empty = {
   venues: [],
   acceptedVisits: [],
@@ -98,7 +106,9 @@ it("pushes scoped snapshots, applies parents before saves, acknowledges and chec
   });
   api.mockResolvedValueOnce({
     ...empty,
-    acceptedSaves: [{ localId: "local", updatedAt: 20, updatedBy: context.deviceId }],
+    acceptedSaves: [
+      { localId: "local", updatedAt: 20, updatedBy: context.deviceId },
+    ],
     visits: [remoteVisit],
     saves: [remote],
   });
@@ -115,12 +125,21 @@ it("pushes scoped snapshots, applies parents before saves, acknowledges and chec
   expect(checkpoint).toBe("20");
 });
 it("leaves edits pending and checkpoints unchanged on network or local-write failures", async () => {
-  await saves.insertSavedWork({ localId: "local", title: "Local", artist: "", savedAt: 1 });
+  await saves.insertSavedWork({
+    localId: "local",
+    title: "Local",
+    artist: "",
+    savedAt: 1,
+  });
   api.mockRejectedValueOnce(new Error("offline"));
   await expect(syncJournal(deps, context)).rejects.toThrow("offline");
   expect(await saves.listUnsynced()).toHaveLength(1);
   expect(checkpoint).toBeUndefined();
-  api.mockResolvedValueOnce({ ...empty, visits: [remoteVisit], saves: [remote] });
+  api.mockResolvedValueOnce({
+    ...empty,
+    visits: [remoteVisit],
+    saves: [remote],
+  });
   deps.upsertVisitsFromRemote = async () => {
     throw new Error("SQLITE_BUSY");
   };
@@ -129,7 +148,12 @@ it("leaves edits pending and checkpoints unchanged on network or local-write fai
 });
 it("resumes at the last applied change after an interrupted pull", async () => {
   api
-    .mockResolvedValueOnce({ ...empty, visits: [remoteVisit], checkpoint: 1, hasMore: true })
+    .mockResolvedValueOnce({
+      ...empty,
+      visits: [remoteVisit],
+      checkpoint: 1,
+      hasMore: true,
+    })
     .mockRejectedValueOnce(new Error("offline"));
   await expect(syncJournal(deps, context)).rejects.toThrow("offline");
   expect(checkpoint).toBe("1");
@@ -170,7 +194,9 @@ it("sends empty visits before save batches and leaves hidden account work suspen
     "account:hidden",
   );
   await syncJournal(deps, context);
-  expect(api.mock.calls.map(([args]) => args.visits.length + args.saves.length)).toEqual([50, 21]);
+  expect(
+    api.mock.calls.map(([args]) => args.visits.length + args.saves.length),
+  ).toEqual([50, 21]);
   expect(api.mock.calls[0][0].visits).toHaveLength(1);
   expect(await saves.listUnsynced()).toEqual([]);
   expect(await saves.listUnsynced("account:hidden")).toHaveLength(1);
@@ -205,7 +231,12 @@ it("applies canonical venue metadata before advancing the checkpoint", async () 
 it("rejects remote rows belonging to a different owner before applying data", async () => {
   api.mockResolvedValueOnce({
     ...empty,
-    visits: [{ ...remoteVisit, owner: { kind: "account", accountId: "foreign" as never } }],
+    visits: [
+      {
+        ...remoteVisit,
+        owner: { kind: "account", accountId: "foreign" as never },
+      },
+    ],
   });
   await expect(syncJournal(deps, context)).rejects.toThrow("not_found");
   expect(await visits.listVisits()).toEqual([]);
@@ -225,10 +256,14 @@ it("removes the local crop file a newer remote crop displaced", async () => {
   api.mockResolvedValueOnce({
     ...empty,
     visits: [remoteVisit],
-    saves: [{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 5 }],
+    saves: [
+      { ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 5 },
+    ],
   });
   await syncJournal(deps, context);
-  expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith(["crops/old.preview.jpg"]);
+  expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith([
+    "crops/old.preview.jpg",
+  ]);
   expect(await saves.getSavedWork(remote.localId)).toMatchObject({
     cropPath: null,
     cropStorageId: "new",

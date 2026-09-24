@@ -6,36 +6,52 @@ import {
   validateGuide,
   validateGuideBody,
 } from "./guide";
-import { guideBodyFixture, guideFixture, openingFixture, researchFixture } from "./guide-fixtures";
+import {
+  guideBodyFixture,
+  guideFixture,
+  openingFixture,
+  researchFixture,
+} from "./guide-fixtures";
 
 const ids = new Set(researchFixture.map((fact) => fact.id));
 const richIds = new Set([...ids, "f3", "f4", "f5", "f6", "f7", "f8"]);
 it("preserves a substantial spoken guide and all its supporting citations", () => {
-  expect(validateGuide(guideFixture, ids, openingFixture)).toEqual(guideFixture);
+  expect(validateGuide(guideFixture, ids, openingFixture)).toEqual(
+    guideFixture,
+  );
   expect(validateGuideBody(guideBodyFixture, ids)).toEqual(guideBodyFixture);
 });
 it("opens with title, artist and the recorded date without inventing missing years", () => {
-  expect(guideOpening({ title: "Water Lilies", artist: "Claude Monet", date: "1916" })).toBe(
-    openingFixture,
-  );
+  expect(
+    guideOpening({
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      date: "1916",
+    }),
+  ).toBe(openingFixture);
   expect(
     guideOpening({
       title: " Study\n of a Young Woman ",
       artist: "Johannes Vermeer",
       date: " ca. 1665–67 ",
     }),
-  ).toBe("This is Study of a Young Woman, by Johannes Vermeer, dated ca. 1665–67.");
+  ).toBe(
+    "This is Study of a Young Woman, by Johannes Vermeer, dated ca. 1665–67.",
+  );
   for (const date of [undefined, "", "  "]) {
-    expect(guideOpening({ title: "Water Lilies", artist: "Claude Monet", date })).toBe(
-      "This is Water Lilies, by Claude Monet. Its date is unknown.",
-    );
+    expect(
+      guideOpening({ title: "Water Lilies", artist: "Claude Monet", date }),
+    ).toBe("This is Water Lilies, by Claude Monet. Its date is unknown.");
   }
 });
 it("requires the exact metadata opening first and allows only that line to be uncited", () => {
   for (const value of [
     guideBodyFixture,
     [...guideBodyFixture, guideFixture[0]],
-    [{ sentence: "This is another painting.", factIds: [] }, ...guideBodyFixture],
+    [
+      { sentence: "This is another painting.", factIds: [] },
+      ...guideBodyFixture,
+    ],
     [{ ...guideFixture[0], factIds: ["f1"] }, ...guideBodyFixture],
   ]) {
     expect(validateGuide(value, ids, openingFixture)).toBeNull();
@@ -95,12 +111,16 @@ it("accepts a sentence only when its support span is copied verbatim from a cite
     { sentence: "Notice the pond.", fact_ids: ["f1"], support: "pond" },
   ])!;
   expect(lines).toHaveLength(5);
-  expect(unsupportedLines(lines, researchFixture).map((line) => line.sentence)).toEqual([
+  expect(
+    unsupportedLines(lines, researchFixture).map((line) => line.sentence),
+  ).toEqual([
     "The lilies float serenely in the evening light.",
     "The artist returned to this garden repeatedly.",
     "Notice the pond.",
   ]);
-  expect(parseGuideLines([{ sentence: "No span here.", fact_ids: ["f1"] }])).toBeNull();
+  expect(
+    parseGuideLines([{ sentence: "No span here.", fact_ids: ["f1"] }]),
+  ).toBeNull();
 });
 it("gives the guide only prose research, never catalogue lines", () => {
   const catalogue = [
@@ -124,7 +144,9 @@ it("gives the guide only prose research, never catalogue lines", () => {
   expect(guideResearch(facts).map((fact) => fact.text)).toEqual(prose);
 });
 it("accepts a guide only inside the 150 to 200 word band, or from 110 words when research is thin", () => {
-  expect(validateGuideBody(guideBodyFixture.slice(0, 9), richIds)).toHaveLength(9);
+  expect(validateGuideBody(guideBodyFixture.slice(0, 9), richIds)).toHaveLength(
+    9,
+  );
   expect(validateGuideBody(guideBodyFixture.slice(0, 8), richIds)).toBeNull();
   expect(validateGuideBody(guideBodyFixture.slice(0, 7), ids)).toHaveLength(7);
   expect(validateGuideBody(guideBodyFixture.slice(0, 6), ids)).toBeNull();

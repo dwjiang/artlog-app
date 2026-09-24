@@ -5,7 +5,14 @@ export type CollectionSite = {
   platform: "emuseum" | "iiif" | "collectionspace" | "generic";
 };
 
-const PATHS = ["/", "/collection", "/collections", "/art/collection", "/objects", "/sitemap.xml"];
+const PATHS = [
+  "/",
+  "/collection",
+  "/collections",
+  "/art/collection",
+  "/objects",
+  "/sitemap.xml",
+];
 const MAX_BODY_BYTES = 1024 * 1024;
 
 export function websiteUrl(value: string): URL | null {
@@ -13,17 +20,18 @@ export function websiteUrl(value: string): URL | null {
     const url = new URL(value);
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (
-      !["https:", "http:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      (url.port && !["80", "443"].includes(url.port)) ||
-      !host.includes(".") ||
-      /(^|\.)(localhost|local|internal|test|invalid)$/.test(host) ||
-      host.includes(":") ||
-      /^[\d.]+$/.test(host) ||
-      value.length > 2048
-    )
+      !["https:", "http:"].includes(url.protocol)
+      || url.username
+      || url.password
+      || (url.port && !["80", "443"].includes(url.port))
+      || !host.includes(".")
+      || /(^|\.)(localhost|local|internal|test|invalid)$/.test(host)
+      || host.includes(":")
+      || /^[\d.]+$/.test(host)
+      || value.length > 2048
+    ) {
       return null;
+    }
     url.hash = "";
     return url;
   } catch {
@@ -33,9 +41,9 @@ export function websiteUrl(value: string): URL | null {
 
 function sameHostUrl(value: string, base: URL): URL | null {
   const url = websiteUrl(new URL(value, base).href);
-  return url &&
-    url.hostname === base.hostname &&
-    !(base.protocol === "https:" && url.protocol === "http:")
+  return url
+    && url.hostname === base.hostname
+    && !(base.protocol === "https:" && url.protocol === "http:")
     ? url
     : null;
 }
@@ -48,7 +56,9 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   for (const match of rawLinks) {
     try {
       const link = sameHostUrl(
-        (match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(),
+        (match[1] ?? match[2] ?? match[3] ?? match[4])
+          .replace(/&amp;/g, "&")
+          .trim(),
         page,
       );
       if (link) links.push(link);
@@ -63,15 +73,24 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
       ? new URL(target.pathname.replace(/\/[^/]+\/?$/, "/"), target).href
       : page.origin
     : page.href;
-  if (/\bcollectionspace\b/i.test(body)) return { collectionSiteUrl, platform: "collectionspace" };
-  if (links.some((link) => /\/iiif\//i.test(link.pathname)))
+  if (/\bcollectionspace\b/i.test(body)) {
+    return { collectionSiteUrl, platform: "collectionspace" };
+  }
+  if (links.some((link) => /\/iiif\//i.test(link.pathname))) {
     return { collectionSiteUrl, platform: "iiif" };
-  if (/\bemuseum\b/i.test(body) || links.some((link) => /\/objects\//i.test(link.pathname))) {
+  }
+  if (
+    /\bemuseum\b/i.test(body)
+    || links.some((link) => /\/objects\//i.test(link.pathname))
+  ) {
     return { collectionSiteUrl, platform: "emuseum" };
   }
   if (
-    new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname))
-      .size >= 20
+    new Set(
+      links
+        .filter((link) => collectionPath.test(link.pathname))
+        .map((link) => link.pathname),
+    ).size >= 20
   ) {
     return { collectionSiteUrl, platform: "generic" };
   }
@@ -96,7 +115,10 @@ export async function probeCollectionSite(
       const response = await fetch(url.href, {
         redirect: "manual",
         signal: controller.signal,
-        headers: { "User-Agent": userAgent(), Accept: "text/html, application/xml;q=0.9" },
+        headers: {
+          "User-Agent": userAgent(),
+          Accept: "text/html, application/xml;q=0.9",
+        },
       });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
@@ -106,12 +128,20 @@ export async function probeCollectionSite(
         continue;
       }
       if (!response.ok) {
-        if (response.status === 408 || response.status === 429 || response.status >= 500)
+        if (
+          response.status === 408
+          || response.status === 429
+          || response.status >= 500
+        ) {
           retryable = true;
+        }
         await response.body?.cancel();
         continue;
       }
-      const result = detectCollection(await readBody(response, MAX_BODY_BYTES), url);
+      const result = detectCollection(
+        await readBody(response, MAX_BODY_BYTES),
+        url,
+      );
       if (result) return result;
     } catch {
       retryable = true;

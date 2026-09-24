@@ -13,15 +13,24 @@ describe("exhibition image candidates", () => {
           title: "A Century of Colour",
           content: "Several artists.",
           score: 0.9,
-          images: [{ url: "https://museum.example/red.jpg" }, "https://museum.example/blue.jpg"],
+          images: [
+            { url: "https://museum.example/red.jpg" },
+            "https://museum.example/blue.jpg",
+          ],
         },
       ],
     });
     expect(exhibitionCandidates(response, ["museum.example"])).toEqual([
       {
         sourceUrl: "https://museum.example/exhibitions/colour",
-        exhibition: { title: "A Century of Colour", content: "Several artists." },
-        imageUrls: ["https://museum.example/red.jpg", "https://museum.example/blue.jpg"],
+        exhibition: {
+          title: "A Century of Colour",
+          content: "Several artists.",
+        },
+        imageUrls: [
+          "https://museum.example/red.jpg",
+          "https://museum.example/blue.jpg",
+        ],
       },
     ]);
   });
@@ -30,8 +39,14 @@ describe("exhibition image candidates", () => {
     const response = parseSearchResponse({
       images: ["https://museum.example/global.jpg"],
       results: [
-        { url: "https://evil.example/exhibitions/x", images: ["https://museum.example/one.jpg"] },
-        { url: "https://museum.example/shop/x", images: ["https://museum.example/two.jpg"] },
+        {
+          url: "https://evil.example/exhibitions/x",
+          images: ["https://museum.example/one.jpg"],
+        },
+        {
+          url: "https://museum.example/shop/x",
+          images: ["https://museum.example/two.jpg"],
+        },
         {
           url: "https://museum.example/exhibitions/x",
           images: [
@@ -55,22 +70,29 @@ describe("exhibition image candidates", () => {
         },
       ],
     });
-    expect(exhibitionCandidates(response, ["museum.example"])[0].imageUrls).toEqual([
-      "https://images.cdn.example/blue.jpg",
-    ]);
+    expect(
+      exhibitionCandidates(response, ["museum.example"])[0].imageUrls,
+    ).toEqual(["https://images.cdn.example/blue.jpg"]);
   });
 
   it("deduplicates pages and images and bounds the work sent to the phone", () => {
     const result = (id: number) => ({
       url: `https://museum.example/exhibitions/${id}`,
       score: 1,
-      images: Array.from({ length: 20 }, (_, i) => `https://museum.example/${i}.jpg`),
+      images: Array.from(
+        { length: 20 },
+        (_, i) => `https://museum.example/${i}.jpg`,
+      ),
     });
     const candidates = exhibitionCandidates(
-      parseSearchResponse({ results: [result(1), result(1), result(2), result(3), result(4)] }),
+      parseSearchResponse({
+        results: [result(1), result(1), result(2), result(3), result(4)],
+      }),
       ["museum.example"],
     );
     expect(candidates).toHaveLength(3);
-    expect(candidates.every((candidate) => candidate.imageUrls.length === 6)).toBe(true);
+    expect(
+      candidates.every((candidate) => candidate.imageUrls.length === 6),
+    ).toBe(true);
   });
 });

@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 
 import * as settings from "@/db/repos/settings";
 import { VisitPreference } from "./visit-preference";
@@ -36,16 +42,26 @@ it("shows a ghost only for the initial read and keeps the switch mounted while a
   ).toBeOnTheScreen();
   expect(screen.queryByRole("switch")).toBeNull();
   await releaseRead();
-  const toggle = await screen.findByRole("switch", { name: "Remember visit view" });
+  const toggle = await screen.findByRole("switch", {
+    name: "Remember visit view",
+  });
   expect(toggle).toBeChecked();
   const releaseWrite = hold(jest.spyOn(settings, "setSetting"), write);
   await fireEvent.press(toggle);
-  expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeDisabled();
+  expect(
+    screen.getByRole("switch", { name: "Remember visit view" }),
+  ).toBeDisabled();
   expect(screen.queryByRole("progressbar")).toBeNull();
   await releaseWrite();
   await waitFor(() =>
-    expect(screen.getByRole("switch", { name: "Remember visit view" })).toBeEnabled(),
+    expect(
+      screen.getByRole("switch", { name: "Remember visit view" }),
+    ).toBeEnabled(),
   );
-  expect(screen.getByRole("switch", { name: "Remember visit view" })).not.toBeChecked();
-  expect(await settings.getSetting("remember-visit-view:device:test-installation")).toBe("false");
+  expect(
+    screen.getByRole("switch", { name: "Remember visit view" }),
+  ).not.toBeChecked();
+  expect(
+    await settings.getSetting("remember-visit-view:device:test-installation"),
+  ).toBe("false");
 });

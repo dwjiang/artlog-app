@@ -2,7 +2,13 @@ import { LIMITS } from "../../../shared/journal/limits";
 import type { SnapshotFields } from "../../../convex/lib/validators";
 import type { ResultCandidate, ResultViewState } from "./state";
 
-export const SNAPSHOT_FIELDS = ["title", "artist", "date", "medium", "institution"] as const;
+export const SNAPSHOT_FIELDS = [
+  "title",
+  "artist",
+  "date",
+  "medium",
+  "institution",
+] as const;
 export type SnapshotField = (typeof SNAPSHOT_FIELDS)[number];
 /** The form's values: every field is a string while it is being edited. */
 export type SnapshotDraft = Record<SnapshotField, string>;

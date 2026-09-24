@@ -28,9 +28,17 @@ export type MuseumEntry = {
   candidate: {
     object: Pick<
       Doc<"objects">,
-      "_id" | "identityStatus" | "ownerId" | "medium" | "calibratorPenalty" | "rejectionPenalty"
+      | "_id"
+      | "identityStatus"
+      | "ownerId"
+      | "medium"
+      | "calibratorPenalty"
+      | "rejectionPenalty"
     >;
-    artwork: Pick<Doc<"artworks">, "_id" | "title" | "artist" | "date" | "rightsStatus"> & {
+    artwork: Pick<
+      Doc<"artworks">,
+      "_id" | "title" | "artist" | "date" | "rightsStatus"
+    > & {
       docent?: DocentSentence[];
       factSheet?: FactChip[];
     };
@@ -45,5 +53,10 @@ export type MuseumEntry = {
 };
 export type OfflineResult = Pick<
   ScanDisplay,
-  "outcome" | "best" | "runnerUps" | "docent" | "factSheet" | "calibratorVersion"
+  | "outcome"
+  | "best"
+  | "runnerUps"
+  | "docent"
+  | "factSheet"
+  | "calibratorVersion"
 >;

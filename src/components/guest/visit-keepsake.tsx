@@ -5,14 +5,25 @@ import { Gallery, Spacing, Typography } from "@/constants/theme";
 
 export function VisitKeepsake() {
   const { width, height, fontScale } = useWindowDimensions();
-  const size = Math.min(width - Spacing.content * 2, height < 760 || fontScale > 1.3 ? 280 : 360);
+  const size = Math.min(
+    width - Spacing.content * 2,
+    height < 760 || fontScale > 1.3 ? 280 : 360,
+  );
   return (
     <View style={styles.root}>
-      <View accessibilityElementsHidden style={{ width: size, height: size * 0.68 }}>
+      <View
+        accessibilityElementsHidden
+        style={{ width: size, height: size * 0.68 }}
+      >
         <View
           style={[
             styles.postcard,
-            { width: size * 0.6, height: size * 0.48, top: size * 0.06, right: size * 0.02 },
+            {
+              width: size * 0.6,
+              height: size * 0.48,
+              top: size * 0.06,
+              right: size * 0.02,
+            },
           ]}
         >
           <Image
@@ -23,7 +34,10 @@ export function VisitKeepsake() {
           />
         </View>
         <View
-          style={[styles.ticket, { width: size * 0.72, height: size * 0.39, top: size * 0.22 }]}
+          style={[
+            styles.ticket,
+            { width: size * 0.72, height: size * 0.39, top: size * 0.22 },
+          ]}
         >
           <View style={styles.ticketMain}>
             <Image
@@ -36,7 +50,11 @@ export function VisitKeepsake() {
               allowFontScaling={false}
               style={[
                 Typography.section,
-                { color: Gallery.accent, fontSize: size * 0.075, lineHeight: size * 0.085 },
+                {
+                  color: Gallery.accent,
+                  fontSize: size * 0.075,
+                  lineHeight: size * 0.085,
+                },
               ]}
             >
               YOUR{"\n"}NEXT VISIT

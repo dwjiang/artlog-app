@@ -83,7 +83,13 @@ export function QueueRow({
           </ThemedText>
           {retrying || item.status === "identifying" || discarding ? (
             <LoadingRing
-              accessibilityLabel={discarding ? "Discarding scan…" : retrying ? "Retrying…" : status}
+              accessibilityLabel={
+                discarding
+                  ? "Discarding scan…"
+                  : retrying
+                    ? "Retrying…"
+                    : status
+              }
               style={{ alignSelf: "flex-start" }}
             />
           ) : (
@@ -93,7 +99,10 @@ export function QueueRow({
                 alignSelf: "flex-start",
                 paddingHorizontal: 6,
                 paddingVertical: 3,
-                backgroundColor: item.status === "identified" ? Gallery.highlight : Gallery.fill,
+                backgroundColor:
+                  item.status === "identified"
+                    ? Gallery.highlight
+                    : Gallery.fill,
               }}
               themeColor={
                 item.status === "failed"
@@ -123,7 +132,10 @@ export function QueueRow({
               name="ellipsis"
               size={20}
               color={Gallery.muted}
-              modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
+              modifiers={[
+                frame({ width: 44, height: 44 }),
+                contentShape(shapes.rectangle()),
+              ]}
             />
           }
           modifiers={[
@@ -132,7 +144,11 @@ export function QueueRow({
             disabled(discarding || retrying),
           ]}
         >
-          <Button label="Resume" systemImage="arrow.right" onPress={() => onOpen(item)} />
+          <Button
+            label="Resume"
+            systemImage="arrow.right"
+            onPress={() => onOpen(item)}
+          />
           {item.status === "failed" && (
             <Button
               label={RETRY_ROW}
@@ -162,7 +178,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Gallery.separator,
   },
-  capture: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.three },
+  capture: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
   pressed: { opacity: 0.6 },
   thumbnail: {
     width: 64,

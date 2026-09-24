@@ -40,8 +40,12 @@ export async function beginRevert(
     thumbnailStorageId: undefined,
     ...(object.thumbnailStorageId ? { imageRef: undefined } : {}),
   });
-  if (object.thumbnailStorageId && (await ctx.db.system.get(object.thumbnailStorageId)))
+  if (
+    object.thumbnailStorageId
+    && (await ctx.db.system.get(object.thumbnailStorageId))
+  ) {
     await ctx.storage.delete(object.thumbnailStorageId);
+  }
 }
 
 export const beginObjectRevert = internalMutation({
@@ -60,13 +64,17 @@ export const cleanupObjectPage = internalMutation({
   returns: cursorArg,
   handler: async (ctx, { objectId, phase, cursor }) => {
     const object = await ctx.db.get(objectId);
-    if (!object?.reverted) throw new ConvexError({ code: "object_not_reverted" });
+    if (!object?.reverted) {
+      throw new ConvexError({ code: "object_not_reverted" });
+    }
     const options = { cursor, numItems: 64, maximumBytesRead: 1024 * 1024 };
     switch (phase) {
       case "vectors": {
         const page = await ctx.db
           .query("vectors")
-          .withIndex("by_objectId_modelVersion_source", (q) => q.eq("objectId", objectId))
+          .withIndex("by_objectId_modelVersion_source", (q) =>
+            q.eq("objectId", objectId),
+          )
           .paginate(options);
         for (const row of page.page) await ctx.db.delete(row._id);
         await bumpCounter(ctx, "vectors", -page.page.length);
@@ -90,14 +98,18 @@ export const cleanupObjectPage = internalMutation({
           .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
           .paginate(options);
         for (const row of page.page) {
-          if (row.closedAt === undefined) await ctx.db.patch(row._id, { closedAt: Date.now() });
+          if (row.closedAt === undefined) {
+            await ctx.db.patch(row._id, { closedAt: Date.now() });
+          }
         }
         return page.isDone ? null : page.continueCursor;
       }
       case "contributions": {
         const page = await ctx.db
           .query("contributions")
-          .withIndex("by_object_device", (q) => q.eq("indexedObjectId", objectId))
+          .withIndex("by_object_device", (q) =>
+            q.eq("indexedObjectId", objectId),
+          )
           .paginate(options);
         for (const row of page.page) {
           await removeContribution(ctx, row, "object_reverted");
@@ -112,9 +124,17 @@ export const revertObjectById = internalAction({
   args: { objectId: v.id("objects"), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, { objectId, reason }) => {
-    await ctx.runMutation(internal.revert.beginObjectRevert, { objectId, reason });
+    await ctx.runMutation(internal.revert.beginObjectRevert, {
+      objectId,
+      reason,
+    });
     // Restarting after an interrupted action is safe: deletion, closing and rejection are idempotent.
-    for (const phase of ["vectors", "descriptors", "placements", "contributions"] as const) {
+    for (const phase of [
+      "vectors",
+      "descriptors",
+      "placements",
+      "contributions",
+    ] as const) {
       let cursor: string | null = null;
       do {
         cursor = await ctx.runMutation(internal.revert.cleanupObjectPage, {
@@ -142,8 +162,13 @@ function paging(cursor: string | null) {
   return { cursor, numItems: CHUNK, maximumBytesRead: CHUNK_BYTES };
 }
 
-async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
-  const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
+async function resetMultiView(
+  ctx: MutationCtx,
+  row: Doc<"feedback">,
+): Promise<number> {
+  const vector = row.multiViewVectorId
+    ? await ctx.db.get(row.multiViewVectorId)
+    : null;
   if (vector) {
     await ctx.db.delete(vector._id);
     await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
@@ -171,11 +196,12 @@ export const requeueDuplicateViews = internalMutation({
       )
       .paginate(paging(cursor));
     for (const row of page.page) await resetMultiView(ctx, row);
-    if (!page.isDone)
+    if (!page.isDone) {
       await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
         vectorId,
         cursor: page.continueCursor,
       });
+    }
     return null;
   },
 });
@@ -211,9 +237,13 @@ export const revertDevice = internalMutation({
       if (existing.phase !== "complete") {
         await ctx.db.patch(existing._id, {
           resumeRevision: existing.resumeRevision + 1,
-          ...(existing.phase === "stalled" ? { phase: "settling", settleAttempts: 0 } : {}),
+          ...(existing.phase === "stalled"
+            ? { phase: "settling", settleAttempts: 0 }
+            : {}),
         });
-        await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, { jobId: existing._id });
+        await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, {
+          jobId: existing._id,
+        });
       }
       return existing._id;
     }
@@ -228,7 +258,9 @@ export const revertDevice = internalMutation({
       resumeRevision: 0,
       startedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, { jobId });
+    await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, {
+      jobId,
+    });
     return jobId;
   },
 });
@@ -255,40 +287,63 @@ export const cleanupDevicePage = internalMutation({
         // A resumed job re-schedules whatever each unsettled dependency is waiting on, since the
         // original scheduled work may have been lost.
         const retry = (dependency.resumeRevision ?? 0) < job.resumeRevision;
-        if (retry) await ctx.db.patch(dependency._id, { resumeRevision: job.resumeRevision });
+        if (retry) {
+          await ctx.db.patch(dependency._id, {
+            resumeRevision: job.resumeRevision,
+          });
+        }
         if (dependency.objectId) {
           const entryRebuild = await ctx.db
             .query("entryRebuilds")
-            .withIndex("by_object", (q) => q.eq("objectId", dependency.objectId!))
+            .withIndex("by_object", (q) =>
+              q.eq("objectId", dependency.objectId!),
+            )
             .first();
           const feedbackRebuild = await ctx.db
             .query("feedbackRebuilds")
-            .withIndex("by_object", (q) => q.eq("objectId", dependency.objectId!))
+            .withIndex("by_object", (q) =>
+              q.eq("objectId", dependency.objectId!),
+            )
             .first();
           if (entryRebuild || feedbackRebuild) {
-            if (retry && entryRebuild)
-              await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, {
-                jobId: entryRebuild._id,
-              });
-            if (retry && feedbackRebuild)
-              await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, {
-                jobId: feedbackRebuild._id,
-              });
+            if (retry && entryRebuild) {
+              await ctx.scheduler.runAfter(
+                0,
+                internal.contributionRemoval.rebuildPage,
+                {
+                  jobId: entryRebuild._id,
+                },
+              );
+            }
+            if (retry && feedbackRebuild) {
+              await ctx.scheduler.runAfter(
+                0,
+                internal.feedbackReplay.rebuildPage,
+                {
+                  jobId: feedbackRebuild._id,
+                },
+              );
+            }
             continue;
           }
           const object = await ctx.db.get(dependency.objectId);
           if (object?.reverted && object.revertCompletedAt === undefined) {
-            if (retry)
-              await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
-                objectId: object._id,
-                reason: object.revertedReason ?? job.reason,
-              });
+            if (retry) {
+              await ctx.scheduler.runAfter(
+                0,
+                internal.revert.revertObjectById,
+                {
+                  objectId: object._id,
+                  reason: object.revertedReason ?? job.reason,
+                },
+              );
+            }
             continue;
           }
         }
         if (
-          dependency.contributionId &&
-          (await ctx.db
+          dependency.contributionId
+          && (await ctx.db
             .query("mediaAssets")
             .withIndex("by_contribution_revoked", (q) =>
               q
@@ -297,60 +352,78 @@ export const cleanupDevicePage = internalMutation({
             )
             .first())
         ) {
-          if (retry) await revokeContributionMedia(ctx, dependency.contributionId);
+          if (retry) {
+            await revokeContributionMedia(ctx, dependency.contributionId);
+          }
           continue;
         }
         if (dependency.feedbackId) {
           const row = await ctx.db.get(dependency.feedbackId);
           if (
-            row?.multiViewAgreement &&
-            [row.multiViewAgreement.firstDeviceId, row.multiViewAgreement.secondDeviceId].includes(
-              deviceId,
-            )
+            row?.multiViewAgreement
+            && [
+              row.multiViewAgreement.firstDeviceId,
+              row.multiViewAgreement.secondDeviceId,
+            ].includes(deviceId)
           ) {
-            if (retry)
+            if (retry) {
               await ctx.scheduler.runAfter(0, internal.promotion.reassessView, {
                 feedbackId: row._id,
               });
+            }
             continue;
           }
         }
         if (
-          dependency.vectorId &&
-          (await ctx.db
+          dependency.vectorId
+          && (await ctx.db
             .query("feedback")
             .withIndex("by_multiViewDuplicateVectorId", (q) =>
               q.eq("multiViewDuplicateVectorId", dependency.vectorId),
             )
             .first())
         ) {
-          if (retry)
-            await ctx.scheduler.runAfter(0, internal.revert.requeueDuplicateViews, {
-              vectorId: dependency.vectorId,
-              cursor: null,
-            });
+          if (retry) {
+            await ctx.scheduler.runAfter(
+              0,
+              internal.revert.requeueDuplicateViews,
+              {
+                vectorId: dependency.vectorId,
+                cursor: null,
+              },
+            );
+          }
           continue;
         }
         if (
-          dependency.scanId &&
-          (await ctx.db
+          dependency.scanId
+          && (await ctx.db
             .query("vectors")
             .withIndex("by_scanId", (q) => q.eq("scanId", dependency.scanId))
             .first())
         ) {
-          if (retry)
-            await ctx.scheduler.runAfter(0, internal.revert.cleanupScanVectors, {
-              scanId: dependency.scanId,
-              jobId,
-              cursor: null,
-            });
+          if (retry) {
+            await ctx.scheduler.runAfter(
+              0,
+              internal.revert.cleanupScanVectors,
+              {
+                scanId: dependency.scanId,
+                jobId,
+                cursor: null,
+              },
+            );
+          }
           continue;
         }
         if (dependency.proposalId) {
           const proposal = await ctx.db.get(dependency.proposalId);
           if (
-            proposal?.status === "promoted" &&
-            !readyForReview(proposal.deviceIds, proposal.firstSeenAt, proposal.lastSeenAt)
+            proposal?.status === "promoted"
+            && !readyForReview(
+              proposal.deviceIds,
+              proposal.firstSeenAt,
+              proposal.lastSeenAt,
+            )
           ) {
             if (proposal.revertedAt === undefined) {
               if (retry) await reassessProposal(ctx, proposal._id);
@@ -364,11 +437,16 @@ export const cleanupDevicePage = internalMutation({
                 ? await ctx.db.get(placement.objectId)
                 : null;
             if (object && object.revertCompletedAt === undefined) {
-              if (retry)
-                await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
-                  objectId: object._id,
-                  reason: "proposal_evidence_removed",
-                });
+              if (retry) {
+                await ctx.scheduler.runAfter(
+                  0,
+                  internal.revert.revertObjectById,
+                  {
+                    objectId: object._id,
+                    reason: "proposal_evidence_removed",
+                  },
+                );
+              }
               continue;
             }
           }
@@ -431,7 +509,10 @@ export const cleanupDevicePage = internalMutation({
         .paginate(options);
       for (const link of page.page) {
         await reassessProposal(ctx, link.proposalId);
-        await ctx.db.insert("removalDependencies", { jobId, proposalId: link.proposalId });
+        await ctx.db.insert("removalDependencies", {
+          jobId,
+          proposalId: link.proposalId,
+        });
       }
       nextCursor = page.isDone ? null : page.continueCursor;
       processed = page.page.length;
@@ -442,7 +523,10 @@ export const cleanupDevicePage = internalMutation({
         .paginate(options);
       for (const event of page.page) {
         await feedbackChanged(ctx, event.objectId);
-        await ctx.db.insert("removalDependencies", { jobId, objectId: event.objectId });
+        await ctx.db.insert("removalDependencies", {
+          jobId,
+          objectId: event.objectId,
+        });
       }
       nextCursor = page.isDone ? null : page.continueCursor;
       processed = page.page.length;
@@ -461,8 +545,13 @@ export const cleanupDevicePage = internalMutation({
               );
       const page = await query.paginate(options);
       for (const row of page.page) {
-        await ctx.scheduler.runAfter(0, internal.promotion.reassessView, { feedbackId: row._id });
-        await ctx.db.insert("removalDependencies", { jobId, feedbackId: row._id });
+        await ctx.scheduler.runAfter(0, internal.promotion.reassessView, {
+          feedbackId: row._id,
+        });
+        await ctx.db.insert("removalDependencies", {
+          jobId,
+          feedbackId: row._id,
+        });
       }
       nextCursor = page.isDone ? null : page.continueCursor;
       processed = page.page.length;
@@ -474,13 +563,19 @@ export const cleanupDevicePage = internalMutation({
       processed: job.processed + processed,
       completedAt: undefined,
     });
-    await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, { jobId });
+    await ctx.scheduler.runAfter(0, internal.revert.cleanupDevicePage, {
+      jobId,
+    });
     return null;
   },
 });
 
 export const cleanupScanVectors = internalMutation({
-  args: { scanId: v.id("scans"), jobId: v.id("deviceRemovals"), cursor: cursorArg },
+  args: {
+    scanId: v.id("scans"),
+    jobId: v.id("deviceRemovals"),
+    cursor: cursorArg,
+  },
   returns: v.null(),
   handler: async (ctx, { scanId, jobId, cursor }) => {
     const page = await ctx.db
@@ -493,15 +588,19 @@ export const cleanupScanVectors = internalMutation({
         vectorId: vector._id,
         cursor: null,
       });
-      await ctx.db.insert("removalDependencies", { jobId, vectorId: vector._id });
+      await ctx.db.insert("removalDependencies", {
+        jobId,
+        vectorId: vector._id,
+      });
     }
     await bumpCounter(ctx, "vectors", -page.page.length);
-    if (!page.isDone)
+    if (!page.isDone) {
       await ctx.scheduler.runAfter(0, internal.revert.cleanupScanVectors, {
         scanId,
         jobId,
         cursor: page.continueCursor,
       });
+    }
     return null;
   },
 });
@@ -517,7 +616,11 @@ export const removalProgress = internalQuery({
 });
 
 const rightsTarget = v.union(
-  v.object({ kind: v.literal("venue"), venueId: v.id("museums"), optOutId: v.id("optOuts") }),
+  v.object({
+    kind: v.literal("venue"),
+    venueId: v.id("museums"),
+    optOutId: v.id("optOuts"),
+  }),
   v.object({
     kind: v.literal("artwork"),
     artworkId: v.id("artworks"),
@@ -545,14 +648,22 @@ export const revertRightsObjects = internalAction({
   returns: v.null(),
   handler: async (ctx, { objectIds, proposalIds, target, cursor }) => {
     const reason =
-      target.kind === "venue" ? `opt_out: ${target.venueId}` : `takedown: ${target.takedownId}`;
-    for (const proposalId of proposalIds)
+      target.kind === "venue"
+        ? `opt_out: ${target.venueId}`
+        : `takedown: ${target.takedownId}`;
+    for (const proposalId of proposalIds) {
       await ctx.runMutation(internal.placements.revertMove, { proposalId });
-    for (const objectId of objectIds)
-      await ctx.runAction(internal.revert.revertObjectById, { objectId, reason });
+    }
+    for (const objectId of objectIds) {
+      await ctx.runAction(internal.revert.revertObjectById, {
+        objectId,
+        reason,
+      });
+    }
     if (cursor === null) {
       await ctx.runMutation(internal.revert.completeRightsRequest, {
-        requestId: target.kind === "venue" ? target.optOutId : target.takedownId,
+        requestId:
+          target.kind === "venue" ? target.optOutId : target.takedownId,
       });
     } else if (target.kind === "venue") {
       await ctx.scheduler.runAfter(0, internal.revert.revertVenueObjects, {
@@ -577,7 +688,11 @@ export const applyOptOut = internalMutation({
   handler: async (ctx, { venueId, requester }) => {
     const venue = await ctx.db.get(venueId);
     if (!venue) throw new ConvexError({ code: "venue_not_found" });
-    const optOutId = await ctx.db.insert("optOuts", { venueId, requester, receivedAt: Date.now() });
+    const optOutId = await ctx.db.insert("optOuts", {
+      venueId,
+      requester,
+      receivedAt: Date.now(),
+    });
     await ctx.db.patch(venueId, { optOut: true });
     await ctx.scheduler.runAfter(0, internal.revert.revertVenueFeedback, {
       venueId,
@@ -589,7 +704,11 @@ export const applyOptOut = internalMutation({
 });
 
 export const revertVenueFeedback = internalMutation({
-  args: { venueId: v.id("museums"), optOutId: v.id("optOuts"), cursor: cursorArg },
+  args: {
+    venueId: v.id("museums"),
+    optOutId: v.id("optOuts"),
+    cursor: cursorArg,
+  },
   returns: v.null(),
   handler: async (ctx, { venueId, optOutId, cursor }) => {
     const page = await ctx.db
@@ -602,18 +721,19 @@ export const revertVenueFeedback = internalMutation({
       await ctx.db.patch(row._id, { multiViewAt: Date.now() });
     }
     await bumpCounter(ctx, "vectors", -deleted);
-    if (page.isDone)
+    if (page.isDone) {
       await ctx.scheduler.runAfter(0, internal.revert.revertVenueObjects, {
         venueId,
         optOutId,
         cursor: null,
       });
-    else
+    } else {
       await ctx.scheduler.runAfter(0, internal.revert.revertVenueFeedback, {
         venueId,
         optOutId,
         cursor: page.continueCursor,
       });
+    }
     return null;
   },
 });
@@ -655,8 +775,9 @@ export const applyTakedown = internalMutation({
   },
   returns: v.id("takedowns"),
   handler: async (ctx, { artworkId, objectId, requester }) => {
-    if ((artworkId === undefined) === (objectId === undefined))
+    if ((artworkId === undefined) === (objectId === undefined)) {
       throw new ConvexError({ code: "takedown_target" });
+    }
     const now = Date.now();
     if (objectId !== undefined) {
       const object = await ctx.db.get(objectId);

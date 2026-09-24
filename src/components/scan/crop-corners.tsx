@@ -21,7 +21,10 @@ export function CropCorners({
   const [frame, setFrame] = useState({ width: 1, height: 1 });
   const photo = fitPhoto(size, frame);
   return (
-    <View style={styles.canvas} onLayout={({ nativeEvent: { layout } }) => setFrame(layout)}>
+    <View
+      style={styles.canvas}
+      onLayout={({ nativeEvent: { layout } }) => setFrame(layout)}
+    >
       <Image
         source={uri}
         contentFit="contain"
@@ -116,8 +119,18 @@ function Corner({
           moveCropCorner(
             corners,
             index,
-            x + (actionName === "left" ? -0.01 : actionName === "right" ? 0.01 : 0),
-            y + (actionName === "up" ? -0.01 : actionName === "down" ? 0.01 : 0),
+            x
+              + (actionName === "left"
+                ? -0.01
+                : actionName === "right"
+                  ? 0.01
+                  : 0),
+            y
+              + (actionName === "up"
+                ? -0.01
+                : actionName === "down"
+                  ? 0.01
+                  : 0),
           ),
         )
       }
@@ -128,7 +141,12 @@ function Corner({
   );
 }
 const styles = StyleSheet.create({
-  canvas: { flex: 1, minHeight: 180, margin: 24, backgroundColor: Gallery.fill },
+  canvas: {
+    flex: 1,
+    minHeight: 180,
+    margin: 24,
+    backgroundColor: Gallery.fill,
+  },
   handle: {
     position: "absolute",
     width: 48,

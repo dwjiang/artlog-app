@@ -29,12 +29,16 @@ function assertUsable(device: Doc<"devices"> | null): Doc<"devices"> {
   return device;
 }
 
-export async function requireDevice(ctx: QueryCtx | MutationCtx): Promise<Doc<"devices">> {
+export async function requireDevice(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Doc<"devices">> {
   const userId = await requireAuthUserId(ctx);
   return assertUsable(await findDeviceForUser(ctx, userId));
 }
 
-export async function requireDeviceFromAction(ctx: ActionCtx): Promise<Doc<"devices">> {
+export async function requireDeviceFromAction(
+  ctx: ActionCtx,
+): Promise<Doc<"devices">> {
   await requireAuthUserId(ctx);
   return assertUsable(await ctx.runQuery(internal.devices.getForCaller, {}));
 }

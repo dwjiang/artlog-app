@@ -2,7 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { useLeaderboardChoice } from "./use-leaderboard-choice";
 
-jest.mock("@/db/repos/settings", () => ({ getSetting: jest.fn(), setSetting: jest.fn() }));
+jest.mock("@/db/repos/settings", () => ({
+  getSetting: jest.fn(),
+  setSetting: jest.fn(),
+}));
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(getSetting).mockResolvedValue(undefined);
@@ -58,5 +61,7 @@ it("keeps browsing available when preferences cannot save", async () => {
   const hook = await renderHook(useLeaderboardChoice);
   await act(() => hook.result.current.changeChoice({ period: "all" }));
   expect(hook.result.current.choice.period).toBe("all");
-  await waitFor(() => expect(hook.result.current.error).toMatch(/could not be remembered/));
+  await waitFor(() =>
+    expect(hook.result.current.error).toMatch(/could not be remembered/),
+  );
 });

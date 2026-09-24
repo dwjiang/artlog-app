@@ -6,15 +6,21 @@ import { museumDownloads } from "./storage";
 
 export function useMuseumDownloads() {
   const ready = useDeviceReady();
-  const state = useSyncExternalStore(museumDownloads.subscribe, museumDownloads.getSnapshot);
+  const state = useSyncExternalStore(
+    museumDownloads.subscribe,
+    museumDownloads.getSnapshot,
+  );
   useEffect(() => {
     void museumDownloads
       .hydrate()
       .catch((error) => console.warn("Could not read museum downloads", error));
-    if (ready)
+    if (ready) {
       void museumDownloads
         .refresh()
-        .catch((error) => console.warn("Could not refresh museum downloads", error));
+        .catch((error) =>
+          console.warn("Could not refresh museum downloads", error),
+        );
+    }
   }, [ready]);
   return state;
 }
@@ -29,7 +35,9 @@ export function MuseumDownloadLifecycle() {
       if (state === "background") pause();
     });
     const network = addNetworkStateListener((state) => {
-      if (state.isConnected === false || state.isInternetReachable === false) pause();
+      if (state.isConnected === false || state.isInternetReachable === false) {
+        pause();
+      }
     });
     return () => {
       pause();

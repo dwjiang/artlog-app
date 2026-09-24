@@ -33,7 +33,10 @@ import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 export function VisitCreateScreen() {
   const owner = useLocalOwner();
-  const { savedId, venueId } = useLocalSearchParams<{ savedId?: string; venueId?: string }>();
+  const { savedId, venueId } = useLocalSearchParams<{
+    savedId?: string;
+    venueId?: string;
+  }>();
   return (
     <CreateForm
       key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`}
@@ -57,7 +60,9 @@ async function searchPlaces(
     lat: place.lat,
     lng: place.lng,
     category: place.category,
-    ...(place.distanceMeters === undefined ? {} : { distanceM: place.distanceMeters }),
+    ...(place.distanceMeters === undefined
+      ? {}
+      : { distanceM: place.distanceMeters }),
     city: place.city,
     country: place.country,
     ...(place.website ? { website: place.website } : {}),
@@ -68,7 +73,13 @@ export function placeLocation(place: PoiOption): string {
   return [place.city, countryName(place.country)].filter(Boolean).join(", ");
 }
 
-function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenueId?: string }) {
+function CreateForm({
+  savedId,
+  initialVenueId,
+}: {
+  savedId?: string;
+  initialVenueId?: string;
+}) {
   const { fix } = useVenue();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{
@@ -104,10 +115,13 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     [error, setError] = useState<string>();
   const submitting = useRef(false);
   const [localId] = useState(randomUUID);
-  const timeZone = venue ? venueTimeZone(venue) : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = venue
+    ? venueTimeZone(venue)
+    : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const today = calendarDate(now, timeZone);
   const validDate = validVisitDate(date, timeZone, now);
-  const currentResults = results?.query === query && results.retry === retry ? results : undefined;
+  const currentResults =
+    results?.query === query && results.retry === retry ? results : undefined;
   const venues = currentResults?.rows ?? [];
   const places = currentResults?.places ?? [];
   const searchError = currentResults?.error;
@@ -126,14 +140,18 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           });
           return places
             ? { rows, places }
-            : { rows, places: [], error: "Apple Maps could not be reached. Try again." };
+            : {
+                rows,
+                places: [],
+                error: "Apple Maps could not be reached. Try again.",
+              };
         })
         .then((found) => {
           if (active) setResults({ query, retry, ...found });
         })
         .catch((cause) => {
           reportError(cause, "visit.venues.search");
-          if (active)
+          if (active) {
             setResults({
               query,
               retry,
@@ -141,6 +159,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
               places: [],
               error: "Museums could not load. Try again.",
             });
+          }
         });
     }, 200);
     return () => {
@@ -167,11 +186,12 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       if (row) chooseVenue(row);
     } catch (cause) {
       reportError(cause, "visit.venue.confirm");
-      if (session.isOwnerCurrent())
+      if (session.isOwnerCurrent()) {
         setError(
-          socialErrorMessage(cause) ??
-            "This museum could not be added. Check your connection and try again.",
+          socialErrorMessage(cause)
+            ?? "This museum could not be added. Check your connection and try again.",
         );
+      }
     } finally {
       if (session.isOwnerCurrent()) setAdding(undefined);
     }
@@ -198,15 +218,26 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
         savedId,
       );
       if (session.isOwnerCurrent()) {
-        showToast(savedId ? "New visit linked. Other photos are unchanged." : "Visit saved.");
-        if (savedId)
-          router.dismissTo({ pathname: "/saved/[savedId]", params: { savedId, visitId: localId } });
-        else router.back();
+        showToast(
+          savedId
+            ? "New visit linked. Other photos are unchanged."
+            : "Visit saved.",
+        );
+        if (savedId) {
+          router.dismissTo({
+            pathname: "/saved/[savedId]",
+            params: { savedId, visitId: localId },
+          });
+        } else router.back();
       }
     } catch (cause) {
       reportError(cause, "visit.create");
-      if (session.isOwnerCurrent())
-        setError(socialErrorMessage(cause) ?? "Your visit could not be saved. Try again.");
+      if (session.isOwnerCurrent()) {
+        setError(
+          socialErrorMessage(cause)
+            ?? "Your visit could not be saved. Try again.",
+        );
+      }
     } finally {
       if (session.isOwnerCurrent()) {
         submitting.current = false;
@@ -266,7 +297,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                 Searching museums…
               </VisitMessage>
             ) : searchError ? (
-              <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>
+              <VisitMessage
+                action="Try again"
+                onAction={() => setRetry((value) => value + 1)}
+              >
                 {searchError}
               </VisitMessage>
             ) : query.trim().length < 2 ? (
@@ -291,7 +325,9 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                 onPress={() => chooseVenue(row)}
               >
                 <Text style={styles.body}>{row.name}</Text>
-                <Text style={styles.caption}>{venueLocation(row).location}</Text>
+                <Text style={styles.caption}>
+                  {venueLocation(row).location}
+                </Text>
               </Pressable>
             ))}
             {!venues.length && places.length > 0 && (
@@ -306,7 +342,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                       key={key}
                       accessibilityRole="button"
                       accessibilityLabel={`${place.name}, ${placeLocation(place) || place.name}`}
-                      accessibilityState={{ busy: adding === key, disabled: !!adding }}
+                      accessibilityState={{
+                        busy: adding === key,
+                        disabled: !!adding,
+                      }}
                       disabled={!!adding}
                       style={styles.card}
                       onPress={() => {
@@ -315,7 +354,9 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                     >
                       <Text style={styles.body}>{place.name}</Text>
                       <Text style={styles.caption}>
-                        {adding === key ? "Adding this museum…" : placeLocation(place)}
+                        {adding === key
+                          ? "Adding this museum…"
+                          : placeLocation(place)}
                       </Text>
                     </Pressable>
                   );
@@ -324,8 +365,8 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             )}
             {venues.length === MUSEUM_SEARCH_LIMIT && (
               <Text style={styles.caption}>
-                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to
-                narrow your search.
+                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or
+                more of the name to narrow your search.
               </Text>
             )}
           </>
@@ -369,7 +410,9 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           editable={!busy}
           style={[styles.input, styles.reflection]}
         />
-        <Text style={styles.caption}>Your visit stays private until you share it.</Text>
+        <Text style={styles.caption}>
+          Your visit stays private until you share it.
+        </Text>
         <GalleryButton
           label="Add visit"
           variant="filled"

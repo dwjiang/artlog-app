@@ -89,10 +89,16 @@ jest.mock("./flush", () => ({
 }));
 
 // Loaded after the mocks above exist: the factories hand back objects declared in this file.
-const { captureStore, discardPendingLabel, flushQueue, retryPendingScan, startQueueFlusher } =
-  jest.requireActual<typeof import("./queue")>("./queue");
-const { runCapture } =
-  jest.requireActual<typeof import("../capture/pipeline")>("../capture/pipeline");
+const {
+  captureStore,
+  discardPendingLabel,
+  flushQueue,
+  retryPendingScan,
+  startQueueFlusher,
+} = jest.requireActual<typeof import("./queue")>("./queue");
+const { runCapture } = jest.requireActual<typeof import("../capture/pipeline")>(
+  "../capture/pipeline",
+);
 
 const scanId = "scan-1" as Id<"scans">;
 const payload: CapturePayload = {
@@ -115,7 +121,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const fn of Object.values(mockRepo)) fn.mockResolvedValue(undefined);
   mockDocumentsUri = "file:///documents";
-  mockPersist.mockResolvedValue({ photoPath: "photos/cap-1.jpg", cropPath: "crops/cap-1.jpg" });
+  mockPersist.mockResolvedValue({
+    photoPath: "photos/cap-1.jpg",
+    cropPath: "crops/cap-1.jpg",
+  });
   mockFlush.mockResolvedValue(undefined);
   mockNetworkListener.mockReturnValue({ remove: jest.fn() });
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -161,8 +170,15 @@ it("persists both files before inserting the row with the requested status", asy
 });
 
 it("records identified scans, keeps unsupported versions as failed, and requeues without counting", async () => {
-  await captureStore.recordResult("cap-1", { scanId, status: "identified" } as IdentifyResponse);
-  expect(mockRepo.markIdentified).toHaveBeenCalledWith("cap-1", scanId, payload.owner);
+  await captureStore.recordResult("cap-1", {
+    scanId,
+    status: "identified",
+  } as IdentifyResponse);
+  expect(mockRepo.markIdentified).toHaveBeenCalledWith(
+    "cap-1",
+    scanId,
+    payload.owner,
+  );
   await captureStore.recordResult("cap-1", {
     scanId,
     status: "unsupported_version",
@@ -200,7 +216,12 @@ it.each(["device_not_registered", "rate_limited"])(
     const failure = new ConvexError({ code: error });
     await expect(
       runCapture(
-        { photoUri: payload.photoUri, capturedAt: 1, quad: null, source: "camera" },
+        {
+          photoUri: payload.photoUri,
+          capturedAt: 1,
+          quad: null,
+          source: "camera",
+        },
         {
           warper: {
             warpAndLetterbox: async () => ({
@@ -217,7 +238,10 @@ it.each(["device_not_registered", "rate_limited"])(
             }),
           },
           triage: { check: async () => ({ ok: true }) },
-          embedder: { modelVersion: "v1", embed: async () => new Float32Array([1]) },
+          embedder: {
+            modelVersion: "v1",
+            embed: async () => new Float32Array([1]),
+          },
           orb: {
             extract: async () => ({
               descriptors: payload.descriptors,
@@ -241,9 +265,9 @@ it.each(["device_not_registered", "rate_limited"])(
       payload.owner,
     );
     expect(mockFlush).toHaveBeenCalledTimes(1);
-    expect(mockRepo.recordAttemptFailure.mock.invocationCallOrder[0]).toBeLessThan(
-      mockFlush.mock.invocationCallOrder[0],
-    );
+    expect(
+      mockRepo.recordAttemptFailure.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockFlush.mock.invocationCallOrder[0]);
   },
 );
 
@@ -259,10 +283,12 @@ it("wakes the worker once an offline capture is stored, without relying on a mou
 it("flushes at start, on reconnect and on foreground, and stops cleanly", async () => {
   const appStateListener = jest.fn();
   const removeAppState = jest.fn();
-  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
-    appStateListener.mockImplementation(listener);
-    return { remove: removeAppState };
-  });
+  jest
+    .spyOn(AppState, "addEventListener")
+    .mockImplementation((_type, listener) => {
+      appStateListener.mockImplementation(listener);
+      return { remove: removeAppState };
+    });
   const stop = startQueueFlusher();
   await Promise.resolve();
   await Promise.resolve();
@@ -315,9 +341,9 @@ it("resets a failed row and flushes on manual retry", async () => {
 it("wires identify, reachability and re-embedding into the flusher", async () => {
   await startWorker();
   mockResolveVisit.mockResolvedValue("remote-visit");
-  expect(await flushDeps.resolveVisitId("local-visit", "museum-1" as Id<"museums">)).toBe(
-    "remote-visit",
-  );
+  expect(
+    await flushDeps.resolveVisitId("local-visit", "museum-1" as Id<"museums">),
+  ).toBe("remote-visit");
   expect(mockResolveVisit).toHaveBeenCalledWith("local-visit", "museum-1");
   mockAction.mockResolvedValue("response");
   const args = {
@@ -329,7 +355,10 @@ it("wires identify, reachability and re-embedding into the flusher", async () =>
     capturedAt: 1,
   };
   expect(await flushDeps.identify(args)).toBe("response");
-  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, { ...args, scope: "test-scope" });
+  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, {
+    ...args,
+    scope: "test-scope",
+  });
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: false });
   expect(await flushDeps.isOnline()).toBe(false);
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: undefined });
@@ -337,10 +366,13 @@ it("wires identify, reachability and re-embedding into the flusher", async () =>
   mockExtract.mockResolvedValue("features");
   mockDocumentsUri = "file:///new-container/documents";
   expect(await flushDeps.reembed("crops/a.jpg")).toBe("features");
-  expect(mockExtract).toHaveBeenCalledWith("file:///new-container/documents/crops/a.jpg", {
-    embedder: { name: "embedder" },
-    orb: { name: "orb" },
-  });
+  expect(mockExtract).toHaveBeenCalledWith(
+    "file:///new-container/documents/crops/a.jpg",
+    {
+      embedder: { name: "embedder" },
+      orb: { name: "orb" },
+    },
+  );
   expect(flushDeps.modelVersion).toBe(model.modelVersion);
   await flushDeps.recordFailure("cap-1", "failed", { countAttempt: false });
   expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith(
@@ -373,13 +405,16 @@ it("preserves transport errors from the label reader for queue backoff", async (
   await startWorker();
   const cause = new Error("Network request failed");
   mockRunLabelFlow.mockRejectedValue(new LabelFlowError("network", { cause }));
-  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" })).rejects.toBe(
-    cause,
-  );
+  await expect(
+    flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" }),
+  ).rejects.toBe(cause);
 });
 
 it("discards only the pending label and its file when the user chooses a retake", async () => {
-  mockRepo.getPendingScan.mockResolvedValue({ labelPhotoPath: "labels/failed.jpg", qrUrl: null });
+  mockRepo.getPendingScan.mockResolvedValue({
+    labelPhotoPath: "labels/failed.jpg",
+    qrUrl: null,
+  });
   await discardPendingLabel("cap-1");
   expect(mockRepo.clearPendingLabel).toHaveBeenCalledWith(
     "cap-1",
@@ -387,7 +422,9 @@ it("discards only the pending label and its file when the user chooses a retake"
     payload.owner,
   );
   const { removeFile } = jest.requireMock("@/lib/label/crop");
-  expect(removeFile).toHaveBeenCalledWith("file:///documents/labels/failed.jpg");
+  expect(removeFile).toHaveBeenCalledWith(
+    "file:///documents/labels/failed.jpg",
+  );
   expect(mockRepo.markIdentified).not.toHaveBeenCalled();
   expect(mockRepo.retryPendingScan).not.toHaveBeenCalled();
   expect(mockFlush).not.toHaveBeenCalled();
@@ -399,9 +436,13 @@ it("does not enqueue into the old owner after file persistence crosses an accoun
     return { photoPath: "photos/new.jpg", cropPath: "crops/new.jpg" };
   });
   try {
-    await expect(captureStore.enqueue(payload, "queued")).rejects.toThrow("Journal owner changed");
+    await expect(captureStore.enqueue(payload, "queued")).rejects.toThrow(
+      "Journal owner changed",
+    );
     expect(mockRepo.enqueuePendingScan).not.toHaveBeenCalled();
-    expect(jest.mocked(jest.requireMock("@/lib/label/crop").removeFile).mock.calls).toEqual([
+    expect(
+      jest.mocked(jest.requireMock("@/lib/label/crop").removeFile).mock.calls,
+    ).toEqual([
       ["file:///documents/photos/new.jpg"],
       ["file:///documents/crops/new.jpg"],
       ["file:///documents/crops/new.preview.jpg"],

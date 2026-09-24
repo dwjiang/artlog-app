@@ -13,7 +13,10 @@ import {
 const spendKind = v.union(v.literal("tokenFactory"), v.literal("tavily"));
 
 export const record = internalMutation({
-  args: { tokenFactoryCalls: v.optional(v.number()), tavilyCredits: v.optional(v.number()) },
+  args: {
+    tokenFactoryCalls: v.optional(v.number()),
+    tavilyCredits: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     await recordSpend(ctx, args);
@@ -30,7 +33,12 @@ export const reserve = internalMutation({
 });
 
 export const reconcile = internalMutation({
-  args: { kind: spendKind, day: v.string(), reserved: v.number(), actual: v.number() },
+  args: {
+    kind: spendKind,
+    day: v.string(),
+    reserved: v.number(),
+    actual: v.number(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     await reconcileSpend(ctx, args.kind, args);
@@ -40,7 +48,11 @@ export const reconcile = internalMutation({
 
 export const status = internalQuery({
   args: { kind: spendKind },
-  returns: v.object({ spent: v.number(), cap: v.number(), underCap: v.boolean() }),
+  returns: v.object({
+    spent: v.number(),
+    cap: v.number(),
+    underCap: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const spent = await spentToday(ctx, args.kind);
     const cap = dailyCap(args.kind);

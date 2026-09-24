@@ -5,7 +5,8 @@ import { type CandidateSignals, FEATURE_NAMES } from "./features";
 import { DEFAULT_CALIBRATOR } from "./weights";
 
 function probability(signals: CandidateSignals): number {
-  return scoreCandidates([{ candidate: "x", signals }], DEFAULT_CALIBRATOR)[0].probability;
+  return scoreCandidates([{ candidate: "x", signals }], DEFAULT_CALIBRATOR)[0]
+    .probability;
 }
 
 describe("DEFAULT_CALIBRATOR", () => {

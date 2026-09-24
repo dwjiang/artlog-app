@@ -6,17 +6,26 @@ import { harness } from "../test.helpers";
 import { loadOrb, packOrb, storeOrb } from "./orbStorage";
 
 describe("stored ORB references", () => {
-  it.each([0, 120])("round-trips %s keypoints without changing the wire bytes", async (count) => {
-    const t = harness();
-    const encoded = encodeOrbFeatures(makeRandomFeatures(() => 0.3, count, 512));
-    await t.run(async (ctx) => {
-      const reference = await storeOrb(ctx, encoded.descriptors, encoded.keypoints);
-      expect(reference.keypointCount).toBe(count);
-      expect(await loadOrb(ctx, reference.storageId, count)).toEqual(encoded);
-      const file = await ctx.storage.get(reference.storageId);
-      expect(file!.size).toBe(count * 48);
-    });
-  });
+  it.each([0, 120])(
+    "round-trips %s keypoints without changing the wire bytes",
+    async (count) => {
+      const t = harness();
+      const encoded = encodeOrbFeatures(
+        makeRandomFeatures(() => 0.3, count, 512),
+      );
+      await t.run(async (ctx) => {
+        const reference = await storeOrb(
+          ctx,
+          encoded.descriptors,
+          encoded.keypoints,
+        );
+        expect(reference.keypointCount).toBe(count);
+        expect(await loadOrb(ctx, reference.storageId, count)).toEqual(encoded);
+        const file = await ctx.storage.get(reference.storageId);
+        expect(file!.size).toBe(count * 48);
+      });
+    },
+  );
 
   it("rejects malformed and non-finite features before storing a file", async () => {
     expect(() => packOrb(new ArrayBuffer(1), new ArrayBuffer(0))).toThrow();

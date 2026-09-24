@@ -30,8 +30,10 @@ export function ShareProfileScreen() {
       : "skip",
     session.key,
   );
-  if (!profileId && session.status !== "ready") return <SocialGate session={session} />;
-  if (profile.data === null)
+  if (!profileId && session.status !== "ready") {
+    return <SocialGate session={session} />;
+  }
+  if (profile.data === null) {
     return (
       <SocialState
         title="Profile unavailable."
@@ -40,17 +42,26 @@ export function ShareProfileScreen() {
         onAction={() => router.back()}
       />
     );
-  if (!profile.data)
+  }
+  if (!profile.data) {
     return (
       <SocialState
-        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
+        title={
+          profile.error
+            ? "Couldn’t load your profile."
+            : "Opening your profile…"
+        }
         loading={!profile.error}
         action={profile.error ? "Try again" : undefined}
         onAction={profile.refresh}
       />
     );
+  }
   return (
-    <ShareProfileContent key={`${session.key}:${profile.data.profileId}`} person={profile.data} />
+    <ShareProfileContent
+      key={`${session.key}:${profile.data.profileId}`}
+      person={profile.data}
+    />
   );
 }
 
@@ -111,12 +122,24 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
         contentContainerStyle={styles.content}
       >
         <View style={styles.card}>
-          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
+          <ProfileAvatar
+            name={person.name}
+            photoUrl={person.photoUrl}
+            size={52}
+          />
           <View style={styles.identity}>
-            <Text variant="display" accessibilityRole="header" style={styles.center}>
+            <Text
+              variant="display"
+              accessibilityRole="header"
+              style={styles.center}
+            >
               {person.name}
             </Text>
-            <Text variant="metadata" themeColor="textSecondary" style={styles.center}>
+            <Text
+              variant="metadata"
+              themeColor="textSecondary"
+              style={styles.center}
+            >
               @{person.username}
             </Text>
           </View>
@@ -128,7 +151,11 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
             style={styles.code}
           />
           <Text variant="display">Artlog</Text>
-          <Text variant="secondary" themeColor="textSecondary" style={styles.center}>
+          <Text
+            variant="secondary"
+            themeColor="textSecondary"
+            style={styles.center}
+          >
             Scan to view this profile in Artlog.
           </Text>
         </View>
@@ -140,7 +167,10 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
       </ScrollView>
       <View
         collapsable={false}
-        style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}
+        style={[
+          styles.actions,
+          { paddingBottom: Math.max(bottom, Spacing.three) },
+        ]}
       >
         <GalleryButton
           label="Share QR code"
@@ -161,7 +191,12 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  content: { padding: Spacing.content, gap: Spacing.four, alignItems: "center", flexGrow: 1 },
+  content: {
+    padding: Spacing.content,
+    gap: Spacing.four,
+    alignItems: "center",
+    flexGrow: 1,
+  },
   card: {
     width: "100%",
     maxWidth: 400,
@@ -176,7 +211,16 @@ const styles = StyleSheet.create({
   },
   identity: { gap: Spacing.one, alignItems: "center", width: "100%" },
   center: { textAlign: "center" },
-  code: { width: "100%", maxWidth: 236, aspectRatio: 1, marginVertical: Spacing.one },
-  actions: { paddingHorizontal: Spacing.content, paddingTop: Spacing.compact, gap: Spacing.two },
+  code: {
+    width: "100%",
+    maxWidth: 236,
+    aspectRatio: 1,
+    marginVertical: Spacing.one,
+  },
+  actions: {
+    paddingHorizontal: Spacing.content,
+    paddingTop: Spacing.compact,
+    gap: Spacing.two,
+  },
   error: { color: Gallery.destructive, textAlign: "center" },
 });

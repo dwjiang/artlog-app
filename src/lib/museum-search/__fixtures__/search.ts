@@ -6,8 +6,14 @@ import type {
 
 export const candidate: SearchCandidate = {
   sourceUrl: "https://museum.example/exhibitions/colour",
-  exhibition: { title: "A Century of Colour", content: "Paintings from the collection." },
-  imageUrls: ["https://museum.example/blue.jpg", "https://museum.example/blue-detail.jpg"],
+  exhibition: {
+    title: "A Century of Colour",
+    content: "Paintings from the collection.",
+  },
+  imageUrls: [
+    "https://museum.example/blue.jpg",
+    "https://museum.example/blue-detail.jpg",
+  ],
 };
 export const exhibitionCandidates: MuseumSearchDisplay = {
   stage: "exhibitions",
@@ -30,6 +36,9 @@ export const verified: LabelFlowDisplay = {
 export const confirmed: MuseumSearchDisplay = {
   stage: "confirmed",
   candidates: [candidate],
-  selected: { sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrls[0] },
+  selected: {
+    sourceUrl: candidate.sourceUrl,
+    imageUrl: candidate.imageUrls[0],
+  },
   updatedAt: 2,
 };

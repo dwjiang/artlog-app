@@ -21,16 +21,25 @@ import { rightNowCard, type RightNowCard } from "./lib/validators";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const PENDING_MS = 60 * 1000;
 
-export function artistKey(artistId: string | undefined, artist: string): string {
+export function artistKey(
+  artistId: string | undefined,
+  artist: string,
+): string {
   return artistId ?? `name:${normalizeText(artist)}`;
 }
 
 export const load = internalQuery({
-  args: { scanId: v.id("scans"), deviceId: v.id("devices"), venueId: v.optional(v.id("museums")) },
+  args: {
+    scanId: v.id("scans"),
+    deviceId: v.id("devices"),
+    venueId: v.optional(v.id("museums")),
+  },
   returns: v.object({ region: v.union(v.string(), v.null()) }),
   handler: async (ctx, { scanId, deviceId, venueId }) => {
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: "scan_not_found" });
+    if (!scan || scan.deviceId !== deviceId) {
+      throw new ConvexError({ code: "scan_not_found" });
+    }
     const venue = venueId ? await ctx.db.get(venueId) : null;
     return { region: venue?.region ?? null };
   },
@@ -38,9 +47,17 @@ export const load = internalQuery({
 
 type Waiting = { scanId: Id<"scans">; generation: number };
 
-async function applyCard(ctx: MutationCtx, target: Waiting, card: RightNowCard): Promise<void> {
+async function applyCard(
+  ctx: MutationCtx,
+  target: Waiting,
+  card: RightNowCard,
+): Promise<void> {
   const scan = await ctx.db.get(target.scanId);
-  if (scan && scan.generation === target.generation && scan.status === "identified") {
+  if (
+    scan
+    && scan.generation === target.generation
+    && scan.status === "identified"
+  ) {
     await ctx.db.patch(scan._id, { rightNow: card, updatedAt: Date.now() });
   }
 }
@@ -64,28 +81,40 @@ export const claim = internalMutation({
     const now = Date.now();
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
+      .withIndex("by_artist_region", (q) =>
+        q.eq("artistId", artistId).eq("region", region),
+      )
       .unique();
     if (row && row.fetchedAt > now - CACHE_MS) {
       if (row.empty) return "empty";
       await applyCard(
         ctx,
         { scanId, generation },
-        { text: row.text, sourceUrl: row.sourceUrl, sourceLabel: row.sourceLabel },
+        {
+          text: row.text,
+          sourceUrl: row.sourceUrl,
+          sourceLabel: row.sourceLabel,
+        },
       );
       return "hit";
     }
     if (row?.pendingAt !== undefined && row.pendingAt > now - PENDING_MS) {
       const queue = row.waiting ?? [];
       if (!queue.some((entry) => entry.scanId === scanId)) {
-        await ctx.db.patch(row._id, { waiting: [...queue, { scanId, generation }] });
+        await ctx.db.patch(row._id, {
+          waiting: [...queue, { scanId, generation }],
+        });
       }
       return "pending";
     }
     const claimId = crypto.randomUUID();
-    if (row)
-      await ctx.db.patch(row._id, { pendingAt: now, claimId, waiting: [{ scanId, generation }] });
-    else
+    if (row) {
+      await ctx.db.patch(row._id, {
+        pendingAt: now,
+        claimId,
+        waiting: [{ scanId, generation }],
+      });
+    } else {
       await ctx.db.insert("artistContext", {
         artistId,
         region,
@@ -98,6 +127,7 @@ export const claim = internalMutation({
         claimId,
         waiting: [{ scanId, generation }],
       });
+    }
     return { claimId };
   },
 });
@@ -113,7 +143,9 @@ export const write = internalMutation({
   handler: async (ctx, { artistKey: artistId, region, claimId, card }) => {
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
+      .withIndex("by_artist_region", (q) =>
+        q.eq("artistId", artistId).eq("region", region),
+      )
       .unique();
     if (!row || row.claimId !== claimId) return false;
     await ctx.db.patch(row._id, {
@@ -126,7 +158,11 @@ export const write = internalMutation({
       claimId: undefined,
       waiting: undefined,
     });
-    if (card) for (const target of row.waiting ?? []) await applyCard(ctx, target, card);
+    if (card) {
+      for (const target of row.waiting ?? []) {
+        await applyCard(ctx, target, card);
+      }
+    }
     return true;
   },
 });
@@ -137,12 +173,19 @@ export const release = internalMutation({
   handler: async (ctx, { artistKey: artistId, region, claimId }) => {
     const row = await ctx.db
       .query("artistContext")
-      .withIndex("by_artist_region", (q) => q.eq("artistId", artistId).eq("region", region))
+      .withIndex("by_artist_region", (q) =>
+        q.eq("artistId", artistId).eq("region", region),
+      )
       .unique();
     if (!row || row.claimId !== claimId) return null;
     if (row.fetchedAt === 0) await ctx.db.delete(row._id);
-    else
-      await ctx.db.patch(row._id, { pendingAt: undefined, claimId: undefined, waiting: undefined });
+    else {
+      await ctx.db.patch(row._id, {
+        pendingAt: undefined,
+        claimId: undefined,
+        waiting: undefined,
+      });
+    }
     return null;
   },
 });
@@ -188,7 +231,11 @@ export const fetch = internalAction({
         maxResults: 5,
       });
       if (!response) return null;
-      const card = acceptRightNow(response, { artist: args.artist, domains, now: Date.now() });
+      const card = acceptRightNow(response, {
+        artist: args.artist,
+        domains,
+        now: Date.now(),
+      });
       // Review trail for the acceptance boundary: what was offered and whether it passed.
       const top = response.results[0];
       console.log("Right now", {
@@ -196,7 +243,9 @@ export const fetch = internalAction({
         region,
         accepted: card !== null,
         claim: firstSentence(response.answer ?? ""),
-        top: top ? { url: top.url, score: top.score, publishedDate: top.publishedDate } : null,
+        top: top
+          ? { url: top.url, score: top.score, publishedDate: top.publishedDate }
+          : null,
       });
       written = await ctx.runMutation(internal.rightNow.write, {
         artistKey: key,
@@ -211,8 +260,13 @@ export const fetch = internalAction({
       }
       throw error;
     } finally {
-      if (!written)
-        await ctx.runMutation(internal.rightNow.release, { artistKey: key, region, claimId });
+      if (!written) {
+        await ctx.runMutation(internal.rightNow.release, {
+          artistKey: key,
+          region,
+          claimId,
+        });
+      }
     }
     return null;
   },

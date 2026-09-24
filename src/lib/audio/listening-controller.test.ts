@@ -1,5 +1,9 @@
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
-import { ListeningController, type AudioHandle, type Playback } from "./listening-controller";
+import {
+  ListeningController,
+  type AudioHandle,
+  type Playback,
+} from "./listening-controller";
 import { trackKey, type ListeningTrack } from "./narration";
 
 const track = (id: string): ListeningTrack => ({
@@ -21,7 +25,10 @@ class Player implements AudioHandle {
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
   seekTo = jest.fn(async () => {});
-  addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
+  addListener(
+    _event: "playbackStatusUpdate",
+    callback: (value: Playback) => void,
+  ) {
     this.callback = callback;
     return { remove: jest.fn() };
   }
@@ -86,7 +93,10 @@ it("deduplicates queued versions, reorders and removes without interrupting play
   controller.enqueue(track("b"));
   controller.enqueue(track("c"));
   controller.move(trackKey(track("c")), -1);
-  expect(controller.snapshot().queue.map((item) => item.work.title)).toEqual(["c", "b"]);
+  expect(controller.snapshot().queue.map((item) => item.work.title)).toEqual([
+    "c",
+    "b",
+  ]);
   controller.remove(trackKey(track("b")));
   expect(controller.snapshot().current?.work.title).toBe("a");
   expect(player.pause).not.toHaveBeenCalled();
@@ -132,7 +142,11 @@ it("ignores late synthesis after a different track or stop", async () => {
   const old = controller.play(track("a"));
   await Promise.resolve();
   await controller.play(track("b"));
-  resolve({ uri: "old", duration: 3, sentences: [{ sentence: "Old script.", factIds: ["f1"] }] });
+  resolve({
+    uri: "old",
+    duration: 3,
+    sentences: [{ sentence: "Old script.", factIds: ["f1"] }],
+  });
   await old;
   expect(deps.create).toHaveBeenCalledTimes(1);
   expect(controller.snapshot().current?.work.title).toBe("b");
@@ -173,7 +187,9 @@ it("resets progress when the research changes", async () => {
   player.emit({ currentTime: 22 });
   expect(controller.progressFor(original)?.position).toBe(22);
   expect(
-    controller.progressFor({ work: { ...original.work, researchUpdatedAt: 6 } }),
+    controller.progressFor({
+      work: { ...original.work, researchUpdatedAt: 6 },
+    }),
   ).toBeUndefined();
   controller.dispose();
 });
@@ -196,7 +212,11 @@ it("learns the duration from downloaded audio and uses it when resuming and fini
   await Promise.resolve();
   expect(resumed.seekTo).toHaveBeenCalledWith(12);
   resumed.emit({ currentTime: 27, duration: 27, didJustFinish: true });
-  expect(controller.snapshot()).toMatchObject({ duration: 27, position: 27, playing: false });
+  expect(controller.snapshot()).toMatchObject({
+    duration: 27,
+    position: 27,
+    playing: false,
+  });
   controller.dispose();
 });
 

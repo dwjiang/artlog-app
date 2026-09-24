@@ -10,7 +10,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Gallery } from "@/constants/theme";
-import { editArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
+import {
+  editArtworkPhoto,
+  selectArtworkPhotos,
+} from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import type { ArtworkPhoto } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -21,7 +24,10 @@ import { PhotoVisibility } from "./photo-visibility";
 import { ArtworkQueryState } from "./artwork-query-state";
 
 export function PhotoEditorScreen() {
-  const { savedId, photoId } = useLocalSearchParams<{ savedId: string; photoId: string }>();
+  const { savedId, photoId } = useLocalSearchParams<{
+    savedId: string;
+    photoId: string;
+  }>();
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -45,16 +51,19 @@ function PhotoQuery({
   photoId: string;
   onRetry: () => void;
 }) {
-  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
+  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [
+    savedId,
+    owner,
+  ]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "collection.photo.load");
   }, [photos.error]);
   const photo = photos.data.find(
     (row) =>
-      row.owner === owner &&
-      row.savedLocalId === savedId &&
-      row.localId === photoId &&
-      row.deletedAt === null,
+      row.owner === owner
+      && row.savedLocalId === savedId
+      && row.localId === photoId
+      && row.deletedAt === null,
   );
   return photo ? (
     <PhotoEditor key={`${owner}:${photoId}`} photo={photo} />
@@ -76,11 +85,15 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   const [imageFailed, setImageFailed] = useState(false);
   const works = useLiveQuery(listSavedWorks(photo.owner), [photo.owner]);
   useEffect(() => {
-    if (works.error) reportError(works.error, "collection.photo-destinations.load");
+    if (works.error) {
+      reportError(works.error, "collection.photo-destinations.load");
+    }
   }, [works.error]);
   const destinations = works.data.filter(
     (work) =>
-      work.owner === photo.owner && work.localId !== photo.savedLocalId && work.deletedAt === null,
+      work.owner === photo.owner
+      && work.localId !== photo.savedLocalId
+      && work.deletedAt === null,
   );
   const execute = (patch: Parameters<typeof editArtworkPhoto>[1]) => {
     try {
@@ -164,7 +177,9 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
             minHeight: 90,
             borderRadius: 8,
             borderWidth: 1,
-            borderColor: captionFocused ? Gallery.accent : Gallery.controlBorder,
+            borderColor: captionFocused
+              ? Gallery.accent
+              : Gallery.controlBorder,
             backgroundColor: Gallery.surface,
             color: Gallery.ink,
             fontSize: 17,
@@ -201,8 +216,12 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                 Choose the artwork this photo belongs to.
               </Text>
               {works.error ? (
-                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                  Couldn’t load your artworks. Close and reopen this photo to try again.
+                <Text
+                  accessibilityRole="alert"
+                  style={{ color: Gallery.destructive }}
+                >
+                  Couldn’t load your artworks. Close and reopen this photo to
+                  try again.
                 </Text>
               ) : !works.updatedAt && !destinations.length ? (
                 <ListSkeleton label="Loading artworks…" rows={3} />
@@ -212,7 +231,10 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   title="No other artworks available."
                   detail="Save another artwork before moving this photo. Your photo and edits can stay here."
                 >
-                  <GalleryButton label="Keep it here" onPress={() => setMoving(false)} />
+                  <GalleryButton
+                    label="Keep it here"
+                    onPress={() => setMoving(false)}
+                  />
                 </EmptyState>
               ) : null}
               {destinations.map((work) => (
@@ -238,13 +260,18 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   />
                   <View style={{ flex: 1, gap: 4 }}>
                     <Text>{work.title}</Text>
-                    <Text style={{ color: Gallery.muted, fontSize: 13 }}>{work.artist}</Text>
+                    <Text style={{ color: Gallery.muted, fontSize: 13 }}>
+                      {work.artist}
+                    </Text>
                   </View>
                   <Text style={{ color: Gallery.muted }}>›</Text>
                 </Pressable>
               ))}
               {error && (
-                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                <Text
+                  accessibilityRole="alert"
+                  style={{ color: Gallery.destructive }}
+                >
                   {error}
                 </Text>
               )}

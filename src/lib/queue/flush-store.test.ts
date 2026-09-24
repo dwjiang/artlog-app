@@ -13,9 +13,13 @@ import type { NewPendingScan } from "@/db/schema";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
 import { createFlusher, type FlushDependencies } from "./flush";
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 const mockFlushJournal = jest.fn();
-jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: () => mockFlushJournal() }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushJournal: () => mockFlushJournal(),
+}));
 
 function capture(localId: string, modelVersion = "v1"): NewPendingScan {
   return {
@@ -44,7 +48,8 @@ function dependencies(modelVersion = "v1") {
     resetAttemptsForModel: pending.resetAttemptsForModel,
     updateFeatures: pending.updateFeatures,
     resolveVisitId: resolveScanVisit,
-    recordResult: (localId, response) => pending.markIdentified(localId, response.scanId),
+    recordResult: (localId, response) =>
+      pending.markIdentified(localId, response.scanId),
     isOnline: async (): Promise<boolean> => true,
     runLabelFlow: async () => {},
     reembed: jest.fn(async () => ({
@@ -64,7 +69,7 @@ function dependencies(modelVersion = "v1") {
 beforeEach(() => {
   jest.useFakeTimers();
   mockFlushJournal.mockImplementation(async () => {
-    for (const visit of await listUnsyncedVisits())
+    for (const visit of await listUnsyncedVisits()) {
       await markVisitsSynced([
         {
           localId: visit.localId,
@@ -74,15 +79,20 @@ beforeEach(() => {
           updatedBy: "device" as Id<"devices">,
         },
       ]);
+    }
   });
 });
 afterEach(async () => {
-  for (const row of await pending.pendingScansQuery()) await pending.deletePendingScan(row.localId);
+  for (const row of await pending.pendingScansQuery()) {
+    await pending.deletePendingScan(row.localId);
+  }
   jest.useRealTimers();
 });
 
 it("drains a healthy offline batch through the device quota without spending capture attempts", async () => {
-  for (let i = 0; i < 100; i++) await pending.enqueuePendingScan(capture(String(i)));
+  for (let i = 0; i < 100; i++) {
+    await pending.enqueuePendingScan(capture(String(i)));
+  }
   const deps = dependencies();
   // Match identify's configured token bucket: capacity 20, refilling 60 tokens per minute.
   let tokens = 20;
@@ -92,8 +102,12 @@ it("drains a healthy offline batch through the device quota without spending cap
     const now = Date.now();
     tokens = Math.min(20, tokens + (now - lastRefill) / 1000);
     lastRefill = now;
-    if (tokens < 1)
-      throw new ConvexError({ code: "rate_limited", retryAfter: (1 - tokens) * 1000 });
+    if (tokens < 1) {
+      throw new ConvexError({
+        code: "rate_limited",
+        retryAfter: (1 - tokens) * 1000,
+      });
+    }
     tokens--;
     return {
       scanId: `scan-${localId}` as Id<"scans">,
@@ -141,12 +155,19 @@ it("keeps exhausted re-embeds paused across triggers and restarts until a manual
   await pending.retryPendingScan("old");
   await restarted.flush();
   expect(deps.reembed).toHaveBeenCalledTimes(6);
-  expect(await pending.getPendingScan("old")).toMatchObject({ status: "queued", attempts: 1 });
+  expect(await pending.getPendingScan("old")).toMatchObject({
+    status: "queued",
+    attempts: 1,
+  });
   restarted.stop();
 });
 
 it("gives an exhausted crop a fresh retry budget on each model update", async () => {
-  await pending.enqueuePendingScan({ ...capture("old", "v0"), status: "failed", attempts: 5 });
+  await pending.enqueuePendingScan({
+    ...capture("old", "v0"),
+    status: "failed",
+    attempts: 5,
+  });
   for (const modelVersion of ["v1", "v2"]) {
     const deps = dependencies(modelVersion);
     deps.reembed.mockRejectedValue(new Error("bad_input"));
@@ -159,7 +180,10 @@ it("gives an exhausted crop a fresh retry budget on each model update", async ()
     });
     await jest.advanceTimersByTimeAsync(30_000);
     expect(deps.reembed).toHaveBeenCalledTimes(5);
-    expect(await pending.getPendingScan("old")).toMatchObject({ status: "failed", attempts: 5 });
+    expect(await pending.getPendingScan("old")).toMatchObject({
+      status: "failed",
+      attempts: 5,
+    });
     expect(await pending.listFlushable(modelVersion)).toEqual([]);
     flusher.stop();
   }
@@ -201,7 +225,10 @@ it("retains the captured visit across an offline restart and a subsequent visit 
   await restarted.start();
   restarted.stop();
   expect(reconnected.identify).toHaveBeenCalledWith(
-    expect.objectContaining({ venueId, visitId: "remote-9d3fe99c-67ec-59c6-b837-043ec16326fd" }),
+    expect.objectContaining({
+      venueId,
+      visitId: "remote-9d3fe99c-67ec-59c6-b837-043ec16326fd",
+    }),
   );
   expect(await getVisit("9d3fe99c-67ec-59c6-b837-043ec16326fd")).toMatchObject({
     startedAt: 10,
@@ -266,7 +293,10 @@ it("retries an interrupted label after restart without repeating identification"
     labelPhotoPath: "labels/retry.jpg",
     attempts: 0,
   });
-  const reconnected = { ...dependencies(), runLabelFlow: jest.fn(async () => {}) };
+  const reconnected = {
+    ...dependencies(),
+    runLabelFlow: jest.fn(async () => {}),
+  };
   const restarted = createFlusher(reconnected);
   await restarted.start();
   restarted.stop();
@@ -284,7 +314,10 @@ it("processes a label attached while its scan is being identified", async () => 
   await pending.enqueuePendingScan(capture("label-during-identify"));
   const deps = { ...dependencies(), runLabelFlow: jest.fn(async () => {}) };
   deps.identify.mockImplementation(async () => {
-    await pending.setQrUrl("label-during-identify", "https://museum.example/late");
+    await pending.setQrUrl(
+      "label-during-identify",
+      "https://museum.example/late",
+    );
     return {
       scanId: "scan-late" as Id<"scans">,
       localId: "label-during-identify",
@@ -346,7 +379,10 @@ it("identifies new paintings while a label quota is paused and resumes labels at
     scanId: "scan-quota" as Id<"scans">,
     qrUrl: "https://museum.example/label",
   });
-  const deps = { ...dependencies(), runLabelFlow: jest.fn(async (): Promise<void> => {}) };
+  const deps = {
+    ...dependencies(),
+    runLabelFlow: jest.fn(async (): Promise<void> => {}),
+  };
   deps.runLabelFlow.mockRejectedValueOnce(
     new ConvexError({ code: "rate_limited", retryAfter: 3_600_000 }),
   );
@@ -392,7 +428,10 @@ it("processes an identified scan’s label while the identification quota is pau
     scanId: "scan-ready" as Id<"scans">,
     labelPhotoPath: "labels/ready.jpg",
   });
-  const deps = { ...dependencies(), runLabelFlow: jest.fn(async (): Promise<void> => {}) };
+  const deps = {
+    ...dependencies(),
+    runLabelFlow: jest.fn(async (): Promise<void> => {}),
+  };
   deps.identify.mockRejectedValueOnce(
     new ConvexError({ code: "rate_limited", retryAfter: 12_000 }),
   );

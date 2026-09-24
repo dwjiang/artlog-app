@@ -32,7 +32,11 @@ export function FieldInput({
 }: FieldInputProps) {
   const [focused, setFocused] = useState(false);
   return (
-    <Host matchContents={{ vertical: true }} colorScheme="light" style={[styles.host, style]}>
+    <Host
+      matchContents={{ vertical: true }}
+      colorScheme="light"
+      style={[styles.host, style]}
+    >
       <TextInput
         defaultValue={defaultValue}
         placeholder={label}

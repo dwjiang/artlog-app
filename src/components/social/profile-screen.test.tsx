@@ -7,7 +7,10 @@ jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
 }));
-let mockRelationship: { state: string; blocked: boolean } = { state: "none", blocked: false };
+let mockRelationship: { state: string; blocked: boolean } = {
+  state: "none",
+  blocked: false,
+};
 const mockPerson = {
   profileId: "friend" as never,
   username: "friend",
@@ -25,7 +28,11 @@ jest.mock("expo-router", () => {
     accessibilityLabel?: string;
     onPress: () => void;
   }) => (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+    >
       <Text>{children}</Text>
     </Pressable>
   );
@@ -37,7 +44,12 @@ jest.mock("expo-router", () => {
 jest.mock("../collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => ({ FriendshipControls: () => null }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ key: "a", status: "ready", profileId: "owner", offline: false }),
+  useSocialSession: () => ({
+    key: "a",
+    status: "ready",
+    profileId: "owner",
+    offline: false,
+  }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: Parameters<typeof mockGetFunctionName>[0]) => ({
@@ -79,7 +91,9 @@ it("requests only the selected friend’s shared visits and stops after a block"
 });
 it("offers Share in the header", async () => {
   await render(<ProfileScreen profileId="friend" />);
-  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Share profile" }),
+  ).toBeOnTheScreen();
 });
 it("uses the same shared visit card as Home", async () => {
   mockVisits = [
@@ -90,7 +104,11 @@ it("uses the same shared visit card as Home", async () => {
       publishedAt: 1,
       revision: 1,
       reflection: "",
-      venue: { venueId: "museum" as never, name: "Museum of Modern Art", city: "New York" },
+      venue: {
+        venueId: "museum" as never,
+        name: "Museum of Modern Art",
+        city: "New York",
+      },
       visitedOn: "2026-09-12",
       artworks: { page: [], cursor: null, isDone: true },
     },
@@ -100,6 +118,10 @@ it("uses the same shared visit card as Home", async () => {
   expect(screen.getByText("Museum of Modern Art · New York")).toBeOnTheScreen();
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "View Jamie Chen’s profile" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "More options" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "View Jamie Chen’s profile" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "More options" }),
+  ).toBeOnTheScreen();
 });

@@ -21,7 +21,10 @@ function message(error: unknown): string {
 
 function Status({ children }: { children: string }) {
   return (
-    <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "footnote" })]}>
+    <Text
+      textStyle={{ color: Gallery.muted }}
+      modifiers={[font({ textStyle: "footnote" })]}
+    >
       {children}
     </Text>
   );
@@ -47,10 +50,11 @@ export function DevTools({ attested }: { attested: boolean }) {
     let active = true;
     embedder.warmUp().then(
       (warm) => {
-        if (active)
+        if (active) {
           setModelStatus(
             `Embedding model: ready · load ${Math.round(warm.loadMs)} ms · predict ${Math.round(warm.predictMs)} ms`,
           );
+        }
       },
       (error: unknown) => {
         reportError(error, "diagnostics.model.warm-up");
@@ -116,9 +120,9 @@ export function DevTools({ attested }: { attested: boolean }) {
     try {
       const report = await runOrbParityCheck();
       setOrbParity(
-        `ORB: ${report.count}/${report.expectedCount} keypoints · ${report.rowsAnywhere} rows match (${report.rowsInOrder} in order)` +
-          ` · extract ${report.extractMs.toFixed(1)} ms · blur ${Math.round(report.blurVariance)} · glare ${(report.glareFraction * 100).toFixed(1)}%` +
-          ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
+        `ORB: ${report.count}/${report.expectedCount} keypoints · ${report.rowsAnywhere} rows match (${report.rowsInOrder} in order)`
+          + ` · extract ${report.extractMs.toFixed(1)} ms · blur ${Math.round(report.blurVariance)} · glare ${(report.glareFraction * 100).toFixed(1)}%`
+          + ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
       );
     } catch (error) {
       reportError(error, "diagnostics.orb-parity");
@@ -154,7 +158,9 @@ export function DevTools({ attested }: { attested: boolean }) {
       </GroupedSection>
       <GroupedSection title="App Attest">
         <Status>
-          {supported ? "App Attest: supported" : "App Attest: unsupported on this device"}
+          {supported
+            ? "App Attest: supported"
+            : "App Attest: unsupported on this device"}
         </Status>
         <ActionRow
           label="Check App Attest"

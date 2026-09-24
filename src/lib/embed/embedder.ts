@@ -2,7 +2,10 @@ import { reportError } from "@/lib/observability";
 import model from "../../../shared/model/model-version.json";
 
 import { getCoremlEmbed } from "../../../modules/coreml-embed/src";
-import type { CoremlEmbed, WarmUpResult } from "../../../modules/coreml-embed/src";
+import type {
+  CoremlEmbed,
+  WarmUpResult,
+} from "../../../modules/coreml-embed/src";
 import type { Embedder } from "@/lib/capture/stages";
 import { filePath } from "@/lib/file-uri";
 
@@ -13,7 +16,9 @@ export type ModelEmbedder = Embedder & { warmUp(): Promise<WarmUpResult> };
  * against `shared/model/model-version.json` on first use, so a stale asset fails loudly instead of
  * producing vectors the index cannot match.
  */
-export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): ModelEmbedder {
+export function createEmbedder(
+  native: () => CoremlEmbed = getCoremlEmbed,
+): ModelEmbedder {
   let checked: CoremlEmbed | undefined;
   let warming: Promise<WarmUpResult> | undefined;
 

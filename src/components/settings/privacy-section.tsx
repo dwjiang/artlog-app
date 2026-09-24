@@ -3,7 +3,11 @@ import { ThemedText } from "../themed-text";
 import { MuseumSearchSection } from "./museum-search-section";
 import { Gallery } from "@/constants/theme";
 
-export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => void }) {
+export function PrivacySection({
+  onRequestConsent,
+}: {
+  onRequestConsent: () => void;
+}) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
@@ -42,8 +46,12 @@ export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => v
             borderBottomColor: Gallery.separator,
           }}
         >
-          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>{title}</ThemedText>
-          <ThemedText style={{ fontSize: 15, lineHeight: 23, color: Gallery.muted }}>
+          <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
+            {title}
+          </ThemedText>
+          <ThemedText
+            style={{ fontSize: 15, lineHeight: 23, color: Gallery.muted }}
+          >
             {copy}
           </ThemedText>
         </View>

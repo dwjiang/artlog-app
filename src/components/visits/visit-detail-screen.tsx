@@ -1,6 +1,11 @@
 import { reportError } from "@/lib/observability";
 import { EmptyState, EmptySymbol, SearchEmptyState } from "../empty-state";
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -18,7 +23,11 @@ import { GalleryButton } from "../collection/gallery-button";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { WorkLink } from "../collection/work-link";
-import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
+import {
+  LocalVisitGalleryArtwork,
+  matchesVisitSearch,
+  VisitGallerySearch,
+} from "./visit-gallery";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { useVenue } from "@/lib/venue/use-venue";
 import { showToast } from "@/lib/ui/toast";
@@ -27,10 +36,13 @@ import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { VisitActionBar } from "./visit-action-bar";
 
 export function VisitDetailScreen() {
-  const { visitId, endVisit } = useLocalSearchParams<{ visitId: string; endVisit?: string }>();
+  const { visitId, endVisit } = useLocalSearchParams<{
+    visitId: string;
+    endVisit?: string;
+  }>();
   const { owner, visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
-  if (!visit)
+  if (!visit) {
     return (
       <VisitPage>
         <VisitMessage
@@ -47,6 +59,7 @@ export function VisitDetailScreen() {
         </VisitMessage>
       </VisitPage>
     );
+  }
   return (
     <VisitDetail
       key={`${owner}:${visitId}:${endVisit}`}
@@ -55,7 +68,13 @@ export function VisitDetailScreen() {
     />
   );
 }
-function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit: boolean }) {
+function VisitDetail({
+  visit,
+  endingVisit,
+}: {
+  visit: VisitSummary;
+  endingVisit: boolean;
+}) {
   // Only a closed visit counts as seen; one viewed while open is still new once it closes on its own.
   useEffect(() => {
     if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner);
@@ -68,11 +87,15 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const submitting = useRef(false);
   const [saveError, setSaveError] = useState<string>();
   const { fontScale } = useWindowDimensions();
-  const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
+  const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [
+    visit.owner,
+  ]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "visit.photos.load");
   }, [photos.error]);
-  const filtered = visit.works.filter((work) => matchesVisitSearch(work, search));
+  const filtered = visit.works.filter((work) =>
+    matchesVisitSearch(work, search),
+  );
   const generation = useOwnerGeneration();
   const sharing = useVisitSharing(
     visit.localId,
@@ -90,24 +113,32 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     next: "public" | "private";
     message: string;
   }>();
-  const isPublic = (endingVisit ? draftVisibility : visit.visibility) === "public";
+  const isPublic =
+    (endingVisit ? draftVisibility : visit.visibility) === "public";
   const active = isPublic && sharing.acknowledged?.status === "active";
   // Visits start private, so an unsynced private row only means a pending change once a published version exists.
   const pendingPrivate =
-    !endingVisit &&
-    signedIn &&
-    !isPublic &&
-    visit.syncedAt === null &&
-    sharing.acknowledged?.status === "active";
+    !endingVisit
+    && signedIn
+    && !isPublic
+    && visit.syncedAt === null
+    && sharing.acknowledged?.status === "active";
   const privacyPending =
-    pendingPrivate || visibilityError?.next === "private" || (changingVisibility && isPublic);
+    pendingPrivate
+    || visibilityError?.next === "private"
+    || (changingVisibility && isPublic);
   const openSharing = () =>
     router.push(
       signedIn
-        ? { pathname: "/visit-share/[visitId]", params: { visitId: visit.localId } }
+        ? {
+            pathname: "/visit-share/[visitId]",
+            params: { visitId: visit.localId },
+          }
         : signInRoute("visit", visit.localId),
     );
-  async function changeVisibility(next: "public" | "private" = isPublic ? "private" : "public") {
+  async function changeVisibility(
+    next: "public" | "private" = isPublic ? "private" : "public",
+  ) {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;
     if (endingVisit) {
@@ -123,21 +154,29 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         await Promise.race([
           flushJournal(),
           new Promise<never>((_, reject) => {
-            timeout = setTimeout(() => reject(new Error("Visibility sync timed out")), 30_000);
+            timeout = setTimeout(
+              () => reject(new Error("Visibility sync timed out")),
+              30_000,
+            );
           }),
         ]);
         clearTimeout(timeout);
-        if (session.isCurrent() && !sharing.profileRequired) await controller.load();
+        if (session.isCurrent() && !sharing.profileRequired) {
+          await controller.load();
+        }
       }
     } catch (cause) {
-      reportError(cause, "visit.visibility.save", { data: { visibility: next } });
-      if (session.isOwnerCurrent())
+      reportError(cause, "visit.visibility.save", {
+        data: { visibility: next },
+      });
+      if (session.isOwnerCurrent()) {
         setVisibilityError({
           next,
           message: signedIn
             ? "Visibility could not sync. A published visit may still be visible."
             : "Visibility could not save. Try again.",
         });
+      }
     } finally {
       clearTimeout(timeout);
       if (session.isOwnerCurrent()) setChangingVisibility(false);
@@ -151,7 +190,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     setSaveError(undefined);
     try {
       if (endingVisit && draftVisibility !== visit.visibility) {
-        await patchVisit(visit.localId, { visibility: draftVisibility }, visit.owner);
+        await patchVisit(
+          visit.localId,
+          { visibility: draftVisibility },
+          visit.owner,
+        );
         if (!session.isCurrent()) return;
       }
       if (!(await notes.current?.save()) || !session.isCurrent()) return;
@@ -186,13 +229,19 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           <Stack.Toolbar.MenuAction
             icon="plus"
             onPress={() =>
-              router.push({ pathname: "/link-artwork", params: { visitId: visit.localId } })
+              router.push({
+                pathname: "/link-artwork",
+                params: { visitId: visit.localId },
+              })
             }
           >
             Link artwork
           </Stack.Toolbar.MenuAction>
           {!endingVisit && (
-            <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={openSharing}>
+            <Stack.Toolbar.MenuAction
+              icon="square.and.arrow.up"
+              onPress={openSharing}
+            >
               Prepare shared visit
             </Stack.Toolbar.MenuAction>
           )}
@@ -271,7 +320,9 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             </Text>
           )}
           <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>
+            <Text
+              style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}
+            >
               {privacyPending
                 ? "Privacy change pending"
                 : isPublic
@@ -281,7 +332,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             <Text
               selectable
               accessibilityRole="header"
-              style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}
+              style={[
+                Typography.pageTitle,
+                { color: Gallery.ink, fontSize: 42, lineHeight: 50 },
+              ]}
             >
               {visit.venueName}
             </Text>
@@ -299,12 +353,19 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 borderLeftColor: Gallery.warning,
               }}
             >
-              <Text style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}>
+              <Text
+                style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}
+              >
                 Waiting to sync. The published visit is still visible.
               </Text>
             </View>
           )}
-          <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
+          <VisitNotes
+            ref={notes}
+            visit={visit}
+            autoSave={!endingVisit}
+            editable={!saving}
+          />
           <View>
             <View style={styles.sectionLabel}>
               <Text accessibilityRole="header" style={detail.sectionTitle}>
@@ -317,7 +378,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   label="Link artwork"
                   icon="plus"
                   onPress={() =>
-                    router.push({ pathname: "/link-artwork", params: { visitId: visit.localId } })
+                    router.push({
+                      pathname: "/link-artwork",
+                      params: { visitId: visit.localId },
+                    })
                   }
                 />
               )}
@@ -338,20 +402,23 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               {filtered.map((work) => {
                 const album = photos.data.filter(
                   (photo) =>
-                    photo.owner === visit.owner &&
-                    photo.savedLocalId === work.localId &&
-                    photo.visitLocalId === visit.localId,
+                    photo.owner === visit.owner
+                    && photo.savedLocalId === work.localId
+                    && photo.visitLocalId === visit.localId,
                 );
                 const cover =
-                  album.find((photo) => photo.kind === "full") ??
-                  album.find((photo) => photo.kind !== "label") ??
-                  album[0];
+                  album.find((photo) => photo.kind === "full")
+                  ?? album.find((photo) => photo.kind !== "label")
+                  ?? album[0];
                 return (
                   <WorkLink
                     key={work.localId}
                     work={work}
                     visitId={visit.localId}
-                    style={{ width: fontScale > 1.4 ? "100%" : "48%", flexShrink: 1 }}
+                    style={{
+                      width: fontScale > 1.4 ? "100%" : "48%",
+                      flexShrink: 1,
+                    }}
                   >
                     <LocalVisitGalleryArtwork
                       title={work.title}
@@ -364,8 +431,8 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 );
               })}
             </View>
-            {!filtered.length &&
-              (search.trim() ? (
+            {!filtered.length
+              && (search.trim() ? (
                 <SearchEmptyState
                   title="No artworks found."
                   detail="Try an artist or artwork title."
@@ -384,7 +451,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                     variant="filled"
                     fullWidth
                     onPress={() =>
-                      router.push({ pathname: "/link-artwork", params: { visitId: visit.localId } })
+                      router.push({
+                        pathname: "/link-artwork",
+                        params: { visitId: visit.localId },
+                      })
                     }
                   />
                 </EmptyState>

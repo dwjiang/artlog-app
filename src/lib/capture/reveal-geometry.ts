@@ -1,9 +1,18 @@
 import type { FrameSize } from "./rectangle";
 import type { PreparedPainting, Quad } from "./stages";
 
-export function perspectiveMatrix(width: number, height: number, quad: Quad): number[] | null {
+export function perspectiveMatrix(
+  width: number,
+  height: number,
+  quad: Quad,
+): number[] | null {
   "worklet";
-  if (!(width > 0 && height > 0) || !quad.every((p) => p.every(Number.isFinite))) return null;
+  if (
+    !(width > 0 && height > 0)
+    || !quad.every((p) => p.every(Number.isFinite))
+  ) {
+    return null;
+  }
   const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = quad;
   const dx1 = x1 - x2,
     dx2 = x3 - x2,
@@ -37,7 +46,11 @@ export function perspectiveMatrix(width: number, height: number, quad: Quad): nu
   ];
 }
 
-export function interpolateCorners(from: Quad, to: Quad, progress: number): Quad {
+export function interpolateCorners(
+  from: Quad,
+  to: Quad,
+  progress: number,
+): Quad {
   "worklet";
   return from.map(([x, y], i) => [
     x + (to[i][0] - x) * progress,
@@ -61,20 +74,22 @@ export function revealGeometry(
       bounds.width,
       bounds.height,
       cropSize,
-    ].every((n) => Number.isFinite(n) && n > 0) ||
-    bounds.x < 0 ||
-    bounds.y < 0 ||
-    bounds.x + bounds.width > cropSize ||
-    bounds.y + bounds.height > cropSize
-  )
+    ].every((n) => Number.isFinite(n) && n > 0)
+    || bounds.x < 0
+    || bounds.y < 0
+    || bounds.x + bounds.width > cropSize
+    || bounds.y + bounds.height > cropSize
+  ) {
     return null;
+  }
   const photoScale = (fit === "cover" ? Math.max : Math.min)(
     view.width / photo.width,
     view.height / photo.height,
   );
   const from = painting.corners.map(([x, y]) => [
     x * photo.width * photoScale + (view.width - photo.width * photoScale) / 2,
-    y * photo.height * photoScale + (view.height - photo.height * photoScale) / 2,
+    y * photo.height * photoScale
+      + (view.height - photo.height * photoScale) / 2,
   ]) as Quad;
   const availableHeight = view.height - insets.top - insets.bottom;
   const scale = Math.min(
@@ -91,7 +106,12 @@ export function revealGeometry(
     [left + width, top + height],
     [left, top + height],
   ];
-  if (!perspectiveMatrix(width, height, from) || !perspectiveMatrix(width, height, to)) return null;
+  if (
+    !perspectiveMatrix(width, height, from)
+    || !perspectiveMatrix(width, height, to)
+  ) {
+    return null;
+  }
   return {
     from,
     to,

@@ -1,7 +1,12 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
-import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  query,
+  type QueryCtx,
+} from "./_generated/server";
 import { sameOwner } from "../shared/journal/contracts";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
@@ -75,15 +80,19 @@ export const create = internalMutation({
       )
       .unique();
     const restart =
-      existing &&
-      existing.status !== "identified" &&
-      isSupported(args.modelVersion) &&
-      (existing.status === "unsupported_version" ||
-        existing.status === "failed" ||
-        existing.modelVersion !== args.modelVersion);
+      existing
+      && existing.status !== "identified"
+      && isSupported(args.modelVersion)
+      && (existing.status === "unsupported_version"
+        || existing.status === "failed"
+        || existing.modelVersion !== args.modelVersion);
     if (args.visitId) {
       const visit = await ctx.db.get(args.visitId);
-      if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
+      if (
+        !visit
+        || !sameOwner(visit.owner, owner)
+        || visit.venueId !== args.venueId
+      ) {
         throw new ConvexError({ code: "not_found" });
       }
     }
@@ -91,10 +100,10 @@ export const create = internalMutation({
       throw new ConvexError({ code: "invalid_venue" });
     }
     if (
-      existing &&
-      (existing.visitId !== args.visitId ||
-        existing.venueId !== args.venueId ||
-        existing.capturedAt !== args.capturedAt)
+      existing
+      && (existing.visitId !== args.visitId
+        || existing.venueId !== args.venueId
+        || existing.capturedAt !== args.capturedAt)
     ) {
       throw new ConvexError({ code: "not_found" });
     }
@@ -132,21 +141,24 @@ export const setResult = internalMutation({
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
-    if (scan.generation !== args.generation || scan.status !== "pending") return null;
+    if (scan.generation !== args.generation || scan.status !== "pending") {
+      return null;
+    }
     const device = await ctx.db.get(scan.deviceId);
     if (!device || device.banned) return null;
     const valid = async (match: NonNullable<typeof args.best>) => {
       const object = await ctx.db.get(match.objectId);
       return (
-        !!object &&
-        object.identityStatus === match.identityStatus &&
-        (await eligibleObject(ctx, object, scan.venueId))
+        !!object
+        && object.identityStatus === match.identityStatus
+        && (await eligibleObject(ctx, object, scan.venueId))
       );
     };
     const best = args.best && (await valid(args.best)) ? args.best : undefined;
     const runnerUps = [];
-    for (const candidate of args.runnerUps ?? [])
+    for (const candidate of args.runnerUps ?? []) {
       if (await valid(candidate)) runnerUps.push(candidate);
+    }
     const outcome = !best
       ? "miss"
       : best.identityStatus === "tentative" && args.outcome === "confident"
@@ -162,15 +174,20 @@ export const setResult = internalMutation({
       error: args.error,
       updatedAt: Date.now(),
     });
-    if (outcome === "confident" && scan.visitId && args.best?.gallery !== undefined) {
+    if (
+      outcome === "confident"
+      && scan.visitId
+      && args.best?.gallery !== undefined
+    ) {
       const visit = await ctx.db.get(scan.visitId);
       const device = await ctx.db.get(scan.deviceId);
       if (
-        visit &&
-        device &&
-        sameOwner(visit.owner, await ownerForDevice(ctx, device)) &&
-        visit.venueId === scan.venueId &&
-        (visit.lastConfidentAt === undefined || scan.capturedAt >= visit.lastConfidentAt)
+        visit
+        && device
+        && sameOwner(visit.owner, await ownerForDevice(ctx, device))
+        && visit.venueId === scan.venueId
+        && (visit.lastConfidentAt === undefined
+          || scan.capturedAt >= visit.lastConfidentAt)
       ) {
         await ctx.db.patch(visit._id, {
           lastConfidentGallery: args.best.gallery,
@@ -186,12 +203,17 @@ async function joinCandidate(
   ctx: QueryCtx,
   match: NonNullable<Doc<"scans">["best"]>,
   venueId?: Doc<"scans">["venueId"],
-): Promise<{ candidate: Infer<typeof displayCandidate>; artwork: Doc<"artworks"> } | null> {
+): Promise<{
+  candidate: Infer<typeof displayCandidate>;
+  artwork: Doc<"artworks">;
+} | null> {
   const [object, artwork] = await Promise.all([
     ctx.db.get(match.objectId),
     ctx.db.get(match.artworkId),
   ]);
-  if (!object || !artwork || !(await eligibleObject(ctx, object, venueId))) return null;
+  if (!object || !artwork || !(await eligibleObject(ctx, object, venueId))) {
+    return null;
+  }
   const owner = object.ownerId ? await ctx.db.get(object.ownerId) : null;
   // A hotlinked source image only for public-domain works; a contributor's consented crop always.
   const thumbnailUrl = object.thumbnailStorageId
@@ -216,13 +238,21 @@ async function joinCandidate(
   };
 }
 
-async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDisplay> {
+async function displayScan(
+  ctx: QueryCtx,
+  scan: Doc<"scans">,
+): Promise<ScanDisplay> {
   const [best, runnerUps] = await Promise.all([
     scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null,
-    Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
+    Promise.all(
+      (scan.runnerUps ?? []).map((match) =>
+        joinCandidate(ctx, match, scan.venueId),
+      ),
+    ),
   ]);
   const prose =
-    scan.outcome === "confident" && best?.candidate.identityStatus === "established"
+    scan.outcome === "confident"
+    && best?.candidate.identityStatus === "established"
       ? best?.artwork
       : undefined;
   return {
@@ -235,7 +265,9 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     outcome: scan.outcome,
     calibratorVersion: scan.calibratorVersion,
     best: best?.candidate,
-    runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
+    runnerUps: runnerUps.flatMap((joined) =>
+      joined ? [joined.candidate] : [],
+    ),
     docent: prose?.docent?.en,
     factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
       id,
@@ -270,7 +302,9 @@ export const getDisplay = internalQuery({
   returns: scanDisplay,
   handler: async (ctx, { scanId, deviceId }) => {
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: "scan_not_found" });
+    if (!scan || scan.deviceId !== deviceId) {
+      throw new ConvexError({ code: "scan_not_found" });
+    }
     return displayScan(ctx, scan);
   },
 });

@@ -2,7 +2,10 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { WallSheet } from "./wall-sheet";
 import { Host } from "@expo/ui";
 import { Slider } from "@expo/ui/swift-ui";
-import { accessibilityLabel, disabled as nativeDisabled } from "@expo/ui/swift-ui/modifiers";
+import {
+  accessibilityLabel,
+  disabled as nativeDisabled,
+} from "@expo/ui/swift-ui/modifiers";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
@@ -17,11 +20,20 @@ import { WallArtwork } from "./wall-artwork";
 import { GalleryButton } from "./gallery-button";
 import { WallFramePicker } from "./wall-options";
 
-export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: string }) {
+export function WallArtworkSummary({
+  piece,
+  color,
+}: {
+  piece: WallPiece;
+  color: string;
+}) {
   return (
     <>
       <View style={[styles.hero, { backgroundColor: color }]}>
-        <WallArtwork piece={piece} width={Math.min(230, 180 * wallAspect(piece))} />
+        <WallArtwork
+          piece={piece}
+          width={Math.min(230, 180 * wallAspect(piece))}
+        />
       </View>
       <View style={styles.section}>
         <Text variant="display" selectable style={styles.artist}>
@@ -29,7 +41,9 @@ export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: 
         </Text>
         <Text selectable style={styles.workTitle}>
           {piece.artwork.title}
-          {piece.artwork.date ? <Text style={styles.date}>, {piece.artwork.date}</Text> : null}
+          {piece.artwork.date ? (
+            <Text style={styles.date}>, {piece.artwork.date}</Text>
+          ) : null}
         </Text>
         {piece.artwork.medium && (
           <Text selectable style={styles.caption}>
@@ -79,7 +93,10 @@ function WallSizeSlider({
           dragging.current = editing;
           if (!editing) commit();
         }}
-        modifiers={[accessibilityLabel("Artwork size"), nativeDisabled(disabled)]}
+        modifiers={[
+          accessibilityLabel("Artwork size"),
+          nativeDisabled(disabled),
+        ]}
       />
     </Host>
   );
@@ -238,6 +255,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.separator,
   },
-  directions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12 },
+  directions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   removal: { paddingTop: 0 },
 });

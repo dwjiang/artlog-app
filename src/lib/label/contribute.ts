@@ -13,10 +13,17 @@ import { errorMessage, isNetworkError } from "@/lib/network-error";
 import { resolveWithLabel } from "@/lib/result/feedback";
 import { removeFile, resizeCropForContribution } from "./crop";
 import { saveLabelDraft } from "./draft";
-import { differsFromFlow, toSubmittedFields, toVerifyInput, type LabelFormState } from "./fields";
+import {
+  differsFromFlow,
+  toSubmittedFields,
+  toVerifyInput,
+  type LabelFormState,
+} from "./fields";
 import { labelApi } from "./label-deps";
 
-export type ContributionOutcome = FunctionReturnType<typeof api.contributions.contribute>;
+export type ContributionOutcome = FunctionReturnType<
+  typeof api.contributions.contribute
+>;
 
 export type ContributeInput = {
   scanId: Id<"scans">;
@@ -28,15 +35,21 @@ export type ContributeInput = {
   museumSearchUpdatedAt?: number;
 };
 
-export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<"_storage">> {
+export async function uploadCrop(
+  uploadUrl: string,
+  uri: string,
+): Promise<Id<"_storage">> {
   const response = await new File(uri).upload(uploadUrl, {
     httpMethod: "POST",
     uploadType: UploadType.BINARY_CONTENT,
     headers: { "Content-Type": "image/jpeg" },
   });
-  if (response.status < 200 || response.status >= 300)
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`Crop upload failed with HTTP ${response.status}`);
-  const { storageId } = JSON.parse(response.body) as { storageId: Id<"_storage"> };
+  }
+  const { storageId } = JSON.parse(response.body) as {
+    storageId: Id<"_storage">;
+  };
   return storageId;
 }
 
@@ -47,21 +60,34 @@ export async function contributeLabel({
   state,
   museumSearchUpdatedAt,
 }: ContributeInput): Promise<ContributionOutcome> {
-  if (isLabelCapture(capture))
-    throw new Error("An artwork photo is required to contribute to the shared index");
+  if (isLabelCapture(capture)) {
+    throw new Error(
+      "An artwork photo is required to contribute to the shared index",
+    );
+  }
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error("A title and an artist are required to share");
   await saveLabelDraft(scanId, state, museumSearchUpdatedAt);
   // A previous attempt may have verified edits before its upload failed.
   const scan = await convex.query(api.scans.get, { scanId });
-  if (scan?.labelFlow?.stage !== "verified" || differsFromFlow(state, scan.labelFlow)) {
+  if (
+    scan?.labelFlow?.stage !== "verified"
+    || differsFromFlow(state, scan.labelFlow)
+  ) {
     await labelApi.verifyLabel({ scanId, fields: toVerifyInput(state) });
   }
-  const crop = await resizeCropForContribution(captureFileUri(capture.cropPath));
+  const crop = await resizeCropForContribution(
+    captureFileUri(capture.cropPath),
+  );
   try {
-    const { uploadUrl } = await convex.mutation(api.contributions.requestCropUpload, {});
+    const { uploadUrl } = await convex.mutation(
+      api.contributions.requestCropUpload,
+      {},
+    );
     const cropStorageId = await uploadCrop(uploadUrl, crop.uri);
-    const signed = await signPayload(contributionPayload({ scanId, cropStorageId, fields }));
+    const signed = await signPayload(
+      contributionPayload({ scanId, cropStorageId, fields }),
+    );
     if (!signed) throw new Error("This device can’t share contributions yet");
     const result = await convex.action(api.contributions.contribute, {
       scanId,
@@ -80,8 +106,9 @@ export async function contributeLabel({
 }
 
 export function contributionErrorMessage(error: unknown): string {
-  if (isNetworkError(error))
+  if (isNetworkError(error)) {
     return "No connection — it will be saved to the shared index when you’re back online";
+  }
   switch (errorMessage(error)) {
     case "rate_limited":
       return "Try again in a minute";

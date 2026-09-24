@@ -1,5 +1,11 @@
 import { Button, Column, Host, Icon, ListItem, Row, Text } from "@expo/ui";
-import { LabeledContent, List, Rectangle, Section, Spacer } from "@expo/ui/swift-ui";
+import {
+  LabeledContent,
+  List,
+  Rectangle,
+  Section,
+  Spacer,
+} from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   accessibilityValue,
@@ -20,7 +26,13 @@ import {
   strokeBorder,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
-import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { Gallery, SettingsOutline, Spacing } from "@/constants/theme";
 import { NativeLoadingRing } from "./native-loading-ring";
 
@@ -62,7 +74,9 @@ export function GroupedSection({
           listRowSeparator("hidden"),
           background(
             destructive ? Gallery.destructiveFill : Gallery.surface,
-            shapes.roundedRectangle({ cornerRadius: SettingsOutline.borderRadius }),
+            shapes.roundedRectangle({
+              cornerRadius: SettingsOutline.borderRadius,
+            }),
           ),
           strokeBorder({
             color: SettingsOutline.borderColor,
@@ -87,8 +101,15 @@ export function GroupedSection({
               )}
               <Row
                 modifiers={[
-                  padding({ horizontal: Spacing.three, vertical: Spacing.compact }),
-                  frame({ maxWidth: Infinity, minHeight: 44, alignment: "leading" }),
+                  padding({
+                    horizontal: Spacing.three,
+                    vertical: Spacing.compact,
+                  }),
+                  frame({
+                    maxWidth: Infinity,
+                    minHeight: 44,
+                    alignment: "leading",
+                  }),
                 ]}
               >
                 {child}
@@ -110,7 +131,9 @@ export function GroupedFooter({
   return (
     <Text
       modifiers={[font({ textStyle: "footnote" })]}
-      textStyle={{ color: tone === "destructive" ? Gallery.destructive : Gallery.muted }}
+      textStyle={{
+        color: tone === "destructive" ? Gallery.destructive : Gallery.muted,
+      }}
     >
       {children}
     </Text>
@@ -155,7 +178,10 @@ export function NavigationRow({
       ]}
       supportingText={
         detail ? (
-          <Text modifiers={[font({ textStyle: "footnote" })]} textStyle={{ color: Gallery.muted }}>
+          <Text
+            modifiers={[font({ textStyle: "footnote" })]}
+            textStyle={{ color: Gallery.muted }}
+          >
             {detail}
           </Text>
         ) : undefined
@@ -218,7 +244,10 @@ export function ActionRow({
       >
         {icon && indicator}
         <Text
-          modifiers={[font({ textStyle: "body" }), multilineTextAlignment("leading")]}
+          modifiers={[
+            font({ textStyle: "body" }),
+            multilineTextAlignment("leading"),
+          ]}
           textStyle={{ color }}
         >
           {label}
@@ -243,7 +272,10 @@ export function ValueRow({
       {loading ? (
         <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} />
       ) : (
-        <Text modifiers={[font({ textStyle: "body" })]} textStyle={{ color: Gallery.muted }}>
+        <Text
+          modifiers={[font({ textStyle: "body" })]}
+          textStyle={{ color: Gallery.muted }}
+        >
           {value}
         </Text>
       )}

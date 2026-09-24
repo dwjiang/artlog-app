@@ -23,22 +23,32 @@ export function VisitMessage({
   action?: string;
   onAction?: () => void;
 }) {
-  if (loading && skeleton)
+  if (loading && skeleton) {
     return skeleton === "visit" ? (
-      <VisitSkeleton label={typeof children === "string" ? children : "Loading visit…"} />
+      <VisitSkeleton
+        label={typeof children === "string" ? children : "Loading visit…"}
+      />
     ) : (
-      <ListSkeleton label={typeof children === "string" ? children : "Loading visits…"} rows={3} />
+      <ListSkeleton
+        label={typeof children === "string" ? children : "Loading visits…"}
+        rows={3}
+      />
     );
+  }
   return (
     <View style={visitStyles.section}>
       {loading && (
         <LoadingRing
-          accessibilityLabel={typeof children === "string" ? children : "Loading visits"}
+          accessibilityLabel={
+            typeof children === "string" ? children : "Loading visits"
+          }
           color={Gallery.accent}
         />
       )}
       {!loading && <Text style={visitStyles.body}>{children}</Text>}
-      {action && onAction && <GalleryButton label={action} onPress={onAction} />}
+      {action && onAction && (
+        <GalleryButton label={action} onPress={onAction} />
+      )}
     </View>
   );
 }
@@ -65,11 +75,24 @@ export function VisitSymbol({
   size?: number;
   color?: string;
 }) {
-  return <Image source={`sf:${name}`} tintColor={color} style={{ width: size, height: size }} />;
+  return (
+    <Image
+      source={`sf:${name}`}
+      tintColor={color}
+      style={{ width: size, height: size }}
+    />
+  );
 }
 export function VisitPrivacyNote() {
   return (
-    <View style={{ flexDirection: "row", gap: 6, paddingHorizontal: 20, paddingVertical: 20 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        gap: 6,
+        paddingHorizontal: 20,
+        paddingVertical: 20,
+      }}
+    >
       <VisitSymbol name="lock" size={12} color={Gallery.muted} />
       <Text style={[visitStyles.fine, { flex: 1 }]}>
         Your visits are private until you choose to share one.
@@ -89,7 +112,9 @@ export function ArtworkPreviews({
   overflow?: boolean;
 }) {
   const unique = [
-    ...new Map(works.map((work) => [`${work.owner}:${work.localId}`, work])).values(),
+    ...new Map(
+      works.map((work) => [`${work.owner}:${work.localId}`, work]),
+    ).values(),
   ];
   const hidden = unique.length - limit;
   return (
@@ -124,7 +149,12 @@ export const visitStyles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32, gap: 12 },
   section: { padding: 20, gap: 12 },
   title: { ...Typography.display, color: Gallery.ink },
-  heading: { fontSize: 20, lineHeight: 26, fontWeight: "600", color: Gallery.ink },
+  heading: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "600",
+    color: Gallery.ink,
+  },
   body: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   card: {

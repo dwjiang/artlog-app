@@ -3,7 +3,10 @@ import type { FunctionArgs } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { LabelFlowDisplay, MuseumSearchDisplay } from "../../../convex/lib/validators";
+import type {
+  LabelFlowDisplay,
+  MuseumSearchDisplay,
+} from "../../../convex/lib/validators";
 import type { ScanFeatures } from "@/lib/capture/features";
 import type { ImageCheckDeps } from "@/lib/label/image-check";
 import { errorMessage } from "@/lib/network-error";
@@ -52,13 +55,17 @@ type Input = {
   api: MuseumSearchApi;
   images: ImageCheckDeps;
   inputSize: number;
-  getCapture(localId: string): Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
+  getCapture(
+    localId: string,
+  ): Promise<(ScanFeatures & { scanId: Id<"scans"> | null }) | undefined>;
   stored?: MuseumSearchDisplay;
   canContinue(): boolean;
   onStage?(stage: MuseumSearchStage): void;
 };
 
-export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome> {
+export async function runMuseumSearch(
+  input: Input,
+): Promise<MuseumSearchOutcome> {
   const { scanId, api, onStage } = input;
   const canContinue = async () =>
     (await getMuseumSearchConsent()) === "granted" && input.canContinue();
@@ -83,15 +90,22 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     if (search.stage === "none") return none(search.reason);
     if (search.stage === "confirmed") return { stage: "cancelled" };
     onStage?.("check");
-    const match = await checkCandidates(search.candidates, capture, input.images, {
-      inputSize: input.inputSize,
-      canContinue,
-    });
+    const match = await checkCandidates(
+      search.candidates,
+      capture,
+      input.images,
+      {
+        inputSize: input.inputSize,
+        canContinue,
+      },
+    );
     if (!(await canContinue())) return { stage: "cancelled" };
     if (!match) return none("no_match");
     const flow = await api.confirmSearchCandidate({ scanId, ...match });
     if (!(await canContinue())) return { stage: "cancelled" };
-    if (flow.moderation !== "clear" || flow.stage !== "verified") return none("model_error");
+    if (flow.moderation !== "clear" || flow.stage !== "verified") {
+      return none("model_error");
+    }
     addBreadcrumb("museum_search.confirmed");
     onStage?.("done");
     return { stage: "done", flow, confirmedAt: flow.updatedAt };

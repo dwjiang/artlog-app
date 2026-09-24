@@ -26,7 +26,11 @@ export function useGlobeCamera(
   const pinching = useSharedValue(false);
   const start = useSharedValue(initialCamera);
   const pinchStartZoom = useSharedValue(initialCamera.zoom);
-  const camera = useDerivedValue(() => ({ yaw: yaw.get(), pitch: pitch.get(), zoom: zoom.get() }));
+  const camera = useDerivedValue(() => ({
+    yaw: yaw.get(),
+    pitch: pitch.get(),
+    zoom: zoom.get(),
+  }));
 
   function readCamera(): GlobeCamera {
     "worklet";
@@ -44,7 +48,9 @@ export function useGlobeCamera(
   }
   function saveIfIdle() {
     "worklet";
-    if (!panning.get() && !pinching.get() && remainingDecays.get() === 0) save();
+    if (!panning.get() && !pinching.get() && remainingDecays.get() === 0) {
+      save();
+    }
   }
   function setCamera(value: GlobeCamera) {
     "worklet";
@@ -65,15 +71,24 @@ export function useGlobeCamera(
   const syncCamera = useEffectEvent((value: GlobeCamera) => {
     scheduleOnUI(() => {
       "worklet";
-      if (yaw.get() === value.yaw && pitch.get() === value.pitch && zoom.get() === value.zoom)
+      if (
+        yaw.get() === value.yaw
+        && pitch.get() === value.pitch
+        && zoom.get() === value.zoom
+      ) {
         return;
+      }
       stop();
       yaw.set(value.yaw);
       pitch.set(value.pitch);
       zoom.set(value.zoom);
     });
   });
-  const { yaw: initialYaw, pitch: initialPitch, zoom: initialZoom } = initialCamera;
+  const {
+    yaw: initialYaw,
+    pitch: initialPitch,
+    zoom: initialZoom,
+  } = initialCamera;
   useEffect(() => {
     syncCamera({ yaw: initialYaw, pitch: initialPitch, zoom: initialZoom });
   }, [initialYaw, initialPitch, initialZoom]);
@@ -100,7 +115,10 @@ export function useGlobeCamera(
       pitch.set(
         Math.max(
           -MAX_PITCH,
-          Math.min(MAX_PITCH, origin.pitch + (event.translationY * PITCH_PER_POINT) / origin.zoom),
+          Math.min(
+            MAX_PITCH,
+            origin.pitch + (event.translationY * PITCH_PER_POINT) / origin.zoom,
+          ),
         ),
       );
     })
@@ -138,7 +156,9 @@ export function useGlobeCamera(
       pinchStartZoom.set(zoom.get());
     })
     .onUpdate((event) => {
-      zoom.set(Math.max(0.75, Math.min(2.25, pinchStartZoom.get() * event.scale)));
+      zoom.set(
+        Math.max(0.75, Math.min(2.25, pinchStartZoom.get() * event.scale)),
+      );
     })
     .onFinalize(() => {
       pinching.set(false);

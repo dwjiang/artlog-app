@@ -9,12 +9,19 @@ export function ListeningRoot({ children }: { children: ReactNode }) {
   const segments = useSegments();
   const listening = useHasListeningTrack();
   const { bottom } = useSafeAreaInsets();
-  const dock = listening && segments[0] !== "(tabs)" && segments[0] !== "now-playing";
+  const dock =
+    listening && segments[0] !== "(tabs)" && segments[0] !== "now-playing";
   return (
     <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
       <View style={{ flex: 1 }}>{children}</View>
       {dock && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: Math.max(8, bottom) }}>
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            paddingBottom: Math.max(8, bottom),
+          }}
+        >
           <View
             style={{
               borderWidth: 1,

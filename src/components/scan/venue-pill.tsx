@@ -11,7 +11,10 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 
-export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "venue">): string {
+export function venuePillLabel({
+  status,
+  venue,
+}: Pick<VenueView, "status" | "venue">): string {
   if (venue) return venue.name;
   switch (status) {
     case "choose":
@@ -32,7 +35,10 @@ export function VenuePill() {
   const { status, venue, visit } = useVenue();
   const label = venuePillLabel({ status, venue });
   const active = !!visit && visit.venueId === venue?.venueId;
-  const { works, loading, error } = useVisitWorks(active ? visit.localId : undefined, owner);
+  const { works, loading, error } = useVisitWorks(
+    active ? visit.localId : undefined,
+    owner,
+  );
   const locating = !venue && (status === "idle" || status === "locating");
   const accessibilityLabel =
     active && !loading && !error
@@ -57,18 +63,29 @@ export function VenuePill() {
           />
         )}
         {locating ? (
-          <LoadingRing accessibilityLabel={label} color={Colors.light.overlayText} />
+          <LoadingRing
+            accessibilityLabel={label}
+            color={Colors.light.overlayText}
+          />
         ) : (
-          <ThemedText type="smallBold" themeColor="overlayText" style={styles.label}>
+          <ThemedText
+            type="smallBold"
+            themeColor="overlayText"
+            style={styles.label}
+          >
             {label}
           </ThemedText>
         )}
-        {active &&
-          (loading ? (
+        {active
+          && (loading ? (
             <TextSkeleton label="Loading visit artwork count" width={24} />
           ) : (
             !error && (
-              <ThemedText type="small" themeColor="overlayText" style={styles.count}>
+              <ThemedText
+                type="small"
+                themeColor="overlayText"
+                style={styles.count}
+              >
                 · {works.length}
               </ThemedText>
             )

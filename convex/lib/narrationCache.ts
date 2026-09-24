@@ -4,7 +4,11 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { DocentSentence } from "./validators";
 
-export type RenderedNarration = { uri: string; sentences: DocentSentence[]; renderId: string };
+export type RenderedNarration = {
+  uri: string;
+  sentences: DocentSentence[];
+  renderId: string;
+};
 
 // What a narration is rendered from. One row per artwork; a mismatch on play re-renders it,
 // and `narration.clear` re-renders everything after a prompt or delivery change worth hearing.
@@ -18,14 +22,17 @@ export function narrationProvenance(artwork: Doc<"artworks">) {
   };
 }
 
-export function narrationCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
+export function narrationCurrent(
+  entry: Doc<"narrationAudio">,
+  artwork: Doc<"artworks">,
+): boolean {
   const provenance = narrationProvenance(artwork);
   return (
-    entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt &&
-    entry.opening === provenance.opening &&
-    entry.guideModel === provenance.guideModel &&
-    entry.speechModel === provenance.speechModel &&
-    entry.voice === provenance.voice
+    entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt
+    && entry.opening === provenance.opening
+    && entry.guideModel === provenance.guideModel
+    && entry.speechModel === provenance.speechModel
+    && entry.voice === provenance.voice
   );
 }
 
@@ -41,7 +48,15 @@ export async function renderedNarration(
   artwork: Doc<"artworks">,
 ): Promise<RenderedNarration | null> {
   const entry = await narrationEntry(ctx, artwork._id);
-  if (!entry?.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) return null;
+  if (
+    !entry?.storageId
+    || !entry.sentences
+    || !narrationCurrent(entry, artwork)
+  ) {
+    return null;
+  }
   const uri = await ctx.storage.getUrl(entry.storageId);
-  return uri ? { uri, sentences: entry.sentences, renderId: entry.claim } : null;
+  return uri
+    ? { uri, sentences: entry.sentences, renderId: entry.claim }
+    : null;
 }

@@ -18,14 +18,19 @@ export function testVector(similarity = 1): number[] {
 export async function seedDevice(
   t: Harness,
 ): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
-  const userId = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", { isAnonymous: true }),
+  );
   const sessionId = await t.run((ctx) =>
     ctx.db.insert("authSessions", {
       userId,
       expirationTime: Date.now() + 60 * 60 * 1000,
     }),
   );
-  const user = { userId, as: t.withIdentity({ subject: `${userId}|${sessionId}` }) };
+  const user = {
+    userId,
+    as: t.withIdentity({ subject: `${userId}|${sessionId}` }),
+  };
   const deviceId = await t.run((ctx) =>
     ctx.db.insert("devices", {
       authUserId: user.userId,
@@ -61,9 +66,14 @@ export async function seedArtworkWithObject(
     vector?: number[];
     modelVersion?: string;
     descriptors?: OrbFeatures;
-    placement?: Omit<Doc<"placements">, "_id" | "_creationTime" | "objectId" | "identityStatus">;
+    placement?: Omit<
+      Doc<"placements">,
+      "_id" | "_creationTime" | "objectId" | "identityStatus"
+    >;
     artwork?: Partial<Omit<Doc<"artworks">, "_id" | "_creationTime">>;
-    object?: Partial<Omit<Doc<"objects">, "_id" | "_creationTime" | "artworkId">>;
+    object?: Partial<
+      Omit<Doc<"objects">, "_id" | "_creationTime" | "artworkId">
+    >;
   } = {},
 ) {
   const key = crypto.randomUUID();
@@ -98,7 +108,10 @@ export async function seedArtworkWithObject(
     ...options.object,
   });
   const vectorId = await ctx.db.insert("vectors", {
-    partition: JSON.stringify([options.modelVersion ?? model.modelVersion, "established"]),
+    partition: JSON.stringify([
+      options.modelVersion ?? model.modelVersion,
+      "established",
+    ]),
     objectId,
     modelVersion: options.modelVersion ?? model.modelVersion,
     source: "corpus",
@@ -113,18 +126,21 @@ export async function seedArtworkWithObject(
       extractedFrom: "synthetic fixture",
     });
   }
-  if (options.placement)
+  if (options.placement) {
     await ctx.db.insert("placements", {
       identityStatus: options.object?.identityStatus ?? "established",
       objectId,
       ...options.placement,
     });
+  }
   return { artworkId, objectId, vectorId };
 }
 
 export async function seedScan(
   ctx: MutationCtx,
-  overrides: Partial<Omit<Doc<"scans">, "_id" | "_creationTime">> & { deviceId: Id<"devices"> },
+  overrides: Partial<Omit<Doc<"scans">, "_id" | "_creationTime">> & {
+    deviceId: Id<"devices">;
+  },
 ): Promise<Id<"scans">> {
   const now = Date.now();
   return ctx.db.insert("scans", {

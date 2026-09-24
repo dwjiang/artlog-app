@@ -1,7 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import model from "../../shared/model/model-version.json";
-import { expectedDim, isSupported, supportedModelVersions, validateVector } from "./modelVersion";
+import {
+  expectedDim,
+  isSupported,
+  supportedModelVersions,
+  validateVector,
+} from "./modelVersion";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -30,12 +35,17 @@ it("requires the bundled embedding dimension", () => {
   expect(() => validateVector([1])).toThrowError();
 });
 
-it.each([NaN, Infinity, -Infinity])("rejects a non-finite vector coordinate: %s", (value) => {
-  const vector = Array(model.embeddingDim).fill(1);
-  vector[0] = value;
-  expect(() => validateVector(vector)).toThrowError();
-});
+it.each([NaN, Infinity, -Infinity])(
+  "rejects a non-finite vector coordinate: %s",
+  (value) => {
+    const vector = Array(model.embeddingDim).fill(1);
+    vector[0] = value;
+    expect(() => validateVector(vector)).toThrowError();
+  },
+);
 
 it("rejects a zero vector whose cosine similarity is undefined", () => {
-  expect(() => validateVector(Array(model.embeddingDim).fill(0))).toThrowError();
+  expect(() =>
+    validateVector(Array(model.embeddingDim).fill(0)),
+  ).toThrowError();
 });

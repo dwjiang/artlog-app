@@ -9,24 +9,34 @@ import { useQueue } from "./use-queue";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: false }) }));
+jest.mock("convex/react", () => ({
+  useConvexAuth: () => ({ isAuthenticated: false }),
+}));
 jest.mock("./queue", () => ({ startQueueFlusher: jest.fn() }));
-jest.mock("@/lib/label/share-saved-label", () => ({ startPendingShareFlusher: jest.fn() }));
+jest.mock("@/lib/label/share-saved-label", () => ({
+  startPendingShareFlusher: jest.fn(),
+}));
 
-const listeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
+const listeners = new Set<
+  Parameters<typeof SQLite.addDatabaseChangeListener>[0]
+>();
 const owner = "device:test-installation";
 
 beforeEach(() => {
-  for (const table of [artworkPhotos, savedWorks, pendingScans]) db.delete(table).run();
+  for (const table of [artworkPhotos, savedWorks, pendingScans]) {
+    db.delete(table).run();
+  }
   listeners.clear();
-  jest.spyOn(SQLite, "addDatabaseChangeListener").mockImplementation((listener) => {
-    listeners.add(listener);
-    return {
-      remove: () => {
-        listeners.delete(listener);
-      },
-    };
-  });
+  jest
+    .spyOn(SQLite, "addDatabaseChangeListener")
+    .mockImplementation((listener) => {
+      listeners.add(listener);
+      return {
+        remove: () => {
+          listeners.delete(listener);
+        },
+      };
+    });
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -68,13 +78,14 @@ it("removes a newly saved scan from a mounted recent-scans query without reopeni
       undefined,
       owner,
     );
-    for (const listener of listeners)
+    for (const listener of listeners) {
       listener({
         tableName: "artworkPhotos",
         databaseName: "artlog.db",
         databaseFilePath: "",
         rowId: 1,
       });
+    }
   });
   await waitFor(() => expect(hook.result.current.items).toHaveLength(0));
 });

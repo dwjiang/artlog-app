@@ -2,12 +2,19 @@ import { useState } from "react";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { StyleSheet, View } from "react-native";
 
-import type { LabelFieldName, LabelWarning } from "../../../../convex/lib/validators";
+import type {
+  LabelFieldName,
+  LabelWarning,
+} from "../../../../convex/lib/validators";
 
 import { FieldInput } from "../field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
-import { LABEL_FIELD_LABELS, WARNING_MESSAGES, type LabelFormState } from "@/lib/label/fields";
+import {
+  LABEL_FIELD_LABELS,
+  WARNING_MESSAGES,
+  type LabelFormState,
+} from "@/lib/label/fields";
 
 export type VerifiedFieldsFormProps = {
   state: LabelFormState;
@@ -57,7 +64,9 @@ export function VerifiedFieldsForm({
                 defaultValue={field.value}
                 editable={editable}
                 style={styles.input}
-                autoCapitalize={name === "date" || name === "accession" ? "none" : "words"}
+                autoCapitalize={
+                  name === "date" || name === "accession" ? "none" : "words"
+                }
                 onChangeText={(value) => onChange(name, value)}
               />
             </View>

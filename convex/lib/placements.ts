@@ -21,11 +21,16 @@ const sourceRank: Record<string, number> = {
   wikidata: 1,
 };
 
-export function currentPlacement<T extends PlacementLike>(placements: T[], now: number): T | null {
+export function currentPlacement<T extends PlacementLike>(
+  placements: T[],
+  now: number,
+): T | null {
   let best: T | null = null;
   for (const placement of placements) {
     if (!isActive(placement, now)) continue;
-    if (best === null || comparePlacements(placement, best) > 0) best = placement;
+    if (best === null || comparePlacements(placement, best) > 0) {
+      best = placement;
+    }
   }
   return best;
 }
@@ -42,7 +47,9 @@ export async function loadCurrentPlacement(
     if (row.proposalId) {
       const proposal = await ctx.db.get(row.proposalId);
       if (!proposal || proposal.revertedAt !== undefined) continue;
-      const devices = await Promise.all(proposal.deviceIds.map((id) => ctx.db.get(id)));
+      const devices = await Promise.all(
+        proposal.deviceIds.map((id) => ctx.db.get(id)),
+      );
       if (devices.some((device) => !device || device.banned)) continue;
     }
     placement = currentPlacement(placement ? [placement, row] : [row], now);
@@ -52,20 +59,24 @@ export async function loadCurrentPlacement(
 
 function isActive(placement: PlacementLike, now: number): boolean {
   if (placement.closedAt !== undefined) return false;
-  return (placement.from ?? -Infinity) <= now && now <= (placement.to ?? Infinity);
+  return (
+    (placement.from ?? -Infinity) <= now && now <= (placement.to ?? Infinity)
+  );
 }
 
 function comparePlacements(a: PlacementLike, b: PlacementLike): number {
   return (
-    placementRank(a) - placementRank(b) ||
-    a.confidence - b.confidence ||
-    compareFrom(a.from, b.from)
+    placementRank(a) - placementRank(b)
+    || a.confidence - b.confidence
+    || compareFrom(a.from, b.from)
   );
 }
 
 function placementRank(placement: PlacementLike): number {
   // An off-view feed doesn't establish where a loan hangs; a checklist does.
-  return placement.source === "feed" && !placement.onView ? 4 : (sourceRank[placement.source] ?? 0);
+  return placement.source === "feed" && !placement.onView
+    ? 4
+    : (sourceRank[placement.source] ?? 0);
 }
 
 // An open-ended start sorts before any dated start.

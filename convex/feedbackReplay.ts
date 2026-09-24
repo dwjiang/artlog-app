@@ -2,21 +2,30 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
+import {
+  FLAG_MIN_REJECTIONS,
+  FLAG_REJECT_RATIO,
+  PENALTY_STEP,
+} from "./lib/rejectionPenalty";
 
-export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">, rebuild = true) {
+export async function feedbackChanged(
+  ctx: MutationCtx,
+  objectId: Id<"objects">,
+  rebuild = true,
+) {
   const object = await ctx.db.get(objectId);
   if (!object) return;
   const revision = (object.feedbackRevision ?? 0) + 1;
   await ctx.db.patch(objectId, { feedbackRevision: revision });
   if (
-    !rebuild ||
-    (await ctx.db
+    !rebuild
+    || (await ctx.db
       .query("feedbackRebuilds")
       .withIndex("by_object", (q) => q.eq("objectId", objectId))
       .unique())
-  )
+  ) {
     return;
+  }
   const jobId = await ctx.db.insert("feedbackRebuilds", {
     objectId,
     revision,
@@ -26,7 +35,9 @@ export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">,
     rejectionPenalty: 0,
     flaggedForReview: false,
   });
-  await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, { jobId });
+  await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, {
+    jobId,
+  });
 }
 
 export const rebuildPage = internalMutation({
@@ -42,7 +53,12 @@ export const rebuildPage = internalMutation({
     }
     const restart = job.revision !== (object.feedbackRevision ?? 0);
     const state = restart
-      ? { confirmCount: 0, rejectCount: 0, rejectionPenalty: 0, flaggedForReview: false }
+      ? {
+          confirmCount: 0,
+          rejectCount: 0,
+          rejectionPenalty: 0,
+          flaggedForReview: false,
+        }
       : {
           confirmCount: job.confirmCount,
           rejectCount: job.rejectCount,
@@ -58,17 +74,24 @@ export const rebuildPage = internalMutation({
       if (!device || device.banned) continue;
       if (event.kind === "confirmation") state.confirmCount++;
       else {
-        const feedback = event.feedbackId ? await ctx.db.get(event.feedbackId) : null;
-        if (!feedback || feedback.resolution.kind === "false_rejection") continue;
+        const feedback = event.feedbackId
+          ? await ctx.db.get(event.feedbackId)
+          : null;
+        if (!feedback || feedback.resolution.kind === "false_rejection") {
+          continue;
+        }
         state.rejectCount++;
         const flagged =
-          state.rejectCount >= FLAG_MIN_REJECTIONS &&
-          state.rejectCount / (state.confirmCount + state.rejectCount) >= FLAG_REJECT_RATIO;
+          state.rejectCount >= FLAG_MIN_REJECTIONS
+          && state.rejectCount / (state.confirmCount + state.rejectCount)
+            >= FLAG_REJECT_RATIO;
         if (flagged) {
           state.flaggedForReview = true;
           state.rejectionPenalty += PENALTY_STEP;
         }
-        await ctx.db.patch(feedback._id, { penaltyAdded: flagged ? PENALTY_STEP : 0 });
+        await ctx.db.patch(feedback._id, {
+          penaltyAdded: flagged ? PENALTY_STEP : 0,
+        });
       }
     }
     if (page.isDone) {
@@ -80,7 +103,9 @@ export const rebuildPage = internalMutation({
         revision: object.feedbackRevision ?? 0,
         cursor: page.continueCursor,
       });
-      await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, { jobId });
+      await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, {
+        jobId,
+      });
     }
     return null;
   },

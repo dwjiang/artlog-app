@@ -8,8 +8,14 @@ export const unstable_settings = {
 export default function CollectionLayout() {
   return (
     <Stack screenOptions={NavigationTheme}>
-      <Stack.Screen name="collection" options={{ title: "Collection", headerShown: false }} />
-      <Stack.Screen name="visit-place" options={{ title: "Visits by museum" }} />
+      <Stack.Screen
+        name="collection"
+        options={{ title: "Collection", headerShown: false }}
+      />
+      <Stack.Screen
+        name="visit-place"
+        options={{ title: "Visits by museum" }}
+      />
     </Stack>
   );
 }

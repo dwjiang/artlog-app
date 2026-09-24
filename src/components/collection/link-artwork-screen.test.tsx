@@ -1,15 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { LinkArtworkScreen } from "./link-artwork-screen";
-jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+}));
 const mockPush = jest.fn(),
   mockDismiss = jest.fn(),
   mockDismissAll = jest.fn(),
   mockLink = jest.fn(),
   mockToast = jest.fn();
-jest.mock("@/lib/ui/toast", () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+}));
 let mockEmpty = false;
 let mockParams: { savedId?: string; visitId?: string };
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:guest" }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "device:guest",
+}));
 jest.mock("@/db/repos/artwork-album", () => ({
   selectArtworkEncounters: () => [],
   linkArtworkVisits: (...args: unknown[]) => mockLink(...args),
@@ -79,7 +85,9 @@ jest.mock("expo-router", () => ({
       return (
         <TextInput
           accessibilityLabel={placeholder}
-          onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })}
+          onChangeText={(text: string) =>
+            onChangeText({ nativeEvent: { text } })
+          }
         />
       );
     },
@@ -93,8 +101,12 @@ beforeEach(() => {
 it("keeps new-visit creation available even when the search has no matching visits", async () => {
   await render(<LinkArtworkScreen />);
   await fireEvent.changeText(screen.getByLabelText("Search visits"), "missing");
-  expect(screen.queryByRole("button", { name: "Link Musée d’Orsay" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Add a new visit" }));
+  expect(
+    screen.queryByRole("button", { name: "Link Musée d’Orsay" }),
+  ).toBeNull();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Add a new visit" }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/visit-create",
     params: { savedId: "garden" },
@@ -107,7 +119,9 @@ it("searches artworks by artist, shows their photos, and returns in the linked v
   await fireEvent.changeText(screen.getByLabelText("Search artworks"), "monet");
   expect(screen.getByLabelText("Garden")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Link Night" })).toBeNull();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Select Garden" }));
+  await fireEvent.press(
+    screen.getByRole("checkbox", { name: "Select Garden" }),
+  );
   expect(mockLink).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Link 1 artwork" }));
   expect(mockLink).toHaveBeenCalledWith(["garden"], "paris", "device:guest");
@@ -123,7 +137,10 @@ it("carries the chosen visit from an empty artwork picker into Scan", async () =
   await render(<LinkArtworkScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/scan", params: { visitId: "paris" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/scan",
+    params: { visitId: "paris" },
+  });
   expect(mockLink).not.toHaveBeenCalled();
 });
 
@@ -140,16 +157,26 @@ it("creates a visit for the selected artwork when no visits exist", async () => 
 it("links multiple selected artworks only after confirmation", async () => {
   mockParams = { visitId: "paris" };
   await render(<LinkArtworkScreen />);
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Select Garden" }));
+  await fireEvent.press(
+    screen.getByRole("checkbox", { name: "Select Garden" }),
+  );
   await fireEvent.press(screen.getByRole("checkbox", { name: "Select Night" }));
   expect(mockLink).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Link 2 artworks" }));
-  expect(mockLink).toHaveBeenCalledWith(["garden", "night"], "paris", "device:guest");
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Link 2 artworks" }),
+  );
+  expect(mockLink).toHaveBeenCalledWith(
+    ["garden", "night"],
+    "paris",
+    "device:guest",
+  );
 });
 
 it("links the selected visits to the artwork in one batch and names a single visit in the singular", async () => {
   await render(<LinkArtworkScreen />);
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Select Musée d’Orsay" }));
+  await fireEvent.press(
+    screen.getByRole("checkbox", { name: "Select Musée d’Orsay" }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Link 1 visit" }));
   expect(mockLink).toHaveBeenCalledWith("garden", ["paris"], "device:guest");
   expect(mockToast).toHaveBeenCalledWith("1 visit linked.");

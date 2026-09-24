@@ -17,7 +17,9 @@ afterEach(() => {
 });
 
 const parse = (value: unknown) =>
-  value && typeof value === "object" && "ok" in value ? (value as { ok: boolean }) : null;
+  value && typeof value === "object" && "ok" in value
+    ? (value as { ok: boolean })
+    : null;
 const request = {
   model: "nvidia/Nemotron-3_5-Lightning",
   system: "sys",
@@ -36,7 +38,10 @@ const request = {
 describe("Token Factory chatJson", () => {
   it("sends a strict json_schema request with thinking disabled and parses the JSON content", async () => {
     fetchMock.mockResolvedValueOnce(completion({ ok: true }));
-    await expect(chatJson(request)).resolves.toEqual({ value: { ok: true }, calls: 1 });
+    await expect(chatJson(request)).resolves.toEqual({
+      value: { ok: true },
+      calls: 1,
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.tokenfactory.nebius.com/v1/chat/completions");
     expect(init).toMatchObject({
@@ -87,14 +92,16 @@ describe("Token Factory chatJson", () => {
     await expect(pending).resolves.toEqual({ value: { ok: true }, calls: 2 });
     expect(retryDelayMs(null)).toBe(1000);
     expect(retryDelayMs("2")).toBe(2000);
-    expect(retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now())).toBeLessThanOrEqual(
-      3000,
-    );
+    expect(
+      retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now()),
+    ).toBeLessThanOrEqual(3000);
   });
 
   it("gives up after the second 5xx with the call count attached", async () => {
     vi.useFakeTimers();
-    fetchMock.mockImplementation(async () => new Response("down", { status: 503 }));
+    fetchMock.mockImplementation(
+      async () => new Response("down", { status: 503 }),
+    );
     const pending = chatJson(request).catch((error) => error);
     await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toMatchObject({
@@ -105,22 +112,29 @@ describe("Token Factory chatJson", () => {
   it.each([
     [
       "bad_json",
-      jsonResponse({ choices: [{ message: { content: "{not json" }, finish_reason: "stop" }] }),
+      jsonResponse({
+        choices: [{ message: { content: "{not json" }, finish_reason: "stop" }],
+      }),
     ],
     ["schema", completion({ nope: 1 })],
     ["truncated", completion({ ok: true }, "length")],
     ["bad_response", jsonResponse({ choices: [] })],
     ["http_401", new Response("no", { status: 401 })],
-  ])("rejects malformed output as %s without repairing it", async (reason, response) => {
-    fetchMock.mockResolvedValueOnce(response);
-    await expect(chatJson(request)).rejects.toMatchObject({
-      data: { code: "model_error", reason, calls: 1 },
-    });
-  });
+  ])(
+    "rejects malformed output as %s without repairing it",
+    async (reason, response) => {
+      fetchMock.mockResolvedValueOnce(response);
+      await expect(chatJson(request)).rejects.toMatchObject({
+        data: { code: "model_error", reason, calls: 1 },
+      });
+    },
+  );
 
   it("fails fast without a key and on network errors", async () => {
     vi.stubEnv("NEBIUS_API_KEY", "");
-    await expect(chatJson(request)).rejects.toMatchObject({ data: { code: "model_unconfigured" } });
+    await expect(chatJson(request)).rejects.toMatchObject({
+      data: { code: "model_unconfigured" },
+    });
     expect(fetchMock).not.toHaveBeenCalled();
     vi.stubEnv("NEBIUS_API_KEY", "k");
     fetchMock.mockRejectedValueOnce(new Error("aborted"));

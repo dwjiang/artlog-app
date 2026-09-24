@@ -32,18 +32,27 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-export function mat3mul(a: ArrayLike<number>, b: ArrayLike<number>): Float64Array {
+export function mat3mul(
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+): Float64Array {
   const out = new Float64Array(9);
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
       out[row * 3 + col] =
-        a[row * 3] * b[col] + a[row * 3 + 1] * b[3 + col] + a[row * 3 + 2] * b[6 + col];
+        a[row * 3] * b[col]
+        + a[row * 3 + 1] * b[3 + col]
+        + a[row * 3 + 2] * b[6 + col];
     }
   }
   return out;
 }
 
-export function applyHomography(H: ArrayLike<number>, x: number, y: number): Point {
+export function applyHomography(
+  H: ArrayLike<number>,
+  x: number,
+  y: number,
+): Point {
   const w = H[6] * x + H[7] * y + H[8];
   if (Math.abs(w) < W_EPSILON) return [NaN, NaN];
   return [(H[0] * x + H[1] * y + H[2]) / w, (H[3] * x + H[4] * y + H[5]) / w];
@@ -79,7 +88,10 @@ export function isDegenerateSample(points: Point[]): boolean {
 
 // Direct linear transform with h33 = 1, solved through the normal equations of the 2n×8 system
 // on Hartley-normalized points.
-export function solveHomography(src: Point[], dst: Point[]): Float64Array | null {
+export function solveHomography(
+  src: Point[],
+  dst: Point[],
+): Float64Array | null {
   const n = src.length;
   if (n < 4 || dst.length !== n) return null;
   const srcNorm = normalization(src);
@@ -102,7 +114,17 @@ export function solveHomography(src: Point[], dst: Point[]): Float64Array | null
   const h = solveLinear8(m, rhs);
   if (h === null) return null;
 
-  const normalized = new Float64Array([h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1]);
+  const normalized = new Float64Array([
+    h[0],
+    h[1],
+    h[2],
+    h[3],
+    h[4],
+    h[5],
+    h[6],
+    h[7],
+    1,
+  ]);
   const toSrc = new Float64Array([
     srcNorm.scale,
     0,
@@ -132,7 +154,9 @@ export function solveHomography(src: Point[], dst: Point[]): Float64Array | null
   return H;
 }
 
-function normalization(points: Point[]): { cx: number; cy: number; scale: number } | null {
+function normalization(
+  points: Point[],
+): { cx: number; cy: number; scale: number } | null {
   let cx = 0;
   let cy = 0;
   for (const [x, y] of points) {
@@ -266,10 +290,15 @@ export function ransacHomography(
       bound = Math.min(maxIterations, iterationBound(count / n, confidence));
     }
   }
-  if (bestH === null || bestCount < 4) return { H: null, inlierMask, inlierCount: 0, iterations };
+  if (bestH === null || bestCount < 4) {
+    return { H: null, inlierMask, inlierCount: 0, iterations };
+  }
 
   countInliers(bestH, sx, sy, dx, dy, threshold2, inlierMask);
-  const refit = solveHomography(maskedPoints(sx, sy, inlierMask), maskedPoints(dx, dy, inlierMask));
+  const refit = solveHomography(
+    maskedPoints(sx, sy, inlierMask),
+    maskedPoints(dx, dy, inlierMask),
+  );
   const H = refit ?? bestH;
   const inlierCount = countInliers(H, sx, sy, dx, dy, threshold2, inlierMask);
   return { H, inlierMask, inlierCount, iterations };
@@ -318,11 +347,19 @@ function iterationBound(inlierRatio: number, confidence: number): number {
   const outlierSampleProbability = 1 - inlierRatio ** 4;
   if (outlierSampleProbability <= 0) return 0;
   if (outlierSampleProbability >= 1) return Infinity;
-  return Math.ceil(Math.log(1 - confidence) / Math.log(outlierSampleProbability));
+  return Math.ceil(
+    Math.log(1 - confidence) / Math.log(outlierSampleProbability),
+  );
 }
 
-function maskedPoints(xs: Float64Array, ys: Float64Array, mask: Uint8Array): Point[] {
+function maskedPoints(
+  xs: Float64Array,
+  ys: Float64Array,
+  mask: Uint8Array,
+): Point[] {
   const points: Point[] = [];
-  for (let i = 0; i < mask.length; i++) if (mask[i]) points.push([xs[i], ys[i]]);
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) points.push([xs[i], ys[i]]);
+  }
   return points;
 }

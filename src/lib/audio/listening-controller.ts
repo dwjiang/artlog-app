@@ -57,7 +57,10 @@ export type ListeningState = {
   volume: number;
   revision: number;
 };
-type Progress = Record<string, { position: number; duration: number; text: string }>;
+type Progress = Record<
+  string,
+  { position: number; duration: number; text: string }
+>;
 export type ListeningDependencies = {
   render(
     track: ListeningTrack,
@@ -100,12 +103,13 @@ export class ListeningController {
     this.listeners.forEach((listener) => listener());
   }
   private remember() {
-    if (this.state.current)
+    if (this.state.current) {
       this.progress[trackKey(this.state.current)] = {
         position: this.state.position,
         duration: this.state.duration,
         text: researchKey(this.state.current),
       };
+    }
   }
   isPlaybackRequested = () =>
     this.state.phase === "loading" ? this.desiredPlaying : this.state.playing;
@@ -132,11 +136,14 @@ export class ListeningController {
     this.dependencies.cancel();
     this.desiredPlaying = autoplay;
     const saved = this.progressFor(track);
-    const position = saved && saved.position < saved.duration - 0.5 ? saved.position : 0;
+    const position =
+      saved && saved.position < saved.duration - 0.5 ? saved.position : 0;
     this.update({
       current: track,
       sentences: undefined,
-      queue: this.state.queue.filter((item) => item.work.artworkId !== track.work.artworkId),
+      queue: this.state.queue.filter(
+        (item) => item.work.artworkId !== track.work.artworkId,
+      ),
       phase: "loading",
       playing: false,
       position,
@@ -157,59 +164,70 @@ export class ListeningController {
         started = false,
         finished = false;
       this.loadTimeout = setTimeout(() => {
-        if (generation === this.generation && !started)
+        if (generation === this.generation && !started) {
           this.fail("Audio couldn’t load. Tap Retry.");
+        }
       }, 15000);
       this.update({
         duration: rendered.duration ?? saved?.duration ?? 0,
         sentences: rendered.sentences,
       });
-      this.subscription = player.addListener("playbackStatusUpdate", (status) => {
-        if (generation !== this.generation) return;
-        if (status.playbackState === "error") {
-          this.fail("Audio couldn’t play. Tap Retry.");
-          return;
-        }
-        if (!status.isLoaded) return;
-        if (!starting) {
-          starting = true;
-          const duration = status.duration || rendered.duration || 0;
-          this.update({ duration });
-          void player
-            .seekTo(Math.min(position, duration))
-            .then(() => {
-              if (generation !== this.generation) return;
-              started = true;
-              clearTimeout(this.loadTimeout);
-              player.setActiveForLockScreen(true, {
-                title: track.work.title,
-                artist: track.work.artist,
-                artworkUrl: track.work.imageUri,
-              });
-              this.update({ phase: "ready" });
-              if (this.desiredPlaying) player.play();
-            })
-            .catch(() => {
-              if (generation === this.generation) this.fail("Audio couldn’t start. Tap Retry.");
-            });
-        }
-        if (!started) return;
-        this.update({
-          position: status.currentTime,
-          duration: status.duration || this.state.duration,
-          playing: status.playing,
-        });
-        this.remember();
-        if (status.didJustFinish && !finished) {
-          finished = true;
-          const next = this.state.queue[0];
-          if (next) void this.play(next, !this.state.pauseBetween, this.state.pauseBetween);
-          else {
-            this.desiredPlaying = false;
-            this.update({ playing: false, position: this.state.duration });
+      this.subscription = player.addListener(
+        "playbackStatusUpdate",
+        (status) => {
+          if (generation !== this.generation) return;
+          if (status.playbackState === "error") {
+            this.fail("Audio couldn’t play. Tap Retry.");
+            return;
           }
-        }
-      });
+          if (!status.isLoaded) return;
+          if (!starting) {
+            starting = true;
+            const duration = status.duration || rendered.duration || 0;
+            this.update({ duration });
+            void player
+              .seekTo(Math.min(position, duration))
+              .then(() => {
+                if (generation !== this.generation) return;
+                started = true;
+                clearTimeout(this.loadTimeout);
+                player.setActiveForLockScreen(true, {
+                  title: track.work.title,
+                  artist: track.work.artist,
+                  artworkUrl: track.work.imageUri,
+                });
+                this.update({ phase: "ready" });
+                if (this.desiredPlaying) player.play();
+              })
+              .catch(() => {
+                if (generation === this.generation) {
+                  this.fail("Audio couldn’t start. Tap Retry.");
+                }
+              });
+          }
+          if (!started) return;
+          this.update({
+            position: status.currentTime,
+            duration: status.duration || this.state.duration,
+            playing: status.playing,
+          });
+          this.remember();
+          if (status.didJustFinish && !finished) {
+            finished = true;
+            const next = this.state.queue[0];
+            if (next) {
+              void this.play(
+                next,
+                !this.state.pauseBetween,
+                this.state.pauseBetween,
+              );
+            } else {
+              this.desiredPlaying = false;
+              this.update({ playing: false, position: this.state.duration });
+            }
+          }
+        },
+      );
     } catch (error) {
       if (generation === this.generation) this.fail(preparationError(error));
     }
@@ -232,8 +250,9 @@ export class ListeningController {
     if (this.state.playing) {
       this.desiredPlaying = false;
       this.player?.pause();
-    } else if (this.state.position >= this.state.duration - 0.2) void this.play(this.state.current);
-    else {
+    } else if (this.state.position >= this.state.duration - 0.2) {
+      void this.play(this.state.current);
+    } else {
       this.desiredPlaying = true;
       this.update({ waiting: false });
       this.player?.play();
@@ -250,7 +269,9 @@ export class ListeningController {
         this.remember();
       }
     } catch {
-      if (generation === this.generation) this.fail("Couldn’t change position. Tap Retry.");
+      if (generation === this.generation) {
+        this.fail("Couldn’t change position. Tap Retry.");
+      }
     }
   };
   restart = () => {
@@ -262,11 +283,19 @@ export class ListeningController {
   };
   enqueue = (track: ListeningTrack) => {
     if (this.state.current?.work.artworkId === track.work.artworkId) return;
-    if (this.state.queue.some((item) => item.work.artworkId === track.work.artworkId)) return;
+    if (
+      this.state.queue.some(
+        (item) => item.work.artworkId === track.work.artworkId,
+      )
+    ) {
+      return;
+    }
     this.update({ queue: [...this.state.queue, track] });
   };
   remove = (key: string) =>
-    this.update({ queue: this.state.queue.filter((track) => trackKey(track) !== key) });
+    this.update({
+      queue: this.state.queue.filter((track) => trackKey(track) !== key),
+    });
   move = (key: string, offset: number) => {
     const queue = [...this.state.queue],
       from = queue.findIndex((track) => trackKey(track) === key),

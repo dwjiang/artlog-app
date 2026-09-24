@@ -1,4 +1,7 @@
-import type { DocentSentence, FactSheetEntry } from "../../convex/lib/validators";
+import type {
+  DocentSentence,
+  FactSheetEntry,
+} from "../../convex/lib/validators";
 
 export const GUIDE_MODEL = "nvidia/Nemotron-3-Ultra-550b-a55b";
 export const GUIDE_REASONING = "low";
@@ -55,22 +58,31 @@ export function guideResearch(facts: FactSheetEntry[]): FactSheetEntry[] {
   return facts.filter((fact) => !CATALOGUE_LINE.test(fact.text.trim()));
 }
 
-export type GuideLine = { sentence: string; fact_ids: string[]; support: string };
+export type GuideLine = {
+  sentence: string;
+  fact_ids: string[];
+  support: string;
+};
 
 export function parseGuideLines(value: unknown): GuideLine[] | null {
   if (!Array.isArray(value)) return null;
   const lines: GuideLine[] = [];
   for (const entry of value) {
     if (
-      !entry ||
-      typeof entry !== "object" ||
-      typeof entry.sentence !== "string" ||
-      typeof entry.support !== "string" ||
-      !Array.isArray(entry.fact_ids) ||
-      !entry.fact_ids.every((id: unknown) => typeof id === "string")
-    )
+      !entry
+      || typeof entry !== "object"
+      || typeof entry.sentence !== "string"
+      || typeof entry.support !== "string"
+      || !Array.isArray(entry.fact_ids)
+      || !entry.fact_ids.every((id: unknown) => typeof id === "string")
+    ) {
       return null;
-    lines.push({ sentence: entry.sentence, fact_ids: entry.fact_ids, support: entry.support });
+    }
+    lines.push({
+      sentence: entry.sentence,
+      fact_ids: entry.fact_ids,
+      support: entry.support,
+    });
   }
   return lines;
 }
@@ -90,18 +102,29 @@ export function unsupportedLines(
   lines: GuideLine[],
   facts: readonly { id: string; text: string }[],
 ): GuideLine[] {
-  const texts = new Map(facts.map((fact) => [fact.id, normalizePassage(fact.text)]));
+  const texts = new Map(
+    facts.map((fact) => [fact.id, normalizePassage(fact.text)]),
+  );
   return lines.filter((line) => {
     const span = normalizePassage(line.support);
-    return span.length < 8 || !line.fact_ids.some((id) => texts.get(id)?.includes(span));
+    return (
+      span.length < 8
+      || !line.fact_ids.some((id) => texts.get(id)?.includes(span))
+    );
   });
 }
 
-export function guideOpening(artwork: { title: string; artist: string; date?: string }): string {
+export function guideOpening(artwork: {
+  title: string;
+  artist: string;
+  date?: string;
+}): string {
   const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
   const identity = `This is ${normalize(artwork.title)}, by ${normalize(artwork.artist)}`;
   const date = normalize(artwork.date ?? "");
-  return date ? `${identity}, dated ${date}.` : `${identity}. Its date is unknown.`;
+  return date
+    ? `${identity}, dated ${date}.`
+    : `${identity}. Its date is unknown.`;
 }
 
 export function validateGuide(
@@ -110,17 +133,20 @@ export function validateGuide(
   opening: string,
 ): DocentSentence[] | null {
   if (
-    !Array.isArray(value) ||
-    value[0]?.sentence !== opening ||
-    !Array.isArray(value[0]?.factIds) ||
-    value[0].factIds.length
-  )
+    !Array.isArray(value)
+    || value[0]?.sentence !== opening
+    || !Array.isArray(value[0]?.factIds)
+    || value[0].factIds.length
+  ) {
     return null;
+  }
   const body = validateGuideBody(value.slice(1), factIds);
   if (!body || body.some((line) => line.sentence === opening)) return null;
   // Identification comes from the artwork record; only the researched body needs fact citations.
   const sentences = [{ sentence: opening, factIds: [] }, ...body];
-  return sentences.map((line) => line.sentence).join(" ").length <= 4000 ? sentences : null;
+  return sentences.map((line) => line.sentence).join(" ").length <= 4000
+    ? sentences
+    : null;
 }
 
 // Thin research (under eight prose facts) may run shorter than the 150-word target rather than pad.
@@ -139,31 +165,37 @@ export function validateGuideBody(
   const seen = new Set<string>();
   for (const entry of value) {
     if (
-      !entry ||
-      typeof entry.sentence !== "string" ||
-      !Array.isArray(entry.factIds) ||
-      !entry.factIds.length ||
-      entry.factIds.some((id: unknown) => typeof id !== "string" || !factIds.has(id))
-    )
+      !entry
+      || typeof entry.sentence !== "string"
+      || !Array.isArray(entry.factIds)
+      || !entry.factIds.length
+      || entry.factIds.some(
+        (id: unknown) => typeof id !== "string" || !factIds.has(id),
+      )
+    ) {
       return null;
+    }
     const sentence = entry.sentence.replace(/\s+/g, " ").trim();
     // Braces, brackets and tags never belong in speech; they mean JSON or markup leaked into a sentence,
     // and a sentence without closing punctuation was cut off mid-thought.
     if (
-      !sentence ||
-      sentence.length > 500 ||
-      seen.has(sentence) ||
-      /[{}[\]<>]|\bfact_ids\b/.test(sentence) ||
-      !/[.!?…]["'”’)]*$/.test(sentence)
-    )
+      !sentence
+      || sentence.length > 500
+      || seen.has(sentence)
+      || /[{}[\]<>]|\bfact_ids\b/.test(sentence)
+      || !/[.!?…]["'”’)]*$/.test(sentence)
+    ) {
       return null;
+    }
     seen.add(sentence);
     sentences.push({ sentence, factIds: [...new Set<string>(entry.factIds)] });
   }
   const text = sentences.map((entry) => entry.sentence).join(" ");
   const words = text.split(/\s+/).length;
   // Shimmer reads 143–162 words a minute with these instructions: 150–200 words is about 60 to 90 seconds, 110 about 45.
-  return text.length <= 3500 && words >= guideWordFloor(factIds.size) && words <= GUIDE_MAX_WORDS
+  return text.length <= 3500
+    && words >= guideWordFloor(factIds.size)
+    && words <= GUIDE_MAX_WORDS
     ? sentences
     : null;
 }

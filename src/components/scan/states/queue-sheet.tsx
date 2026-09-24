@@ -34,33 +34,42 @@ function QueueContent() {
   const [discardError, setDiscardError] = useState<string>();
 
   function discard(item: PendingScan) {
-    Alert.alert("Discard this scan?", "Its unsaved photos will be removed from this device.", [
-      { text: "Keep scan", style: "cancel" },
-      {
-        text: "Discard scan",
-        style: "destructive",
-        onPress: () => {
-          if (pending.current.has(item.localId)) return;
-          pending.current.add(item.localId);
-          setDiscarding((ids) => [...ids, item.localId]);
-          setDiscardError(undefined);
-          void discardCapture(item.localId, owner)
-            .catch((error: unknown) => {
-              reportError(error, "queue.discard");
-              setDiscardError("Couldn’t finish removing this scan. Try again.");
-            })
-            .finally(() => {
-              pending.current.delete(item.localId);
-              setDiscarding((ids) => ids.filter((id) => id !== item.localId));
-            });
+    Alert.alert(
+      "Discard this scan?",
+      "Its unsaved photos will be removed from this device.",
+      [
+        { text: "Keep scan", style: "cancel" },
+        {
+          text: "Discard scan",
+          style: "destructive",
+          onPress: () => {
+            if (pending.current.has(item.localId)) return;
+            pending.current.add(item.localId);
+            setDiscarding((ids) => [...ids, item.localId]);
+            setDiscardError(undefined);
+            void discardCapture(item.localId, owner)
+              .catch((error: unknown) => {
+                reportError(error, "queue.discard");
+                setDiscardError(
+                  "Couldn’t finish removing this scan. Try again.",
+                );
+              })
+              .finally(() => {
+                pending.current.delete(item.localId);
+                setDiscarding((ids) => ids.filter((id) => id !== item.localId));
+              });
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   function open(item: PendingScan) {
     router.dismiss();
-    router.push({ pathname: "/result/[scanId]", params: { scanId: `local-${item.localId}` } });
+    router.push({
+      pathname: "/result/[scanId]",
+      params: { scanId: `local-${item.localId}` },
+    });
   }
 
   function retry(item: PendingScan) {
@@ -71,7 +80,9 @@ function QueueContent() {
     void retryPendingScan(item.localId)
       .catch((error: unknown) => {
         reportError(error, "queue.retry");
-        setRetryError("Couldn’t retry this scan. Your photo is still here. Tap retry again.");
+        setRetryError(
+          "Couldn’t retry this scan. Your photo is still here. Tap retry again.",
+        );
       })
       .finally(() => {
         pending.current.delete(item.localId);
@@ -93,17 +104,23 @@ function QueueContent() {
         <GalleryButton label="Close" onPress={() => router.dismiss()} />
       </View>
       {items.some((item) => item.status === "queued") && (
-        <View style={{ padding: 14, backgroundColor: "#EEF2FF", borderRadius: 8 }}>
+        <View
+          style={{ padding: 14, backgroundColor: "#EEF2FF", borderRadius: 8 }}
+        >
           <ThemedText type="small">
-            Waiting for a connection. Your photos are safely saved on this iPhone.
+            Waiting for a connection. Your photos are safely saved on this
+            iPhone.
           </ThemedText>
         </View>
       )}
-      {loading && !error && !items.length && <ListSkeleton label="Loading scans…" rows={3} />}
+      {loading && !error && !items.length && (
+        <ListSkeleton label="Loading scans…" rows={3} />
+      )}
       {error && (
         <>
           <ThemedText themeColor="error" accessibilityRole="alert">
-            Couldn’t load recent scans. Close this sheet and reopen it to try again.
+            Couldn’t load recent scans. Close this sheet and reopen it to try
+            again.
           </ThemedText>
         </>
       )}

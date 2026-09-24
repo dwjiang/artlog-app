@@ -12,7 +12,11 @@ import {
   unsupportedLines,
   validateGuide,
 } from "../shared/audio/guide";
-import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
+import {
+  SPEECH_INSTRUCTIONS,
+  SPEECH_MODEL,
+  SPEECH_VOICE,
+} from "../shared/audio/speech";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery } from "./_generated/server";
@@ -26,7 +30,11 @@ import {
   type RenderedNarration,
 } from "./lib/narrationCache";
 import { chatJson } from "./lib/tokenFactory";
-import { docentSentence, factSheetEntry, type DocentSentence } from "./lib/validators";
+import {
+  docentSentence,
+  factSheetEntry,
+  type DocentSentence,
+} from "./lib/validators";
 
 const audio = v.object({
   uri: v.string(),
@@ -47,20 +55,26 @@ export const claim = internalMutation({
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get(args.artworkId);
     if (
-      !artwork ||
-      artwork.retiredAt ||
-      artwork.identityStatus !== "established" ||
-      artwork.factSheetNeedsReview
-    )
+      !artwork
+      || artwork.retiredAt
+      || artwork.identityStatus !== "established"
+      || artwork.factSheetNeedsReview
+    ) {
       throw new ConvexError({ code: "narration_unavailable" });
+    }
     const facts = guideResearch(artwork.factSheet ?? []);
     if (!facts.length) throw new ConvexError({ code: "narration_unavailable" });
     const opening = guideOpening(artwork);
     const audio = await renderedNarration(ctx, artwork);
     if (audio) return { facts, opening, owned: false, audio };
     const entry = await narrationEntry(ctx, artwork._id);
-    if (entry && narrationCurrent(entry, artwork) && Date.now() - entry.claimedAt < LEASE_MS)
+    if (
+      entry
+      && narrationCurrent(entry, artwork)
+      && Date.now() - entry.claimedAt < LEASE_MS
+    ) {
       return { facts, opening, owned: false, audio: null };
+    }
     await limitDevice(ctx, "narration", device._id);
     await limitKey(ctx, "narrationDaily", "global");
     const fields = {
@@ -93,7 +107,10 @@ export const finish = internalMutation({
     artworkId: v.id("artworks"),
     claim: v.string(),
     audio: v.optional(
-      v.object({ storageId: v.id("_storage"), sentences: v.array(docentSentence) }),
+      v.object({
+        storageId: v.id("_storage"),
+        sentences: v.array(docentSentence),
+      }),
     ),
   },
   returns: v.null(),
@@ -132,21 +149,28 @@ export const render = action({
   handler: async (ctx, { artworkId }): Promise<RenderedNarration> => {
     await requireDeviceFromAction(ctx);
     const claimId = crypto.randomUUID();
-    let claimed = await ctx.runMutation(internal.narration.claim, { artworkId, claim: claimId });
+    let claimed = await ctx.runMutation(internal.narration.claim, {
+      artworkId,
+      claim: claimId,
+    });
     // Share an in-flight generation instead of paying for the same script twice. Claiming again
     // each second returns its audio once ready, or takes the generation over if it failed.
     for (let attempt = 0; !claimed.audio && !claimed.owned; attempt++) {
       if (attempt === 120) throw new ConvexError({ code: "narration_busy" });
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      claimed = await ctx.runMutation(internal.narration.claim, { artworkId, claim: claimId });
+      claimed = await ctx.runMutation(internal.narration.claim, {
+        artworkId,
+        claim: claimId,
+      });
     }
     const { audio, facts, opening } = claimed;
     if (audio) return audio;
     let storageId: Id<"_storage"> | undefined;
     try {
       const key = process.env.OPENAI_API_KEY;
-      if (!key || !process.env.NEBIUS_API_KEY)
+      if (!key || !process.env.NEBIUS_API_KEY) {
         throw new ConvexError({ code: "narration_not_configured" });
+      }
       const day = await ctx.runMutation(internal.spend.reserve, {
         kind: "tokenFactory",
         amount: 2,
@@ -159,7 +183,9 @@ export const render = action({
         problems = [];
         const lines = parseGuideLines(value);
         if (!lines) {
-          problems.push("The response was not an array of sentence, fact_ids and support.");
+          problems.push(
+            "The response was not an array of sentence, fact_ids and support.",
+          );
           return null;
         }
         problems = unsupportedLines(lines, facts).map(
@@ -170,15 +196,19 @@ export const render = action({
         const guide = validateGuide(
           [
             { sentence: opening, factIds: [] },
-            ...lines.map(({ sentence, fact_ids }) => ({ sentence, factIds: fact_ids })),
+            ...lines.map(({ sentence, fact_ids }) => ({
+              sentence,
+              factIds: fact_ids,
+            })),
           ],
           factIds,
           opening,
         );
-        if (!guide)
+        if (!guide) {
           problems.push(
             `The script broke a format rule: ${guideWordFloor(facts.length)} to ${GUIDE_MAX_WORDS} words after the opening, only real fact ids, every sentence ending in punctuation, no repeated sentence.`,
           );
+        }
         return guide;
       };
       const write = (previousAttemptProblems?: string) =>
@@ -205,7 +235,11 @@ export const render = action({
           script = await write();
         } catch (error) {
           // One more attempt, with the rejected sentences named; pointed feedback lands better than the rules did.
-          if (!(error instanceof ConvexError && error.data.reason === "schema")) throw error;
+          if (
+            !(error instanceof ConvexError && error.data.reason === "schema")
+          ) {
+            throw error;
+          }
           calls += error.data.calls;
           script = await write(
             `Your previous script was rejected. ${problems.join(" ")} Fix these and return the whole script again.`,
@@ -214,8 +248,12 @@ export const render = action({
         calls += script.calls;
         sentences = script.value;
       } catch (error) {
-        if (error instanceof ConvexError && typeof error.data.calls === "number")
+        if (
+          error instanceof ConvexError
+          && typeof error.data.calls === "number"
+        ) {
           calls += error.data.calls;
+        }
         throw error;
       } finally {
         await ctx.runMutation(internal.spend.reconcile, {
@@ -227,7 +265,10 @@ export const render = action({
       }
       const response = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           model: SPEECH_MODEL,
           voice: SPEECH_VOICE,
@@ -238,25 +279,38 @@ export const render = action({
         signal: AbortSignal.timeout(60_000),
       });
       if (!response.ok) {
-        console.warn("Narration provider request failed", { status: response.status });
+        console.warn("Narration provider request failed", {
+          status: response.status,
+        });
         throw new ConvexError({ code: "narration_provider_failed" });
       }
       const bytes = await response.arrayBuffer();
-      if (!bytes.byteLength || !response.headers.get("content-type")?.startsWith("audio/"))
+      if (
+        !bytes.byteLength
+        || !response.headers.get("content-type")?.startsWith("audio/")
+      ) {
         throw new ConvexError({ code: "narration_provider_failed" });
-      storageId = await ctx.storage.store(new Blob([bytes], { type: "audio/mpeg" }));
+      }
+      storageId = await ctx.storage.store(
+        new Blob([bytes], { type: "audio/mpeg" }),
+      );
       await ctx.runMutation(internal.narration.finish, {
         artworkId,
         claim: claimId,
         audio: { storageId, sentences },
       });
       storageId = undefined;
-      const ready = await ctx.runQuery(internal.narration.rendered, { artworkId });
+      const ready = await ctx.runQuery(internal.narration.rendered, {
+        artworkId,
+      });
       if (!ready) throw new ConvexError({ code: "narration_unavailable" });
       return ready;
     } catch (error) {
       if (storageId) await ctx.storage.delete(storageId);
-      await ctx.runMutation(internal.narration.finish, { artworkId, claim: claimId });
+      await ctx.runMutation(internal.narration.finish, {
+        artworkId,
+        claim: claimId,
+      });
       if (error instanceof ConvexError) throw error;
       throw new ConvexError({ code: "narration_provider_failed" });
     }

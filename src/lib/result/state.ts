@@ -2,7 +2,11 @@ import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { DocentSentence, FactChip, RightNowCard } from "../../../convex/lib/validators";
+import type {
+  DocentSentence,
+  FactChip,
+  RightNowCard,
+} from "../../../convex/lib/validators";
 import { errorMessage } from "@/lib/network-error";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
@@ -46,20 +50,53 @@ export function toResultViewState(
   scan: ScanResult | Error | undefined,
   selection: ResultSelection = {},
 ): ResultViewState {
-  if (scan === undefined) return { kind: "loading", runnerUps: [], editable: false };
-  if (scan instanceof Error)
-    return { kind: "failed", runnerUps: [], editable: false, error: errorMessage(scan) };
-  if (scan === null)
-    return { kind: "failed", runnerUps: [], editable: false, error: "scan_not_found" };
-  if (scan.status === "pending") return { kind: "loading", runnerUps: [], editable: false };
-  if (scan.status === "unsupported_version")
-    return { kind: "unsupported", runnerUps: [], editable: false, error: scan.error };
-  if (scan.status === "failed")
-    return { kind: "failed", runnerUps: [], editable: false, error: scan.error };
+  if (scan === undefined) {
+    return { kind: "loading", runnerUps: [], editable: false };
+  }
+  if (scan instanceof Error) {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: errorMessage(scan),
+    };
+  }
+  if (scan === null) {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: "scan_not_found",
+    };
+  }
+  if (scan.status === "pending") {
+    return { kind: "loading", runnerUps: [], editable: false };
+  }
+  if (scan.status === "unsupported_version") {
+    return {
+      kind: "unsupported",
+      runnerUps: [],
+      editable: false,
+      error: scan.error,
+    };
+  }
+  if (scan.status === "failed") {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: scan.error,
+    };
+  }
 
   const rejected = new Set(selection.rejectedObjectIds ?? []);
-  const candidates = dedupe([...(scan.best ? [scan.best] : []), ...(scan.runnerUps ?? [])]);
-  const chosen = candidates.find((candidate) => candidate.objectId === selection.chosenObjectId);
+  const candidates = dedupe([
+    ...(scan.best ? [scan.best] : []),
+    ...(scan.runnerUps ?? []),
+  ]);
+  const chosen = candidates.find(
+    (candidate) => candidate.objectId === selection.chosenObjectId,
+  );
   // A miss keeps its low-probability best among the suggestions rather than naming it.
   const primary = chosen ?? (scan.outcome === "miss" ? undefined : scan.best);
   const runnerUps = candidates.filter(
@@ -67,7 +104,9 @@ export function toResultViewState(
   );
   const kind: ResultKind = !primary
     ? "unidentified"
-    : chosen || primary.identityStatus === "tentative" || scan.outcome !== "confident"
+    : chosen
+        || primary.identityStatus === "tentative"
+        || scan.outcome !== "confident"
       ? "soft"
       : "confident";
   return {
@@ -76,7 +115,11 @@ export function toResultViewState(
     runnerUps,
     editable: true,
     ...(kind === "confident"
-      ? { docent: scan.docent, factSheet: scan.factSheet, rightNow: scan.rightNow }
+      ? {
+          docent: scan.docent,
+          factSheet: scan.factSheet,
+          rightNow: scan.rightNow,
+        }
       : {}),
   };
 }

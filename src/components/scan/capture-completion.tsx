@@ -40,7 +40,11 @@ export function CaptureCompletion({
           padding: 6,
         }}
       >
-        <Image source="sf:checkmark" style={{ width: 14, height: 14 }} tintColor={Gallery.ink} />
+        <Image
+          source="sf:checkmark"
+          style={{ width: 14, height: 14 }}
+          tintColor={Gallery.ink}
+        />
         <ThemedText type="small">Saved to your collection</ThemedText>
       </View>
       <ThemedText style={styles.copy}>{completion.title}</ThemedText>
@@ -73,10 +77,15 @@ export function CaptureCompletion({
         label="View artwork"
         fullWidth
         onPress={() =>
-          router.navigate({ pathname: "/saved/[savedId]", params: { savedId: completion.savedId } })
+          router.navigate({
+            pathname: "/saved/[savedId]",
+            params: { savedId: completion.savedId },
+          })
         }
       />
-      {onViewResult && <GalleryButton label="View result" fullWidth onPress={onViewResult} />}
+      {onViewResult && (
+        <GalleryButton label="View result" fullWidth onPress={onViewResult} />
+      )}
       <ThemedText type="small" style={styles.note}>
         {sharedToIndex
           ? "An artwork crop was saved to the shared index."

@@ -25,6 +25,10 @@ export function pickerDate(value: string): Date {
 export function dateFromPicker(value: Date): string {
   return `${String(value.getFullYear()).padStart(4, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 }
-export function validVisitDate(value: string, timeZone: string, now = Date.now()): boolean {
+export function validVisitDate(
+  value: string,
+  timeZone: string,
+  now = Date.now(),
+): boolean {
   return isCalendarDate(value) && value <= calendarDate(now, timeZone);
 }

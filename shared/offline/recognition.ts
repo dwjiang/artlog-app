@@ -23,15 +23,20 @@ export function rankEntries(
   entries: MuseumEntry[],
   previous: MuseumEntry[] = [],
 ): MuseumEntry[] {
-  const matches = new Map(previous.map((entry) => [entry.candidate.object._id, entry]));
+  const matches = new Map(
+    previous.map((entry) => [entry.candidate.object._id, entry]),
+  );
   for (const entry of entries) {
-    const score = Math.max(...entry.vectors.map((reference) => similarity(vector, reference)));
+    const score = Math.max(
+      ...entry.vectors.map((reference) => similarity(vector, reference)),
+    );
     const previous = matches.get(entry.candidate.object._id);
-    if (!previous || score > previous.candidate.similarity)
+    if (!previous || score > previous.candidate.similarity) {
       matches.set(entry.candidate.object._id, {
         vectors: [],
         candidate: { ...entry.candidate, similarity: score },
       });
+    }
   }
   return [...matches.values()]
     .sort((a, b) => b.candidate.similarity - a.candidate.similarity)
@@ -70,7 +75,9 @@ export function recognizeEntries(
     medium: candidate.object.medium,
     institution: candidate.institution,
     gallery:
-      candidate.placement?.venueId === payload.venueId ? candidate.placement?.gallery : undefined,
+      candidate.placement?.venueId === payload.venueId
+        ? candidate.placement?.gallery
+        : undefined,
   });
   const artwork = decision.best.candidate.artwork;
   return {

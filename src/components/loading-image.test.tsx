@@ -5,9 +5,15 @@ import { reportError } from "@/lib/observability";
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 
 it("keeps the ghost until the image loads and starts a fresh ghost for a changed source", async () => {
-  const props = { uri: "file:///first.jpg", label: "Artwork", style: { width: 120, height: 160 } };
+  const props = {
+    uri: "file:///first.jpg",
+    label: "Artwork",
+    style: { width: 120, height: 160 },
+  };
   const view = await render(<LoadingImage {...props} />);
-  expect(screen.getByRole("progressbar", { name: "Loading image: Artwork" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("progressbar", { name: "Loading image: Artwork" }),
+  ).toBeOnTheScreen();
   expect(screen.queryByText(/Loading/)).toBeNull();
   await fireEvent(screen.getByLabelText("Artwork"), "load", {
     nativeEvent: { source: { width: 120, height: 160 } },
@@ -34,9 +40,15 @@ it("ends loading on failure, keeps an accessible fallback, and retries a new sou
     level: "warning",
     data: { source: "local" },
   });
-  expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain("file:///broken.jpg");
+  expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain(
+    "file:///broken.jpg",
+  );
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(screen.getByRole("image", { name: "Artwork: image unavailable" })).toBeOnTheScreen();
-  await view.rerender(<LoadingImage {...props} uri="file:///replacement.jpg" />);
+  expect(
+    screen.getByRole("image", { name: "Artwork: image unavailable" }),
+  ).toBeOnTheScreen();
+  await view.rerender(
+    <LoadingImage {...props} uri="file:///replacement.jpg" />,
+  );
   expect(screen.getByRole("progressbar")).toBeOnTheScreen();
 });

@@ -1,14 +1,20 @@
 import { act, render, renderHook } from "@testing-library/react-native";
 import { createElement } from "react";
-import { ReduceMotion, ReducedMotionConfig, setUpTests } from "react-native-reanimated";
+import {
+  ReduceMotion,
+  ReducedMotionConfig,
+  setUpTests,
+} from "react-native-reanimated";
 import { useGlobeCamera } from "./use-globe-camera";
 import type { GlobeCamera } from "@/lib/journal/globe-geometry";
 
 jest.unmock("react-native-reanimated");
 jest.mock("react-native-worklets", () => ({
   ...jest.requireActual("react-native-worklets/src/mock"),
-  scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
-  scheduleOnUI: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
+  scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) =>
+    fn(...args),
+  scheduleOnUI: (fn: (...args: unknown[]) => void, ...args: unknown[]) =>
+    fn(...args),
 }));
 
 setUpTests();
@@ -20,7 +26,9 @@ afterEach(() => {
 });
 
 type Controls = ReturnType<typeof useGlobeCamera>;
-type PanEvent = Parameters<NonNullable<Controls["pan"]["handlers"]["onBegin"]>>[0];
+type PanEvent = Parameters<
+  NonNullable<Controls["pan"]["handlers"]["onBegin"]>
+>[0];
 
 function panEvent(overrides: Partial<PanEvent> = {}): PanEvent {
   return {
@@ -47,7 +55,10 @@ async function renderCamera(initialCamera: GlobeCamera, onChange = jest.fn()) {
 
 it("continues rotating after release, slows down, and saves the settled camera", async () => {
   const onChange = jest.fn();
-  const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
+  const { result } = await renderCamera(
+    { yaw: 0, pitch: 0, zoom: 1 },
+    onChange,
+  );
   await act(() => flick(result.current));
   const released = result.current.camera.get();
   await act(() => jest.advanceTimersByTime(100));
@@ -56,7 +67,9 @@ it("continues rotating after release, slows down, and saves the settled camera",
   expect(coasting.pitch).toBeGreaterThan(released.pitch);
   expect(onChange).not.toHaveBeenCalled();
   await act(() => jest.advanceTimersByTime(100));
-  expect(result.current.camera.get().yaw - coasting.yaw).toBeLessThan(coasting.yaw - released.yaw);
+  expect(result.current.camera.get().yaw - coasting.yaw).toBeLessThan(
+    coasting.yaw - released.yaw,
+  );
   await act(() => jest.advanceTimersByTime(3000));
   const settled = result.current.camera.get();
   expect(onChange).toHaveBeenLastCalledWith(settled);
@@ -74,7 +87,9 @@ it("stops on touch down and starts the next drag from the interrupted position",
   expect(result.current.camera.get()).toEqual(stopped);
   await act(() => {
     result.current.pan.handlers.onStart?.(panEvent());
-    result.current.pan.handlers.onUpdate?.(panEvent({ translationX: -10, translationY: 0 }));
+    result.current.pan.handlers.onUpdate?.(
+      panEvent({ translationX: -10, translationY: 0 }),
+    );
   });
   expect(result.current.camera.get().yaw).toBeCloseTo(stopped.yaw - 3.4);
   expect(result.current.camera.get().pitch).toBe(stopped.pitch);
@@ -105,10 +120,15 @@ it("scales drag and release speed with the zoom level", async () => {
 
 it("lets a pinch take over without resuming rotation or saving an unfinished camera", async () => {
   const onChange = jest.fn();
-  const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
+  const { result } = await renderCamera(
+    { yaw: 0, pitch: 0, zoom: 1 },
+    onChange,
+  );
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
-  type PinchEvent = Parameters<NonNullable<Controls["pinch"]["handlers"]["onStart"]>>[0];
+  type PinchEvent = Parameters<
+    NonNullable<Controls["pinch"]["handlers"]["onStart"]>
+  >[0];
   const pinch = { scale: 1.5 } as PinchEvent;
   await act(() => {
     // A recognizer that loses to the pan must not persist a mid-flight camera.
@@ -141,7 +161,10 @@ it("cancels momentum when the camera is reset or focused on a museum", async () 
 
 it("settles on demand: stops momentum and saves the position reached", async () => {
   const onChange = jest.fn();
-  const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
+  const { result } = await renderCamera(
+    { yaw: 0, pitch: 0, zoom: 1 },
+    onChange,
+  );
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
   await act(() => result.current.settle());
@@ -156,7 +179,10 @@ it("settles on demand: stops momentum and saves the position reached", async () 
 
 it("saves the current position when switching away during momentum", async () => {
   const onChange = jest.fn();
-  const { result, unmount } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 }, onChange);
+  const { result, unmount } = await renderCamera(
+    { yaw: 0, pitch: 0, zoom: 1 },
+    onChange,
+  );
   await act(() => flick(result.current));
   await act(() => jest.advanceTimersByTime(100));
   const interrupted = result.current.camera.get();
@@ -165,7 +191,9 @@ it("saves the current position when switching away during momentum", async () =>
 });
 
 it("keeps direct dragging but skips momentum when Reduce Motion is enabled", async () => {
-  await render(createElement(ReducedMotionConfig, { mode: ReduceMotion.Always }));
+  await render(
+    createElement(ReducedMotionConfig, { mode: ReduceMotion.Always }),
+  );
   const { result } = await renderCamera({ yaw: 0, pitch: 0, zoom: 1 });
   await act(() => flick(result.current));
   const released = result.current.camera.get();

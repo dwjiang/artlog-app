@@ -18,22 +18,35 @@ const mockAudio = {
       ],
     },
   },
-  sentences: [{ sentence: "Take a moment to notice the lilies.", factIds: ["f1"] }] as
-    | { sentence: string; factIds: string[] }[]
-    | undefined,
+  sentences: [
+    { sentence: "Take a moment to notice the lilies.", factIds: ["f1"] },
+  ] as { sentence: string; factIds: string[] }[] | undefined,
   phase: "ready",
   controller: {},
 };
-jest.mock("@/lib/audio/use-listening", () => ({ useListening: () => mockAudio }));
-jest.mock("expo-router", () => ({ useLocalSearchParams: () => ({}), router: { back: jest.fn() } }));
-jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
-jest.mock("./listening-queue", () => ({ ListeningQueue: () => null, QueueOptions: () => null }));
+jest.mock("@/lib/audio/use-listening", () => ({
+  useListening: () => mockAudio,
+}));
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({}),
+  router: { back: jest.fn() },
+}));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+}));
+jest.mock("./listening-queue", () => ({
+  ListeningQueue: () => null,
+  QueueOptions: () => null,
+}));
 jest.mock("./add-saved-works", () => ({ AddSavedWorks: () => null }));
 jest.mock("./player-transport", () => ({
   PlayerTransport: ({ onView }: { onView: (view: string) => void }) => {
     const { Pressable, Text } = jest.requireActual("react-native");
     return (
-      <Pressable accessibilityRole="button" onPress={() => onView("transcript")}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onView("transcript")}
+      >
         <Text>Transcript and sources</Text>
       </Pressable>
     );
@@ -42,8 +55,12 @@ jest.mock("./player-transport", () => ({
 
 it("shows the exact spoken script with its sources rather than the artwork card text", async () => {
   await render(<NowPlayingScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
-  expect(screen.getByText("Take a moment to notice the lilies.")).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Transcript and sources" }),
+  );
+  expect(
+    screen.getByText("Take a moment to notice the lilies."),
+  ).toBeOnTheScreen();
   expect(screen.getByText("Museum")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
 });
@@ -52,7 +69,9 @@ it("shows preparation status until the spoken transcript is available", async ()
   mockAudio.sentences = undefined;
   mockAudio.phase = "loading";
   await render(<NowPlayingScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Transcript and sources" }),
+  );
   expect(screen.getByText("Preparing your audio guide…")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
 });

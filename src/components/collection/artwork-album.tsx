@@ -7,7 +7,13 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
@@ -34,7 +40,9 @@ export function ArtworkAlbum({
   useEffect(() => {
     if (photos.error) reportError(photos.error, "collection.album.load");
   }, [photos.error]);
-  const [scope, setScope] = useState<"all" | "visit">(visitId ? "visit" : "all");
+  const [scope, setScope] = useState<"all" | "visit">(
+    visitId ? "visit" : "all",
+  );
   const [requestedPhoto, setRequestedPhoto] = useState(photoId);
   const [page, setPage] = useState(0);
   const [ratios, setRatios] = useState<Record<string, number>>({});
@@ -44,9 +52,9 @@ export function ArtworkAlbum({
   const { width, fontScale } = useWindowDimensions();
   const rows = photos.data.filter(
     (row) =>
-      row.owner === work.owner &&
-      row.savedLocalId === work.localId &&
-      (scope === "all" || row.visitLocalId === visitId),
+      row.owner === work.owner
+      && row.savedLocalId === work.localId
+      && (scope === "all" || row.visitLocalId === visitId),
   );
   const lastPage = Math.max(0, rows.length - 1);
   if (requestedPhoto && (photos.updatedAt || rows.length)) {
@@ -63,7 +71,10 @@ export function ArtworkAlbum({
     selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
       ? Math.max(
           44,
-          Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)),
+          Math.min(
+            (width - 40) * 1.2,
+            (width - 40) / (ratios[selectedPhoto.localId] || 1),
+          ),
         )
       : 180 * fontScale;
   const goTo = (next: number) => {
@@ -73,10 +84,13 @@ export function ArtworkAlbum({
   return (
     <View style={{ gap: 8 }}>
       {!rows.length && !photos.updatedAt && !photos.error ? (
-        <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
+        <ImageSkeleton
+          label="Loading photos…"
+          style={{ width: "100%", aspectRatio: 1 }}
+        />
       ) : (
-        !rows.length &&
-        (photos.error ? (
+        !rows.length
+        && (photos.error ? (
           <Text accessibilityRole="alert" style={styles.secondary}>
             Photos couldn’t load. Close and reopen this artwork to try again.
           </Text>
@@ -103,14 +117,20 @@ export function ArtworkAlbum({
             showsHorizontalScrollIndicator={false}
             style={{ height: imageHeight }}
             onContentSizeChange={() =>
-              gallery.current?.scrollTo({ x: Math.min(page, lastPage) * width, animated: false })
+              gallery.current?.scrollTo({
+                x: Math.min(page, lastPage) * width,
+                animated: false,
+              })
             }
             onMomentumScrollEnd={({ nativeEvent }) =>
               setPage(Math.round(nativeEvent.contentOffset.x / width))
             }
           >
             {rows.map((photo, i) => (
-              <View key={photo.localId} style={{ width, paddingHorizontal: 20 }}>
+              <View
+                key={photo.localId}
+                style={{ width, paddingHorizontal: 20 }}
+              >
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Edit ${photo.kind} photo ${i + 1}`}
@@ -132,14 +152,18 @@ export function ArtworkAlbum({
                       uri={captureFileUri(photo.path)}
                       label={`${photo.kind} photo ${i + 1} of ${work.title}`}
                       onError={() =>
-                        setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))
+                        setFailedPhotos((previous) => ({
+                          ...previous,
+                          [photo.path!]: true,
+                        }))
                       }
                       onLoad={({ source }) => {
-                        if (source.width > 0 && source.height > 0)
+                        if (source.width > 0 && source.height > 0) {
                           setRatios((previous) => ({
                             ...previous,
                             [photo.localId]: source.width / source.height,
                           }));
+                        }
                       }}
                       style={{ width: "100%", height: "100%" }}
                       contentFit="contain"
@@ -181,7 +205,9 @@ export function ArtworkAlbum({
         </Text>
         {(work.medium || work.institution || work.venueName) && (
           <Text selectable style={styles.medium}>
-            {[work.medium, work.institution || work.venueName].filter(Boolean).join(" · ")}
+            {[work.medium, work.institution || work.venueName]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
         )}
       </View>
@@ -201,7 +227,10 @@ export function ArtworkAlbum({
                 accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
                 accessibilityState={{ selected: index === page }}
                 onPress={() => goTo(index)}
-                style={[styles.thumbnail, index === page && { borderColor: Gallery.accent }]}
+                style={[
+                  styles.thumbnail,
+                  index === page && { borderColor: Gallery.accent },
+                ]}
               >
                 {photo.path && !failedPhotos[photo.path] ? (
                   <LoadingImage
@@ -279,7 +308,11 @@ export function ArtworkAlbum({
       {!rows.length && !!photos.updatedAt && !photos.error && (
         <EmptyState
           inset={false}
-          title={scope === "visit" ? "No photos from this visit yet." : "No photos yet."}
+          title={
+            scope === "visit"
+              ? "No photos from this visit yet."
+              : "No photos yet."
+          }
           detail={
             scope === "visit"
               ? "Add a photo from this visit, or look through the rest of this artwork’s photos."
@@ -329,6 +362,11 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.fill,
   },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  title: { fontSize: 18, lineHeight: 22, color: Gallery.ink, fontWeight: "500" },
+  title: {
+    fontSize: 18,
+    lineHeight: 22,
+    color: Gallery.ink,
+    fontWeight: "500",
+  },
   medium: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
 });

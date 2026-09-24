@@ -7,54 +7,81 @@ export type SpendKind = "tokenFactory" | "tavily";
 
 type SpendField = "tokenFactoryCalls" | "tavilyCredits";
 
-const kinds: Record<SpendKind, { field: SpendField; env: string; defaultCap: number }> = {
+const kinds: Record<
+  SpendKind,
+  { field: SpendField; env: string; defaultCap: number }
+> = {
   tokenFactory: {
     field: "tokenFactoryCalls",
     env: "DAILY_TOKEN_FACTORY_CALL_CAP",
     defaultCap: 2000,
   },
-  tavily: { field: "tavilyCredits", env: "DAILY_TAVILY_CREDIT_CAP", defaultCap: 2000 },
+  tavily: {
+    field: "tavilyCredits",
+    env: "DAILY_TAVILY_CREDIT_CAP",
+    defaultCap: 2000,
+  },
 };
 
 export function dailyCap(kind: SpendKind): number {
   const raw = process.env[kinds[kind].env];
   const parsed = raw === undefined ? NaN : Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : kinds[kind].defaultCap;
+  return Number.isFinite(parsed) && parsed >= 0
+    ? parsed
+    : kinds[kind].defaultCap;
 }
 
 export function utcDay(now: number = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-async function getDay(ctx: QueryCtx | MutationCtx, day: string): Promise<Doc<"dailySpend"> | null> {
+async function getDay(
+  ctx: QueryCtx | MutationCtx,
+  day: string,
+): Promise<Doc<"dailySpend"> | null> {
   return ctx.db
     .query("dailySpend")
     .withIndex("by_day", (q) => q.eq("day", day))
     .unique();
 }
 
-export async function spentToday(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<number> {
+export async function spentToday(
+  ctx: QueryCtx | MutationCtx,
+  kind: SpendKind,
+): Promise<number> {
   const row = await getDay(ctx, utcDay());
   return row ? row[kinds[kind].field] : 0;
 }
 
-export async function assertUnderCap(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<void> {
+export async function assertUnderCap(
+  ctx: QueryCtx | MutationCtx,
+  kind: SpendKind,
+): Promise<void> {
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
-  if (spent >= cap) throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  if (spent >= cap) {
+    throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  }
 }
 
 export type SpendDelta = { tokenFactoryCalls?: number; tavilyCredits?: number };
 
 function requireAmount(amount: number): void {
-  if (!Number.isFinite(amount) || amount < 0) throw new ConvexError({ code: "invalid_spend" });
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new ConvexError({ code: "invalid_spend" });
+  }
 }
 
-async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Promise<void> {
+async function adjustSpend(
+  ctx: MutationCtx,
+  day: string,
+  delta: SpendDelta,
+): Promise<void> {
   const now = Date.now();
   const row = await getDay(ctx, day);
   const next = {
-    tokenFactoryCalls: (row?.tokenFactoryCalls ?? 0) + (delta.tokenFactoryCalls ?? 0),
+    tokenFactoryCalls:
+      (row?.tokenFactoryCalls ?? 0) + (delta.tokenFactoryCalls ?? 0),
     tavilyCredits: (row?.tavilyCredits ?? 0) + (delta.tavilyCredits ?? 0),
     updatedAt: now,
   };
@@ -64,7 +91,10 @@ async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Pr
   else await ctx.db.insert("dailySpend", { day, ...next });
 }
 
-export async function recordSpend(ctx: MutationCtx, delta: SpendDelta): Promise<void> {
+export async function recordSpend(
+  ctx: MutationCtx,
+  delta: SpendDelta,
+): Promise<void> {
   requireAmount(delta.tokenFactoryCalls ?? 0);
   requireAmount(delta.tavilyCredits ?? 0);
   await adjustSpend(ctx, utcDay(), delta);
@@ -84,7 +114,9 @@ export async function reserveSpend(
   const day = utcDay();
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
-  if (spent + amount > cap) throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  if (spent + amount > cap) {
+    throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  }
   await adjustSpend(ctx, day, { [kinds[kind].field]: amount });
   return day;
 }
@@ -100,5 +132,7 @@ export async function reconcileSpend(
   if (!row || row[kinds[kind].field] < usage.reserved) {
     throw new ConvexError({ code: "invalid_spend" });
   }
-  await adjustSpend(ctx, usage.day, { [kinds[kind].field]: usage.actual - usage.reserved });
+  await adjustSpend(ctx, usage.day, {
+    [kinds[kind].field]: usage.actual - usage.reserved,
+  });
 }

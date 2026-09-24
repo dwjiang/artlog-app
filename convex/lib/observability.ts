@@ -93,7 +93,13 @@ const TIMEOUT_MS = 1500;
 let cached: { dsn: string; transport: Transport } | undefined;
 
 function errorData(error: unknown): { code?: string; reason?: string } {
-  if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") return {};
+  if (
+    !(error instanceof ConvexError)
+    || !error.data
+    || typeof error.data !== "object"
+  ) {
+    return {};
+  }
   const { code, reason } = error.data as Record<string, unknown>;
   return {
     code: typeof code === "string" ? code : undefined,
@@ -103,12 +109,16 @@ function errorData(error: unknown): { code?: string; reason?: string } {
 
 function frames(error: unknown) {
   const stack =
-    error instanceof Error ? error.stack : typeof error === "string" ? error : undefined;
+    error instanceof Error
+      ? error.stack
+      : typeof error === "string"
+        ? error
+        : undefined;
   return parseStack(stack ?? "")
     .flatMap((frame) => {
       const path =
-        frame.filename?.match(/(?:^|\/)(convex\/[\w./-]+\.[cm]?[jt]s)$/)?.[1] ??
-        frame.filename?.match(/^convex:\/user\/([\w./-]+\.js)$/)?.[1];
+        frame.filename?.match(/(?:^|\/)(convex\/[\w./-]+\.[cm]?[jt]s)$/)?.[1]
+        ?? frame.filename?.match(/^convex:\/user\/([\w./-]+\.js)$/)?.[1];
       return path
         ? [
             {
@@ -138,7 +148,8 @@ function transportFor(dsn: string): Transport | undefined {
           fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/x-sentry-envelope" },
-            body: typeof body === "string" ? body : new TextDecoder().decode(body),
+            body:
+              typeof body === "string" ? body : new TextDecoder().decode(body),
             signal: controller.signal,
           }),
           new Promise<never>((_, reject) => {
@@ -151,7 +162,9 @@ function transportFor(dsn: string): Transport | undefined {
         return {
           statusCode: response.status,
           headers: {
-            "x-sentry-rate-limits": response.headers.get("x-sentry-rate-limits"),
+            "x-sentry-rate-limits": response.headers.get(
+              "x-sentry-rate-limits",
+            ),
             "retry-after": response.headers.get("retry-after"),
           },
         };
@@ -173,17 +186,20 @@ export async function reportBackendError(
     if (!dsn) return null;
     const { code, reason } = errorData(error);
     if (
-      (code && expectedCodes.has(code)) ||
-      (error instanceof Error && error.name === "AbortError")
-    )
+      (code && expectedCodes.has(code))
+      || (error instanceof Error && error.name === "AbortError")
+    ) {
       return null;
+    }
     const transport = transportFor(dsn);
     if (!transport) return null;
     const eventId = crypto.randomUUID().replaceAll("-", "");
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
-      reason &&
-      /^(http_[45]\d\d|bad_response|truncated|timeout|network|invalid_output)$/.test(reason)
+      reason
+      && /^(http_[45]\d\d|bad_response|truncated|timeout|network|invalid_output)$/.test(
+        reason,
+      )
         ? reason
         : undefined;
     // Error messages, ConvexError.data, arguments and SDK global scopes can contain user content.
@@ -203,7 +219,10 @@ export async function reportBackendError(
       exception: {
         values: [
           {
-            type: error instanceof Error && errorTypes.has(error.name) ? error.name : "Error",
+            type:
+              error instanceof Error && errorTypes.has(error.name)
+                ? error.name
+                : "Error",
             value: safeCode ?? "Backend operation failed",
             stacktrace: { frames: frames(error) },
           },
@@ -214,7 +233,9 @@ export async function reportBackendError(
     const result = await transport.send(
       createEnvelope({ event_id: eventId }, [[{ type: "event" }, event]]),
     );
-    return result.statusCode && result.statusCode >= 200 && result.statusCode < 300
+    return result.statusCode
+      && result.statusCode >= 200
+      && result.statusCode < 300
       ? eventId
       : null;
   } catch {
@@ -222,7 +243,10 @@ export async function reportBackendError(
   }
 }
 
-export async function withErrorReporting<T>(operation: string, run: () => Promise<T>): Promise<T> {
+export async function withErrorReporting<T>(
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
   try {
     return await run();
   } catch (error) {

@@ -98,12 +98,25 @@ export class CaptureController {
     this.failedQuad = null;
     this.absentSince = undefined;
     this.resetDetection();
-    this.update({ phase: "searching", source: undefined, message: undefined, rearm: undefined });
+    this.update({
+      phase: "searching",
+      source: undefined,
+      message: undefined,
+      rearm: undefined,
+    });
   }
 
-  begin(source: CaptureInput["source"], quad: Quad | null = null): CaptureAttempt | undefined {
-    if (!this.active || this.state.occupied || !["searching", "retry"].includes(this.state.phase))
+  begin(
+    source: CaptureInput["source"],
+    quad: Quad | null = null,
+  ): CaptureAttempt | undefined {
+    if (
+      !this.active
+      || this.state.occupied
+      || !["searching", "retry"].includes(this.state.phase)
+    ) {
       return;
+    }
     if (this.attempt) this.attempt.valid = false;
     const attempt = { id: ++this.nextId, source, quad, valid: true };
     this.attempt = attempt;
@@ -134,12 +147,19 @@ export class CaptureController {
     this.update({
       phase: "retry",
       message,
-      rearm: attempt.source === "camera" ? (attempt.quad ? "reframe" : "shutter") : undefined,
+      rearm:
+        attempt.source === "camera"
+          ? attempt.quad
+            ? "reframe"
+            : "shutter"
+          : undefined,
     });
   }
 
   result(attempt: CaptureAttempt): boolean {
-    if (!this.active || !attempt.valid || this.state.phase === "result") return false;
+    if (!this.active || !attempt.valid || this.state.phase === "result") {
+      return false;
+    }
     this.update({ phase: "result" });
     return true;
   }
@@ -155,18 +175,23 @@ export class CaptureController {
    * `RETRY_MOVEMENT` (a shutter failure has no corners, so it has to leave the frame) or be absent
    * for `RETRY_ABSENCE_MS`, then hold steady for a fresh window.
    */
-  observe(detection: RectDetection, preview: FrameSize, now: number): CaptureAttempt | undefined {
+  observe(
+    detection: RectDetection,
+    preview: FrameSize,
+    now: number,
+  ): CaptureAttempt | undefined {
     if (
-      !this.active ||
-      this.state.occupied ||
-      !["searching", "retry"].includes(this.state.phase) ||
-      this.state.source === "library" ||
-      preview.width <= 0 ||
-      preview.height <= 0 ||
-      detection.width <= 0 ||
-      detection.height <= 0
-    )
+      !this.active
+      || this.state.occupied
+      || !["searching", "retry"].includes(this.state.phase)
+      || this.state.source === "library"
+      || preview.width <= 0
+      || preview.height <= 0
+      || detection.width <= 0
+      || detection.height <= 0
+    ) {
       return;
+    }
     if (now - this.lastDetectionAt > MISS_GRACE_MS) this.tracker.reset();
     this.lastDetectionAt = now;
     const observations = detection.observations.filter(
@@ -180,14 +205,15 @@ export class CaptureController {
       } else {
         this.absentSince = undefined;
         if (
-          !this.failedQuad ||
-          observations.some(
+          !this.failedQuad
+          || observations.some(
             (o) =>
-              maxCornerDistance(toQuad(o.corners), this.failedQuad!, detection) <
-              RETRY_MOVEMENT * diagonal,
+              maxCornerDistance(toQuad(o.corners), this.failedQuad!, detection)
+              < RETRY_MOVEMENT * diagonal,
           )
-        )
+        ) {
           return;
+        }
       }
       this.failedQuad = null;
       this.tracker.reset();
@@ -207,7 +233,10 @@ export class CaptureController {
       const visible = largestObservation(visibleObservations);
       this.showFeedback(
         visible
-          ? { quad: previewQuad(toQuad(visible.corners), detection, preview), progress: 0 }
+          ? {
+              quad: previewQuad(toQuad(visible.corners), detection, preview),
+              progress: 0,
+            }
           : null,
       );
       return;
@@ -215,13 +244,21 @@ export class CaptureController {
     const tracked = this.tracker.push(candidates, detection, now);
     this.showFeedback(
       tracked.quad
-        ? { quad: previewQuad(tracked.quad, detection, preview), progress: tracked.progress }
+        ? {
+            quad: previewQuad(tracked.quad, detection, preview),
+            progress: tracked.progress,
+          }
         : null,
     );
     if (!tracked.captureQuad || tracked.guidance !== "ready") return;
     const quad = tracked.captureQuad;
-    if (!candidates.some((o) => maxCornerDistance(toQuad(o.corners), quad, detection) < 0.001))
+    if (
+      !candidates.some(
+        (o) => maxCornerDistance(toQuad(o.corners), quad, detection) < 0.001,
+      )
+    ) {
       return;
+    }
     return this.begin("camera", quad);
   }
 }

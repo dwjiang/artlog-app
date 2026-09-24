@@ -10,7 +10,10 @@ import { Button, Host } from "@expo/ui/swift-ui";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 
-import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "../../../shared/collection/collection-limits";
+import {
+  MAX_NOTE_LENGTH,
+  NOTE_LENGTH_MESSAGE,
+} from "../../../shared/collection/collection-limits";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -45,7 +48,13 @@ function persist(note: NoteDraft | undefined): void {
 }
 
 /** The lime swatch and heading shared by every note block, so private and shared notes read the same way. */
-export function NoteHeading({ title, children }: { title: string; children?: React.ReactNode }) {
+export function NoteHeading({
+  title,
+  children,
+}: {
+  title: string;
+  children?: React.ReactNode;
+}) {
   return (
     <View style={styles.heading}>
       <ThemedText accessibilityRole="header" style={styles.title}>
@@ -89,7 +98,10 @@ function WorkNoteEditor({
   sharedOnWall?: boolean;
   initiallyEditing: boolean;
 }) {
-  const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
+  const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [
+    savedLocalId,
+    owner,
+  ]).data[0];
   const [draft, setDraft] = useState<string>();
   const [savedText, setSavedText] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
@@ -198,7 +210,11 @@ function WorkNoteEditor({
                 </ThemedText>
               </View>
             </View>
-            <ThemedText variant="metadata" themeColor="textSecondary" style={{ letterSpacing: 1 }}>
+            <ThemedText
+              variant="metadata"
+              themeColor="textSecondary"
+              style={{ letterSpacing: 1 }}
+            >
               Private note
             </ThemedText>
             <TextInput
@@ -236,7 +252,10 @@ function WorkNoteEditor({
                   : "Saves when you close"}
             </ThemedText>
             {saveFailed && (
-              <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />
+              <GalleryButton
+                label="Retry save"
+                onPress={() => persist(latest.current)}
+              />
             )}
           </ScrollView>
         </WallSheet>
@@ -261,7 +280,9 @@ function WorkNoteEditor({
           style={{ width: 13, height: 13 }}
           accessible={false}
         />
-        <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
+        <ThemedText
+          style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}
+        >
           {sharedOnWall === true
             ? "Shared on your public wall"
             : sharedOnWall === false || !owner.startsWith("account:")
@@ -275,7 +296,10 @@ function WorkNoteEditor({
             Your note couldn’t be saved. Try again.
           </ThemedText>
           <Host matchContents colorScheme="light">
-            <Button label="Retry save" onPress={() => persist(latest.current)} />
+            <Button
+              label="Retry save"
+              onPress={() => persist(latest.current)}
+            />
           </Host>
         </View>
       ) : null}
@@ -285,8 +309,19 @@ function WorkNoteEditor({
 
 const styles = StyleSheet.create({
   section: { gap: Spacing.two },
-  heading: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
-  title: { flex: 1, fontFamily: Fonts.display, fontSize: 20, lineHeight: 24, color: Gallery.ink },
+  heading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+  },
+  title: {
+    flex: 1,
+    fontFamily: Fonts.display,
+    fontSize: 20,
+    lineHeight: 24,
+    color: Gallery.ink,
+  },
   body: { fontSize: 15, lineHeight: 21 },
   input: {
     minHeight: 110,

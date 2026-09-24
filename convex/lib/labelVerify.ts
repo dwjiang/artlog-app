@@ -1,6 +1,10 @@
 import { reportBackendError } from "./observability";
 import type { Doc } from "../_generated/dataModel";
-import { extractPage, hasArtworkMetadata, type PageFields } from "./pageExtract";
+import {
+  extractPage,
+  hasArtworkMetadata,
+  type PageFields,
+} from "./pageExtract";
 import type { TavilySearchResponse } from "./tavily";
 import {
   TITLE_MATCH_THRESHOLD,
@@ -54,7 +58,10 @@ export const LOCKING_EVIDENCE: ReadonlySet<LabelEvidence> = new Set([
   "tavily+image",
 ]);
 // The museum is the authority, so plausibility checks never downgrade its own statements.
-export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(["accession", "qr"]);
+export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set([
+  "accession",
+  "qr",
+]);
 export const IMAGE_MATCH_COSINE = 0.85;
 const MAX_IMAGE_URLS = 3;
 
@@ -66,10 +73,10 @@ export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {
 // Similarity alone never selects a work; the homography must hold as well.
 export function imageCheckPasses(check: ImageCheck): boolean {
   return (
-    Number.isFinite(check.cosine) &&
-    check.cosine >= IMAGE_MATCH_COSINE &&
-    check.cosine <= 1 &&
-    check.homographyValid
+    Number.isFinite(check.cosine)
+    && check.cosine >= IMAGE_MATCH_COSINE
+    && check.cosine <= 1
+    && check.homographyValid
   );
 }
 
@@ -86,7 +93,10 @@ export function labelField(
   };
 }
 
-export function withEvidence(field: LabelField, evidence: LabelEvidence): LabelField {
+export function withEvidence(
+  field: LabelField,
+  evidence: LabelEvidence,
+): LabelField {
   return { ...field, evidence, locked: LOCKING_EVIDENCE.has(evidence) };
 }
 
@@ -115,12 +125,20 @@ export async function verifyAccession(
   hosts: string[],
   input: LabelInput,
 ): Promise<AccessionEvidence | null> {
-  if (!venue.accessionUrlPattern || !input.accession || (!input.title && !input.artist))
+  if (
+    !venue.accessionUrlPattern
+    || !input.accession
+    || (!input.title && !input.artist)
+  ) {
     return null;
+  }
   let page;
   try {
     page = await fetchVenuePage(
-      venue.accessionUrlPattern.replace("{accession}", encodeURIComponent(input.accession)),
+      venue.accessionUrlPattern.replace(
+        "{accession}",
+        encodeURIComponent(input.accession),
+      ),
       hosts,
     );
   } catch (error) {
@@ -130,19 +148,21 @@ export async function verifyAccession(
   }
   const extracted = extractPage(page.html);
   if (
-    extracted.fields.accession &&
-    normalizeText(extracted.fields.accession) !== normalizeText(input.accession)
-  )
+    extracted.fields.accession
+    && normalizeText(extracted.fields.accession)
+      !== normalizeText(input.accession)
+  ) {
     return null;
+  }
   const title = input.title;
   const titleOk =
-    title !== undefined &&
-    titleQualifiersMatch(title, extracted.fields.title ?? "") &&
-    jaccard(title, extracted.fields.title ?? "") >= TITLE_MATCH_THRESHOLD;
+    title !== undefined
+    && titleQualifiersMatch(title, extracted.fields.title ?? "")
+    && jaccard(title, extracted.fields.title ?? "") >= TITLE_MATCH_THRESHOLD;
   const artistOk =
-    input.artist !== undefined &&
-    extracted.fields.artist !== undefined &&
-    personMatches(input.artist, extracted.fields.artist);
+    input.artist !== undefined
+    && extracted.fields.artist !== undefined
+    && personMatches(input.artist, extracted.fields.artist);
   if (!(titleOk || (title === undefined && artistOk))) return null;
   return { sourceUrl: page.url, fields: extracted.fields };
 }
@@ -158,7 +178,9 @@ export async function findWikidataPainting(
   const entities = await getEntities(hits.map((hit) => hit.id));
   const paintings = hits.flatMap((hit) => {
     const entity = entities[hit.id];
-    return entity && isPainting(entity) && titleMatches(title, entityLabel(entity) ?? "")
+    return entity
+      && isPainting(entity)
+      && titleMatches(title, entityLabel(entity) ?? "")
       ? [entity]
       : [];
   });
@@ -169,8 +191,9 @@ export async function findWikidataPainting(
     for (const id of creators(painting)) {
       const creator = creatorEntities[id];
       const name = creator ? entityLabel(creator) : undefined;
-      if (creator && name && isArtist(creator) && personMatches(artist, name))
+      if (creator && name && isArtist(creator) && personMatches(artist, name)) {
         return { paintingId: painting.id, artist: creator };
+      }
     }
   }
   return null;
@@ -182,7 +205,13 @@ export async function findArtist(name: string): Promise<WikidataEntity | null> {
   const entities = await getEntities(hits.map((hit) => hit.id));
   for (const hit of hits) {
     const entity = entities[hit.id];
-    if (entity && isArtist(entity) && personMatches(name, entityLabel(entity) ?? "")) return entity;
+    if (
+      entity
+      && isArtist(entity)
+      && personMatches(name, entityLabel(entity) ?? "")
+    ) {
+      return entity;
+    }
   }
   return null;
 }
@@ -199,7 +228,9 @@ export async function venueCountryMatch(
   const entities = await getEntities([venueId, ...artistCollections]);
   const venueEntity = entities[venueId];
   const venueCountries = venueEntity ? countries(venueEntity) : [];
-  const known = artistCollections.flatMap((id) => (entities[id] ? countries(entities[id]) : []));
+  const known = artistCollections.flatMap((id) =>
+    entities[id] ? countries(entities[id]) : [],
+  );
   if (!venueCountries.length || !known.length) return undefined;
   return known.some((country) => venueCountries.includes(country));
 }
@@ -207,7 +238,8 @@ export async function venueCountryMatch(
 export type TavilyEvidence = { sourceUrl: string; imageUrls: string[] };
 export type TavilyPair = { title: string; artist: string; accession?: string };
 
-const OBJECT_PATH = /\/(?:art|artworks?|objects?|collections?|works?|paintings?)(?:\/|$)/i;
+const OBJECT_PATH =
+  /\/(?:art|artworks?|objects?|collections?|works?|paintings?)(?:\/|$)/i;
 const NON_OBJECT =
   /^(?:shop|store|customprints|prints)\.|\/(?:shop|store|products?|audio|videos?|press|articles?|magazine|perspectives|exhibitions?|calendar|galleries|artists|catalogues|learn-about-art)(?:\/|$)/i;
 const TRACKING = /(?:cookie|pixel|beacon|analytics|\/match\b|\/seg\b|\/iu3\b)/i;
@@ -218,7 +250,11 @@ function compareKeys(a: number[], b: number[]): number {
 }
 
 // Images the phone may download: on the venue's own https hosts, never trackers or vector logos.
-function artworkImageUrls(images: string[], pageUrl: string, hosts: string[]): string[] {
+function artworkImageUrls(
+  images: string[],
+  pageUrl: string,
+  hosts: string[],
+): string[] {
   const urls = images.flatMap((image) => {
     let url: URL | null;
     try {
@@ -226,7 +262,9 @@ function artworkImageUrls(images: string[], pageUrl: string, hosts: string[]): s
     } catch {
       return [];
     }
-    return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname)
+    return url
+      && !TRACKING.test(url.pathname + url.search)
+      && !/\.svg$/i.test(url.pathname)
       ? [url.href]
       : [];
   });
@@ -258,8 +296,11 @@ export async function selectTavilyEvidence(
       if (!artistMentioned(haystack, pair.artist)) return [];
       if (!titleQualifiersMatch(pair.title, result.title)) return [];
       const accessionHit =
-        pair.accession !== undefined && mentions(`${result.url} ${haystack}`, pair.accession);
-      const canonical = OBJECT_PATH.test(url.pathname) && !NON_OBJECT.test(url.host + url.pathname);
+        pair.accession !== undefined
+        && mentions(`${result.url} ${haystack}`, pair.accession);
+      const canonical =
+        OBJECT_PATH.test(url.pathname)
+        && !NON_OBJECT.test(url.host + url.pathname);
       const key = [
         Number(accessionHit),
         Number(exactTitle(pair.title, result.title)),
@@ -278,19 +319,29 @@ export async function selectTavilyEvidence(
       const extracted = extractPage(page.html);
       const { title, artist, accession } = extracted.fields;
       if (
-        (title &&
-          (!titleQualifiersMatch(pair.title, title) ||
-            jaccard(pair.title, title) < TITLE_MATCH_THRESHOLD)) ||
-        (artist && !personMatches(pair.artist, artist)) ||
-        (pair.accession && accession && normalizeText(pair.accession) !== normalizeText(accession))
+        (title
+          && (!titleQualifiersMatch(pair.title, title)
+            || jaccard(pair.title, title) < TITLE_MATCH_THRESHOLD))
+        || (artist && !personMatches(pair.artist, artist))
+        || (pair.accession
+          && accession
+          && normalizeText(pair.accession) !== normalizeText(accession))
       ) {
         continue;
       }
-      if (hasArtworkMetadata(extracted))
-        evidence.imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
+      if (hasArtworkMetadata(extracted)) {
+        evidence.imageUrls = artworkImageUrls(
+          extracted.imageUrls,
+          page.url,
+          hosts,
+        );
+      }
     } catch (error) {
       await reportBackendError(error, "label.imageMetadata");
-      console.warn("Artwork image metadata unavailable; keeping text evidence only", error);
+      console.warn(
+        "Artwork image metadata unavailable; keeping text evidence only",
+        error,
+      );
     }
     return evidence;
   }

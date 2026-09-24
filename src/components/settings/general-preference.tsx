@@ -11,9 +11,16 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useRef, useState } from "react";
 
-import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
+import {
+  GroupedFooter,
+  GroupedSection,
+  ValueRow,
+} from "@/components/grouped-list";
 import { Gallery } from "@/constants/theme";
-import { setMeasurementUnits, type MeasurementUnits } from "@/lib/settings/measurement-units";
+import {
+  setMeasurementUnits,
+  type MeasurementUnits,
+} from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 
 const options = [
@@ -44,15 +51,17 @@ export function GeneralPreference() {
   }
 
   const message =
-    error ??
-    (failed ? "The preference could not load. Choose your units to try again." : undefined);
+    error
+    ?? (failed
+      ? "The preference could not load. Choose your units to try again."
+      : undefined);
   return (
     <GroupedSection
       title="Measurement units"
       footer={
         <GroupedFooter tone={message ? "destructive" : "muted"}>
-          {message ??
-            (saving
+          {message
+            ?? (saving
               ? "Saving measurement units…"
               : "Used for nearby museum distances. Saved on this iPhone.")}
         </GroupedFooter>
@@ -72,17 +81,28 @@ export function GeneralPreference() {
             modifiers={[
               buttonStyle("borderless"),
               accessibilityLabel(option.label),
-              accessibilityAddTraits(units === option.value ? ["isSelected"] : []),
+              accessibilityAddTraits(
+                units === option.value ? ["isSelected"] : [],
+              ),
               accessibilityValue(saving ? "Saving" : ""),
             ]}
           >
-            <Row spacing={12} alignment="center" modifiers={[contentShape(shapes.rectangle())]}>
+            <Row
+              spacing={12}
+              alignment="center"
+              modifiers={[contentShape(shapes.rectangle())]}
+            >
               <Column
                 spacing={2}
                 alignment="start"
-                modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
+                modifiers={[
+                  frame({ maxWidth: Infinity, alignment: "leading" }),
+                ]}
               >
-                <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
+                <Text
+                  textStyle={{ color: Gallery.ink }}
+                  modifiers={[font({ textStyle: "body" })]}
+                >
                   {option.label}
                 </Text>
                 <Text

@@ -76,7 +76,13 @@ function OwnedCollection({
   const dockInset = useListeningDockInset();
   const guest = !data.owner.startsWith("account:");
   const controls = (
-    <View style={{ paddingHorizontal: 20, paddingBottom: 12, backgroundColor: Gallery.paper }}>
+    <View
+      style={{
+        paddingHorizontal: 20,
+        paddingBottom: 12,
+        backgroundColor: Gallery.paper,
+      }}
+    >
       <NativeSegmentedPicker
         label="Collection view"
         value={mode}
@@ -92,7 +98,12 @@ function OwnedCollection({
   const header = (
     <>
       <CollectionHeader
-        loading={data.loading && !data.works.length && !data.visits.length && !data.error}
+        loading={
+          data.loading
+          && !data.works.length
+          && !data.visits.length
+          && !data.error
+        }
         artworkCount={data.works.length}
         visitCount={data.visits.length}
       />
@@ -116,9 +127,15 @@ function OwnedCollection({
   return (
     <SafeAreaView
       edges={["top"]}
-      style={{ flex: 1, backgroundColor: Gallery.paper, paddingBottom: editing ? 0 : dockInset }}
+      style={{
+        flex: 1,
+        backgroundColor: Gallery.paper,
+        paddingBottom: editing ? 0 : dockInset,
+      }}
     >
-      <View style={{ flex: 1, display: mode === "collection" ? "flex" : "none" }}>
+      <View
+        style={{ flex: 1, display: mode === "collection" ? "flex" : "none" }}
+      >
         {guest ? (
           <CollectionArtworks
             {...data}

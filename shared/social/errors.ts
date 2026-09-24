@@ -21,7 +21,8 @@ export const ERROR_MESSAGES = {
   invalid_sync: "The journal could not sync. Try again.",
   sync_scope_changed: "Your account changed. Try again.",
   claim_required: "Your journal is still linking. Try again shortly.",
-  ownership_collision: "These journal records conflict. Your originals have been kept.",
+  ownership_collision:
+    "These journal records conflict. Your originals have been kept.",
   apple_sign_in_required: "Sign in with Apple to continue.",
   already_linked: "Sign out before linking another account.",
   account_device_limit: "This account has reached its device limit.",
@@ -29,7 +30,13 @@ export const ERROR_MESSAGES = {
 export function socialErrorMessage(error: unknown): string | undefined {
   if (!error || typeof error !== "object") return;
   const data = "data" in error ? error.data : error;
-  if (!data || typeof data !== "object" || !("code" in data) || typeof data.code !== "string")
+  if (
+    !data
+    || typeof data !== "object"
+    || !("code" in data)
+    || typeof data.code !== "string"
+  ) {
     return;
+  }
   return ERROR_MESSAGES[data.code as keyof typeof ERROR_MESSAGES];
 }

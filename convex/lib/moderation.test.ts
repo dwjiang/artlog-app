@@ -20,26 +20,40 @@ afterEach(() => {
 describe("text moderation", () => {
   it("asks the moderation model with the fields as data and returns its verdict", async () => {
     fetchMock.mockResolvedValueOnce(completion({ flagged: true }));
-    await expect(checkText(["Title", null, "Gift of Someone"])).resolves.toEqual({
+    await expect(
+      checkText(["Title", null, "Gift of Someone"]),
+    ).resolves.toEqual({
       flagged: true,
       method: "model",
       calls: 1,
     });
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(body.model).toBe("nvidia/Nemotron-3_5-Lightning");
-    expect(JSON.parse(body.messages[1].content)).toMatchObject({ input: "Title\nGift of Someone" });
+    expect(JSON.parse(body.messages[1].content)).toMatchObject({
+      input: "Title\nGift of Someone",
+    });
     expect(body.response_format.json_schema.name).toBe("moderation");
   });
 
   it("falls back to the blocklist when the model fails, keeping the spent call count", async () => {
     vi.useFakeTimers();
-    fetchMock.mockImplementation(async () => new Response("down", { status: 500 }));
+    fetchMock.mockImplementation(
+      async () => new Response("down", { status: 500 }),
+    );
     const pending = checkText(["Water Lilies", "Claude Monet"]);
     await vi.advanceTimersByTimeAsync(1000);
-    await expect(pending).resolves.toEqual({ flagged: false, method: "blocklist", calls: 2 });
+    await expect(pending).resolves.toEqual({
+      flagged: false,
+      method: "blocklist",
+      calls: 2,
+    });
     const flagged = checkText(["Call me at 415-555-0123"]);
     await vi.advanceTimersByTimeAsync(1000);
-    await expect(flagged).resolves.toEqual({ flagged: true, method: "blocklist", calls: 2 });
+    await expect(flagged).resolves.toEqual({
+      flagged: true,
+      method: "blocklist",
+      calls: 2,
+    });
     vi.useRealTimers();
   });
 
@@ -60,7 +74,9 @@ describe("text moderation", () => {
 
   it("flags personal information patterns but not accession numbers, years or credit lines", () => {
     expect(
-      blocklistFlags("Gift of Louise Reinhardt Smith, 1983\n1998.325.2\nFrench, 1840–1926"),
+      blocklistFlags(
+        "Gift of Louise Reinhardt Smith, 1983\n1998.325.2\nFrench, 1840–1926",
+      ),
     ).toBe(false);
     expect(blocklistFlags("(415) 555 0123")).toBe(true);
     expect(blocklistFlags("4111 1111 1111 1111")).toBe(true);
@@ -85,8 +101,12 @@ describe("text moderation", () => {
         method: "blocklist",
         calls: 0,
       });
-      await expect(checkText(["wetbacks"])).resolves.toMatchObject({ flagged: true });
-      await expect(checkText(["Portrait of Dick", "Scunthorpe"])).resolves.toMatchObject({
+      await expect(checkText(["wetbacks"])).resolves.toMatchObject({
+        flagged: true,
+      });
+      await expect(
+        checkText(["Portrait of Dick", "Scunthorpe"]),
+      ).resolves.toMatchObject({
         flagged: false,
       });
       expect(fetchMock).not.toHaveBeenCalled();

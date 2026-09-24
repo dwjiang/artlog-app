@@ -23,12 +23,17 @@ jest.mock("@convex-dev/auth/react", () => ({
 }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => mockAuth,
-  useMutation: (ref: string) => (ref === "register" ? mockRegister : mockChallenge),
+  useMutation: (ref: string) =>
+    ref === "register" ? mockRegister : mockChallenge,
   useAction: () => mockAttest,
 }));
 jest.mock("../../convex/_generated/api", () => ({
   api: {
-    devices: { registerDevice: "register", createChallenge: "challenge", attestDevice: "attest" },
+    devices: {
+      registerDevice: "register",
+      createChallenge: "challenge",
+      attestDevice: "attest",
+    },
   },
 }));
 jest.mock("expo-device", () => ({ isDevice: false }));
@@ -61,7 +66,9 @@ beforeEach(() => {
   mockAuth.isLoading = true;
   mockSignIn.mockResolvedValue({ signingIn: true });
   mockStorage.clear();
-  mockGetItem.mockImplementation(async (key: string) => mockStorage.get(key) ?? null);
+  mockGetItem.mockImplementation(
+    async (key: string) => mockStorage.get(key) ?? null,
+  );
   mockSetItem.mockImplementation(async (key: string, value: string) => {
     mockStorage.set(key, value);
   });
@@ -72,13 +79,19 @@ beforeEach(() => {
   mockAppAttest.attestKey.mockResolvedValue("attestation");
   mockChallenge.mockResolvedValue({ nonce: "nonce" });
   mockRandomBytes.mockResolvedValue(new Uint8Array(32).fill(0xa1));
-  mockRegister.mockResolvedValue({ deviceId: "device-1", attested: false, attestRequired: false });
+  mockRegister.mockResolvedValue({
+    deviceId: "device-1",
+    attested: false,
+    attestRequired: false,
+  });
   mockAppAttest.isSupported.mockReturnValue(false);
   // Each isolated module represents a fresh process; remounts within a test share its promises.
   jest.isolateModules(() => {
     jest.doMock("react", () => React);
     ({ useDeviceIdentity } =
-      jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+      jest.requireActual<typeof import("./device-identity")>(
+        "./device-identity",
+      ));
   });
 });
 
@@ -94,12 +107,17 @@ it("waits for stored auth, signs in anonymously, and registers once across remou
 
   mockAuth.isLoading = false;
   await first.rerender(undefined);
-  expect(mockSignIn).toHaveBeenCalledWith("anonymous", { secret: "a1".repeat(32) });
+  expect(mockSignIn).toHaveBeenCalledWith("anonymous", {
+    secret: "a1".repeat(32),
+  });
   expect(mockRegister).not.toHaveBeenCalled();
 
   mockAuth.isAuthenticated = true;
   await first.rerender(undefined);
-  expect(mockRegister).toHaveBeenCalledWith({ platform: "simulator", appAttestKeyId: undefined });
+  expect(mockRegister).toHaveBeenCalledWith({
+    platform: "simulator",
+    appAttestKeyId: undefined,
+  });
   await first.unmount();
   await renderHook(useDeviceIdentity);
   expect(mockRegister).toHaveBeenCalledTimes(1);
@@ -110,17 +128,28 @@ it("restores an existing session and passes the saved attestation key without si
   mockAuth.isAuthenticated = true;
   mockGetItem.mockResolvedValue("saved-key");
   mockAppAttest.isSupported.mockReturnValue(true);
-  mockRegister.mockResolvedValue({ deviceId: "device-1", attested: true, attestRequired: true });
+  mockRegister.mockResolvedValue({
+    deviceId: "device-1",
+    attested: true,
+    attestRequired: true,
+  });
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).not.toHaveBeenCalled();
-  expect(mockRegister).toHaveBeenCalledWith({ platform: "simulator", appAttestKeyId: "saved-key" });
+  expect(mockRegister).toHaveBeenCalledWith({
+    platform: "simulator",
+    appAttestKeyId: "saved-key",
+  });
   expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
 });
 
 it("does not request attestation on unsupported devices even when required by the server", async () => {
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
-  mockRegister.mockResolvedValue({ deviceId: "device-1", attested: false, attestRequired: true });
+  mockRegister.mockResolvedValue({
+    deviceId: "device-1",
+    attested: false,
+    attestRequired: true,
+  });
   await renderHook(useDeviceIdentity);
   expect(mockChallenge).not.toHaveBeenCalled();
 });
@@ -130,7 +159,11 @@ it.each([false, true])(
   async (attestRequired) => {
     mockAuth.isLoading = false;
     mockAuth.isAuthenticated = true;
-    mockRegister.mockResolvedValue({ deviceId: "device-1", attested: false, attestRequired });
+    mockRegister.mockResolvedValue({
+      deviceId: "device-1",
+      attested: false,
+      attestRequired,
+    });
     mockAppAttest.isSupported.mockReturnValue(true);
     mockAppAttest.generateKey.mockResolvedValue("new-key");
     mockAppAttest.attestKey.mockResolvedValue("attestation");
@@ -223,7 +256,9 @@ it("preserves the key and retries later when Apple is temporarily unavailable", 
   mockChallenge
     .mockResolvedValueOnce({ nonce: "first" })
     .mockResolvedValueOnce({ nonce: "second" });
-  mockAppAttest.attestKey.mockRejectedValueOnce({ code: "ERR_APP_INTEGRITY_SERVER_UNAVAILABLE" });
+  mockAppAttest.attestKey.mockRejectedValueOnce({
+    code: "ERR_APP_INTEGRITY_SERVER_UNAVAILABLE",
+  });
   await renderHook(useDeviceIdentity);
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
@@ -245,17 +280,26 @@ it("bounds recovery when Apple repeatedly rejects keys", async () => {
   await act(() => jest.advanceTimersByTimeAsync(60_000));
   expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
   expect(mockStorage.has("appAttestKeyId")).toBe(false);
-  expect(console.warn).toHaveBeenCalledWith("Device identity setup failed", error);
-  expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
-    data: { attempt: 1, retrying: false },
-  });
+  expect(console.warn).toHaveBeenCalledWith(
+    "Device identity setup failed",
+    error,
+  );
+  expect(mockReportError).toHaveBeenCalledWith(
+    error,
+    "auth.device_registration",
+    {
+      data: { attempt: 1, retrying: false },
+    },
+  );
 });
 
 it("replaces an expired attestation proof with a fresh key and challenge", async () => {
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
   mockAppAttest.isSupported.mockReturnValue(true);
-  mockAppAttest.generateKey.mockResolvedValueOnce("first-key").mockResolvedValueOnce("second-key");
+  mockAppAttest.generateKey
+    .mockResolvedValueOnce("first-key")
+    .mockResolvedValueOnce("second-key");
   mockChallenge
     .mockResolvedValueOnce({ nonce: "first" })
     .mockResolvedValueOnce({ nonce: "second" });
@@ -273,7 +317,9 @@ it("recovers after a process exits between native attestation and server registr
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = true;
   mockAppAttest.isSupported.mockReturnValue(true);
-  mockAppAttest.generateKey.mockResolvedValueOnce("first-key").mockResolvedValueOnce("second-key");
+  mockAppAttest.generateKey
+    .mockResolvedValueOnce("first-key")
+    .mockResolvedValueOnce("second-key");
   const attestedKeys = new Set<string>();
   mockAppAttest.attestKey.mockImplementation(async (key: string) => {
     if (attestedKeys.has(key)) throw { code: "ERR_APP_INTEGRITY_INVALID_KEY" };
@@ -285,7 +331,9 @@ it("recovers after a process exits between native attestation and server registr
   await first.unmount();
   jest.isolateModules(() => {
     ({ useDeviceIdentity } =
-      jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+      jest.requireActual<typeof import("./device-identity")>(
+        "./device-identity",
+      ));
   });
   await renderHook(useDeviceIdentity);
   expect(mockAttest).toHaveBeenCalledTimes(2);
@@ -297,7 +345,9 @@ it("keeps the key when the server committed attestation but its response was los
   mockAuth.isAuthenticated = true;
   mockAppAttest.isSupported.mockReturnValue(true);
   mockAttest.mockRejectedValueOnce(new Error("response lost"));
-  mockRegister.mockResolvedValueOnce({ attested: false }).mockResolvedValue({ attested: true });
+  mockRegister
+    .mockResolvedValueOnce({ attested: false })
+    .mockResolvedValue({ attested: true });
   await renderHook(useDeviceIdentity);
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(1);
@@ -333,7 +383,9 @@ it("registers again after the anonymous session changes", async () => {
 it("reuses the installation credential after session expiry and a process restart", async () => {
   mockAuth.isLoading = false;
   const first = await renderHook(useDeviceIdentity);
-  expect(mockSignIn).toHaveBeenLastCalledWith("anonymous", { secret: "a1".repeat(32) });
+  expect(mockSignIn).toHaveBeenLastCalledWith("anonymous", {
+    secret: "a1".repeat(32),
+  });
   mockAuth.isAuthenticated = true;
   await first.rerender(undefined);
   await first.unmount();
@@ -341,11 +393,15 @@ it("reuses the installation credential after session expiry and a process restar
   mockAuth.isAuthenticated = false;
   jest.isolateModules(() => {
     ({ useDeviceIdentity } =
-      jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+      jest.requireActual<typeof import("./device-identity")>(
+        "./device-identity",
+      ));
   });
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).toHaveBeenCalledTimes(2);
-  expect(mockSignIn).toHaveBeenLastCalledWith("anonymous", { secret: "a1".repeat(32) });
+  expect(mockSignIn).toHaveBeenLastCalledWith("anonymous", {
+    secret: "a1".repeat(32),
+  });
   expect(mockRandomBytes).toHaveBeenCalledTimes(1);
 });
 
@@ -367,9 +423,15 @@ it("waits for keychain persistence before making any sign-in request", async () 
   mockSetItem.mockRejectedValueOnce(failure);
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).not.toHaveBeenCalled();
-  expect(mockReportError).toHaveBeenCalledWith(failure, "auth.anonymous_sign_in", {
-    data: { attempt: 1, retrying: true },
-  });
+  expect(mockReportError).toHaveBeenCalledWith(
+    failure,
+    "auth.anonymous_sign_in",
+    {
+      data: { attempt: 1, retrying: true },
+    },
+  );
   await act(() => jest.advanceTimersByTimeAsync(1000));
-  expect(mockSignIn).toHaveBeenCalledWith("anonymous", { secret: "a1".repeat(32) });
+  expect(mockSignIn).toHaveBeenCalledWith("anonymous", {
+    secret: "a1".repeat(32),
+  });
 });

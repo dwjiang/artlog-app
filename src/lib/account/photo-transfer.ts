@@ -45,29 +45,43 @@ export async function uploadCollectionPhoto(
   try {
     if (Math.max(source.width, source.height) > longSide) {
       rendered = await resize
-        .resize(source.width >= source.height ? { width: longSide } : { height: longSide })
+        .resize(
+          source.width >= source.height
+            ? { width: longSide }
+            : { height: longSide },
+        )
         .renderAsync();
     }
     // Re-encoding the rendered image omits the original camera and location metadata.
-    const encoded = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
-    file = new File(encoded.uri);
-    if (file.size > MAX_COLLECTION_PHOTO_BYTES) throw new Error("Photo exceeds the upload limit");
-    if (!isCurrent()) throw new Error("Photo upload cancelled");
-    const response = await file.upload(endpoint(scope, localId, kind, photoId), {
-      httpMethod: "POST",
-      uploadType: UploadType.BINARY_CONTENT,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "image/jpeg",
-        "X-Photo-Width": String(rendered.width),
-        "X-Photo-Height": String(rendered.height),
-      },
+    const encoded = await rendered.saveAsync({
+      format: SaveFormat.JPEG,
+      compress: 0.85,
     });
-    if (response.status !== 200)
+    file = new File(encoded.uri);
+    if (file.size > MAX_COLLECTION_PHOTO_BYTES) {
+      throw new Error("Photo exceeds the upload limit");
+    }
+    if (!isCurrent()) throw new Error("Photo upload cancelled");
+    const response = await file.upload(
+      endpoint(scope, localId, kind, photoId),
+      {
+        httpMethod: "POST",
+        uploadType: UploadType.BINARY_CONTENT,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "image/jpeg",
+          "X-Photo-Width": String(rendered.width),
+          "X-Photo-Height": String(rendered.height),
+        },
+      },
+    );
+    if (response.status !== 200) {
       throw new Error(`Photo upload failed with HTTP ${response.status}`);
+    }
     const result = JSON.parse(response.body) as PhotoUpload;
-    if (!result.storageId || !Number.isFinite(result.photoUpdatedAt))
+    if (!result.storageId || !Number.isFinite(result.photoUpdatedAt)) {
       throw new Error("Photo upload did not return a storage reference");
+    }
     return result;
   } finally {
     if (file?.exists) file.delete();

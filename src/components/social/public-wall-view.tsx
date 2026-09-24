@@ -26,11 +26,25 @@ export function PublicProfileHeader({
   children?: ReactNode;
 }) {
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
+    <View
+      style={{
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: 12,
+        gap: 12,
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-        <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={compact ? 44 : 64} />
+        <ProfileAvatar
+          name={person.name}
+          photoUrl={person.photoUrl}
+          size={compact ? 44 : 64}
+        />
         <View style={{ flex: 1, gap: 4 }}>
-          <Text variant={compact ? "section" : "display"} accessibilityRole="header">
+          <Text
+            variant={compact ? "section" : "display"}
+            accessibilityRole="header"
+          >
             {person.name}
           </Text>
           <Text style={socialStyles.caption}>@{person.username}</Text>
@@ -69,7 +83,7 @@ export function PublicWallView({
   onSelect: (item: PublicWall["items"][number]) => void;
 }) {
   const [width, setWidth] = useState(0);
-  if (!wall.items.length)
+  if (!wall.items.length) {
     return (
       <EmptyState
         title="No artworks on this wall yet."
@@ -84,6 +98,7 @@ export function PublicWallView({
         />
       </EmptyState>
     );
+  }
   return (
     <View
       accessibilityLabel="Public collection wall"
@@ -106,8 +121,8 @@ export function PublicWallView({
       )}
       <Text style={{ ...socialStyles.caption, padding: 20, lineHeight: 18 }}>
         {wall.artworkCount} {wall.artworkCount === 1 ? "artwork" : "artworks"}
-        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected for public display
-        appear here.
+        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected
+        for public display appear here.
       </Text>
     </View>
   );

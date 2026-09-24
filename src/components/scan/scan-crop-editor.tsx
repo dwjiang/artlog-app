@@ -25,7 +25,12 @@ export function ScanCropEditor({
         saveLabel="Use crop and identify"
         onCancel={onCancel}
         onSave={async (crop, isCurrent) => {
-          const localId = await saveEditedScanCrop(capture.localId, crop, capture.owner, isCurrent);
+          const localId = await saveEditedScanCrop(
+            capture.localId,
+            crop,
+            capture.owner,
+            isCurrent,
+          );
           if (isCurrent()) {
             router.replace({
               pathname: "/result/[scanId]",

@@ -17,8 +17,9 @@ export type ExtractedPage = {
 
 export function hasArtworkMetadata(page: ExtractedPage): boolean {
   return (
-    !!page.fields.title &&
-    (page.source === "jsonld" || !!(page.fields.artist && page.fields.accession))
+    !!page.fields.title
+    && (page.source === "jsonld"
+      || !!(page.fields.artist && page.fields.accession))
   );
 }
 
@@ -41,29 +42,39 @@ const ACCESSION_WITH_CUE =
 const ACCESSION_BARE = /\b((?:1[5-9]|20)\d{2}\.\d{1,4}(?:\.\d{1,4})?)\b/;
 
 export function decodeEntities(value: string): string {
-  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
-    if (code[0] === "#") {
-      const point =
-        code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return Number.isFinite(point) && point >= 0 && point <= 0x10ffff
-        ? String.fromCodePoint(point)
-        : match;
-    }
-    return NAMED_ENTITIES[code.toLowerCase()] ?? match;
-  });
+  return value.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
+    (match, code: string) => {
+      if (code[0] === "#") {
+        const point =
+          code[1].toLowerCase() === "x"
+            ? parseInt(code.slice(2), 16)
+            : parseInt(code.slice(1), 10);
+        return Number.isFinite(point) && point >= 0 && point <= 0x10ffff
+          ? String.fromCodePoint(point)
+          : match;
+      }
+      return NAMED_ENTITIES[code.toLowerCase()] ?? match;
+    },
+  );
 }
 
 function metaTags(html: string): Map<string, string> {
   const tags = new Map<string, string>();
   for (const match of html.matchAll(/<meta\b([^>]*)>/gi)) {
     const attrs = new Map<string, string>();
-    for (const attr of match[1].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
-      attrs.set(attr[1].toLowerCase(), decodeEntities(attr[2] ?? attr[3] ?? attr[4] ?? "").trim());
+    for (const attr of match[1].matchAll(
+      /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g,
+    )) {
+      attrs.set(
+        attr[1].toLowerCase(),
+        decodeEntities(attr[2] ?? attr[3] ?? attr[4] ?? "").trim(),
+      );
     }
     const key = (
-      attrs.get("property") ??
-      attrs.get("name") ??
-      attrs.get("itemprop")
+      attrs.get("property")
+      ?? attrs.get("name")
+      ?? attrs.get("itemprop")
     )?.toLowerCase();
     const content = attrs.get("content");
     if (key && content && !tags.has(key)) tags.set(key, content);
@@ -97,7 +108,8 @@ function jsonLdNodes(html: string): Record<string, unknown>[] {
 function isArtworkNode(node: Record<string, unknown>): boolean {
   const type = node["@type"];
   return (Array.isArray(type) ? type : [type]).some(
-    (entry) => typeof entry === "string" && ARTWORK_TYPES.has(entry.toLowerCase()),
+    (entry) =>
+      typeof entry === "string" && ARTWORK_TYPES.has(entry.toLowerCase()),
   );
 }
 
@@ -131,15 +143,18 @@ export function visibleText(html: string): string {
   ).replace(/\s+/g, " ");
 }
 
-const BOILERPLATE = /<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi;
+const BOILERPLATE =
+  /<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi;
 
 // Readable page text for the fact-sheet model: the main content region without site chrome.
 export function pageText(html: string, maxChars = 6000): string {
   const region =
-    /<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i.exec(html)?.[2] ??
-    /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(html)?.[1] ??
-    html;
-  return visibleText(region.replace(BOILERPLATE, " ")).trim().slice(0, maxChars);
+    /<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i.exec(html)?.[2]
+    ?? /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(html)?.[1]
+    ?? html;
+  return visibleText(region.replace(BOILERPLATE, " "))
+    .trim()
+    .slice(0, maxChars);
 }
 
 function splitTitle(value: string): string[] {
@@ -155,7 +170,9 @@ function artworkPageTitle(value: string, artist?: string): string {
   if (parts.length <= 1) return value.trim();
   const title = parts.slice(0, -1);
   return (
-    artist && title.length > 1 ? title.filter((part) => !personMatches(part, artist)) : title
+    artist && title.length > 1
+      ? title.filter((part) => !personMatches(part, artist))
+      : title
   ).join(" - ");
 }
 
@@ -165,13 +182,17 @@ function findAccession(body: string): string | undefined {
 
 export function extractPage(html: string): ExtractedPage {
   const meta = metaTags(html);
-  const pageTitle = decodeEntities(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
+  const pageTitle = decodeEntities(
+    /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "",
+  )
     .replace(/\s+/g, " ")
     .trim();
   const imageUrls: string[] = [];
   const fields: PageFields = {};
   const node = jsonLdNodes(html).find(isArtworkNode);
-  const artworkTitle = node ? jsonLdText(node.name ?? node.headline) : undefined;
+  const artworkTitle = node
+    ? jsonLdText(node.name ?? node.headline)
+    : undefined;
   if (node) {
     fields.title = artworkTitle;
     fields.artist = jsonLdText(node.creator ?? node.author ?? node.artist);
@@ -179,16 +200,22 @@ export function extractPage(html: string): ExtractedPage {
     fields.medium = jsonLdText(node.artMedium ?? node.material ?? node.artform);
     fields.creditLine = jsonLdText(node.creditText);
     const identifier = jsonLdText(node.identifier);
-    if (identifier && !/^https?:/i.test(identifier)) fields.accession = identifier;
+    if (identifier && !/^https?:/i.test(identifier)) {
+      fields.accession = identifier;
+    }
     imageUrls.push(...jsonLdUrls(node.image));
   }
   const body = visibleText(html);
   fields.artist ??= meta.get("author");
-  fields.title ??= artworkPageTitle(meta.get("og:title") ?? pageTitle, fields.artist) || undefined;
+  fields.title ??=
+    artworkPageTitle(meta.get("og:title") ?? pageTitle, fields.artist)
+    || undefined;
   fields.accession ??= findAccession(body);
   if (!imageUrls.length) {
     const value =
-      meta.get("og:image:secure_url") ?? meta.get("og:image") ?? meta.get("twitter:image");
+      meta.get("og:image:secure_url")
+      ?? meta.get("og:image")
+      ?? meta.get("twitter:image");
     if (value) imageUrls.push(value);
   }
   return {
@@ -196,6 +223,10 @@ export function extractPage(html: string): ExtractedPage {
       Object.entries(fields).filter(([, value]) => value !== undefined),
     ) as PageFields,
     imageUrls: [...new Set(imageUrls)],
-    source: artworkTitle ? "jsonld" : fields.title || fields.artist ? "meta" : "none",
+    source: artworkTitle
+      ? "jsonld"
+      : fields.title || fields.artist
+        ? "meta"
+        : "none",
   };
 }

@@ -12,29 +12,40 @@ import { CropEditor } from "../scan/crop-editor";
 import { ThemedText } from "../themed-text";
 import { GalleryButton } from "./gallery-button";
 
-export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoId?: string }) {
+export function AdjustCropScreen({
+  savedId,
+  photoId,
+}: {
+  savedId: string;
+  photoId?: string;
+}) {
   const owner = useLocalOwner();
   const works = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
-  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
+  const photos = useLiveQuery(selectArtworkPhotos(savedId, owner), [
+    savedId,
+    owner,
+  ]);
   const queryError = works.error ?? photos.error;
   useEffect(() => {
     if (queryError) reportError(queryError, "collection.crop-source.load");
   }, [queryError]);
-  const work = works.data.find((row) => row.owner === owner && row.deletedAt === null);
+  const work = works.data.find(
+    (row) => row.owner === owner && row.deletedAt === null,
+  );
   const album = photos.data.filter(
     (row) =>
-      row.owner === owner &&
-      row.savedLocalId === savedId &&
-      row.deletedAt === null &&
-      row.kind !== "label",
+      row.owner === owner
+      && row.savedLocalId === savedId
+      && row.deletedAt === null
+      && row.kind !== "label",
   );
   const source = photoId
     ? album.find((row) => row.localId === photoId)?.path
-    : (album.find((row) => row.path === work?.photoPath)?.path ??
-      album.find((row) => row.kind === "full" && row.path)?.path ??
-      album.find((row) => row.path)?.path ??
-      work?.photoPath);
-  if (!work || !source)
+    : (album.find((row) => row.path === work?.photoPath)?.path
+      ?? album.find((row) => row.kind === "full" && row.path)?.path
+      ?? album.find((row) => row.path)?.path
+      ?? work?.photoPath);
+  if (!work || !source) {
     return (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -48,6 +59,7 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
         <GalleryButton label="Back" onPress={() => router.back()} />
       </ScrollView>
     );
+  }
   return (
     <CropEditor
       key={`${owner}:${savedId}:${source}`}

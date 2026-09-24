@@ -6,14 +6,22 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos } from "./lib/collectionPhotos";
-import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
+import {
+  deviceScope,
+  ownerForDevice,
+  requireClaimComplete,
+} from "./lib/ownership";
 import { purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
 
 const MAX_DEVICES = 20;
 const PURGE_BATCH = 50;
 
 export const linkAccount = mutation({
-  args: { appleUserId: v.string(), nonce: v.string(), assertionBase64: v.string() },
+  args: {
+    appleUserId: v.string(),
+    nonce: v.string(),
+    assertionBase64: v.string(),
+  },
   returns: v.id("accounts"),
   handler: async (ctx, { appleUserId, ...assertion }) => {
     const device = await requireAttestedWrite(ctx, {
@@ -30,23 +38,30 @@ export const linkAccount = mutation({
     if (!proof || proof.sub !== appleUserId || proof.expiresAt <= Date.now()) {
       throw new ConvexError({ code: "apple_sign_in_required" });
     }
-    const deviceIds = [...new Set([...(existing?.deviceIds ?? []), device._id])];
-    if (deviceIds.length > MAX_DEVICES) throw new ConvexError({ code: "account_device_limit" });
+    const deviceIds = [
+      ...new Set([...(existing?.deviceIds ?? []), device._id]),
+    ];
+    if (deviceIds.length > MAX_DEVICES) {
+      throw new ConvexError({ code: "account_device_limit" });
+    }
     const accountId =
-      existing?._id ??
-      (await ctx.db.insert("accounts", {
+      existing?._id
+      ?? (await ctx.db.insert("accounts", {
         appleUserId,
         email: proof.email,
         deviceIds,
         createdAt: Date.now(),
       }));
-    if (existing)
+    if (existing) {
       await ctx.db.patch(existing._id, {
         deviceIds,
         ...(proof.email ? { email: proof.email } : {}),
       });
+    }
     const members = await Promise.all(deviceIds.map((id) => ctx.db.get(id)));
-    const trustWeight = Math.max(...members.map((member) => member?.trustWeight ?? 0));
+    const trustWeight = Math.max(
+      ...members.map((member) => member?.trustWeight ?? 0),
+    );
     for (const member of members) {
       if (member) await ctx.db.patch(member._id, { trustWeight });
     }
@@ -54,8 +69,9 @@ export const linkAccount = mutation({
       .query("journalClaims")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
       .unique();
-    if (claim && claim.phase !== "complete" && claim.accountId !== accountId)
+    if (claim && claim.phase !== "complete" && claim.accountId !== accountId) {
       throw new ConvexError({ code: "claim_required" });
+    }
     if (!claim || claim.phase === "complete") {
       const fields = {
         deviceId: device._id,
@@ -86,11 +102,14 @@ export const unlink = mutation({
       .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
       .unique();
     if (claim) await ctx.db.delete(claim._id);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
-    if (account)
+    const account = device.accountId
+      ? await ctx.db.get(device.accountId)
+      : null;
+    if (account) {
       await ctx.db.patch(account._id, {
         deviceIds: account.deviceIds.filter((id) => id !== device._id),
       });
+    }
     await ctx.db.patch(device._id, {
       accountId: undefined,
       appleLinkProof: undefined,
@@ -105,27 +124,33 @@ export const deleteAccount = mutation({
   returns: v.null(),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    const account = device.accountId
+      ? await ctx.db.get(device.accountId)
+      : null;
     if (!account) return null;
     const claims = await ctx.db
       .query("journalClaims")
       .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
       .collect();
-    if (claims.some((claim) => claim.phase !== "complete"))
+    if (claims.some((claim) => claim.phase !== "complete")) {
       throw new ConvexError({ code: "claim_required" });
+    }
     for (const id of account.deviceIds) {
       const member = await ctx.db.get(id);
-      if (member?.accountId === account._id)
+      if (member?.accountId === account._id) {
         await ctx.db.patch(id, {
           accountId: undefined,
           appleLinkProof: undefined,
           scopeRevision: (member.scopeRevision ?? 0) + 1,
         });
+      }
     }
     const authAccount = await ctx.db
       .query("authAccounts")
       .withIndex("providerAndAccountId", (q) =>
-        q.eq("provider", "apple-native").eq("providerAccountId", account.appleUserId),
+        q
+          .eq("provider", "apple-native")
+          .eq("providerAccountId", account.appleUserId),
       )
       .unique();
     if (authAccount) await ctx.db.delete(authAccount._id);
@@ -133,10 +158,14 @@ export const deleteAccount = mutation({
       .query("profiles")
       .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
       .unique();
-    if (profile) await ctx.db.patch(profile._id, { active: false, publishedWallCount: 0 });
+    if (profile) {
+      await ctx.db.patch(profile._id, { active: false, publishedWallCount: 0 });
+    }
     for (const claim of claims) await ctx.db.delete(claim._id);
     await ctx.db.delete(account._id);
-    await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId: account._id });
+    await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
+      accountId: account._id,
+    });
     return null;
   },
 });
@@ -148,7 +177,9 @@ export const purgeJournal = internalMutation({
   handler: async (ctx, { accountId }) => {
     if (await ctx.db.get(accountId)) return null;
     if (await purgeSocialBatch(ctx, accountId)) {
-      await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId });
+      await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
+        accountId,
+      });
       return null;
     }
     const owner = { kind: "account" as const, accountId };
@@ -158,7 +189,9 @@ export const purgeJournal = internalMutation({
       .take(PURGE_BATCH);
     for (const save of saves) {
       if (await purgeSaveMediaBatch(ctx, save._id)) {
-        await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId });
+        await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
+          accountId,
+        });
         return null;
       }
       await ctx.db.delete(save._id);
@@ -173,7 +206,9 @@ export const purgeJournal = internalMutation({
         : [];
     for (const visit of visits) await ctx.db.delete(visit._id);
     if (saves.length + visits.length === PURGE_BATCH) {
-      await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, { accountId });
+      await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
+        accountId,
+      });
       return null;
     }
     const state = await ctx.db
@@ -196,7 +231,9 @@ export const me = query({
   }),
   handler: async (ctx) => {
     const device = await requireDevice(ctx);
-    const account = device.accountId ? await ctx.db.get(device.accountId) : null;
+    const account = device.accountId
+      ? await ctx.db.get(device.accountId)
+      : null;
     return {
       linked: !!account,
       deviceCount: account?.deviceIds.length ?? 0,

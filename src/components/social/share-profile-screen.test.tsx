@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { ShareProfileScreen } from "./share-profile-screen";
 
 const mockBack = jest.fn(),
@@ -8,14 +13,18 @@ const mockShare = jest.fn(),
   mockReleaseImage = jest.fn(),
   mockReleaseContext = jest.fn();
 const mockManipulate = jest.fn();
-jest.mock("expo-sharing", () => ({ shareAsync: (...args: unknown[]) => mockShare(...args) }));
+jest.mock("expo-sharing", () => ({
+  shareAsync: (...args: unknown[]) => mockShare(...args),
+}));
 jest.mock("expo-file-system", () => ({
   File: class {
     delete = mockDelete;
   },
 }));
 jest.mock("expo-image-manipulator", () => ({
-  ImageManipulator: { manipulate: (...args: unknown[]) => mockManipulate(...args) },
+  ImageManipulator: {
+    manipulate: (...args: unknown[]) => mockManipulate(...args),
+  },
   SaveFormat: { PNG: "png" },
 }));
 jest.mock("react-native-safe-area-context", () => ({
@@ -69,12 +78,18 @@ it("retries an unsuccessful profile query without calling it unavailable", async
 
 it("shows the profile identity and shares a PNG QR code through the native share sheet", async () => {
   mockResult = {
-    data: { profileId: "public-profile", name: "Jamie Lee", username: "jamielee" },
+    data: {
+      profileId: "public-profile",
+      name: "Jamie Lee",
+      username: "jamielee",
+    },
     loading: false,
   };
   await render(<ShareProfileScreen />);
   expect(screen.getByRole("header", { name: "Jamie Lee" })).toBeOnTheScreen();
-  expect(screen.getByLabelText("QR code for Jamie Lee’s Artlog profile")).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("QR code for Jamie Lee’s Artlog profile"),
+  ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
   await waitFor(() =>
     expect(mockShare).toHaveBeenCalledWith(
@@ -82,7 +97,9 @@ it("shows the profile identity and shares a PNG QR code through the native share
       expect.objectContaining({ mimeType: "image/png", UTI: "public.png" }),
     ),
   );
-  expect(mockManipulate).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/gif;base64,/));
+  expect(mockManipulate).toHaveBeenCalledWith(
+    expect.stringMatching(/^data:image\/gif;base64,/),
+  );
   expect(mockReleaseImage).toHaveBeenCalledTimes(1);
   expect(mockReleaseContext).toHaveBeenCalledTimes(1);
   expect(mockDelete).toHaveBeenCalledTimes(1);
@@ -92,7 +109,11 @@ it("shows the profile identity and shares a PNG QR code through the native share
 
 it("allows retry when QR image preparation fails before creating a context", async () => {
   mockResult = {
-    data: { profileId: "public-profile", name: "Jamie Lee", username: "jamielee" },
+    data: {
+      profileId: "public-profile",
+      name: "Jamie Lee",
+      username: "jamielee",
+    },
     loading: false,
   };
   mockManipulate.mockImplementationOnce(() => {

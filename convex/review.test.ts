@@ -26,7 +26,9 @@ async function fixture() {
   const t = harness({ transactionLimits: true });
   const user = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet, factSheetUpdatedAt: 1 } }),
+    seedArtworkWithObject(ctx, {
+      artwork: { factSheet, factSheetUpdatedAt: 1 },
+    }),
   );
   await user.as.mutation(api.corrections.correctFact, {
     artworkId,
@@ -53,22 +55,28 @@ describe("review.replaceFactSheet", () => {
     const open = await t.query(internal.review.listCorrections, {});
     expect(open).toHaveLength(1);
     expect(open[0].message).toBe("The source is also wrong.");
-    expect(await t.query(internal.review.listCorrections, { status: "resolved" })).toMatchObject([
-      { _id: correction._id },
-    ]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    expect(
+      await t.query(internal.review.listCorrections, { status: "resolved" }),
+    ).toMatchObject([{ _id: correction._id }]);
+    expect(
+      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
+    ).toBe(true);
     await t.mutation(internal.review.replaceFactSheet, {
       artworkId,
       factSheet,
       correctionIds: [open[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
+    ).toBeUndefined();
   });
 
   it("rejects a correction from another artwork without changing either report or sheet", async () => {
     const { t, artworkId, correction } = await fixture();
-    const other = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet } }));
+    const other = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, { artwork: { factSheet } }),
+    );
     await expect(
       t.mutation(internal.review.replaceFactSheet, {
         artworkId: other.artworkId,
@@ -76,8 +84,12 @@ describe("review.replaceFactSheet", () => {
         correctionIds: [correction._id],
       }),
     ).rejects.toMatchObject({ data: { code: "invalid_correction" } });
-    expect((await t.run((ctx) => ctx.db.get(other.artworkId)))?.factSheet).toEqual(factSheet);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    expect(
+      (await t.run((ctx) => ctx.db.get(other.artworkId)))?.factSheet,
+    ).toEqual(factSheet);
+    expect(
+      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
+    ).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
@@ -90,21 +102,29 @@ describe("review.replaceFactSheet", () => {
         correctionIds: Array(101).fill(correction._id),
       }),
     ).rejects.toMatchObject({ data: { code: "too_many_corrections" } });
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheet).toEqual(factSheet);
+    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheet).toEqual(
+      factSheet,
+    );
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
   it("allows a sheet edit without resolving unaddressed reports", async () => {
     const { t, artworkId } = await fixture();
-    await t.mutation(internal.review.replaceFactSheet, { artworkId, factSheet, correctionIds: [] });
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
+    await t.mutation(internal.review.replaceFactSheet, {
+      artworkId,
+      factSheet,
+      correctionIds: [],
+    });
+    expect(
+      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
+    ).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 
   it("drains a backlog through bounded reviews without hiding the remaining reports", async () => {
     const { t, user, artworkId } = await fixture();
     await t.run(async (ctx) => {
-      for (let i = 0; i < 100; i++)
+      for (let i = 0; i < 100; i++) {
         await ctx.db.insert("factCorrections", {
           artworkId,
           factId: "f1",
@@ -113,6 +133,7 @@ describe("review.replaceFactSheet", () => {
           createdAt: Date.now(),
           status: "open",
         });
+      }
     });
     const first = await t.query(internal.review.listCorrections, {});
     expect(first).toHaveLength(100);
@@ -129,7 +150,9 @@ describe("review.replaceFactSheet", () => {
       correctionIds: [remaining[0]._id],
     });
     expect(await t.query(internal.review.listCorrections, {})).toEqual([]);
-    expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview,
+    ).toBeUndefined();
   });
 });
 
@@ -172,10 +195,13 @@ describe("review queues", () => {
       await proposal([user.deviceId]);
       return { venueId, flagged, pending, ready };
     });
-    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([
-      { _id: seeded.flagged.objectId },
-    ]);
-    const { rows: pending } = await t.query(internal.review.listContributions, {});
+    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject(
+      [{ _id: seeded.flagged.objectId }],
+    );
+    const { rows: pending } = await t.query(
+      internal.review.listContributions,
+      {},
+    );
     expect(pending).toMatchObject([
       {
         _id: seeded.pending,
@@ -187,11 +213,15 @@ describe("review queues", () => {
     expect(pending[0]).not.toHaveProperty("vector");
     expect(pending[0]).not.toHaveProperty("descriptors");
     expect(
-      (await t.query(internal.review.listContributions, { status: "tentative" })).rows,
+      (
+        await t.query(internal.review.listContributions, {
+          status: "tentative",
+        })
+      ).rows,
     ).toHaveLength(1);
-    expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([
-      { _id: seeded.ready, readyForReview: true },
-    ]);
+    expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject(
+      [{ _id: seeded.ready, readyForReview: true }],
+    );
   });
 });
 
@@ -208,7 +238,11 @@ it("can list pending contributions that were accepted within document limits", a
         fields: {
           title: { value: "Water Lilies", edited: false, evidence: "ocr" },
           artist: { value: "Claude Monet", edited: false, evidence: "ocr" },
-          creditLine: { value: "x".repeat(450_000), edited: true, evidence: "user_edited" },
+          creditLine: {
+            value: "x".repeat(450_000),
+            edited: true,
+            evidence: "user_edited",
+          },
         },
       }),
     );
@@ -217,10 +251,8 @@ it("can list pending contributions that were accepted within document limits", a
   let cursor: string | null = null;
   let pages = 0;
   do {
-    const result: FunctionReturnType<typeof internal.review.listContributions> = await t.query(
-      internal.review.listContributions,
-      { cursor },
-    );
+    const result: FunctionReturnType<typeof internal.review.listContributions> =
+      await t.query(internal.review.listContributions, { cursor });
     ids.push(...result.rows.map((row) => row._id));
     cursor = result.cursor;
     pages++;

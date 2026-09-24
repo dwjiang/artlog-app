@@ -4,7 +4,10 @@ import { router } from "expo-router";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { searchVisitSummaries, type VisitSummary } from "@/lib/journal/visit-summaries";
+import {
+  searchVisitSummaries,
+  type VisitSummary,
+} from "@/lib/journal/visit-summaries";
 import { searchTerm } from "@/lib/journal/query";
 import { useVisitView } from "@/lib/journal/use-visit-view";
 import { CollectionSearchField } from "../collection/collection-search-field";
@@ -40,7 +43,7 @@ export function CollectionVisits({
   const { mode, changeMode, error: preferenceError } = useVisitView(owner);
   const { fontScale } = useWindowDimensions();
   const shown = searchVisitSummaries(visits, search);
-  if (!loading && !error && !visits.length && !search.trim())
+  if (!loading && !error && !visits.length && !search.trim()) {
     return (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -51,10 +54,18 @@ export function CollectionVisits({
         <CollectionEmptyState kind="visits" />
       </ScrollView>
     );
+  }
   const controls = (
     <View style={{ backgroundColor: Gallery.paper }}>
       {collectionControls}
-      <View style={{ paddingHorizontal: 20, paddingTop: 4, gap: 12, paddingBottom: 10 }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 4,
+          gap: 12,
+          paddingBottom: 10,
+        }}
+      >
         <View
           style={{
             flexDirection: fontScale > 1.5 ? "column" : "row",
@@ -95,21 +106,22 @@ export function CollectionVisits({
     </View>
   );
   let message: ReactElement | undefined;
-  if (error)
+  if (error) {
     message = (
       <VisitMessage action="Go to Scan" onAction={() => router.push("/scan")}>
         Your visits could not load. Reopen Collection to try again.
       </VisitMessage>
     );
+  }
   // `loading` also covers the venue metadata read, so visits never render without their places.
-  else if (!mode || loading)
+  else if (!mode || loading) {
     message =
       mode === "list" ? (
         <ListSkeleton label="Loading your visits…" rows={3} />
       ) : (
         <VisitMessage loading>Loading your visits…</VisitMessage>
       );
-  else if (mode === "list" && !shown.length)
+  } else if (mode === "list" && !shown.length) {
     message = (
       <SearchEmptyState
         title="No visits found."
@@ -121,6 +133,7 @@ export function CollectionVisits({
         onClear={clearSearch}
       />
     );
+  }
   // Keep the native scroll view, header, and controls mounted across view changes.
   return (
     <VisitTimeline
@@ -129,8 +142,8 @@ export function CollectionVisits({
       controls={controls}
       scrollResetKey={mode}
       empty={
-        message ??
-        (mode === "globe" ? (
+        message
+        ?? (mode === "globe" ? (
           <VisitGlobe visits={visits} onList={() => changeMode("list")} />
         ) : undefined)
       }

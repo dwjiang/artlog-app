@@ -30,9 +30,15 @@ jest.mock("@/db/repos/artwork-album", () => ({
   editArtworkPhoto: jest.fn(),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: jest.fn() }));
-jest.mock("@/lib/wall/use-collection-wall", () => ({ useCollectionWall: jest.fn() }));
-jest.mock("@/lib/account/collection-sync", () => ({ flushCollectionMedia: jest.fn() }));
-jest.mock("@/lib/collection/pending-removals", () => ({ scheduleRemoval: jest.fn() }));
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: jest.fn(),
+}));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushCollectionMedia: jest.fn(),
+}));
+jest.mock("@/lib/collection/pending-removals", () => ({
+  scheduleRemoval: jest.fn(),
+}));
 jest.mock("./note-editor", () => ({ NoteEditor: () => null }));
 jest.mock("./artwork-album", () => ({ ArtworkAlbum: () => null }));
 jest.mock("./artwork-enrichment", () => ({ ArtworkEnrichment: () => null }));
@@ -56,7 +62,9 @@ it.each([
   "%s distinguishes an unfinished read, a missing item and a recoverable read failure",
   async (_name, content, item) => {
     const view = await render(content());
-    expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(`Opening ${item.toLowerCase()}…`),
+    ).toBeOnTheScreen();
     expect(screen.queryByText(`${item} unavailable.`)).toBeNull();
     mockQuery = { data: [], updatedAt: new Date() };
     await view.rerender(content());
@@ -65,10 +73,14 @@ it.each([
     expect(mockBack).toHaveBeenCalledTimes(1);
     mockQuery = { data: [], error: new Error("Read failed") };
     await view.rerender(content());
-    expect(screen.getByText(`Couldn’t load this ${item.toLowerCase()}.`)).toBeOnTheScreen();
+    expect(
+      screen.getByText(`Couldn’t load this ${item.toLowerCase()}.`),
+    ).toBeOnTheScreen();
     mockQuery = { data: [] };
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
-    expect(screen.getByLabelText(`Opening ${item.toLowerCase()}…`)).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText(`Opening ${item.toLowerCase()}…`),
+    ).toBeOnTheScreen();
   },
 );
 
@@ -87,7 +99,9 @@ it("does not show a photo from a stale account or a different artwork", async ()
   mockOwner = "account:current";
   await render(<PhotoEditorScreen />);
   expect(screen.getByText("Photo unavailable.")).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Save photo details" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Save photo details" }),
+  ).toBeNull();
 });
 
 it("keeps manual identification edits when saving fails", async () => {

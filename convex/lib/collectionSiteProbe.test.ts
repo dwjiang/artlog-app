@@ -18,11 +18,20 @@ it.each([
   ["emuseum", '<a href="/objects/12">Painting</a>'],
   ["iiif", '<a href="/iiif/work/manifest.json">Manifest</a>'],
   ["collectionspace", "<title>CollectionSpace Browser</title>"],
-  ["generic", Array.from({ length: 20 }, (_, i) => `<a href='/artwork/${i}'>Work</a>`).join("")],
+  [
+    "generic",
+    Array.from(
+      { length: 20 },
+      (_, i) => `<a href='/artwork/${i}'>Work</a>`,
+    ).join(""),
+  ],
 ])("recognizes %s on a collection page", async (platform, html) => {
   fetchMock.mockImplementation(
     async (url) =>
-      new Response(new URL(String(url)).pathname === "/collection" ? html : "", { status: 200 }),
+      new Response(
+        new URL(String(url)).pathname === "/collection" ? html : "",
+        { status: 200 },
+      ),
   );
   expect(await probeCollectionSite("https://museum.example/about")).toEqual({
     collectionSiteUrl: "https://museum.example/collection",
@@ -35,7 +44,9 @@ it("probes no more than the six designated paths and identifies its User-Agent",
   vi.stubEnv("CRAWLER_CONTACT", "ops@example.org");
   fetchMock.mockImplementation(async () => new Response("About the museum"));
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
-  expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+  expect(
+    fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname),
+  ).toEqual([
     "/",
     "/collection",
     "/collections",
@@ -56,10 +67,11 @@ it("does not count duplicate or external links as a generic collection", async (
   fetchMock.mockImplementation(
     async () =>
       new Response(
-        '<a href="/artwork/1">Same work</a>'.repeat(20) +
-          Array.from(
+        '<a href="/artwork/1">Same work</a>'.repeat(20)
+          + Array.from(
             { length: 20 },
-            (_, i) => `<a href="https://elsewhere.example/artwork/${i}">External</a>`,
+            (_, i) =>
+              `<a href="https://elsewhere.example/artwork/${i}">External</a>`,
           ).join(""),
       ),
   );
@@ -68,7 +80,8 @@ it("does not count duplicate or external links as a generic collection", async (
 
 it("ignores external platform links", async () => {
   fetchMock.mockImplementation(
-    async () => new Response('<a href="https://other.example/objects/1">External</a>'),
+    async () =>
+      new Response('<a href="https://other.example/objects/1">External</a>'),
   );
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
 });
@@ -111,14 +124,20 @@ it.each([
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(6);
   expect(
-    fetchMock.mock.calls.every(([url]) => String(url).startsWith("https://museum.example/")),
+    fetchMock.mock.calls.every(([url]) =>
+      String(url).startsWith("https://museum.example/"),
+    ),
   ).toBe(true);
 });
 
 it("ends redirect loops and caps chains at six requests", async () => {
   let step = 0;
   fetchMock.mockImplementation(
-    async () => new Response(null, { status: 302, headers: { location: `/hop-${++step}` } }),
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: `/hop-${++step}` },
+      }),
   );
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -142,7 +161,9 @@ it("times out each request after five seconds and handles network failures", asy
   fetchMock.mockImplementation(
     (_url, init) =>
       new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        init?.signal?.addEventListener("abort", () =>
+          reject(new Error("aborted")),
+        );
       }),
   );
   const pending = probeCollectionSite("https://museum.example");
@@ -157,7 +178,8 @@ it.each([408, 429, 500, 503])(
     fetchMock.mockImplementation(
       async (url) =>
         new Response("", {
-          status: new URL(String(url)).pathname === "/collection" ? status : 404,
+          status:
+            new URL(String(url)).pathname === "/collection" ? status : 404,
         }),
     );
     expect(await probeCollectionSite("https://museum.example")).toBe("retry");

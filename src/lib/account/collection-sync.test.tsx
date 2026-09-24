@@ -55,8 +55,12 @@ jest.mock("@/db/repos/settings", () => ({
   setSetting: (...args: unknown[]) => mockSetSetting(...args),
 }));
 jest.mock("@/db/repos/visits", () => ({ listUnsyncedVisits: () => [] }));
-jest.mock("@/db/repos/journal-claim", () => ({ claimLocalJournal: async () => {} }));
-jest.mock("./sync", () => ({ syncJournal: (...args: unknown[]) => mockSync(...args) }));
+jest.mock("@/db/repos/journal-claim", () => ({
+  claimLocalJournal: async () => {},
+}));
+jest.mock("./sync", () => ({
+  syncJournal: (...args: unknown[]) => mockSync(...args),
+}));
 jest.mock("@/lib/observability", () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
   addBreadcrumb: jest.fn(),
@@ -71,11 +75,16 @@ beforeEach(() => {
   mockSetSetting.mockReset().mockResolvedValue(undefined);
   mockAccount = { scope: "account:a,b", accountId: "account" };
   mockToken = "token";
-  Object.defineProperty(AppState, "currentState", { configurable: true, value: "active" });
-  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
-    mockForeground = listener;
-    return { remove: jest.fn() };
+  Object.defineProperty(AppState, "currentState", {
+    configurable: true,
+    value: "active",
   });
+  jest
+    .spyOn(AppState, "addEventListener")
+    .mockImplementation((_event, listener) => {
+      mockForeground = listener;
+      return { remove: jest.fn() };
+    });
   resumeCollectionSync();
 });
 afterEach(() => {
@@ -135,7 +144,10 @@ it("backs up the registered device before Apple sign-in and switches scope after
   requestCollectionSync();
   await tick();
   expect(mockSync).toHaveBeenCalledTimes(2);
-  expect(mockSync.mock.calls[0][1]).toMatchObject({ deviceId: "a", accountId: null });
+  expect(mockSync.mock.calls[0][1]).toMatchObject({
+    deviceId: "a",
+    accountId: null,
+  });
   mockAccount = { scope: "account:a,b", accountId: "account" };
   await screen.rerender(<CollectionSync />);
   await tick();
@@ -195,9 +207,15 @@ it("rejects flushJournal with the sync failure, keeps the scheduled retry, and r
   await act(() => jest.advanceTimersByTimeAsync(30_000));
   expect(mockSync).toHaveBeenCalledTimes(3);
   await expect(flushJournal()).resolves.toBeUndefined();
-  Object.defineProperty(AppState, "currentState", { configurable: true, value: "background" });
+  Object.defineProperty(AppState, "currentState", {
+    configurable: true,
+    value: "background",
+  });
   await expect(flushJournal()).rejects.toBeInstanceOf(SyncUnavailableError);
-  Object.defineProperty(AppState, "currentState", { configurable: true, value: "active" });
+  Object.defineProperty(AppState, "currentState", {
+    configurable: true,
+    value: "active",
+  });
   pauseCollectionSync();
   await expect(flushJournal()).rejects.toBeInstanceOf(SyncUnavailableError);
 });
@@ -210,8 +228,13 @@ it("lets flushCollectionMedia through a transfer failure unless the caller depen
   mockPhotos.mockRejectedValue(failure);
   mockPending = false;
   mockJournalPending = false;
-  const before = { sync: mockSync.mock.calls.length, photos: mockPhotos.mock.calls.length };
-  await expect(flushCollectionMedia({ photoLocalIds: ["other"] })).resolves.toBeUndefined();
+  const before = {
+    sync: mockSync.mock.calls.length,
+    photos: mockPhotos.mock.calls.length,
+  };
+  await expect(
+    flushCollectionMedia({ photoLocalIds: ["other"] }),
+  ).resolves.toBeUndefined();
   expect(mockAlbumPending).toHaveBeenLastCalledWith("account:account", {
     photoLocalIds: ["other"],
   });
@@ -219,14 +242,20 @@ it("lets flushCollectionMedia through a transfer failure unless the caller depen
   expect(mockSync).toHaveBeenCalledTimes(before.sync);
   expect(mockPhotos).toHaveBeenCalledTimes(before.photos);
   mockJournalPending = true;
-  await expect(flushCollectionMedia({ photoLocalIds: ["other"] })).resolves.toBeUndefined();
+  await expect(
+    flushCollectionMedia({ photoLocalIds: ["other"] }),
+  ).resolves.toBeUndefined();
   expect(mockSync).toHaveBeenCalledTimes(before.sync + 1);
   expect(mockPhotos).toHaveBeenCalledTimes(before.photos + 1);
   mockPending = true;
-  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBe(failure);
+  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBe(
+    failure,
+  );
   expect(mockReportError).toHaveBeenCalledWith(failure, "sync.photos");
   mockPhotos.mockResolvedValue(undefined);
-  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).resolves.toBeUndefined();
+  await expect(
+    flushCollectionMedia({ photoLocalIds: ["hung"] }),
+  ).resolves.toBeUndefined();
 });
 
 it("reports a failed owner persistence without exposing the owner or stopping the sync", async () => {
@@ -242,7 +271,10 @@ it("reports a failed owner persistence without exposing the owner or stopping th
 it("keeps a linked scope across a token refresh but suspends it again when the account scope changes", async () => {
   const screen = await render(<CollectionSync />);
   await tick();
-  expect(captureOwner()).toMatchObject({ owner: "account:account", scope: "account:a,b" });
+  expect(captureOwner()).toMatchObject({
+    owner: "account:account",
+    scope: "account:a,b",
+  });
   const linked = captureOwner();
   mockToken = "rotated";
   await screen.rerender(<CollectionSync />);
@@ -253,5 +285,8 @@ it("keeps a linked scope across a token refresh but suspends it again when the a
   await screen.rerender(<CollectionSync />);
   await tick();
   expect(linked.isCurrent()).toBe(false);
-  expect(captureOwner()).toMatchObject({ owner: "account:account", scope: undefined });
+  expect(captureOwner()).toMatchObject({
+    owner: "account:account",
+    scope: undefined,
+  });
 });

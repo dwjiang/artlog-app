@@ -1,5 +1,11 @@
 import { Button, Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import { accessibilityLabel, contentShape, font, frame, shapes } from "@expo/ui/swift-ui/modifiers";
+import {
+  accessibilityLabel,
+  contentShape,
+  font,
+  frame,
+  shapes,
+} from "@expo/ui/swift-ui/modifiers";
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
@@ -38,9 +44,17 @@ export function SettingsScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 16 }}
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: 28,
+        gap: 16,
+      }}
     >
-      <ThemedText variant={fontScale > 1.3 ? "display" : "pageTitle"} accessibilityRole="header">
+      <ThemedText
+        variant={fontScale > 1.3 ? "display" : "pageTitle"}
+        accessibilityRole="header"
+      >
         Settings
       </ThemedText>
       {account?.linked ? (
@@ -60,7 +74,11 @@ export function SettingsScreen() {
             }}
           >
             {profile ? (
-              <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={64} />
+              <ProfileAvatar
+                name={profile.name}
+                photoUrl={profile.photoUrl}
+                size={64}
+              />
             ) : (
               <View
                 style={{
@@ -81,7 +99,10 @@ export function SettingsScreen() {
               </View>
             )}
             <View style={{ flex: 1, gap: 4 }}>
-              <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>
+              <ThemedText
+                variant="section"
+                style={{ fontSize: 24, lineHeight: 28 }}
+              >
                 {accountName}
               </ThemedText>
               {!!accountDetail && (
@@ -139,7 +160,11 @@ export function SettingsScreen() {
         </View>
       )}
       <SettingsGroup title="Your journal">
-        <SettingsRow label="General" icon="gearshape" onPress={detail("general")} />
+        <SettingsRow
+          label="General"
+          icon="gearshape"
+          onPress={detail("general")}
+        />
         <SettingsRow
           label="Museum downloads"
           icon="arrow.down.to.line"
@@ -150,9 +175,17 @@ export function SettingsScreen() {
           icon="square.grid.2x2"
           onPress={() => router.push("/widgets")}
         />
-        <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
+        <SettingsRow
+          label="Visits"
+          icon="chart.bar"
+          onPress={detail("visits")}
+        />
         {account?.linked && (
-          <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />
+          <SettingsRow
+            label="Leaderboards"
+            icon="trophy"
+            onPress={detail("leaderboards")}
+          />
         )}
         {account?.linked && (
           <SettingsRow
@@ -161,14 +194,25 @@ export function SettingsScreen() {
             onPress={() => router.push("/public-notes")}
           />
         )}
-        <SettingsRow label="Contributions" icon="person.2" onPress={detail("contributions")} />
+        <SettingsRow
+          label="Contributions"
+          icon="person.2"
+          onPress={detail("contributions")}
+        />
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
-        <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
+        <SettingsRow
+          label="About"
+          icon="info.circle"
+          onPress={detail("about")}
+        />
       </SettingsGroup>
       <ThemedText variant="metadata" themeColor="textSecondary">
-        Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
+        Artlog · Version{" "}
+        {Constants.expoConfig?.version
+          ?? Constants.nativeAppVersion
+          ?? "Unknown"}
       </ThemedText>
       {__DEV__ && (
         <SettingsGroup title="Developer">
@@ -183,7 +227,13 @@ export function SettingsScreen() {
   );
 }
 
-function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+function SettingsGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <View style={{ gap: 8 }}>
       <ThemedText variant="section" accessibilityRole="header">
@@ -225,7 +275,11 @@ function SettingsRow({
   onPress: () => void;
 }) {
   return (
-    <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
+    <Host
+      matchContents={{ vertical: true }}
+      colorScheme="light"
+      style={{ width: "100%" }}
+    >
       <Button
         variant="text"
         onPress={onPress}
@@ -239,7 +293,12 @@ function SettingsRow({
             contentShape(shapes.rectangle()),
           ]}
         >
-          <Icon name={icon} size={22} color={Gallery.ink} modifiers={[frame({ width: 28 })]} />
+          <Icon
+            name={icon}
+            size={22}
+            color={Gallery.ink}
+            modifiers={[frame({ width: 28 })]}
+          />
           <NativeText
             textStyle={{ color: Gallery.ink }}
             modifiers={[

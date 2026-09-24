@@ -5,7 +5,10 @@ it("trims, clamps confidence, drops blank lines, and caps the count in reading o
     { text: "  Claude Monet ", confidence: 1.2 },
     { text: "   ", confidence: 1 },
     { text: "x".repeat(400), confidence: -0.1 },
-    ...Array.from({ length: 90 }, (_, i) => ({ text: `line ${i}`, confidence: 0.5 })),
+    ...Array.from({ length: 90 }, (_, i) => ({
+      text: `line ${i}`,
+      confidence: 0.5,
+    })),
   ];
   const result = toOcrLines(lines);
   expect(result).toHaveLength(80);

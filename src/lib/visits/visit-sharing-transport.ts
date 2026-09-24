@@ -20,14 +20,22 @@ export function createVisitSharingTransport(
     });
   }
   return {
-    getState: (args: FunctionArgs<typeof api.sharedVisits.getState>, context: RequestContext) =>
-      client(context).query(api.sharedVisits.getState, args),
+    getState: (
+      args: FunctionArgs<typeof api.sharedVisits.getState>,
+      context: RequestContext,
+    ) => client(context).query(api.sharedVisits.getState, args),
     preview: (args: ShareSelection, context: RequestContext) =>
       client(context).query(api.sharedVisits.preview, args),
     publish: (args: ShareSelection, context: RequestContext) =>
-      client(context).mutation(api.sharedVisits.publish, args, { skipQueue: true }),
-    get: (args: FunctionArgs<typeof api.sharedVisits.get>, context: RequestContext) =>
-      client(context).query(api.sharedVisits.get, args),
+      client(context).mutation(api.sharedVisits.publish, args, {
+        skipQueue: true,
+      }),
+    get: (
+      args: FunctionArgs<typeof api.sharedVisits.get>,
+      context: RequestContext,
+    ) => client(context).query(api.sharedVisits.get, args),
   };
 }
-export type VisitSharingTransport = ReturnType<typeof createVisitSharingTransport>;
+export type VisitSharingTransport = ReturnType<
+  typeof createVisitSharingTransport
+>;

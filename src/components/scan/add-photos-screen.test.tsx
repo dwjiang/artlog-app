@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { AppState } from "react-native";
 import { AddPhotosScreen } from "./add-photos-screen";
 import { CaptureContextScreen } from "./capture-context-screen";
@@ -16,13 +21,21 @@ import { insertSavedWork, getSavedWork } from "@/db/repos/saved-works";
 import { getPendingScan, enqueuePendingScan } from "@/db/repos/pending-scans";
 import { upsertVisit } from "@/db/repos/visits";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
-import { readPhotoSession, updatePhotoSession } from "@/lib/capture/photo-draft";
+import {
+  readPhotoSession,
+  updatePhotoSession,
+} from "@/lib/capture/photo-draft";
 import { draftFromCandidate } from "@/lib/result/snapshot";
 import { contributeLabel } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
 
 const owner = "device:test-installation";
-let mockParams: { draftId: string; title?: string; savedId?: string; visitId?: string };
+let mockParams: {
+  draftId: string;
+  title?: string;
+  savedId?: string;
+  visitId?: string;
+};
 const mockPush = jest.fn(),
   mockBack = jest.fn(),
   mockNavigate = jest.fn(),
@@ -40,24 +53,38 @@ jest.mock("expo-router", () => ({
     dismissAll: mockDismissAll,
     dismissTo: mockDismissTo,
   }),
-  router: { push: (...args: unknown[]) => mockPush(...args), back: () => mockBack() },
+  router: {
+    push: (...args: unknown[]) => mockPush(...args),
+    back: () => mockBack(),
+  },
   Stack: { Screen: () => null },
 }));
 jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
-jest.mock("react-native-vision-camera", () => ({ Camera: () => null, usePhotoOutput: () => ({}) }));
+jest.mock("react-native-vision-camera", () => ({
+  Camera: () => null,
+  usePhotoOutput: () => ({}),
+}));
 jest.mock("./camera-permission", () => ({ CameraPermission: () => null }));
-jest.mock("../collection/native-segmented-picker", () => ({ NativeSegmentedPicker: () => null }));
-jest.mock("@/lib/capture/check-album-photo", () => ({ checkAlbumPhoto: jest.fn() }));
+jest.mock("../collection/native-segmented-picker", () => ({
+  NativeSegmentedPicker: () => null,
+}));
+jest.mock("@/lib/capture/check-album-photo", () => ({
+  checkAlbumPhoto: jest.fn(),
+}));
 jest.mock("@/lib/label/contribute", () => ({
   contributeLabel: jest.fn(),
   contributionErrorMessage: () => "Index save failed",
 }));
-jest.mock("@/lib/account/photo-transfer", () => ({ removePhotoFile: jest.fn() }));
+jest.mock("@/lib/account/photo-transfer", () => ({
+  removePhotoFile: jest.fn(),
+}));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
   captureFileUri: (path: string) => `file:///${path}`,
 }));
-jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: async () => {} }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushJournal: async () => {},
+}));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async (ids: string[]) =>
     ids[0] === "museum-met"
@@ -82,24 +109,32 @@ jest.mock("@/lib/venue/use-venue", () => ({
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
 }));
 jest.mock("@/lib/convex-client", () => ({
-  convex: { mutation: async () => ({ collectionId: "remote", updatedAt: 1, updatedBy: "device" }) },
+  convex: {
+    mutation: async () => ({
+      collectionId: "remote",
+      updatedAt: 1,
+      updatedBy: "device",
+    }),
+  },
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "saved-new" }));
 
 beforeEach(async () => {
   jest.clearAllMocks();
-  mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
-    const visit = {
-      localId: "3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f",
-      venueId,
-      venueName: "The Met",
-      startedAt: capturedAt,
-      visitedOn: "1970-01-01",
-      timeZone: "UTC",
-    };
-    await upsertVisit(visit);
-    return visit;
-  });
+  mockVisitForSave.mockImplementation(
+    async (venueId: never, capturedAt: number) => {
+      const visit = {
+        localId: "3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f",
+        venueId,
+        venueName: "The Met",
+        startedAt: capturedAt,
+        visitedOn: "1970-01-01",
+        timeZone: "UTC",
+      };
+      await upsertVisit(visit);
+      return visit;
+    },
+  );
   for (const table of [
     artworkPhotos,
     artworkEncounters,
@@ -108,8 +143,9 @@ beforeEach(async () => {
     pendingScans,
     visits,
     settings,
-  ])
+  ]) {
     db.delete(table).run();
+  }
   AppState.currentState = "active";
   mockParams = {
     draftId: "saved-artwork",
@@ -141,14 +177,18 @@ beforeEach(async () => {
     venueId: "museum-met" as never,
   });
   updatePhotoSession(owner, mockParams.draftId, {
-    photos: [{ localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 }],
+    photos: [
+      { localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 },
+    ],
   });
 });
 
 it("retains an edited visit after leaving the session and saves only new photos to it", async () => {
   const capture = await render(<AddPhotosScreen />);
   await fireEvent.press(
-    await screen.findByRole("button", { name: "The Met · 1 Sep 2026 · Change" }),
+    await screen.findByRole("button", {
+      name: "The Met · 1 Sep 2026 · Change",
+    }),
   );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/capture-context",
@@ -161,9 +201,14 @@ it("retains an edited visit after leaving the session and saves only new photos 
   await capture.unmount();
   const context = await render(<CaptureContextScreen />);
   expect(
-    await screen.findByRole("button", { name: "The Met · 1 Sep 2026", selected: true }),
+    await screen.findByRole("button", {
+      name: "The Met · 1 Sep 2026",
+      selected: true,
+    }),
   ).toBeOnTheScreen();
-  await fireEvent.press(await screen.findByRole("button", { name: "Other museum · 2 Sep 2026" }));
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Other museum · 2 Sep 2026" }),
+  );
   expect(readPhotoSession(owner, "saved-artwork").visit).toEqual({
     kind: "visit",
     localId: "eaebe816-f46f-5312-a657-f92d1af2cb76",
@@ -171,10 +216,14 @@ it("retains an edited visit after leaving the session and saves only new photos 
   await context.unmount();
   await render(<AddPhotosScreen />);
   expect(
-    await screen.findByRole("button", { name: "Other museum · 2 Sep 2026 · Change" }),
+    await screen.findByRole("button", {
+      name: "Other museum · 2 Sep 2026 · Change",
+    }),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
+  expect(
+    await screen.findByRole("button", { name: "Add a private note" }),
+  ).toBeOnTheScreen();
   expect(screen.getByText("Other museum · 2 Sep 2026")).toBeOnTheScreen();
   expect(screen.getAllByLabelText("Saved photo preview")).toHaveLength(1);
   expect(selectArtworkPhotos("artwork").all()).toEqual(
@@ -214,22 +263,34 @@ it("saves an unsaved artwork and every added photo directly from the session", a
   mockParams = { draftId: capture.photoPath, title: "My edited title" };
   updatePhotoSession(owner, capture.photoPath, {
     visit: { kind: "visit", localId: "eaebe816-f46f-5312-a657-f92d1af2cb76" },
-    saveInput: { capture, draft: { ...draftFromCandidate(), title: "My edited title" } },
-    photos: [{ localId: "extra", path: "extra.jpg", kind: "detail", capturedAt: 2 }],
+    saveInput: {
+      capture,
+      draft: { ...draftFromCandidate(), title: "My edited title" },
+    },
+    photos: [
+      { localId: "extra", path: "extra.jpg", kind: "detail", capturedAt: 2 },
+    ],
   });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Save 2 photos" }));
   expect(await screen.findByText("My edited title")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Add a private note" }),
+  ).toBeOnTheScreen();
   expect((await getSavedWork("saved-new"))?.title).toBe("My edited title");
   expect(
     selectArtworkPhotos("saved-new")
       .all()
       .map((photo) => photo.visitLocalId),
-  ).toEqual(["eaebe816-f46f-5312-a657-f92d1af2cb76", "eaebe816-f46f-5312-a657-f92d1af2cb76"]);
+  ).toEqual([
+    "eaebe816-f46f-5312-a657-f92d1af2cb76",
+    "eaebe816-f46f-5312-a657-f92d1af2cb76",
+  ]);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
   expect(mockBack).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Scan next artwork" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Scan next artwork" }),
+  );
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
 });
@@ -237,7 +298,9 @@ it("saves an unsaved artwork and every added photo directly from the session", a
 it("names a chosen visit that has since been deleted instead of calling it the current visit", async () => {
   updatePhotoSession(owner, mockParams.draftId, {
     visit: { kind: "visit", localId: "deleted-visit" },
-    photos: [{ localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 }],
+    photos: [
+      { localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 },
+    ],
   });
   await render(<AddPhotosScreen />);
   expect(
@@ -298,15 +361,22 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
   expect(screen.queryByText("Only you can see these photos.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
   expect(
-    await screen.findByText("Index save failed. Your artwork is saved to your collection."),
+    await screen.findByText(
+      "Index save failed. Your artwork is saved to your collection.",
+    ),
   ).toBeOnTheScreen();
   expect(contributeLabel).toHaveBeenCalledWith(
-    expect.objectContaining({ capture: expect.objectContaining({ descriptors, keypoints }) }),
+    expect.objectContaining({
+      capture: expect.objectContaining({ descriptors, keypoints }),
+    }),
   );
-  jest
-    .mocked(contributeLabel)
-    .mockResolvedValue({ contributionId: "contribution-1" as never, status: "tentative" });
-  await fireEvent.press(screen.getByRole("button", { name: "Retry saving to the shared index" }));
+  jest.mocked(contributeLabel).mockResolvedValue({
+    contributionId: "contribution-1" as never,
+    status: "tentative",
+  });
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Retry saving to the shared index" }),
+  );
   expect(
     await screen.findByText(
       "An artwork crop was saved to the shared index. Your wall and shared visits haven’t changed.",
@@ -337,18 +407,33 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
   const capture = (await getPendingScan("capture"))!;
   mockParams = { draftId: capture.photoPath, title: "Water Lilies" };
   updatePhotoSession(owner, capture.photoPath, {
-    saveInput: { capture, draft: { ...draftFromCandidate(), title: "Water Lilies" } },
+    saveInput: {
+      capture,
+      draft: { ...draftFromCandidate(), title: "Water Lilies" },
+    },
     photos: [
-      { localId: "other", path: "other.jpg", kind: "full", capturedAt: 7, review: "conflict" },
+      {
+        localId: "other",
+        path: "other.jpg",
+        kind: "full",
+        capturedAt: 7,
+        review: "conflict",
+      },
     ],
   });
   await render(<AddPhotosScreen />);
   expect(
-    await screen.findByRole("button", { name: "The Met · 31 Dec 1969 · Change" }),
+    await screen.findByRole("button", {
+      name: "The Met · 31 Dec 1969 · Change",
+    }),
   ).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Save as a separate artwork" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Save as a separate artwork" }),
+  );
   await waitFor(() =>
-    expect(screen.queryByRole("button", { name: "Save as a separate artwork" })).toBeNull(),
+    expect(
+      screen.queryByRole("button", { name: "Save as a separate artwork" }),
+    ).toBeNull(),
   );
   expect(mockVisitForSave).toHaveBeenCalledWith("museum-met", 1);
   expect(await getSavedWork("saved-new")).toMatchObject({
@@ -364,12 +449,20 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
 it("keeps unresolved photos in the draft until the owner explicitly confirms them", async () => {
   updatePhotoSession(owner, mockParams.draftId, {
     photos: [
-      { localId: "detail", path: "detail.jpg", kind: "full", capturedAt: 2, review: "uncertain" },
+      {
+        localId: "detail",
+        path: "detail.jpg",
+        kind: "full",
+        capturedAt: 2,
+        review: "uncertain",
+      },
     ],
   });
   await render(<AddPhotosScreen />);
   expect(screen.getByRole("button", { name: "Save 1 photo" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Keep with this artwork" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Keep with this artwork" }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
   expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
   expect(selectArtworkPhotos("artwork").all()).toHaveLength(2);

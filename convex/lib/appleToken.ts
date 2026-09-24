@@ -1,7 +1,9 @@
 import { ConvexError } from "convex/values";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const appleKeys = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
+const appleKeys = createRemoteJWKSet(
+  new URL("https://appleid.apple.com/auth/keys"),
+);
 
 export async function verifyAppleIdentityToken(
   token: string,
@@ -15,8 +17,9 @@ export async function verifyAppleIdentityToken(
     algorithms: ["RS256"],
     requiredClaims: ["sub", "exp", "iat", "nonce"],
   });
-  if (!payload.sub?.trim() || payload.nonce !== nonce)
+  if (!payload.sub?.trim() || payload.nonce !== nonce) {
     throw new ConvexError({ code: "invalid_apple_identity" });
+  }
   return {
     sub: payload.sub,
     ...(typeof payload.email === "string" ? { email: payload.email } : {}),

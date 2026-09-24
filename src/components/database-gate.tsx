@@ -18,10 +18,12 @@ export function DatabaseGate({ children }: PropsWithChildren) {
   if (error) {
     return (
       <ThemedView style={styles.gate}>
-        <ThemedText type="subtitle">Could not open the local database</ThemedText>
+        <ThemedText type="subtitle">
+          Could not open the local database
+        </ThemedText>
         <ThemedText>
-          Your collection could not be opened. Close Artlog and try opening it again. Your saved
-          data has not been reset.
+          Your collection could not be opened. Close Artlog and try opening it
+          again. Your saved data has not been reset.
         </ThemedText>
         <ThemedText themeColor="textSecondary" selectable>
           {error.message}
@@ -29,15 +31,24 @@ export function DatabaseGate({ children }: PropsWithChildren) {
       </ThemedView>
     );
   }
-  if (!success)
+  if (!success) {
     return (
       <ThemedView style={styles.gate}>
-        <LoadingRing accessibilityLabel="Opening your collection" color={Gallery.accent} />
+        <LoadingRing
+          accessibilityLabel="Opening your collection"
+          color={Gallery.accent}
+        />
       </ThemedView>
     );
+  }
   return children;
 }
 
 const styles = StyleSheet.create({
-  gate: { flex: 1, justifyContent: "center", padding: Spacing.four, gap: Spacing.two },
+  gate: {
+    flex: 1,
+    justifyContent: "center",
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
 });

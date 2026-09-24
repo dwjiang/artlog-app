@@ -44,7 +44,10 @@ export function featureIndex(name: FeatureName): number {
 
 export function featurize(s: CandidateSignals): Float64Array {
   const similarity = clampUnit(s.similarity, "similarity");
-  const runnerUpSimilarity = requireFinite(s.runnerUpSimilarity, "runnerUpSimilarity");
+  const runnerUpSimilarity = requireFinite(
+    s.runnerUpSimilarity,
+    "runnerUpSimilarity",
+  );
   const candidateCount = requireCount(s.candidateCount, "candidateCount");
   const keypointCount = requireCount(s.keypointCount ?? 0, "keypointCount");
   const orbInliers = requireCount(s.orbInliers, "orbInliers");
@@ -52,11 +55,15 @@ export function featurize(s: CandidateSignals): Float64Array {
 
   const features = new Float64Array(FEATURE_NAMES.length);
   features[featureIndex("similarity")] = similarity;
-  features[featureIndex("margin")] = Math.max(0, similarity - runnerUpSimilarity);
+  features[featureIndex("margin")] = Math.max(
+    0,
+    similarity - runnerUpSimilarity,
+  );
   features[featureIndex("logCandidateCount")] = Math.log1p(candidateCount);
   features[featureIndex("atVenue")] = s.atVenue ? 1 : 0;
   features[featureIndex("gallerySame")] = s.gallery === "same" ? 1 : 0;
-  features[featureIndex("galleryDifferent")] = s.gallery === "different" ? 1 : 0;
+  features[featureIndex("galleryDifferent")] =
+    s.gallery === "different" ? 1 : 0;
   features[featureIndex("onView")] = s.onView === true ? 1 : 0;
   features[featureIndex("logKeypointCount")] = Math.log1p(keypointCount);
   features[featureIndex("logInliers")] = Math.log1p(orbInliers);
@@ -66,13 +73,16 @@ export function featurize(s: CandidateSignals): Float64Array {
 }
 
 function requireFinite(value: number, name: string): number {
-  if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite, got ${value}`);
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${name} must be finite, got ${value}`);
+  }
   return value;
 }
 
 function requireCount(value: number, name: string): number {
-  if (requireFinite(value, name) < 0)
+  if (requireFinite(value, name) < 0) {
     throw new RangeError(`${name} must not be negative, got ${value}`);
+  }
   return value;
 }
 

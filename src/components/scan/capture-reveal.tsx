@@ -26,7 +26,8 @@ export const STRAIGHTEN_MS = 650;
 export const CROSSFADE_MS = 150;
 export const SHINE_DELAY_MS = 350;
 export const SHINE_MS = 950;
-export const REVEAL_TIMEOUT_MS = HIGHLIGHT_MS + SHINE_DELAY_MS + SHINE_MS + 2000;
+export const REVEAL_TIMEOUT_MS =
+  HIGHLIGHT_MS + SHINE_DELAY_MS + SHINE_MS + 2000;
 
 export function CaptureReveal({
   presentation,
@@ -91,7 +92,7 @@ export function CaptureReveal({
         ),
       ),
     );
-    if (!reduced)
+    if (!reduced) {
       shine.set(
         withDelay(
           HIGHLIGHT_MS + SHINE_DELAY_MS,
@@ -107,6 +108,7 @@ export function CaptureReveal({
           ),
         ),
       );
+    }
     return () => {
       cancelAnimation(progress);
       cancelAnimation(highlight);
@@ -125,9 +127,15 @@ export function CaptureReveal({
     shine,
   ]);
 
-  const backgroundStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.get() }));
-  const liftedBackgroundStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
-  const shadowStyle = useAnimatedStyle(() => ({ opacity: reduced ? 0 : progress.get() }));
+  const backgroundStyle = useAnimatedStyle(() => ({
+    opacity: 1 - progress.get(),
+  }));
+  const liftedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: progress.get(),
+  }));
+  const shadowStyle = useAnimatedStyle(() => ({
+    opacity: reduced ? 0 : progress.get(),
+  }));
   const artworkStyle = useAnimatedStyle(() => {
     if (!geometry) return { opacity: 0 };
     const corners = reduced
@@ -144,7 +152,9 @@ export function CaptureReveal({
   }));
   const shineStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: (geometry?.width ?? 0) * 0.46 * (-1.7 + shine.get() * 4.9) },
+      {
+        translateX: (geometry?.width ?? 0) * 0.46 * (-1.7 + shine.get() * 4.9),
+      },
       { skewX: "-18deg" },
     ],
   }));
@@ -184,9 +194,15 @@ export function CaptureReveal({
       )}
       {geometry && crop && (
         <Animated.View
-          style={[styles.artwork, { width: geometry.width, height: geometry.height }, artworkStyle]}
+          style={[
+            styles.artwork,
+            { width: geometry.width, height: geometry.height },
+            artworkStyle,
+          ]}
         >
-          <Animated.View style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]} />
+          <Animated.View
+            style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]}
+          />
           <View style={[StyleSheet.absoluteFill, styles.crop]}>
             <Image
               source={crop}
@@ -229,7 +245,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     overflow: "hidden",
   },
-  artwork: { position: "absolute", top: 0, left: 0, transformOrigin: [0, 0, 0] },
+  artwork: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    transformOrigin: [0, 0, 0],
+  },
   crop: { overflow: "hidden" },
   wash: { backgroundColor: Colors.light.background, opacity: 0.65 },
   shadow: {

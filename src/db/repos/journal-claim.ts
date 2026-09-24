@@ -8,12 +8,17 @@ export async function claimLocalJournal(
   accountOwner: string,
   claimId: string,
 ): Promise<void> {
-  if (!source.startsWith("device:") || !accountOwner.startsWith("account:"))
+  if (!source.startsWith("device:") || !accountOwner.startsWith("account:")) {
     throw new Error("Invalid journal claim");
+  }
   db.transaction((tx) => {
     const key = `journalClaim:${source}:${claimId}`;
-    if (tx.select().from(settings).where(eq(settings.key, key)).get()?.value === accountOwner)
+    if (
+      tx.select().from(settings).where(eq(settings.key, key)).get()?.value
+      === accountOwner
+    ) {
       return;
+    }
     for (const table of [visits, savedWorks, pendingScans]) {
       const collision =
         tx.get(sql`SELECT 1 FROM ${table} AS source JOIN ${table} AS target ON source.localId = target.localId
@@ -29,15 +34,28 @@ export async function claimLocalJournal(
         .all();
       for (const draft of drafts) {
         const target = `${draftKind}:${accountOwner}:${draft.key.slice(prefix.length)}`;
-        if (tx.select().from(settings).where(eq(settings.key, target)).get())
+        if (tx.select().from(settings).where(eq(settings.key, target)).get()) {
           throw new Error("Journal ownership collision");
-        tx.update(settings).set({ key: target }).where(eq(settings.key, draft.key)).run();
+        }
+        tx.update(settings)
+          .set({ key: target })
+          .where(eq(settings.key, draft.key))
+          .run();
       }
     }
     // Composite foreign keys cascade ownership to associated saves, notes, and captures.
-    tx.update(visits).set({ owner: accountOwner }).where(eq(visits.owner, source)).run();
-    tx.update(savedWorks).set({ owner: accountOwner }).where(eq(savedWorks.owner, source)).run();
-    tx.update(notes).set({ owner: accountOwner }).where(eq(notes.owner, source)).run();
+    tx.update(visits)
+      .set({ owner: accountOwner })
+      .where(eq(visits.owner, source))
+      .run();
+    tx.update(savedWorks)
+      .set({ owner: accountOwner })
+      .where(eq(savedWorks.owner, source))
+      .run();
+    tx.update(notes)
+      .set({ owner: accountOwner })
+      .where(eq(notes.owner, source))
+      .run();
     tx.update(pendingScans)
       .set({ owner: accountOwner })
       .where(eq(pendingScans.owner, source))
@@ -54,11 +72,19 @@ export async function claimLocalJournal(
         tx
           .select()
           .from(visits)
-          .where(and(eq(visits.owner, accountOwner), eq(visits.localId, current.value)))
+          .where(
+            and(
+              eq(visits.owner, accountOwner),
+              eq(visits.localId, current.value),
+            ),
+          )
           .get()
       ) {
         tx.insert(settings)
-          .values({ key: `${preference}:${accountOwner}`, value: current.value })
+          .values({
+            key: `${preference}:${accountOwner}`,
+            value: current.value,
+          })
           .onConflictDoNothing()
           .run();
       }
@@ -72,9 +98,16 @@ export async function claimLocalJournal(
       .get();
     if (seen) {
       const target = seenVisitsKey(accountOwner);
-      const existing = tx.select().from(settings).where(eq(settings.key, target)).get()?.value;
+      const existing = tx
+        .select()
+        .from(settings)
+        .where(eq(settings.key, target))
+        .get()?.value;
       const value = JSON.stringify([
-        ...new Set([...parseSeenVisits(existing), ...parseSeenVisits(seen.value)]),
+        ...new Set([
+          ...parseSeenVisits(existing),
+          ...parseSeenVisits(seen.value),
+        ]),
       ]);
       tx.insert(settings)
         .values({ key: target, value })
@@ -84,7 +117,10 @@ export async function claimLocalJournal(
     }
     tx.insert(settings)
       .values({ key, value: accountOwner })
-      .onConflictDoUpdate({ target: settings.key, set: { value: accountOwner } })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { value: accountOwner },
+      })
       .run();
   });
 }

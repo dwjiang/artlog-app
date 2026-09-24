@@ -73,7 +73,10 @@ it("supports VoiceOver adjustments for position and volume", async () => {
 it("marks transcript selection and returns to the artwork when tapped again", async () => {
   const onView = jest.fn();
   await render(<PlayerTransport view="transcript" onView={onView} />);
-  const transcript = screen.getByRole("button", { name: "Transcript and sources", selected: true });
+  const transcript = screen.getByRole("button", {
+    name: "Transcript and sources",
+    selected: true,
+  });
   await fireEvent.press(transcript);
   expect(onView).toHaveBeenCalledWith("player");
 });
@@ -81,6 +84,8 @@ it("marks transcript selection and returns to the artwork when tapped again", as
 it("keeps Up next selected while adding saved artworks", async () => {
   const onView = jest.fn();
   await render(<PlayerTransport view="saved" onView={onView} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Up next", selected: true }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Up next", selected: true }),
+  );
   expect(onView).toHaveBeenCalledWith("player");
 });

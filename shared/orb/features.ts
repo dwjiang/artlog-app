@@ -24,7 +24,10 @@ export class OrbFormatError extends Error {
   }
 }
 
-export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuffer): OrbFeatures {
+export function decodeOrbFeatures(
+  descriptors: ArrayBuffer,
+  keypoints: ArrayBuffer,
+): OrbFeatures {
   if (descriptors.byteLength % DESCRIPTOR_BYTES !== 0) {
     throw new OrbFormatError(
       `descriptors byte length ${descriptors.byteLength} is not a multiple of ${DESCRIPTOR_BYTES}`,
@@ -32,12 +35,14 @@ export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuff
   }
   const count = descriptors.byteLength / DESCRIPTOR_BYTES;
   if (count > MAX_KEYPOINTS) {
-    throw new OrbFormatError(`${count} keypoints exceeds the maximum of ${MAX_KEYPOINTS}`);
+    throw new OrbFormatError(
+      `${count} keypoints exceeds the maximum of ${MAX_KEYPOINTS}`,
+    );
   }
   if (keypoints.byteLength !== count * KEYPOINT_BYTES) {
     throw new OrbFormatError(
-      `keypoints byte length ${keypoints.byteLength} does not match ${count} descriptors ` +
-        `(expected ${count * KEYPOINT_BYTES})`,
+      `keypoints byte length ${keypoints.byteLength} does not match ${count} descriptors `
+        + `(expected ${count * KEYPOINT_BYTES})`,
     );
   }
   // Float32Array reads platform byte order; every runtime this ships on (V8 servers, iOS arm64)
@@ -49,7 +54,11 @@ export function decodeOrbFeatures(descriptors: ArrayBuffer, keypoints: ArrayBuff
       throw new OrbFormatError(`keypoint ${keypoint} has a non-finite value`);
     }
   }
-  return { count, descriptors: new Uint8Array(descriptors), keypoints: keypointView };
+  return {
+    count,
+    descriptors: new Uint8Array(descriptors),
+    keypoints: keypointView,
+  };
 }
 
 export function encodeOrbFeatures(features: OrbFeatures): {

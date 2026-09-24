@@ -11,25 +11,45 @@ it("derives the actor and restricts each pending transition to its participant",
     b = await socialUser(t);
   const guest = await seedDevice(t);
   await expect(
-    guest.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 0 }),
+    guest.as.mutation(api.friendships.request, {
+      profileId: a.profileId,
+      revision: 0,
+    }),
   ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
   await expect(
-    a.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 0 }),
+    a.as.mutation(api.friendships.request, {
+      profileId: a.profileId,
+      revision: 0,
+    }),
   ).rejects.toMatchObject({ data: { code: "invalid_relationship" } });
-  await a.as.mutation(api.friendships.request, { profileId: b.profileId, revision: 0 });
+  await a.as.mutation(api.friendships.request, {
+    profileId: b.profileId,
+    revision: 0,
+  });
   for (const fn of [api.friendships.accept, api.friendships.decline]) {
-    await expect(a.as.mutation(fn, { profileId: b.profileId, revision: 1 })).rejects.toMatchObject({
+    await expect(
+      a.as.mutation(fn, { profileId: b.profileId, revision: 1 }),
+    ).rejects.toMatchObject({
       data: { code: "invalid_relationship" },
     });
   }
   await expect(
-    b.as.mutation(api.friendships.cancel, { profileId: a.profileId, revision: 1 }),
+    b.as.mutation(api.friendships.cancel, {
+      profileId: a.profileId,
+      revision: 1,
+    }),
   ).rejects.toMatchObject({ data: { code: "invalid_relationship" } });
   await expect(
-    b.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 1 }),
+    b.as.mutation(api.friendships.request, {
+      profileId: a.profileId,
+      revision: 1,
+    }),
   ).rejects.toMatchObject({ data: { code: "invalid_relationship" } });
   expect(
-    await b.as.mutation(api.friendships.decline, { profileId: a.profileId, revision: 1 }),
+    await b.as.mutation(api.friendships.decline, {
+      profileId: a.profileId,
+      revision: 1,
+    }),
   ).toMatchObject({ state: "none", revision: 2 });
 });
 it("serializes concurrent reverse requests without duplicate edges or implicit acceptance", async () => {
@@ -37,8 +57,14 @@ it("serializes concurrent reverse requests without duplicate edges or implicit a
     a = await socialUser(t),
     b = await socialUser(t);
   const result = await Promise.allSettled([
-    a.as.mutation(api.friendships.request, { profileId: b.profileId, revision: 0 }),
-    b.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 0 }),
+    a.as.mutation(api.friendships.request, {
+      profileId: b.profileId,
+      revision: 0,
+    }),
+    b.as.mutation(api.friendships.request, {
+      profileId: a.profileId,
+      revision: 0,
+    }),
   ]);
   expect(result.filter((r) => r.status === "fulfilled")).toHaveLength(1);
   const rows = await t.run((ctx) => ctx.db.query("friendships").collect());
@@ -51,12 +77,21 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
     a = await socialUser(t),
     b = await socialUser(t);
   await befriend(a, b);
-  await a.as.mutation(api.friendships.remove, { profileId: b.profileId, revision: 2 });
+  await a.as.mutation(api.friendships.remove, {
+    profileId: b.profileId,
+    revision: 2,
+  });
   await expect(
-    b.as.mutation(api.friendships.accept, { profileId: a.profileId, revision: 1 }),
+    b.as.mutation(api.friendships.accept, {
+      profileId: a.profileId,
+      revision: 1,
+    }),
   ).rejects.toMatchObject(conflict);
   expect(
-    await a.as.mutation(api.friendships.remove, { profileId: b.profileId, revision: 2 }),
+    await a.as.mutation(api.friendships.remove, {
+      profileId: b.profileId,
+      revision: 2,
+    }),
   ).toMatchObject({ revision: 3, state: "none" });
   await a.as.mutation(api.friendships.block, {
     profileId: b.profileId,
@@ -64,20 +99,35 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
     blockRevision: 0,
   });
   await expect(
-    b.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 4 }),
+    b.as.mutation(api.friendships.request, {
+      profileId: a.profileId,
+      revision: 4,
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  await a.as.mutation(api.friendships.unblock, { profileId: b.profileId, blockRevision: 1 });
+  await a.as.mutation(api.friendships.unblock, {
+    profileId: b.profileId,
+    blockRevision: 1,
+  });
   await expect(
-    a.as.mutation(api.friendships.request, { profileId: b.profileId, revision: 3 }),
+    a.as.mutation(api.friendships.request, {
+      profileId: b.profileId,
+      revision: 3,
+    }),
   ).rejects.toMatchObject(conflict);
-  expect(await a.as.query(api.friendships.getState, { profileId: b.profileId })).toMatchObject({
+  expect(
+    await a.as.query(api.friendships.getState, { profileId: b.profileId }),
+  ).toMatchObject({
     state: "none",
     revision: 4,
     blocked: false,
     blockRevision: 2,
   });
   await expect(
-    a.as.mutation(api.friendships.block, { profileId: b.profileId, revision: 4, blockRevision: 0 }),
+    a.as.mutation(api.friendships.block, {
+      profileId: b.profileId,
+      revision: 4,
+      blockRevision: 0,
+    }),
   ).rejects.toMatchObject(conflict);
 });
 
@@ -105,7 +155,10 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
         createdAt: 1,
         updatedAt: 1,
       });
-      const [firstProfileId, secondProfileId] = canonicalPair(a.profileId, other);
+      const [firstProfileId, secondProfileId] = canonicalPair(
+        a.profileId,
+        other,
+      );
       await ctx.db.insert("friendships", {
         firstProfileId,
         secondProfileId,
@@ -116,11 +169,20 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
       });
     }
   });
-  await a.as.mutation(api.friendships.request, { profileId: b.profileId, revision: 0 });
-  await a.as.mutation(api.friendships.request, { profileId: c.profileId, revision: 0 });
+  await a.as.mutation(api.friendships.request, {
+    profileId: b.profileId,
+    revision: 0,
+  });
+  await a.as.mutation(api.friendships.request, {
+    profileId: c.profileId,
+    revision: 0,
+  });
   const result = await Promise.allSettled(
     [b, c].map((user) =>
-      user.as.mutation(api.friendships.accept, { profileId: a.profileId, revision: 1 }),
+      user.as.mutation(api.friendships.accept, {
+        profileId: a.profileId,
+        revision: 1,
+      }),
     ),
   );
   expect(result.filter((r) => r.status === "fulfilled")).toHaveLength(1);
@@ -128,9 +190,15 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
     reason: { data: { code: "friend_limit" } },
   });
   const d = await socialUser(t);
-  await d.as.mutation(api.friendships.request, { profileId: a.profileId, revision: 0 });
+  await d.as.mutation(api.friendships.request, {
+    profileId: a.profileId,
+    revision: 0,
+  });
   await expect(
-    a.as.mutation(api.friendships.accept, { profileId: d.profileId, revision: 1 }),
+    a.as.mutation(api.friendships.accept, {
+      profileId: d.profileId,
+      revision: 1,
+    }),
   ).rejects.toMatchObject({ data: { code: "friend_limit" } });
 });
 it("keeps account request and change quotas separate across devices and leaves revocations available", async () => {
@@ -139,7 +207,9 @@ it("keeps account request and change quotas separate across devices and leaves r
     b = await socialUser(t),
     c = await socialUser(t),
     sibling = await seedDevice(t);
-  await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: a.accountId }));
+  await t.run((ctx) =>
+    ctx.db.patch(sibling.deviceId, { accountId: a.accountId }),
+  );
   let revision = 0;
   for (let i = 0; i < 20; i++) {
     const requested = await a.as.mutation(api.friendships.request, {
@@ -147,14 +217,27 @@ it("keeps account request and change quotas separate across devices and leaves r
       revision,
     });
     revision = requested.revision;
-    if (i < 19)
-      revision = (await a.as.mutation(api.friendships.cancel, { profileId: b.profileId, revision }))
-        .revision;
+    if (i < 19) {
+      revision = (
+        await a.as.mutation(api.friendships.cancel, {
+          profileId: b.profileId,
+          revision,
+        })
+      ).revision;
+    }
   }
   await expect(
-    sibling.as.mutation(api.friendships.request, { profileId: c.profileId, revision: 0 }),
-  ).rejects.toMatchObject({ data: { code: "rate_limited", name: "friendRequest" } });
-  await sibling.as.mutation(api.friendships.cancel, { profileId: b.profileId, revision });
+    sibling.as.mutation(api.friendships.request, {
+      profileId: c.profileId,
+      revision: 0,
+    }),
+  ).rejects.toMatchObject({
+    data: { code: "rate_limited", name: "friendRequest" },
+  });
+  await sibling.as.mutation(api.friendships.cancel, {
+    profileId: b.profileId,
+    revision,
+  });
   await sibling.as.mutation(api.friendships.block, {
     profileId: b.profileId,
     revision: revision + 1,
@@ -182,7 +265,9 @@ it("limits other relationship changes to 60 per minute", async () => {
       revision: 30,
       blockRevision: 60,
     }),
-  ).rejects.toMatchObject({ data: { code: "rate_limited", name: "relationshipChange" } });
+  ).rejects.toMatchObject({
+    data: { code: "rate_limited", name: "relationshipChange" },
+  });
 });
 it("lets friends drop a moderation-removed profile so it stops holding a friend slot", async () => {
   const t = harness(),
@@ -204,10 +289,16 @@ it("lets friends drop a moderation-removed profile so it stops holding a friend 
     a.as.query(api.friendships.getState, { profileId: b.profileId }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect(
-    await a.as.mutation(api.friendships.remove, { profileId: b.profileId, revision: 2 }),
+    await a.as.mutation(api.friendships.remove, {
+      profileId: b.profileId,
+      revision: 2,
+    }),
   ).toMatchObject({ state: "none", revision: 3 });
   await expect(
-    a.as.mutation(api.friendships.request, { profileId: b.profileId, revision: 3 }),
+    a.as.mutation(api.friendships.request, {
+      profileId: b.profileId,
+      revision: 3,
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect(
     await a.as.mutation(api.friendships.block, {
@@ -217,8 +308,13 @@ it("lets friends drop a moderation-removed profile so it stops holding a friend 
     }),
   ).toMatchObject({ blocked: true, blockRevision: 1 });
   expect(
-    await a.as.mutation(api.friendships.unblock, { profileId: b.profileId, blockRevision: 1 }),
+    await a.as.mutation(api.friendships.unblock, {
+      profileId: b.profileId,
+      blockRevision: 1,
+    }),
   ).toMatchObject({ blocked: false, blockRevision: 2 });
   const { acceptedRelationships } = await import("./lib/friendships");
-  expect(await t.run((ctx) => acceptedRelationships(ctx, a.profileId))).toEqual([]);
+  expect(await t.run((ctx) => acceptedRelationships(ctx, a.profileId))).toEqual(
+    [],
+  );
 });

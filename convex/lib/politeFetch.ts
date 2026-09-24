@@ -5,7 +5,10 @@ export function userAgent(): string {
   return `artlog-bot/0.1 (+${REPO_URL}${contact ? `; mailto:${contact}` : ""})`;
 }
 
-export async function readBody(response: Response, maxBytes: number): Promise<string> {
+export async function readBody(
+  response: Response,
+  maxBytes: number,
+): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return "";
   const decoder = new TextDecoder();

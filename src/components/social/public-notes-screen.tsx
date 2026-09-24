@@ -27,7 +27,10 @@ export function PublicNotesScreen() {
   const changes = wall.noteDraft;
   const items = wall.acknowledged?.items ?? [];
   function visible(item: (typeof items)[number]) {
-    return changes.find((change) => change.itemId === item.itemId)?.visible ?? item.noteVisible;
+    return (
+      changes.find((change) => change.itemId === item.itemId)?.visible
+      ?? item.noteVisible
+    );
   }
   function toggle(item: (typeof items)[number], value: boolean) {
     wall.repository.setNoteDraft([
@@ -75,30 +78,39 @@ export function PublicNotesScreen() {
   ) : wall.loading || (!wall.acknowledged && !wall.error) ? (
     <SocialState title="Opening your notes…" loading />
   ) : null;
-  if (gate)
+  if (gate) {
     return (
       <ScrollView
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }}
+        contentContainerStyle={
+          wall.signedIn ? socialStyles.gate : { paddingVertical: 20 }
+        }
       >
         {gate}
       </ScrollView>
     );
+  }
   // Toolbar items must be direct children so the native header can extract them.
   const toolbar = (
     <Stack.Toolbar placement="right">
       {preview ? (
-        <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(false)}>
+        <Stack.Toolbar.Button
+          tintColor={Gallery.ink}
+          onPress={() => setPreview(false)}
+        >
           Edit
         </Stack.Toolbar.Button>
       ) : (
-        <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => setPreview(true)}>
+        <Stack.Toolbar.Button
+          tintColor={Gallery.ink}
+          onPress={() => setPreview(true)}
+        >
           Preview
         </Stack.Toolbar.Button>
       )}
-      {!preview &&
-        (wall.pending ? (
+      {!preview
+        && (wall.pending ? (
           <Stack.Toolbar.View>
             <LoadingRing
               accessibilityLabel="Saving note choices…"
@@ -119,7 +131,7 @@ export function PublicNotesScreen() {
         ))}
     </Stack.Toolbar>
   );
-  if (preview && wall.acknowledged)
+  if (preview && wall.acknowledged) {
     return (
       <>
         {toolbar}
@@ -137,17 +149,25 @@ export function PublicNotesScreen() {
                 itemId: item.itemId,
                 layout: item.layout,
                 artwork: item.artwork,
-                ...(visible(item) && item.privateNote ? { note: item.privateNote } : {}),
+                ...(visible(item) && item.privateNote
+                  ? { note: item.privateNote }
+                  : {}),
               })),
             }}
           />
         </ScrollView>
       </>
     );
-  const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
-  if (!eligible.length && !wall.error)
+  }
+  const eligible = items.filter(
+    (item) => item.noteEligible || item.noteVisible,
+  );
+  if (!eligible.length && !wall.error) {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView
+        style={socialStyles.root}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <EmptyState
           title="No notes to share yet."
           detail="Add a private note to an artwork on your wall. After it syncs, you can choose whether to show it here."
@@ -160,12 +180,16 @@ export function PublicNotesScreen() {
             fullWidth
             onPress={() => {
               router.dismissAll();
-              router.navigate({ pathname: "/collection", params: { view: "wall" } });
+              router.navigate({
+                pathname: "/collection",
+                params: { view: "wall" },
+              });
             }}
           />
         </EmptyState>
       </ScrollView>
     );
+  }
   return (
     <>
       {toolbar}
@@ -198,7 +222,9 @@ export function PublicNotesScreen() {
               borderBottomColor: Gallery.separator,
             }}
           >
-            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+            <View
+              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
+            >
               <DisplayMedia
                 media={item.artwork.media}
                 label={item.artwork.title}
@@ -206,7 +232,9 @@ export function PublicNotesScreen() {
                 height={56}
               />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.artwork.title}</Text>
+                <Text style={{ fontSize: 16, fontWeight: "600" }}>
+                  {item.artwork.title}
+                </Text>
                 <Text type="small" themeColor="textSecondary">
                   {item.artwork.artist}
                 </Text>
@@ -217,11 +245,17 @@ export function PublicNotesScreen() {
                 <Text>{item.privateNote}</Text>
               </NotePaper>
             )}
-            <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
+            <Host
+              matchContents={{ vertical: true }}
+              colorScheme="light"
+              style={{ width: "100%" }}
+            >
               <Switch
                 label="Show note on public wall"
                 value={visible(item)}
-                disabled={wall.pending || (!item.noteEligible && !item.noteVisible)}
+                disabled={
+                  wall.pending || (!item.noteEligible && !item.noteVisible)
+                }
                 onValueChange={(value) => toggle(item, value)}
               />
             </Host>

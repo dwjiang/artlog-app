@@ -11,7 +11,11 @@ import { Gallery } from "@/constants/theme";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { socialStyles } from "./social-styles";
-import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
+import {
+  FeedSkeleton,
+  ListSkeleton,
+  VisitSkeleton,
+} from "@/components/loading-skeleton";
 
 export function SocialState({
   title,
@@ -32,19 +36,33 @@ export function SocialState({
   action?: string;
   onAction?: () => void;
 }) {
-  if (loading)
+  if (loading) {
     return (
       <View style={socialStyles.state}>
         <LoadingRing color={Gallery.accent} accessibilityLabel={title} />
       </View>
     );
+  }
   return (
-    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />}>
+    <EmptyState
+      title={title}
+      detail={detail ?? ""}
+      visual={<EmptySymbol name={icon} size={132} />}
+    >
       {action && onAction && (
-        <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />
+        <GalleryButton
+          label={action}
+          onPress={onAction}
+          variant="filled"
+          fullWidth
+        />
       )}
       {secondaryAction && onSecondaryAction && (
-        <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />
+        <GalleryButton
+          label={secondaryAction}
+          onPress={onSecondaryAction}
+          fullWidth
+        />
       )}
     </EmptyState>
   );
@@ -61,7 +79,7 @@ export function SocialGate({
 }) {
   const router = useRouter();
   if (session.status === "ready") return null;
-  if (session.status === "signed-out")
+  if (session.status === "signed-out") {
     return (
       <SocialInvitation
         title={"Sign in to add friends."}
@@ -74,11 +92,16 @@ export function SocialGate({
           onPress={() => router.push(signInRoute(context))}
         />
         {browsePublic && (
-          <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />
+          <GalleryButton
+            label="Find friends"
+            fullWidth
+            onPress={() => router.push("/people")}
+          />
         )}
       </SocialInvitation>
     );
-  if (session.status === "profile-required")
+  }
+  if (session.status === "profile-required") {
     return (
       <SocialInvitation
         title="Create a public profile."
@@ -91,11 +114,16 @@ export function SocialGate({
           onPress={() => router.push("/create-profile")}
         />
         {browsePublic && (
-          <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />
+          <GalleryButton
+            label="Find friends"
+            fullWidth
+            onPress={() => router.push("/people")}
+          />
         )}
       </SocialInvitation>
     );
-  if (session.status === "offline")
+  }
+  if (session.status === "offline") {
     return (
       <View>
         <SocialState
@@ -109,19 +137,28 @@ export function SocialGate({
           }}
         />
         <View style={{ paddingHorizontal: 20 }}>
-          <GalleryButton label="Try again" fullWidth onPress={session.refresh} />
+          <GalleryButton
+            label="Try again"
+            fullWidth
+            onPress={session.refresh}
+          />
         </View>
       </View>
     );
-  if (session.status === "error")
+  }
+  if (session.status === "error") {
     return (
       <SocialState
         title="Couldn’t load your account."
-        detail={socialErrorMessage(session.error) ?? "Check your connection and try again."}
+        detail={
+          socialErrorMessage(session.error)
+          ?? "Check your connection and try again."
+        }
         action="Try again"
         onAction={session.refresh}
       />
     );
+  }
   return <SocialState title="Loading your account…" loading />;
 }
 
@@ -149,24 +186,31 @@ export function PageFooter({
   const router = useRouter();
   if (loading && !error) {
     const label = `Loading ${noun}…`;
-    if (count > 0)
+    if (count > 0) {
       return (
         <View style={socialStyles.footer}>
           <LoadingRing accessibilityLabel={label} />
         </View>
       );
+    }
     if (skeleton === "feed") return <FeedSkeleton label={label} />;
-    if (skeleton === "gallery") return <VisitSkeleton label={label} heading={false} />;
+    if (skeleton === "gallery") {
+      return <VisitSkeleton label={label} heading={false} />;
+    }
     return <ListSkeleton label={label} avatar={noun === "friends"} />;
   }
-  if (error && count > 0)
+  if (error && count > 0) {
     return (
       <View style={{ padding: 20, gap: 4, alignItems: "center" }}>
         <Text style={socialStyles.caption}>Couldn’t load more {noun}.</Text>
-        <GalleryButton label="Try loading more" onPress={canLoadMore ? loadMore : refresh} />
+        <GalleryButton
+          label="Try loading more"
+          onPress={canLoadMore ? loadMore : refresh}
+        />
       </View>
     );
-  if (error)
+  }
+  if (error) {
     return (
       <SocialState
         title={`Couldn’t load ${noun}.`}
@@ -180,7 +224,8 @@ export function PageFooter({
         }}
       />
     );
-  if (!done)
+  }
+  if (!done) {
     return (
       <View style={socialStyles.footer}>
         <GalleryButton
@@ -189,7 +234,8 @@ export function PageFooter({
         />
       </View>
     );
-  if (count > 0 && noun === "visits")
+  }
+  if (count > 0 && noun === "visits") {
     return (
       <View
         style={{
@@ -208,6 +254,7 @@ export function PageFooter({
         </Text>
       </View>
     );
+  }
   return count > 0 ? (
     <View style={socialStyles.footer}>
       <Image

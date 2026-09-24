@@ -8,7 +8,11 @@ import {
   isListingUrl,
   sentences,
 } from "./rightNowAccept";
-import { FIXTURE_NOW, rightNowFixtures, type RightNowFixture } from "./rightNowFixtures";
+import {
+  FIXTURE_NOW,
+  rightNowFixtures,
+  type RightNowFixture,
+} from "./rightNowFixtures";
 import { regionDomains } from "./regions";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -43,10 +47,13 @@ describe("recorded Tavily acceptance cases", () => {
     ).toHaveLength(1);
   });
 
-  it.each(["hockneyNy", "rupyTutSf"] as const)("never shows the %s abstention as news", (name) => {
-    expect(isAbstention(rightNowFixtures[name].response.answer!)).toBe(true);
-    expect(accept(rightNowFixtures[name])).toBeNull();
-  });
+  it.each(["hockneyNy", "rupyTutSf"] as const)(
+    "never shows the %s abstention as news",
+    (name) => {
+      expect(isAbstention(rightNowFixtures[name].response.answer!)).toBe(true);
+      expect(accept(rightNowFixtures[name])).toBeNull();
+    },
+  );
 
   it.each(["hockneySf", "banksyNy", "emptyFilter"] as const)(
     "refuses low-score and archive-backed answers (%s)",
@@ -83,48 +90,69 @@ describe("publication window and page types", () => {
     ["future", new Date(FIXTURE_NOW + DAY).toUTCString()],
     ["older than 31 days", new Date(FIXTURE_NOW - 32 * DAY).toUTCString()],
   ])("refuses a %s publication date", (_label, publishedDate) => {
-    expect(eligibleResults([{ ...base, publishedDate }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
-  });
-
-  it("keeps a date exactly inside the window and refuses a score below 0.60", () => {
-    const inside = { ...base, publishedDate: new Date(FIXTURE_NOW - 30 * DAY).toUTCString() };
-    expect(eligibleResults([inside], { domains, now: FIXTURE_NOW })).toHaveLength(1);
-    expect(eligibleResults([{ ...inside, score: 0.59 }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
-  });
-
-  it("refuses hosts outside the region list and non-https pages", () => {
     expect(
-      eligibleResults([{ ...base, url: "https://www.latimes.com/arts/kusama" }], {
+      eligibleResults([{ ...base, publishedDate }], {
         domains,
         now: FIXTURE_NOW,
       }),
     ).toEqual([]);
+  });
+
+  it("keeps a date exactly inside the window and refuses a score below 0.60", () => {
+    const inside = {
+      ...base,
+      publishedDate: new Date(FIXTURE_NOW - 30 * DAY).toUTCString(),
+    };
     expect(
-      eligibleResults([{ ...base, url: base.url.replace("https://", "http://") }], {
+      eligibleResults([inside], { domains, now: FIXTURE_NOW }),
+    ).toHaveLength(1);
+    expect(
+      eligibleResults([{ ...inside, score: 0.59 }], {
         domains,
         now: FIXTURE_NOW,
       }),
+    ).toEqual([]);
+  });
+
+  it("refuses hosts outside the region list and non-https pages", () => {
+    expect(
+      eligibleResults(
+        [{ ...base, url: "https://www.latimes.com/arts/kusama" }],
+        {
+          domains,
+          now: FIXTURE_NOW,
+        },
+      ),
+    ).toEqual([]);
+    expect(
+      eligibleResults(
+        [{ ...base, url: base.url.replace("https://", "http://") }],
+        {
+          domains,
+          now: FIXTURE_NOW,
+        },
+      ),
     ).toEqual([]);
   });
 
   it("treats a recently dated archive or category page as no evidence of a current event", () => {
     const archive = rightNowFixtures.hockneySf.response.results[0];
     expect(isListingUrl(archive.url)).toBe(true);
-    expect(eligibleResults([{ ...archive, score: 0.9 }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
+    expect(
+      eligibleResults([{ ...archive, score: 0.9 }], {
+        domains,
+        now: FIXTURE_NOW,
+      }),
+    ).toEqual([]);
     for (const url of [
       "https://www.kqed.org/arts/tag/featured?page=190",
       "https://www.nytimes.com/section/arts/design?page=4",
       "https://www.nytimes.com/topic/ewan-mcgregor",
       "https://shop.artic.edu/products/60442",
       "https://www.nytimes.com/spotlight/what-to-watch",
-    ])
+    ]) {
       expect(isListingUrl(url)).toBe(true);
+    }
     expect(isListingUrl(base.url)).toBe(false);
   });
 });
@@ -132,7 +160,11 @@ describe("publication window and page types", () => {
 describe("complete source sentences and event dates", () => {
   const date = "September 12, 2026";
   const sentence = `Mira Vale opens “Harbor at Dawn” at the Bay Museum on ${date} with 40 works.`;
-  const options = { artist: "Mira Vale", domains: ["museum.example"], now: FIXTURE_NOW };
+  const options = {
+    artist: "Mira Vale",
+    domains: ["museum.example"],
+    now: FIXTURE_NOW,
+  };
   const result = {
     url: "https://museum.example/news/harbor-at-dawn",
     title: "Exhibition announcement",
@@ -156,7 +188,12 @@ describe("complete source sentences and event dates", () => {
       options,
     );
 
-  it.each(["September 12, 2026", "12 September 2026", "Sep. 12, 2026", "2026-09-12"])(
+  it.each([
+    "September 12, 2026",
+    "12 September 2026",
+    "Sep. 12, 2026",
+    "2026-09-12",
+  ])(
     "accepts a complete sentence with an explicit current event date (%s)",
     (eventDate) => {
       const text = sentence.replace(date, eventDate);
@@ -187,7 +224,10 @@ describe("complete source sentences and event dates", () => {
 
   it("allows typography and whitespace differences without discarding words or punctuation", () => {
     expect(
-      card(sentence, sentence.replace(/[“”]/g, '"').replace("opens", "opens   ")),
+      card(
+        sentence,
+        sentence.replace(/[“”]/g, '"').replace("opens", "opens   "),
+      ),
     ).not.toBeNull();
   });
 
@@ -204,11 +244,20 @@ describe("complete source sentences and event dates", () => {
       "an omitted part of the snippet",
       sentence.replace(" at the Bay Museum ", " [...] at the Bay Museum "),
     ],
-  ])("refuses %s even when the artist, venue and title match", (_name, content) => {
-    expect(card(sentence, content)).toBeNull();
-  });
+  ])(
+    "refuses %s even when the artist, venue and title match",
+    (_name, content) => {
+      expect(card(sentence, content)).toBeNull();
+    },
+  );
 
-  it.each(["September 12, 2016", "September 12", "2026", "February 30, 2026", "November 12, 2026"])(
+  it.each([
+    "September 12, 2016",
+    "September 12",
+    "2026",
+    "February 30, 2026",
+    "November 12, 2026",
+  ])(
     "does not use publication metadata to supply a missing or invalid event date (%s)",
     (eventDate) => {
       const text = sentence.replace(date, eventDate);
@@ -228,17 +277,25 @@ describe("complete source sentences and event dates", () => {
     `${sentence} [...] The opening date is provisional and subject to change.`,
     `${sentence} However, the museum now denies that this event is scheduled.`,
     `${sentence}\nVisitor information is available online.\nThe exhibition will no longer take place.`,
-  ])("refuses a source that qualifies or retracts the matching sentence: %s", (content) => {
-    expect(card(sentence, content)).toBeNull();
-  });
+  ])(
+    "refuses a source that qualifies or retracts the matching sentence: %s",
+    (content) => {
+      expect(card(sentence, content)).toBeNull();
+    },
+  );
 
   it("refuses a qualification in the answer even when the source matches its opening sentence", () => {
-    expect(card(`${sentence} However, the museum has cancelled the opening.`)).toBeNull();
+    expect(
+      card(`${sentence} However, the museum has cancelled the opening.`),
+    ).toBeNull();
   });
 
   it("does not treat related-story boilerplate as a qualification of the article", () => {
     expect(
-      card(sentence, `${sentence}\n## Related stories\nAnother exhibition has been cancelled.`),
+      card(
+        sentence,
+        `${sentence}\n## Related stories\nAnother exhibition has been cancelled.`,
+      ),
     ).not.toBeNull();
   });
 
@@ -264,12 +321,15 @@ describe("first sentence", () => {
       "Another one!",
       "A third?",
     ]);
-    expect(firstSentence("  Spaced   out\nanswer.  ")).toBe("Spaced out answer.");
+    expect(firstSentence("  Spaced   out\nanswer.  ")).toBe(
+      "Spaced out answer.",
+    );
   });
 });
 
 const now = Date.parse("2026-09-08T12:00:00Z");
-const answer = "Mira Vale opens “Harbor at Dawn” at the Bay Museum with 40 works.";
+const answer =
+  "Mira Vale opens “Harbor at Dawn” at the Bay Museum with 40 works.";
 
 it.each([
   [

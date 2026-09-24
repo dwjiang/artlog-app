@@ -9,7 +9,12 @@ export function ProfileBio({ text }: { text?: string }) {
   return (
     <View style={{ gap: 4 }}>
       <Text
-        style={{ position: "absolute", opacity: 0, fontSize: 16, lineHeight: 24 }}
+        style={{
+          position: "absolute",
+          opacity: 0,
+          fontSize: 16,
+          lineHeight: 24,
+        }}
         accessibilityElementsHidden
         onTextLayout={(event) => setLong(event.nativeEvent.lines.length > 2)}
       >
@@ -28,7 +33,9 @@ export function ProfileBio({ text }: { text?: string }) {
           accessibilityRole="button"
           onPress={() => setExpanded(!expanded)}
         >
-          <Text style={{ color: Gallery.accent, fontSize: 13, paddingVertical: 5 }}>
+          <Text
+            style={{ color: Gallery.accent, fontSize: 13, paddingVertical: 5 }}
+          >
             {expanded ? "Show less" : "Read more"}
           </Text>
         </Pressable>

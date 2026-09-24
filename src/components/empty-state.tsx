@@ -24,7 +24,13 @@ export function EmptyState({
 }) {
   const { fontScale } = useWindowDimensions();
   return (
-    <View style={[styles.root, inset && !compact && styles.inset, compact && styles.compact]}>
+    <View
+      style={[
+        styles.root,
+        inset && !compact && styles.inset,
+        compact && styles.compact,
+      ]}
+    >
       {visual}
       <View style={styles.copy}>
         <Text
@@ -48,11 +54,20 @@ export function EmptyState({
   );
 }
 
-export function EmptySymbol({ name, size = 76 }: { name: string; size?: number }) {
+export function EmptySymbol({
+  name,
+  size = 76,
+}: {
+  name: string;
+  size?: number;
+}) {
   return (
     <View
       accessibilityElementsHidden
-      style={[styles.symbol, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        styles.symbol,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
     >
       <Image
         source={`sf:${name}`}
@@ -79,7 +94,12 @@ export function SearchEmptyState({
       detail={detail}
       visual={<EmptySymbol name="magnifyingglass" size={132} />}
     >
-      <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />
+      <GalleryButton
+        label="Clear search"
+        variant="filled"
+        fullWidth
+        onPress={onClear}
+      />
     </EmptyState>
   );
 }
@@ -87,7 +107,12 @@ export function SearchEmptyState({
 const styles = StyleSheet.create({
   root: { gap: 24, width: "100%", maxWidth: 520, alignSelf: "center" },
   inset: { paddingHorizontal: 20, paddingTop: 36, paddingBottom: 28 },
-  compact: { gap: 12, padding: 20, backgroundColor: Gallery.fill, borderRadius: 8 },
+  compact: {
+    gap: 12,
+    padding: 20,
+    backgroundColor: Gallery.fill,
+    borderRadius: 8,
+  },
   copy: { gap: 10 },
   title: { fontSize: 40, lineHeight: 46, maxWidth: 330 },
   largeTextTitle: { fontSize: 32, lineHeight: 40 },

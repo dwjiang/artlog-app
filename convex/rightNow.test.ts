@@ -61,12 +61,18 @@ afterEach(() => {
 
 function tavily(fixture: RightNowFixture) {
   fetchMock.mockImplementation(async (input) => {
-    if (String(input) !== TAVILY) throw new Error(`Unexpected fetch ${String(input)}`);
+    if (String(input) !== TAVILY) {
+      throw new Error(`Unexpected fetch ${String(input)}`);
+    }
     return jsonResponse(rawTavily(fixture));
   });
 }
 
-async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museums">) {
+async function seedScan(
+  t: Harness,
+  deviceId: Id<"devices">,
+  venueId?: Id<"museums">,
+) {
   const now = Date.now();
   return t.run((ctx) =>
     ctx.db.insert("scans", {
@@ -88,7 +94,9 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
 async function fixture(region: string | null = "sf-bay-area") {
   const t = harness();
   const { deviceId } = await seedDevice(t);
-  const venueId = region ? await t.run((ctx) => seedMuseum(ctx, { region })) : undefined;
+  const venueId = region
+    ? await t.run((ctx) => seedMuseum(ctx, { region }))
+    : undefined;
   const scanId = await seedScan(t, deviceId, venueId);
   const run = (
     overrides: Partial<{
@@ -108,7 +116,8 @@ async function fixture(region: string | null = "sf-bay-area") {
     });
   const scan = (id: Id<"scans"> = scanId) => t.run((ctx) => ctx.db.get(id));
   const rows = () => t.run((ctx) => ctx.db.query("artistContext").collect());
-  const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
+  const spend = async () =>
+    (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   return { t, deviceId, venueId, scanId, run, scan, rows, spend };
 }
 
@@ -175,17 +184,22 @@ describe("rightNow.fetch", () => {
     ["a synthetic-name answer", rightNowFixtures.emptyFilter],
     ["an abstention", rightNowFixtures.rupyTutSf],
     ["a low-score archive answer", rightNowFixtures.hockneySf],
-  ])("caches %s as empty for seven days without a card", async (_label, recorded) => {
-    const { t, deviceId, venueId, run, scan, rows } = await fixture();
-    tavily(recorded);
-    await run({ artist: recorded.artist });
-    expect((await scan())?.rightNow).toBeUndefined();
-    expect(await rows()).toMatchObject([{ empty: true, text: "", fetchedAt: FIXTURE_NOW }]);
-    const second = await seedScan(t, deviceId, venueId);
-    await run({ scanId: second, artist: recorded.artist });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect((await scan(second))?.rightNow).toBeUndefined();
-  });
+  ])(
+    "caches %s as empty for seven days without a card",
+    async (_label, recorded) => {
+      const { t, deviceId, venueId, run, scan, rows } = await fixture();
+      tavily(recorded);
+      await run({ artist: recorded.artist });
+      expect((await scan())?.rightNow).toBeUndefined();
+      expect(await rows()).toMatchObject([
+        { empty: true, text: "", fetchedAt: FIXTURE_NOW },
+      ]);
+      const second = await seedScan(t, deviceId, venueId);
+      await run({ scanId: second, artist: recorded.artist });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect((await scan(second))?.rightNow).toBeUndefined();
+    },
+  );
 
   it("refuses a contradicted high-score answer", async () => {
     const { run, scan, rows } = await fixture("new-york");
@@ -239,7 +253,9 @@ describe("rightNow.fetch", () => {
 
   it("keeps the reservation and releases the claim when the search fails, and refunds when unconfigured", async () => {
     const { run, rows, spend } = await fixture();
-    fetchMock.mockImplementation(async () => new Response("down", { status: 503 }));
+    fetchMock.mockImplementation(
+      async () => new Response("down", { status: 503 }),
+    );
     await run();
     expect(await rows()).toEqual([]);
     expect(await spend()).toMatchObject({ tavilyCredits: 1 });
@@ -253,8 +269,12 @@ describe("rightNow.fetch", () => {
     const { t, deviceId, venueId, run, rows } = await fixture();
     tavily(supportedNews);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "1000");
-    for (let i = 0; i < 61; i++)
-      await run({ scanId: await seedScan(t, deviceId, venueId), artist: `Artist ${i}` });
+    for (let i = 0; i < 61; i++) {
+      await run({
+        scanId: await seedScan(t, deviceId, venueId),
+        artist: `Artist ${i}`,
+      });
+    }
     expect(fetchMock).toHaveBeenCalledTimes(60);
     expect(await rows()).toHaveLength(60);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "0");
@@ -277,7 +297,7 @@ describe("news claim ownership", () => {
     async (cached) => {
       const { t, scanId, deviceId, venueId, scan, rows } = await fixture();
       const key = { artistKey: "name:yayoi kusama", region: "sf-bay-area" };
-      if (cached)
+      if (cached) {
         await t.run((ctx) =>
           ctx.db.insert("artistContext", {
             artistId: key.artistKey,
@@ -287,9 +307,16 @@ describe("news claim ownership", () => {
             fetchedAt: FIXTURE_NOW - 8 * 24 * 60 * 60 * 1000,
           }),
         );
-      const first = await t.mutation(internal.rightNow.claim, { ...key, scanId, generation: 0 });
+      }
+      const first = await t.mutation(internal.rightNow.claim, {
+        ...key,
+        scanId,
+        generation: 0,
+      });
       expect(first).toHaveProperty("claimId");
-      if (typeof first === "string") throw new Error("Expected ownership of the first request");
+      if (typeof first === "string") {
+        throw new Error("Expected ownership of the first request");
+      }
       vi.mocked(Date.now).mockReturnValue(FIXTURE_NOW + 61_000);
       const secondScanId = await seedScan(t, deviceId, venueId);
       const second = await t.mutation(internal.rightNow.claim, {
@@ -298,15 +325,27 @@ describe("news claim ownership", () => {
         generation: 0,
       });
       expect(second).toHaveProperty("claimId");
-      if (typeof second === "string")
+      if (typeof second === "string") {
         throw new Error("Expected ownership of the replacement request");
+      }
       const waitingScanId = await seedScan(t, deviceId, venueId);
       expect(
-        await t.mutation(internal.rightNow.claim, { ...key, scanId: waitingScanId, generation: 0 }),
+        await t.mutation(internal.rightNow.claim, {
+          ...key,
+          scanId: waitingScanId,
+          generation: 0,
+        }),
       ).toBe("pending");
-      await t.mutation(internal.rightNow.release, { ...key, claimId: first.claimId });
+      await t.mutation(internal.rightNow.release, {
+        ...key,
+        claimId: first.claimId,
+      });
       expect(
-        await t.mutation(internal.rightNow.write, { ...key, claimId: first.claimId, card: null }),
+        await t.mutation(internal.rightNow.write, {
+          ...key,
+          claimId: first.claimId,
+          card: null,
+        }),
       ).toBe(false);
       expect((await rows())[0].waiting).toHaveLength(2);
       expect(
@@ -318,21 +357,42 @@ describe("news claim ownership", () => {
       ).toBe(true);
       expect((await scan(secondScanId))?.rightNow).toEqual(supportedCard);
       expect((await scan(waitingScanId))?.rightNow).toEqual(supportedCard);
-      await t.mutation(internal.rightNow.release, { ...key, claimId: first.claimId });
+      await t.mutation(internal.rightNow.release, {
+        ...key,
+        claimId: first.claimId,
+      });
       expect(
-        await t.mutation(internal.rightNow.write, { ...key, claimId: first.claimId, card: null }),
+        await t.mutation(internal.rightNow.write, {
+          ...key,
+          claimId: first.claimId,
+          card: null,
+        }),
       ).toBe(false);
-      expect((await rows())[0]).toMatchObject({ ...supportedCard, empty: false });
+      expect((await rows())[0]).toMatchObject({
+        ...supportedCard,
+        empty: false,
+      });
     },
   );
 
   it("does not reuse ownership after a failed cache miss is deleted and retried at the same time", async () => {
     const { t, scanId } = await fixture();
     const key = { artistKey: "name:yayoi kusama", region: "sf-bay-area" };
-    const first = await t.mutation(internal.rightNow.claim, { ...key, scanId, generation: 0 });
+    const first = await t.mutation(internal.rightNow.claim, {
+      ...key,
+      scanId,
+      generation: 0,
+    });
     if (typeof first === "string") throw new Error("Expected first claim");
-    await t.mutation(internal.rightNow.release, { ...key, claimId: first.claimId });
-    const next = await t.mutation(internal.rightNow.claim, { ...key, scanId, generation: 0 });
+    await t.mutation(internal.rightNow.release, {
+      ...key,
+      claimId: first.claimId,
+    });
+    const next = await t.mutation(internal.rightNow.claim, {
+      ...key,
+      scanId,
+      generation: 0,
+    });
     if (typeof next === "string") throw new Error("Expected replacement claim");
     expect(next.claimId).not.toBe(first.claimId);
   });

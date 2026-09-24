@@ -10,10 +10,19 @@ import {
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 import { Gallery } from "@/constants/theme";
-import { wallAspect, type WallFrame as Frame, type WallPiece } from "@/lib/wall/wall-layout";
+import {
+  wallAspect,
+  type WallFrame as Frame,
+  type WallPiece,
+} from "@/lib/wall/wall-layout";
 import { WallFrame, wallFrameInset, wallFrames } from "./wall-frame";
 import { WallArtwork } from "./wall-artwork";
 
@@ -105,7 +114,10 @@ export function WallFramePicker({
         >
           {piece ? (
             <WallArtwork
-              piece={{ ...piece, layout: { ...piece.layout, frame: finish.value } }}
+              piece={{
+                ...piece,
+                layout: { ...piece.layout, frame: finish.value },
+              }}
               width={Math.min(64, 48 * wallAspect(piece))}
             />
           ) : (
@@ -126,6 +138,11 @@ export function WallFramePicker({
 }
 
 const styles = StyleSheet.create({
-  preview: { width: 70, height: 56, alignItems: "center", justifyContent: "center" },
+  preview: {
+    width: 70,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   frames: { paddingHorizontal: 0, gap: 8, paddingBottom: 4 },
 });

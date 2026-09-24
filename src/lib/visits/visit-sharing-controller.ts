@@ -12,7 +12,12 @@ import type {
   VisitSharingTransport,
 } from "./visit-sharing-transport";
 
-type Session = { owner: string; scope?: string; token: string | null; isCurrent: () => boolean };
+type Session = {
+  owner: string;
+  scope?: string;
+  token: string | null;
+  isCurrent: () => boolean;
+};
 type State = {
   acknowledged: ShareState | null;
   draft: ShareSelection | null;
@@ -71,14 +76,23 @@ export function createVisitSharingController({
   ): Promise<boolean> {
     if (state.busy || disposed) return false;
     const session = capture();
-    if (!session.owner.startsWith("account:") || !session.token || !session.scope) {
-      emit({ error: "Sign in and wait for your journal to sync before sharing." });
+    if (
+      !session.owner.startsWith("account:")
+      || !session.token
+      || !session.scope
+    ) {
+      emit({
+        error: "Sign in and wait for your journal to sync before sharing.",
+      });
       return false;
     }
     const request = new AbortController();
     abort = request;
     const current = () =>
-      !disposed && abort === request && !request.signal.aborted && session.isCurrent();
+      !disposed
+      && abort === request
+      && !request.signal.aborted
+      && session.isCurrent();
     const context = { token: session.token, signal: request.signal };
     const cancelled = new Promise<never>((_, reject) => {
       request.signal.addEventListener(
@@ -111,21 +125,23 @@ export function createVisitSharingController({
           profileRequired: convexErrorCode(cause) === "profile_required",
           error: conflict
             ? "This share changed on another device. Your draft is kept. Refresh the preview before sharing again."
-            : (socialErrorMessage(cause) ??
-              "The request did not finish. Your draft is kept. Check your connection and try again."),
+            : (socialErrorMessage(cause)
+              ?? "The request did not finish. Your draft is kept. Check your connection and try again."),
           ...(conflict ? { conflict: true, preview: null, shared: null } : {}),
         });
       }
       return false;
     } finally {
       clearTimeout(timeout);
-      if (!disposed && abort === request && session.isCurrent()) emit({ busy: false });
+      if (!disposed && abort === request && session.isCurrent()) {
+        emit({ busy: false });
+      }
     }
   }
   function accept(acknowledged: ShareState, preserveDraft = true) {
     const preview =
-      state.draft?.reflection !== acknowledged.reflection ||
-      state.draft?.revision !== acknowledged.revision
+      state.draft?.reflection !== acknowledged.reflection
+      || state.draft?.revision !== acknowledged.revision
         ? null
         : state.preview;
     const available = new Set(saveLocalIds());
@@ -147,7 +163,9 @@ export function createVisitSharingController({
           photoSelections: acknowledged.postId
             ? (acknowledged.photoSelections ?? [])
             : photoSelections().filter((row) =>
-                [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId),
+                [...available]
+                  .slice(0, LIMITS.selectedSaves)
+                  .includes(row.saveLocalId),
               ),
           highlightLocalIds: acknowledged.postId
             ? (acknowledged.highlightLocalIds ?? [])
@@ -192,29 +210,42 @@ export function createVisitSharingController({
       }),
     edit(
       patch: Partial<
-        Pick<ShareSelection, "saveLocalIds" | "photoSelections" | "highlightLocalIds">
+        Pick<
+          ShareSelection,
+          "saveLocalIds" | "photoSelections" | "highlightLocalIds"
+        >
       >,
     ) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;
       if (
-        selected &&
-        (selected.length > LIMITS.selectedSaves ||
-          new Set(selected).size !== selected.length ||
-          selected.some((id) => !available.has(id)))
-      )
+        selected
+        && (selected.length > LIMITS.selectedSaves
+          || new Set(selected).size !== selected.length
+          || selected.some((id) => !available.has(id)))
+      ) {
         return;
+      }
       const draft = { ...state.draft, ...patch };
-      if (selected)
-        for (const id of selected)
+      if (selected) {
+        for (const id of selected) {
           if (
-            !state.draft.saveLocalIds.includes(id) &&
-            !draft.photoSelections?.some((row) => row.saveLocalId === id)
+            !state.draft.saveLocalIds.includes(id)
+            && !draft.photoSelections?.some((row) => row.saveLocalId === id)
           ) {
-            const defaults = photoSelections().find((row) => row.saveLocalId === id);
-            if (defaults) draft.photoSelections = [...(draft.photoSelections ?? []), defaults];
+            const defaults = photoSelections().find(
+              (row) => row.saveLocalId === id,
+            );
+            if (defaults) {
+              draft.photoSelections = [
+                ...(draft.photoSelections ?? []),
+                defaults,
+              ];
+            }
           }
+        }
+      }
       draft.photoSelections = draft.photoSelections?.filter((row) =>
         draft.saveLocalIds.includes(row.saveLocalId),
       );
@@ -234,8 +265,14 @@ export function createVisitSharingController({
         if (current()) emit({ preview: result, conflict: false });
       }),
     publish: () => {
-      if (!state.preview || !state.draft || state.conflict || state.acknowledged?.removed)
+      if (
+        !state.preview
+        || !state.draft
+        || state.conflict
+        || state.acknowledged?.removed
+      ) {
         return Promise.resolve(false);
+      }
       const draft = state.draft;
       return run("publish", async (context, current) => {
         const result = await transport.publish(draft, context);
@@ -254,11 +291,16 @@ export function createVisitSharingController({
           emit({ shared: null, error: "This visit is not currently shared." });
           return;
         }
-        let result = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage }, context);
+        let result = await transport.get(
+          { postId: fresh.postId, limit: LIMITS.maxPage },
+          context,
+        );
         const pages = new Set<string>();
         while (current() && !result.artworks.isDone && result.artworks.cursor) {
           const cursor = result.artworks.cursor;
-          if (pages.has(cursor)) throw new Error("The artwork page did not advance");
+          if (pages.has(cursor)) {
+            throw new Error("The artwork page did not advance");
+          }
           pages.add(cursor);
           const next = await transport.get(
             { postId: fresh.postId, limit: LIMITS.maxPage, cursor },
@@ -266,7 +308,10 @@ export function createVisitSharingController({
           );
           result = {
             ...next,
-            artworks: { ...next.artworks, page: [...result.artworks.page, ...next.artworks.page] },
+            artworks: {
+              ...next.artworks,
+              page: [...result.artworks.page, ...next.artworks.page],
+            },
           };
         }
         if (current()) emit({ shared: result });

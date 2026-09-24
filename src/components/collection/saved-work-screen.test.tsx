@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
@@ -24,8 +30,12 @@ jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
 let mockWall: Partial<
   ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>
 > = { pieces: [], signedIn: false };
-jest.mock("@/lib/wall/use-collection-wall", () => ({ useCollectionWall: () => mockWall }));
-jest.mock("@/lib/collection/pending-removals", () => ({ scheduleRemoval: jest.fn() }));
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: () => mockWall,
+}));
+jest.mock("@/lib/collection/pending-removals", () => ({
+  scheduleRemoval: jest.fn(),
+}));
 const mockBack = jest.fn(),
   mockPush = jest.fn();
 const mockAuth = { isAuthenticated: true };
@@ -49,8 +59,19 @@ jest.mock("convex/react", () => ({
 }));
 
 const enrichment = {
-  docent: [{ sentence: "Monet painted this pond at Giverny in 1916.", factIds: ["f1"] }],
-  factSheet: [{ id: "f1", sourceUrl: "https://www.wikidata.org/wiki/Q1", sourceLabel: "Wikidata" }],
+  docent: [
+    {
+      sentence: "Monet painted this pond at Giverny in 1916.",
+      factIds: ["f1"],
+    },
+  ],
+  factSheet: [
+    {
+      id: "f1",
+      sourceUrl: "https://www.wikidata.org/wiki/Q1",
+      sourceLabel: "Wikidata",
+    },
+  ],
   rightsStatus: "public_domain",
 };
 
@@ -88,34 +109,46 @@ beforeAll(async () => {
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
+  jest
+    .spyOn(AccessibilityInfo, "isReduceMotionEnabled")
+    .mockResolvedValue(false);
   jest
     .spyOn(AccessibilityInfo, "addEventListener")
-    .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
+    .mockImplementation((event, listener) =>
+      DeviceEventEmitter.addListener(event, listener),
+    );
   mockWall = { pieces: [], signedIn: false };
   mockAuth.isAuthenticated = true;
   results.clear();
   listeners.clear();
-  results.set("devices:me", { deviceId: "device-1", attested: false, trustWeight: 1 });
+  results.set("devices:me", {
+    deviceId: "device-1",
+    attested: false,
+    trustWeight: 1,
+  });
   results.set("artworks:enrichment", enrichment);
-  client = new ConvexReactClient("https://test.convex.cloud", { logger: false });
+  client = new ConvexReactClient("https://test.convex.cloud", {
+    logger: false,
+  });
   jest
     .spyOn(client, "watchQuery")
-    .mockImplementation((...[query]: Parameters<ConvexReactClient["watchQuery"]>) => ({
-      localQueryResult: () => {
-        const result = results.get(getFunctionName(query));
-        if (result instanceof Error) throw result;
-        return result;
-      },
-      onUpdate: (callback) => {
-        listeners.add(callback);
-        return () => {
-          listeners.delete(callback);
-        };
-      },
-      localQueryLogs: () => undefined,
-      journal: () => undefined,
-    }));
+    .mockImplementation(
+      (...[query]: Parameters<ConvexReactClient["watchQuery"]>) => ({
+        localQueryResult: () => {
+          const result = results.get(getFunctionName(query));
+          if (result instanceof Error) throw result;
+          return result;
+        },
+        onUpdate: (callback) => {
+          listeners.add(callback);
+          return () => {
+            listeners.delete(callback);
+          };
+        },
+        localQueryLogs: () => undefined,
+        journal: () => undefined,
+      }),
+    );
 });
 afterEach(async () => {
   await client.close();
@@ -140,16 +173,22 @@ it("opens in reading mode with explicit note editing", async () => {
   expect(screen.queryByDisplayValue("Claude Monet")).toBeNull();
   expect(screen.queryByLabelText("Notes")).toBeNull();
   expect(screen.getByRole("button", { name: "Add note" })).toBeOnTheScreen();
-  expect(screen.getByLabelText("full photo 1 of Water Lilies").props.source).toEqual([
-    { uri: "file:///documents/photos/lilies.jpg" },
-  ]);
+  expect(
+    screen.getByLabelText("full photo 1 of Water Lilies").props.source,
+  ).toEqual([{ uri: "file:///documents/photos/lilies.jpg" }]);
 });
 
 it("keeps a full wall from taking another artwork", async () => {
   const items = Array.from({ length: 100 }, (_, index) => ({
     placementId: `other-${index}`,
     saveLocalId: `other-${index}`,
-    layout: { x: 0.1, y: 0.1, width: 0.2, layer: index, frame: "gilt" as const },
+    layout: {
+      x: 0.1,
+      y: 0.1,
+      width: 0.2,
+      layer: index,
+      frame: "gilt" as const,
+    },
   }));
   const setLayoutDraft = jest.fn();
   mockWall = {
@@ -194,7 +233,9 @@ it("hangs an available album photo after the original photo was removed", async 
     setError: jest.fn(),
   };
   await render(detail("replacement-work"));
-  await fireEvent.press(await screen.findByRole("switch", { name: "On your wall" }));
+  await fireEvent.press(
+    await screen.findByRole("switch", { name: "On your wall" }),
+  );
   expect(setLayoutDraft).toHaveBeenCalledWith(
     expect.objectContaining({
       items: [
@@ -231,14 +272,16 @@ it("shows the photo on this device for a hung work rather than its published med
     ],
   };
   await render(detail("lilies"));
-  expect((await screen.findByLabelText("full photo 1 of Water Lilies")).props.source).toEqual([
-    { uri: "file:///documents/photos/lilies.jpg" },
-  ]);
+  expect(
+    (await screen.findByLabelText("full photo 1 of Water Lilies")).props.source,
+  ).toEqual([{ uri: "file:///documents/photos/lilies.jpg" }]);
 });
 
 it("saves the note on blur", async () => {
   await render(detail("lilies"));
-  await fireEvent.press(await screen.findByRole("button", { name: /(Add|Edit) note/ }));
+  await fireEvent.press(
+    await screen.findByRole("button", { name: /(Add|Edit) note/ }),
+  );
   const input = await screen.findByLabelText("Notes");
   await waitFor(() => expect(input).toBeEnabled());
   await fireEvent.changeText(input, "Seen with Sam");
@@ -255,9 +298,15 @@ it("shows the saved note when the work is opened again", async () => {
 it("renders the artwork enrichment when the backend has it", async () => {
   await render(detail("lilies"));
   expect(await screen.findByText("About this work")).toBeOnTheScreen();
-  expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+  expect(
+    screen.getByText("Monet painted this pond at Giverny in 1916."),
+  ).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Wikidata" })).toBeOnTheScreen();
-  expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { artworkId: "artwork-1" }, {});
+  expect(client.watchQuery).toHaveBeenCalledWith(
+    expect.anything(),
+    { artworkId: "artwork-1" },
+    {},
+  );
 });
 
 it("skips the enrichment query for a work saved without an artwork", async () => {
@@ -285,7 +334,11 @@ it("waits for authentication and device registration while showing the local sna
   ).toBe(true);
 
   await act(() => {
-    results.set("devices:me", { deviceId: "device-1", attested: false, trustWeight: 1 });
+    results.set("devices:me", {
+      deviceId: "device-1",
+      attested: false,
+      trustWeight: 1,
+    });
     for (const listener of listeners) listener();
   });
   expect(await screen.findByText("About this work")).toBeOnTheScreen();
@@ -302,14 +355,22 @@ it.each(["devices:me", "artworks:enrichment"])(
     results.set(query, new ConvexError({ code: "unauthenticated" }));
     await render(detail("lilies"));
     expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
-    expect(screen.getByLabelText("full photo 1 of Water Lilies")).toBeOnTheScreen();
-    await fireEvent.press(await screen.findByRole("button", { name: /(Add|Edit) note/ }));
+    expect(
+      screen.getByLabelText("full photo 1 of Water Lilies"),
+    ).toBeOnTheScreen();
+    await fireEvent.press(
+      await screen.findByRole("button", { name: /(Add|Edit) note/ }),
+    );
     const input = screen.getByLabelText("Notes");
     await waitFor(() => expect(input).toBeEnabled());
     await fireEvent.changeText(input, "Still editable without enrichment");
     await fireEvent(input, "blur");
-    expect(await getNote("lilies")).toMatchObject({ text: "Still editable without enrichment" });
-    expect(screen.getByRole("button", { name: "Done editing note" })).toBeOnTheScreen();
+    expect(await getNote("lilies")).toMatchObject({
+      text: "Still editable without enrichment",
+    });
+    expect(
+      screen.getByRole("button", { name: "Done editing note" }),
+    ).toBeOnTheScreen();
 
     await act(() => {
       results.set(query, success);
@@ -354,8 +415,12 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
   );
   expect(await screen.findByText("First encounter thought")).toBeOnTheScreen();
   expect(screen.queryByText("Second encounter thought")).toBeNull();
-  expect(screen.getByRole("button", { name: /View Water Lilies at Orsay/ })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: /View Water Lilies at Met/ }));
+  expect(
+    screen.getByRole("button", { name: /View Water Lilies at Orsay/ }),
+  ).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: /View Water Lilies at Met/ }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
     params: { visitId: second },
@@ -371,10 +436,14 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
 
 it("opens crop adjustment from the saved artwork while keeping its album photo available", async () => {
   await render(detail("lilies"));
-  await fireEvent.press(await screen.findByRole("button", { name: "Adjust crop" }));
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Adjust crop" }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/adjust-crop",
     params: { savedId: "lilies" },
   });
-  expect(screen.getByLabelText("full photo 1 of Water Lilies")).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("full photo 1 of Water Lilies"),
+  ).toBeOnTheScreen();
 });

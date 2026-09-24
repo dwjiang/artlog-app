@@ -10,12 +10,20 @@ import type { PendingScan } from "@/db/schema";
 import { startPendingShareFlusher } from "@/lib/label/share-saved-label";
 import { startQueueFlusher } from "./queue";
 
-export type QueueState = { pending: number; items: PendingScan[]; loading: boolean; error?: Error };
+export type QueueState = {
+  pending: number;
+  items: PendingScan[];
+  loading: boolean;
+  error?: Error;
+};
 
 /** Pending counts unfinished requests; items keep every unsaved capture available to resume. */
 export function useQueue(): QueueState {
   const owner = useLocalOwner();
-  const [albumRevision, refreshAlbum] = useReducer((revision: number) => revision + 1, 0);
+  const [albumRevision, refreshAlbum] = useReducer(
+    (revision: number) => revision + 1,
+    0,
+  );
   useEffect(() => {
     // Drizzle observes only the base table; saving changes the joined album table.
     const subscription = addDatabaseChangeListener(({ tableName }) => {
@@ -33,7 +41,9 @@ export function useQueue(): QueueState {
   }, [error]);
   const data = rows.filter((row) => row.owner === owner);
   return {
-    pending: data.filter((row) => row.status === "queued" || row.status === "identifying").length,
+    pending: data.filter(
+      (row) => row.status === "queued" || row.status === "identifying",
+    ).length,
     items: data,
     loading: !updatedAt && !error,
     error,

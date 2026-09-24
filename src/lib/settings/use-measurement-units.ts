@@ -7,7 +7,10 @@ import {
 } from "./measurement-units";
 
 export function useMeasurementUnits() {
-  const [state, setState] = useState<{ units?: MeasurementUnits; failed: boolean }>({
+  const [state, setState] = useState<{
+    units?: MeasurementUnits;
+    failed: boolean;
+  }>({
     failed: false,
   });
   useEffect(() => {

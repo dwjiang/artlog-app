@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react-native";
 import { ProgressSteps, STEP_LABELS } from "./progress-steps";
 
 function status(label: string) {
-  const { checked, busy } = screen.getByLabelText(label).props.accessibilityState as {
+  const { checked, busy } = screen.getByLabelText(label).props
+    .accessibilityState as {
     checked: boolean;
     busy: boolean;
   };
@@ -18,18 +19,14 @@ it("walks the photo path: reading first, the three checks together, images last"
   expect(screen.queryByLabelText(STEP_LABELS.qr)).toBeNull();
   await view.rerender(<ProgressSteps stage="verify" qr={false} />);
   expect(status(STEP_LABELS.read)).toBe("done");
-  expect([STEP_LABELS.records, STEP_LABELS.wikidata, STEP_LABELS.web].map(status)).toEqual([
-    "active",
-    "active",
-    "active",
-  ]);
+  expect(
+    [STEP_LABELS.records, STEP_LABELS.wikidata, STEP_LABELS.web].map(status),
+  ).toEqual(["active", "active", "active"]);
   expect(status(STEP_LABELS.images)).toBe("pending");
   await view.rerender(<ProgressSteps stage="image-check" qr={false} />);
-  expect([STEP_LABELS.read, STEP_LABELS.records, STEP_LABELS.web].map(status)).toEqual([
-    "done",
-    "done",
-    "done",
-  ]);
+  expect(
+    [STEP_LABELS.read, STEP_LABELS.records, STEP_LABELS.web].map(status),
+  ).toEqual(["done", "done", "done"]);
   expect(status(STEP_LABELS.images)).toBe("active");
 });
 

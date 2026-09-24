@@ -16,8 +16,13 @@ export function useQrScanner(enabled: boolean, onCode: (url: string) => void) {
     (objects: ScannedObject[]) => {
       if (!enabled) return;
       for (const object of objects) {
-        if (isScannedCode(object) && object.value && accept(object.value, performance.now()))
+        if (
+          isScannedCode(object)
+          && object.value
+          && accept(object.value, performance.now())
+        ) {
           onCode(object.value);
+        }
       }
     },
     [accept, enabled, onCode],

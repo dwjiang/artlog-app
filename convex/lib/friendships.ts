@@ -6,20 +6,34 @@ import type { QueryCtx } from "../_generated/server";
 export const canonicalPair = (a: Id<"profiles">, b: Id<"profiles">) =>
   a < b ? ([a, b] as const) : ([b, a] as const);
 export function checkRevision(observed: number, current: number) {
-  if (!isRevision(observed)) throw new ConvexError({ code: "invalid_relationship" });
+  if (!isRevision(observed)) {
+    throw new ConvexError({ code: "invalid_relationship" });
+  }
   if (observed !== current) throw new ConvexError({ code: "conflict" });
 }
-export function findRelationship(ctx: QueryCtx, a: Id<"profiles">, b: Id<"profiles">) {
+export function findRelationship(
+  ctx: QueryCtx,
+  a: Id<"profiles">,
+  b: Id<"profiles">,
+) {
   const [first, second] = canonicalPair(a, b);
   return ctx.db
     .query("friendships")
-    .withIndex("by_pair", (q) => q.eq("firstProfileId", first).eq("secondProfileId", second))
+    .withIndex("by_pair", (q) =>
+      q.eq("firstProfileId", first).eq("secondProfileId", second),
+    )
     .unique();
 }
-export function findBlock(ctx: QueryCtx, blockerId: Id<"profiles">, blockedId: Id<"profiles">) {
+export function findBlock(
+  ctx: QueryCtx,
+  blockerId: Id<"profiles">,
+  blockedId: Id<"profiles">,
+) {
   return ctx.db
     .query("blocks")
-    .withIndex("by_pair", (q) => q.eq("blockerId", blockerId).eq("blockedId", blockedId))
+    .withIndex("by_pair", (q) =>
+      q.eq("blockerId", blockerId).eq("blockedId", blockedId),
+    )
     .unique();
 }
 export async function relationshipSnapshot(
@@ -45,11 +59,16 @@ export async function relationshipSnapshot(
     },
   };
 }
-export async function acceptedRelationships(ctx: QueryCtx, profileId: Id<"profiles">) {
+export async function acceptedRelationships(
+  ctx: QueryCtx,
+  profileId: Id<"profiles">,
+) {
   const [first, second] = await Promise.all([
     ctx.db
       .query("friendships")
-      .withIndex("by_first_state", (q) => q.eq("firstProfileId", profileId).eq("state", "accepted"))
+      .withIndex("by_first_state", (q) =>
+        q.eq("firstProfileId", profileId).eq("state", "accepted"),
+      )
       .take(LIMITS.friends + 1),
     ctx.db
       .query("friendships")

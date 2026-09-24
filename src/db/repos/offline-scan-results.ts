@@ -8,7 +8,12 @@ export const offlineResultQuery = (localId: string, owner = getLocalOwner()) =>
   db
     .select()
     .from(offlineScanResults)
-    .where(and(eq(offlineScanResults.owner, owner), eq(offlineScanResults.localId, localId)));
+    .where(
+      and(
+        eq(offlineScanResults.owner, owner),
+        eq(offlineScanResults.localId, localId),
+      ),
+    );
 export async function cacheOfflineResult(
   localId: string,
   result: OfflineResult,

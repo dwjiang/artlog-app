@@ -12,7 +12,9 @@ export async function getSetting(key: string): Promise<string | undefined> {
   return row?.value;
 }
 
-export async function listSettings(prefix: string): Promise<{ key: string; value: string }[]> {
+export async function listSettings(
+  prefix: string,
+): Promise<{ key: string; value: string }[]> {
   const rows = await db
     .select()
     .from(settings)

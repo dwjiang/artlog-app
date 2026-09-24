@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+} from "drizzle-orm";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { getLocalOwner } from "../../lib/account/owner-store";
@@ -37,7 +48,9 @@ export function selectPendingScan(localId: string, owner = getLocalOwner()) {
   return db
     .select()
     .from(pendingScans)
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function getPendingScan(
@@ -47,7 +60,10 @@ export async function getPendingScan(
   return selectPendingScan(localId, owner).get();
 }
 
-export function selectCaptureForScan(scanId: Id<"scans">, owner = getLocalOwner()) {
+export function selectCaptureForScan(
+  scanId: Id<"scans">,
+  owner = getLocalOwner(),
+) {
   return db
     .select()
     .from(pendingScans)
@@ -76,7 +92,9 @@ export function captureQuery(scanId: string, owner = getLocalOwner()) {
     .limit(1);
 }
 
-export async function listPendingLabels(owner = getLocalOwner()): Promise<PendingScan[]> {
+export async function listPendingLabels(
+  owner = getLocalOwner(),
+): Promise<PendingScan[]> {
   return db
     .select()
     .from(pendingScans)
@@ -85,7 +103,10 @@ export async function listPendingLabels(owner = getLocalOwner()): Promise<Pendin
         eq(pendingScans.owner, owner),
         eq(pendingScans.status, "identified"),
         isNotNull(pendingScans.scanId),
-        or(isNotNull(pendingScans.labelPhotoPath), isNotNull(pendingScans.qrUrl)),
+        or(
+          isNotNull(pendingScans.labelPhotoPath),
+          isNotNull(pendingScans.qrUrl),
+        ),
         lt(pendingScans.attempts, MAX_LABEL_ATTEMPTS),
       ),
     )
@@ -98,7 +119,9 @@ function matchingLabel(localId: string, label: PendingLabel, owner: string) {
     label.labelPhotoPath
       ? eq(pendingScans.labelPhotoPath, label.labelPhotoPath)
       : isNull(pendingScans.labelPhotoPath),
-    label.qrUrl ? eq(pendingScans.qrUrl, label.qrUrl) : isNull(pendingScans.qrUrl),
+    label.qrUrl
+      ? eq(pendingScans.qrUrl, label.qrUrl)
+      : isNull(pendingScans.qrUrl),
   );
 }
 
@@ -126,19 +149,29 @@ export async function recordLabelFailure(
   await db
     .update(pendingScans)
     .set({ attempts, lastError: error })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
   // This is the label task's retry status; identification remains complete.
   return {
-    status: attempts >= MAX_LABEL_ATTEMPTS ? ("failed" as const) : ("queued" as const),
+    status:
+      attempts >= MAX_LABEL_ATTEMPTS
+        ? ("failed" as const)
+        : ("queued" as const),
     attempts,
   };
 }
 
-export async function retryPendingLabel(localId: string, owner = getLocalOwner()): Promise<void> {
+export async function retryPendingLabel(
+  localId: string,
+  owner = getLocalOwner(),
+): Promise<void> {
   await db
     .update(pendingScans)
     .set({ attempts: 0, lastError: null })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 /** Viewing a scan does not save it. Album tombstones keep previously saved captures out too. */
@@ -180,11 +213,16 @@ export async function listFlushable(
     .orderBy(asc(pendingScans.capturedAt), asc(pendingScans.localId));
 }
 
-export async function markIdentifying(localId: string, owner = getLocalOwner()): Promise<void> {
+export async function markIdentifying(
+  localId: string,
+  owner = getLocalOwner(),
+): Promise<void> {
   await db
     .update(pendingScans)
     .set({ status: "identifying" })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function markIdentified(
@@ -195,7 +233,9 @@ export async function markIdentified(
   await db
     .update(pendingScans)
     .set({ status: "identified", scanId, attempts: 0, lastError: null })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function markFailed(
@@ -207,7 +247,9 @@ export async function markFailed(
   await db
     .update(pendingScans)
     .set({ status: "failed", lastError: error, ...(scanId ? { scanId } : {}) })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 /** Returns the row to the queue; counted attempts give up at `MAX_IDENTIFY_ATTEMPTS`. */
@@ -220,23 +262,36 @@ export async function recordAttemptFailure(
   const row = await getPendingScan(localId, owner);
   if (!row) return { status: "failed" as const, attempts: 0 };
   const attempts = row.attempts + (countAttempt ? 1 : 0);
-  const status: PendingScanStatus = attempts >= MAX_IDENTIFY_ATTEMPTS ? "failed" : "queued";
+  const status: PendingScanStatus =
+    attempts >= MAX_IDENTIFY_ATTEMPTS ? "failed" : "queued";
   await db
     .update(pendingScans)
     .set({ status, attempts, lastError: error })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
   return { status, attempts };
 }
 
 /** No identify call survives a process restart: rows left `identifying` go back to the queue. */
-export async function requeueInterrupted(owner = getLocalOwner()): Promise<void> {
+export async function requeueInterrupted(
+  owner = getLocalOwner(),
+): Promise<void> {
   await db
     .update(pendingScans)
     .set({ status: "queued" })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.status, "identifying")));
+    .where(
+      and(
+        eq(pendingScans.owner, owner),
+        eq(pendingScans.status, "identifying"),
+      ),
+    );
 }
 
-export async function retryPendingScan(localId: string, owner = getLocalOwner()): Promise<void> {
+export async function retryPendingScan(
+  localId: string,
+  owner = getLocalOwner(),
+): Promise<void> {
   await db
     .update(pendingScans)
     .set({ status: "queued", attempts: 0, lastError: null })
@@ -255,8 +310,15 @@ export async function resetAttemptsForModel(
 ): Promise<void> {
   await db
     .update(pendingScans)
-    .set({ attemptModelVersion, status: "queued", attempts: 0, lastError: null })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .set({
+      attemptModelVersion,
+      status: "queued",
+      attempts: 0,
+      lastError: null,
+    })
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function updateFeatures(
@@ -266,7 +328,12 @@ export async function updateFeatures(
 ): Promise<void> {
   await db
     .delete(offlineScanResults)
-    .where(and(eq(offlineScanResults.owner, owner), eq(offlineScanResults.localId, localId)));
+    .where(
+      and(
+        eq(offlineScanResults.owner, owner),
+        eq(offlineScanResults.localId, localId),
+      ),
+    );
   await db
     .update(pendingScans)
     .set({
@@ -276,7 +343,9 @@ export async function updateFeatures(
       attempts: 0,
       lastError: null,
     })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function setLabelPhoto(
@@ -287,7 +356,9 @@ export async function setLabelPhoto(
   await db
     .update(pendingScans)
     .set({ labelPhotoPath, qrUrl: null, attempts: 0, lastError: null })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
 export async function setQrUrl(
@@ -298,11 +369,18 @@ export async function setQrUrl(
   await db
     .update(pendingScans)
     .set({ qrUrl, labelPhotoPath: null, attempts: 0, lastError: null })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }
 
-export async function deletePendingScan(localId: string, owner = getLocalOwner()): Promise<void> {
+export async function deletePendingScan(
+  localId: string,
+  owner = getLocalOwner(),
+): Promise<void> {
   await db
     .delete(pendingScans)
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+    .where(
+      and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
+    );
 }

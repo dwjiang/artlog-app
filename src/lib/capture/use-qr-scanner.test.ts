@@ -4,7 +4,10 @@ import type { ScannedCode, ScannedObject } from "react-native-vision-camera";
 import { useQrScanner } from "./use-qr-scanner";
 
 const mockOutput = {};
-let mockOptions: { types: string[]; onObjectsScanned: (objects: ScannedObject[]) => void };
+let mockOptions: {
+  types: string[];
+  onObjectsScanned: (objects: ScannedObject[]) => void;
+};
 jest.mock("react-native-vision-camera", () => ({
   useObjectOutput: (options: typeof mockOptions) => {
     mockOptions = options;
@@ -19,7 +22,9 @@ it("detaches the output while disabled and ignores late native callbacks", async
     (props: { enabled: boolean }) => useQrScanner(props.enabled, onCode),
     { initialProps: { enabled: false } },
   );
-  const objects = [{ type: "qr", value: "https://museum.org/painting" }] as ScannedCode[];
+  const objects = [
+    { type: "qr", value: "https://museum.org/painting" },
+  ] as ScannedCode[];
   expect(hook.result.current).toBeUndefined();
   mockOptions.onObjectsScanned(objects);
   expect(onCode).not.toHaveBeenCalled();

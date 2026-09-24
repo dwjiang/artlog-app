@@ -26,11 +26,15 @@ const STAGE_TEXT: Record<MuseumSearchStage, string> = {
   none: "Search finished",
 };
 
-type Props = { search: MuseumSearchController; scanId: Id<"scans">; capture?: PendingScan };
+type Props = {
+  search: MuseumSearchController;
+  scanId: Id<"scans">;
+  capture?: PendingScan;
+};
 
 export function MuseumSearchSection({ search, scanId, capture }: Props) {
   if (!search.visible) return null;
-  if (search.restoring || search.restoreError)
+  if (search.restoring || search.restoreError) {
     return (
       <View style={styles.section}>
         {search.restoreError ? (
@@ -39,10 +43,15 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
           <FormSkeleton label="Loading museum result…" />
         )}
         {search.restoreError && (
-          <GalleryButton label="Try again" variant="outlined" onPress={search.retryRestore} />
+          <GalleryButton
+            label="Try again"
+            variant="outlined"
+            onPress={search.retryRestore}
+          />
         )}
       </View>
     );
+  }
   if (!search.flow && !search.running && !search.message) return null;
   return (
     <View style={styles.section}>
@@ -68,7 +77,9 @@ export function MuseumSearchSection({ search, scanId, capture }: Props) {
           )}
         </View>
       ) : (
-        search.message && <ThemedText themeColor="textSecondary">{search.message}</ThemedText>
+        search.message && (
+          <ThemedText themeColor="textSecondary">{search.message}</ThemedText>
+        )
       )}
     </View>
   );
@@ -104,7 +115,7 @@ function MuseumSearchResult({
     retrySharing,
   } = useSaveResult();
 
-  if (!form)
+  if (!form) {
     return (
       <View style={styles.section}>
         {formError ? (
@@ -112,9 +123,16 @@ function MuseumSearchResult({
         ) : (
           <FormSkeleton label="Loading your edits…" />
         )}
-        {formError && <GalleryButton label="Try again" variant="outlined" onPress={retryForm} />}
+        {formError && (
+          <GalleryButton
+            label="Try again"
+            variant="outlined"
+            onPress={retryForm}
+          />
+        )}
       </View>
     );
+  }
 
   const contribution =
     capture && capture.venueId && canShareLabel(form)
@@ -136,7 +154,9 @@ function MuseumSearchResult({
   return (
     <>
       <ThemedText type="subtitle">{"Found on the museum's site"}</ThemedText>
-      {flow.sourceUrl && <SourceChip label="Museum page" url={flow.sourceUrl} />}
+      {flow.sourceUrl && (
+        <SourceChip label="Museum page" url={flow.sourceUrl} />
+      )}
       <VerifiedFieldsForm
         state={form}
         warnings={flow.warnings}
@@ -165,7 +185,10 @@ function MuseumSearchResult({
           void retrySharing();
         }}
         onViewSaved={() =>
-          router.push({ pathname: "/saved/[savedId]", params: { savedId: savedId ?? "" } })
+          router.push({
+            pathname: "/saved/[savedId]",
+            params: { savedId: savedId ?? "" },
+          })
         }
       />
     </>

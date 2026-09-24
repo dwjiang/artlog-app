@@ -8,7 +8,10 @@ import {
 
 /** `consent` stays undefined until the first read answers; `failed` marks a read that rejected so callers can stop waiting. */
 export function useMuseumSearchConsent(active: boolean) {
-  const [state, setState] = useState<{ consent?: MuseumSearchConsent; failed: boolean }>({
+  const [state, setState] = useState<{
+    consent?: MuseumSearchConsent;
+    failed: boolean;
+  }>({
     failed: false,
   });
   useEffect(() => {
@@ -19,10 +22,14 @@ export function useMuseumSearchConsent(active: boolean) {
       const request = ++revision;
       void getMuseumSearchConsent().then(
         (consent) => {
-          if (current && request === revision) setState({ consent, failed: false });
+          if (current && request === revision) {
+            setState({ consent, failed: false });
+          }
         },
         () => {
-          if (current && request === revision) setState({ consent: undefined, failed: true });
+          if (current && request === revision) {
+            setState({ consent: undefined, failed: true });
+          }
         },
       );
     };

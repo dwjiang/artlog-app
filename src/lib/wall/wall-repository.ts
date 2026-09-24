@@ -1,5 +1,10 @@
 import { convexErrorCode } from "../network-error";
-import type { LayoutInput, OwnerWall, VisibilityInput, WallTransport } from "./wall-transport";
+import type {
+  LayoutInput,
+  OwnerWall,
+  VisibilityInput,
+  WallTransport,
+} from "./wall-transport";
 
 type LayoutDraft = Omit<LayoutInput, "scope" | "revision">;
 type NoteDraft = VisibilityInput["changes"];
@@ -10,7 +15,12 @@ type State = {
   pending: boolean;
   needsNoteConfirmation: boolean;
 };
-type Session = { owner: string; scope?: string; token: string | null; isCurrent: () => boolean };
+type Session = {
+  owner: string;
+  scope?: string;
+  token: string | null;
+  isCurrent: () => boolean;
+};
 type Dependencies = {
   transport: WallTransport;
   capture: () => Session;
@@ -51,19 +61,33 @@ export function createWallRepository(deps: Dependencies) {
     const session = deps.capture(),
       version = generation,
       controller = new AbortController();
-    if (disposed || !session.scope || !session.token || !session.owner.startsWith("account:"))
+    if (
+      disposed
+      || !session.scope
+      || !session.token
+      || !session.owner.startsWith("account:")
+    ) {
       throw new Error("Wall account is not ready");
+    }
     requests.add(controller);
     function check() {
-      if (disposed || version !== generation || !session.isCurrent() || controller.signal.aborted)
+      if (
+        disposed
+        || version !== generation
+        || !session.isCurrent()
+        || controller.signal.aborted
+      ) {
         throw new Error("Wall request cancelled");
+      }
     }
     return {
       scope: session.scope,
       context: { token: session.token, signal: controller.signal },
       check,
       ready: async () => {
-        if (!(await deps.online())) throw new Error("Connect to publish your wall");
+        if (!(await deps.online())) {
+          throw new Error("Connect to publish your wall");
+        }
         check();
       },
       finish: () => requests.delete(controller),
@@ -77,7 +101,9 @@ export function createWallRepository(deps: Dependencies) {
       await current.ready();
       const acknowledged = await deps.transport.getMine(current.context);
       current.check();
-      if (acknowledged.scope !== current.scope) throw new Error("Wall account changed");
+      if (acknowledged.scope !== current.scope) {
+        throw new Error("Wall account changed");
+      }
       if (read === reading) update({ acknowledged });
     } finally {
       current.finish();
@@ -114,11 +140,15 @@ export function createWallRepository(deps: Dependencies) {
               current.context,
             );
       current.check();
-      if (result.scope !== current.scope) throw new Error("Wall account changed");
+      if (result.scope !== current.scope) {
+        throw new Error("Wall account changed");
+      }
       if (kind === "layout") layoutRevision = result.revision;
       update({
         acknowledged: result,
-        ...(kind === "layout" && state.layoutDraft === layoutDraft ? { layoutDraft: null } : {}),
+        ...(kind === "layout" && state.layoutDraft === layoutDraft
+          ? { layoutDraft: null }
+          : {}),
         ...(kind === "notes" && state.noteDraft === noteDraft
           ? { noteDraft: [], needsNoteConfirmation: false }
           : {}),
@@ -126,17 +156,25 @@ export function createWallRepository(deps: Dependencies) {
     } catch (error) {
       current.check();
       if (convexErrorCode(error) === "conflict") {
-        update({ noteDraft: [], needsNoteConfirmation: true, acknowledged: null });
+        update({
+          noteDraft: [],
+          needsNoteConfirmation: true,
+          acknowledged: null,
+        });
         const fresh = await deps.transport.getMine(current.context);
         current.check();
-        if (fresh.scope !== current.scope) throw new Error("Wall account changed");
+        if (fresh.scope !== current.scope) {
+          throw new Error("Wall account changed");
+        }
         if (kind === "layout") layoutRevision = fresh.revision;
         update({ acknowledged: fresh });
       }
       throw error;
     } finally {
       current.finish();
-      if (!current.context.signal.aborted && !disposed) update({ pending: false });
+      if (!current.context.signal.aborted && !disposed) {
+        update({ pending: false });
+      }
     }
   }
   return {
@@ -167,11 +205,17 @@ export function createWallRepository(deps: Dependencies) {
         },
       });
     },
-    setNoteDraft: (changes: { itemId: NoteDraft[number]["itemId"]; visible: boolean }[]) => {
+    setNoteDraft: (
+      changes: { itemId: NoteDraft[number]["itemId"]; visible: boolean }[],
+    ) => {
       if (!state.acknowledged) throw new Error("Refresh your wall first");
       const noteDraft = changes.map((change) => {
-        const item = state.acknowledged!.items.find((item) => item.itemId === change.itemId);
-        if (!item || (change.visible && !item.noteEligible)) throw new Error("Note is unavailable");
+        const item = state.acknowledged!.items.find(
+          (item) => item.itemId === change.itemId,
+        );
+        if (!item || (change.visible && !item.noteEligible)) {
+          throw new Error("Note is unavailable");
+        }
         return { ...change, noteRevision: item.noteRevision };
       });
       update({ noteDraft, needsNoteConfirmation: false });
@@ -192,7 +236,12 @@ export function createWallRepository(deps: Dependencies) {
         current.finish();
       }
     },
-    discardDrafts: () => update({ layoutDraft: null, noteDraft: [], needsNoteConfirmation: false }),
+    discardDrafts: () =>
+      update({
+        layoutDraft: null,
+        noteDraft: [],
+        needsNoteConfirmation: false,
+      }),
     dispose: () => {
       disposed = true;
       unsubscribe?.();

@@ -30,21 +30,30 @@ export function venueHosts(venue: VenueSites): string[] {
 
 export function hostAllowed(url: URL, hosts: string[]): boolean {
   const host = bareHost(url);
-  return hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  return hosts.some(
+    (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+  );
 }
 
 export function allowedVenueUrl(value: string, hosts: string[]): URL | null {
   const url = websiteUrl(value);
-  return url && url.protocol === "https:" && hostAllowed(url, hosts) ? url : null;
+  return url && url.protocol === "https:" && hostAllowed(url, hosts)
+    ? url
+    : null;
 }
 
 export type VenuePage = { url: string; html: string };
 
-function unavailable(reason: string): ConvexError<{ code: string; reason: string }> {
+function unavailable(
+  reason: string,
+): ConvexError<{ code: string; reason: string }> {
   return new ConvexError({ code: "page_unavailable", reason });
 }
 
-export async function fetchVenuePage(value: string, hosts: string[]): Promise<VenuePage> {
+export async function fetchVenuePage(
+  value: string,
+  hosts: string[],
+): Promise<VenuePage> {
   let url = allowedVenueUrl(value, hosts);
   if (!url) throw new ConvexError({ code: "qr_host_not_allowed" });
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -54,7 +63,10 @@ export async function fetchVenuePage(value: string, hosts: string[]): Promise<Ve
         url.href,
         {
           redirect: "manual",
-          headers: { "User-Agent": userAgent(), Accept: "text/html, application/xhtml+xml;q=0.9" },
+          headers: {
+            "User-Agent": userAgent(),
+            Accept: "text/html, application/xhtml+xml;q=0.9",
+          },
         },
         { timeoutMs: TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES },
       );
@@ -65,7 +77,9 @@ export async function fetchVenuePage(value: string, hosts: string[]): Promise<Ve
       const location = page.headers.get("location");
       let next: URL | null = null;
       try {
-        next = location ? allowedVenueUrl(new URL(location, url).href, hosts) : null;
+        next = location
+          ? allowedVenueUrl(new URL(location, url).href, hosts)
+          : null;
       } catch {
         next = null;
       }
@@ -73,7 +87,9 @@ export async function fetchVenuePage(value: string, hosts: string[]): Promise<Ve
       url = next;
       continue;
     }
-    if (page.status < 200 || page.status >= 300) throw unavailable(`http_${page.status}`);
+    if (page.status < 200 || page.status >= 300) {
+      throw unavailable(`http_${page.status}`);
+    }
     return { url: url.href, html: page.body };
   }
   throw unavailable("too_many_redirects");

@@ -6,7 +6,9 @@ import { useListening } from "./use-listening";
 let mockOwner = "device:one";
 const mockCancel = jest.fn();
 const mockMounted = jest.fn();
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => mockOwner }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => mockOwner,
+}));
 jest.mock("expo-audio", () => ({
   createAudioPlayer: jest.fn(),
   setAudioModeAsync: async () => {},
@@ -36,10 +38,15 @@ function Screen() {
               artworkId: "one" as never,
               title: "First owner’s artwork",
               artist: "Artist",
-              opening: "This is First owner’s artwork, by Artist. Its date is unknown.",
+              opening:
+                "This is First owner’s artwork, by Artist. Its date is unknown.",
               savedId: "private-id",
               facts: [
-                { id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" },
+                {
+                  id: "f1",
+                  sourceUrl: "https://museum.example/work",
+                  sourceLabel: "Museum",
+                },
               ],
             },
           })

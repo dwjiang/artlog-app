@@ -1,5 +1,10 @@
 import type { MatchOutcome } from "../validators";
-import { type CandidateSignals, FEATURE_NAMES, featureIndex, featurize } from "./features";
+import {
+  type CandidateSignals,
+  FEATURE_NAMES,
+  featureIndex,
+  featurize,
+} from "./features";
 import { type CalibratorConfig, DEFAULT_CALIBRATOR } from "./weights";
 
 export type ScoredCandidate<T> = {
@@ -38,7 +43,9 @@ export function scoreCandidates<T>(
   const scored = items.map(({ candidate, signals }) => {
     const features = featurize(signals);
     let logit = config.bias;
-    for (let i = 0; i < features.length; i++) logit += config.weights[i] * features[i];
+    for (let i = 0; i < features.length; i++) {
+      logit += config.weights[i] * features[i];
+    }
     const reasons = confidenceBlockers(signals, features, config);
     return {
       candidate,
@@ -49,7 +56,9 @@ export function scoreCandidates<T>(
     };
   });
   scored.sort(
-    (a, b) => b.probability - a.probability || b.features[SIMILARITY] - a.features[SIMILARITY],
+    (a, b) =>
+      b.probability - a.probability
+      || b.features[SIMILARITY] - a.features[SIMILARITY],
   );
   return scored;
 }
@@ -61,13 +70,21 @@ export function decide<T>(
   const best = scored[0] ?? null;
   let outcome: MatchOutcome = "miss";
   if (best !== null) {
-    if (best.probability >= config.thresholds.confident && best.eligibleForConfident) {
+    if (
+      best.probability >= config.thresholds.confident
+      && best.eligibleForConfident
+    ) {
       outcome = "confident";
     } else if (best.probability >= config.thresholds.soft) {
       outcome = "soft";
     }
   }
-  return { outcome, best, runnerUps: scored.slice(1, 6), calibratorVersion: config.version };
+  return {
+    outcome,
+    best,
+    runnerUps: scored.slice(1, 6),
+    calibratorVersion: config.version,
+  };
 }
 
 function confidenceBlockers(
@@ -79,13 +96,19 @@ function confidenceBlockers(
   const reasons: string[] = [];
   if (signals.keypointCount >= config.lowTextureKeypoints) {
     if (!signals.homographyValid) reasons.push("textured:no-homography");
-    else if (signals.orbInliers < config.textured.minInliers) reasons.push("textured:few-inliers");
+    else if (signals.orbInliers < config.textured.minInliers) {
+      reasons.push("textured:few-inliers");
+    }
     return reasons;
   }
-  if (features[SIMILARITY] < config.lowTexture.minSimilarity)
+  if (features[SIMILARITY] < config.lowTexture.minSimilarity) {
     reasons.push("low-texture:similarity");
-  if (features[MARGIN] < config.lowTexture.minMargin) reasons.push("low-texture:margin");
-  if (config.lowTexture.requireVenueAgreement && !signals.atVenue)
+  }
+  if (features[MARGIN] < config.lowTexture.minMargin) {
+    reasons.push("low-texture:margin");
+  }
+  if (config.lowTexture.requireVenueAgreement && !signals.atVenue) {
     reasons.push("low-texture:venue");
+  }
   return reasons;
 }

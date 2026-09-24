@@ -9,7 +9,10 @@ export type OrbParity = {
   rowsAnywhere: number;
 };
 
-export function compareDescriptors(actual: ArrayBuffer, expected: ArrayBuffer): OrbParity {
+export function compareDescriptors(
+  actual: ArrayBuffer,
+  expected: ArrayBuffer,
+): OrbParity {
   const actualRows = rowsOf(new Uint8Array(actual));
   const expectedRows = rowsOf(new Uint8Array(expected));
   const expectedSet = new Set(expectedRows);
@@ -30,7 +33,9 @@ export function compareDescriptors(actual: ArrayBuffer, expected: ArrayBuffer): 
 function rowsOf(bytes: Uint8Array): string[] {
   const rows: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += DESCRIPTOR_BYTES) {
-    rows.push(String.fromCharCode(...bytes.subarray(offset, offset + DESCRIPTOR_BYTES)));
+    rows.push(
+      String.fromCharCode(...bytes.subarray(offset, offset + DESCRIPTOR_BYTES)),
+    );
   }
   return rows;
 }

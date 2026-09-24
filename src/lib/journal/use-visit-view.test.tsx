@@ -3,7 +3,8 @@ import { useVisitView } from "./use-visit-view";
 const mockSettings = new Map<string, string>();
 let mockPending: Promise<string | undefined> | undefined;
 jest.mock("@/db/repos/settings", () => ({
-  getSetting: (key: string) => mockPending ?? Promise.resolve(mockSettings.get(key)),
+  getSetting: (key: string) =>
+    mockPending ?? Promise.resolve(mockSettings.get(key)),
   setSetting: async (key: string, value: string) => {
     mockSettings.set(key, value);
   },

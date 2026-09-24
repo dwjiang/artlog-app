@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -21,7 +27,12 @@ const mockSession = {
 let mockVisibility = "off";
 let mockRows = [
   {
-    profile: { profileId: "global-person", name: "Ada", username: "ada", publishedWallCount: 2 },
+    profile: {
+      profileId: "global-person",
+      name: "Ada",
+      username: "ada",
+      publishedWallCount: 2,
+    },
     rank: 1,
     score: 4,
   },
@@ -69,14 +80,19 @@ jest.mock("@expo/ui/swift-ui", () => {
         {React.Children.map(
           children,
           (child: {
-            props: { children: string; modifiers: { $type: string; tag?: string }[] };
+            props: {
+              children: string;
+              modifiers: { $type: string; tag?: string }[];
+            };
           }) => (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Choose ${child.props.children}`}
               onPress={() =>
                 onSelectionChange(
-                  child.props.modifiers.find((modifier) => modifier.$type === "tag")?.tag ?? "",
+                  child.props.modifiers.find(
+                    (modifier) => modifier.$type === "tag",
+                  )?.tag ?? "",
                 )
               }
             >
@@ -98,7 +114,10 @@ jest.mock("expo-router", () => ({
     dismissAll: () => mockDismissAll(),
   },
   useRouter: () => ({ push: mockPush }),
-  Stack: { Screen: () => null, Toolbar: Object.assign(() => null, { Button: () => null }) },
+  Stack: {
+    Screen: () => null,
+    Toolbar: Object.assign(() => null, { Button: () => null }),
+  },
 }));
 jest.mock("@/db/repos/settings", () => ({
   getSetting: async (key: string) => mockSettings.get(key),
@@ -106,7 +125,9 @@ jest.mock("@/db/repos/settings", () => ({
     mockSettings.set(key, value);
   },
 }));
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: unknown, args: unknown) => {
     const name = jest.requireActual("convex/server").getFunctionName(query);
@@ -124,7 +145,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
   },
 }));
 jest.mock("convex/react", () => ({ useMutation: () => mockChange }));
-jest.mock("../settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("../settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -136,7 +159,12 @@ beforeEach(() => {
   mockVisibility = "off";
   mockRows = [
     {
-      profile: { profileId: "global-person", name: "Ada", username: "ada", publishedWallCount: 2 },
+      profile: {
+        profileId: "global-person",
+        name: "Ada",
+        username: "ada",
+        publishedWallCount: 2,
+      },
       rank: 1,
       score: 4,
     },
@@ -154,20 +182,28 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
     metric: "visits",
     period: "month",
   });
-  const row = screen.getByRole("button", { name: "Rank 1, Ada, 4 visits. Open public profile." });
+  const row = screen.getByRole("button", {
+    name: "Rank 1, Ada, 4 visits. Open public profile.",
+  });
   await fireEvent.press(row);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/profile/[profileId]",
     params: { profileId: "global-person" },
   });
-  expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Join the leaderboard" }),
+  ).toBeOnTheScreen();
 });
 
 it("changes category and period independently using the dropdowns", async () => {
   mockSession.status = "ready";
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Choose Artworks" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Choose All time" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Choose Artworks" }),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Choose All time" }),
+  );
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "friends",
     metric: "artworks",
@@ -177,7 +213,9 @@ it("changes category and period independently using the dropdowns", async () => 
     '{"audience":"friends","metric":"artworks","period":"all"}',
   );
   expect(
-    screen.getByRole("button", { name: "Rank 1, Ada, 4 artworks. Open public profile." }),
+    screen.getByRole("button", {
+      name: "Rank 1, Ada, 4 artworks. Open public profile.",
+    }),
   ).toBeOnTheScreen();
 });
 
@@ -185,9 +223,13 @@ it("asks an authenticated person without a profile to create one before viewing 
   mockSession.status = "profile-required";
   await render(<LeaderboardScreen />);
   expect(
-    screen.getByRole("header", { name: "Create a profile to see friends’ rankings." }),
+    screen.getByRole("header", {
+      name: "Create a profile to see friends’ rankings.",
+    }),
   ).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Create your profile" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Create your profile" }),
+  );
   expect(mockPush).toHaveBeenCalledWith("/create-profile");
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", "skip");
 });
@@ -206,7 +248,9 @@ it("offers friend discovery when an authenticated person has no Friends rankings
 it("opens sign-in when a guest joins the leaderboard", async () => {
   await render(<LeaderboardScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Global" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Join the leaderboard" }),
+  );
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/sign-in",
     params: { context: "leaderboards" },
@@ -219,18 +263,28 @@ it("keeps Manage available with a ranking and only changes participation after S
   mockSession.profileId = "global-person" as Id<"profiles">;
   mockVisibility = "global";
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Manage participation" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Manage participation" }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
   await act(() => mockSheetDismiss?.());
   expect(mockChange).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Manage participation" }));
-  expect(screen.getByRole("button", { name: "Friends & Global" })).toBeSelected();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Manage participation" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Friends & Global" }),
+  ).toBeSelected();
   await fireEvent.press(screen.getByRole("button", { name: "Off" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Save participation" }),
+  );
   expect(mockChange).toHaveBeenCalledWith({ visibility: "off" });
-  await waitFor(() => expect(screen.queryByRole("header", { name: "Participation" })).toBeNull());
+  await waitFor(() =>
+    expect(screen.queryByRole("header", { name: "Participation" })).toBeNull(),
+  );
 });
 
 it("holds Cancel while a participation save is pending so a dismissed sheet never outlives its screen state", async () => {
@@ -242,27 +296,47 @@ it("holds Cancel while a participation save is pending so a dismissed sheet neve
     }),
   );
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Join the leaderboard" }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Save participation" }),
+  );
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await act(async () => {
     finish();
   });
-  await waitFor(() => expect(screen.queryByRole("header", { name: "Participation" })).toBeNull());
-  await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
-  expect(screen.getByRole("header", { name: "Participation" })).toBeOnTheScreen();
+  await waitFor(() =>
+    expect(screen.queryByRole("header", { name: "Participation" })).toBeNull(),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Join the leaderboard" }),
+  );
+  expect(
+    screen.getByRole("header", { name: "Participation" }),
+  ).toBeOnTheScreen();
 });
 
 it("keeps a failed participation change available for retry", async () => {
   mockSession.status = "ready";
   mockChange.mockRejectedValueOnce(new Error("offline"));
   await render(<LeaderboardScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
-  expect(screen.getByRole("alert")).toHaveTextContent("Could not save participation. Try again.");
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Join the leaderboard" }),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Friends & Global" }),
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Save participation" }),
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Could not save participation. Try again.",
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Save participation" }),
+  );
   expect(mockChange).toHaveBeenLastCalledWith({ visibility: "global" });
 });
 
@@ -275,15 +349,27 @@ it("offers creation for the selected metric while preserving actual participatio
     JSON.stringify({ audience: "global", metric: "visits", period: "month" }),
   );
   await render(<LeaderboardScreen />);
-  expect(await screen.findByRole("button", { name: "Manage participation" })).toBeOnTheScreen();
-  expect(screen.getByRole("header", { name: "No rankings this month." })).toBeOnTheScreen();
-  await fireEvent.press(await screen.findByRole("button", { name: "Add visit" }));
+  expect(
+    await screen.findByRole("button", { name: "Manage participation" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("header", { name: "No rankings this month." }),
+  ).toBeOnTheScreen();
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Add visit" }),
+  );
   expect(mockPush).toHaveBeenLastCalledWith("/visit-create");
   expect(screen.queryByText("LOGGED VISITS")).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Choose Artworks" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Choose Artworks" }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
-  await fireEvent.press(screen.getByRole("button", { name: "Choose All time" }));
-  expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Choose All time" }),
+  );
+  expect(
+    screen.getByRole("header", { name: "No rankings yet." }),
+  ).toBeOnTheScreen();
 });

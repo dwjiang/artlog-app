@@ -6,10 +6,13 @@ import { widgetPresentation } from "./widget-layout";
 import { defaultWidgetSettings } from "./widget-settings";
 import "./artlog-widget";
 
-jest.mock("expo-widgets", () => ({ createWidget: jest.fn(() => ({ reload: jest.fn() })) }));
+jest.mock("expo-widgets", () => ({
+  createWidget: jest.fn(() => ({ reload: jest.fn() })),
+}));
 
 it("renders the serialized component in the actual isolated widget runtime", () => {
-  const layout = jest.mocked(createWidget).mock.calls[0][1] as unknown as string;
+  const layout = jest.mocked(createWidget).mock
+    .calls[0][1] as unknown as string;
   expect(typeof layout).toBe("string");
   const runtime = vm.createContext({});
   const bundle = path.join(
@@ -33,7 +36,13 @@ it("renders the serialized component in the actual isolated widget runtime", () 
     { ...defaultWidgetSettings, color: "sage" },
   );
   const render = (family: string, width: number) =>
-    JSON.stringify(runtime.__expoWidgetRender(props, { widgetFamily: family, width, height: 158 }));
+    JSON.stringify(
+      runtime.__expoWidgetRender(props, {
+        widgetFamily: family,
+        width,
+        height: 158,
+      }),
+    );
   const small = render("systemSmall", 158),
     medium = render("systemMedium", 334);
   for (const tree of [small, medium]) {

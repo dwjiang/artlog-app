@@ -29,7 +29,11 @@ export function ArtworkQueryState({
         <ArtworkSkeleton label={`Opening ${item.toLowerCase()}…`} />
       ) : (
         <SocialState
-          title={error ? `Couldn’t load this ${item.toLowerCase()}.` : `${item} unavailable.`}
+          title={
+            error
+              ? `Couldn’t load this ${item.toLowerCase()}.`
+              : `${item} unavailable.`
+          }
           detail={
             error
               ? "Your saved collection is still on this iPhone. Try opening this item again."

@@ -9,13 +9,17 @@ import { readPhotoDraft, writePhotoDraft } from "./photo-draft";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("@/lib/account/photo-transfer", () => ({ removePhotoFile: jest.fn() }));
+jest.mock("@/lib/account/photo-transfer", () => ({
+  removePhotoFile: jest.fn(),
+}));
 
 const owner = "device:test-installation";
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) db.delete(table).run();
+  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) {
+    db.delete(table).run();
+  }
   await enqueuePendingScan({
     localId: "scan",
     photoPath: "photos/scan.jpg",
@@ -30,7 +34,12 @@ beforeEach(async () => {
     createdAt: 1,
   });
   writePhotoDraft(owner, "photos/scan.jpg", [
-    { localId: "detail", path: "photos/detail.jpg", kind: "detail", capturedAt: 2 },
+    {
+      localId: "detail",
+      path: "photos/detail.jpg",
+      kind: "detail",
+      capturedAt: 2,
+    },
   ]);
 });
 
@@ -38,13 +47,15 @@ it("discards the capture, additional photos and label together", async () => {
   await discardCapture("scan", owner);
   expect(await getPendingScan("scan")).toBeUndefined();
   expect(readPhotoDraft(owner, "photos/scan.jpg")).toEqual([]);
-  expect(jest.mocked(removePhotoFile).mock.calls.map(([path]) => path)).toEqual([
-    "photos/scan.jpg",
-    "crops/scan.jpg",
-    "crops/scan.preview.jpg",
-    "labels/scan.jpg",
-    "photos/detail.jpg",
-  ]);
+  expect(jest.mocked(removePhotoFile).mock.calls.map(([path]) => path)).toEqual(
+    [
+      "photos/scan.jpg",
+      "crops/scan.jpg",
+      "crops/scan.preview.jpg",
+      "labels/scan.jpg",
+      "photos/detail.jpg",
+    ],
+  );
 });
 
 it("leaves another owner’s capture and photos alone", async () => {
@@ -76,7 +87,9 @@ it("protects a scan saved after the recent-scans sheet was opened", async () => 
     undefined,
     owner,
   );
-  await expect(discardCapture("scan", owner)).rejects.toThrow("already been saved");
+  await expect(discardCapture("scan", owner)).rejects.toThrow(
+    "already been saved",
+  );
   expect(removePhotoFile).not.toHaveBeenCalled();
   expect(await getPendingScan("scan")).toBeDefined();
 });
@@ -85,7 +98,9 @@ it("keeps the draft reachable for retry if file removal fails", async () => {
   jest.mocked(removePhotoFile).mockImplementationOnce(() => {
     throw new Error("File unavailable");
   });
-  await expect(discardCapture("scan", owner)).rejects.toThrow("File unavailable");
+  await expect(discardCapture("scan", owner)).rejects.toThrow(
+    "File unavailable",
+  );
   expect(await getPendingScan("scan")).toBeDefined();
   expect(readPhotoDraft(owner, "photos/scan.jpg")).toHaveLength(1);
   await discardCapture("scan", owner);

@@ -58,8 +58,12 @@ beforeEach(() => {
   mockRandomBytes
     .mockResolvedValueOnce(new Uint8Array(32).fill(0xa1))
     .mockResolvedValue(new Uint8Array(32).fill(0xb2));
-  mockWrite.mockImplementation((path: string, value: string) => mockFiles.set(path, value));
-  mockGetItem.mockImplementation(async (key: string) => mockKeychain.get(key) ?? null);
+  mockWrite.mockImplementation((path: string, value: string) =>
+    mockFiles.set(path, value),
+  );
+  mockGetItem.mockImplementation(
+    async (key: string) => mockKeychain.get(key) ?? null,
+  );
   mockSetItem.mockImplementation(async (key: string, value: string) => {
     mockKeychain.set(key, value);
   });
@@ -82,7 +86,9 @@ it("keeps auth tokens, the installation credential, and the attestation key acro
   expect(await next.storage.getItem("appAttestKeyId")).toBe("native-key");
   expect(mockRandomUUID).toHaveBeenCalledTimes(1);
   expect(mockRandomBytes).toHaveBeenCalledTimes(1);
-  expect(mockSetItem.mock.calls.every((call) => call[2].keychainAccessible === 6)).toBe(true);
+  expect(
+    mockSetItem.mock.calls.every((call) => call[2].keychainAccessible === 6),
+  ).toBe(true);
 });
 
 it("starts a new identity after reinstall even when the old Keychain entries survive", async () => {
@@ -99,7 +105,9 @@ it("starts a new identity after reinstall even when the old Keychain entries sur
   expect(await reinstalled.storage.getItem("refreshToken")).toBeNull();
   expect(await reinstalled.storage.getItem("appAttestKeyId")).toBeNull();
   expect(await reinstalled.getSecret()).not.toBe(oldSecret);
-  for (const [key, value] of oldEntries) expect(mockKeychain.get(key)).toBe(value);
+  for (const [key, value] of oldEntries) {
+    expect(mockKeychain.get(key)).toBe(value);
+  }
 
   await reinstalled.storage.setItem("appAttestKeyId", "replacement-key");
   await reinstalled.storage.removeItem("appAttestKeyId");

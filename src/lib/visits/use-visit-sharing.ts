@@ -13,14 +13,17 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
     const controller = createVisitSharingController({
       visitLocalId,
       saveLocalIds: () => input.saveLocalIds,
-      transport: createVisitSharingTransport(process.env.EXPO_PUBLIC_CONVEX_URL!),
+      transport: createVisitSharingTransport(
+        process.env.EXPO_PUBLIC_CONVEX_URL!,
+      ),
       capture: () => ({ ...captureOwner(), token: input.token }),
       subscribeOwner,
       flush: () => {
         const draft = controller.getSnapshot().draft;
         return flushCollectionMedia({
           saveLocalIds: draft?.saveLocalIds ?? input.saveLocalIds,
-          photoLocalIds: draft?.photoSelections?.flatMap((row) => row.photoLocalIds) ?? [],
+          photoLocalIds:
+            draft?.photoSelections?.flatMap((row) => row.photoLocalIds) ?? [],
         });
       },
       photoSelections: () =>
@@ -29,7 +32,12 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
             .all()
             .filter((photo) => photo.kind !== "label");
           return photos.length
-            ? [{ saveLocalId, photoLocalIds: photos.map((photo) => photo.localId) }]
+            ? [
+                {
+                  saveLocalId,
+                  photoLocalIds: photos.map((photo) => photo.localId),
+                },
+              ]
             : [];
         }),
     });

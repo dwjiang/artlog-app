@@ -6,12 +6,16 @@ function dictionary(value: unknown): Dictionary {
     : {};
 }
 
-function coordinate(value: unknown, reference: unknown, limit: number): number | undefined {
+function coordinate(
+  value: unknown,
+  reference: unknown,
+  limit: number,
+): number | undefined {
   let degrees: number;
   if (
-    Array.isArray(value) &&
-    value.length === 3 &&
-    value.every((part) => typeof part === "number" && Number.isFinite(part))
+    Array.isArray(value)
+    && value.length === 3
+    && value.every((part) => typeof part === "number" && Number.isFinite(part))
   ) {
     const [d, m, s] = value as [number, number, number];
     if (m < 0 || m >= 60 || s < 0 || s >= 60) return;
@@ -35,17 +39,20 @@ function captureTime(value: unknown, offset: unknown): number | undefined {
   // Validate calendar fields without the phone's daylight-saving transitions.
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
   if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day ||
-    date.getUTCHours() !== hour ||
-    date.getUTCMinutes() !== minute ||
-    date.getUTCSeconds() !== second
-  )
+    date.getUTCFullYear() !== year
+    || date.getUTCMonth() !== month - 1
+    || date.getUTCDate() !== day
+    || date.getUTCHours() !== hour
+    || date.getUTCMinutes() !== minute
+    || date.getUTCSeconds() !== second
+  ) {
     return;
+  }
   const withOffset =
     typeof offset === "string" && /^[+-]\d{2}:\d{2}$/.test(offset)
-      ? Date.parse(`${value.slice(0, 10).replaceAll(":", "-")}T${value.slice(11)}${offset}`)
+      ? Date.parse(
+          `${value.slice(0, 10).replaceAll(":", "-")}T${value.slice(11)}${offset}`,
+        )
       : NaN;
   // EXIF without an offset is a local wall-clock time, not UTC.
   const timestamp = Number.isFinite(withOffset)

@@ -58,7 +58,8 @@ describe("page extraction", () => {
       ).fields.accession,
     ).toBe("1998.325.2");
     expect(
-      extractPage("<html><body>Bequest of Sam Salz, 1998.325.2</body></html>").fields.accession,
+      extractPage("<html><body>Bequest of Sam Salz, 1998.325.2</body></html>")
+        .fields.accession,
     ).toBe("1998.325.2");
   });
 
@@ -66,13 +67,17 @@ describe("page extraction", () => {
     const page = extractPage(plainPage);
     expect(page.source).toBe("meta");
     expect(page.fields).toEqual({ title: "Visit us" });
-    expect(extractPage("<html></html>")).toEqual({ fields: {}, imageUrls: [], source: "none" });
+    expect(extractPage("<html></html>")).toEqual({
+      fields: {},
+      imageUrls: [],
+      source: "none",
+    });
   });
 
   it("decodes named, decimal and hex entities and leaves unknown ones alone", () => {
-    expect(decodeEntities("Caf&eacute; &amp; &#8220;Bar&#x201D; &ndash; &bogus;")).toBe(
-      "Caf&eacute; & “Bar” – &bogus;",
-    );
+    expect(
+      decodeEntities("Caf&eacute; &amp; &#8220;Bar&#x201D; &ndash; &bogus;"),
+    ).toBe("Caf&eacute; & “Bar” – &bogus;");
   });
 
   it("distinguishes artwork metadata from page titles and article authors", () => {
@@ -81,12 +86,16 @@ describe("page extraction", () => {
     expect(hasArtworkMetadata(extractPage(plainPage))).toBe(false);
     expect(
       hasArtworkMetadata(
-        extractPage('<title>Visit us</title><meta name="author" content="Museum staff">'),
+        extractPage(
+          '<title>Visit us</title><meta name="author" content="Museum staff">',
+        ),
       ),
     ).toBe(false);
     expect(
       hasArtworkMetadata(
-        extractPage('<script type="application/ld+json">{"@type":"VisualArtwork"}</script>'),
+        extractPage(
+          '<script type="application/ld+json">{"@type":"VisualArtwork"}</script>',
+        ),
       ),
     ).toBe(false);
     expect(

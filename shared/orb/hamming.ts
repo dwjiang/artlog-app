@@ -27,13 +27,13 @@ export function hammingDistance32(
   bWord: number,
 ): number {
   return (
-    popcount32(a[aWord] ^ b[bWord]) +
-    popcount32(a[aWord + 1] ^ b[bWord + 1]) +
-    popcount32(a[aWord + 2] ^ b[bWord + 2]) +
-    popcount32(a[aWord + 3] ^ b[bWord + 3]) +
-    popcount32(a[aWord + 4] ^ b[bWord + 4]) +
-    popcount32(a[aWord + 5] ^ b[bWord + 5]) +
-    popcount32(a[aWord + 6] ^ b[bWord + 6]) +
-    popcount32(a[aWord + 7] ^ b[bWord + 7])
+    popcount32(a[aWord] ^ b[bWord])
+    + popcount32(a[aWord + 1] ^ b[bWord + 1])
+    + popcount32(a[aWord + 2] ^ b[bWord + 2])
+    + popcount32(a[aWord + 3] ^ b[bWord + 3])
+    + popcount32(a[aWord + 4] ^ b[bWord + 4])
+    + popcount32(a[aWord + 5] ^ b[bWord + 5])
+    + popcount32(a[aWord + 6] ^ b[bWord + 6])
+    + popcount32(a[aWord + 7] ^ b[bWord + 7])
   );
 }

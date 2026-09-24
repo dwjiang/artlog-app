@@ -3,16 +3,26 @@ import type { FunctionArgs } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { ImageCheck, LabelFields, LabelFlowDisplay } from "../../../convex/lib/validators";
+import type {
+  ImageCheck,
+  LabelFields,
+  LabelFlowDisplay,
+} from "../../../convex/lib/validators";
 import { errorMessage, isNetworkError } from "@/lib/network-error";
 
 export type LabelStage = "qr" | "read" | "verify" | "image-check" | "done";
 export type LabelInput = FunctionArgs<typeof api.label.verifyLabel>["fields"];
 
 export type LabelApi = {
-  fetchQr(args: FunctionArgs<typeof api.label.fetchQr>): Promise<LabelFlowDisplay>;
-  readLabel(args: FunctionArgs<typeof api.label.readLabel>): Promise<LabelFlowDisplay>;
-  verifyLabel(args: FunctionArgs<typeof api.label.verifyLabel>): Promise<LabelFlowDisplay>;
+  fetchQr(
+    args: FunctionArgs<typeof api.label.fetchQr>,
+  ): Promise<LabelFlowDisplay>;
+  readLabel(
+    args: FunctionArgs<typeof api.label.readLabel>,
+  ): Promise<LabelFlowDisplay>;
+  verifyLabel(
+    args: FunctionArgs<typeof api.label.verifyLabel>,
+  ): Promise<LabelFlowDisplay>;
 };
 
 export type OcrLine = FunctionArgs<typeof api.label.readLabel>["lines"][number];
@@ -58,14 +68,24 @@ export class LabelFlowError extends Error {
 
 export function toLabelFlowError(error: unknown): LabelFlowError {
   if (error instanceof LabelFlowError) return error;
-  return new LabelFlowError(isNetworkError(error) ? "network" : errorMessage(error), {
-    cause: error,
-  });
+  return new LabelFlowError(
+    isNetworkError(error) ? "network" : errorMessage(error),
+    {
+      cause: error,
+    },
+  );
 }
 
 export function toLabelInput(fields: LabelFields): LabelInput {
   const input: LabelInput = {};
-  for (const name of ["title", "artist", "date", "accession", "medium", "creditLine"] as const) {
+  for (const name of [
+    "title",
+    "artist",
+    "date",
+    "accession",
+    "medium",
+    "creditLine",
+  ] as const) {
     const value = fields[name]?.value;
     if (value) input[name] = value;
   }
@@ -77,7 +97,9 @@ export function toLabelInput(fields: LabelFields): LabelInput {
  * phone and its lines sorted into fields; the fields are verified, and a museum image the phone confirms
  * upgrades the verification.
  */
-export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisplay> {
+export async function runLabelFlow(
+  input: LabelFlowInput,
+): Promise<LabelFlowDisplay> {
   const { scanId, api, onStage } = input;
   try {
     let flow: LabelFlowDisplay;
@@ -93,7 +115,9 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
       throw new LabelFlowError("nothing_read");
     }
     const fields = toLabelInput(flow.fields);
-    if (Object.keys(fields).length === 0) throw new LabelFlowError("nothing_read");
+    if (Object.keys(fields).length === 0) {
+      throw new LabelFlowError("nothing_read");
+    }
 
     onStage?.("verify");
     let verified = await api.verifyLabel({ scanId, fields });
@@ -102,20 +126,27 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
       onStage?.("image-check");
       const check = await input.checkImages(urls).catch((error: unknown) => {
         reportError(error, "label.check_images", { level: "warning" });
-        console.warn("Image check failed; keeping the text verification", error);
+        console.warn(
+          "Image check failed; keeping the text verification",
+          error,
+        );
         return null;
       });
       // Resending the verified values takes the server's no-search path, so this costs no credit.
-      if (check?.homographyValid)
+      if (check?.homographyValid) {
         verified = await api.verifyLabel({
           scanId,
           fields: toLabelInput(verified.fields),
           imageCheck: check,
         });
+      }
     }
-    if (verified.moderation !== "clear") throw new LabelFlowError("label_flagged");
-    if (Object.keys(toLabelInput(verified.fields)).length === 0)
+    if (verified.moderation !== "clear") {
+      throw new LabelFlowError("label_flagged");
+    }
+    if (Object.keys(toLabelInput(verified.fields)).length === 0) {
       throw new LabelFlowError("nothing_read");
+    }
     onStage?.("done");
     return verified;
   } catch (error) {

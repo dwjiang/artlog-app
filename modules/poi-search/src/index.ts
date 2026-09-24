@@ -15,7 +15,11 @@ export type PoiRecord = {
 
 export interface PoiSearch {
   /** Museums and art galleries within `radiusMeters`, nearest first, at most eight; sends the search center to Apple Maps. */
-  searchNearby(lat: number, lng: number, radiusMeters: number): Promise<PoiRecord[]>;
+  searchNearby(
+    lat: number,
+    lng: number,
+    radiusMeters: number,
+  ): Promise<PoiRecord[]>;
   /** Sends the query and any origin to Apple Maps; at most eight places, nearest to the origin first when given. */
   searchByName(query: string, lat?: number, lng?: number): Promise<PoiRecord[]>;
 }
@@ -24,7 +28,10 @@ let instance: PoiSearch | null | undefined;
 
 export function getPoiSearch(): PoiSearch {
   instance ??= requireOptionalNativeModule<PoiSearch>("PoiSearch");
-  if (!instance)
-    throw new Error("The PoiSearch native module is unavailable; rebuild the dev client");
+  if (!instance) {
+    throw new Error(
+      "The PoiSearch native module is unavailable; rebuild the dev client",
+    );
+  }
   return instance;
 }

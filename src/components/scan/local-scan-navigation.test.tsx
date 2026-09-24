@@ -11,9 +11,15 @@ jest.mock("@/lib/capture/photo-draft", () => ({
   isLabelCapture: () => false,
   readPhotoSession: () => ({ photos: [] }),
 }));
-jest.mock("@/lib/capture/discard-capture", () => ({ discardCapture: jest.fn() }));
-jest.mock("./capture-context-button", () => ({ CaptureContextButton: () => null }));
-jest.mock("./capture-photos-button", () => ({ CapturePhotosButton: () => null }));
+jest.mock("@/lib/capture/discard-capture", () => ({
+  discardCapture: jest.fn(),
+}));
+jest.mock("./capture-context-button", () => ({
+  CaptureContextButton: () => null,
+}));
+jest.mock("./capture-photos-button", () => ({
+  CapturePhotosButton: () => null,
+}));
 
 let mockRows: {
   owner: string;
@@ -45,13 +51,17 @@ jest.mock("@/db/repos/pending-scans", () => ({
   selectPendingScan: jest.fn(),
   pendingScansQuery: jest.fn(),
 }));
-jest.mock("@/db/repos/offline-scan-results", () => ({ offlineResultQuery: jest.fn() }));
+jest.mock("@/db/repos/offline-scan-results", () => ({
+  offlineResultQuery: jest.fn(),
+}));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("@/lib/queue/queue", () => ({ retryPendingScan: jest.fn() }));
-jest.mock("@/lib/label/share-saved-label", () => ({ startPendingShareFlusher: jest.fn() }));
+jest.mock("@/lib/label/share-saved-label", () => ({
+  startPendingShareFlusher: jest.fn(),
+}));
 jest.mock("@/lib/result/use-save-result", () => ({
   useSaveResult: () => ({ saving: false, save: jest.fn() }),
 }));
@@ -85,7 +95,9 @@ it("keeps label capture open on completion and shows the result when returning",
   );
   await view;
   await act(() => router.push("/result/local-one"));
-  await fireEvent.press(await screen.findByRole("button", { name: "Point at the label" }));
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Point at the label" }),
+  );
   await waitFor(() => expect(view.getPathname()).toBe("/label/local-one"));
   await act(() => {
     mockRows = [{ ...mockRows[0], status: "identified", scanId: "server-one" }];
@@ -111,7 +123,10 @@ it("checks opening a row from the root queue sheet leaves one underlying stack",
   ];
   const view = renderRouter(
     {
-      _layout: { default: () => <Stack />, unstable_settings: { anchor: "(tabs)" } },
+      _layout: {
+        default: () => <Stack />,
+        unstable_settings: { anchor: "(tabs)" },
+      },
       "(tabs)/_layout": () => <Stack />,
       "(tabs)/index": () => <Text>Camera</Text>,
       "(tabs)/result/[scanId]": ResultRoute,
@@ -122,7 +137,9 @@ it("checks opening a row from the root queue sheet leaves one underlying stack",
   );
   await view;
   await act(() => router.push("/queue"));
-  await fireEvent.press(await screen.findByRole("button", { name: /Scan from/ }));
+  await fireEvent.press(
+    await screen.findByRole("button", { name: /Scan from/ }),
+  );
   await waitFor(() => expect(view.getPathname()).toBe("/result/local-one"));
   const root = view.getRouterState()!.routes[0].state!;
   expect(root.routes.map((route) => route.name)).toEqual(["(tabs)"]);

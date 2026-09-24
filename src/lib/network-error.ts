@@ -6,16 +6,21 @@ export function isNetworkError(error: unknown): boolean {
   return (
     /^(Network request failed|Network request timed out|Failed to fetch|Load failed|The Internet connection appears to be offline\.?)$/i.test(
       error.message,
-    ) ||
-    /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(
+    )
+    || /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(
       error.message,
     )
   );
 }
 
 export function convexErrorCode(error: unknown): string | undefined {
-  if (!(error instanceof ConvexError) || typeof error.data !== "object" || error.data === null)
+  if (
+    !(error instanceof ConvexError)
+    || typeof error.data !== "object"
+    || error.data === null
+  ) {
     return;
+  }
   const code = (error.data as { code?: unknown }).code;
   return typeof code === "string" ? code : undefined;
 }
@@ -32,24 +37,34 @@ export class SyncUnavailableError extends Error {
 export function isTransientError(error: unknown): boolean {
   const code = convexErrorCode(error);
   return (
-    error instanceof SyncUnavailableError ||
-    isNetworkError(error) ||
-    code === "unauthenticated" ||
-    code === "device_not_registered" ||
-    code === "rate_limited" ||
-    code === "claim_required" ||
-    code === "sync_scope_changed"
+    error instanceof SyncUnavailableError
+    || isNetworkError(error)
+    || code === "unauthenticated"
+    || code === "device_not_registered"
+    || code === "rate_limited"
+    || code === "claim_required"
+    || code === "sync_scope_changed"
   );
 }
 
 export function rateLimitRetryAfterMs(error: unknown): number | undefined {
-  if (!(error instanceof ConvexError) || convexErrorCode(error) !== "rate_limited") return;
+  if (
+    !(error instanceof ConvexError)
+    || convexErrorCode(error) !== "rate_limited"
+  ) {
+    return;
+  }
   const retryAfter = (error.data as { retryAfter?: unknown }).retryAfter;
-  return typeof retryAfter === "number" && Number.isFinite(retryAfter) && retryAfter >= 0
+  return typeof retryAfter === "number"
+    && Number.isFinite(retryAfter)
+    && retryAfter >= 0
     ? retryAfter
     : undefined;
 }
 
 export function errorMessage(error: unknown): string {
-  return convexErrorCode(error) ?? (error instanceof Error ? error.message : String(error));
+  return (
+    convexErrorCode(error)
+    ?? (error instanceof Error ? error.message : String(error))
+  );
 }

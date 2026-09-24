@@ -27,7 +27,11 @@ import { venueVisitLabel } from "./capture-context-button";
 const VENUE_OPTION = "venue";
 
 function optionValue(choice: CaptureVisitChoice): string {
-  return choice.kind === "none" ? "none" : choice.kind === "visit" ? choice.localId : VENUE_OPTION;
+  return choice.kind === "none"
+    ? "none"
+    : choice.kind === "visit"
+      ? choice.localId
+      : VENUE_OPTION;
 }
 
 /** Picks the visit for one capture. The choice lives on the draft, so the next scan resolves its own visit again. */
@@ -94,7 +98,10 @@ function CaptureContext({
   const availableVisits = visits.data.filter((visit) => visit.owner === owner);
   const venueOption = venueId && !visitId ? venueId : undefined;
   const noVisits =
-    !!visits.updatedAt && !visits.error && availableVisits.length === 0 && !venueOption;
+    !!visits.updatedAt
+    && !visits.error
+    && availableVisits.length === 0
+    && !venueOption;
   useEffect(() => {
     let active = true;
     if (!venueOption) return;
@@ -113,14 +120,15 @@ function CaptureContext({
   // A save at the museum joins the visit already on the books for the capture's day (today only while it is still open),
   // so that visit stands in for the museum and is the marked option.
   const venueVisit =
-    venue &&
-    availableVisits.find(
+    venue
+    && availableVisits.find(
       (visit) =>
-        visit.venueId === venueOption &&
-        visit.visitedOn === venue.visitedOn &&
-        (!venue.today || visit.endedAt === null),
+        visit.venueId === venueOption
+        && visit.visitedOn === venue.visitedOn
+        && (!venue.today || visit.endedAt === null),
     );
-  const marked = selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
+  const marked =
+    selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
 
   function choose(value: string, choice: CaptureVisitChoice) {
     try {
@@ -129,11 +137,18 @@ function CaptureContext({
       router.back();
     } catch (error) {
       reportError(error, "capture.save_visit");
-      setError("Couldn’t save this visit choice. Your previous selection is unchanged. Try again.");
+      setError(
+        "Couldn’t save this visit choice. Your previous selection is unchanged. Try again.",
+      );
     }
   }
 
-  function option(value: string, choice: CaptureVisitChoice, label: string, detail?: string) {
+  function option(
+    value: string,
+    choice: CaptureVisitChoice,
+    label: string,
+    detail?: string,
+  ) {
     const current = marked === value;
     return (
       <Pressable
@@ -149,7 +164,9 @@ function CaptureContext({
         ]}
       >
         <View style={styles.optionText}>
-          <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
+          <ThemedText style={current && styles.selectedLabel}>
+            {label}
+          </ThemedText>
           {detail && (
             <ThemedText type="small" themeColor="textSecondary">
               {detail}
@@ -186,7 +203,8 @@ function CaptureContext({
       )}
       {visits.error ? (
         <ThemedText themeColor="error" accessibilityRole="alert">
-          Couldn’t load your visits. Close this screen and reopen it to try again.
+          Couldn’t load your visits. Close this screen and reopen it to try
+          again.
         </ThemedText>
       ) : !visits.updatedAt ? (
         <ListSkeleton label="Loading visits…" rows={3} />
@@ -213,10 +231,10 @@ function CaptureContext({
         )
       )}
       <View>
-        {venueOption &&
-          venue &&
-          !venueVisit &&
-          option(
+        {venueOption
+          && venue
+          && !venueVisit
+          && option(
             VENUE_OPTION,
             { kind: "venue", venueId: venueOption },
             venue.name,
@@ -227,7 +245,9 @@ function CaptureContext({
             visit.localId,
             { kind: "visit", localId: visit.localId },
             visit.venueName,
-            open?.localId === visit.localId ? "Visiting now" : formatVisitDate(visit.visitedOn),
+            open?.localId === visit.localId
+              ? "Visiting now"
+              : formatVisitDate(visit.visitedOn),
           ),
         )}
       </View>
@@ -252,9 +272,15 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  unselected: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  unselected: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Gallery.separator,
+  },
   optionText: { flex: 1, gap: Spacing.one },
-  selected: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  selected: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.separator,
+  },
   selectedLabel: { fontWeight: "600" },
   pressed: { opacity: 0.7 },
 });

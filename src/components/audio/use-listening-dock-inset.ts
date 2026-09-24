@@ -5,5 +5,9 @@ import { MINI_PLAYER_HEIGHT } from "./mini-player";
 export function useListeningDockInset() {
   const listening = useHasListeningTrack();
   const visit = !!activeVisit(useVenue());
-  return (listening ? MINI_PLAYER_HEIGHT : 0) + (visit ? 44 : 0) + (visit || listening ? 24 : 0);
+  return (
+    (listening ? MINI_PLAYER_HEIGHT : 0)
+    + (visit ? 44 : 0)
+    + (visit || listening ? 24 : 0)
+  );
 }

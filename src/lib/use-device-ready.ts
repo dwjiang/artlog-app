@@ -1,4 +1,8 @@
-import { useConvexAuth, useQueries, type RequestForQueries } from "convex/react";
+import {
+  useConvexAuth,
+  useQueries,
+  type RequestForQueries,
+} from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useEffect, useMemo } from "react";
 import { reportError } from "@/lib/observability";
@@ -13,7 +17,9 @@ export function useDeviceReady(): boolean {
       isAuthenticated ? { device: { query: api.devices.me, args: {} } } : {},
     [isAuthenticated],
   );
-  const { device }: { device?: FunctionReturnType<typeof api.devices.me> | Error } =
+  const {
+    device,
+  }: { device?: FunctionReturnType<typeof api.devices.me> | Error } =
     useQueries(deviceQuery);
   useEffect(() => {
     if (device instanceof Error) reportError(device, "auth.device_status");

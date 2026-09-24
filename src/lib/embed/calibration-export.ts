@@ -27,8 +27,9 @@ export async function collectCalibrationEmbeddings(
 ): Promise<CalibrationEmbeddings> {
   const urls = await steps.urls();
   if (urls.length === 0) throw new Error("The calibration URL list is empty");
-  if (new Set(urls).size !== urls.length)
+  if (new Set(urls).size !== urls.length) {
     throw new Error("The calibration URL list contains duplicates");
+  }
   const embeddings: Record<string, number[]> = {};
   const timings: number[] = [];
   for (const [index, url] of urls.entries()) {
@@ -46,5 +47,7 @@ export async function collectCalibrationEmbeddings(
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  return sorted.length % 2 === 1
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
 }

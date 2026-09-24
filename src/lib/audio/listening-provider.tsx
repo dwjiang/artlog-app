@@ -27,5 +27,7 @@ export function ListeningProvider({ children }: { children: ReactNode }) {
     [owner, generate],
   );
   useEffect(() => () => session.controller.dispose(), [session]);
-  return <ListeningContext value={session.controller}>{children}</ListeningContext>;
+  return (
+    <ListeningContext value={session.controller}>{children}</ListeningContext>
+  );
 }

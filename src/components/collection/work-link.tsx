@@ -1,6 +1,11 @@
 import { Link } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import type { SavedWork } from "@/db/schema";
 
@@ -14,7 +19,10 @@ type WorkLinkProps = {
 export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
   return (
     <Link
-      href={{ pathname: "/saved/[savedId]", params: { savedId: work.localId, visitId } }}
+      href={{
+        pathname: "/saved/[savedId]",
+        params: { savedId: work.localId, visitId },
+      }}
       asChild
     >
       <Pressable

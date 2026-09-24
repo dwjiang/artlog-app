@@ -17,7 +17,10 @@ const square: Point[] = [
   [70, 380],
 ];
 
-function maxReprojectionError(H: ArrayLike<number>, truth: ArrayLike<number>): number {
+function maxReprojectionError(
+  H: ArrayLike<number>,
+  truth: ArrayLike<number>,
+): number {
   let worst = 0;
   for (let x = 0; x <= 500; x += 100) {
     for (let y = 0; y <= 500; y += 100) {
@@ -97,13 +100,17 @@ describe("isDegenerateSample", () => {
 
 function matchesWithOutliers(seed: number, outlierFraction: number) {
   const pair = makeSyntheticPair({ seed, noiseSigma: 1 });
-  const matches: Match[] = pair.truth.correspondences.map(([refIdx, queryIdx]) => ({
-    queryIdx,
-    refIdx,
-    distance: 10,
-  }));
+  const matches: Match[] = pair.truth.correspondences.map(
+    ([refIdx, queryIdx]) => ({
+      queryIdx,
+      refIdx,
+      distance: 10,
+    }),
+  );
   const rand = mulberry32(seed + 1000);
-  const outliers = Math.round((matches.length * outlierFraction) / (1 - outlierFraction));
+  const outliers = Math.round(
+    (matches.length * outlierFraction) / (1 - outlierFraction),
+  );
   for (let i = 0; i < outliers; i++) {
     matches.push({
       queryIdx: Math.floor(rand() * pair.query.count),
@@ -116,7 +123,10 @@ function matchesWithOutliers(seed: number, outlierFraction: number) {
 
 describe("ransacHomography", () => {
   it("recovers the homography under 30% outliers and 1 px noise", () => {
-    const { ref, query, matches, truth, trueCount } = matchesWithOutliers(5, 0.3);
+    const { ref, query, matches, truth, trueCount } = matchesWithOutliers(
+      5,
+      0.3,
+    );
 
     const result = ransacHomography(matches, query, ref, { seed: 1 });
 
@@ -129,8 +139,15 @@ describe("ransacHomography", () => {
       const m = matches[i];
       const r = m.refIdx * 4;
       const q = m.queryIdx * 4;
-      const [px, py] = applyHomography(result.H!, ref.keypoints[r], ref.keypoints[r + 1]);
-      totalError += Math.hypot(px - query.keypoints[q], py - query.keypoints[q + 1]);
+      const [px, py] = applyHomography(
+        result.H!,
+        ref.keypoints[r],
+        ref.keypoints[r + 1],
+      );
+      totalError += Math.hypot(
+        px - query.keypoints[q],
+        py - query.keypoints[q + 1],
+      );
     }
     expect(totalError / result.inlierCount).toBeLessThan(2);
   });

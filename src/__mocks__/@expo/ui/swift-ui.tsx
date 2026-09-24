@@ -6,7 +6,13 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import type {
   ButtonProps,
   PickerProps,
@@ -19,7 +25,10 @@ export function Label({ title }: { title?: string }) {
   return <Text>{title}</Text>;
 }
 // Presented sheet content lives outside the host's native view, so the host's `pointerEvents` must not block presses on it.
-export function Host({ pointerEvents: _pointerEvents, ...props }: ComponentProps<typeof View>) {
+export function Host({
+  pointerEvents: _pointerEvents,
+  ...props
+}: ComponentProps<typeof View>) {
   return <View {...props} />;
 }
 export const Menu = View;
@@ -61,7 +70,13 @@ export function Section({ title, header, children, footer }: SectionProps) {
     </View>
   );
 }
-export function LabeledContent({ label, children }: { label?: ReactNode; children: ReactNode }) {
+export function LabeledContent({
+  label,
+  children,
+}: {
+  label?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <View>
       {typeof label === "string" ? <Text>{label}</Text> : label}
@@ -69,7 +84,13 @@ export function LabeledContent({ label, children }: { label?: ReactNode; childre
     </View>
   );
 }
-export function Button({ label, children, onPress, role, modifiers }: ButtonProps) {
+export function Button({
+  label,
+  children,
+  onPress,
+  role,
+  modifiers,
+}: ButtonProps) {
   const disabled = !!modifiers?.some(
     (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
   );
@@ -77,9 +98,8 @@ export function Button({ label, children, onPress, role, modifiers }: ButtonProp
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-          | string
-          | undefined
+        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")
+          ?.label as string | undefined
       }
       accessibilityState={{ disabled }}
       accessibilityHint={role}
@@ -90,7 +110,12 @@ export function Button({ label, children, onPress, role, modifiers }: ButtonProp
     </Pressable>
   );
 }
-export function Picker({ selection, onSelectionChange, children, modifiers }: PickerProps) {
+export function Picker({
+  selection,
+  onSelectionChange,
+  children,
+  modifiers,
+}: PickerProps) {
   const disabled = modifiers?.some(
     (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
   );
@@ -102,7 +127,9 @@ export function Picker({ selection, onSelectionChange, children, modifiers }: Pi
           title?: string;
           modifiers?: { $type: string; tag?: string }[];
         }>;
-        const value = item.props.modifiers?.find((modifier) => modifier.$type === "tag")?.tag;
+        const value = item.props.modifiers?.find(
+          (modifier) => modifier.$type === "tag",
+        )?.tag;
         return (
           <Pressable
             accessibilityRole="button"
@@ -117,7 +144,11 @@ export function Picker({ selection, onSelectionChange, children, modifiers }: Pi
     </View>
   );
 }
-export function DatePicker({ title, selection, onDateChange }: DatePickerProps) {
+export function DatePicker({
+  title,
+  selection,
+  onDateChange,
+}: DatePickerProps) {
   return (
     <TextInput
       accessibilityLabel={title}
@@ -127,10 +158,15 @@ export function DatePicker({ title, selection, onDateChange }: DatePickerProps) 
   );
 }
 
-export function Toggle({ isOn, onIsOnChange, modifiers, children }: ToggleProps) {
-  const label = modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-    | string
-    | undefined;
+export function Toggle({
+  isOn,
+  onIsOnChange,
+  modifiers,
+  children,
+}: ToggleProps) {
+  const label = modifiers?.find(
+    (modifier) => modifier.$type === "accessibilityLabel",
+  )?.label as string | undefined;
   const disabled = modifiers?.some(
     (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
   );

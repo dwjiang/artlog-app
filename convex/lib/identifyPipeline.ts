@@ -15,7 +15,11 @@ export const MAX_CANDIDATES = 32;
 export type PipelineCandidate = {
   object: Pick<
     Doc<"objects">,
-    "_id" | "identityStatus" | "ownerId" | "calibratorPenalty" | "rejectionPenalty"
+    | "_id"
+    | "identityStatus"
+    | "ownerId"
+    | "calibratorPenalty"
+    | "rejectionPenalty"
   >;
   placement: Pick<Doc<"placements">, "venueId" | "gallery" | "onView"> | null;
   similarity: number;
@@ -34,24 +38,36 @@ type PipelineInput<T extends PipelineCandidate> = {
   inputSize: number;
   config?: CalibratorConfig;
 };
-type PipelineResult<T> = { decision: Decision<T>; verifications: Map<Id<"objects">, VerifyResult> };
+type PipelineResult<T> = {
+  decision: Decision<T>;
+  verifications: Map<Id<"objects">, VerifyResult>;
+};
 
-function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): PipelineResult<T> {
-  const candidates = [...input.candidates].sort((a, b) => b.similarity - a.similarity);
+function runPartition<T extends PipelineCandidate>(
+  input: PipelineInput<T>,
+): PipelineResult<T> {
+  const candidates = [...input.candidates].sort(
+    (a, b) => b.similarity - a.similarity,
+  );
   const verifications = new Map<Id<"objects">, VerifyResult>();
   const lastAt = input.visit?.lastConfidentAt;
   const lastGallery = input.visit?.lastConfidentGallery;
   const recentGallery =
-    lastAt !== undefined && input.now >= lastAt && input.now - lastAt <= GALLERY_TTL_MS;
+    lastAt !== undefined
+    && input.now >= lastAt
+    && input.now - lastAt <= GALLERY_TTL_MS;
 
   const scored = scoreCandidates(
     candidates.map((candidate) => {
       if (
-        verifications.size < MAX_ORB_VERIFICATIONS &&
-        candidate.descriptors &&
-        candidate.keypoints
+        verifications.size < MAX_ORB_VERIFICATIONS
+        && candidate.descriptors
+        && candidate.keypoints
       ) {
-        const reference = decodeOrbFeatures(candidate.descriptors, candidate.keypoints);
+        const reference = decodeOrbFeatures(
+          candidate.descriptors,
+          candidate.keypoints,
+        );
         verifications.set(
           candidate.object._id,
           verifyOrb(input.query, reference, {
@@ -60,10 +76,15 @@ function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): Pip
         );
       }
       const verification = verifications.get(candidate.object._id);
-      const atVenue = input.venueId !== undefined && candidate.placement?.venueId === input.venueId;
+      const atVenue =
+        input.venueId !== undefined
+        && candidate.placement?.venueId === input.venueId;
       const candidateGallery = candidate.placement?.gallery;
       const gallery: GalleryRelation =
-        recentGallery && lastGallery !== undefined && candidateGallery !== undefined && atVenue
+        recentGallery
+        && lastGallery !== undefined
+        && candidateGallery !== undefined
+        && atVenue
           ? candidateGallery === lastGallery
             ? "same"
             : "different"
@@ -73,7 +94,9 @@ function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): Pip
         signals: {
           similarity: candidate.similarity,
           runnerUpSimilarity:
-            candidates.find((other) => other.object._id !== candidate.object._id)?.similarity ?? 0,
+            candidates.find(
+              (other) => other.object._id !== candidate.object._id,
+            )?.similarity ?? 0,
           candidateCount: candidates.length,
           atVenue,
           gallery,
@@ -95,22 +118,30 @@ export function runPipeline<T extends PipelineCandidate>(
 ): PipelineResult<T> {
   const established = runPartition({
     ...input,
-    candidates: input.candidates.filter((c) => c.object.identityStatus === "established"),
+    candidates: input.candidates.filter(
+      (c) => c.object.identityStatus === "established",
+    ),
   });
   const tentative = runPartition({
     ...input,
     candidates: input.candidates.filter(
       (c) =>
-        c.object.identityStatus === "tentative" &&
-        input.venueId !== undefined &&
-        c.object.ownerId === input.venueId,
+        c.object.identityStatus === "tentative"
+        && input.venueId !== undefined
+        && c.object.ownerId === input.venueId,
     ),
   });
-  const verifications = new Map([...established.verifications, ...tentative.verifications]);
-  if (established.decision.outcome === "confident") return { ...established, verifications };
-  const verified = [tentative.decision.best, ...tentative.decision.runnerUps].filter(
-    (c): c is NonNullable<typeof c> => !!c && c.eligibleForConfident,
-  );
+  const verifications = new Map([
+    ...established.verifications,
+    ...tentative.verifications,
+  ]);
+  if (established.decision.outcome === "confident") {
+    return { ...established, verifications };
+  }
+  const verified = [
+    tentative.decision.best,
+    ...tentative.decision.runnerUps,
+  ].filter((c): c is NonNullable<typeof c> => !!c && c.eligibleForConfident);
   const suggestion = decide(verified, input.config);
   if (suggestion.outcome === "miss") return { ...established, verifications };
   // Established candidates stay on the card so a wrong visitor label cannot hide the corpus entry.
@@ -121,5 +152,8 @@ export function runPipeline<T extends PipelineCandidate>(
   ]
     .filter((c): c is NonNullable<typeof c> => c !== null)
     .slice(0, 5);
-  return { decision: { ...suggestion, outcome: "soft", runnerUps }, verifications };
+  return {
+    decision: { ...suggestion, outcome: "soft", runnerUps },
+    verifications,
+  };
 }

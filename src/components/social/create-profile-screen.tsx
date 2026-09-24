@@ -8,18 +8,30 @@ import { SocialGate, SocialState } from "./social-state";
 export function CreateProfileScreen() {
   const session = useSocialSession();
   const router = useRouter();
-  if (session.status === "ready")
+  if (session.status === "ready") {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
-        <SocialState title="Your profile is ready." action="Done" onAction={() => router.back()} />
+      <ScrollView
+        style={socialStyles.root}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <SocialState
+          title="Your profile is ready."
+          action="Done"
+          onAction={() => router.back()}
+        />
       </ScrollView>
     );
-  if (session.status !== "profile-required")
+  }
+  if (session.status !== "profile-required") {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView
+        style={socialStyles.root}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <SocialGate session={session} />
       </ScrollView>
     );
+  }
   return (
     <ProfileForm
       key={session.key}

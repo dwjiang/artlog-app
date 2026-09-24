@@ -14,7 +14,11 @@ import { api } from "../../../convex/_generated/api";
 import { Fonts, Gallery, Typography } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { visitDate } from "@/lib/social/presentation";
-import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
+import type {
+  PublicProfile,
+  SharedArtwork,
+  SharedVisit,
+} from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { DisplayMedia } from "../artwork/display-media";
@@ -37,7 +41,13 @@ const artworkId = (item: SharedArtwork) => item.itemId;
 
 export function VisitScreen({ postId }: { postId: string }) {
   const session = useSocialSession();
-  return <VisitGallery key={`${session.key}:${postId}`} postId={postId} session={session} />;
+  return (
+    <VisitGallery
+      key={`${session.key}:${postId}`}
+      postId={postId}
+      session={session}
+    />
+  );
 }
 
 function VisitGallery({
@@ -52,7 +62,8 @@ function VisitGallery({
   const { fontScale } = useWindowDimensions();
   const columns = fontScale > 1.4 ? 1 : 2;
   const ready =
-    !session.offline && ["ready", "signed-out", "profile-required"].includes(session.status);
+    !session.offline
+    && ["ready", "signed-out", "profile-required"].includes(session.status);
   const visit = useCursorPages(
     api.sharedVisits.get,
     ready && postId ? { postId } : "skip",
@@ -101,7 +112,10 @@ function VisitGallery({
         ready && !unavailable && visit.first && author ? (
           <>
             {visit.refreshing && (
-              <LoadingRing accessibilityLabel="Refreshing visit" style={{ paddingVertical: 12 }} />
+              <LoadingRing
+                accessibilityLabel="Refreshing visit"
+                style={{ paddingVertical: 12 }}
+              />
             )}
             <SharedVisitHeading
               venue={visit.first.venue}
@@ -123,12 +137,16 @@ function VisitGallery({
               </Text>
             )}
             <View style={{ marginBottom: 12 }}>
-              <VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} />
+              <VisitReactions
+                visit={{ ...visit.first, media: visit.items[0]?.artwork.media }}
+              />
             </View>
             <SharedCountHeading
               label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`}
             />
-            {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+            {showSearch && (
+              <VisitGallerySearch value={search} onChangeText={setSearch} />
+            )}
           </>
         ) : null
       }
@@ -164,8 +182,15 @@ function VisitGallery({
         ) : null
       }
       ListFooterComponent={
-        ready && !unavailable && !(visit.refreshing && items.length > 0 && !visit.error) ? (
-          <PageFooter {...visit} count={items.length} noun="artworks" skeleton="gallery" />
+        ready
+        && !unavailable
+        && !(visit.refreshing && items.length > 0 && !visit.error) ? (
+          <PageFooter
+            {...visit}
+            count={items.length}
+            noun="artworks"
+            skeleton="gallery"
+          />
         ) : null
       }
       onEndReached={ready ? visit.loadMore : undefined}
@@ -181,7 +206,12 @@ export function SharedVisitHeading({
 }: {
   venue: { name: string; city?: string };
   visitedOn: string;
-  owner: { name: string; username?: string; photoUrl?: string; onPress?: () => void };
+  owner: {
+    name: string;
+    username?: string;
+    photoUrl?: string;
+    onPress?: () => void;
+  };
 }) {
   const identity = (
     <>
@@ -234,7 +264,13 @@ function SharedCountHeading({ label }: { label: string }) {
   );
 }
 
-function SharedEmpty({ query, onClear }: { query: string; onClear: () => void }) {
+function SharedEmpty({
+  query,
+  onClear,
+}: {
+  query: string;
+  onClear: () => void;
+}) {
   return query ? (
     <SearchEmptyState
       title="No artworks found."
@@ -264,7 +300,10 @@ export function SharedArtworkTile({
 }) {
   const media = photos[0];
   const { fontScale } = useWindowDimensions();
-  const cardStyle = [styles.card, fontScale > 1.4 && { width: "100%" as const, marginBottom: 20 }];
+  const cardStyle = [
+    styles.card,
+    fontScale > 1.4 && { width: "100%" as const, marginBottom: 20 },
+  ];
   const tile = (
     <VisitGalleryArtwork
       stageAspect={1.04}
@@ -275,7 +314,12 @@ export function SharedArtworkTile({
     >
       {(width) =>
         media ? (
-          <DisplayMedia media={media} label={title} token={token} width={width} />
+          <DisplayMedia
+            media={media}
+            label={title}
+            token={token}
+            width={width}
+          />
         ) : (
           <View
             style={{
@@ -350,7 +394,9 @@ export function SharedVisitProjection({
   const columns = fontScale > 1.4 ? 1 : 2;
   const router = useRouter();
   const query = artworks.length >= 5 ? search.trim() : "";
-  const items = artworks.filter((artwork) => matchesVisitSearch(artwork, query));
+  const items = artworks.filter((artwork) =>
+    matchesVisitSearch(artwork, query),
+  );
   return (
     <View style={socialStyles.root}>
       <FlatList
@@ -387,7 +433,9 @@ export function SharedVisitProjection({
             <SharedCountHeading
               label={`${artworks.length} ${artworks.length === 1 ? "artwork" : "artworks"} shared`}
             />
-            {artworks.length >= 5 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+            {artworks.length >= 5 && (
+              <VisitGallerySearch value={search} onChangeText={setSearch} />
+            )}
           </>
         }
         renderItem={({ item }) => (
@@ -404,13 +452,24 @@ export function SharedVisitProjection({
             }
           />
         )}
-        ListEmptyComponent={<SharedEmpty query={query} onClear={() => setSearch("")} />}
+        ListEmptyComponent={
+          <SharedEmpty query={query} onClear={() => setSearch("")} />
+        }
         ListFooterComponent={
-          <>{note && <Text style={[styles.meta, { paddingTop: 12 }]}>{note}</Text>}</>
+          <>
+            {note && (
+              <Text style={[styles.meta, { paddingTop: 12 }]}>{note}</Text>
+            )}
+          </>
         }
       />
       {footer && (
-        <View style={[styles.previewFooter, { paddingBottom: Math.max(20, bottom) }]}>
+        <View
+          style={[
+            styles.previewFooter,
+            { paddingBottom: Math.max(20, bottom) },
+          ]}
+        >
           {footer}
         </View>
       )}
@@ -419,7 +478,12 @@ export function SharedVisitProjection({
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 7, paddingBottom: 40 },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 7,
+    paddingBottom: 40,
+  },
   row: { gap: 13, marginBottom: 20 },
   card: { width: "48%", flexShrink: 1 },
   heading: { paddingBottom: 12 },
@@ -449,8 +513,19 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: Gallery.ink,
   },
-  owner: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, minHeight: 40 },
-  ownerText: { flexShrink: 1, ...Typography.secondary, fontWeight: "600", color: Gallery.ink },
+  owner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 40,
+  },
+  ownerText: {
+    flexShrink: 1,
+    ...Typography.secondary,
+    fontWeight: "600",
+    color: Gallery.ink,
+  },
   museum: { ...Typography.pageTitle, color: Gallery.ink, marginBottom: 8 },
   meta: { fontSize: 13, lineHeight: 20, color: Gallery.muted },
   reflection: {

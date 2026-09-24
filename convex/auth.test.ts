@@ -1,5 +1,13 @@
 import { decodeJwt, exportPKCS8, generateKeyPair } from "jose";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -21,7 +29,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 async function authenticate(t: Harness, secret = SECRET) {
-  const result = await t.action(api.auth.signIn, { provider: "anonymous", params: { secret } });
+  const result = await t.action(api.auth.signIn, {
+    provider: "anonymous",
+    params: { secret },
+  });
   const tokens = result.tokens!;
   const subject = decodeJwt(tokens.token).sub!;
   const [userId, sessionId] = subject.split("|");
@@ -39,17 +50,25 @@ describe("anonymous installation credentials", () => {
     async (banned) => {
       const t = harness();
       const first = await authenticate(t);
-      const { deviceId } = await first.as.mutation(api.devices.registerDevice, { platform: "ios" });
+      const { deviceId } = await first.as.mutation(api.devices.registerDevice, {
+        platform: "ios",
+      });
       await first.as.mutation(internal.devices.markAttested, {
         deviceId,
         keyId: "attested-install-key",
         publicKeySpkiBase64: "verified-key",
         counter: 0,
       });
-      await t.run((ctx) => ctx.db.patch(deviceId, { attestCounter: 7, trustWeight: 0.8, banned }));
+      await t.run((ctx) =>
+        ctx.db.patch(deviceId, { attestCounter: 7, trustWeight: 0.8, banned }),
+      );
       const original = await t.run((ctx) => ctx.db.get(deviceId));
-      await t.run((ctx) => ctx.db.patch(first.sessionId, { expirationTime: Date.now() - 1 }));
-      const expired = await t.action(api.auth.signIn, { refreshToken: first.tokens.refreshToken });
+      await t.run((ctx) =>
+        ctx.db.patch(first.sessionId, { expirationTime: Date.now() - 1 }),
+      );
+      const expired = await t.action(api.auth.signIn, {
+        refreshToken: first.tokens.refreshToken,
+      });
       expect(expired.tokens).toBeNull();
 
       const renewed = await authenticate(t);
@@ -60,31 +79,48 @@ describe("anonymous installation credentials", () => {
         appAttestKeyId: "attested-install-key",
       });
       if (banned) {
-        await expect(registration).rejects.toMatchObject({ data: { code: "device_banned" } });
+        await expect(registration).rejects.toMatchObject({
+          data: { code: "device_banned" },
+        });
       } else {
-        await expect(registration).resolves.toMatchObject({ deviceId, attested: true });
+        await expect(registration).resolves.toMatchObject({
+          deviceId,
+          attested: true,
+        });
       }
       expect(await t.run((ctx) => ctx.db.get(deviceId))).toEqual(original);
-      expect(await t.run((ctx) => ctx.db.query("devices").collect())).toHaveLength(1);
+      expect(
+        await t.run((ctx) => ctx.db.query("devices").collect()),
+      ).toHaveLength(1);
     },
   );
 
   it("deduplicates concurrent sign-ins and stores only a hash of the credential", async () => {
     const t = harness();
-    const [first, second] = await Promise.all([authenticate(t), authenticate(t)]);
+    const [first, second] = await Promise.all([
+      authenticate(t),
+      authenticate(t),
+    ]);
     expect(first.userId).toBe(second.userId);
-    const accounts = await t.run((ctx) => ctx.db.query("authAccounts").collect());
+    const accounts = await t.run((ctx) =>
+      ctx.db.query("authAccounts").collect(),
+    );
     expect(accounts).toHaveLength(1);
     expect(JSON.stringify(accounts)).not.toContain(SECRET);
 
-    const usingStoredHash = await authenticate(t, accounts[0].providerAccountId);
+    const usingStoredHash = await authenticate(
+      t,
+      accounts[0].providerAccountId,
+    );
     expect(usingStoredHash.userId).not.toBe(first.userId);
   });
 
   it("cannot claim another device with a different secret or its public identifiers", async () => {
     const t = harness();
     const first = await authenticate(t);
-    const { deviceId } = await first.as.mutation(api.devices.registerDevice, { platform: "ios" });
+    const { deviceId } = await first.as.mutation(api.devices.registerDevice, {
+      platform: "ios",
+    });
     const other = await authenticate(t, "b2".repeat(32));
     expect(other.userId).not.toBe(first.userId);
     expect(await other.as.query(api.devices.me, {})).toBeNull();
@@ -106,7 +142,9 @@ describe("anonymous installation credentials", () => {
           params: secret === undefined ? {} : { secret },
         }),
       ).rejects.toMatchObject({ data: { code: "invalid_device_credential" } });
-      expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(0);
+      expect(
+        await t.run((ctx) => ctx.db.query("users").collect()),
+      ).toHaveLength(0);
     },
   );
 });

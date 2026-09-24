@@ -5,7 +5,11 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import { contributionPayload } from "../../../shared/attestation/attested-payloads";
 import { clearPhotoDraft, updatePhotoSession } from "@/lib/capture/photo-draft";
-import { contributeLabel, contributionErrorMessage, uploadCrop } from "./contribute";
+import {
+  contributeLabel,
+  contributionErrorMessage,
+  uploadCrop,
+} from "./contribute";
 import { clearLabelDraft, loadLabelDraft } from "./draft";
 import { formStateFromFlow, setFieldValue, unlockField } from "./fields";
 import { handOffLabelRejection } from "@/lib/result/feedback";
@@ -21,19 +25,26 @@ const mockRemove = jest.fn();
 const mockUpload = jest.fn();
 const calls: string[] = [];
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     query: (fn: unknown, args: unknown) =>
       mockQuery(jest.requireActual("convex/server").getFunctionName(fn), args),
     mutation: (fn: unknown, args: unknown) =>
-      mockMutation(jest.requireActual("convex/server").getFunctionName(fn), args),
+      mockMutation(
+        jest.requireActual("convex/server").getFunctionName(fn),
+        args,
+      ),
     action: (fn: unknown, args: unknown) =>
       mockAction(jest.requireActual("convex/server").getFunctionName(fn), args),
   },
 }));
-jest.mock("@/lib/attested-write", () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
+jest.mock("@/lib/attested-write", () => ({
+  signPayload: (payload: unknown) => mockSign(payload),
+}));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
@@ -101,13 +112,18 @@ beforeEach(async () => {
   });
   mockMutation.mockImplementation(async (name: string) => {
     calls.push(name);
-    if (name === "contributions:requestCropUpload")
+    if (name === "contributions:requestCropUpload") {
       return { uploadUrl: "https://upload.example/crop" };
+    }
     return null;
   });
   mockUpload.mockImplementation(async () => {
     calls.push("upload");
-    return { status: 200, headers: {}, body: JSON.stringify({ storageId: "st-1" }) };
+    return {
+      status: 200,
+      headers: {},
+      body: JSON.stringify({ storageId: "st-1" }),
+    };
   });
   mockSign.mockImplementation(async () => {
     calls.push("sign");
@@ -126,7 +142,11 @@ afterEach(() => jest.restoreAllMocks());
 
 it("uploads the 256 px crop, signs the exact fields and contributes the capture’s own features", async () => {
   handOffLabelRejection(scanId, Promise.resolve(feedbackId));
-  const result = await contributeLabel({ scanId, capture, state: formStateFromFlow(flow) });
+  const result = await contributeLabel({
+    scanId,
+    capture,
+    state: formStateFromFlow(flow),
+  });
   expect(result).toEqual({ contributionId: "contrib-1", status: "tentative" });
   expect(calls).toEqual([
     "scans:get",
@@ -168,7 +188,11 @@ it("uploads the 256 px crop, signs the exact fields and contributes the capture�
 });
 
 it("re-verifies edited values first and flags the edited fields; no rejection means no resolution", async () => {
-  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "date", "1916–19");
+  const state = setFieldValue(
+    unlockField(formStateFromFlow(flow), "title"),
+    "date",
+    "1916–19",
+  );
   await contributeLabel({ scanId, capture, state });
   expect(calls.slice(0, 2)).toEqual(["scans:get", "verify"]);
   expect(mockVerify).toHaveBeenCalledWith({
@@ -185,7 +209,10 @@ it("re-verifies edited values first and flags the edited fields; no rejection me
       },
     }),
   );
-  expect(mockMutation).not.toHaveBeenCalledWith("feedback:resolveRejection", expect.anything());
+  expect(mockMutation).not.toHaveBeenCalledWith(
+    "feedback:resolveRejection",
+    expect.anything(),
+  );
 });
 
 it("needs a title and an artist, an attestable device and a successful upload", async () => {
@@ -211,8 +238,9 @@ it("needs a title and an artist, an attestable device and a successful upload", 
 it("keeps the contribution when resolving the rejection fails", async () => {
   handOffLabelRejection(scanId, Promise.resolve(feedbackId));
   mockMutation.mockImplementation(async (name: string) => {
-    if (name === "contributions:requestCropUpload")
+    if (name === "contributions:requestCropUpload") {
       return { uploadUrl: "https://upload.example/crop" };
+    }
     throw new ConvexError({ code: "invalid_resolution" });
   });
   await expect(
@@ -230,21 +258,31 @@ it("re-verifies reverted fields after an earlier upload failed", async () => {
   mockVerify.mockImplementation(async (args) => {
     mockStoredFlow = {
       ...flow,
-      fields: { ...flow.fields, date: { ...flow.fields.date!, value: args.fields.date } },
+      fields: {
+        ...flow.fields,
+        date: { ...flow.fields.date!, value: args.fields.date },
+      },
     };
     return mockStoredFlow;
   });
   mockAction.mockImplementation(async (_name, args) => {
-    if (args.fields.date.value !== mockStoredFlow.fields.date?.value)
+    if (args.fields.date.value !== mockStoredFlow.fields.date?.value) {
       throw new ConvexError({ code: "field_mismatch", field: "date" });
+    }
     return { contributionId: "contrib-1", status: "tentative" };
   });
   const original = formStateFromFlow(flow);
   mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: "" });
   await expect(
-    contributeLabel({ scanId, capture, state: setFieldValue(original, "date", "1917") }),
+    contributeLabel({
+      scanId,
+      capture,
+      state: setFieldValue(original, "date", "1917"),
+    }),
   ).rejects.toThrow("HTTP 503");
-  await expect(contributeLabel({ scanId, capture, state: original })).resolves.toMatchObject({
+  await expect(
+    contributeLabel({ scanId, capture, state: original }),
+  ).resolves.toMatchObject({
     status: "tentative",
   });
   expect(mockVerify).toHaveBeenCalledTimes(2);
@@ -255,18 +293,28 @@ it("re-verifies reverted fields after an earlier upload failed", async () => {
 });
 
 it("keeps edits marked as user edits when reopening after an upload failure", async () => {
-  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "date", "1917");
+  const state = setFieldValue(
+    unlockField(formStateFromFlow(flow), "title"),
+    "date",
+    "1917",
+  );
   mockVerify.mockImplementation(async (args) => {
     expect(await loadLabelDraft(scanId)).toEqual(state);
     mockStoredFlow = {
       ...flow,
-      fields: { ...flow.fields, date: { ...flow.fields.date!, value: args.fields.date } },
+      fields: {
+        ...flow.fields,
+        date: { ...flow.fields.date!, value: args.fields.date },
+      },
     };
     return mockStoredFlow;
   });
   mockUpload.mockResolvedValueOnce({ status: 503, headers: {}, body: "" });
-  await expect(contributeLabel({ scanId, capture, state })).rejects.toThrow("HTTP 503");
-  const reopened = (await loadLabelDraft(scanId)) ?? formStateFromFlow(mockStoredFlow);
+  await expect(contributeLabel({ scanId, capture, state })).rejects.toThrow(
+    "HTTP 503",
+  );
+  const reopened =
+    (await loadLabelDraft(scanId)) ?? formStateFromFlow(mockStoredFlow);
   await contributeLabel({ scanId, capture, state: reopened });
   expect(mockVerify).toHaveBeenCalledTimes(1);
   expect(mockAction).toHaveBeenLastCalledWith(
@@ -281,7 +329,11 @@ it("keeps edits marked as user edits when reopening after an upload failure", as
 });
 
 it("keeps museum sharing edits tied to their confirmation before verification replaces its fields", async () => {
-  const state = setFieldValue(unlockField(formStateFromFlow(flow), "title"), "title", "My title");
+  const state = setFieldValue(
+    unlockField(formStateFromFlow(flow), "title"),
+    "title",
+    "My title",
+  );
   mockVerify.mockImplementation(async () => {
     expect(await loadLabelDraft(scanId, 2)).toEqual(state);
     expect(await loadLabelDraft(scanId)).toBeUndefined();
@@ -313,13 +365,18 @@ it.each([
     new Error("This device can’t share contributions yet"),
     "This device can’t save to the shared index yet",
   ],
-  [new ConvexError({ code: "contribution_busy" }), "Couldn’t save to the shared index right now"],
+  [
+    new ConvexError({ code: "contribution_busy" }),
+    "Couldn’t save to the shared index right now",
+  ],
 ])("maps %s to a sharing message", (error, message) => {
   expect(contributionErrorMessage(error)).toBe(message);
 });
 
 it("rejects label-only captures before their pixels or fingerprints leave the phone", async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { primaryKind: "label" });
+  updatePhotoSession(capture.owner, capture.photoPath, {
+    primaryKind: "label",
+  });
   try {
     await expect(
       contributeLabel({ scanId, capture, state: formStateFromFlow(flow) }),

@@ -54,8 +54,12 @@ function detail(
   nearest: boolean,
   units: MeasurementUnits | undefined,
 ): string {
-  const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ""];
-  if (option.kind === "poi" && option.category !== "unknown") parts.push(option.category);
+  const parts = [
+    units ? formatDistance(option.distanceM ?? Number.NaN, units) : "",
+  ];
+  if (option.kind === "poi" && option.category !== "unknown") {
+    parts.push(option.category);
+  }
   if (nearest) parts.push("nearest");
   return parts.filter(Boolean).join(" · ");
 }
@@ -72,18 +76,27 @@ export function VenuePickerSheet() {
   const [mode, setMode] = useState<"visit" | "change" | "choose">(
     activeVisit(view) && requested !== "choose" ? "visit" : "choose",
   );
-  if (mode === "visit" && visit && view.status !== "denied")
+  if (mode === "visit" && visit && view.status !== "denied") {
     return <VisitSheet visit={visit} onChange={() => setMode("change")} />;
+  }
   return (
     <ChooserSheet
       view={view}
       prompted={requested === "choose"}
-      keepVisit={visit && mode === "change" ? () => setMode("visit") : undefined}
+      keepVisit={
+        visit && mode === "change" ? () => setMode("visit") : undefined
+      }
     />
   );
 }
 
-function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => void }) {
+function VisitSheet({
+  visit,
+  onChange,
+}: {
+  visit: CurrentVisit;
+  onChange: () => void;
+}) {
   const router = useRouter();
   const { visits, loading, error } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
@@ -91,7 +104,10 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
   const sheetStyle = useSheetStyle();
   const count = `${works.length} ${works.length === 1 ? "artwork" : "artworks"} this visit`;
   const openVisit = () =>
-    router.replace({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } });
+    router.replace({
+      pathname: "/journal/[visitId]",
+      params: { visitId: visit.localId },
+    });
   return (
     <ScrollView
       style={sheetStyle}
@@ -101,8 +117,13 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
     >
       <View style={styles.eyebrowRow}>
         <View style={styles.dot} />
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>
-          Visiting now · since {formatVisitStart(visit.startedAt, visit.timeZone)}
+        <ThemedText
+          type="smallBold"
+          themeColor="textSecondary"
+          style={styles.eyebrow}
+        >
+          Visiting now · since{" "}
+          {formatVisitStart(visit.startedAt, visit.timeZone)}
         </ThemedText>
       </View>
       <ThemedText type="title" accessibilityRole="header">
@@ -131,7 +152,12 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
           })
         }
       />
-      <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
+      <GalleryButton
+        label="Change museum"
+        variant="outlined"
+        fullWidth
+        onPress={onChange}
+      />
       <GalleryButton
         label="Open visit"
         icon="chevron.right"
@@ -156,7 +182,11 @@ function ChooserSheet({
   const sheetStyle = useSheetStyle();
   const { status, options, error, confirm, dismiss, declinePrompt } = view;
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<{ query: string; rows: VenueRow[]; error?: string }>();
+  const [results, setResults] = useState<{
+    query: string;
+    rows: VenueRow[];
+    error?: string;
+  }>();
   const searching = query.trim().length >= 2;
   useEffect(() => {
     if (!searching) return;
@@ -168,8 +198,13 @@ function ChooserSheet({
         })
         .catch((cause) => {
           reportError(cause, "venue.search");
-          if (active)
-            setResults({ query, rows: [], error: "Museums could not load. Try another search." });
+          if (active) {
+            setResults({
+              query,
+              rows: [],
+              error: "Museums could not load. Try another search.",
+            });
+          }
         });
     }, 200);
     return () => {
@@ -204,10 +239,13 @@ function ChooserSheet({
       router.back();
     } catch (cause) {
       if (!request.signal.aborted) reportError(cause, "venue.confirm");
-      if (!request.signal.aborted)
+      if (!request.signal.aborted) {
         setFailure(
-          cause instanceof Error ? cause.message : "Could not confirm the venue. Try again.",
+          cause instanceof Error
+            ? cause.message
+            : "Could not confirm the venue. Try again.",
         );
+      }
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
       if (pending.current === request) pending.current = undefined;
@@ -247,7 +285,9 @@ function ChooserSheet({
       />
       {hasQuery ? (
         !searching ? (
-          <ThemedText themeColor="textSecondary">Enter at least two characters.</ThemedText>
+          <ThemedText themeColor="textSecondary">
+            Enter at least two characters.
+          </ThemedText>
         ) : results?.query !== query ? (
           <LoadingRing accessibilityLabel="Searching museums" />
         ) : results.error ? (
@@ -298,7 +338,11 @@ function ChooserSheet({
       ) : !options.length ? (
         <EmptyState
           inset={false}
-          title={status === "denied" ? "Location access is off." : "No nearby museums found."}
+          title={
+            status === "denied"
+              ? "Location access is off."
+              : "No nearby museums found."
+          }
           detail={
             status === "denied"
               ? `Allow location in Settings to find nearby museums. ${emptyDetail}`
@@ -318,7 +362,9 @@ function ChooserSheet({
               fullWidth
               onPress={() => {
                 void Linking.openSettings().catch((cause) => {
-                  reportError(cause, "venue.open-settings", { level: "warning" });
+                  reportError(cause, "venue.open-settings", {
+                    level: "warning",
+                  });
                   setFailure("Could not open Settings.");
                 });
               }}
@@ -335,7 +381,10 @@ function ChooserSheet({
               key={venueOptionKey(option)}
               accessibilityRole="button"
               accessibilityLabel={option.name}
-              accessibilityState={{ busy: busy === venueOptionKey(option), disabled: !!busy }}
+              accessibilityState={{
+                busy: busy === venueOptionKey(option),
+                disabled: !!busy,
+              }}
               disabled={!!busy}
               onPress={() => {
                 void choose(option);
@@ -350,7 +399,11 @@ function ChooserSheet({
               <View style={styles.optionText}>
                 <ThemedText>{option.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
+                  {detail(
+                    option,
+                    index === 0,
+                    units ?? (unitsFailed ? "metric" : undefined),
+                  )}
                 </ThemedText>
               </View>
               {busy === venueOptionKey(option) && <LoadingRing />}
@@ -377,7 +430,12 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.content, gap: Spacing.three },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: "uppercase" },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.success },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Gallery.success,
+  },
   option: {
     minHeight: 44,
     flexDirection: "row",

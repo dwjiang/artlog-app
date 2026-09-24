@@ -20,12 +20,16 @@ export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <ThemedText type="subtitle" accessibilityRole="alert">
         Artlog could not open this screen
       </ThemedText>
-      <ThemedText>Try opening it again. Your saved collection is still on this phone.</ThemedText>
+      <ThemedText>
+        Try opening it again. Your saved collection is still on this phone.
+      </ThemedText>
       <GalleryButton
         label="Retry"
         onPress={() => {
           addBreadcrumb("app.render.retry");
-          void retry().catch((cause: unknown) => reportError(cause, "app.render.retry"));
+          void retry().catch((cause: unknown) =>
+            reportError(cause, "app.render.retry"),
+          );
         }}
       />
     </ScrollView>
@@ -34,5 +38,10 @@ export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, justifyContent: "center", padding: Spacing.four, gap: Spacing.two },
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
 });

@@ -11,18 +11,30 @@ import { scheduleRemoval } from "@/lib/collection/pending-removals";
 import { showToast } from "@/lib/ui/toast";
 
 /** Header actions for an owned artwork: share the photo, and the overflow menu with editing and removal. */
-export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitId?: string }) {
+export function SavedWorkToolbar({
+  savedId,
+  visitId,
+}: {
+  savedId: string;
+  visitId?: string;
+}) {
   const owner = useLocalOwner();
   const router = useRouter();
-  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
+  const { data } = useLiveQuery(selectSavedWork(savedId, owner), [
+    savedId,
+    owner,
+  ]);
   const work = data.find(
-    (row) => row.owner === owner && row.localId === savedId && row.deletedAt === null,
+    (row) =>
+      row.owner === owner && row.localId === savedId && row.deletedAt === null,
   );
   if (!work) return null;
   async function share() {
     if (!work?.cropPath) return;
     try {
-      await Sharing.shareAsync(captureFileUri(work.cropPath), { dialogTitle: work.title });
+      await Sharing.shareAsync(captureFileUri(work.cropPath), {
+        dialogTitle: work.title,
+      });
     } catch (cause) {
       reportError(cause, "collection.artwork.share");
       showToast("This artwork could not be shared.");
@@ -50,10 +62,15 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       >
         <Stack.Toolbar.MenuAction
           onPress={() =>
-            router.push({ pathname: "/identify-artwork", params: { savedId: work.localId } })
+            router.push({
+              pathname: "/identify-artwork",
+              params: { savedId: work.localId },
+            })
           }
         >
-          {work.title === "Unidentified artwork" ? "Identify this artwork" : "Edit artwork details"}
+          {work.title === "Unidentified artwork"
+            ? "Identify this artwork"
+            : "Edit artwork details"}
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           onPress={() =>
@@ -72,7 +89,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           onPress={() =>
-            router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })
+            router.push({
+              pathname: "/link-artwork",
+              params: { savedId: work.localId },
+            })
           }
         >
           Link visit
@@ -81,7 +101,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
           <Stack.Toolbar.MenuAction
             icon="slider.horizontal.3"
             onPress={() =>
-              router.push({ pathname: "/wall-display", params: { savedId: work.localId } })
+              router.push({
+                pathname: "/wall-display",
+                params: { savedId: work.localId },
+              })
             }
           >
             Wall display options

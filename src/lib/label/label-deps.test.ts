@@ -5,13 +5,17 @@ import { formStateFromFlow, unlockField } from "./fields";
 import { runLabelFlowForScan } from "./label-deps";
 
 const mockAction = jest.fn();
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 jest.mock("@/lib/convex-client", () => ({
   convex: { action: (...args: unknown[]) => mockAction(...args) },
 }));
 jest.mock("@/lib/embed/embedder", () => ({ embedder: {} }));
 jest.mock("@/lib/orb/extract", () => ({ extractOrb: jest.fn() }));
-jest.mock("../../../modules/vision-rect/src", () => ({ getVisionRect: jest.fn() }));
+jest.mock("../../../modules/vision-rect/src", () => ({
+  getVisionRect: jest.fn(),
+}));
 
 it("clears the previous sharing draft before reading a replacement label", async () => {
   const scanId = "replacement-scan" as Id<"scans">;
@@ -29,7 +33,9 @@ it("clears the previous sharing draft before reading a replacement label", async
     return flow;
   });
   await expect(
-    runLabelFlowForScan(scanId, { qrUrl: "https://museum.example/replacement" }),
+    runLabelFlowForScan(scanId, {
+      qrUrl: "https://museum.example/replacement",
+    }),
   ).resolves.toEqual(flow);
   expect(mockAction).toHaveBeenCalledTimes(2);
 });

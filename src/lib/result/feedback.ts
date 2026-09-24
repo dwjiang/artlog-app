@@ -26,15 +26,18 @@ export function resolveWithLabel(
   void rejection
     ?.then(
       (feedbackId) =>
-        feedbackId &&
-        client.mutation(api.feedback.resolveRejection, {
+        feedbackId
+        && client.mutation(api.feedback.resolveRejection, {
           feedbackId,
           resolution: { kind: "label", contributionId },
         }),
     )
     .catch((error: unknown) => {
       reportError(error, "result.resolve_label_feedback");
-      console.warn("Could not resolve the rejection with this contribution", error);
+      console.warn(
+        "Could not resolve the rejection with this contribution",
+        error,
+      );
     });
 }
 

@@ -31,7 +31,10 @@ describe("haversineMeters", () => {
   it("is zero for the same point and symmetric", () => {
     expect(haversineMeters(met, met)).toBe(0);
     const other = { lat: 40.7794, lng: -73.9622 };
-    expect(haversineMeters(met, other)).toBeCloseTo(haversineMeters(other, met), 9);
+    expect(haversineMeters(met, other)).toBeCloseTo(
+      haversineMeters(other, met),
+      9,
+    );
   });
 
   it("matches a known distance: the de Young to the Legion of Honor is about 3.1 km", () => {
@@ -42,7 +45,10 @@ describe("haversineMeters", () => {
   });
 
   it("treats one degree of latitude as about 111 km", () => {
-    expect(haversineMeters({ lat: 0, lng: 0 }, { lat: 1, lng: 0 })).toBeCloseTo(111_195, -2);
+    expect(haversineMeters({ lat: 0, lng: 0 }, { lat: 1, lng: 0 })).toBeCloseTo(
+      111_195,
+      -2,
+    );
   });
 });
 
@@ -99,7 +105,10 @@ describe("pickVenue", () => {
   });
 
   it("asks when a second venue is within 400 m, even if the first is very close", () => {
-    const result = pickVenue([candidate("Met", 20), candidate("Neue Galerie", 390)]);
+    const result = pickVenue([
+      candidate("Met", 20),
+      candidate("Neue Galerie", 390),
+    ]);
     expect(result).toEqual({
       kind: "choose",
       options: [candidate("Met", 20), candidate("Neue Galerie", 390)],
@@ -107,17 +116,22 @@ describe("pickVenue", () => {
   });
 
   it("ignores a second venue beyond 400 m", () => {
-    expect(pickVenue([candidate("Met", 20), candidate("Guggenheim", 401)])).toMatchObject({
+    expect(
+      pickVenue([candidate("Met", 20), candidate("Guggenheim", 401)]),
+    ).toMatchObject({
       kind: "auto",
       venue: { name: "Met" },
     });
-    expect(pickVenue([candidate("Met", 20), candidate("Guggenheim", 400)]).kind).toBe("choose");
+    expect(
+      pickVenue([candidate("Met", 20), candidate("Guggenheim", 400)]).kind,
+    ).toBe("choose");
   });
 
   it("asks between venues that are all beyond 150 m but within 400 m", () => {
-    expect(pickVenue([candidate("A", 200), candidate("B", 300), candidate("C", 380)]).kind).toBe(
-      "choose",
-    );
+    expect(
+      pickVenue([candidate("A", 200), candidate("B", 300), candidate("C", 380)])
+        .kind,
+    ).toBe("choose");
   });
 
   it("finds nothing for an empty list or a single venue beyond 400 m", () => {

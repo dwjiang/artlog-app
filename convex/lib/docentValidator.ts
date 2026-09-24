@@ -17,11 +17,12 @@ export function validateDocent(
     const factIds = [...new Set(candidate.factIds)];
     if (!factIds.length || factIds.some((id) => !sheetIds.has(id))) continue;
     if (
-      !sentence ||
-      sentence.length > MAX_SENTENCE_CHARS ||
-      sentence.split(" ").length < MIN_SENTENCE_WORDS
-    )
+      !sentence
+      || sentence.length > MAX_SENTENCE_CHARS
+      || sentence.split(" ").length < MIN_SENTENCE_WORDS
+    ) {
       continue;
+    }
     if (seen.has(sentence)) continue;
     seen.add(sentence);
     kept.push({ sentence, factIds });

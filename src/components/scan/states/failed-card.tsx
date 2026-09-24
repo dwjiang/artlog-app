@@ -13,7 +13,11 @@ export type FailedCardProps = {
   retrying?: boolean;
 };
 
-export function FailedCard({ error, onRetry, retrying = false }: FailedCardProps) {
+export function FailedCard({
+  error,
+  onRetry,
+  retrying = false,
+}: FailedCardProps) {
   return (
     <>
       <View style={styles.section}>

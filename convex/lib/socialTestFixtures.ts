@@ -31,7 +31,12 @@ export async function socialUser(
     username: `u-${name.toLowerCase().slice(0, 20)}`,
     name,
   });
-  return { ...device, accountId, profileId: profile.profileId, scope: `account:${accountId}:0` };
+  return {
+    ...device,
+    accountId,
+    profileId: profile.profileId,
+    scope: `account:${accountId}:0`,
+  };
 }
 export async function socialVisit(
   t: Harness,
@@ -58,7 +63,11 @@ export async function socialVisit(
         visitLocalId: visit.localId,
         venueId,
         savedAt: i,
-        snapshot: { title: `Work ${i}`, artist: "Artist", institution: "PRIVATE SOURCE" },
+        snapshot: {
+          title: `Work ${i}`,
+          artist: "Artist",
+          institution: "PRIVATE SOURCE",
+        },
         note: "PRIVATE NOTE",
         updatedAt: 1,
         updatedBy: user.deviceId,
@@ -86,17 +95,34 @@ export async function setVisitVisibility(
   visitId: Id<"visits">,
   visibility: "public" | "private",
 ) {
-  const { localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } = (await t.run(
-    (ctx) => ctx.db.get(visitId),
-  ))!;
+  const {
+    localId,
+    venueId,
+    visitedOn,
+    timeZone,
+    reflection,
+    startedAt,
+    endedAt,
+  } = (await t.run((ctx) => ctx.db.get(visitId)))!;
   await user.as.mutation(api.visits.upsertJournal, {
     scope: user.scope,
-    visit: { visibility, localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt },
+    visit: {
+      visibility,
+      localId,
+      venueId,
+      visitedOn,
+      timeZone,
+      reflection,
+      startedAt,
+      endedAt,
+    },
   });
   return user.as.query(api.sharedVisits.getState, { visitLocalId: localId });
 }
 export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {
-  const state = await a.as.query(api.friendships.getState, { profileId: b.profileId });
+  const state = await a.as.query(api.friendships.getState, {
+    profileId: b.profileId,
+  });
   const requested = await a.as.mutation(api.friendships.request, {
     profileId: b.profileId,
     revision: state.revision,
@@ -106,10 +132,17 @@ export async function befriend(a: SocialUser, b: SocialUser): Promise<void> {
     revision: requested.revision,
   });
 }
-export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<"collections">) {
+export async function socialDerivative(
+  t: Harness,
+  user: SocialUser,
+  saveId: Id<"collections">,
+) {
   return t.run(async (ctx) => {
     const save = (await ctx.db.get(saveId))!;
-    const scanId = await seedScan(ctx, { deviceId: user.deviceId, venueId: save.venueId });
+    const scanId = await seedScan(ctx, {
+      deviceId: user.deviceId,
+      venueId: save.venueId,
+    });
     const sourceStorageId = await ctx.storage.store(
       new Blob(["source crop"], { type: "image/jpeg" }),
     );
@@ -123,13 +156,22 @@ export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<
     const storageId = await ctx.storage.store(
       new Blob(["derivative bytes"], { type: "image/jpeg" }),
     );
-    const provenance = { kind: "contribution" as const, contributionId, sourceStorageId };
+    const provenance = {
+      kind: "contribution" as const,
+      contributionId,
+      sourceStorageId,
+    };
     const id = await ctx.db.insert("mediaAssets", {
       saveId,
       storageId,
       provenance,
       createdAt: 1,
-      source: { kind: "derivative", rights: "contributor_consent", width: 128, height: 256 },
+      source: {
+        kind: "derivative",
+        rights: "contributor_consent",
+        width: 128,
+        height: 256,
+      },
     });
     return { id, storageId, provenance, contributionId, sourceStorageId };
   });

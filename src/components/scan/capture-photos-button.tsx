@@ -15,7 +15,12 @@ export function CapturePhotosButton({
 }) {
   const { label, open, unavailable } = useCapturePhotos(input, disabled);
   return (
-    <GalleryButton label={label} icon="photo.badge.plus" disabled={unavailable} onPress={open} />
+    <GalleryButton
+      label={label}
+      icon="photo.badge.plus"
+      disabled={unavailable}
+      onPress={open}
+    />
   );
 }
 

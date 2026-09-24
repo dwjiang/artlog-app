@@ -14,7 +14,8 @@ export const wallFrames: {
     name: "Gilt",
     color: "#B3924B",
     width: 4,
-    gradient: "linear-gradient(135deg, #E3C77A 0%, #9C7A36 35%, #E6CB80 55%, #8A6A2A 100%)",
+    gradient:
+      "linear-gradient(135deg, #E3C77A 0%, #9C7A36 35%, #E6CB80 55%, #8A6A2A 100%)",
   },
   {
     value: "baroque",
@@ -85,8 +86,10 @@ export function WallFrame({
             StyleSheet.absoluteFill,
             {
               borderWidth: frame === "mat" ? 1 : 0.5,
-              borderTopColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.5)",
-              borderLeftColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.35)",
+              borderTopColor:
+                frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.5)",
+              borderLeftColor:
+                frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.35)",
               borderBottomColor: "rgba(35,26,15,0.6)",
               borderRightColor: "rgba(35,26,15,0.45)",
             },

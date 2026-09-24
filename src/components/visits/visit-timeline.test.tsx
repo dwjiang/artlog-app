@@ -12,11 +12,17 @@ jest.mock("@/lib/social/use-social-query", () => ({
 beforeEach(() => {
   mockQuery.mockReset().mockReturnValue({});
 });
-jest.mock("expo-router", () => ({ Link: ({ children }: { children: unknown }) => children }));
-jest.mock("../collection/saved-work-image", () => ({ SavedWorkImage: () => null }));
+jest.mock("expo-router", () => ({
+  Link: ({ children }: { children: unknown }) => children,
+}));
+jest.mock("../collection/saved-work-image", () => ({
+  SavedWorkImage: () => null,
+}));
 let mockSeen = new Set<string>();
 let mockOpen: string | undefined;
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "device:test",
+}));
 jest.mock("@/lib/journal/visit-seen", () => ({
   ...jest.requireActual("@/lib/journal/visit-seen"),
   useSeenVisits: () => mockSeen,
@@ -48,24 +54,40 @@ it("names the country of museums that only carry a country region and pluralises
     cropPath: null,
   } as VisitSummary["works"][number];
   await render(
-    <VisitTimeline visits={[visit("fr", { country: "FR", works: [work] }), visit("none", {})]} />,
+    <VisitTimeline
+      visits={[
+        visit("fr", { country: "FR", works: [work] }),
+        visit("none", {}),
+      ]}
+    />,
   );
   expect(screen.getByText(/France · 1 artwork/)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Museum, 29 Feb 2024, 1 artwork" })).toBeOnTheScreen();
-  expect(screen.getByText(/Location unavailable · 0 artworks/)).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "Museum, 29 Feb 2024, 1 artwork" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByText(/Location unavailable · 0 artworks/),
+  ).toBeOnTheScreen();
 });
 it("marks shared visits from one owner-scoped query rather than one per row", async () => {
   mockQuery.mockReturnValue({ data: ["shared"] });
   await render(
     <VisitTimeline
-      visits={[visit("shared", {}), visit("private", { venueName: "Quiet Museum" })]}
+      visits={[
+        visit("shared", {}),
+        visit("private", { venueName: "Quiet Museum" }),
+      ]}
     />,
   );
-  expect(screen.getByText(/Location unavailable · 0 artworks · Shared ✓/)).toBeOnTheScreen();
-  expect(screen.getAllByText(/Location unavailable · 0 artworks$/)).toHaveLength(1);
-  expect(new Set(mockQuery.mock.calls.map((call) => getFunctionName(call[0])))).toEqual(
-    new Set(["sharedVisits:listShared"]),
-  );
+  expect(
+    screen.getByText(/Location unavailable · 0 artworks · Shared ✓/),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getAllByText(/Location unavailable · 0 artworks$/),
+  ).toHaveLength(1);
+  expect(
+    new Set(mockQuery.mock.calls.map((call) => getFunctionName(call[0]))),
+  ).toEqual(new Set(["sharedVisits:listShared"]));
 });
 
 it("badges a closed visit as new until it has been opened, and marks the open one as visiting now", async () => {
@@ -82,17 +104,27 @@ it("badges a closed visit as new until it has been opened, and marks the open on
     />,
   );
   expect(
-    screen.getByRole("button", { name: "Museum, 29 Feb 2024, 0 artworks, new" }),
+    screen.getByRole("button", {
+      name: "Museum, 29 Feb 2024, 0 artworks, new",
+    }),
   ).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: /, new$/ })).toHaveLength(1);
   expect(
-    screen.getByRole("button", { name: "Seen Museum, 29 Feb 2024, 0 artworks" }),
+    screen.getByRole("button", {
+      name: "Seen Museum, 29 Feb 2024, 0 artworks",
+    }),
   ).toBeOnTheScreen();
   expect(
-    screen.getByRole("button", { name: "Open Museum, 29 Feb 2024, 0 artworks, visiting now" }),
+    screen.getByRole("button", {
+      name: "Open Museum, 29 Feb 2024, 0 artworks, visiting now",
+    }),
   ).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: /, visiting now$/ })).toBeOnTheScreen();
   expect(
-    screen.getByRole("button", { name: "Manual Museum, 29 Feb 2024, 0 artworks" }),
+    screen.getByRole("button", { name: /, visiting now$/ }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", {
+      name: "Manual Museum, 29 Feb 2024, 0 artworks",
+    }),
   ).toBeOnTheScreen();
 });

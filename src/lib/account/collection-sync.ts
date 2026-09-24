@@ -8,7 +8,12 @@ import { api } from "../../../convex/_generated/api";
 import { createJournalRepository } from "@/db/repos/journal";
 import { claimLocalJournal } from "@/db/repos/journal-claim";
 import { listUnsyncedVisits } from "@/db/repos/visits";
-import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from "./owner-store";
+import {
+  anonymousOwner,
+  captureOwner,
+  getLocalOwner,
+  switchOwner,
+} from "./owner-store";
 import * as savedWorks from "@/db/repos/saved-works";
 import { albumMediaPending } from "@/db/repos/artwork-album";
 import { getSetting, setSetting } from "@/db/repos/settings";
@@ -19,7 +24,11 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 import { syncJournal, type SyncContext } from "./sync";
 import { onCollectionChange } from "./sync-events";
 import { syncCollectionPhotos } from "./photo-sync";
-import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
+import {
+  downloadCollectionPhoto,
+  removePhotoFile,
+  uploadCollectionPhoto,
+} from "./photo-transfer";
 import { syncArtworkAlbums } from "./album-sync";
 import { removeUnreferencedPhotos } from "../files/unreferenced-photos";
 
@@ -31,7 +40,11 @@ let authToken: string | null = null;
 type Queue = {
   label: string;
   operation: "sync.photos" | "sync.journal";
-  run: (context: SyncContext, token: string, isCurrent: () => boolean) => Promise<void>;
+  run: (
+    context: SyncContext,
+    token: string,
+    isCurrent: () => boolean,
+  ) => Promise<void>;
   running: Promise<void> | null;
   requested: boolean;
   timer?: ReturnType<typeof setTimeout>;
@@ -91,12 +104,27 @@ const transfers: Queue = {
         getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
         updatePhotoTransfer: (id, fields, _owner, expected) =>
           savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
-        listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
-        clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
+        listDeletedPhotoFiles: () =>
+          savedWorks.listDeletedPhotoFiles(context.owner),
+        clearDeletedPhotoPaths: (id) =>
+          savedWorks.clearDeletedPhotoPaths(id, context.owner),
         upload: (localId, kind, path) =>
-          uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+          uploadCollectionPhoto(
+            token,
+            context.scope,
+            localId,
+            kind,
+            path,
+            isCurrent,
+          ),
         download: (localId, kind, storageId) =>
-          downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
+          downloadCollectionPhoto(
+            token,
+            context.scope,
+            localId,
+            kind,
+            storageId,
+          ),
         removeFile: removePhotoFile,
       },
       isCurrent,
@@ -116,7 +144,8 @@ const sync: Queue = {
         ...savedWorks,
         ...createJournalRepository(context.owner, isCurrent),
         getCheckpoint: () => getSetting(`journalSync:${context.owner}`),
-        setCheckpoint: (value) => setSetting(`journalSync:${context.owner}`, value),
+        setCheckpoint: (value) =>
+          setSetting(`journalSync:${context.owner}`, value),
         sync: (args) => convex.mutation(api.sync.syncJournal, args),
         removeUnreferencedPhotos,
       },
@@ -134,11 +163,15 @@ export async function completeJournalClaim(
   if (!account.accountId) return;
   let claim;
   do {
-    claim = await convex.mutation(api.journalClaims.resume, { scope: account.scope });
+    claim = await convex.mutation(api.journalClaims.resume, {
+      scope: account.scope,
+    });
     if (!isCurrent()) return;
   } while (!claim.complete);
   const owner = `account:${account.accountId}`;
-  if (claim.claimId) await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  if (claim.claimId) {
+    await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  }
   if (!isCurrent()) return;
   switchOwner(owner, account.scope);
   await setSetting("activeJournalOwner", owner);
@@ -172,8 +205,8 @@ export async function flushJournal(): Promise<void> {
 
 async function journalPending(owner: string): Promise<boolean> {
   return (
-    (await savedWorks.listUnsynced(owner)).length > 0 ||
-    (await listUnsyncedVisits(owner)).length > 0
+    (await savedWorks.listUnsynced(owner)).length > 0
+    || (await listUnsyncedVisits(owner)).length > 0
   );
 }
 
@@ -188,18 +221,23 @@ export async function flushCollectionMedia(
   const session = ready();
   if (!session) throw new SyncUnavailableError();
   const { owner } = session.context;
-  if (!albumMediaPending(owner, dependsOn) && !(await journalPending(owner))) return;
+  if (!albumMediaPending(owner, dependsOn) && !(await journalPending(owner))) {
+    return;
+  }
   await flushJournal();
   while (transfers.running) await transfers.running;
   if (!ready()) throw new SyncUnavailableError();
   const failure = await flush(transfers);
-  if (failure !== undefined && albumMediaPending(owner, dependsOn)) throw failure;
+  if (failure !== undefined && albumMediaPending(owner, dependsOn)) {
+    throw failure;
+  }
 }
 
 export function resumeCollectionSync(): void {
   paused = false;
-  if (context && !context.accountId && context.owner === getLocalOwner())
+  if (context && !context.accountId && context.owner === getLocalOwner()) {
     switchOwner(context.owner, context.scope);
+  }
   scheduleSync();
 }
 
@@ -227,12 +265,13 @@ export function CollectionSync(): null {
       if (context.accountId) {
         // The account scope is usable only once its claim finished; a token refresh alone leaves it valid.
         const current = captureOwner();
-        if (current.owner !== context.owner || current.scope !== scope)
+        if (current.owner !== context.owner || current.scope !== scope) {
           switchOwner(getLocalOwner());
+        }
       } else {
         switchOwner(context.owner, paused ? undefined : scope);
-        void setSetting("activeJournalOwner", context.owner).catch((error: unknown) =>
-          reportError(error, "sync.persist_owner"),
+        void setSetting("activeJournalOwner", context.owner).catch(
+          (error: unknown) => reportError(error, "sync.persist_owner"),
         );
       }
       scheduleSync();

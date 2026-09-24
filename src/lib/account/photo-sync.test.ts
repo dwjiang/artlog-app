@@ -19,8 +19,13 @@ beforeEach(async () => {
   jest.clearAllMocks();
   upload.mockReset();
   download.mockReset();
-  upload.mockImplementation(async () => ({ storageId: cropStorageId, photoUpdatedAt: 1 }));
-  download.mockImplementation(async (localId, kind) => `collection-photos/${localId}-${kind}.jpg`);
+  upload.mockImplementation(async () => ({
+    storageId: cropStorageId,
+    photoUpdatedAt: 1,
+  }));
+  download.mockImplementation(
+    async (localId, kind) => `collection-photos/${localId}-${kind}.jpg`,
+  );
   deps = { ...repo, upload, download, removeFile: removeDownload };
 });
 
@@ -47,7 +52,7 @@ it("backs up only the crop independently of metadata sync and never uploads it a
 });
 
 it("retries a failed crop without blocking another work", async () => {
-  for (const localId of ["a", "b"])
+  for (const localId of ["a", "b"]) {
     await repo.insertSavedWork({
       localId,
       title: "Painting",
@@ -56,6 +61,7 @@ it("retries a failed crop without blocking another work", async () => {
       photoPath: `${localId}.jpg`,
       cropPath: `${localId}-crop.jpg`,
     });
+  }
   upload.mockImplementation(async (localId) => {
     if (localId === "a") throw new Error("offline");
     return { storageId: cropStorageId, photoUpdatedAt: 1 };
@@ -78,7 +84,10 @@ it("downloads an imported crop into a persistent local path and retries after a 
   });
   download.mockRejectedValueOnce(new Error("offline"));
   await expect(syncCollectionPhotos(deps)).rejects.toThrow("offline");
-  expect(await repo.getSavedWork("a")).toMatchObject({ cropPath: null, photoPath: null });
+  expect(await repo.getSavedWork("a")).toMatchObject({
+    cropPath: null,
+    photoPath: null,
+  });
   download.mockClear();
   await syncCollectionPhotos(deps);
   expect(download.mock.calls).toEqual([["a", "crop", cropStorageId]]);
@@ -90,7 +99,7 @@ it("downloads an imported crop into a persistent local path and retries after a 
 });
 
 it("reports a persistent crop failure even when a later transfer fails offline", async () => {
-  for (const localId of ["a", "b"])
+  for (const localId of ["a", "b"]) {
     await repo.insertSavedWork({
       localId,
       title: "Painting",
@@ -98,6 +107,7 @@ it("reports a persistent crop failure even when a later transfer fails offline",
       savedAt: 1,
       cropPath: `${localId}-crop.jpg`,
     });
+  }
   const corrupt = new Error("Crop decoder could not read the saved image");
   const offline = new Error("Network request failed");
   upload.mockRejectedValueOnce(corrupt).mockRejectedValueOnce(offline);
@@ -128,7 +138,10 @@ it("discards a download completed after sign-out without writing paths or starti
     return "collection-photos/discard.jpg";
   });
   await syncCollectionPhotos(deps, () => active);
-  expect(await repo.getSavedWork("a")).toMatchObject({ photoPath: null, cropPath: null });
+  expect(await repo.getSavedWork("a")).toMatchObject({
+    photoPath: null,
+    cropPath: null,
+  });
   expect(removeDownload).toHaveBeenCalledWith("collection-photos/discard.jpg");
   expect(download).toHaveBeenCalledTimes(1);
 });
@@ -205,8 +218,13 @@ it("cleans up deleted local photos while keeping a file used by another saved wo
   });
   await syncCollectionPhotos(deps);
   expect(removeDownload.mock.calls).toEqual([["collection-photos/crop.jpg"]]);
-  expect(await repo.getSavedWork("a")).toMatchObject({ photoPath: null, cropPath: null });
-  expect(await repo.getSavedWork("b")).toMatchObject({ photoPath: "shared.jpg" });
+  expect(await repo.getSavedWork("a")).toMatchObject({
+    photoPath: null,
+    cropPath: null,
+  });
+  expect(await repo.getSavedWork("b")).toMatchObject({
+    photoPath: "shared.jpg",
+  });
 });
 
 it("does not acknowledge an old upload over a crop edited during transfer", async () => {
@@ -248,5 +266,7 @@ it("discards an old download when the user edits the crop during transfer", asyn
   });
   await syncCollectionPhotos(deps);
   expect(removeDownload).toHaveBeenCalledWith("obsolete.jpg");
-  expect(await repo.getSavedWork("a")).toMatchObject({ cropPath: "edited.jpg" });
+  expect(await repo.getSavedWork("a")).toMatchObject({
+    cropPath: "edited.jpg",
+  });
 });

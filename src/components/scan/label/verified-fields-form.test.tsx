@@ -52,19 +52,34 @@ it("shows plausibility warnings and freezes everything when not editable", async
   expect(screen.getByLabelText("Date").props.editable).toBe(false);
   expect(screen.queryByRole("button", { name: "Edit Title" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "More details" }));
-  for (const label of ["Title", "Artist", "Date", "Accession number", "Medium", "Credit line"])
+  for (const label of [
+    "Title",
+    "Artist",
+    "Date",
+    "Accession number",
+    "Medium",
+    "Credit line",
+  ]) {
     expect(screen.getByText(label)).toBeOnTheScreen();
+  }
 });
 
 it("keeps optional catalog details available without crowding the main review", async () => {
   const state = formStateFromFlow({
     ...flow,
-    fields: { ...flow.fields, accession: { value: "A-42", evidence: "ocr", locked: false } },
+    fields: {
+      ...flow.fields,
+      accession: { value: "A-42", evidence: "ocr", locked: false },
+    },
   });
-  await render(<VerifiedFieldsForm state={state} warnings={[]} editable {...handlers} />);
+  await render(
+    <VerifiedFieldsForm state={state} warnings={[]} editable {...handlers} />,
+  );
   expect(screen.queryByLabelText("Accession number")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "More details" }));
-  expect(screen.getByLabelText("Accession number").props.defaultValue).toBe("A-42");
+  expect(screen.getByLabelText("Accession number").props.defaultValue).toBe(
+    "A-42",
+  );
   await fireEvent.changeText(screen.getByLabelText("Accession number"), "A-43");
   expect(handlers.onChange).toHaveBeenCalledWith("accession", "A-43");
 });

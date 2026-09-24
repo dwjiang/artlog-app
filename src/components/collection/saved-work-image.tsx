@@ -35,10 +35,11 @@ export function SavedWorkImage({
   const [size, setSize] = useState<{ width: number; height: number }>();
   const { fontScale } = useWindowDimensions();
   const frame = StyleSheet.flatten(style);
-  const width = size?.width ?? (typeof frame?.width === "number" ? frame.width : 0);
+  const width =
+    size?.width ?? (typeof frame?.width === "number" ? frame.width : 0);
   const height =
-    size?.height ??
-    (typeof frame?.height === "number"
+    size?.height
+    ?? (typeof frame?.height === "number"
       ? frame.height
       : typeof frame?.aspectRatio === "number"
         ? width / frame.aspectRatio
@@ -51,7 +52,9 @@ export function SavedWorkImage({
       onLayout={({ nativeEvent }) => {
         const { width, height } = nativeEvent.layout;
         setSize((previous) =>
-          previous?.width === width && previous.height === height ? previous : { width, height },
+          previous?.width === width && previous.height === height
+            ? previous
+            : { width, height },
         );
       }}
     >
@@ -81,7 +84,11 @@ export function SavedWorkImage({
           accessible
           accessibilityRole="image"
           accessibilityLabel={`${title}: ${status.toLowerCase()}`}
-          style={[StyleSheet.absoluteFill, styles.placeholder, compact && { padding: 0 }]}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.placeholder,
+            compact && { padding: 0 },
+          ]}
         >
           <Image
             source="sf:photo"
@@ -102,15 +109,24 @@ export function SavedWorkImage({
         </View>
       )}
       {path && failedPath !== path && loadedPath !== path && (
-        <ImageSkeleton label={`Loading photo: ${title}`} style={StyleSheet.absoluteFill} />
+        <ImageSkeleton
+          label={`Loading photo: ${title}`}
+          style={StyleSheet.absoluteFill}
+        />
       )}
     </View>
   );
 }
 
-function PhotoDownload({ title, compact }: { title: string; compact: boolean }) {
+function PhotoDownload({
+  title,
+  compact,
+}: {
+  title: string;
+  compact: boolean;
+}) {
   const network = useNetworkState();
-  if (network.isConnected === false || network.isInternetReachable === false)
+  if (network.isConnected === false || network.isInternetReachable === false) {
     return (
       <View
         accessible
@@ -131,7 +147,13 @@ function PhotoDownload({ title, compact }: { title: string; compact: boolean }) 
         )}
       </View>
     );
-  return <ImageSkeleton label={`Downloading photo: ${title}`} style={StyleSheet.absoluteFill} />;
+  }
+  return (
+    <ImageSkeleton
+      label={`Downloading photo: ${title}`}
+      style={StyleSheet.absoluteFill}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

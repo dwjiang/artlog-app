@@ -35,8 +35,13 @@ export async function prepareWidgetArtwork(
     if (target.exists && info.exists) {
       try {
         const aspect: unknown = JSON.parse(info.textSync()).aspect;
-        if (typeof aspect === "number" && Number.isFinite(aspect) && aspect > 0)
+        if (
+          typeof aspect === "number"
+          && Number.isFinite(aspect)
+          && aspect > 0
+        ) {
           return { ...artwork, uri: target.uri, aspect };
+        }
       } catch {
         /* Rebuild incomplete cached metadata from the original photo. */
       }
@@ -44,14 +49,24 @@ export async function prepareWidgetArtwork(
     let loaded: Awaited<ReturnType<typeof Image.loadAsync>> | undefined;
     let context: ReturnType<typeof ImageManipulator.manipulate> | undefined;
     let image:
-      | Awaited<ReturnType<ReturnType<typeof ImageManipulator.manipulate>["renderAsync"]>>
+      | Awaited<
+          ReturnType<
+            ReturnType<typeof ImageManipulator.manipulate>["renderAsync"]
+          >
+        >
       | undefined;
     try {
-      loaded = await Image.loadAsync(source.uri, { maxWidth: 1024, maxHeight: 1024 });
+      loaded = await Image.loadAsync(source.uri, {
+        maxWidth: 1024,
+        maxHeight: 1024,
+      });
       if (!loaded.width || !loaded.height) continue;
       context = ImageManipulator.manipulate(loaded);
       image = await context.renderAsync();
-      const result = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
+      const result = await image.saveAsync({
+        format: SaveFormat.JPEG,
+        compress: 0.9,
+      });
       if (target.exists) target.delete();
       new File(result.uri).move(target);
       const aspect = loaded.width / loaded.height;
@@ -85,11 +100,19 @@ export function writeWidgetManifest(entries: WidgetPresentation[]) {
 
 export function pruneWidgetImages(artworks: PreparedWidgetArtwork[]) {
   const keep = new Set(
-    artworks.flatMap((artwork) => [artwork.uri, artwork.uri.replace(/\.jpg$/, ".json")]),
+    artworks.flatMap((artwork) => [
+      artwork.uri,
+      artwork.uri.replace(/\.jpg$/, ".json"),
+    ]),
   );
   for (const file of directory().list()) {
-    if (file instanceof File && /^[a-f0-9]{64}\.(jpg|json)$/.test(file.name) && !keep.has(file.uri))
+    if (
+      file instanceof File
+      && /^[a-f0-9]{64}\.(jpg|json)$/.test(file.name)
+      && !keep.has(file.uri)
+    ) {
       file.delete();
+    }
   }
 }
 

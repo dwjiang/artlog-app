@@ -31,16 +31,23 @@ export function runMuseumSearchForScan(input: {
     if (latest?.museumSearch?.stage === "confirmed") {
       const flow = await restoreConfirmedMuseumFlow(latest);
       return flow
-        ? { stage: "done" as const, flow, confirmedAt: latest.museumSearch.updatedAt }
+        ? {
+            stage: "done" as const,
+            flow,
+            confirmedAt: latest.museumSearch.updatedAt,
+          }
         : { stage: "none" as const, reason: "model_error" };
     }
     return runMuseumSearch({
       ...input,
       stored:
-        input.stored ??
-        (latest?.museumSearch?.stage === "exhibitions" ? latest.museumSearch : undefined),
+        input.stored
+        ?? (latest?.museumSearch?.stage === "exhibitions"
+          ? latest.museumSearch
+          : undefined),
       api: {
-        searchExhibitions: (args) => convex.action(api.museumSearch.searchExhibitions, args),
+        searchExhibitions: (args) =>
+          convex.action(api.museumSearch.searchExhibitions, args),
         confirmSearchCandidate: (args) =>
           convex.action(api.museumSearch.confirmSearchCandidate, args),
       },

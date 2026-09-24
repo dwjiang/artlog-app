@@ -26,14 +26,23 @@ export function useSocialQuery<Q extends Query>(
   const requests = useMemo(
     () =>
       enabled
-        ? { [key]: { query: makeFunctionReference<"query">(name), args: JSON.parse(serialized) } }
+        ? {
+            [key]: {
+              query: makeFunctionReference<"query">(name),
+              args: JSON.parse(serialized),
+            },
+          }
         : {},
     [enabled, key, name, serialized],
   );
   const results = useQueries(requests);
   // A delivered live result outranks a stale refresh failure; `null` is a valid result, so `??` cannot decide this.
   const live: FunctionReturnType<Q> | Error | undefined = results[key];
-  const result = enabled ? (live !== undefined ? live : retry.error) : undefined;
+  const result = enabled
+    ? live !== undefined
+      ? live
+      : retry.error
+    : undefined;
   useEffect(() => {
     if (result instanceof Error) reportError(result, `social.query.${name}`);
   }, [result, name]);
@@ -55,24 +64,30 @@ export function useCursorPages<Q extends Query, T>(
   const name = getFunctionName(query),
     serialized = JSON.stringify(args);
   const key = `${scope}:${name}:${serialized}`;
-  const [state, setState] = useState({ key, cursors: [null] as (string | null)[] });
+  const [state, setState] = useState({
+    key,
+    cursors: [null] as (string | null)[],
+  });
   const current = state.key === key ? state : { key, cursors: [null] };
   if (state.key !== key) setState(current);
   const retry = useQueryRefresh(
     query,
-    args === "skip" ? "skip" : ({ ...args, cursor: null, limit: 10 } as FunctionArgs<Q>),
+    args === "skip"
+      ? "skip"
+      : ({ ...args, cursor: null, limit: 10 } as FunctionArgs<Q>),
     scope,
   );
   const enabled = args !== "skip" && !retry.refreshing;
   const queries = useMemo(() => {
     const requests: RequestForQueries = {};
-    if (enabled)
+    if (enabled) {
       current.cursors.forEach((cursor, index) => {
         requests[`${key}:${index}:${cursor}`] = {
           query: makeFunctionReference<"query">(name),
           args: { ...JSON.parse(serialized), cursor, limit: 10 },
         };
       });
+    }
     return requests;
   }, [enabled, key, name, serialized, current.cursors]);
   const results = useQueries(queries);
@@ -80,23 +95,35 @@ export function useCursorPages<Q extends Query, T>(
     current.cursors,
     current.cursors.map((cursor, index) => {
       const result = results[`${key}:${index}:${cursor}`];
-      return enabled ? (result !== undefined ? result : retry.error) : undefined;
+      return enabled
+        ? result !== undefined
+          ? result
+          : retry.error
+        : undefined;
     }),
     select,
     identify,
   );
   if (enabled && live.validLength < current.cursors.length) {
-    setState({ ...current, cursors: current.cursors.slice(0, live.validLength) });
+    setState({
+      ...current,
+      cursors: current.cursors.slice(0, live.validLength),
+    });
   }
   // A refresh drops the live subscription so it resubscribes fresh; the pages delivered before it stay on screen
   // until the new subscription answers, so a pull-to-refresh never blanks the list.
   const [held, setHeld] = useState<{ key: string; pages: typeof live }>();
   const stale =
-    held !== undefined &&
-    (held.key !== key || args === "skip" || live.first !== undefined || live.error !== undefined);
+    held !== undefined
+    && (held.key !== key
+      || args === "skip"
+      || live.first !== undefined
+      || live.error !== undefined);
   if (stale) setHeld(undefined);
   const holding = held && !stale ? held.pages : undefined;
-  const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
+  const pages = holding
+    ? { ...live, items: holding.items, first: holding.first }
+    : live;
   const refreshing = retry.refreshing || holding !== undefined;
   useEffect(() => {
     if (pages.error) reportError(pages.error, `social.query.${name}`);
@@ -106,17 +133,20 @@ export function useCursorPages<Q extends Query, T>(
     refreshing,
     loading: args !== "skip" && (pages.loading || refreshing),
     refresh: () => {
-      if (!refreshing && live.first !== undefined) setHeld({ key, pages: live });
+      if (!refreshing && live.first !== undefined) {
+        setHeld({ key, pages: live });
+      }
       setState({ key, cursors: [null] });
       retry.refresh();
     },
     loadMore: () => {
-      if (enabled && pages.canLoadMore)
+      if (enabled && pages.canLoadMore) {
         setState((previous) =>
           previous.key === key && !previous.cursors.includes(pages.next!)
             ? { ...previous, cursors: [...previous.cursors, pages.next!] }
             : previous,
         );
+      }
     },
   };
 }

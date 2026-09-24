@@ -14,7 +14,10 @@ import { delimiter, join } from "node:path";
 import process from "node:process";
 import { afterEach, beforeEach, test } from "node:test";
 
-const settings = readFileSync(new URL("./settings.toml", import.meta.url), "utf8");
+const settings = readFileSync(
+  new URL("./settings.toml", import.meta.url),
+  "utf8",
+);
 const archive = settings.match(/^archive = '''\n([\s\S]*?)'''/m)?.[1];
 const source = new URL("./archive-workspace.cjs", import.meta.url).pathname;
 let directory: string;
@@ -87,11 +90,13 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
       ),
       TEST_DEVICES: JSON.stringify({
         devices: {
-          "com.apple.CoreSimulator.SimRuntime.iOS-26-5": names.map((name, index) => ({
-            udid: `device-${index}`,
-            name,
-            state: "Booted",
-          })),
+          "com.apple.CoreSimulator.SimRuntime.iOS-26-5": names.map(
+            (name, index) => ({
+              udid: `device-${index}`,
+              name,
+              state: "Booted",
+            }),
+          ),
         },
       }),
       ...env,
@@ -112,7 +117,9 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
     shutdowns: calls
       .filter((call) => call[0] === "xcrun" && call[2] === "shutdown")
       .map((call) => call.slice(1)),
-    windows: calls.filter((call) => call[0] === "osascript").flatMap((call) => call.slice(3)),
+    windows: calls
+      .filter((call) => call[0] === "osascript")
+      .flatMap((call) => call.slice(3)),
   };
 }
 
@@ -128,7 +135,10 @@ test("shuts down only this workspace’s named simulators, including purpose suf
     ["simctl", "shutdown", "device-0"],
     ["simctl", "shutdown", "device-1"],
   ]);
-  assert.deepEqual(result.windows, ["Artlog Ndjamena", "Artlog ndjamena Review"]);
+  assert.deepEqual(result.windows, [
+    "Artlog Ndjamena",
+    "Artlog ndjamena Review",
+  ]);
 });
 
 test("keeps similarly named workspaces and versioned workspaces running", () => {
@@ -144,7 +154,11 @@ test("keeps similarly named workspaces and versioned workspaces running", () => 
 
 test("accepts spaces and hyphens in multiword workspace names", () => {
   const result = runArchive(
-    ["Artlog Addis Ababa Guest Capture", "Artlog addis-ababa", "Artlog Addis Ababa-v1"],
+    [
+      "Artlog Addis Ababa Guest Capture",
+      "Artlog addis-ababa",
+      "Artlog Addis Ababa-v1",
+    ],
     {
       CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/addis-ababa",
     },
@@ -155,7 +169,12 @@ test("accepts spaces and hyphens in multiword workspace names", () => {
 
 test("also matches the Conductor workspace name after a rename", () => {
   const result = runArchive(
-    ["Artlog Guest Capture", "Artlog Ndjamena", "Artlog Guest Capture-v1", "Artlog Sanaa"],
+    [
+      "Artlog Guest Capture",
+      "Artlog Ndjamena",
+      "Artlog Guest Capture-v1",
+      "Artlog Sanaa",
+    ],
     {
       CONDUCTOR_WORKSPACE_NAME: "guest-capture",
     },
@@ -168,7 +187,10 @@ test("also matches the Conductor workspace name after a rename", () => {
 });
 
 test("does nothing for cloud workspaces or absent ownership information", () => {
-  for (const env of [{ CONDUCTOR_IS_LOCAL: "0" }, { CONDUCTOR_WORKSPACE_PATH: "" }]) {
+  for (const env of [
+    { CONDUCTOR_IS_LOCAL: "0" },
+    { CONDUCTOR_WORKSPACE_PATH: "" },
+  ]) {
     const result = runArchive(["Artlog Ndjamena"], env);
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(
@@ -288,14 +310,27 @@ test("stops workspace dev servers on arbitrary ports while preserving sibling se
     workspace,
     "node /app/node_modules/.bin/expo start --port 8199",
   );
-  const runner = await startProcess(workspace, "npm start --dev-client --port 8199");
+  const runner = await startProcess(
+    workspace,
+    "npm start --dev-client --port 8199",
+  );
   const backend = await startProcess(
     join(workspace, "backend"),
     "node /app/node_modules/.bin/convex dev",
   );
-  const sibling = await startProcess(`${workspace}-v1`, "node /app/node_modules/.bin/expo start");
-  const tooling = await startProcess(workspace, "node /app/node_modules/.bin/convex mcp start");
-  const exits = [once(server, "exit"), once(runner, "exit"), once(backend, "exit")];
+  const sibling = await startProcess(
+    `${workspace}-v1`,
+    "node /app/node_modules/.bin/expo start",
+  );
+  const tooling = await startProcess(
+    workspace,
+    "node /app/node_modules/.bin/convex mcp start",
+  );
+  const exits = [
+    once(server, "exit"),
+    once(runner, "exit"),
+    once(backend, "exit"),
+  ];
   symlinkSync(workspace, join(directory, "workspace-link"));
   const result = runArchive([], {
     TEST_REAL_PROCESSES: "1",
@@ -314,7 +349,11 @@ test("stops workspace dev servers on arbitrary ports while preserving sibling se
 
 test("escalates unresponsive dev servers and still cleans up when Xcode fails", async () => {
   const workspace = join(directory, "workspace");
-  const server = await startProcess(workspace, "node /app/node_modules/expo/bin/cli run:ios", true);
+  const server = await startProcess(
+    workspace,
+    "node /app/node_modules/expo/bin/cli run:ios",
+    true,
+  );
   const exit = once(server, "exit");
   const result = runArchive([], {
     TEST_REAL_PROCESSES: "1",

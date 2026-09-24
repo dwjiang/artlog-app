@@ -8,16 +8,20 @@ export function venueLocation(venue: VenueRow) {
     ? undefined
     : (regions as Record<string, Region>)[venue.region];
   const country =
-    venue.country ||
-    region?.country ||
-    (venue.region.startsWith("country:") ? venue.region.slice(8) : undefined);
+    venue.country
+    || region?.country
+    || (venue.region.startsWith("country:")
+      ? venue.region.slice(8)
+      : undefined);
   return {
     country,
     regionName: region?.name,
     regionKey: region ? `region:${venue.region}` : undefined,
-    location: [...new Set([venue.city || region?.name, countryName(country)].filter(Boolean))].join(
-      ", ",
-    ),
+    location: [
+      ...new Set(
+        [venue.city || region?.name, countryName(country)].filter(Boolean),
+      ),
+    ].join(", "),
   };
 }
 export function regionSearchNames(): [string, string][] {

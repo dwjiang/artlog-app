@@ -33,7 +33,11 @@ import { markFailed, selectCaptureForScan } from "@/db/repos/pending-scans";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { useMuseumSearch } from "@/lib/museum-search/use-museum-search";
-import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from "@/lib/result/feedback";
+import {
+  handOffLabelRejection,
+  rejectMatch,
+  resolveWithRunnerUp,
+} from "@/lib/result/feedback";
 import { draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import {
   toResultViewState,
@@ -54,7 +58,7 @@ const LOCAL_PREFIX = "local-";
 export function ResultScreen({ scanId, manual = false }: ResultScreenProps) {
   const owner = useLocalOwner();
   // The router reuses this screen for a new scan id; the key drops the previous card's draft, save and feedback state.
-  if (scanId.startsWith(LOCAL_PREFIX))
+  if (scanId.startsWith(LOCAL_PREFIX)) {
     return (
       <LocalScanScreen
         key={`${owner}:${scanId}:${manual}`}
@@ -62,6 +66,7 @@ export function ResultScreen({ scanId, manual = false }: ResultScreenProps) {
         manual={manual}
       />
     );
+  }
   return (
     <ScanResultScreen
       key={`${owner}:${scanId}:${manual}`}
@@ -73,7 +78,13 @@ export function ResultScreen({ scanId, manual = false }: ResultScreenProps) {
 
 type Sheet = { open: boolean; notice?: string };
 
-function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startManual: boolean }) {
+function ScanResultScreen({
+  scanId,
+  startManual,
+}: {
+  scanId: Id<"scans">;
+  startManual: boolean;
+}) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
@@ -97,26 +108,38 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   const [editingCrop, setEditingCrop] = useState(false);
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
-  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
+  const {
+    saving,
+    savedId,
+    completion,
+    error: saveError,
+    save,
+  } = useSaveResult();
   // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
   const rejection = useRef<Promise<Id<"feedback"> | null>>(undefined);
   const view: ResultViewState = manual
     ? { kind: "unidentified", editable: true, runnerUps: [] }
     : toResultViewState(scan, selection);
   const showMuseumSearch =
-    !manual && !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
+    !manual
+    && !hasEdits
+    && !selection.chosenObjectId
+    && !saving
+    && !savedId
+    && !saveError;
   const museumSearch = useMuseumSearch(
     scan instanceof Error ? undefined : scan,
     isActive && showMuseumSearch && !editingCrop,
   );
 
   useEffect(() => {
-    if (isActive && labelCapture)
+    if (isActive && labelCapture) {
       router.replace({ pathname: "/label/[scanId]", params: { scanId } });
+    }
   }, [isActive, labelCapture, router, scanId]);
 
   function adjustCrop() {
-    if (hasEdits)
+    if (hasEdits) {
       Alert.alert(
         "Adjust this crop?",
         "Recognition will run again. Unsaved artwork details will be discarded.",
@@ -131,7 +154,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           },
         ],
       );
-    else setEditingCrop(true);
+    } else setEditingCrop(true);
   }
 
   function openLabel() {
@@ -149,15 +172,21 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
     if (!primary) return;
     setSelection((current) => ({
       ...current,
-      rejectedObjectIds: [...(current.rejectedObjectIds ?? []), primary.objectId],
+      rejectedObjectIds: [
+        ...(current.rejectedObjectIds ?? []),
+        primary.objectId,
+      ],
     }));
     setSheet({ open: true });
     rejection.current = rejectMatch(client, scanId, primary.objectId).then(
       (feedbackId) => {
-        if (!feedbackId)
+        if (!feedbackId) {
           setSheet((current) =>
-            current.open ? { ...current, notice: "This device can’t send feedback yet." } : current,
+            current.open
+              ? { ...current, notice: "This device can’t send feedback yet." }
+              : current,
           );
+        }
         return feedbackId;
       },
       (error: unknown) => {
@@ -167,7 +196,8 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           current.open
             ? {
                 ...current,
-                notice: "Couldn’t record your feedback, but you can still pick a work.",
+                notice:
+                  "Couldn’t record your feedback, but you can still pick a work.",
               }
             : current,
         );
@@ -177,14 +207,19 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   }
 
   function pickRunnerUp(candidate: ResultCandidate) {
-    setSelection((current) => ({ ...current, chosenObjectId: candidate.objectId }));
+    setSelection((current) => ({
+      ...current,
+      chosenObjectId: candidate.objectId,
+    }));
     setSheet({ open: false });
     const pending = rejection.current;
     if (!pending) return;
     rejection.current = undefined;
     void pending
       .then(
-        (feedbackId) => feedbackId && resolveWithRunnerUp(client, feedbackId, candidate.objectId),
+        (feedbackId) =>
+          feedbackId
+          && resolveWithRunnerUp(client, feedbackId, candidate.objectId),
       )
       .catch((error: unknown) => {
         reportError(error, "result.resolve_feedback");
@@ -201,30 +236,49 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       void save({ scanId, capture, view, draft });
     },
     onViewSaved: () =>
-      router.push({ pathname: "/saved/[savedId]", params: { savedId: savedId ?? "" } }),
+      router.push({
+        pathname: "/saved/[savedId]",
+        params: { savedId: savedId ?? "" },
+      }),
   };
 
-  if (editingCrop && capture)
-    return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
-  if (labelCapture)
+  if (editingCrop && capture) {
+    return (
+      <ScanCropEditor
+        capture={capture}
+        onCancel={() => setEditingCrop(false)}
+      />
+    );
+  }
+  if (labelCapture) {
     return (
       <ThemedView style={styles.container}>
-        <LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} />
+        <LoadingRing
+          accessibilityLabel="Opening your label…"
+          style={{ flex: 1 }}
+        />
       </ThemedView>
     );
+  }
   if (completion) return <CaptureCompletion completion={completion} />;
 
   const showCard =
-    view.editable &&
-    (!showMuseumSearch ||
-      (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
+    view.editable
+    && (!showMuseumSearch
+      || (!museumSearch.flow
+        && !museumSearch.restoring
+        && !museumSearch.restoreError));
   const header = (
     <CardHeader
-      cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined}
+      cropUri={
+        capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined
+      }
       artworkTitle={view.primary?.title}
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
-      onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined}
+      onNotRight={
+        showCard && view.primary && !saving && !savedId ? notRight : undefined
+      }
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
@@ -235,13 +289,17 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   );
   const search =
     view.editable && showMuseumSearch ? (
-      <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />
+      <MuseumSearchSection
+        search={museumSearch}
+        scanId={scanId}
+        capture={capture}
+      />
     ) : undefined;
   const searchIdle =
-    !museumSearch.running &&
-    !museumSearch.flow &&
-    !museumSearch.restoring &&
-    !museumSearch.restoreError;
+    !museumSearch.running
+    && !museumSearch.flow
+    && !museumSearch.restoring
+    && !museumSearch.restoreError;
   return (
     <ThemedView style={styles.container}>
       {showCard ? (
@@ -253,8 +311,14 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           context={photoError}
           search={search}
           visit={
-            capture &&
-            !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />
+            capture
+            && !savedId && (
+              <CaptureContextButton
+                capture={capture}
+                disabled={saving}
+                variant="row"
+              />
+            )
           }
           onSearchMuseum={
             showMuseumSearch && museumSearch.available && searchIdle
@@ -267,7 +331,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           onPick={pickRunnerUp}
           onEdit={() => setHasEdits(true)}
           onLabel={openLabel}
-          savePhotoOnly={view.kind !== "confident" && !hasEdits && !selection.chosenObjectId}
+          savePhotoOnly={
+            view.kind !== "confident" && !hasEdits && !selection.chosenObjectId
+          }
           onSavePhoto={() => {
             void save({ scanId, capture, draft: draftFromCandidate() });
           }}
@@ -281,11 +347,16 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           contentContainerStyle={styles.content}
         >
           {header}
-          {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
+          {capture && !savedId && (
+            <CaptureContextButton capture={capture} disabled={saving} />
+          )}
           {photoError}
           {view.kind === "loading" && (
             <View style={styles.loading} accessibilityState={{ busy: true }}>
-              <LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" />
+              <LoadingRing
+                color={Colors.light.accent}
+                accessibilityLabel="Identifying…"
+              />
             </View>
           )}
           {view.kind === "unsupported" && <UnsupportedCard {...saveProps} />}
@@ -315,7 +386,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
                           )
                           .catch((error: unknown) => {
                             reportError(error, "queue.retry");
-                            setRetryError("Couldn’t retry. Your photo is still here.");
+                            setRetryError(
+                              "Couldn’t retry. Your photo is still here.",
+                            );
                           })
                           .finally(() => setRetrying(false));
                       }
@@ -385,6 +458,11 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16, gap: Spacing.two },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 16,
+    gap: Spacing.two,
+  },
   loading: { gap: Spacing.two },
 });

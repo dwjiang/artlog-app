@@ -16,7 +16,10 @@ function cborText(text: string): Uint8Array {
   return concat(Uint8Array.from([0x60 | bytes.length]), bytes);
 }
 
-export function encodeAssertion(signature: Uint8Array, authenticatorData: Uint8Array): Uint8Array {
+export function encodeAssertion(
+  signature: Uint8Array,
+  authenticatorData: Uint8Array,
+): Uint8Array {
   return concat(
     Uint8Array.from([0xa2]),
     cborText("signature"),
@@ -28,7 +31,9 @@ export function encodeAssertion(signature: Uint8Array, authenticatorData: Uint8A
 
 function derInteger(bytes: Uint8Array): Uint8Array {
   let body = bytes;
-  while (body.length > 1 && body[0] === 0 && !(body[1] & 0x80)) body = body.slice(1);
+  while (body.length > 1 && body[0] === 0 && !(body[1] & 0x80)) {
+    body = body.slice(1);
+  }
   if (body[0] & 0x80) body = concat(Uint8Array.from([0]), body);
   return concat(Uint8Array.from([0x02, body.length]), body);
 }
@@ -38,7 +43,10 @@ export function rawToDer(raw: Uint8Array): Uint8Array {
   return concat(Uint8Array.from([0x30, body.length]), body);
 }
 
-export function authenticatorData(rpIdHash: Uint8Array, counter: number): Uint8Array {
+export function authenticatorData(
+  rpIdHash: Uint8Array,
+  counter: number,
+): Uint8Array {
   const out = new Uint8Array(37);
   out.set(rpIdHash);
   out[32] = 0x40;
@@ -49,12 +57,18 @@ export function authenticatorData(rpIdHash: Uint8Array, counter: number): Uint8A
 export type Signer = { privateKey: CryptoKey; publicKeySpkiBase64: string };
 
 export async function makeSigner(): Promise<Signer> {
-  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
-  return { privateKey: pair.privateKey, publicKeySpkiBase64: bytesToBase64(spki) };
+  const pair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const spki = new Uint8Array(
+    await crypto.subtle.exportKey("spki", pair.publicKey),
+  );
+  return {
+    privateKey: pair.privateKey,
+    publicKeySpkiBase64: bytesToBase64(spki),
+  };
 }
 
 export async function signAssertion(

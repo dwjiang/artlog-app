@@ -7,7 +7,10 @@ let generation = 0;
 let ownerGeneration = 0;
 const listeners = new Set<() => void>();
 const ownerListeners = new Set<() => void>();
-export function initializeOwner(installationId: string, restoredOwner?: string): void {
+export function initializeOwner(
+  installationId: string,
+  restoredOwner?: string,
+): void {
   installationOwner = `device:${installationId}`;
   activeOwner = restoredOwner ?? installationOwner;
   ownerGeneration++;

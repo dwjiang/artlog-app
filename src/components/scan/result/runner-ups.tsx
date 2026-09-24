@@ -41,14 +41,22 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
             <View style={styles.text}>
               <ThemedText>{candidate.title}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[candidate.artist, candidate.institution].filter(Boolean).join(" · ")}
+                {[candidate.artist, candidate.institution]
+                  .filter(Boolean)
+                  .join(" · ")}
               </ThemedText>
               {confidence && (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.confidence}>
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  style={styles.confidence}
+                >
                   {confidence}
                 </ThemedText>
               )}
-              {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
+              {candidate.identityStatus === "tentative" && (
+                <TentativeOriginNotice />
+              )}
             </View>
             <Image
               source="sf:chevron.right"
@@ -79,7 +87,10 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: Colors.light.backgroundElement,
   },
-  placeholder: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  placeholder: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.separator,
+  },
   text: { flex: 1, gap: Spacing.half },
   confidence: { fontVariant: ["tabular-nums"] },
 });

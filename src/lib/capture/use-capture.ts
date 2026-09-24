@@ -6,7 +6,14 @@ import type { ImageRef } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AccessibilityInfo } from "react-native";
 
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
@@ -19,7 +26,12 @@ import { captureOptions, defaultStages } from "./default-stages";
 import { extractCaptureMeta } from "./exif";
 import { runCapture } from "./pipeline";
 import { PresentationImages } from "./presentation-images";
-import type { CaptureInput, CaptureResult, CaptureTimings, PreparedPainting } from "./stages";
+import type {
+  CaptureInput,
+  CaptureResult,
+  CaptureTimings,
+  PreparedPainting,
+} from "./stages";
 
 export type CapturePresentation = {
   attempt: CaptureAttempt;
@@ -29,7 +41,10 @@ export type CapturePresentation = {
   painting?: PreparedPainting;
   crop?: ImageRef;
 };
-type Completed = { attempt: CaptureAttempt; result: Exclude<CaptureResult, { kind: "retake" }> };
+type Completed = {
+  attempt: CaptureAttempt;
+  result: Exclude<CaptureResult, { kind: "retake" }>;
+};
 type VenueContext = Pick<CaptureInput, "venueId" | "visitId" | "visitLocalId">;
 
 /** `visitLocalId` pins every capture to that visit; `onVisitUnavailable` runs when it no longer exists so the caller can drop it. */
@@ -56,7 +71,10 @@ export function useCapture({
     navigation.current = router;
   }, [router]);
   const controller = useMemo(() => new CaptureController(), []);
-  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const state = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+  );
   const mounted = useRef(true);
   const images = useRef<PresentationImages | undefined>(undefined);
   const pendingResult = useRef<Completed | undefined>(undefined);
@@ -80,12 +98,13 @@ export function useCapture({
   const navigate = useCallback(() => {
     const pending = pendingResult.current;
     if (
-      !mounted.current ||
-      !pending ||
-      !revealFinished.current ||
-      !controller.result(pending.attempt)
-    )
+      !mounted.current
+      || !pending
+      || !revealFinished.current
+      || !controller.result(pending.attempt)
+    ) {
       return;
+    }
     pendingResult.current = undefined;
     navigation.current.push({
       pathname: "/result/[scanId]",
@@ -137,7 +156,8 @@ export function useCapture({
   ) {
     if (!attempt) return;
     const owner = captureOwner();
-    const current = () => mounted.current && attempt.valid && owner.isOwnerCurrent();
+    const current = () =>
+      mounted.current && attempt.valid && owner.isOwnerCurrent();
     releasePresentation();
     revealFinished.current = false;
     pendingResult.current = undefined;
@@ -150,7 +170,9 @@ export function useCapture({
         if (!current()) return;
         if (!visit) {
           onVisitUnavailable?.();
-          throw new Error("This visit is no longer available. Scan again to continue without it.");
+          throw new Error(
+            "This visit is no longer available. Scan again to continue without it.",
+          );
         }
         chosen = {
           visitLocalId: visit.localId,
@@ -168,10 +190,15 @@ export function useCapture({
       controller.processing(attempt);
       const retained = new PresentationImages();
       images.current = retained;
-      setPresentation({ attempt, photoUri: input.photoUri, source: input.source });
+      setPresentation({
+        attempt,
+        photoUri: input.photoUri,
+        source: input.source,
+      });
       const photoReady = retained.load(input.photoUri).then((photo) => {
-        if (current() && photo && images.current === retained)
+        if (current() && photo && images.current === retained) {
           setPresentation((value) => value && { ...value, photo });
+        }
         return photo;
       });
       const context = chosen ?? (await resolveContext?.(input));
@@ -181,7 +208,10 @@ export function useCapture({
         {
           ...defaultStages,
           onPrepared: async (painting) => {
-            const [photo, crop] = await Promise.all([photoReady, retained.load(painting.cropUri)]);
+            const [photo, crop] = await Promise.all([
+              photoReady,
+              retained.load(painting.cropUri),
+            ]);
             if (!current() || images.current !== retained) return;
             if (!photo || !crop) {
               releasePresentation();
@@ -207,7 +237,9 @@ export function useCapture({
             scope,
             ...payload
           }) => {
-            if (!scope || !owner.isCurrent()) throw new Error("Journal owner changed");
+            if (!scope || !owner.isCurrent()) {
+              throw new Error("Journal owner changed");
+            }
             return identify({ ...payload, scope });
           },
           isOnline: () => online.current !== false,
@@ -220,8 +252,13 @@ export function useCapture({
       setTimings(result.timings);
       if (result.kind === "retake") {
         releasePresentation();
-        if (input.source === "library")
-          setPresentation({ attempt, photoUri: input.photoUri, source: "library" });
+        if (input.source === "library") {
+          setPresentation({
+            attempt,
+            photoUri: input.photoUri,
+            source: "library",
+          });
+        }
         controller.fail(attempt, result.message);
       } else {
         pendingResult.current = { attempt, result };
@@ -259,7 +296,12 @@ export function useCapture({
       async () => {
         const capturedAt = Date.now();
         const { filePath } = await takePhoto();
-        return { photoUri: `file://${filePath}`, quad: attempt.quad, source: "camera", capturedAt };
+        return {
+          photoUri: `file://${filePath}`,
+          quad: attempt.quad,
+          source: "camera",
+          capturedAt,
+        };
       },
       attempt,
       (input) => resolveVenueForScan(input.capturedAt),
@@ -275,13 +317,17 @@ export function useCapture({
     attempt: CaptureAttempt,
     takePhoto: () => Promise<{ filePath: string }>,
   ) {
-    AccessibilityInfo.announceForAccessibility("Artwork captured automatically.");
+    AccessibilityInfo.announceForAccessibility(
+      "Artwork captured automatically.",
+    );
     return captureFromCamera(attempt, takePhoto);
   }
 
   function importPhoto() {
     const previous =
-      state.phase === "retry" && presentation?.source === "library" ? presentation : undefined;
+      state.phase === "retry" && presentation?.source === "library"
+        ? presentation
+        : undefined;
     const previousMessage = state.message;
     const attempt = controller.begin("library");
     if (!attempt) return;
@@ -297,14 +343,24 @@ export function useCapture({
         const photo = result.assets[0];
         const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
         if (lat !== undefined && lng !== undefined) position = { lat, lng };
-        return { photoUri: photo.uri, quad: null, source: "library", capturedAt };
+        return {
+          photoUri: photo.uri,
+          quad: null,
+          source: "library",
+          capturedAt,
+        };
       },
       attempt,
       async () => ({
         venueId: position
           ? await venueIdAt(position).catch((error: unknown) => {
-              reportError(error, "capture.resolve_import_venue", { level: "warning" });
-              console.warn("Could not resolve the venue of the imported photo", error);
+              reportError(error, "capture.resolve_import_venue", {
+                level: "warning",
+              });
+              console.warn(
+                "Could not resolve the venue of the imported photo",
+                error,
+              );
               return undefined;
             })
           : undefined,
@@ -312,7 +368,11 @@ export function useCapture({
       previous
         ? () => {
             controller.fail(attempt, previousMessage!);
-            setPresentation({ attempt, photoUri: previous.photoUri, source: "library" });
+            setPresentation({
+              attempt,
+              photoUri: previous.photoUri,
+              source: "library",
+            });
           }
         : undefined,
     );

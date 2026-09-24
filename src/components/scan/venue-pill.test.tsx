@@ -10,7 +10,9 @@ let mockWorks: { localId: string }[] = [];
 
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "device:test",
+}));
 jest.mock("@/lib/journal/use-visit-works", () => ({
   useVisitWorks: (visitLocalId?: string) => ({
     works: visitLocalId ? mockWorks : [],
@@ -61,7 +63,9 @@ it("keeps the visit count behind a ghost until its artworks are read", async () 
   mockView = view("resolved", legion, visit);
   mockLoading = true;
   const rendered = await render(<VenuePill />);
-  expect(screen.getByLabelText("Loading visit artwork count")).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("Loading visit artwork count"),
+  ).toBeOnTheScreen();
   expect(screen.queryByText("· 0")).toBeNull();
   mockLoading = false;
   await rendered.rerender(<VenuePill />);
@@ -71,7 +75,9 @@ it("keeps the visit count behind a ghost until its artworks are read", async () 
 it("names the museum the phone resolved and opens the visit sheet on tap", async () => {
   mockView = view("resolved", legion);
   await render(<VenuePill />);
-  await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Legion of Honor" }),
+  );
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
 });
 
@@ -80,7 +86,9 @@ it("shows the open visit with its artwork count", async () => {
   mockWorks = [{ localId: "a" }, { localId: "b" }, { localId: "c" }];
   await render(<VenuePill />);
   expect(
-    screen.getByRole("button", { name: "Legion of Honor, visiting now, 3 artworks" }),
+    screen.getByRole("button", {
+      name: "Legion of Honor, visiting now, 3 artworks",
+    }),
   ).toBeOnTheScreen();
   expect(screen.getByText("· 3")).toBeOnTheScreen();
 });
@@ -93,7 +101,9 @@ it("does not count a visit paused away from the resolved venue", async () => {
   );
   mockWorks = [{ localId: "a" }];
   await render(<VenuePill />);
-  expect(screen.getByRole("button", { name: "de Young Museum" })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: "de Young Museum" }),
+  ).toBeOnTheScreen();
   expect(screen.queryByText("· 1")).toBeNull();
 });
 

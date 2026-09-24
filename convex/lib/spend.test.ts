@@ -30,12 +30,18 @@ describe("daily spend", () => {
 
   it("accumulates spend in one row per day", async () => {
     const t = harness();
-    await t.run((ctx) => recordSpend(ctx, { tokenFactoryCalls: 2, tavilyCredits: 1 }));
+    await t.run((ctx) =>
+      recordSpend(ctx, { tokenFactoryCalls: 2, tavilyCredits: 1 }),
+    );
     await t.run((ctx) => recordSpend(ctx, { tokenFactoryCalls: 3 }));
 
     const rows = await t.run((ctx) => ctx.db.query("dailySpend").collect());
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ day: utcDay(), tokenFactoryCalls: 5, tavilyCredits: 1 });
+    expect(rows[0]).toMatchObject({
+      day: utcDay(),
+      tokenFactoryCalls: 5,
+      tavilyCredits: 1,
+    });
     expect(await t.run((ctx) => spentToday(ctx, "tokenFactory"))).toBe(5);
   });
 
@@ -43,10 +49,14 @@ describe("daily spend", () => {
     vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "3");
     const t = harness();
     await t.run((ctx) => recordSpend(ctx, { tokenFactoryCalls: 2 }));
-    await expect(t.run((ctx) => assertUnderCap(ctx, "tokenFactory"))).resolves.toBeNull();
+    await expect(
+      t.run((ctx) => assertUnderCap(ctx, "tokenFactory")),
+    ).resolves.toBeNull();
 
     await t.run((ctx) => recordSpend(ctx, { tokenFactoryCalls: 1 }));
-    await expect(t.run((ctx) => assertUnderCap(ctx, "tokenFactory"))).rejects.toMatchObject({
+    await expect(
+      t.run((ctx) => assertUnderCap(ctx, "tokenFactory")),
+    ).rejects.toMatchObject({
       data: { code: "spend_cap", kind: "tokenFactory", spent: 3, cap: 3 },
     });
   });
@@ -55,7 +65,9 @@ describe("daily spend", () => {
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "20");
     const t = harness();
     await t.run((ctx) => reserveSpend(ctx, "tavily", 15));
-    await expect(t.run((ctx) => reserveSpend(ctx, "tavily", 10))).rejects.toMatchObject({
+    await expect(
+      t.run((ctx) => reserveSpend(ctx, "tavily", 10)),
+    ).rejects.toMatchObject({
       data: { code: "spend_cap", kind: "tavily", spent: 15, cap: 20 },
     });
     await t.run((ctx) => reserveSpend(ctx, "tavily", 5));
@@ -65,7 +77,9 @@ describe("daily spend", () => {
   it("reconciles a reservation to reported usage without double-charging", async () => {
     const t = harness();
     const day = await t.run((ctx) => reserveSpend(ctx, "tavily", 10));
-    await t.run((ctx) => reconcileSpend(ctx, "tavily", { day, reserved: 10, actual: 4 }));
+    await t.run((ctx) =>
+      reconcileSpend(ctx, "tavily", { day, reserved: 10, actual: 4 }),
+    );
     expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(4);
   });
 
@@ -76,7 +90,9 @@ describe("daily spend", () => {
     const day = await t.run((ctx) => reserveSpend(ctx, "tavily", 10));
     vi.setSystemTime(new Date("2026-09-10T00:00:01Z"));
     await t.run((ctx) => reserveSpend(ctx, "tavily", 15));
-    await t.run((ctx) => reconcileSpend(ctx, "tavily", { day, reserved: 10, actual: 4 }));
+    await t.run((ctx) =>
+      reconcileSpend(ctx, "tavily", { day, reserved: 10, actual: 4 }),
+    );
     expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(15);
     const previous = await t.run((ctx) =>
       ctx.db
@@ -99,11 +115,16 @@ describe("daily spend", () => {
     expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(18);
   });
 
-  it.each([-1, NaN, Infinity])("refuses an invalid reservation amount %s", async (amount) => {
-    const t = harness();
-    await expect(t.run((ctx) => reserveSpend(ctx, "tavily", amount))).rejects.toMatchObject({
-      data: { code: "invalid_spend" },
-    });
-    expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(0);
-  });
+  it.each([-1, NaN, Infinity])(
+    "refuses an invalid reservation amount %s",
+    async (amount) => {
+      const t = harness();
+      await expect(
+        t.run((ctx) => reserveSpend(ctx, "tavily", amount)),
+      ).rejects.toMatchObject({
+        data: { code: "invalid_spend" },
+      });
+      expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(0);
+    },
+  );
 });

@@ -1,10 +1,20 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 import type { PreparedWidgetArtwork } from "@/lib/widgets/widget-collection";
-import { paintingLayout, widgetPresentation, type WidgetLayout } from "@/lib/widgets/widget-layout";
+import {
+  paintingLayout,
+  widgetPresentation,
+  type WidgetLayout,
+} from "@/lib/widgets/widget-layout";
 import type { WidgetSettings, WidgetSize } from "@/lib/widgets/widget-settings";
 
-export function WidgetDrawing({ layout, scale = 1 }: { layout: WidgetLayout; scale?: number }) {
+export function WidgetDrawing({
+  layout,
+  scale = 1,
+}: {
+  layout: WidgetLayout;
+  scale?: number;
+}) {
   const position = ({
     x,
     y,
@@ -29,7 +39,10 @@ export function WidgetDrawing({ layout, scale = 1 }: { layout: WidgetLayout; sca
       style={{ width: layout.width * scale, height: layout.height * scale }}
     >
       {layout.rectangles.map((rect, i) => (
-        <View key={i} style={[position(rect), { backgroundColor: rect.color }]} />
+        <View
+          key={i}
+          style={[position(rect), { backgroundColor: rect.color }]}
+        />
       ))}
       {layout.image && (
         <Image
@@ -116,7 +129,11 @@ export function WidgetFrameSample({
         width: 48,
         height: 48,
         texts: [],
-        ...paintingLayout(artwork, { x: 0, y: 0, width: 48, height: 48 }, settings),
+        ...paintingLayout(
+          artwork,
+          { x: 0, y: 0, width: 48, height: 48 },
+          settings,
+        ),
       }}
     />
   );

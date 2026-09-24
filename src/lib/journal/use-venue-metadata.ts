@@ -25,7 +25,11 @@ export function useVenueMetadata(
         for (const id of requestedIds) next.delete(id);
         for (const row of rows) next.set(row.id, row);
       }
-      return { owner, read: new Set([...base.read, ...requestedIds]), rows: next };
+      return {
+        owner,
+        read: new Set([...base.read, ...requestedIds]),
+        rows: next,
+      };
     };
     const refresh = () => {
       void venueMetadataForIds(requestedIds)
@@ -46,7 +50,8 @@ export function useVenueMetadata(
     };
   }, [key, owner]);
   const requested = [...new Set(ids)];
-  const ready = state?.owner === owner && requested.every((id) => state.read.has(id));
+  const ready =
+    state?.owner === owner && requested.every((id) => state.read.has(id));
   return {
     metadata: new Map(
       ready

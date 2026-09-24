@@ -10,7 +10,11 @@ import { mentions } from "./textMatch";
 import { chatJson } from "./tokenFactory";
 import { reportBackendError } from "./observability";
 
-export type ModerationResult = { flagged: boolean; method: "model" | "blocklist"; calls: number };
+export type ModerationResult = {
+  flagged: boolean;
+  method: "model" | "blocklist";
+  calls: number;
+};
 
 // Personal-information shapes a wall label never carries; accession numbers and years do not match.
 const PII_PATTERNS = [
@@ -43,19 +47,23 @@ export function blocklistTerms(): string[] {
 
 export function blocklistFlags(text: string): boolean {
   return (
-    PII_PATTERNS.some((pattern) => pattern.test(text)) ||
-    blocklistTerms().some((term) => mentions(text, term))
+    PII_PATTERNS.some((pattern) => pattern.test(text))
+    || blocklistTerms().some((term) => mentions(text, term))
   );
 }
 
-export async function checkText(values: (string | null | undefined)[]): Promise<ModerationResult> {
+export async function checkText(
+  values: (string | null | undefined)[],
+): Promise<ModerationResult> {
   const text = values
     .map((value) => value?.trim() ?? "")
     .filter(Boolean)
     .join("\n");
   if (!text) return { flagged: false, method: "blocklist", calls: 0 };
   const model = process.env.MODERATION_MODEL;
-  if (!model) return { flagged: blocklistFlags(text), method: "blocklist", calls: 0 };
+  if (!model) {
+    return { flagged: blocklistFlags(text), method: "blocklist", calls: 0 };
+  }
   try {
     const { value, calls } = await chatJson({
       model,
@@ -70,8 +78,13 @@ export async function checkText(values: (string | null | undefined)[]): Promise<
   } catch (error) {
     await reportBackendError(error, "moderation.checkText");
     const calls =
-      error instanceof ConvexError && typeof error.data.calls === "number" ? error.data.calls : 0;
-    console.warn("Moderation model unavailable; falling back to the blocklist", error);
+      error instanceof ConvexError && typeof error.data.calls === "number"
+        ? error.data.calls
+        : 0;
+    console.warn(
+      "Moderation model unavailable; falling back to the blocklist",
+      error,
+    );
     return { flagged: blocklistFlags(text), method: "blocklist", calls };
   }
 }

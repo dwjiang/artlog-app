@@ -10,7 +10,11 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { wholePhoto } from "@/lib/capture/crop-geometry";
-import { discardEditedCrop, prepareEditedCrop, type EditedCrop } from "@/lib/capture/edit-crop";
+import {
+  discardEditedCrop,
+  prepareEditedCrop,
+  type EditedCrop,
+} from "@/lib/capture/edit-crop";
 import { selectCaptureQuad } from "@/lib/capture/rectangle";
 import type { Quad } from "@/lib/capture/stages";
 import { captureFileUri } from "@/lib/files/photos";
@@ -31,7 +35,9 @@ export function CropEditor({
   const [size, setSize] = useState<{ width: number; height: number }>();
   const [corners, setCorners] = useState<Quad>(wholePhoto);
   const [preview, setPreview] = useState<EditedCrop>();
-  const [busy, setBusy] = useState<"loading" | "preview" | "saving" | undefined>("loading");
+  const [busy, setBusy] = useState<
+    "loading" | "preview" | "saving" | undefined
+  >("loading");
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const active = useRef(false),
@@ -55,12 +61,18 @@ export function CropEditor({
           });
         if (cancelled) return;
         setSize({ width: photo.width, height: photo.height });
-        setCorners(detected ? (selectCaptureQuad(null, detected) ?? wholePhoto) : wholePhoto);
+        setCorners(
+          detected
+            ? (selectCaptureQuad(null, detected) ?? wholePhoto)
+            : wholePhoto,
+        );
         setBusy(undefined);
       } catch (error) {
         if (!cancelled) reportError(error, "capture.open_crop");
         if (!cancelled) {
-          setError("Couldn’t open the full photo. Try again once it is on this iPhone.");
+          setError(
+            "Couldn’t open the full photo. Try again once it is on this iPhone.",
+          );
           setBusy(undefined);
         }
       } finally {
@@ -93,7 +105,11 @@ export function CropEditor({
       setPreview(crop);
     } catch (error) {
       if (active.current) reportError(error, "capture.preview_crop");
-      if (active.current) setError("Couldn’t prepare this crop. Adjust the corners and try again.");
+      if (active.current) {
+        setError(
+          "Couldn’t prepare this crop. Adjust the corners and try again.",
+        );
+      }
     } finally {
       working.current = false;
       if (active.current) setBusy(undefined);
@@ -114,15 +130,20 @@ export function CropEditor({
       await onSave(preview, () => active.current);
     } catch (error) {
       if (active.current) reportError(error, "capture.save_crop");
-      if (active.current)
-        setError("Couldn’t save this crop. Your previous crop is still available. Try again.");
+      if (active.current) {
+        setError(
+          "Couldn’t save this crop. Your previous crop is still available. Try again.",
+        );
+      }
     } finally {
       working.current = false;
       if (active.current) setBusy(undefined);
     }
   }
   return (
-    <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+    <View
+      style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 16) }]}
+    >
       <Text style={styles.instructions}>
         {preview
           ? "Check the painting before saving."
@@ -138,15 +159,30 @@ export function CropEditor({
           />
         </View>
       ) : size ? (
-        <CropCorners uri={uri} size={size} corners={corners} onChange={setCorners} />
+        <CropCorners
+          uri={uri}
+          size={size}
+          corners={corners}
+          onChange={setCorners}
+        />
       ) : (
         <View style={styles.loading}>
-          <Text>{busy === "loading" ? "Opening full photo…" : "Full photo unavailable"}</Text>
+          <Text>
+            {busy === "loading"
+              ? "Opening full photo…"
+              : "Full photo unavailable"}
+          </Text>
         </View>
       )}
-      <ScrollView style={{ flexGrow: 0, maxHeight: "45%" }} contentContainerStyle={styles.controls}>
+      <ScrollView
+        style={{ flexGrow: 0, maxHeight: "45%" }}
+        contentContainerStyle={styles.controls}
+      >
         {error && (
-          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+          <Text
+            accessibilityRole="alert"
+            style={{ color: Gallery.destructive }}
+          >
             {error}
           </Text>
         )}
@@ -162,7 +198,11 @@ export function CropEditor({
                 void save();
               }}
             />
-            <GalleryButton label="Adjust corners" disabled={!!busy} onPress={adjust} />
+            <GalleryButton
+              label="Adjust corners"
+              disabled={!!busy}
+              onPress={adjust}
+            />
           </>
         ) : size ? (
           <>
@@ -195,7 +235,11 @@ export function CropEditor({
             }}
           />
         ) : null}
-        <GalleryButton label="Cancel" disabled={busy === "saving"} onPress={onCancel} />
+        <GalleryButton
+          label="Cancel"
+          disabled={busy === "saving"}
+          onPress={onCancel}
+        />
       </ScrollView>
     </View>
   );
@@ -203,7 +247,12 @@ export function CropEditor({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
   instructions: { paddingHorizontal: 24, paddingTop: 16, color: Gallery.muted },
-  preview: { flex: 1, minHeight: 180, margin: 24, backgroundColor: Gallery.fill },
+  preview: {
+    flex: 1,
+    minHeight: 180,
+    margin: 24,
+    backgroundColor: Gallery.fill,
+  },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   controls: { paddingHorizontal: 24, gap: 4 },
 });

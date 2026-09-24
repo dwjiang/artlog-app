@@ -18,9 +18,8 @@ export function ListItem({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-          | string
-          | undefined
+        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")
+          ?.label as string | undefined
       }
       accessibilityState={{ disabled: off }}
       disabled={off}
@@ -64,24 +63,29 @@ export function Button({
   disabled,
   modifiers,
 }: ComponentProps<typeof import("@expo/ui").Button>) {
-  const traits = modifiers?.find((modifier) => modifier.$type === "accessibilityAddTraits")
-    ?.traits as string[] | undefined;
+  const traits = modifiers?.find(
+    (modifier) => modifier.$type === "accessibilityAddTraits",
+  )?.traits as string[] | undefined;
   const off =
-    !!disabled ||
-    !!modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
-  const value = modifiers?.find((modifier) => modifier.$type === "accessibilityValue")?.value as
-    | string
-    | undefined;
+    !!disabled
+    || !!modifiers?.some(
+      (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
+    );
+  const value = modifiers?.find(
+    (modifier) => modifier.$type === "accessibilityValue",
+  )?.value as string | undefined;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-          | string
-          | undefined
+        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")
+          ?.label as string | undefined
       }
       accessibilityValue={value ? { text: value } : undefined}
-      accessibilityState={{ disabled: off, selected: traits?.includes("isSelected") }}
+      accessibilityState={{
+        disabled: off,
+        selected: traits?.includes("isSelected"),
+      }}
       disabled={off}
       onPress={onPress}
     >
@@ -113,9 +117,8 @@ export function TextInput({
       multiline={multiline}
       numberOfLines={numberOfLines}
       accessibilityLabel={
-        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-          | string
-          | undefined
+        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")
+          ?.label as string | undefined
       }
     />
   );

@@ -29,20 +29,29 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
   return (
     <GestureHandlerRootView style={{ flexGrow: 0 }}>
       <View style={{ paddingHorizontal: 20, paddingBottom: 16, gap: 6 }}>
-        <Text style={socialStyles.caption}>VISITOR PREVIEW · UNSAVED CHOICES</Text>
-        <Text style={socialStyles.caption}>Tap an artwork to see its shared note.</Text>
+        <Text style={socialStyles.caption}>
+          VISITOR PREVIEW · UNSAVED CHOICES
+        </Text>
+        <Text style={socialStyles.caption}>
+          Tap an artwork to see its shared note.
+        </Text>
       </View>
       {profile.data ? (
         <PublicProfileHeader person={profile.data} />
       ) : (
         <SocialState
-          title={profile.error ? "Couldn’t load your profile." : "Opening profile…"}
+          title={
+            profile.error ? "Couldn’t load your profile." : "Opening profile…"
+          }
           loading={!profile.error}
           action={profile.error ? "Try again" : undefined}
           onAction={profile.refresh}
         />
       )}
-      <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
+      <PublicWallView
+        wall={wall}
+        onSelect={(item) => setSelectedId(item.itemId)}
+      />
       {selected && (
         <WallSheet
           title="Visitor preview"

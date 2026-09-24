@@ -10,7 +10,12 @@ import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { useListening } from "@/lib/audio/use-listening";
 import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
-import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
+import {
+  durationLabel,
+  trackKey,
+  researchKey,
+  type ListeningWork,
+} from "@/lib/audio/narration";
 import { openPlayer } from "./mini-player";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 
@@ -32,13 +37,18 @@ export function ListenActions({
   const ready = useDeviceReady();
   const queries = useMemo(
     (): RequestForQueries =>
-      ready ? { enrichment: { query: api.artworks.enrichment, args: { artworkId } } } : {},
+      ready
+        ? {
+            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
+          }
+        : {},
     [ready, artworkId],
   );
   const {
     enrichment,
-  }: { enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error } =
-    useQueries(queries);
+  }: {
+    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
+  } = useQueries(queries);
   const data = enrichment instanceof Error ? undefined : enrichment;
   const audio = useListening();
   const facts = data?.narrationFacts ?? [];
@@ -58,10 +68,11 @@ export function ListenActions({
   };
   const track = { work };
   const same =
-    !!audio.current &&
-    trackKey(audio.current) === trackKey(track) &&
-    researchKey(audio.current) === researchKey(track);
-  const another = !!scanId && !!audio.current && audio.current.work.artworkId !== artworkId;
+    !!audio.current
+    && trackKey(audio.current) === trackKey(track)
+    && researchKey(audio.current) === researchKey(track);
+  const another =
+    !!scanId && !!audio.current && audio.current.work.artworkId !== artworkId;
   const queued = audio.queue.some((item) => item.work.artworkId === artworkId);
   const savedProgress = audio.controller.progressFor(track);
   const remaining =
@@ -71,9 +82,9 @@ export function ListenActions({
         ? Math.max(0, savedProgress.duration - savedProgress.position)
         : undefined;
   const resume =
-    remaining !== undefined &&
-    remaining > 0 &&
-    (same ? audio.position > 0 : !!savedProgress?.position);
+    remaining !== undefined
+    && remaining > 0
+    && (same ? audio.position > 0 : !!savedProgress?.position);
   const preparing = same && audio.phase === "loading";
   const duration = durationLabel(
     resume
@@ -91,7 +102,11 @@ export function ListenActions({
         : resume
           ? "Resume listening"
           : "Listen to this work";
-  const label = another ? (queued ? "Added to queue" : "Add to queue") : actionLabel;
+  const label = another
+    ? queued
+      ? "Added to queue"
+      : "Add to queue"
+    : actionLabel;
   const inPlayer = audio.current?.work.artworkId === artworkId;
   const queuedHere = queued || inPlayer;
   function listen() {
@@ -109,9 +124,14 @@ export function ListenActions({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={
-          another ? "Keeps the current audio guide playing." : "Opens the audio guide player."
+          another
+            ? "Keeps the current audio guide playing."
+            : "Opens the audio guide player."
         }
-        accessibilityState={{ busy: preparing, disabled: preparing || (another && queued) }}
+        accessibilityState={{
+          busy: preparing,
+          disabled: preparing || (another && queued),
+        }}
         disabled={preparing || (another && queued)}
         onPress={another ? enqueue : listen}
         style={({ pressed }) => [styles.listen, pressed && { opacity: 0.65 }]}
@@ -142,12 +162,15 @@ export function ListenActions({
             {label}
           </ThemedText>
           <ThemedText variant="metadata" themeColor="textSecondary">
-            {duration ? `${duration}${resume ? " left" : ""} · ` : ""}AI-generated voice
+            {duration ? `${duration}${resume ? " left" : ""} · ` : ""}
+            AI-generated voice
           </ThemedText>
         </View>
       </Pressable>
       <AudioIconButton
-        name={another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"}
+        name={
+          another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"
+        }
         label={
           another
             ? "Listen now"

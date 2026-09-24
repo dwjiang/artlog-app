@@ -1,4 +1,8 @@
-import { CONTRIBUTION_CROP_QUALITY, removeFile, resizeCropForContribution } from "./crop";
+import {
+  CONTRIBUTION_CROP_QUALITY,
+  removeFile,
+  resizeCropForContribution,
+} from "./crop";
 
 const mockManipulate = jest.fn();
 const mockResize = jest.fn();
@@ -14,7 +18,11 @@ type FakeImage = {
 };
 
 function image(width: number, height: number): FakeImage {
-  return { width, height, saveAsync: (options) => mockSave(width, height, options) };
+  return {
+    width,
+    height,
+    saveAsync: (options) => mockSave(width, height, options),
+  };
 }
 
 jest.mock("expo-image-manipulator", () => ({
@@ -49,11 +57,20 @@ beforeEach(() => {
         return context;
       },
       async renderAsync(): Promise<FakeImage> {
-        const base = typeof source === "string" ? image(...sizes[source]) : source;
-        if (requested?.width)
-          return image(requested.width, Math.round((base.height * requested.width) / base.width));
-        if (requested?.height)
-          return image(Math.round((base.width * requested.height) / base.height), requested.height);
+        const base =
+          typeof source === "string" ? image(...sizes[source]) : source;
+        if (requested?.width) {
+          return image(
+            requested.width,
+            Math.round((base.height * requested.width) / base.width),
+          );
+        }
+        if (requested?.height) {
+          return image(
+            Math.round((base.width * requested.height) / base.height),
+            requested.height,
+          );
+        }
         return base;
       },
     };
@@ -74,13 +91,19 @@ beforeEach(() => {
 
 it("resizes the letterboxed crop to 256 px JPEG 0.85 without base64", async () => {
   sizes["file:///documents/crops/c1.jpg"] = [512, 512];
-  const result = await resizeCropForContribution("file:///documents/crops/c1.jpg");
+  const result = await resizeCropForContribution(
+    "file:///documents/crops/c1.jpg",
+  );
   expect(mockResize).toHaveBeenCalledWith({ width: 256 });
   expect(mockSave).toHaveBeenCalledWith(256, 256, {
     format: "jpeg",
     compress: CONTRIBUTION_CROP_QUALITY,
   });
-  expect(result).toMatchObject({ uri: "file:///cache/out.jpg", width: 256, height: 256 });
+  expect(result).toMatchObject({
+    uri: "file:///cache/out.jpg",
+    width: 256,
+    height: 256,
+  });
   expect(mockDelete).not.toHaveBeenCalled();
 });
 

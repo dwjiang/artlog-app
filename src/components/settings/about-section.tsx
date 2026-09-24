@@ -11,7 +11,8 @@ import { Gallery, SettingsOutline } from "@/constants/theme";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
-const ANTON_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
+const ANTON_LICENSE_URL =
+  "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
 
 export function AboutSection() {
   const [error, setError] = useState<string>();
@@ -39,14 +40,32 @@ export function AboutSection() {
           Artlog
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
+          Version{" "}
+          {Constants.expoConfig?.version
+            ?? Constants.nativeAppVersion
+            ?? "Unknown"}
         </ThemedText>
       </View>
       <View accessibilityElementsHidden style={{ height: 220 }}>
         {[
-          { art: introArtworks.lilies, left: "0%" as const, rotate: "-12deg", top: 28 },
-          { art: introArtworks.stars, left: "60%" as const, rotate: "10deg", top: 28 },
-          { art: introArtworks.pearl, left: "30%" as const, rotate: "4deg", top: 8 },
+          {
+            art: introArtworks.lilies,
+            left: "0%" as const,
+            rotate: "-12deg",
+            top: 28,
+          },
+          {
+            art: introArtworks.stars,
+            left: "60%" as const,
+            rotate: "10deg",
+            top: 28,
+          },
+          {
+            art: introArtworks.pearl,
+            left: "30%" as const,
+            rotate: "4deg",
+            top: 8,
+          },
         ].map(({ art, left, rotate, top }) => (
           <View
             key={art.title}
@@ -77,7 +96,10 @@ export function AboutSection() {
             label: "Privacy policy",
             icon: "lock",
             action: () =>
-              router.push({ pathname: "/settings-detail", params: { section: "privacy" } }),
+              router.push({
+                pathname: "/settings-detail",
+                params: { section: "privacy" },
+              }),
           },
           { label: "Terms", icon: "doc.text", detail: "Coming soon" },
           {
@@ -154,11 +176,12 @@ export function AboutSection() {
         }}
         accessibilityRole="link"
       >
-        Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0. Displayed cropped.
+        Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0.
+        Displayed cropped.
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors. Licensed under the SIL Open
-        Font License, Version 1.1.
+        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors.
+        Licensed under the SIL Open Font License, Version 1.1.
       </ThemedText>
     </ScrollView>
   );

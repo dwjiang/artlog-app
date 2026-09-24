@@ -9,8 +9,17 @@ import {
 } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
-import { acceptedRelationships, findBlock, relationshipSnapshot } from "./lib/friendships";
+import {
+  activeProfile,
+  optionalProfile,
+  requireAccount,
+  requireProfile,
+} from "./lib/ownership";
+import {
+  acceptedRelationships,
+  findBlock,
+  relationshipSnapshot,
+} from "./lib/friendships";
 import { projectProfile } from "./lib/projections";
 
 // Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
@@ -23,7 +32,8 @@ async function projectBrowsedProfile(
   if (!viewer || viewer._id === profile._id) return person;
   return {
     ...person,
-    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id)).state,
+    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id))
+      .state,
   };
 }
 
@@ -38,7 +48,9 @@ export const create = mutation({
       .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
       .unique();
     if (existing) {
-      if (!existing.active || existing.removal) throw new ConvexError({ code: "profile_required" });
+      if (!existing.active || existing.removal) {
+        throw new ConvexError({ code: "profile_required" });
+      }
       return projectProfile(ctx, existing);
     }
     if (
@@ -83,35 +95,50 @@ export const search = query({
     const viewer = await optionalProfile(ctx);
     const result = await ctx.db
       .query("profiles")
-      .withSearchIndex("search_text", (q) => q.search("searchText", search).eq("active", true))
+      .withSearchIndex("search_text", (q) =>
+        q.search("searchText", search).eq("active", true),
+      )
       .paginate(pagination(input));
     const page = [];
-    for (const profile of result.page)
-      if (!profile.removal && (await ctx.db.get(profile.accountId)))
+    for (const profile of result.page) {
+      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
-    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+      }
+    }
+    return {
+      page,
+      cursor: result.isDone ? null : result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
 export const mine = query({
   args: {},
   returns: publicProfile,
-  handler: async (ctx) => projectProfile(ctx, (await requireProfile(ctx)).profile),
+  handler: async (ctx) =>
+    projectProfile(ctx, (await requireProfile(ctx)).profile),
 });
 export const friends = query({
   args: {},
   returns: v.array(publicProfile),
   handler: async (ctx) => {
     const { profile } = await requireProfile(ctx);
-    const edges = (await acceptedRelationships(ctx, profile._id)).slice(0, LIMITS.friends);
+    const edges = (await acceptedRelationships(ctx, profile._id)).slice(
+      0,
+      LIMITS.friends,
+    );
     const people = [];
     for (const edge of edges) {
-      const id = edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId;
+      const id =
+        edge.firstProfileId === profile._id
+          ? edge.secondProfileId
+          : edge.firstProfileId;
       const person = await activeProfile(ctx, id);
       if (
-        person &&
-        !(await findBlock(ctx, profile._id, id))?.active &&
-        !(await findBlock(ctx, id, profile._id))?.active
+        person
+        && !(await findBlock(ctx, profile._id, id))?.active
+        && !(await findBlock(ctx, id, profile._id))?.active
       ) {
         people.push(await projectProfile(ctx, person));
       }
@@ -135,10 +162,16 @@ export const discover = query({
       .order("desc")
       .paginate(pagination(input));
     const page = [];
-    for (const profile of result.page)
-      if (!profile.removal && (await ctx.db.get(profile.accountId)))
+    for (const profile of result.page) {
+      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
-    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+      }
+    }
+    return {
+      page,
+      cursor: result.isDone ? null : result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -181,9 +214,9 @@ export const requests = query({
       if (edge.requesterId === profile._id) continue;
       const person = await activeProfile(ctx, edge.requesterId);
       if (
-        person &&
-        !(await findBlock(ctx, profile._id, person._id))?.active &&
-        !(await findBlock(ctx, person._id, profile._id))?.active
+        person
+        && !(await findBlock(ctx, profile._id, person._id))?.active
+        && !(await findBlock(ctx, person._id, profile._id))?.active
       ) {
         requests.push(await projectBrowsedProfile(ctx, profile, person));
       }

@@ -29,9 +29,14 @@ export const signInContexts = {
 export type SignInContext = keyof typeof signInContexts;
 
 export function signInRoute(context: SignInContext, visitId?: string) {
-  return { pathname: "/sign-in" as const, params: { context, ...(visitId ? { visitId } : {}) } };
+  return {
+    pathname: "/sign-in" as const,
+    params: { context, ...(visitId ? { visitId } : {}) },
+  };
 }
 
 export function readSignInContext(value?: string): SignInContext {
-  return value && Object.hasOwn(signInContexts, value) ? (value as SignInContext) : "account";
+  return value && Object.hasOwn(signInContexts, value)
+    ? (value as SignInContext)
+    : "account";
 }

@@ -20,7 +20,11 @@ export type AgreementContribution = {
   venueId: Id<"museums">;
   modelVersion: string;
   vector: number[];
-  fields: { title: ContributionField; artist: ContributionField; accession?: ContributionField };
+  fields: {
+    title: ContributionField;
+    artist: ContributionField;
+    accession?: ContributionField;
+  };
   evidence: EvidenceKind[];
   createdAt: number;
 };
@@ -30,7 +34,9 @@ export function workKey(fields: AgreementContribution["fields"]): string {
 }
 
 // One label at one venue; entries of different model versions share the group and are told apart by compatibleAnchor.
-export function contributionGroup(row: Pick<Doc<"contributions">, "venueId" | "fields">): string {
+export function contributionGroup(
+  row: Pick<Doc<"contributions">, "venueId" | "fields">,
+): string {
   return JSON.stringify([row.venueId, workKey(row.fields)]);
 }
 
@@ -40,12 +46,12 @@ export function verifiedAccession(
   const accession = contribution.fields.accession;
   // Museum search confirms the page image on title/artist; its other page fields retain `tavily`.
   const confirmedPage =
-    accession?.evidence === "tavily" &&
-    contribution.fields.title.evidence === "tavily+image" &&
-    contribution.fields.artist.evidence === "tavily+image";
-  return accession &&
-    !accession.edited &&
-    (STRONG_EVIDENCE.has(accession.evidence) || confirmedPage)
+    accession?.evidence === "tavily"
+    && contribution.fields.title.evidence === "tavily+image"
+    && contribution.fields.artist.evidence === "tavily+image";
+  return accession
+    && !accession.edited
+    && (STRONG_EVIDENCE.has(accession.evidence) || confirmedPage)
     ? normalizeAccession(accession.value) || undefined
     : undefined;
 }

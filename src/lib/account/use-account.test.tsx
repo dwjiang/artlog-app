@@ -14,7 +14,12 @@ const mockClaim = jest.fn();
 const mockAvailable = jest.fn();
 const mockReportError = jest.fn();
 const mockBreadcrumb = jest.fn();
-let mockAccount: { linked: boolean; deviceCount: number; accountId?: string; scope?: string };
+let mockAccount: {
+  linked: boolean;
+  deviceCount: number;
+  accountId?: string;
+  scope?: string;
+};
 
 jest.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signIn: mockSignIn, signOut: mockEndSession }),
@@ -30,7 +35,10 @@ jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     mutation: (fn: unknown, args: unknown) =>
-      mockMutation(jest.requireActual("convex/server").getFunctionName(fn), args),
+      mockMutation(
+        jest.requireActual("convex/server").getFunctionName(fn),
+        args,
+      ),
   },
 }));
 jest.mock("@/lib/attested-write", () => ({
@@ -54,15 +62,24 @@ beforeEach(() => {
   mockAccount = { linked: false, deviceCount: 0 };
   mockAvailable.mockResolvedValue(true);
   mockMutation.mockResolvedValue({ nonce: "apple-nonce" });
-  mockApple.mockResolvedValue({ identityToken: "apple-token", user: "apple-user" });
-  mockSignPayload.mockResolvedValue({ nonce: "assertion-nonce", assertionBase64: "assertion" });
+  mockApple.mockResolvedValue({
+    identityToken: "apple-token",
+    user: "apple-user",
+  });
+  mockSignPayload.mockResolvedValue({
+    nonce: "assertion-nonce",
+    assertionBase64: "assertion",
+  });
 });
 
 it("passes the challenge to native Apple sign-in and links after provider verification", async () => {
   const { result } = await renderHook(useAccount);
   await waitFor(() => expect(result.current.available).toBe(true));
   await act(() => result.current.signInWithApple());
-  expect(mockApple).toHaveBeenCalledWith({ nonce: "apple-nonce", requestedScopes: [0, 1] });
+  expect(mockApple).toHaveBeenCalledWith({
+    nonce: "apple-nonce",
+    requestedScopes: [0, 1],
+  });
   expect(mockSignIn).toHaveBeenCalledWith("apple-native", {
     identityToken: "apple-token",
     nonce: "apple-nonce",
@@ -113,9 +130,13 @@ it("reports a native availability failure while keeping sign-in unavailable", as
   mockAvailable.mockRejectedValueOnce(failure);
   const { result } = await renderHook(useAccount);
   await waitFor(() =>
-    expect(mockReportError).toHaveBeenCalledWith(failure, "auth.apple_availability", {
-      level: "warning",
-    }),
+    expect(mockReportError).toHaveBeenCalledWith(
+      failure,
+      "auth.apple_availability",
+      {
+        level: "warning",
+      },
+    ),
   );
   expect(result.current.available).toBe(false);
 });
@@ -167,7 +188,12 @@ it("deletes the account before restoring the anonymous device identity", async (
 });
 
 it("finishes an interrupted claim before disconnecting the account", async () => {
-  mockAccount = { linked: true, deviceCount: 1, accountId: "account", scope: "account-scope" };
+  mockAccount = {
+    linked: true,
+    deviceCount: 1,
+    accountId: "account",
+    scope: "account-scope",
+  };
   const { result } = await renderHook(useAccount);
   await act(() => result.current.signOut());
   expect(mockClaim).toHaveBeenCalledWith(mockAccount);

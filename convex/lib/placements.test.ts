@@ -5,7 +5,9 @@ import { currentPlacement, type PlacementLike } from "./placements";
 const day = 24 * 60 * 60 * 1000;
 const now = 100 * day;
 
-function placement(overrides: Partial<PlacementLike> & { venueId: string }): PlacementLike {
+function placement(
+  overrides: Partial<PlacementLike> & { venueId: string },
+): PlacementLike {
   return { onView: true, source: "wikidata", confidence: 0.5, ...overrides };
 }
 
@@ -24,7 +26,11 @@ describe("currentPlacement", () => {
   });
 
   it("prefers a dated checklist placement inside its window and the home placement outside it", () => {
-    const home = placement({ venueId: "home", source: "wikidata", confidence: 0.9 });
+    const home = placement({
+      venueId: "home",
+      source: "wikidata",
+      confidence: 0.9,
+    });
     const loan = placement({
       venueId: "loan",
       source: "checklist",
@@ -39,7 +45,11 @@ describe("currentPlacement", () => {
   });
 
   it("excludes closed placements", () => {
-    const closed = placement({ venueId: "old", source: "manual", closedAt: now - day });
+    const closed = placement({
+      venueId: "old",
+      source: "manual",
+      closedAt: now - day,
+    });
     const open = placement({ venueId: "new", source: "proposal" });
 
     expect(currentPlacement([closed, open], now)).toBe(open);
@@ -47,7 +57,12 @@ describe("currentPlacement", () => {
   });
 
   it("ranks an active checklist above an off-view feed, preserving stronger location evidence", () => {
-    const offView = placement({ venueId: "home", source: "feed", onView: false, confidence: 1 });
+    const offView = placement({
+      venueId: "home",
+      source: "feed",
+      onView: false,
+      confidence: 1,
+    });
     const loan = placement({
       venueId: "loan",
       source: "checklist",
@@ -55,14 +70,19 @@ describe("currentPlacement", () => {
       to: now + day,
     });
     const feed = placement({ venueId: "confirmed", source: "feed" });
-    const manual = placement({ venueId: "manual", source: "manual", onView: false });
+    const manual = placement({
+      venueId: "manual",
+      source: "manual",
+      onView: false,
+    });
     const proposal = placement({ venueId: "proposed", source: "proposal" });
 
     for (const rows of [
       [offView, loan],
       [loan, offView],
-    ])
+    ]) {
       expect(currentPlacement(rows, now)).toBe(loan);
+    }
     expect(currentPlacement([offView, loan], now + 2 * day)).toBe(offView);
     expect(currentPlacement([offView, loan, feed], now)).toBe(feed);
     expect(currentPlacement([offView, loan, manual], now)).toBe(manual);
@@ -70,8 +90,16 @@ describe("currentPlacement", () => {
   });
 
   it("breaks a source tie by confidence, then by the latest start", () => {
-    const weak = placement({ venueId: "weak", source: "wikidata", confidence: 0.3 });
-    const strong = placement({ venueId: "strong", source: "wikidata", confidence: 0.8 });
+    const weak = placement({
+      venueId: "weak",
+      source: "wikidata",
+      confidence: 0.3,
+    });
+    const strong = placement({
+      venueId: "strong",
+      source: "wikidata",
+      confidence: 0.8,
+    });
     expect(currentPlacement([weak, strong], now)).toBe(strong);
 
     const earlier = placement({
@@ -80,8 +108,17 @@ describe("currentPlacement", () => {
       confidence: 0.8,
       from: now - 5 * day,
     });
-    const later = placement({ venueId: "later", source: "feed", confidence: 0.8, from: now - day });
-    const openEnded = placement({ venueId: "open", source: "feed", confidence: 0.8 });
+    const later = placement({
+      venueId: "later",
+      source: "feed",
+      confidence: 0.8,
+      from: now - day,
+    });
+    const openEnded = placement({
+      venueId: "open",
+      source: "feed",
+      confidence: 0.8,
+    });
     expect(currentPlacement([openEnded, earlier, later], now)).toBe(later);
   });
 });

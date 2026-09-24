@@ -47,10 +47,19 @@ export function CollectionHeader({
           ? "Profile unavailable"
           : undefined;
   const counts = `${artworkCount} ${artworkCount === 1 ? "artwork" : "artworks"} · ${visitCount} ${visitCount === 1 ? "visit" : "visits"}`;
-  if (guest)
+  if (guest) {
     return (
-      <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, gap: 4 }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 10,
+          paddingBottom: 14,
+          gap: 4,
+        }}
+      >
+        <View
+          style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}
+        >
           <Text
             variant="display"
             accessibilityRole="header"
@@ -64,7 +73,11 @@ export function CollectionHeader({
             Your{"\n"}collection
           </Text>
           {artworkCount > 0 && (
-            <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />
+            <GalleryIconButton
+              label="Share your wall"
+              icon="square.and.arrow.up"
+              onPress={edit}
+            />
           )}
           <GalleryIconButton
             label="Settings"
@@ -88,6 +101,7 @@ export function CollectionHeader({
         )}
       </View>
     );
+  }
   const identity =
     status === undefined ? (
       <LoadingSkeleton label="Opening your profile…" style={{ flex: 1 }}>
@@ -106,7 +120,13 @@ export function CollectionHeader({
           photoUrl={profile?.photoUrl}
           size={64}
         />
-        <View style={{ flex: accessibilityLayout ? undefined : 1, minWidth: 0, gap: 2 }}>
+        <View
+          style={{
+            flex: accessibilityLayout ? undefined : 1,
+            minWidth: 0,
+            gap: 2,
+          }}
+        >
           <Text
             variant={accessibilityLayout ? "section" : "display"}
             accessibilityRole="header"
@@ -125,7 +145,9 @@ export function CollectionHeader({
     flex: 1,
     minWidth: 0,
     flexDirection: accessibilityLayout ? ("column" as const) : ("row" as const),
-    alignItems: accessibilityLayout ? ("flex-start" as const) : ("center" as const),
+    alignItems: accessibilityLayout
+      ? ("flex-start" as const)
+      : ("center" as const),
     gap: 14,
     minHeight: 48,
   };
@@ -167,7 +189,10 @@ export function CollectionHeader({
             <Ghost width={150} />
           </LoadingSkeleton>
         ) : (
-          <Text variant="metadata" style={{ flexShrink: 1, color: Gallery.muted }}>
+          <Text
+            variant="metadata"
+            style={{ flexShrink: 1, color: Gallery.muted }}
+          >
             {counts}
           </Text>
         )}

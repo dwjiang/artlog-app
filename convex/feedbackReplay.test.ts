@@ -56,7 +56,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
     });
   for (let i = 0; i < 19; i++) await reject("bob");
   await reject("alice");
-  for (let batch = 0; batch < 3; batch++)
+  for (let batch = 0; batch < 3; batch++) {
     await t.run(async (ctx) => {
       for (let i = 0; i < 40; i++) {
         const saveId = await ctx.db.insert("collections", {
@@ -78,6 +78,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
         });
       }
     });
+  }
   await reject("bob");
   await t.run(async (ctx) => {
     await ctx.db.patch(work.objectId, {
@@ -101,10 +102,15 @@ it("replays surviving events chronologically across pages, resets feedback flags
     calibratorPenalty: 0.35,
   });
   expect(
-    await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }),
+    await t.query(internal.revert.removalProgress, {
+      deviceId: alice.deviceId,
+    }),
   ).toMatchObject({ phase: "complete", settled: 2 });
   expect(
-    await t.mutation(internal.revert.revertDevice, { deviceId: alice.deviceId, reason: "abuse" }),
+    await t.mutation(internal.revert.revertDevice, {
+      deviceId: alice.deviceId,
+      reason: "abuse",
+    }),
   ).toBe(removalId);
 });
 
@@ -113,10 +119,12 @@ it("restarts a partial replay when new feedback arrives", async () => {
   const t = harness();
   const device = await seedDevice(t);
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: device.deviceId }));
+  const scanId = await t.run((ctx) =>
+    seedScan(ctx, { deviceId: device.deviceId }),
+  );
   const add = (count: number) =>
     t.run(async (ctx) => {
-      for (let i = 0; i < count; i++)
+      for (let i = 0; i < count; i++) {
         await ctx.db.insert("feedbackEvents", {
           kind: "confirmation",
           deviceId: device.deviceId,
@@ -124,12 +132,17 @@ it("restarts a partial replay when new feedback arrives", async () => {
           objectId: work.objectId,
           createdAt: Date.now(),
         });
+      }
       await feedbackChanged(ctx, work.objectId);
     });
   await add(75);
-  const job = (await t.run((ctx) => ctx.db.query("feedbackRebuilds").unique()))!;
+  const job = (await t.run((ctx) =>
+    ctx.db.query("feedbackRebuilds").unique(),
+  ))!;
   await t.mutation(internal.feedbackReplay.rebuildPage, { jobId: job._id });
   await add(1);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({ confirmCount: 76 });
+  expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({
+    confirmCount: 76,
+  });
 });

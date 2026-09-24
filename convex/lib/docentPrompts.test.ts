@@ -55,6 +55,9 @@ it("allows typographic quote changes without accepting a changed claim", () => {
   };
   expect(buildFactSheet([fact], [source])).toHaveLength(1);
   expect(
-    buildFactSheet([{ ...fact, text: 'He called it "a winter landscape."' }], [source]),
+    buildFactSheet(
+      [{ ...fact, text: 'He called it "a winter landscape."' }],
+      [source],
+    ),
   ).toHaveLength(0);
 });

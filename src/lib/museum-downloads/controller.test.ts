@@ -1,4 +1,7 @@
-import { MuseumDownloadsController, type DownloadDependencies } from "./controller";
+import {
+  MuseumDownloadsController,
+  type DownloadDependencies,
+} from "./controller";
 import type { MuseumManifest } from "@/shared/offline/types";
 import { downloadProgress, sortMuseums } from "./model";
 
@@ -14,7 +17,11 @@ const pack: MuseumManifest = {
   size: 3000,
   count: 2,
   previews: [],
-  chunks: [0, 1, 2].map((n) => ({ url: `https://file/${n}`, size: 1000, sha256: "hash" })),
+  chunks: [0, 1, 2].map((n) => ({
+    url: `https://file/${n}`,
+    size: 1000,
+    sha256: "hash",
+  })),
 };
 function fixture() {
   let saved: Parameters<DownloadDependencies["write"]>[0] | undefined;
@@ -52,8 +59,12 @@ it("only becomes ready after all chunks and previews have been persisted, includ
   deps.previews.mockImplementation(() => preview.promise);
   const running = controller.start(pack);
   await waitFor(() => deps.previews.mock.calls.length === 1);
-  expect(controller.getSnapshot().downloads[pack.id].status).toBe("downloading");
-  expect(downloadProgress(controller.getSnapshot().downloads[pack.id])).toBe(99);
+  expect(controller.getSnapshot().downloads[pack.id].status).toBe(
+    "downloading",
+  );
+  expect(downloadProgress(controller.getSnapshot().downloads[pack.id])).toBe(
+    99,
+  );
   preview.resolve();
   await running;
   const restarted = new MuseumDownloadsController(deps);
@@ -67,7 +78,9 @@ it("only becomes ready after all chunks and previews have been persisted, includ
 it("pauses an in-flight transfer and resumes from the last completed chunk", async () => {
   const { controller, deps } = fixture();
   const part = deferred();
-  deps.download.mockImplementationOnce(async () => {}).mockImplementationOnce(() => part.promise);
+  deps.download
+    .mockImplementationOnce(async () => {})
+    .mockImplementationOnce(() => part.promise);
   const running = controller.start(pack);
   await waitFor(() => deps.download.mock.calls.length === 2);
   await controller.pause(pack.id);
@@ -78,7 +91,9 @@ it("pauses an in-flight transfer and resumes from the last completed chunk", asy
     completed: 1,
   });
   await controller.start(pack);
-  expect(deps.download.mock.calls.map((call) => (call as unknown[])[1])).toEqual([0, 1, 1, 2]);
+  expect(
+    deps.download.mock.calls.map((call) => (call as unknown[])[1]),
+  ).toEqual([0, 1, 1, 2]);
 });
 it("coalesces repeated download taps while checking connectivity", async () => {
   const { controller, deps } = fixture();
@@ -129,7 +144,9 @@ it("a completed update swaps packages before cleaning up the previous version", 
   await controller.start(pack);
   deps.manifest.mockResolvedValue({ ...pack, version: "v2" });
   deps.remove.mockImplementation(() => {
-    expect(controller.getSnapshot().downloads[pack.id].active?.manifest.version).toBe("v2");
+    expect(
+      controller.getSnapshot().downloads[pack.id].active?.manifest.version,
+    ).toBe("v2");
   });
   await controller.checkForUpdate(pack);
   expect(deps.remove).toHaveBeenCalledWith("museum-1-v1");
@@ -185,6 +202,8 @@ it("filters names and cities and sorts by real size, name, or distance", () => {
   expect(sortMuseums([other, pack], "chicago", "size")).toEqual([pack]);
   expect(sortMuseums([pack, other], "", "size")).toEqual([other, pack]);
   expect(sortMuseums([other, pack], "", "name")).toEqual([pack, other]);
-  expect(sortMuseums([pack, other], "", "nearest", { lat: 5, lng: 5 })).toEqual([other, pack]);
+  expect(sortMuseums([pack, other], "", "nearest", { lat: 5, lng: 5 })).toEqual(
+    [other, pack],
+  );
   expect(sortMuseums([other, pack], "", "nearest")).toEqual([pack, other]);
 });

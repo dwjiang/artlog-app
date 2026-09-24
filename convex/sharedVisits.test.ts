@@ -2,7 +2,12 @@ import { expect, it } from "vitest";
 import type { FunctionReturnType } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { harness } from "./test.helpers";
-import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
+import {
+  befriend,
+  setVisitVisibility,
+  socialUser,
+  socialVisit,
+} from "./lib/socialTestFixtures";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { compareHistory, PAGE_BYTES } from "./lib/sharedPublications";
 
@@ -12,7 +17,9 @@ it("previews without mutations or private fields, preserves order, and uses no f
   const t = harness(),
     a = await socialUser(t),
     draft = await socialVisit(t, a);
-  await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Shared words" }));
+  await t.run((ctx) =>
+    ctx.db.patch(draft.visit._id, { reflection: "Shared words" }),
+  );
   const selection = {
     ...draft.selection,
     saveLocalIds: draft.selection.saveLocalIds.toReversed(),
@@ -23,9 +30,14 @@ it("previews without mutations or private fields, preserves order, and uses no f
     items: await ctx.db.query("sharedVisitItems").collect(),
   }));
   const preview = await a.as.query(api.sharedVisits.preview, selection);
-  expect(preview.artworks.map((x) => x.artwork.title)).toEqual(["Work 1", "Work 0"]);
+  expect(preview.artworks.map((x) => x.artwork.title)).toEqual([
+    "Work 1",
+    "Work 0",
+  ]);
   expect(preview.artworks[0]).not.toHaveProperty("itemId");
-  expect(JSON.stringify(preview)).not.toMatch(/PRIVATE|accountId|storageId|visitId|scanId/);
+  expect(JSON.stringify(preview)).not.toMatch(
+    /PRIVATE|accountId|storageId|visitId|scanId/,
+  );
   expect(
     await t.run(async (ctx) => ({
       publications: await ctx.db.query("sharedVisits").collect(),
@@ -33,9 +45,15 @@ it("previews without mutations or private fields, preserves order, and uses no f
     })),
   ).toEqual(before);
   const state = await a.as.mutation(api.sharedVisits.publish, selection);
-  const post = await a.as.query(api.sharedVisits.get, { postId: state.postId! });
-  expect(post.artworks.page.map((x) => x.artwork)).toEqual(preview.artworks.map((x) => x.artwork));
-  expect(JSON.stringify(post)).not.toMatch(/PRIVATE|saveLocalId|visitLocalId|accountId|storageId/);
+  const post = await a.as.query(api.sharedVisits.get, {
+    postId: state.postId!,
+  });
+  expect(post.artworks.page.map((x) => x.artwork)).toEqual(
+    preview.artworks.map((x) => x.artwork),
+  );
+  expect(JSON.stringify(post)).not.toMatch(
+    /PRIVATE|saveLocalId|visitLocalId|accountId|storageId/,
+  );
   expect(Object.keys(post).sort()).toEqual([
     "artworkCount",
     "artworks",
@@ -59,8 +77,11 @@ it("rejects forged selections, private visits, duplicate UUIDs, and missing shar
     { ...draft.selection, saveLocalIds: [other.saves[0].localId] },
     { ...draft.selection, visitLocalId: other.visit.localId },
     { ...draft.selection, saveLocalIds: [crypto.randomUUID()] },
-  ])
-    await expect(a.as.mutation(api.sharedVisits.publish, input)).rejects.toMatchObject(notFound);
+  ]) {
+    await expect(
+      a.as.mutation(api.sharedVisits.publish, input),
+    ).rejects.toMatchObject(notFound);
+  }
   const anotherVisit = await socialVisit(t, a);
   await expect(
     a.as.mutation(api.sharedVisits.publish, {
@@ -69,26 +90,38 @@ it("rejects forged selections, private visits, duplicate UUIDs, and missing shar
     }),
   ).rejects.toMatchObject(notFound);
   for (const input of [
-    { ...draft.selection, saveLocalIds: [draft.saves[0].localId, draft.saves[0].localId] },
+    {
+      ...draft.selection,
+      saveLocalIds: [draft.saves[0].localId, draft.saves[0].localId],
+    },
     { ...draft.selection, reflection: "x".repeat(20_001) },
   ]) {
-    await expect(a.as.mutation(api.sharedVisits.publish, input)).rejects.toMatchObject({
+    await expect(
+      a.as.mutation(api.sharedVisits.publish, input),
+    ).rejects.toMatchObject({
       data: { code: "invalid_post" },
     });
   }
   const { reflection: _reflection, ...missingText } = draft.selection;
-  await expect(a.as.mutation(api.sharedVisits.publish, missingText as never)).rejects.toThrow();
-  await a.as.mutation(api.collections.remove, { scope: a.scope, localId: draft.saves[0].localId });
-  await expect(a.as.query(api.sharedVisits.preview, draft.selection)).rejects.toMatchObject(
-    notFound,
-  );
+  await expect(
+    a.as.mutation(api.sharedVisits.publish, missingText as never),
+  ).rejects.toThrow();
+  await a.as.mutation(api.collections.remove, {
+    scope: a.scope,
+    localId: draft.saves[0].localId,
+  });
+  await expect(
+    a.as.query(api.sharedVisits.preview, draft.selection),
+  ).rejects.toMatchObject(notFound);
 });
 it("allows empty posts and preserves identity and first publication time through edit and reshare", async () => {
   const t = harness(),
     a = await socialUser(t),
     draft = await socialVisit(t, a, 0);
   const first = await a.as.mutation(api.sharedVisits.publish, draft.selection);
-  const post = await a.as.query(api.sharedVisits.get, { postId: first.postId! });
+  const post = await a.as.query(api.sharedVisits.get, {
+    postId: first.postId!,
+  });
   expect(post.artworks.page).toEqual([]);
   expect(post.reflection).toBe("");
   await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Edited" }));
@@ -98,21 +131,30 @@ it("allows empty posts and preserves identity and first publication time through
     reflection: "Edited",
   });
   expect(edited.postId).toBe(first.postId);
-  expect(await setVisitVisibility(t, a, draft.visit._id, "private")).toMatchObject({
+  expect(
+    await setVisitVisibility(t, a, draft.visit._id, "private"),
+  ).toMatchObject({
     status: "private",
     revision: 3,
   });
-  await expect(a.as.query(api.sharedVisits.get, { postId: first.postId! })).rejects.toMatchObject(
-    notFound,
-  );
   await expect(
-    a.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision: 2 }),
+    a.as.query(api.sharedVisits.get, { postId: first.postId! }),
+  ).rejects.toMatchObject(notFound);
+  await expect(
+    a.as.mutation(api.sharedVisits.publish, {
+      ...draft.selection,
+      revision: 2,
+    }),
   ).rejects.toMatchObject(conflict);
-  expect(await setVisitVisibility(t, a, draft.visit._id, "private")).toMatchObject({
+  expect(
+    await setVisitVisibility(t, a, draft.visit._id, "private"),
+  ).toMatchObject({
     status: "private",
     revision: 3,
   });
-  expect(await setVisitVisibility(t, a, draft.visit._id, "public")).toMatchObject({
+  expect(
+    await setVisitVisibility(t, a, draft.visit._id, "public"),
+  ).toMatchObject({
     status: "private",
     revision: 3,
   });
@@ -121,7 +163,9 @@ it("allows empty posts and preserves identity and first publication time through
     reflection: "Edited",
     revision: 3,
   });
-  expect(await a.as.query(api.sharedVisits.get, { postId: first.postId! })).toMatchObject({
+  expect(
+    await a.as.query(api.sharedVisits.get, { postId: first.postId! }),
+  ).toMatchObject({
     postId: first.postId,
     publishedAt: post.publishedAt,
   });
@@ -135,8 +179,9 @@ it("lists only the caller’s active, unremoved shared visits", async () => {
     unshared = await socialVisit(t, a),
     removed = await socialVisit(t, a),
     theirs = await socialVisit(t, b);
-  for (const draft of [shared, unshared, removed])
+  for (const draft of [shared, unshared, removed]) {
     await a.as.mutation(api.sharedVisits.publish, draft.selection);
+  }
   const post = await b.as.mutation(api.sharedVisits.publish, theirs.selection);
   await setVisitVisibility(t, a, unshared.visit._id, "private");
   const flagged = await a.as.query(api.sharedVisits.getState, {
@@ -152,8 +197,12 @@ it("lists only the caller’s active, unremoved shared visits", async () => {
     decision: "remove",
     reason: "Confirmed",
   });
-  expect(await a.as.query(api.sharedVisits.listShared, {})).toEqual([shared.visit.localId]);
-  expect(await b.as.query(api.sharedVisits.listShared, {})).toEqual([theirs.visit.localId]);
+  expect(await a.as.query(api.sharedVisits.listShared, {})).toEqual([
+    shared.visit.localId,
+  ]);
+  expect(await b.as.query(api.sharedVisits.listShared, {})).toEqual([
+    theirs.visit.localId,
+  ]);
   expect(post.postId).not.toBeNull();
   await expect(t.query(api.sharedVisits.listShared, {})).rejects.toThrow();
 });
@@ -162,7 +211,9 @@ it("refuses a private draft and serializes concurrent publication writes", async
     a = await socialUser(t),
     draft = await socialVisit(t, a, 0);
   await setVisitVisibility(t, a, draft.visit._id, "private");
-  await expect(a.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({
+  await expect(
+    a.as.mutation(api.sharedVisits.publish, draft.selection),
+  ).rejects.toMatchObject({
     data: { code: "visit_private" },
   });
   await setVisitVisibility(t, a, draft.visit._id, "public");
@@ -183,47 +234,69 @@ it("allows public access before friendship and revokes detail, artwork, and feed
   const postId = state.postId!,
     ownerPost = await a.as.query(api.sharedVisits.get, { postId });
   const itemId = ownerPost.artworks.page[0].itemId;
-  expect(await b.as.query(api.sharedVisits.get, { postId })).toMatchObject({ postId });
+  expect(await b.as.query(api.sharedVisits.get, { postId })).toMatchObject({
+    postId,
+  });
   expect((await b.as.query(api.sharedVisits.listFeed, {})).page).toEqual([]);
   await expect(
     b.as.query(api.sharedVisits.get, { postId: crypto.randomUUID() }),
   ).rejects.toMatchObject(notFound);
   await expect(
-    b.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId }),
+    b.as.query(api.sharedVisits.getState, {
+      visitLocalId: draft.visit.localId,
+    }),
   ).rejects.toMatchObject(notFound);
   await befriend(a, b);
-  expect((await b.as.query(api.sharedVisits.listFeed, {})).page.map((p) => p.postId)).toEqual([
-    postId,
-  ]);
+  expect(
+    (await b.as.query(api.sharedVisits.listFeed, {})).page.map((p) => p.postId),
+  ).toEqual([postId]);
   expect((await a.as.query(api.sharedVisits.listFeed, {})).page).toEqual([]);
   expect(
-    (await a.as.query(api.sharedVisits.listByProfile, { profileId: a.profileId })).page,
+    (
+      await a.as.query(api.sharedVisits.listByProfile, {
+        profileId: a.profileId,
+      })
+    ).page,
   ).toHaveLength(1);
-  expect(await b.as.query(api.sharedVisits.getArtwork, { postId, itemId })).toMatchObject({
+  expect(
+    await b.as.query(api.sharedVisits.getArtwork, { postId, itemId }),
+  ).toMatchObject({
     itemId,
   });
   const other = await socialVisit(t, a);
-  const otherPost = await a.as.mutation(api.sharedVisits.publish, other.selection);
+  const otherPost = await a.as.mutation(
+    api.sharedVisits.publish,
+    other.selection,
+  );
   await expect(
-    b.as.query(api.sharedVisits.getArtwork, { postId: otherPost.postId!, itemId }),
+    b.as.query(api.sharedVisits.getArtwork, {
+      postId: otherPost.postId!,
+      itemId,
+    }),
   ).rejects.toMatchObject(notFound);
   await b.as.mutation(api.friendships.block, {
     profileId: a.profileId,
     revision: 2,
     blockRevision: 0,
   });
-  await expect(b.as.query(api.sharedVisits.getArtwork, { postId, itemId })).rejects.toMatchObject(
-    notFound,
-  );
-  await expect(b.as.query(api.sharedVisits.get, { postId })).rejects.toMatchObject(notFound);
+  await expect(
+    b.as.query(api.sharedVisits.getArtwork, { postId, itemId }),
+  ).rejects.toMatchObject(notFound);
+  await expect(
+    b.as.query(api.sharedVisits.get, { postId }),
+  ).rejects.toMatchObject(notFound);
   expect((await b.as.query(api.sharedVisits.listFeed, {})).page).toEqual([]);
-  expect(await a.as.query(api.sharedVisits.get, { postId })).toMatchObject({ postId });
+  expect(await a.as.query(api.sharedVisits.get, { postId })).toMatchObject({
+    postId,
+  });
 });
 it("updates dates atomically, leaves shared text unchanged, and retains a post after its last save is deleted", async () => {
   const t = harness(),
     a = await socialUser(t),
     draft = await socialVisit(t, a, 1);
-  await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Shared text" }));
+  await t.run((ctx) =>
+    ctx.db.patch(draft.visit._id, { reflection: "Shared text" }),
+  );
   const state = await a.as.mutation(api.sharedVisits.publish, {
     ...draft.selection,
     reflection: "Shared text",
@@ -239,13 +312,20 @@ it("updates dates atomically, leaves shared text unchanged, and retains a post a
       reflection: "UNPUBLISHED EDIT",
     },
   });
-  expect(await a.as.query(api.sharedVisits.get, { postId: state.postId! })).toMatchObject({
+  expect(
+    await a.as.query(api.sharedVisits.get, { postId: state.postId! }),
+  ).toMatchObject({
     visitedOn: "2026-08-01",
     reflection: "Shared text",
     revision: 2,
   });
-  await a.as.mutation(api.collections.remove, { scope: a.scope, localId: draft.saves[0].localId });
-  const post = await a.as.query(api.sharedVisits.get, { postId: state.postId! });
+  await a.as.mutation(api.collections.remove, {
+    scope: a.scope,
+    localId: draft.saves[0].localId,
+  });
+  const post = await a.as.query(api.sharedVisits.get, {
+    postId: state.postId!,
+  });
   expect(post.artworks.page).toEqual([]);
   expect(post.revision).toBe(3);
   expect(await t.run((ctx) => ctx.db.get(draft.visit._id))).not.toBeNull();
@@ -258,25 +338,33 @@ it("merges date and post-ID keysets across friends without losing tied records o
   await befriend(viewer, a);
   await befriend(viewer, b);
   const expected = [];
-  for (const user of [a, b])
+  for (const user of [a, b]) {
     for (const date of ["2026-09-01", "2026-08-31", "2026-09-01"]) {
       const draft = await socialVisit(t, user, 0, date);
-      const result = await user.as.mutation(api.sharedVisits.publish, draft.selection);
+      const result = await user.as.mutation(
+        api.sharedVisits.publish,
+        draft.selection,
+      );
       expected.push({ visitedOn: date, postId: result.postId! });
     }
+  }
   let cursor: string | null = null;
   const seen = [];
   do {
-    const result: FunctionReturnType<typeof api.sharedVisits.listFeed> = await viewer.as.query(
-      api.sharedVisits.listFeed,
-      { limit: 2, cursor },
+    const result: FunctionReturnType<typeof api.sharedVisits.listFeed> =
+      await viewer.as.query(api.sharedVisits.listFeed, { limit: 2, cursor });
+    seen.push(
+      ...result.page.map((p) => ({ visitedOn: p.visitedOn, postId: p.postId })),
     );
-    seen.push(...result.page.map((p) => ({ visitedOn: p.visitedOn, postId: p.postId })));
     cursor = result.cursor;
-    if (cursor)
+    if (cursor) {
       await expect(
-        viewer.as.query(api.sharedVisits.listByProfile, { profileId: a.profileId, cursor }),
+        viewer.as.query(api.sharedVisits.listByProfile, {
+          profileId: a.profileId,
+          cursor,
+        }),
       ).rejects.toMatchObject({ data: { code: "invalid_pagination" } });
+    }
   } while (cursor);
   expect(seen).toEqual(expected.sort((a, b) => -compareHistory(a, b)));
   for (const args of [
@@ -285,7 +373,9 @@ it("merges date and post-ID keysets across friends without losing tied records o
     { cursor: "x".repeat(8193) },
     { limit: 51 },
   ]) {
-    await expect(viewer.as.query(api.sharedVisits.listFeed, args)).rejects.toMatchObject({
+    await expect(
+      viewer.as.query(api.sharedVisits.listFeed, args),
+    ).rejects.toMatchObject({
       data: { code: "invalid_pagination" },
     });
   }
@@ -294,7 +384,7 @@ it("bounds maximum-size artwork responses with continuation pages and revision-b
   const t = harness({ transactionLimits: true }),
     a = await socialUser(t),
     draft = await socialVisit(t, a, LIMITS.selectedSaves);
-  for (const save of draft.saves)
+  for (const save of draft.saves) {
     await t.run((ctx) =>
       ctx.db.patch(save.id, {
         snapshot: {
@@ -309,31 +399,40 @@ it("bounds maximum-size artwork responses with continuation pages and revision-b
         gallery: "界".repeat(LIMITS.snapshot),
       }),
     );
-  expect((await a.as.query(api.sharedVisits.preview, draft.selection)).artworks).toHaveLength(
-    LIMITS.selectedSaves,
-  );
+  }
+  expect(
+    (await a.as.query(api.sharedVisits.preview, draft.selection)).artworks,
+  ).toHaveLength(LIMITS.selectedSaves);
   const state = await a.as.mutation(api.sharedVisits.publish, draft.selection);
   const seen = [];
   let cursor: string | null = null;
   do {
-    const post: FunctionReturnType<typeof api.sharedVisits.get> = await a.as.query(
-      api.sharedVisits.get,
-      { postId: state.postId!, limit: 50, cursor },
-    );
+    const post: FunctionReturnType<typeof api.sharedVisits.get> =
+      await a.as.query(api.sharedVisits.get, {
+        postId: state.postId!,
+        limit: 50,
+        cursor,
+      });
     expect(utf8Bytes(post.artworks.page)).toBeLessThanOrEqual(PAGE_BYTES);
     expect(post.artworks.page.length).toBeGreaterThan(0);
     seen.push(...post.artworks.page.map((x) => x.itemId));
     cursor = post.artworks.cursor;
   } while (cursor);
   expect(new Set(seen).size).toBe(LIMITS.selectedSaves);
-  const first = await a.as.query(api.sharedVisits.get, { postId: state.postId!, limit: 1 });
+  const first = await a.as.query(api.sharedVisits.get, {
+    postId: state.postId!,
+    limit: 1,
+  });
   await a.as.mutation(api.sharedVisits.publish, {
     ...draft.selection,
     revision: 1,
     saveLocalIds: draft.selection.saveLocalIds.toReversed(),
   });
   await expect(
-    a.as.query(api.sharedVisits.get, { postId: state.postId!, cursor: first.artworks.cursor }),
+    a.as.query(api.sharedVisits.get, {
+      postId: state.postId!,
+      cursor: first.artworks.cursor,
+    }),
   ).rejects.toMatchObject(conflict);
 });
 it("shares the publication quota across account devices while allowing a Private save after exhaustion", async () => {
@@ -342,14 +441,30 @@ it("shares the publication quota across account devices while allowing a Private
     a = await socialUser(t),
     sibling = await seedDevice(t),
     draft = await socialVisit(t, a, 0);
-  await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: a.accountId }));
-  for (let revision = 0; revision < 30; revision++)
-    await a.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision });
+  await t.run((ctx) =>
+    ctx.db.patch(sibling.deviceId, { accountId: a.accountId }),
+  );
+  for (let revision = 0; revision < 30; revision++) {
+    await a.as.mutation(api.sharedVisits.publish, {
+      ...draft.selection,
+      revision,
+    });
+  }
   await expect(
-    sibling.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision: 30 }),
-  ).rejects.toMatchObject({ data: { code: "rate_limited", name: "publishVisit" } });
+    sibling.as.mutation(api.sharedVisits.publish, {
+      ...draft.selection,
+      revision: 30,
+    }),
+  ).rejects.toMatchObject({
+    data: { code: "rate_limited", name: "publishVisit" },
+  });
   expect(
-    await setVisitVisibility(t, { ...sibling, scope: a.scope }, draft.visit._id, "private"),
+    await setVisitVisibility(
+      t,
+      { ...sibling, scope: a.scope },
+      draft.visit._id,
+      "private",
+    ),
   ).toMatchObject({ status: "private", revision: 31 });
 });
 it("merges 200 friend streams under transaction limits and honors short-page cursors", async () => {
@@ -434,7 +549,10 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
           highlighted: true,
         });
       }
-      const [firstProfileId, secondProfileId] = canonicalPair(viewer.profileId, profileId);
+      const [firstProfileId, secondProfileId] = canonicalPair(
+        viewer.profileId,
+        profileId,
+      );
       await ctx.db.insert("friendships", {
         firstProfileId,
         secondProfileId,
@@ -450,13 +568,13 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
   let cursor: string | null = null;
   const seen = [];
   do {
-    const result: FunctionReturnType<typeof api.sharedVisits.listFeed> = await viewer.as.query(
-      api.sharedVisits.listFeed,
-      { limit: 50, cursor },
-    );
+    const result: FunctionReturnType<typeof api.sharedVisits.listFeed> =
+      await viewer.as.query(api.sharedVisits.listFeed, { limit: 50, cursor });
     expect(result.page.length).toBeGreaterThan(0);
     expect(result.page.length).toBeLessThan(50);
-    expect(result.page.reduce((sum, p) => sum + p.artworks.page.length, 0)).toBeLessThanOrEqual(50);
+    expect(
+      result.page.reduce((sum, p) => sum + p.artworks.page.length, 0),
+    ).toBeLessThanOrEqual(50);
     expect(utf8Bytes(result)).toBeLessThan(PAGE_BYTES);
     seen.push(...result.page.map((p) => p.postId));
     cursor = result.cursor;
@@ -470,18 +588,24 @@ it("prepares a private visit only for its owner without publishing or changing v
     stranger = await socialUser(t),
     draft = await socialVisit(t, owner);
   await setVisitVisibility(t, owner, draft.visit._id, "private");
-  expect((await owner.as.query(api.sharedVisits.preview, draft.selection)).artworks).toHaveLength(
-    2,
+  expect(
+    (await owner.as.query(api.sharedVisits.preview, draft.selection)).artworks,
+  ).toHaveLength(2);
+  await expect(
+    stranger.as.query(api.sharedVisits.preview, draft.selection),
+  ).rejects.toMatchObject(notFound);
+  await expect(
+    t.query(api.sharedVisits.preview, draft.selection),
+  ).rejects.toThrow();
+  expect(
+    await t.run(async (ctx) => (await ctx.db.get(draft.visit._id))?.visibility),
+  ).toBe("private");
+  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual(
+    [],
   );
-  await expect(stranger.as.query(api.sharedVisits.preview, draft.selection)).rejects.toMatchObject(
-    notFound,
-  );
-  await expect(t.query(api.sharedVisits.preview, draft.selection)).rejects.toThrow();
-  expect(await t.run(async (ctx) => (await ctx.db.get(draft.visit._id))?.visibility)).toBe(
-    "private",
-  );
-  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
-  await expect(owner.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({
+  await expect(
+    owner.as.mutation(api.sharedVisits.publish, draft.selection),
+  ).rejects.toMatchObject({
     data: { code: "visit_private" },
   });
 });

@@ -1,7 +1,14 @@
 import { reportError } from "@/lib/observability";
 import { NotePaper } from "../note-paper";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { AppState, TextInput, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -38,14 +45,20 @@ type NoteDraft = {
 function persist(note: NoteDraft, sync = true) {
   clearTimeout(note.timer);
   const text = note.text;
-  if (!note.pending && text === note.savedText && !(sync && note.unsynced))
+  if (!note.pending && text === note.savedText && !(sync && note.unsynced)) {
     return Promise.resolve(true);
+  }
   note.pending++;
   // A slower earlier save must not overwrite the latest draft.
   note.writes = note.writes.then(async () => {
     try {
       if (text !== note.savedText) {
-        await patchVisit(note.localId, { reflection: text.trim() || null }, note.owner, { sync });
+        await patchVisit(
+          note.localId,
+          { reflection: text.trim() || null },
+          note.owner,
+          { sync },
+        );
         note.savedText = text;
         note.unsynced = !sync;
       } else if (sync && note.unsynced) {
@@ -56,7 +69,9 @@ function persist(note: NoteDraft, sync = true) {
       return true;
     } catch (cause) {
       reportError(cause, "visit.note.save");
-      note.onResult(socialErrorMessage(cause) ?? "Your note could not be saved. Try again.");
+      note.onResult(
+        socialErrorMessage(cause) ?? "Your note could not be saved. Try again.",
+      );
       return false;
     } finally {
       note.pending--;
@@ -66,10 +81,21 @@ function persist(note: NoteDraft, sync = true) {
 }
 
 export function VisitNotes({ visit, ...props }: VisitNotesProps) {
-  return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
+  return (
+    <NoteField
+      key={`${visit.owner}:${visit.localId}`}
+      visit={visit}
+      {...props}
+    />
+  );
 }
 
-function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesProps) {
+function NoteField({
+  visit,
+  autoSave = true,
+  editable = true,
+  ref,
+}: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? "");
   const [editing, setEditing] = useState(!autoSave);
   const [error, setError] = useState<string>();
@@ -119,13 +145,21 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
 
   return (
     <View>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Text variant="section" accessibilityRole="header">
           Notes
         </Text>
         <GalleryButton
           label={editing ? "Done" : draft ? "Edit" : "Add"}
-          accessibilityLabel={editing ? "Done editing note" : draft ? "Edit note" : "Add a note"}
+          accessibilityLabel={
+            editing ? "Done editing note" : draft ? "Edit note" : "Add a note"
+          }
           disabled={!editable}
           onPress={() => {
             if (editing && autoSave) void persist(latest.current);
@@ -150,10 +184,11 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
             note.text = text;
             setDraft(text);
             clearTimeout(note.timer);
-            if (autoSave)
+            if (autoSave) {
               note.timer = setTimeout(() => {
                 void persist(note, false);
               }, 500);
+            }
           }}
           onBlur={() => {
             latest.current.focused = false;
@@ -168,7 +203,11 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
         <NotePaper>
           <Text
             selectable
-            style={{ color: draft ? Gallery.ink : Gallery.muted, fontSize: 16, lineHeight: 24 }}
+            style={{
+              color: draft ? Gallery.ink : Gallery.muted,
+              fontSize: 16,
+              lineHeight: 24,
+            }}
           >
             {draft || "No notes yet."}
           </Text>

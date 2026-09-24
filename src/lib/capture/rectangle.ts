@@ -61,7 +61,9 @@ export type TrackerResult = {
 const unitSize: FrameSize = { width: 1, height: 1 };
 
 export function toQuad(corners: RectPoint[]): Quad {
-  if (corners.length !== 4) throw new Error(`Expected 4 corners, got ${corners.length}`);
+  if (corners.length !== 4) {
+    throw new Error(`Expected 4 corners, got ${corners.length}`);
+  }
   return [
     [corners[0].x, corners[0].y],
     [corners[1].x, corners[1].y],
@@ -79,12 +81,15 @@ export function quadArea(quad: Quad, size: FrameSize = unitSize): number {
   for (let index = 0; index < 4; index++) {
     const [ax, ay] = quad[index];
     const [bx, by] = quad[(index + 1) % 4];
-    twiceArea += ax * size.width * by * size.height - bx * size.width * ay * size.height;
+    twiceArea +=
+      ax * size.width * by * size.height - bx * size.width * ay * size.height;
   }
   return Math.abs(twiceArea) / 2;
 }
 
-export function largestObservation(observations: RectObservation[]): RectObservation | undefined {
+export function largestObservation(
+  observations: RectObservation[],
+): RectObservation | undefined {
   let best: RectObservation | undefined;
   let bestArea = -1;
   for (const observation of observations) {
@@ -98,12 +103,18 @@ export function largestObservation(observations: RectObservation[]): RectObserva
   return best;
 }
 
-function distance(a: [number, number], b: [number, number], size: FrameSize): number {
+function distance(
+  a: [number, number],
+  b: [number, number],
+  size: FrameSize,
+): number {
   return Math.hypot((a[0] - b[0]) * size.width, (a[1] - b[1]) * size.height);
 }
 
 export function maxCornerDistance(a: Quad, b: Quad, size: FrameSize): number {
-  return Math.max(...a.map((corner, index) => distance(corner, b[index], size)));
+  return Math.max(
+    ...a.map((corner, index) => distance(corner, b[index], size)),
+  );
 }
 
 function largestQuad(quads: Quad[]): Quad | undefined {
@@ -119,7 +130,10 @@ function enclosesCentroid(outer: Quad, inner: Quad): boolean {
   const xs = outer.map(([x]) => x);
   const ys = outer.map(([, y]) => y);
   return (
-    cx > Math.min(...xs) && cx < Math.max(...xs) && cy > Math.min(...ys) && cy < Math.max(...ys)
+    cx > Math.min(...xs)
+    && cx < Math.max(...xs)
+    && cy > Math.min(...ys)
+    && cy < Math.max(...ys)
   );
 }
 
@@ -132,12 +146,22 @@ function blend(tracked: Quad, raw: Quad): Quad {
 
 function isCutOff(quad: Quad): boolean {
   return quad.some(
-    ([x, y]) => x < EDGE_MARGIN || x > 1 - EDGE_MARGIN || y < EDGE_MARGIN || y > 1 - EDGE_MARGIN,
+    ([x, y]) =>
+      x < EDGE_MARGIN
+      || x > 1 - EDGE_MARGIN
+      || y < EDGE_MARGIN
+      || y > 1 - EDGE_MARGIN,
   );
 }
 
 export function isUsableQuad(quad: Quad): boolean {
-  if (quad.some((point) => point.some((v) => !Number.isFinite(v) || v < 0 || v > 1))) return false;
+  if (
+    quad.some((point) =>
+      point.some((v) => !Number.isFinite(v) || v < 0 || v > 1),
+    )
+  ) {
+    return false;
+  }
   if (quadArea(quad) < 0.01) return false;
   return quad.every(([x, y], i) => {
     const b = quad[(i + 1) % 4],
@@ -154,11 +178,20 @@ export function containsPoint(quad: Quad, [x, y]: [number, number]): boolean {
 }
 
 /** Maps normalized frame corners onto the preview, which covers the view like `resizeMode="cover"`. */
-export function previewQuad(quad: Quad, frame: FrameSize, preview: FrameSize): Quad {
-  const scale = Math.max(preview.width / frame.width, preview.height / frame.height);
+export function previewQuad(
+  quad: Quad,
+  frame: FrameSize,
+  preview: FrameSize,
+): Quad {
+  const scale = Math.max(
+    preview.width / frame.width,
+    preview.height / frame.height,
+  );
   return quad.map(([x, y]) => [
-    (x * frame.width * scale + (preview.width - frame.width * scale) / 2) / preview.width,
-    (y * frame.height * scale + (preview.height - frame.height * scale) / 2) / preview.height,
+    (x * frame.width * scale + (preview.width - frame.width * scale) / 2)
+      / preview.width,
+    (y * frame.height * scale + (preview.height - frame.height * scale) / 2)
+      / preview.height,
   ]) as Quad;
 }
 
@@ -166,10 +199,13 @@ export function framingGuidance(
   quad: Quad,
   size: FrameSize,
 ): "move-closer" | "fit-whole-painting" | "straighten" | null {
-  if (quadArea(quad, size) < MIN_AREA_FRACTION * size.width * size.height) return "move-closer";
+  if (quadArea(quad, size) < MIN_AREA_FRACTION * size.width * size.height) {
+    return "move-closer";
+  }
   if (isCutOff(quad)) return "fit-whole-painting";
   const [topLeft, topRight, bottomRight, bottomLeft] = quad;
-  const ratio = (a: number, b: number) => Math.max(a, b) / Math.max(Math.min(a, b), Number.EPSILON);
+  const ratio = (a: number, b: number) =>
+    Math.max(a, b) / Math.max(Math.min(a, b), Number.EPSILON);
   const horizontal = ratio(
     distance(topLeft, topRight, size),
     distance(bottomLeft, bottomRight, size),
@@ -178,8 +214,12 @@ export function framingGuidance(
     distance(topLeft, bottomLeft, size),
     distance(topRight, bottomRight, size),
   );
-  if (horizontal > MAX_OPPOSITE_EDGE_RATIO || vertical > MAX_OPPOSITE_EDGE_RATIO)
+  if (
+    horizontal > MAX_OPPOSITE_EDGE_RATIO
+    || vertical > MAX_OPPOSITE_EDGE_RATIO
+  ) {
     return "straighten";
+  }
   return null;
 }
 
@@ -209,7 +249,11 @@ export class RectTracker {
     return quad;
   }
 
-  push(observations: RectObservation[], size: FrameSize, now: number): TrackerResult {
+  push(
+    observations: RectObservation[],
+    size: FrameSize,
+    now: number,
+  ): TrackerResult {
     const candidates = observations
       .filter((observation) => observation.corners.length === 4)
       .map((o) => toQuad(o.corners));
@@ -219,23 +263,25 @@ export class RectTracker {
     // the target: a larger candidate enclosing the tracked box takes over, a nested one is ignored while
     // the outer was seen recently, and switching between them never counts as camera movement.
     const outer =
-      tracked &&
-      largestQuad(
+      tracked
+      && largestQuad(
         candidates.filter(
           (q) =>
-            quadArea(q) * NESTED_AREA_RATIO > quadArea(tracked) && enclosesCentroid(q, tracked),
+            quadArea(q) * NESTED_AREA_RATIO > quadArea(tracked)
+            && enclosesCentroid(q, tracked),
         ),
       );
     const near =
-      tracked &&
-      largestQuad(
+      tracked
+      && largestQuad(
         candidates.filter(
           (q) =>
-            maxCornerDistance(q, tracked, size) <
-            TRACK_MAX_JUMP * Math.hypot(size.width, size.height),
+            maxCornerDistance(q, tracked, size)
+            < TRACK_MAX_JUMP * Math.hypot(size.width, size.height),
         ),
       );
-    const nested = tracked && near && quadArea(near) < NESTED_AREA_RATIO * quadArea(tracked);
+    const nested =
+      tracked && near && quadArea(near) < NESTED_AREA_RATIO * quadArea(tracked);
     let captureQuad: Quad | undefined;
     let smoothFrom: Quad | undefined;
     if (!tracked) captureQuad = largestQuad(candidates);
@@ -243,7 +289,9 @@ export class RectTracker {
     else if (near && !nested) {
       captureQuad = near;
       smoothFrom = tracked;
-    } else if (near && missedFor > MISS_GRACE_MS) captureQuad = this.retarget(near);
+    } else if (near && missedFor > MISS_GRACE_MS) {
+      captureQuad = this.retarget(near);
+    }
     if (!captureQuad) {
       if (missedFor > MISS_GRACE_MS) this.reset();
       return this.last;
@@ -252,21 +300,29 @@ export class RectTracker {
     this.lastSeenAt = now;
     this.history.push({ quad, at: now });
     // Keep the newest sample that is at least a window old, so a full window is detectable despite frame jitter.
-    while (this.history.length > 1 && this.history[1].at <= now - STABLE_WINDOW_MS)
+    while (
+      this.history.length > 1
+      && this.history[1].at <= now - STABLE_WINDOW_MS
+    ) {
       this.history.shift();
+    }
     const windowFull = this.history[0].at <= now - STABLE_WINDOW_MS;
     const displacement = Math.max(
-      ...this.history.map((sample) => maxCornerDistance(sample.quad, quad, size)),
+      ...this.history.map((sample) =>
+        maxCornerDistance(sample.quad, quad, size),
+      ),
     );
     const jitter = displacement / Math.hypot(size.width, size.height);
     const stable = windowFull && jitter < STABLE_MAX_DISPLACEMENT;
-    const guidance = framingGuidance(quad, size) ?? (stable ? "ready" : "hold-still");
+    const guidance =
+      framingGuidance(quad, size) ?? (stable ? "ready" : "hold-still");
     const lastMovement = this.history.findLastIndex(
       (sample) =>
-        maxCornerDistance(sample.quad, quad, size) >=
-        STABLE_MAX_DISPLACEMENT * Math.hypot(size.width, size.height),
+        maxCornerDistance(sample.quad, quad, size)
+        >= STABLE_MAX_DISPLACEMENT * Math.hypot(size.width, size.height),
     );
-    const steadySince = this.history[Math.min(lastMovement + 1, this.history.length - 1)].at;
+    const steadySince =
+      this.history[Math.min(lastMovement + 1, this.history.length - 1)].at;
     const progress =
       guidance === "ready"
         ? 1
@@ -279,10 +335,16 @@ export class RectTracker {
 }
 
 export function isQuadrilateralSubject(subject: SubjectObservation): boolean {
-  return subject.quad.length === 4 && Math.abs(subject.quadFill - 1) <= SUBJECT_QUAD_FILL_TOLERANCE;
+  return (
+    subject.quad.length === 4
+    && Math.abs(subject.quadFill - 1) <= SUBJECT_QUAD_FILL_TOLERANCE
+  );
 }
 
-function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | null {
+function closestRectangle(
+  rectangles: RectObservation[],
+  target: Quad,
+): Quad | null {
   let best: Quad | null = null;
   let bestDistance = STILL_MATCH_TOLERANCE;
   for (const candidate of rectangles) {
@@ -306,26 +368,33 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
  * Preview corners alone are never evidence of a still boundary. Imports keep the outer candidate because a smaller nested rectangle can be
  * painted detail rather than the canvas boundary.
  */
-export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
+export function selectCaptureQuad(
+  previewQuad: Quad | null,
+  still: StillDetection,
+): Quad | null {
   const rectangles = still.rectangles.filter(
-    (observation) => observation.corners.length === 4 && isUsableQuad(toQuad(observation.corners)),
+    (observation) =>
+      observation.corners.length === 4
+      && isUsableQuad(toQuad(observation.corners)),
   );
   const subjects = still.subjects
     .filter(isQuadrilateralSubject)
     .map((subject) => toQuad(subject.quad))
     .filter(
       (quad) =>
-        isUsableQuad(quad) &&
-        !isCutOff(quad) &&
-        (quadArea(quad) >= MIN_UNGUIDED_SUBJECT_AREA_FRACTION ||
-          (previewQuad !== null &&
-            enclosesCentroid(previewQuad, quad) &&
-            quadArea(quad) >= 0.5 * quadArea(previewQuad)) ||
-          closestRectangle(rectangles, quad) !== null),
+        isUsableQuad(quad)
+        && !isCutOff(quad)
+        && (quadArea(quad) >= MIN_UNGUIDED_SUBJECT_AREA_FRACTION
+          || (previewQuad !== null
+            && enclosesCentroid(previewQuad, quad)
+            && quadArea(quad) >= 0.5 * quadArea(previewQuad))
+          || closestRectangle(rectangles, quad) !== null),
     )
     .sort((a, b) => quadArea(b) - quadArea(a));
   const subject =
-    (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad))) ?? subjects[0];
+    (previewQuad
+      && subjects.find((quad) => enclosesCentroid(previewQuad, quad)))
+    ?? subjects[0];
   if (subject) return subject;
   if (previewQuad) {
     const match = closestRectangle(rectangles, previewQuad);

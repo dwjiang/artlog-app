@@ -63,7 +63,12 @@ export function DownloadMenu({
       colorScheme="light"
       style={styles.icon}
     >
-      <View accessible accessibilityRole="button" accessibilityLabel={label} style={styles.icon}>
+      <View
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={styles.icon}
+      >
         <DownloadIcon name={icon} color={color} />
       </View>
     </MenuView>
@@ -92,7 +97,11 @@ export function DownloadButton({
       ]}
     >
       {icon && (
-        <DownloadIcon name={icon} size={19} color={secondary ? Gallery.accent : Gallery.surface} />
+        <DownloadIcon
+          name={icon}
+          size={19}
+          color={secondary ? Gallery.accent : Gallery.surface}
+        />
       )}
       <Text
         style={{
@@ -109,7 +118,13 @@ export function DownloadButton({
     </Pressable>
   );
 }
-export function DownloadProgress({ name, progress }: { name: string; progress: number }) {
+export function DownloadProgress({
+  name,
+  progress,
+}: {
+  name: string;
+  progress: number;
+}) {
   return (
     <View
       accessibilityRole="progressbar"
@@ -134,7 +149,12 @@ export function DownloadProgress({ name, progress }: { name: string; progress: n
   );
 }
 const styles = StyleSheet.create({
-  icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  icon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
     minHeight: 48,
     minWidth: 44,

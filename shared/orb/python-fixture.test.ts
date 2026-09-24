@@ -21,7 +21,9 @@ describe("ORB fixture written by the Python extractor", () => {
 
   it("has count×32 descriptor bytes and count×16 keypoint bytes within the cap", () => {
     expect(fixture.count).toBeGreaterThan(0);
-    expect(fixture.count).toBeLessThanOrEqual(Math.min(MAX_KEYPOINTS, model.orbMaxKeypoints));
+    expect(fixture.count).toBeLessThanOrEqual(
+      Math.min(MAX_KEYPOINTS, model.orbMaxKeypoints),
+    );
     expect(descriptors.byteLength).toBe(fixture.count * DESCRIPTOR_BYTES);
     expect(keypoints.byteLength).toBe(fixture.count * KEYPOINT_FLOATS * 4);
     expect(fixture.inputSize).toBe(model.inputSize);

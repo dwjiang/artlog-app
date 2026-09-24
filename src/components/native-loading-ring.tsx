@@ -11,7 +11,11 @@ export function NativeLoadingRing({
 }) {
   return (
     <RNHostView matchContents>
-      <LoadingRing accessibilityLabel={label} color={color} style={{ width: 24, height: 24 }} />
+      <LoadingRing
+        accessibilityLabel={label}
+        color={color}
+        style={{ width: 24, height: 24 }}
+      />
     </RNHostView>
   );
 }

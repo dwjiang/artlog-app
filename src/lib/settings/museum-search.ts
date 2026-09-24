@@ -9,7 +9,9 @@ export async function getMuseumSearchConsent(): Promise<MuseumSearchConsent> {
   return value === "granted" || value === "declined" ? value : "unset";
 }
 
-export async function setMuseumSearchConsent(value: MuseumSearchConsent): Promise<void> {
+export async function setMuseumSearchConsent(
+  value: MuseumSearchConsent,
+): Promise<void> {
   await setSetting(CONSENT_KEY, value);
   for (const listener of listeners) listener();
 }

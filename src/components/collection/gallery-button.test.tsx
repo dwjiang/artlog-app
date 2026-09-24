@@ -12,17 +12,32 @@ it("keeps its label and prevents duplicate activation while announcing progress"
   expect(onPress).toHaveBeenCalledTimes(1);
 
   await screen.rerender(
-    <GalleryButton label="Save artwork" onPress={onPress} busy busyLabel="Saving…" fullWidth />,
+    <GalleryButton
+      label="Save artwork"
+      onPress={onPress}
+      busy
+      busyLabel="Saving…"
+      fullWidth
+    />,
   );
-  const button = screen.getByRole("button", { name: "Save artwork", disabled: true });
+  const button = screen.getByRole("button", {
+    name: "Save artwork",
+    disabled: true,
+  });
   expect(screen.getByText("Save artwork")).toBeOnTheScreen();
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText("Saving…", { includeHiddenElements: true })).toBeNull();
+  expect(
+    screen.queryByText("Saving…", { includeHiddenElements: true }),
+  ).toBeNull();
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(announce).toHaveBeenCalledWith("Save artwork. In progress.");
 
-  await screen.rerender(<GalleryButton label="Save artwork" onPress={onPress} />);
-  expect(screen.getByRole("button", { name: "Save artwork", disabled: false })).toBeOnTheScreen();
+  await screen.rerender(
+    <GalleryButton label="Save artwork" onPress={onPress} />,
+  );
+  expect(
+    screen.getByRole("button", { name: "Save artwork", disabled: false }),
+  ).toBeOnTheScreen();
   announce.mockRestore();
 });

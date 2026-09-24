@@ -20,7 +20,8 @@ function ArtlogWidget(
   environment: WidgetEnvironment & { width?: number; height?: number },
 ) {
   "widget";
-  const layout = environment.widgetFamily === "systemSmall" ? props.small : props.medium;
+  const layout =
+    environment.widgetFamily === "systemSmall" ? props.small : props.medium;
   const scale = Math.min(
     (environment.width ?? layout.width) / layout.width,
     (environment.height ?? layout.height) / layout.height,
@@ -62,7 +63,10 @@ function ArtlogWidget(
             uiImage={layout.image.uri}
             modifiers={[
               resizable(),
-              frame({ width: layout.image.width * scale, height: layout.image.height * scale }),
+              frame({
+                width: layout.image.width * scale,
+                height: layout.image.height * scale,
+              }),
               offset({ x: layout.image.x * scale, y: layout.image.y * scale }),
             ]}
           />
@@ -73,7 +77,11 @@ function ArtlogWidget(
             key={index}
             alignment="topLeading"
             modifiers={[
-              frame({ width: row.width * scale, height: row.height * scale, alignment: "leading" }),
+              frame({
+                width: row.width * scale,
+                height: row.height * scale,
+                alignment: "leading",
+              }),
               offset({ x: row.x * scale, y: row.y * scale }),
             ]}
           >

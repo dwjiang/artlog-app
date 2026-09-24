@@ -20,7 +20,20 @@ const BOILERPLATE =
   /(?:^|\n)\s*#{1,6}\s*(?:more|most viewed|related|explore more|read more)\b[\s\S]*$|\b(?:more like this|most viewed|explore more on these topics|related (?:articles|stories|content)|read more)\b[\s\S]*$/i;
 const SENTENCE_GUARD =
   /(?:\b[A-Z]|\b(?:Mr|Mrs|Ms|Dr|St|Mt|Jr|Sr|Prof|No|vs|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)|\b(?:[A-Z]\.)+[A-Z])\.$/;
-const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
 const MONTH =
   "(?<month>January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\\.?";
 const DAY = "(?<day>\\d{1,2})(?:st|nd|rd|th)?";
@@ -42,10 +55,14 @@ export function sentences(text: string): string[] {
   for (const boundary of normalized.matchAll(/[.!?](?:["”’])?\s+/g)) {
     const prefix = normalized.slice(start, boundary.index + 1);
     if (SENTENCE_GUARD.test(prefix)) continue;
-    parts.push(normalized.slice(start, boundary.index + boundary[0].length).trim());
+    parts.push(
+      normalized.slice(start, boundary.index + boundary[0].length).trim(),
+    );
     start = boundary.index + boundary[0].length;
   }
-  if (normalized.slice(start).trim()) parts.push(normalized.slice(start).trim());
+  if (normalized.slice(start).trim()) {
+    parts.push(normalized.slice(start).trim());
+  }
   return parts;
 }
 
@@ -65,9 +82,9 @@ export function isListingUrl(value: string): boolean {
     return true;
   }
   return (
-    LISTING_HOST.test(url.hostname) ||
-    LISTING_PATH.test(url.pathname) ||
-    url.searchParams.has("page")
+    LISTING_HOST.test(url.hostname)
+    || LISTING_PATH.test(url.pathname)
+    || url.searchParams.has("page")
   );
 }
 
@@ -100,7 +117,9 @@ function normalizedSentence(text: string): string {
 function hasOmittedQualification(claim: string, context: string[]): boolean {
   const normalized = normalizedSentence(claim);
   return context.some(
-    (sentence) => normalizedSentence(sentence) !== normalized && QUALIFICATION.test(sentence),
+    (sentence) =>
+      normalizedSentence(sentence) !== normalized
+      && QUALIFICATION.test(sentence),
   );
 }
 
@@ -115,25 +134,42 @@ function hasCurrentEventDate(sentence: string, now: number): boolean {
       const at = Date.UTC(Number(year), monthIndex, Number(day));
       const date = new Date(at);
       if (
-        date.getUTCFullYear() !== Number(year) ||
-        date.getUTCMonth() !== monthIndex ||
-        date.getUTCDate() !== Number(day)
-      )
+        date.getUTCFullYear() !== Number(year)
+        || date.getUTCMonth() !== monthIndex
+        || date.getUTCDate() !== Number(day)
+      ) {
         return false;
+      }
       return at >= now - WINDOW_MS && at <= now + WINDOW_MS;
     }),
   );
 }
 
-function claimSupported(claim: string, artist: string, source: TavilyResult, now: number): boolean {
-  if (claim.length > MAX_CHARS || !/[.!?]["”’]?$/.test(claim) || !artistMentioned(claim, artist))
+function claimSupported(
+  claim: string,
+  artist: string,
+  source: TavilyResult,
+  now: number,
+): boolean {
+  if (
+    claim.length > MAX_CHARS
+    || !/[.!?]["”’]?$/.test(claim)
+    || !artistMentioned(claim, artist)
+  ) {
     return false;
-  if (source.content.trim().length < MIN_CONTENT_CHARS || !hasCurrentEventDate(claim, now))
+  }
+  if (
+    source.content.trim().length < MIN_CONTENT_CHARS
+    || !hasCurrentEventDate(claim, now)
+  ) {
     return false;
+  }
   const context = sourceSentences(source.content);
   return (
-    !hasOmittedQualification(claim, [source.title, ...context]) &&
-    context.some((sentence) => normalizedSentence(sentence) === normalizedSentence(claim))
+    !hasOmittedQualification(claim, [source.title, ...context])
+    && context.some(
+      (sentence) => normalizedSentence(sentence) === normalizedSentence(claim),
+    )
   );
 }
 
@@ -153,13 +189,16 @@ export function eligibleResults(
       }
       const at = publishedAt(result.publishedDate);
       if (
-        result.score < MIN_SCORE ||
-        url.protocol !== "https:" ||
-        !hostAllowed(url, options.domains) ||
-        isListingUrl(result.url)
-      )
+        result.score < MIN_SCORE
+        || url.protocol !== "https:"
+        || !hostAllowed(url, options.domains)
+        || isListingUrl(result.url)
+      ) {
         return [];
-      if (at === null || at > options.now || at < options.now - WINDOW_MS) return [];
+      }
+      if (at === null || at > options.now || at < options.now - WINDOW_MS) {
+        return [];
+      }
       return [{ ...result, publishedAt: at }];
     })
     .sort((a, b) => b.score - a.score);
@@ -173,11 +212,12 @@ export function acceptRightNow(
   if (!answer || isAbstention(answer)) return null;
   const claim = firstSentence(answer);
   if (
-    !claim ||
-    !artistMentioned(claim, options.artist) ||
-    hasOmittedQualification(claim, sentences(answer))
-  )
+    !claim
+    || !artistMentioned(claim, options.artist)
+    || hasOmittedQualification(claim, sentences(answer))
+  ) {
     return null;
+  }
   for (const result of eligibleResults(response.results, options)) {
     if (!claimSupported(claim, options.artist, result, options.now)) continue;
     return {

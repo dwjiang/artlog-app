@@ -21,7 +21,9 @@ beforeEach(() => {
 
 it("decodes the file and converts it to a single gray channel, releasing the color image", async () => {
   const fake = fakeOpenCV({
-    images: { "b64:file:///crops/a%20b.jpg": { rows: 512, cols: 512, channels: 3 } },
+    images: {
+      "b64:file:///crops/a%20b.jpg": { rows: 512, cols: 512, channels: 3 },
+    },
   });
   const image = await loadGray("file:///crops/a%20b.jpg", fake.cv);
   expect(mockBase64).toHaveBeenCalledWith("file:///crops/a%20b.jpg");
@@ -37,6 +39,8 @@ it("releases both images when the conversion fails", async () => {
     images: { "b64:file:///crop.png": { rows: 8, cols: 8, channels: 1 } },
     cvtColorError: new Error("Invalid number of channels"),
   });
-  await expect(loadGray("file:///crop.png", fake.cv)).rejects.toThrow("Invalid number of channels");
+  await expect(loadGray("file:///crop.png", fake.cv)).rejects.toThrow(
+    "Invalid number of channels",
+  );
   expect(fake.leaked()).toEqual([]);
 });

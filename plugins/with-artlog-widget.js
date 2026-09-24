@@ -6,7 +6,10 @@ const path = require("node:path");
 module.exports = function withArtlogWidget(config) {
   // Source-generating dangerous mods run first; patch the generated target only after those finish.
   return withXcodeProject(config, (mod) => {
-    const target = path.join(mod.modRequest.platformProjectRoot, "ExpoWidgetsTarget");
+    const target = path.join(
+      mod.modRequest.platformProjectRoot,
+      "ExpoWidgetsTarget",
+    );
     fs.copyFileSync(
       require.resolve("./widgets/artlog-widget.swift"),
       path.join(target, "ArtlogWidget.swift"),

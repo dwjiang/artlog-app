@@ -1,7 +1,11 @@
 import { type Infer, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from "./_generated/server";
 import { currentPlacement } from "./lib/placements";
 import schema from "./schema";
 
@@ -15,15 +19,20 @@ export type BatchCursor = Infer<typeof batchCursor>;
 
 function claimable(artwork: Doc<"artworks">, now: number): boolean {
   return (
-    artwork.identityStatus === "established" &&
-    artwork.retiredAt === undefined &&
-    artwork.factSheetUpdatedAt === undefined &&
-    !artwork.factSheetNeedsReview &&
-    (artwork.enrichClaimedAt === undefined || artwork.enrichClaimedAt < now - STALE_CLAIM_MS)
+    artwork.identityStatus === "established"
+    && artwork.retiredAt === undefined
+    && artwork.factSheetUpdatedAt === undefined
+    && !artwork.factSheetNeedsReview
+    && (artwork.enrichClaimedAt === undefined
+      || artwork.enrichClaimedAt < now - STALE_CLAIM_MS)
   );
 }
 
-async function onView(ctx: QueryCtx, artworkId: Id<"artworks">, now: number): Promise<boolean> {
+async function onView(
+  ctx: QueryCtx,
+  artworkId: Id<"artworks">,
+  now: number,
+): Promise<boolean> {
   for await (const object of ctx.db
     .query("objects")
     .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
@@ -32,7 +41,10 @@ async function onView(ctx: QueryCtx, artworkId: Id<"artworks">, now: number): Pr
     for await (const placement of ctx.db
       .query("placements")
       .withIndex("by_objectId", (q) => q.eq("objectId", object._id))) {
-      current = currentPlacement(current ? [current, placement] : [placement], now);
+      current = currentPlacement(
+        current ? [current, placement] : [placement],
+        now,
+      );
     }
     if (current?.onView) return true;
   }
@@ -57,10 +69,16 @@ async function pendingPage(
     const page = await ctx.db
       .query("objects")
       .withIndex("by_source", (q) => q.eq("source", "user"))
-      .paginate({ cursor: after.cursor, numItems: limit, maximumBytesRead: 1024 * 1024 });
+      .paginate({
+        cursor: after.cursor,
+        numItems: limit,
+        maximumBytesRead: 1024 * 1024,
+      });
     const seen = new Set<Id<"artworks">>();
     for (const object of page.page) {
-      if (object.reverted || object.mergedInto || seen.has(object.artworkId)) continue;
+      if (object.reverted || object.mergedInto || seen.has(object.artworkId)) {
+        continue;
+      }
       seen.add(object.artworkId);
       const artwork = await ctx.db.get(object.artworkId);
       if (artwork && claimable(artwork, now)) artworks.push(artwork);
@@ -74,14 +92,24 @@ async function pendingPage(
   }
   const page = await ctx.db
     .query("artworks")
-    .withIndex("by_factSheetUpdatedAt", (q) => q.eq("factSheetUpdatedAt", undefined))
-    .paginate({ cursor: after.cursor, numItems: limit, maximumBytesRead: 1024 * 1024 });
+    .withIndex("by_factSheetUpdatedAt", (q) =>
+      q.eq("factSheetUpdatedAt", undefined),
+    )
+    .paginate({
+      cursor: after.cursor,
+      numItems: limit,
+      maximumBytesRead: 1024 * 1024,
+    });
   for (const artwork of page.page) {
-    if (claimable(artwork, now) && (await onView(ctx, artwork._id, now))) artworks.push(artwork);
+    if (claimable(artwork, now) && (await onView(ctx, artwork._id, now))) {
+      artworks.push(artwork);
+    }
   }
   return {
     artworks,
-    after: page.isDone ? null : { phase: "artworks", cursor: page.continueCursor },
+    after: page.isDone
+      ? null
+      : { phase: "artworks", cursor: page.continueCursor },
   };
 }
 
@@ -119,18 +147,20 @@ export const lookup = internalQuery({
       .query("artworks")
       .withIndex("by_key", (q) => q.eq("key", key))
       .unique();
-    if (artwork)
-      return artwork.identityStatus === "established" && artwork.retiredAt === undefined
+    if (artwork) {
+      return artwork.identityStatus === "established"
+        && artwork.retiredAt === undefined
         ? artwork
         : null;
+    }
     const object = await ctx.db
       .query("objects")
       .withIndex("by_key", (q) => q.eq("key", key))
       .unique();
-    return object &&
-      object.identityStatus === "established" &&
-      !object.reverted &&
-      !object.mergedInto
+    return object
+      && object.identityStatus === "established"
+      && !object.reverted
+      && !object.mergedInto
       ? ctx.db.get(object.artworkId)
       : null;
   },
@@ -141,8 +171,9 @@ export const releaseClaim = internalMutation({
   returns: v.null(),
   handler: async (ctx, { artworkId, generation }) => {
     const artwork = await ctx.db.get(artworkId);
-    if (artwork?.enrichGeneration === generation)
+    if (artwork?.enrichGeneration === generation) {
       await ctx.db.patch(artworkId, { enrichClaimedAt: undefined });
+    }
     return null;
   },
 });

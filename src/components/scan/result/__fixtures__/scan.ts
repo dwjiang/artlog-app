@@ -47,7 +47,11 @@ export const docent = [
   { sentence: "It entered the collection in 1959.", factIds: ["f2"] },
 ];
 export const factSheet = [
-  { id: "f1", sourceUrl: "https://www.wikidata.org/wiki/Q1", sourceLabel: "Wikidata" },
+  {
+    id: "f1",
+    sourceUrl: "https://www.wikidata.org/wiki/Q1",
+    sourceLabel: "Wikidata",
+  },
   {
     id: "f2",
     sourceUrl: "https://www.metmuseum.org/art/collection/search/1",
@@ -104,7 +108,11 @@ export const missScan: NonNullable<ScanResult> = {
   runnerUps: [bridge],
 };
 
-export const pendingScan: NonNullable<ScanResult> = { ...base, status: "pending", runnerUps: [] };
+export const pendingScan: NonNullable<ScanResult> = {
+  ...base,
+  status: "pending",
+  runnerUps: [],
+};
 export const unsupportedScan: NonNullable<ScanResult> = {
   ...base,
   status: "unsupported_version",

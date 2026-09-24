@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { allowedVenueUrl, fetchVenuePage, hostAllowed, venueHosts } from "./venueFetch";
+import {
+  allowedVenueUrl,
+  fetchVenuePage,
+  hostAllowed,
+  venueHosts,
+} from "./venueFetch";
 
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
@@ -20,9 +25,15 @@ const venue = {
 
 describe("venue-scoped fetching", () => {
   it("derives bare hosts from the venue sites, ignoring invalid ones", () => {
-    expect(venueHosts(venue)).toEqual(["museum.example", "collection.museum.example"]);
+    expect(venueHosts(venue)).toEqual([
+      "museum.example",
+      "collection.museum.example",
+    ]);
     expect(
-      venueHosts({ website: "http://127.0.0.1/", collectionSiteUrl: "ftp://x.example/" }),
+      venueHosts({
+        website: "http://127.0.0.1/",
+        collectionSiteUrl: "ftp://x.example/",
+      }),
     ).toEqual([]);
     expect(venueHosts({})).toEqual([]);
   });
@@ -43,7 +54,9 @@ describe("venue-scoped fetching", () => {
   });
 
   it("never fetches a host outside the venue", async () => {
-    await expect(fetchVenuePage("https://evil.example/", venueHosts(venue))).rejects.toMatchObject({
+    await expect(
+      fetchVenuePage("https://evil.example/", venueHosts(venue)),
+    ).rejects.toMatchObject({
       data: { code: "qr_host_not_allowed" },
     });
     expect(hostAllowed(new URL("https://evil.example/"), [])).toBe(false);
@@ -53,15 +66,18 @@ describe("venue-scoped fetching", () => {
   it("follows same-host redirects with manual redirect handling and returns the final URL", async () => {
     fetchMock
       .mockResolvedValueOnce(
-        new Response(null, { status: 301, headers: { location: "/objects/12" } }),
+        new Response(null, {
+          status: 301,
+          headers: { location: "/objects/12" },
+        }),
       )
       .mockResolvedValueOnce(new Response("<title>Work</title>"));
-    await expect(fetchVenuePage("https://museum.example/q/12", venueHosts(venue))).resolves.toEqual(
-      {
-        url: "https://museum.example/objects/12",
-        html: "<title>Work</title>",
-      },
-    );
+    await expect(
+      fetchVenuePage("https://museum.example/q/12", venueHosts(venue)),
+    ).resolves.toEqual({
+      url: "https://museum.example/objects/12",
+      html: "<title>Work</title>",
+    });
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       "https://museum.example/q/12",
       "https://museum.example/objects/12",
@@ -74,11 +90,16 @@ describe("venue-scoped fetching", () => {
 
   it("stops at off-host redirects, redirect loops and HTTP failures", async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response(null, { status: 302, headers: { location: "https://evil.example/" } }),
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://evil.example/" },
+      }),
     );
     await expect(
       fetchVenuePage("https://museum.example/q", ["museum.example"]),
-    ).rejects.toMatchObject({ data: { code: "page_unavailable", reason: "redirect_off_host" } });
+    ).rejects.toMatchObject({
+      data: { code: "page_unavailable", reason: "redirect_off_host" },
+    });
     fetchMock.mockResolvedValue(
       new Response(null, { status: 302, headers: { location: "/loop" } }),
     );
@@ -97,12 +118,14 @@ describe("venue-scoped fetching", () => {
     fetchMock.mockImplementationOnce(
       (_url, init) =>
         new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          init?.signal?.addEventListener("abort", () =>
+            reject(new Error("aborted")),
+          );
         }),
     );
-    const pending = fetchVenuePage("https://museum.example/slow", ["museum.example"]).catch(
-      (error) => error,
-    );
+    const pending = fetchVenuePage("https://museum.example/slow", [
+      "museum.example",
+    ]).catch((error) => error);
     await vi.advanceTimersByTimeAsync(8000);
     expect(await pending).toMatchObject({
       data: { code: "page_unavailable", reason: "fetch_failed" },

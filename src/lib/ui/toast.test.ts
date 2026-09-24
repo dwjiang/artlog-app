@@ -27,7 +27,10 @@ it("replaces the current toast and restarts the timer from the newest message", 
   await act(() => jest.advanceTimersByTime(4000));
   await act(() => showToast("Second", { label: "Undo", onPress: jest.fn() }));
   await act(() => jest.advanceTimersByTime(4000));
-  expect(result.current).toMatchObject({ message: "Second", action: { label: "Undo" } });
+  expect(result.current).toMatchObject({
+    message: "Second",
+    action: { label: "Undo" },
+  });
   await act(() => jest.advanceTimersByTime(200));
   expect(result.current).toBeUndefined();
 });

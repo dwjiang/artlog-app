@@ -22,8 +22,11 @@ export function ArtworkScreen({
 }) {
   const session = useSocialSession();
   const shared = kind === "visit";
-  const invalid = !itemId || (kind !== "wall" && !shared) || (shared && !postId);
-  const sessionReady = ["ready", "signed-out", "profile-required"].includes(session.status);
+  const invalid =
+    !itemId || (kind !== "wall" && !shared) || (shared && !postId);
+  const sessionReady = ["ready", "signed-out", "profile-required"].includes(
+    session.status,
+  );
   const canRead = !invalid && !session.offline && (!shared || sessionReady);
   const wall = useSocialQuery(
     api.walls.getArtwork,
@@ -32,12 +35,15 @@ export function ArtworkScreen({
   );
   const visit = useSocialQuery(
     api.sharedVisits.getArtwork,
-    canRead && shared ? { itemId: itemId as Id<"sharedVisitItems">, postId: postId! } : "skip",
+    canRead && shared
+      ? { itemId: itemId as Id<"sharedVisitItems">, postId: postId! }
+      : "skip",
     session.key,
   );
   const result = shared ? visit : wall;
   const data = result.data;
-  const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
+  const unavailable =
+    invalid || data === null || convexErrorCode(result.error) === "not_found";
   return (
     <ScrollView
       style={socialStyles.root}

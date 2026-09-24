@@ -4,12 +4,21 @@ import { EmptyState } from "../empty-state";
 import { EmptyPodium } from "../empty-state-art";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
-import { useLeaderboardChoice, type LeaderboardChoice } from "@/lib/social/use-leaderboard-choice";
+import {
+  useLeaderboardChoice,
+  type LeaderboardChoice,
+} from "@/lib/social/use-leaderboard-choice";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { GalleryButton } from "../collection/gallery-button";
@@ -24,18 +33,29 @@ export function LeaderboardScreen() {
   const session = useSocialSession();
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.4;
-  const { choice, changeChoice, error: preferenceError } = useLeaderboardChoice();
+  const {
+    choice,
+    changeChoice,
+    error: preferenceError,
+  } = useLeaderboardChoice();
   const { audience, metric, period } = choice;
   const ready = session.status === "ready";
-  const guest = session.status === "signed-out" || session.status === "profile-required";
+  const guest =
+    session.status === "signed-out" || session.status === "profile-required";
   const canBrowse = ready || (audience === "global" && guest);
-  const board = useSocialQuery(api.leaderboards.list, canBrowse ? choice : "skip", session.key);
+  const board = useSocialQuery(
+    api.leaderboards.list,
+    canBrowse ? choice : "skip",
+    session.key,
+  );
   const [participationOpen, setParticipationOpen] = useState(false);
   function manageParticipation() {
     if (guest) {
       setParticipationOpen(false);
       router.push(
-        session.status === "signed-out" ? signInRoute("leaderboards") : "/create-profile",
+        session.status === "signed-out"
+          ? signInRoute("leaderboards")
+          : "/create-profile",
       );
     } else setParticipationOpen(true);
   }
@@ -53,7 +73,11 @@ export function LeaderboardScreen() {
         contentContainerStyle={{ paddingBottom: 24 }}
         ListHeaderComponent={
           <View style={styles.filters}>
-            <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>
+            <Text
+              variant="pageTitle"
+              accessibilityRole="header"
+              style={{ marginBottom: 12 }}
+            >
               Leaderboards
             </Text>
             <NativeSegmentedPicker
@@ -66,7 +90,12 @@ export function LeaderboardScreen() {
               ]}
             />
             {canBrowse && (
-              <View style={[styles.filterRow, largeText && { flexDirection: "column" }]}>
+              <View
+                style={[
+                  styles.filterRow,
+                  largeText && { flexDirection: "column" },
+                ]}
+              >
                 <ChoiceMenu
                   plain
                   label="Ranking category"
@@ -96,7 +125,9 @@ export function LeaderboardScreen() {
         keyExtractor={(row) => row.profile.profileId}
         renderItem={({ item, index }) => {
           const own = item.profile.profileId === session.profileId;
-          const tied = rows[index - 1]?.rank === item.rank || rows[index + 1]?.rank === item.rank;
+          const tied =
+            rows[index - 1]?.rank === item.rank
+            || rows[index + 1]?.rank === item.rank;
           return (
             <Pressable
               accessibilityRole="button"
@@ -107,12 +138,26 @@ export function LeaderboardScreen() {
                   params: { profileId: item.profile.profileId },
                 })
               }
-              style={[styles.row, own && styles.ownRow, largeText && { flexWrap: "wrap" }]}
+              style={[
+                styles.row,
+                own && styles.ownRow,
+                largeText && { flexWrap: "wrap" },
+              ]}
             >
-              <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>
+              <Text
+                style={[
+                  styles.rank,
+                  own && styles.ownRank,
+                  { minWidth: 25 * fontScale },
+                ]}
+              >
                 {item.rank}
               </Text>
-              <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
+              <ProfileAvatar
+                name={item.profile.name}
+                photoUrl={item.profile.photoUrl}
+                size={36}
+              />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.name}>
                   {item.profile.name}
@@ -225,7 +270,11 @@ export function LeaderboardScreen() {
             )}
             {canBrowse && (
               <GalleryButton
-                label={visibility === "off" ? "Join the leaderboard" : "Manage participation"}
+                label={
+                  visibility === "off"
+                    ? "Join the leaderboard"
+                    : "Manage participation"
+                }
                 fullWidth
                 onPress={manageParticipation}
               />
@@ -234,7 +283,9 @@ export function LeaderboardScreen() {
         }
       />
       {participationOpen && (
-        <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />
+        <LeaderboardParticipation
+          onDismiss={() => setParticipationOpen(false)}
+        />
       )}
     </View>
   );
@@ -247,7 +298,11 @@ function LeaderboardSignIn() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  filters: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: Gallery.paper },
+  filters: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    backgroundColor: Gallery.paper,
+  },
   filterRow: { flexDirection: "row", gap: 9, marginTop: 13 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   row: {
@@ -269,7 +324,12 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     borderBottomWidth: 0,
   },
-  rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ["tabular-nums"] },
+  rank: {
+    minWidth: 25,
+    fontSize: 14,
+    color: Gallery.muted,
+    fontVariant: ["tabular-nums"],
+  },
   ownRank: {
     color: Gallery.surface,
     backgroundColor: Gallery.ink,

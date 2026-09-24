@@ -6,9 +6,16 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
 import type { ScanFeatures } from "@/lib/capture/features";
 import type { IdentifyResponse } from "@/lib/capture/stages";
-import { errorMessage, isTransientError, rateLimitRetryAfterMs } from "@/lib/network-error";
+import {
+  errorMessage,
+  isTransientError,
+  rateLimitRetryAfterMs,
+} from "@/lib/network-error";
 
-export type IdentifyArgs = Omit<FunctionArgs<typeof api.identify.identify>, "scope">;
+export type IdentifyArgs = Omit<
+  FunctionArgs<typeof api.identify.identify>,
+  "scope"
+>;
 export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 
 export type FlushDependencies = {
@@ -26,8 +33,14 @@ export type FlushDependencies = {
     options: { countAttempt: boolean },
   ): Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
-  updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
-  resolveVisitId(localId: string, venueId: Id<"museums">): Promise<Id<"visits">>;
+  updateFeatures(
+    localId: string,
+    features: ScanFeatures & { modelVersion: string },
+  ): Promise<void>;
+  resolveVisitId(
+    localId: string,
+    venueId: Id<"museums">,
+  ): Promise<Id<"visits">>;
   identify(args: IdentifyArgs): Promise<IdentifyResponse>;
   runLabelFlow(scanId: Id<"scans">, label: LabelInput): Promise<void>;
   reembed(cropPath: string): Promise<ScanFeatures>;
@@ -35,7 +48,11 @@ export type FlushDependencies = {
   modelVersion: string;
 };
 
-export type Flusher = { start(): Promise<void>; flush(): Promise<void>; stop(): void };
+export type Flusher = {
+  start(): Promise<void>;
+  flush(): Promise<void>;
+  stop(): void;
+};
 
 export function backoffMs(attempts: number): number {
   return Math.min(2 ** attempts, 60) * 1000;
@@ -68,7 +85,10 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     );
   }
 
-  async function processRow(row: PendingScan, isCurrent: () => boolean): Promise<void> {
+  async function processRow(
+    row: PendingScan,
+    isCurrent: () => boolean,
+  ): Promise<void> {
     if (row.attemptModelVersion !== deps.modelVersion) {
       await deps.resetAttemptsForModel(row.localId, deps.modelVersion);
       if (!isCurrent()) return;
@@ -80,19 +100,26 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       modelVersion: row.modelVersion,
     };
     if (row.modelVersion !== deps.modelVersion) {
-      features = { ...(await deps.reembed(row.cropPath)), modelVersion: deps.modelVersion };
+      features = {
+        ...(await deps.reembed(row.cropPath)),
+        modelVersion: deps.modelVersion,
+      };
       if (!isCurrent()) return;
       await deps.updateFeatures(row.localId, features);
     }
     let visitId = row.visitId ?? undefined;
     if (row.visitLocalId) {
-      if (!row.venueId) throw new Error("The capture visit is missing its venue");
+      if (!row.venueId) {
+        throw new Error("The capture visit is missing its venue");
+      }
       visitId = await deps.resolveVisitId(row.visitLocalId, row.venueId);
     }
     if (!isCurrent()) return;
     await deps.markIdentifying(row.localId);
     if (!isCurrent()) {
-      await deps.recordFailure(row.localId, "Identification interrupted", { countAttempt: false });
+      await deps.recordFailure(row.localId, "Identification interrupted", {
+        countAttempt: false,
+      });
       return;
     }
     const response = await deps.identify({
@@ -109,17 +136,20 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       qrUrl: row.qrUrl ?? undefined,
     };
     if (
-      response.status === "identified" &&
-      response.outcome === "confident" &&
-      !deps.isLabelCapture?.(row) &&
-      isCurrent() &&
-      (label.labelPhotoPath || label.qrUrl)
+      response.status === "identified"
+      && response.outcome === "confident"
+      && !deps.isLabelCapture?.(row)
+      && isCurrent()
+      && (label.labelPhotoPath || label.qrUrl)
     ) {
       await deps.clearPendingLabel(row.localId, label);
     }
   }
 
-  async function processLabel(row: PendingScan, isCurrent: () => boolean): Promise<void> {
+  async function processLabel(
+    row: PendingScan,
+    isCurrent: () => boolean,
+  ): Promise<void> {
     if (!row.scanId) return;
     const label = {
       labelPhotoPath: row.labelPhotoPath ?? undefined,
@@ -134,7 +164,10 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     if (!isCurrent()) return;
     const ids = new Set<string>();
     let nextRetryAt = Infinity;
-    async function runRows(rows: PendingScan[], task: keyof typeof backoff): Promise<void> {
+    async function runRows(
+      rows: PendingScan[],
+      task: keyof typeof backoff,
+    ): Promise<void> {
       const labelTask = task === "label";
       const taskBackoff = backoff[task];
       for (const row of rows) ids.add(`${task}:${row.localId}`);
@@ -160,16 +193,27 @@ export function createFlusher(deps: FlushDependencies): Flusher {
         } catch (error) {
           if (!isCurrent()) return;
           const transient = isTransientError(error);
-          const recordFailure = labelTask ? deps.recordLabelFailure : deps.recordFailure;
-          const { status, attempts } = await recordFailure(row.localId, errorMessage(error), {
-            countAttempt: !transient,
-          });
-          if (!transient) reportError(error, `queue.${task}`, { data: { attempts, status } });
+          const recordFailure = labelTask
+            ? deps.recordLabelFailure
+            : deps.recordFailure;
+          const { status, attempts } = await recordFailure(
+            row.localId,
+            errorMessage(error),
+            {
+              countAttempt: !transient,
+            },
+          );
+          if (!transient) {
+            reportError(error, `queue.${task}`, { data: { attempts, status } });
+          }
           if (transient) {
-            addBreadcrumb("queue.paused", { task, reason: "transient_failure" });
+            addBreadcrumb("queue.paused", {
+              task,
+              reason: "transient_failure",
+            });
             taskBackoff.pauseUntil =
-              Date.now() +
-              Math.max(
+              Date.now()
+              + Math.max(
                 backoffMs(++taskBackoff.transientFailures),
                 rateLimitRetryAfterMs(error) ?? 0,
               );
@@ -192,7 +236,9 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       await runRows(await deps.listPendingLabels(), "label");
       for (const id of retryAt.keys()) if (!ids.has(id)) retryAt.delete(id);
     }
-    if (isCurrent() && nextRetryAt !== Infinity) scheduleRetry(nextRetryAt - Date.now());
+    if (isCurrent() && nextRetryAt !== Infinity) {
+      scheduleRetry(nextRetryAt - Date.now());
+    }
   }
 
   function flush(): Promise<void> {
@@ -208,7 +254,12 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           clearTimeout(retryTimer);
           retryTimer = undefined;
           const runGeneration = generation;
-          await run(() => active && generation === runGeneration && (deps.isCurrent?.() ?? true));
+          await run(
+            () =>
+              active
+              && generation === runGeneration
+              && (deps.isCurrent?.() ?? true),
+          );
         } while (active && rerun);
       } catch (error) {
         reportError(error, "queue.flush");
