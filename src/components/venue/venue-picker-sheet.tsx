@@ -1,8 +1,7 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View } from "react-native";
 
 import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -13,6 +12,7 @@ import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { ArtworkPreviews } from "@/components/visits/visit-ui";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { formatVisitStart } from "@/lib/journal/use-visit-works";
 import { useVisits } from "@/lib/journal/use-visits";
 import { museumDay } from "@/lib/journal/visit-date";
@@ -24,16 +24,6 @@ import { searchVenues } from "@/lib/venue/search-venues";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { venueLocation } from "@/lib/venue/venue-location";
 import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from "@/lib/venue/venue-reducer";
-
-/**
- * `fitToContents` derives the sheet height from this scroll view, so an uncapped one grows past the
- * tallest detent and the sheet then stops scrolling short of its own end at large text sizes.
- */
-function useSheetStyle() {
-  const { height } = useWindowDimensions();
-  const { top } = useSafeAreaInsets();
-  return [styles.container, { maxHeight: height - top }];
-}
 
 function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits | undefined): string {
   const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ""];
@@ -73,7 +63,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
   const { visits, loading, error } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
   const works = summary?.works ?? [];
-  const sheetStyle = useSheetStyle();
+  const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const count = `${works.length} ${works.length === 1 ? "artwork" : "artworks"} this visit`;
   const openVisit = () =>
     router.replace({
@@ -124,7 +114,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
 function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted: boolean; keepVisit?: () => void }) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
-  const sheetStyle = useSheetStyle();
+  const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const { status, options, error, confirm, dismiss, declinePrompt } = view;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{
@@ -347,7 +337,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 0, backgroundColor: Colors.light.background },
+  container: { backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: "uppercase" },

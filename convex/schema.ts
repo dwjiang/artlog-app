@@ -350,7 +350,7 @@ export default defineSchema({
     indexedObjectId: v.optional(v.id("objects")),
     createdAt: v.number(),
   })
-    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- contributions.mine lists the newest first
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- revert pages every row while removal rewrites status
     .index("by_deviceId", ["deviceId"])
     .index("by_scanId", ["scanId"])
     .index("by_cropStorageId", ["cropStorageId"])

@@ -250,7 +250,6 @@ export function ScanScreen() {
       {help && (
         <WallSheet
           title="Camera tips"
-          size="fit"
           presented={help === "open"}
           onDismiss={() => setHelp((current) => (current === "import" ? current : undefined))}
           onDismissed={() => {

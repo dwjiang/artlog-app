@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from "react-native";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
+import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import type { ResultCandidate } from "@/lib/result/state";
 
 import { RunnerUps } from "./runner-ups";
@@ -32,16 +33,22 @@ export function NotRightSheet({
   notice,
 }: NotRightSheetProps) {
   const hasRunnerUps = runnerUps.length > 0;
+  const fitted = useFittedSheetHeight();
   return (
     <BottomSheet
       contentPadding={0}
-      snapPoints={["half", "full"]}
+      snapPoints={[fitted.height ? { height: fitted.height } : "half"]}
       containerColor={Colors.light.background}
       isPresented={open}
       onDismiss={onDismiss}
     >
       <RNHostView>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <ScrollView
+          style={{ height: fitted.height }}
+          contentContainerStyle={styles.content}
+          alwaysBounceVertical={false}
+          onContentSizeChange={fitted.onContentSizeChange}
+        >
           <ThemedText type="subtitle">{hasRunnerUps ? "Other possible matches" : "No other matches found"}</ThemedText>
           {notice && (
             <ThemedText type="small" themeColor="error" accessibilityRole="alert">
@@ -60,11 +67,9 @@ export function NotRightSheet({
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1 },
   content: {
     gap: Spacing.three,
     padding: Spacing.content,
     paddingTop: Spacing.four,
-    paddingBottom: Spacing.six,
   },
 });

@@ -138,11 +138,9 @@ export function LeaderboardScreen() {
               >
                 <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
                 <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.name}>
-                    {item.profile.name}
-                    {own && <Text style={styles.caption}> You</Text>}
-                  </Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.name}>{item.profile.name}</Text>
+                  {own && <Text style={[styles.caption, { fontWeight: "600" }]}>You</Text>}
                 </View>
                 <Text style={styles.score}>{item.score}</Text>
               </Pressable>
@@ -305,7 +303,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 4,
   },
-  name: { fontSize: 16, lineHeight: 22, fontWeight: "600", color: Gallery.ink },
+  nameRow: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: Spacing.two },
+  name: { flexShrink: 1, fontSize: 16, lineHeight: 22, fontWeight: "600", color: Gallery.ink },
   score: {
     fontSize: 19,
     lineHeight: 25,

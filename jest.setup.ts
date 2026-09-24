@@ -35,6 +35,16 @@ jest.mock("expo-media-library", () => ({
   requestPermissionsAsync: jest.fn(async () => ({ status: "denied", granted: false })),
 }));
 
+// Components render without the provider Expo Router mounts; router tests still read its insets.
+jest.mock("react-native-safe-area-context", () => {
+  const actual = jest.requireActual("react-native-safe-area-context");
+  const { useContext } = jest.requireActual("react");
+  return {
+    ...actual,
+    useSafeAreaInsets: () => useContext(actual.SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 },
+  };
+});
+
 // Jest does not load .env files; route modules construct the Convex client at import time.
 process.env.EXPO_PUBLIC_CONVEX_URL ??= "https://test.convex.cloud";
 

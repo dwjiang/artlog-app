@@ -2,7 +2,7 @@ import { Host } from "@expo/ui";
 import { Slider } from "@expo/ui/swift-ui";
 import { accessibilityLabel, disabled as nativeDisabled } from "@expo/ui/swift-ui/modifiers";
 import { useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -110,9 +110,8 @@ export function WallArtworkSheet({
       onDismiss={onDismiss}
       onDismissed={onDismissed}
       presented={presented}
-      size="large"
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: Spacing.five }}>
+      <View style={{ paddingBottom: Spacing.five }}>
         <WallArtworkSummary piece={piece} color={color} />
         {editing && (
           <>
@@ -194,7 +193,7 @@ export function WallArtworkSheet({
             </View>
           </>
         )}
-      </ScrollView>
+      </View>
     </WallSheet>
   );
 }

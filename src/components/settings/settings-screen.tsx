@@ -141,10 +141,6 @@ export function SettingsScreen() {
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
         <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
-        {account?.linked && (
-          <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push("/public-notes")} />
-        )}
-        <SettingsRow label="Contributions" icon="person.2" onPress={detail("contributions")} />
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />

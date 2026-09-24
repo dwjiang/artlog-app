@@ -9,6 +9,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
 import { currentWidgetIndex } from "@/lib/widgets/widget-publisher";
@@ -42,14 +43,11 @@ export function WidgetsScreen() {
   const collection = useWidgetCollection();
   const { preferences, update, prepared, artworks, allArtworks, visits, encounters, loading, syncing, error, retry } =
     collection;
-  const { width, height, fontScale } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const [size, setSize] = useState<WidgetSize>("medium");
   const [sheet, setSheet] = useState<Sheet>("source");
   const [presented, setPresented] = useState(false);
-  const sheetHeight = Math.min(
-    fontScale > 1.4 ? height - 100 : sheet === "source" ? 430 : sheet === "help" ? 690 : 660,
-    height - 100,
-  );
+  const fitted = useFittedSheetHeight();
   const contentWidth = Math.min(width - 40, 420);
   const mediumHeight = (contentWidth * 158) / 334;
   const artwork = prepared[currentWidgetIndex(prepared.length)];
@@ -216,12 +214,12 @@ export function WidgetsScreen() {
         onDismiss={close}
         containerColor={Gallery.paper}
         contentPadding={0}
-        snapPoints={[{ height: sheetHeight }]}
+        snapPoints={[fitted.height ? { height: fitted.height } : "half"]}
       >
-        {/* Bound the RN scroll area to the native detent, including at larger text sizes. */}
         <RNHostView>
-          <View style={{ height: sheetHeight, backgroundColor: Gallery.paper }}>
+          <View style={{ height: fitted.height, backgroundColor: Gallery.paper }}>
             <View
+              onLayout={fitted.onHeaderLayout}
               style={{
                 paddingHorizontal: 20,
                 paddingTop: sheet === "help" ? 30 : 22,
@@ -260,6 +258,7 @@ export function WidgetsScreen() {
               <FlatList
                 data={visitOptions}
                 keyExtractor={({ visit }) => visit.localId}
+                onContentSizeChange={fitted.onContentSizeChange}
                 contentContainerStyle={{
                   paddingHorizontal: 20,
                   paddingBottom: 20,
@@ -292,6 +291,7 @@ export function WidgetsScreen() {
               <FlatList
                 data={allArtworks}
                 keyExtractor={(art) => art.id}
+                onContentSizeChange={fitted.onContentSizeChange}
                 contentContainerStyle={{
                   paddingHorizontal: 20,
                   paddingBottom: 20,
@@ -323,6 +323,8 @@ export function WidgetsScreen() {
             ) : (
               <ScrollView
                 contentInsetAdjustmentBehavior="never"
+                alwaysBounceVertical={false}
+                onContentSizeChange={fitted.onContentSizeChange}
                 contentContainerStyle={{
                   paddingHorizontal: 20,
                   paddingBottom: 20,
@@ -512,23 +514,26 @@ export function WidgetsScreen() {
                 {sheet === "help" && <WidgetSetupGuide />}
               </ScrollView>
             )}
-            {(pickers || sheet === "help") && (
-              <View
-                style={{
-                  paddingHorizontal: 20,
-                  paddingTop: 4,
-                  paddingBottom: sheet === "help" ? 20 : 16,
-                }}
-              >
-                <GalleryButton
-                  label={sheet === "help" ? "Got it" : "Done"}
-                  size={sheet === "help" ? "compact" : "regular"}
-                  variant="filled"
-                  fullWidth
-                  onPress={close}
-                />
-              </View>
-            )}
+            {/* Always mounted, so a sheet without a button measures its footer as empty. */}
+            <View onLayout={fitted.onFooterLayout}>
+              {(pickers || sheet === "help") && (
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingTop: 4,
+                    paddingBottom: sheet === "help" ? 20 : 16,
+                  }}
+                >
+                  <GalleryButton
+                    label={sheet === "help" ? "Got it" : "Done"}
+                    size={sheet === "help" ? "compact" : "regular"}
+                    variant="filled"
+                    fullWidth
+                    onPress={close}
+                  />
+                </View>
+              )}
+            </View>
           </View>
         </RNHostView>
       </BottomSheet>

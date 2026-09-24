@@ -202,18 +202,6 @@ describe("contribute", () => {
     expect(row).not.toHaveProperty("keypoints");
     expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
     expect(row.rejectedReason).toBeUndefined();
-    const mine = await user.as.query(api.contributions.mine, {});
-    expect(mine).toMatchObject([
-      {
-        contributionId: result.contributionId,
-        status: "tentative",
-        venueId,
-        scanId,
-        wikidataId: "Q3374376",
-      },
-    ]);
-    expect(mine[0]).not.toHaveProperty("vector");
-    expect(mine[0]).not.toHaveProperty("descriptors");
   });
 
   it("keeps the verified museum page identity after the scan label flow changes", async () => {
@@ -696,15 +684,8 @@ describe("contribute", () => {
     });
   });
 
-  it("lists only the caller’s contributions and requires a registered device throughout", async () => {
-    const { t, user, args, contribute } = await fixture();
-    await contribute();
-    const other = await seedDevice(t);
-    expect(await other.as.query(api.contributions.mine, {})).toEqual([]);
-    expect(await user.as.query(api.contributions.mine, {})).toHaveLength(1);
-    await expect(t.query(api.contributions.mine, {})).rejects.toMatchObject({
-      data: { code: "unauthenticated" },
-    });
+  it("requires a registered device throughout", async () => {
+    const { t, args } = await fixture();
     await expect(t.mutation(api.contributions.requestCropUpload, {})).rejects.toMatchObject({
       data: { code: "unauthenticated" },
     });
