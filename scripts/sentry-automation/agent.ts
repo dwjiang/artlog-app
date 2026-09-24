@@ -33,11 +33,6 @@ For Expo changes consult SDK 57 documentation, and verify installed package type
 Keep changes focused. Schema/signature changes requiring unavailable Convex codegen or deployments must be skipped.
 Return JSON matching the supplied schema. Use concise technical Markdown in body; no machine-state markers.`;
 
-// Snapshot trusted main's configuration before examining any PR checkout.
-const mcpNames = [...readFileSync(".codex/config.toml", "utf8").matchAll(/^\[mcp_servers\.([^\].]+)\]/gm)].map(
-  (match) => match[1],
-);
-
 // Checks execute candidate code outside an agent session. Unsandboxed, that code could send runner
 // credentials out or rewrite the trusted tools a later step runs with the secret-write token.
 export function runSandboxed(args: string[], timeout: number): void {
@@ -71,6 +66,9 @@ export function runAgent(role: "fix" | "review" | "probe", evidence: unknown, ba
       : role === "fix"
         ? "Investigate the supplied production error or reviewer feedback. Check whether current code already fixes it. Implement a minimal, evidence-supported fix with meaningful regression coverage. If unclear or already fixed, return skip without changes. Return pass only for a complete proposed fix; describe root cause, changes and remaining risks."
         : `Act as an independent reviewer in a fresh session. Review all changes against ${base}, including uncommitted changes. Read the changed code and tests. Do not modify files. Find actionable correctness/security/regression issues; give file/line and an explanation for each. Return changes_requested if any issue needs a fix; otherwise pass. Never claim tests ran unless supplied check results establish that.`;
+  // Project trust lives in the ignored user config, so the repository's `.codex/config.toml` and its MCP
+  // servers never load. Do not add `-c mcp_servers.<name>.*` overrides: without that file they define
+  // transport-less servers and codex refuses to start.
   const args = [
     "exec",
     "--ephemeral",
@@ -90,7 +88,6 @@ export function runAgent(role: "fix" | "review" | "probe", evidence: unknown, ba
       "--disable",
       name,
     ]),
-    ...mcpNames.flatMap((name) => ["-c", `mcp_servers.${name}.enabled=false`]),
     "--output-schema",
     schemaPath,
     "--output-last-message",
