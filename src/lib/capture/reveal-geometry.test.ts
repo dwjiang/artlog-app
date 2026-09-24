@@ -80,7 +80,10 @@ it("declines degenerate transforms and invalid content bounds", () => {
 });
 
 it("keeps a tall canvas entirely between the measured camera controls", () => {
-  const portrait = { ...painting, contentBounds: { x: 85, y: 0, width: 341, height: 512 } };
+  const portrait = {
+    ...painting,
+    contentBounds: { x: 85, y: 0, width: 341, height: 512 },
+  };
   const geometry = revealGeometry(portrait, { width: 390, height: 844 }, "cover", {
     top: 120,
     bottom: 260,

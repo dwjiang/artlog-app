@@ -1,19 +1,6 @@
-import {
-  Children,
-  useEffect,
-  useRef,
-  type ComponentProps,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { Children, useEffect, useRef, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
-import type {
-  ButtonProps,
-  PickerProps,
-  DatePickerProps,
-  SectionProps,
-  ToggleProps,
-} from "@expo/ui/swift-ui";
+import type { ButtonProps, PickerProps, DatePickerProps, SectionProps, ToggleProps } from "@expo/ui/swift-ui";
 export { Text };
 export function Label({ title }: { title?: string }) {
   return <Text>{title}</Text>;
@@ -70,16 +57,12 @@ export function LabeledContent({ label, children }: { label?: ReactNode; childre
   );
 }
 export function Button({ label, children, onPress, role, modifiers }: ButtonProps) {
-  const disabled = !!modifiers?.some(
-    (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
-  );
+  const disabled = !!modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-          | string
-          | undefined
+        modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as string | undefined
       }
       accessibilityState={{ disabled }}
       accessibilityHint={role}
@@ -91,9 +74,7 @@ export function Button({ label, children, onPress, role, modifiers }: ButtonProp
   );
 }
 export function Picker({ selection, onSelectionChange, children, modifiers }: PickerProps) {
-  const disabled = modifiers?.some(
-    (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
-  );
+  const disabled = modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
   return (
     <View>
       {Children.map(children, (child) => {
@@ -128,12 +109,8 @@ export function DatePicker({ title, selection, onDateChange }: DatePickerProps) 
 }
 
 export function Toggle({ isOn, onIsOnChange, modifiers, children }: ToggleProps) {
-  const label = modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as
-    | string
-    | undefined;
-  const disabled = modifiers?.some(
-    (modifier) => modifier.$type === "disabled" && modifier.disabled === true,
-  );
+  const label = modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as string | undefined;
+  const disabled = modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
   return (
     <Pressable
       accessibilityRole="checkbox"

@@ -4,17 +4,16 @@ import { GalleryButton } from "./gallery-button";
 
 it("keeps its label and prevents duplicate activation while announcing progress", async () => {
   const onPress = jest.fn();
-  const announce = jest
-    .spyOn(AccessibilityInfo, "announceForAccessibility")
-    .mockImplementation(() => {});
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   await render(<GalleryButton label="Save artwork" onPress={onPress} />);
   await fireEvent.press(screen.getByRole("button", { name: "Save artwork" }));
   expect(onPress).toHaveBeenCalledTimes(1);
 
-  await screen.rerender(
-    <GalleryButton label="Save artwork" onPress={onPress} busy busyLabel="Saving…" fullWidth />,
-  );
-  const button = screen.getByRole("button", { name: "Save artwork", disabled: true });
+  await screen.rerender(<GalleryButton label="Save artwork" onPress={onPress} busy busyLabel="Saving…" fullWidth />);
+  const button = screen.getByRole("button", {
+    name: "Save artwork",
+    disabled: true,
+  });
   expect(screen.getByText("Save artwork")).toBeOnTheScreen();
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(1);

@@ -50,8 +50,7 @@ function OwnedPreference() {
     <GroupedSection
       footer={
         <GroupedFooter tone={error ? "destructive" : "muted"}>
-          {error ??
-            "Open Visits in your last List or Globe view. When off, new sessions start with the globe."}
+          {error ?? "Open Visits in your last List or Globe view. When off, new sessions start with the globe."}
         </GroupedFooter>
       }
     >

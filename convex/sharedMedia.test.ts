@@ -2,13 +2,7 @@ import { expect, it } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { harness } from "./test.helpers";
-import {
-  befriend,
-  setVisitVisibility,
-  socialDerivative,
-  socialUser,
-  socialVisit,
-} from "./lib/socialTestFixtures";
+import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { serveSharedMedia } from "./sharedMedia";
 
 async function fixture() {
@@ -35,7 +29,9 @@ async function fixture() {
   });
   const publish = async () => {
     const state = await a.as.mutation(api.sharedVisits.publish, draft.selection);
-    const post = await a.as.query(api.sharedVisits.get, { postId: state.postId! });
+    const post = await a.as.query(api.sharedVisits.get, {
+      postId: state.postId!,
+    });
     return {
       kind: "sharedVisit" as const,
       postId: state.postId!,
@@ -147,7 +143,9 @@ it("checks current contribution consent and never serves the source crop as a de
     ).artwork.media.kind,
   ).toBe("placeholder");
   await t.run(async (ctx) => {
-    await ctx.db.patch(asset.contributionId, { displayMediaRevokedAt: undefined });
+    await ctx.db.patch(asset.contributionId, {
+      displayMediaRevokedAt: undefined,
+    });
     await ctx.db.patch(asset.id, { storageId: asset.sourceStorageId });
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);

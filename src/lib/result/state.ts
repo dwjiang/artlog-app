@@ -7,13 +7,7 @@ import { errorMessage } from "@/lib/network-error";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;
-export type ResultKind =
-  | "loading"
-  | "confident"
-  | "soft"
-  | "unidentified"
-  | "unsupported"
-  | "failed";
+export type ResultKind = "loading" | "confident" | "soft" | "unidentified" | "unsupported" | "failed";
 
 export type ResultViewState = {
   kind: ResultKind;
@@ -46,25 +40,51 @@ export function toResultViewState(
   scan: ScanResult | Error | undefined,
   selection: ResultSelection = {},
 ): ResultViewState {
-  if (scan === undefined) return { kind: "loading", runnerUps: [], editable: false };
-  if (scan instanceof Error)
-    return { kind: "failed", runnerUps: [], editable: false, error: errorMessage(scan) };
-  if (scan === null)
-    return { kind: "failed", runnerUps: [], editable: false, error: "scan_not_found" };
-  if (scan.status === "pending") return { kind: "loading", runnerUps: [], editable: false };
-  if (scan.status === "unsupported_version")
-    return { kind: "unsupported", runnerUps: [], editable: false, error: scan.error };
-  if (scan.status === "failed")
-    return { kind: "failed", runnerUps: [], editable: false, error: scan.error };
+  if (scan === undefined) {
+    return { kind: "loading", runnerUps: [], editable: false };
+  }
+  if (scan instanceof Error) {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: errorMessage(scan),
+    };
+  }
+  if (scan === null) {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: "scan_not_found",
+    };
+  }
+  if (scan.status === "pending") {
+    return { kind: "loading", runnerUps: [], editable: false };
+  }
+  if (scan.status === "unsupported_version") {
+    return {
+      kind: "unsupported",
+      runnerUps: [],
+      editable: false,
+      error: scan.error,
+    };
+  }
+  if (scan.status === "failed") {
+    return {
+      kind: "failed",
+      runnerUps: [],
+      editable: false,
+      error: scan.error,
+    };
+  }
 
   const rejected = new Set(selection.rejectedObjectIds ?? []);
   const candidates = dedupe([...(scan.best ? [scan.best] : []), ...(scan.runnerUps ?? [])]);
   const chosen = candidates.find((candidate) => candidate.objectId === selection.chosenObjectId);
   // A miss keeps its low-probability best among the suggestions rather than naming it.
   const primary = chosen ?? (scan.outcome === "miss" ? undefined : scan.best);
-  const runnerUps = candidates.filter(
-    (candidate) => candidate !== primary && !rejected.has(candidate.objectId),
-  );
+  const runnerUps = candidates.filter((candidate) => candidate !== primary && !rejected.has(candidate.objectId));
   const kind: ResultKind = !primary
     ? "unidentified"
     : chosen || primary.identityStatus === "tentative" || scan.outcome !== "confident"
@@ -76,7 +96,11 @@ export function toResultViewState(
     runnerUps,
     editable: true,
     ...(kind === "confident"
-      ? { docent: scan.docent, factSheet: scan.factSheet, rightNow: scan.rightNow }
+      ? {
+          docent: scan.docent,
+          factSheet: scan.factSheet,
+          rightNow: scan.rightNow,
+        }
       : {}),
   };
 }

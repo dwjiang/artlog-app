@@ -16,21 +16,22 @@ export function GlassSurface({ isInteractive = false, style, ...rest }: GlassSur
       const enabled = await AccessibilityInfo.isReduceTransparencyEnabled();
       if (active && !receivedChange) setReduceTransparency(enabled);
     })();
-    const subscription = AccessibilityInfo.addEventListener(
-      "reduceTransparencyChanged",
-      (enabled) => {
-        receivedChange = true;
-        setReduceTransparency(enabled);
-      },
-    );
+    const subscription = AccessibilityInfo.addEventListener("reduceTransparencyChanged", (enabled) => {
+      receivedChange = true;
+      setReduceTransparency(enabled);
+    });
     return () => {
       active = false;
       subscription.remove();
     };
   }, []);
 
-  if (reduceTransparency) return <View style={[styles.opaque, style]} {...rest} />;
-  if (!isLiquidGlassAvailable()) return <View style={[styles.scrim, style]} {...rest} />;
+  if (reduceTransparency) {
+    return <View style={[styles.opaque, style]} {...rest} />;
+  }
+  if (!isLiquidGlassAvailable()) {
+    return <View style={[styles.scrim, style]} {...rest} />;
+  }
   return (
     <GlassView
       glassEffectStyle="regular"

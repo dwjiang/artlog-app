@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
-import {
-  StyleSheet,
-  View,
-  type DimensionValue,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
-const pulse = { "0%": { opacity: 1 }, "50%": { opacity: 0.45 }, "100%": { opacity: 1 } };
+const pulse = {
+  "0%": { opacity: 1 },
+  "50%": { opacity: 0.45 },
+  "100%": { opacity: 1 },
+};
 
 export function Ghost({
   width = "100%",
@@ -26,7 +24,12 @@ export function Ghost({
   return (
     <View
       style={[
-        { width, height, borderRadius: round ? height / 2 : 2, backgroundColor: Gallery.fill },
+        {
+          width,
+          height,
+          borderRadius: round ? height / 2 : 2,
+          backgroundColor: Gallery.fill,
+        },
         style,
       ]}
     />
@@ -131,13 +134,7 @@ export function FormSkeleton({ label }: { label: string }) {
   );
 }
 
-export function ImageSkeleton({
-  label = "Loading photo…",
-  style,
-}: {
-  label?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function ImageSkeleton({ label = "Loading photo…", style }: { label?: string; style?: StyleProp<ViewStyle> }) {
   return (
     <LoadingSkeleton label={label} style={style} fill>
       <Ghost style={{ height: "100%", minHeight: 1 }} />
@@ -239,13 +236,7 @@ export function ProfileSkeleton() {
   );
 }
 
-export function VisitSkeleton({
-  label = "Loading visit…",
-  heading = true,
-}: {
-  label?: string;
-  heading?: boolean;
-}) {
+export function VisitSkeleton({ label = "Loading visit…", heading = true }: { label?: string; heading?: boolean }) {
   return (
     <LoadingSkeleton label={label} style={{ padding: 20 }}>
       <View style={{ gap: 24 }}>

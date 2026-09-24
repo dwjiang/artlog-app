@@ -73,22 +73,17 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
 
 function requiresNewKey(code: string | undefined): boolean {
   return (
-    code === "key_mismatch" ||
-    code === "invalid_attestation" ||
-    code === "challenge_invalid" ||
-    code === "ERR_APP_INTEGRITY_INVALID_KEY"
+    code === "key_mismatch"
+    || code === "invalid_attestation"
+    || code === "challenge_invalid"
+    || code === "ERR_APP_INTEGRITY_INVALID_KEY"
   );
 }
 
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) return;
   const data = "data" in error ? error.data : error;
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "code" in data &&
-    typeof data.code === "string"
-  ) {
+  if (typeof data === "object" && data !== null && "code" in data && typeof data.code === "string") {
     return data.code;
   }
 }
@@ -104,9 +99,7 @@ function canRetrySetup(error: unknown): boolean {
 let signInInFlight: Promise<unknown> | null = null;
 let registration: Promise<void> | null = null;
 
-export function signInAnonymously(
-  signIn: ReturnType<typeof useAuthActions>["signIn"],
-): Promise<unknown> {
+export function signInAnonymously(signIn: ReturnType<typeof useAuthActions>["signIn"]): Promise<unknown> {
   signInInFlight ??= getDeviceAuthSecret()
     .then((secret) => signIn("anonymous", { secret }))
     .finally(() => {
@@ -131,12 +124,14 @@ export function useDeviceIdentity(): void {
       pendingAttestation = null;
       pending = signInAnonymously(signIn);
     } else {
-      registration ??= registerAndAttest({ registerDevice, createChallenge, attestDevice }).catch(
-        (error: unknown) => {
-          registration = null;
-          throw error;
-        },
-      );
+      registration ??= registerAndAttest({
+        registerDevice,
+        createChallenge,
+        attestDevice,
+      }).catch((error: unknown) => {
+        registration = null;
+        throw error;
+      });
       pending = registration;
     }
 
@@ -150,10 +145,7 @@ export function useDeviceIdentity(): void {
         data: { attempt: attempt + 1, retrying },
       });
       if (!retrying) return;
-      retry = setTimeout(
-        () => setAttempt((value) => value + 1),
-        Math.min(1000 * 2 ** attempt, 30_000),
-      );
+      retry = setTimeout(() => setAttempt((value) => value + 1), Math.min(1000 * 2 ** attempt, 30_000));
     });
     return () => {
       active = false;

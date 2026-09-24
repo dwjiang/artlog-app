@@ -5,10 +5,7 @@ import type { LocalPackage } from "./model";
 import { rankEntries, recognizeEntries } from "@/shared/offline/recognition";
 
 export async function identifyOffline(
-  payload: Pick<
-    CapturePayload,
-    "vector" | "descriptors" | "keypoints" | "modelVersion" | "venueId"
-  >,
+  payload: Pick<CapturePayload, "vector" | "descriptors" | "keypoints" | "modelVersion" | "venueId">,
 ) {
   await museumDownloads.hydrate();
   let candidates: MuseumEntry[] = [];
@@ -25,11 +22,7 @@ export async function identifyOffline(
   return recognizeEntries(payload, candidates);
 }
 
-async function rankPackage(
-  vector: number[],
-  pack: LocalPackage,
-  previous: MuseumEntry[],
-): Promise<MuseumEntry[]> {
+async function rankPackage(vector: number[], pack: LocalPackage, previous: MuseumEntry[]): Promise<MuseumEntry[]> {
   let candidates = previous;
   for (let index = 0; index < pack.manifest.chunks.length; index++) {
     candidates = rankEntries(vector, await readEntries(pack, index), candidates);

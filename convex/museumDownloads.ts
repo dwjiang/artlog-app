@@ -47,25 +47,37 @@ function describe(museum: Doc<"museums">, pack: Infer<typeof museumPackage>) {
 
 export const catalog = query({
   args: { paginationOpts: paginationOptsValidator },
-  returns: v.object({ page: v.array(summary), isDone: v.boolean(), continueCursor: v.string() }),
+  returns: v.object({
+    page: v.array(summary),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
   handler: async (ctx, { paginationOpts }) => {
     await requireDevice(ctx);
     const result = await ctx.db
       .query("museumDownloads")
       .withIndex("by_venue")
-      .paginate({ ...paginationOpts, numItems: Math.min(paginationOpts.numItems, 64) });
+      .paginate({
+        ...paginationOpts,
+        numItems: Math.min(paginationOpts.numItems, 64),
+      });
     const page = [];
     for (const row of result.page) {
       const museum = await ctx.db.get(row.venueId);
       if (
-        museum &&
-        row.published?.count &&
-        row.published.modelVersion === model.modelVersion &&
-        !(await isVenueOptedOut(ctx, museum))
-      )
+        museum
+        && row.published?.count
+        && row.published.modelVersion === model.modelVersion
+        && !(await isVenueOptedOut(ctx, museum))
+      ) {
         page.push(describe(museum, row.published));
+      }
     }
-    return { page, isDone: result.isDone, continueCursor: result.continueCursor };
+    return {
+      page,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 export const get = query({
@@ -79,13 +91,9 @@ export const get = query({
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique();
     const pack = row?.published;
-    if (
-      !museum ||
-      !pack?.count ||
-      pack.modelVersion !== model.modelVersion ||
-      (await isVenueOptedOut(ctx, museum))
-    )
+    if (!museum || !pack?.count || pack.modelVersion !== model.modelVersion || (await isVenueOptedOut(ctx, museum))) {
       return null;
+    }
     const chunks = [];
     for (const part of pack.chunks) {
       const url = await ctx.storage.getUrl(part.storageId);
@@ -102,14 +110,17 @@ export const build = internalMutation({
   returns: v.null(),
   handler: async (ctx, { venueId }) => {
     const museum = await ctx.db.get(venueId);
-    if (!museum || (await isVenueOptedOut(ctx, museum)))
+    if (!museum || (await isVenueOptedOut(ctx, museum))) {
       throw new ConvexError("Museum unavailable");
+    }
     const existing = await ctx.db
       .query("museumDownloads")
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique();
     // A new generation also recovers builds interrupted by a failed scheduled action.
-    for (const part of existing?.building?.chunks ?? []) await ctx.storage.delete(part.storageId);
+    for (const part of existing?.building?.chunks ?? []) {
+      await ctx.storage.delete(part.storageId);
+    }
     const building = {
       version: crypto.randomUUID(),
       modelVersion: model.modelVersion,
@@ -158,7 +169,9 @@ export const readPage = internalQuery({
       .paginate({ numItems: 12, cursor: row.building.cursor });
     const page = [];
     for (const object of result.page) {
-      if (object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) continue;
+      if (object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
+        continue;
+      }
       const artwork = await ctx.db.get(object.artworkId);
       const descriptor = await ctx.db
         .query("descriptors")
@@ -172,14 +185,11 @@ export const readPage = internalQuery({
           q.eq("objectId", object._id).eq("modelVersion", model.modelVersion),
         )
         .take(32)) {
-        if (
-          vector.source !== "user_scan" &&
-          vector.source !== "user" &&
-          (await eligibleVector(ctx, vector))
-        )
+        if (vector.source !== "user_scan" && vector.source !== "user" && (await eligibleVector(ctx, vector))) {
           vectors.push(vector.vector);
+        }
       }
-      if (vectors.length)
+      if (vectors.length) {
         page.push({
           object,
           artwork,
@@ -187,8 +197,14 @@ export const readPage = internalQuery({
           vectors,
           placement: await loadCurrentPlacement(ctx, object._id, Date.now()),
         });
+      }
     }
-    return { museum, page, isDone: result.isDone, continueCursor: result.continueCursor };
+    return {
+      museum,
+      page,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 export const buildPage = internalAction({
@@ -201,11 +217,9 @@ export const buildPage = internalAction({
     const previews: Infer<typeof preview>[] = [];
     for (const { object, artwork, descriptor, vectors, placement } of result.page) {
       // Skipping a damaged reference keeps one unreadable ORB file from failing every rebuild of this museum.
-      const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch(
-        (error: unknown) => {
-          console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
-        },
-      );
+      const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch((error: unknown) => {
+        console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
+      });
       if (!features) continue;
       entries.push({
         vectors,
@@ -243,16 +257,19 @@ export const buildPage = internalAction({
           ...features,
         },
       });
-      if (previews.length < 3 && artwork.rightsStatus === "public_domain" && object.thumbnailUrl)
+      if (previews.length < 3 && artwork.rightsStatus === "public_domain" && object.thumbnailUrl) {
         previews.push({ title: artwork.title, url: object.thumbnailUrl });
+      }
     }
     let part: Infer<typeof chunk> | undefined;
     if (entries.length) {
-      const bytes = new TextEncoder().encode(
-        JSON.stringify(convexToJson(entries as unknown as Value)),
-      );
+      const bytes = new TextEncoder().encode(JSON.stringify(convexToJson(entries as unknown as Value)));
       const storageId = await ctx.storage.store(new Blob([bytes], { type: "application/json" }));
-      part = { storageId, size: bytes.byteLength, sha256: await orbHash(bytes) };
+      part = {
+        storageId,
+        size: bytes.byteLength,
+        sha256: await orbHash(bytes),
+      };
     }
     await ctx.runMutation(internal.museumDownloads.commitPage, {
       ...args,
@@ -292,9 +309,13 @@ export const commitPage = internalMutation({
     };
     if (args.isDone) {
       await ctx.db.patch(args.id, { published: pack, building: undefined });
-      for (const old of row.published?.chunks ?? []) await ctx.storage.delete(old.storageId);
+      for (const old of row.published?.chunks ?? []) {
+        await ctx.storage.delete(old.storageId);
+      }
     } else {
-      await ctx.db.patch(args.id, { building: { ...pack, cursor: args.cursor } });
+      await ctx.db.patch(args.id, {
+        building: { ...pack, cursor: args.cursor },
+      });
       await ctx.scheduler.runAfter(0, internal.museumDownloads.buildPage, {
         id: args.id,
         version: args.version,

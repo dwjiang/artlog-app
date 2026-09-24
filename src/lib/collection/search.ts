@@ -2,8 +2,8 @@ import type { ArtworkEncounter, SavedWork, Visit } from "@/db/schema";
 import { normalizeSearch } from "../../../shared/journal/limits";
 import { compareText, matchesSearch, searchTerm } from "../journal/query";
 
-type Searchable = Pick<SavedWork, "title" | "artist" | "institution"> &
-  Partial<Pick<SavedWork, "date" | "venueName">> & {
+type Searchable = Pick<SavedWork, "title" | "artist" | "institution">
+  & Partial<Pick<SavedWork, "date" | "venueName">> & {
     city?: string | null;
     visitSearchTerms?: string[];
   };
@@ -31,12 +31,12 @@ export function filterWorks<T extends Searchable>(works: T[], query: string): T[
 export function linkedVisitSearchTerms(
   owner: string,
   encounters: Pick<ArtworkEncounter, "owner" | "savedLocalId" | "visitLocalId" | "deletedAt">[],
-  visits: (Pick<Visit, "owner" | "localId" | "venueName"> & { venueId: string })[],
+  visits: (Pick<Visit, "owner" | "localId" | "venueName"> & {
+    venueId: string;
+  })[],
   metadata: ReadonlyMap<string, { city?: string | null }>,
 ) {
-  const byVisit = new Map(
-    visits.filter((visit) => visit.owner === owner).map((visit) => [visit.localId, visit]),
-  );
+  const byVisit = new Map(visits.filter((visit) => visit.owner === owner).map((visit) => [visit.localId, visit]));
   const terms = new Map<string, string[]>();
   for (const encounter of encounters) {
     if (encounter.owner !== owner || encounter.deletedAt !== null) continue;
@@ -58,15 +58,13 @@ export function artworkYear(date?: string | null): number | undefined {
   return /\bBCE?\b/i.test(date!) ? -Number(match[1]) : Number(match[1]);
 }
 
-export function sortWorksByArtist<
-  T extends Pick<SavedWork, "localId" | "artist" | "title" | "date">,
->(works: T[]): T[] {
+export function sortWorksByArtist<T extends Pick<SavedWork, "localId" | "artist" | "title" | "date">>(works: T[]): T[] {
   return [...works].sort(
     (a, b) =>
-      compareText(normalizeSearch(a.artist), normalizeSearch(b.artist)) ||
-      (artworkYear(a.date) ?? Infinity) - (artworkYear(b.date) ?? Infinity) ||
-      0 ||
-      compareText(normalizeSearch(a.title), normalizeSearch(b.title)) ||
-      compareText(a.localId, b.localId),
+      compareText(normalizeSearch(a.artist), normalizeSearch(b.artist))
+      || (artworkYear(a.date) ?? Infinity) - (artworkYear(b.date) ?? Infinity)
+      || 0
+      || compareText(normalizeSearch(a.title), normalizeSearch(b.title))
+      || compareText(a.localId, b.localId),
   );
 }

@@ -1,12 +1,6 @@
 import type { ArtworkEncounter, Visit, SavedWork } from "@/db/schema";
 import type { VenueRow } from "../venue/resolve";
-import {
-  mappedMuseums,
-  searchVisitSummaries,
-  visitCounts,
-  visitSummaries,
-  visitsAtPlace,
-} from "./visit-summaries";
+import { mappedMuseums, searchVisitSummaries, visitCounts, visitSummaries, visitsAtPlace } from "./visit-summaries";
 import { groupHistoryByMonth } from "./history";
 const visit = (localId: string, visitedOn: string, venueId = "museum"): Visit =>
   ({
@@ -45,11 +39,7 @@ const metadata = new Map<string, VenueRow>([
 ]);
 const summaries = () =>
   visitSummaries(
-    [
-      visit("old", "2024-01-01"),
-      visit("repeat", "2024-02-29"),
-      visit("new", "2024-02-29", "unmapped"),
-    ],
+    [visit("old", "2024-01-01"), visit("repeat", "2024-02-29"), visit("new", "2024-02-29", "unmapped")],
     [
       work("painting", "old"),
       work("import", null),
@@ -71,15 +61,13 @@ it("sorts repeat and empty visits newest first and groups calendar months", () =
   const rows = summaries();
   expect(rows.map((row) => row.localId)).toEqual(["repeat", "new", "old"]);
   expect(rows.map((row) => row.works.length)).toEqual([0, 0, 1]);
-  expect(groupHistoryByMonth(rows).map((group) => group.title)).toEqual([
-    "February 2024",
-    "January 2024",
-  ]);
+  expect(groupHistoryByMonth(rows).map((group) => group.title)).toEqual(["February 2024", "January 2024"]);
   expect(visitCounts(rows)).toEqual({ museums: 2, visits: 3 });
 });
 it("searches museum, country, place, date, and saved art while retaining whole visits", () => {
-  for (const query of ["orsay", "France", "Paris", "2024-01-01", "Monet"])
+  for (const query of ["orsay", "France", "Paris", "2024-01-01", "Monet"]) {
     expect(searchVisitSummaries(summaries(), query).map((row) => row.localId)).toContain("old");
+  }
   expect(searchVisitSummaries(summaries(), "Monet")).toHaveLength(1);
   expect(searchVisitSummaries(summaries(), "private")).toEqual([]);
   expect(searchVisitSummaries(summaries(), "x")).toEqual([]);

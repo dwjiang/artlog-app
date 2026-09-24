@@ -24,11 +24,7 @@ it("downloads, letterboxes and embeds every URL in order and keys the vectors by
     [urls[1], 1],
     [urls[2], 2],
   ]);
-  expect(calibration.letterbox.mock.calls).toEqual([
-    ["/cache/0.jpg"],
-    ["/cache/1.jpg"],
-    ["/cache/2.jpg"],
-  ]);
+  expect(calibration.letterbox.mock.calls).toEqual([["/cache/0.jpg"], ["/cache/1.jpg"], ["/cache/2.jpg"]]);
   expect(calibration.embed.mock.calls).toEqual([
     ["file:///cache/0.jpg.crop.jpg"],
     ["file:///cache/1.jpg.crop.jpg"],

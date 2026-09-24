@@ -13,11 +13,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import {
-  readPhotoSession,
-  updatePhotoSession,
-  type CaptureVisitChoice,
-} from "@/lib/capture/photo-draft";
+import { readPhotoSession, updatePhotoSession, type CaptureVisitChoice } from "@/lib/capture/photo-draft";
 import { formatVisitDate } from "@/lib/journal/history";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -78,10 +74,7 @@ function CaptureContext({
   const captureTime = capturedAt ?? openedAt;
   const [selected, setSelected] = useState<string>(() =>
     optionValue(
-      captureVisitChoice(
-        { visitLocalId: visitId, venueId, capturedAt: captureTime },
-        readPhotoSession(owner, draftId),
-      ),
+      captureVisitChoice({ visitLocalId: visitId, venueId, capturedAt: captureTime }, readPhotoSession(owner, draftId)),
     ),
   );
   const [error, setError] = useState<string>();
@@ -93,8 +86,7 @@ function CaptureContext({
   }>();
   const availableVisits = visits.data.filter((visit) => visit.owner === owner);
   const venueOption = venueId && !visitId ? venueId : undefined;
-  const noVisits =
-    !!visits.updatedAt && !visits.error && availableVisits.length === 0 && !venueOption;
+  const noVisits = !!visits.updatedAt && !visits.error && availableVisits.length === 0 && !venueOption;
   useEffect(() => {
     let active = true;
     if (!venueOption) return;
@@ -113,12 +105,12 @@ function CaptureContext({
   // A save at the museum joins the visit already on the books for the capture's day (today only while it is still open),
   // so that visit stands in for the museum and is the marked option.
   const venueVisit =
-    venue &&
-    availableVisits.find(
+    venue
+    && availableVisits.find(
       (visit) =>
-        visit.venueId === venueOption &&
-        visit.visitedOn === venue.visitedOn &&
-        (!venue.today || visit.endedAt === null),
+        visit.venueId === venueOption
+        && visit.visitedOn === venue.visitedOn
+        && (!venue.today || visit.endedAt === null),
     );
   const marked = selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
 
@@ -156,19 +148,13 @@ function CaptureContext({
             </ThemedText>
           )}
         </View>
-        <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>
-          {current ? "✓" : "○"}
-        </ThemedText>
+        <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>{current ? "✓" : "○"}</ThemedText>
       </Pressable>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: "Save this artwork to…" }} />
       <ThemedText themeColor="textSecondary">
         Only this artwork changes. The next scan joins the visit you are at.
@@ -204,19 +190,15 @@ function CaptureContext({
               fullWidth
               onPress={() => router.push("/visit-create")}
             />
-            <GalleryButton
-              label="Save artwork only"
-              fullWidth
-              onPress={() => choose("none", { kind: "none" })}
-            />
+            <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
           </EmptyState>
         )
       )}
       <View>
-        {venueOption &&
-          venue &&
-          !venueVisit &&
-          option(
+        {venueOption
+          && venue
+          && !venueVisit
+          && option(
             VENUE_OPTION,
             { kind: "venue", venueId: venueOption },
             venue.name,
@@ -231,13 +213,7 @@ function CaptureContext({
           ),
         )}
       </View>
-      {!noVisits && (
-        <GalleryButton
-          label="Create a visit"
-          icon="plus"
-          onPress={() => router.push("/visit-create")}
-        />
-      )}
+      {!noVisits && <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push("/visit-create")} />}
     </ScrollView>
   );
 }
@@ -252,9 +228,15 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  unselected: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  unselected: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Gallery.separator,
+  },
   optionText: { flex: 1, gap: Spacing.one },
-  selected: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  selected: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.separator,
+  },
   selectedLabel: { fontWeight: "600" },
   pressed: { opacity: 0.7 },
 });

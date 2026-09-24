@@ -2,8 +2,7 @@ import type { OrbFeatures } from "./features";
 import { applyHomography, type Point, ransacHomography, type RansacOptions } from "./homography";
 import { matchDescriptors, type MatchOptions } from "./match";
 
-export type VerifyOptions = MatchOptions &
-  RansacOptions & { minInliers?: number; inputSize: number };
+export type VerifyOptions = MatchOptions & RansacOptions & { minInliers?: number; inputSize: number };
 
 export type VerifyResult = {
   matchCount: number;
@@ -21,7 +20,13 @@ const MAX_AREA_RATIO = 20;
 export function verifyOrb(query: OrbFeatures, ref: OrbFeatures, opts: VerifyOptions): VerifyResult {
   const minInliers = opts.minInliers ?? MIN_INLIERS;
   if (query.count < 4 || ref.count < 4) {
-    return { matchCount: 0, inlierCount: 0, homography: null, corners: null, verified: false };
+    return {
+      matchCount: 0,
+      inlierCount: 0,
+      homography: null,
+      corners: null,
+      verified: false,
+    };
   }
   const matches = matchDescriptors(query, ref, opts);
   const { H, inlierCount } = ransacHomography(matches, query, ref, opts);
@@ -53,7 +58,9 @@ export function verifyOrb(query: OrbFeatures, ref: OrbFeatures, opts: VerifyOpti
 function isSaneQuad(H: Float64Array, corners: Point[], inputSize: number): boolean {
   const determinant = H[0] * H[4] - H[1] * H[3];
   if (Math.abs(determinant) <= MIN_DETERMINANT) return false;
-  if (!corners.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))) return false;
+  if (!corners.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))) {
+    return false;
+  }
   // Every turn must keep the reference square's winding; a mirrored or folded quad fails here.
   let twiceArea = 0;
   for (let i = 0; i < 4; i++) {

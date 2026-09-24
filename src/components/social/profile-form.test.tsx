@@ -12,7 +12,9 @@ jest.mock("convex/react", () => ({
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ key: "account:a" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({ data: true }) }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({ data: true }),
+}));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
   profilePhotoBytes: jest.fn(),
@@ -37,11 +39,17 @@ async function prepare(onCreated = jest.fn()) {
 it("creates the profile before uploading its selected photo and completing setup", async () => {
   const onCreated = await prepare();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
-  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex", username: "alex", bio: "" });
-  expect(mockSavePhoto).toHaveBeenCalledWith({ name: "Alex", bio: "", photo: new ArrayBuffer(3) });
-  expect(mockCreate.mock.invocationCallOrder[0]).toBeLessThan(
-    mockSavePhoto.mock.invocationCallOrder[0],
-  );
+  expect(mockCreate).toHaveBeenCalledWith({
+    name: "Alex",
+    username: "alex",
+    bio: "",
+  });
+  expect(mockSavePhoto).toHaveBeenCalledWith({
+    name: "Alex",
+    bio: "",
+    photo: new ArrayBuffer(3),
+  });
+  expect(mockCreate.mock.invocationCallOrder[0]).toBeLessThan(mockSavePhoto.mock.invocationCallOrder[0]);
   expect(onCreated).toHaveBeenCalledTimes(1);
 });
 it("retries a failed photo upload without creating the profile twice", async () => {

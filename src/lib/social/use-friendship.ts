@@ -15,17 +15,9 @@ import { useSocialQuery } from "./use-social-query";
 /** A relationship the caller already holds (a browse page embeds one per row), so no per-person subscription opens. */
 export type RelationshipSource = { data: Relationship; refresh: () => void };
 
-export function useFriendship(
-  profileId: Id<"profiles">,
-  session: SocialSession,
-  source?: RelationshipSource,
-) {
+export function useFriendship(profileId: Id<"profiles">, session: SocialSession, source?: RelationshipSource) {
   const enabled = session.status === "ready" && profileId !== session.profileId;
-  const own = useSocialQuery(
-    api.friendships.getState,
-    enabled && !source ? { profileId } : "skip",
-    session.key,
-  );
+  const own = useSocialQuery(api.friendships.getState, enabled && !source ? { profileId } : "skip", session.key);
   const query = source ? { ...source, error: undefined } : own;
   const [confirmed, setConfirmed] = useState<Relationship>();
   const [busy, setBusy] = useState(false);
@@ -41,9 +33,7 @@ export function useFriendship(
   const state =
     !enabled || query.error || !query.data
       ? undefined
-      : confirmed &&
-          confirmed.revision > query.data.revision &&
-          confirmed.blockRevision >= query.data.blockRevision
+      : confirmed && confirmed.revision > query.data.revision && confirmed.blockRevision >= query.data.blockRevision
         ? confirmed
         : query.data;
 
@@ -75,18 +65,13 @@ export function useFriendship(
     } catch (cause) {
       if (!current()) return;
       reportError(cause, `friendship.${action}`);
-      if (
-        convexErrorCode(cause) === "conflict" ||
-        convexErrorCode(cause) === "invalid_relationship"
-      ) {
+      if (convexErrorCode(cause) === "conflict" || convexErrorCode(cause) === "invalid_relationship") {
         setConfirmed(undefined);
         setError("This friendship changed. Review the updated options and try again.");
         query.refresh();
-      } else
-        setError(
-          socialErrorMessage(cause) ??
-            "Couldn’t update this friendship. Check your connection and try again.",
-        );
+      } else {
+        setError(socialErrorMessage(cause) ?? "Couldn’t update this friendship. Check your connection and try again.");
+      }
     } finally {
       if (current()) {
         request.current = null;
@@ -98,11 +83,7 @@ export function useFriendship(
   return {
     state,
     busy,
-    error:
-      error ??
-      (query.error
-        ? (socialErrorMessage(query.error) ?? "Couldn’t load this friendship.")
-        : undefined),
+    error: error ?? (query.error ? (socialErrorMessage(query.error) ?? "Couldn’t load this friendship.") : undefined),
     act,
     refresh: () => {
       setError(undefined);

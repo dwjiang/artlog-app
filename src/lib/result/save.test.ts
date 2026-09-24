@@ -1,29 +1,13 @@
 import { db } from "@/db/client";
 import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
-import {
-  selectArtworkPhotos,
-  selectArtworkEncounters,
-  editArtworkPhoto,
-} from "@/db/repos/artwork-album";
-import {
-  readPhotoDraft,
-  writePhotoDraft,
-  updatePhotoSession,
-  isLabelCapture,
-} from "@/lib/capture/photo-draft";
+import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
+import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import { getFunctionName } from "convex/server";
 
 import { saveErrorMessage, saveResult } from "./save";
 import { draftFromCandidate } from "./snapshot";
 import { toResultViewState } from "./state";
-import {
-  bridge,
-  confidentScan,
-  lilies,
-  missScan,
-  SCAN_ID,
-  softScan,
-} from "@/components/scan/result/__fixtures__/scan";
+import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/components/scan/result/__fixtures__/scan";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 import { contributeLabel } from "@/lib/label/contribute";
@@ -48,7 +32,9 @@ jest.mock("@/lib/convex-client", () => ({
   },
 }));
 const mockFlush = jest.fn();
-jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: () => mockFlush() }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushJournal: () => mockFlush(),
+}));
 jest.mock("@/lib/venue/use-venue", () => ({
   visitByDefault: (...args: unknown[]) => mockVisitByDefault(...args),
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
@@ -70,7 +56,11 @@ const capture = {
 };
 const contribution = {
   scanId: SCAN_ID,
-  capture: { ...capture, descriptors: new ArrayBuffer(0), keypoints: new ArrayBuffer(0) },
+  capture: {
+    ...capture,
+    descriptors: new ArrayBuffer(0),
+    keypoints: new ArrayBuffer(0),
+  },
   state: formStateFromFlow({
     stage: "verified",
     moderation: "clear",
@@ -89,7 +79,11 @@ it("automatically shares a confirmed label after the artwork is saved locally", 
     expect(await getSavedWork(`uuid-${mockUuid}`)).toBeDefined();
     return { contributionId: "contribution-1" as never, status: "tentative" };
   });
-  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  const result = await saveResult({
+    capture,
+    draft: draftFromCandidate(lilies),
+    contribution,
+  });
   expect(await result.contribution).toEqual({
     result: { contributionId: "contribution-1", status: "tentative" },
   });
@@ -98,24 +92,42 @@ it("automatically shares a confirmed label after the artwork is saved locally", 
 
 it("preserves the saved artwork when automatic contribution sharing fails", async () => {
   jest.mocked(contributeLabel).mockRejectedValue(new Error("offline"));
-  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  const result = await saveResult({
+    capture,
+    draft: draftFromCandidate(lilies),
+    contribution,
+  });
   expect(await result.contribution).toEqual({
     error: "Couldn’t save to the shared index right now",
   });
-  expect(await getSavedWork(result.localId)).toMatchObject({ title: "Water Lilies" });
+  expect(await getSavedWork(result.localId)).toMatchObject({
+    title: "Water Lilies",
+  });
 });
 
 it("does not share if saving fails or the capture moves to a different visit context", async () => {
   writePhotoDraft(capture.owner, capture.photoPath, [
-    { localId: "review-photo", path: "photo.jpg", kind: "full", capturedAt: 1, review: "conflict" },
+    {
+      localId: "review-photo",
+      path: "photo.jpg",
+      kind: "full",
+      capturedAt: 1,
+      review: "conflict",
+    },
   ]);
-  await expect(
-    saveResult({ capture, draft: draftFromCandidate(lilies), contribution }),
-  ).rejects.toThrow("Review your added photos");
+  await expect(saveResult({ capture, draft: draftFromCandidate(lilies), contribution })).rejects.toThrow(
+    "Review your added photos",
+  );
   expect(contributeLabel).not.toHaveBeenCalled();
   writePhotoDraft(capture.owner, capture.photoPath, []);
-  updatePhotoSession(capture.owner, capture.photoPath, { visit: { kind: "none" } });
-  const result = await saveResult({ capture, draft: draftFromCandidate(lilies), contribution });
+  updatePhotoSession(capture.owner, capture.photoPath, {
+    visit: { kind: "none" },
+  });
+  const result = await saveResult({
+    capture,
+    draft: draftFromCandidate(lilies),
+    contribution,
+  });
   expect(result.contribution).toBeUndefined();
   expect(contributeLabel).not.toHaveBeenCalled();
 });
@@ -135,11 +147,16 @@ beforeAll(async () => {
 const STARTED_VISIT = "2b1c7e0a-0d3f-4c6e-9a1b-5d7e8f9a0b1c";
 
 beforeEach(() => {
-  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, settings])
+  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, settings]) {
     db.delete(table).run();
+  }
   jest.resetAllMocks();
   mockFlush.mockResolvedValue(undefined);
-  mockMutation.mockResolvedValue({ collectionId: "col-1", updatedAt: 20, updatedBy: "device" });
+  mockMutation.mockResolvedValue({
+    collectionId: "col-1",
+    updatedAt: 20,
+    updatedBy: "device",
+  });
   mockVisitByDefault.mockReturnValue(true);
   mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
     const visit = {
@@ -333,7 +350,11 @@ it("does not start a visit when saving fails before the artwork is written", asy
 });
 
 it("saves a typed title on an unidentified card with no object", async () => {
-  const draft = { ...draftFromCandidate(undefined), title: "Untitled pond", artist: "" };
+  const draft = {
+    ...draftFromCandidate(undefined),
+    title: "Untitled pond",
+    artist: "",
+  };
   const { localId, synced } = await saveResult({
     scanId: SCAN_ID,
     capture,
@@ -371,7 +392,13 @@ it("saves an unknown artwork without forcing a title", async () => {
 it("commits a three-photo draft to one artwork and clears the draft", async () => {
   writePhotoDraft(capture.owner, capture.photoPath, [
     { localId: "detail", path: "detail.jpg", capturedAt: 1235, kind: "detail" },
-    { localId: "label", path: "label.jpg", capturedAt: 1236, kind: "label", caption: "Wall label" },
+    {
+      localId: "label",
+      path: "label.jpg",
+      capturedAt: 1236,
+      kind: "label",
+      caption: "Wall label",
+    },
   ]);
   const saved = await saveResult({
     capture,
@@ -493,10 +520,7 @@ it("still records the confirmation when the journal flush fails and the visit is
     draft: draftFromCandidate(lilies),
   });
   await synced;
-  expect(mockMutation).toHaveBeenCalledWith(
-    "collections:saveToCollection",
-    expect.objectContaining({ localId }),
-  );
+  expect(mockMutation).toHaveBeenCalledWith("collections:saveToCollection", expect.objectContaining({ localId }));
   expect((await getSavedWork(localId))?.syncedAt).toEqual(expect.any(Number));
 });
 
@@ -504,7 +528,10 @@ it.each([{ visitLocalId: "missing" }, { visitLocalId: "" }, { venueId: "wrong-mu
   "rejects an invalid requested visit without silently dropping its link: %j",
   async (fields) => {
     await expect(
-      saveResult({ capture: { ...capture, ...fields }, draft: draftFromCandidate(lilies) }),
+      saveResult({
+        capture: { ...capture, ...fields },
+        draft: draftFromCandidate(lilies),
+      }),
     ).rejects.toThrow("invalid visit");
     expect(mockMutation).not.toHaveBeenCalled();
   },
@@ -532,7 +559,11 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
     timeZone: "UTC",
   });
   const view = toResultViewState(confidentScan);
-  const first = await saveResult({ capture, view, draft: draftFromCandidate(lilies) });
+  const first = await saveResult({
+    capture,
+    view,
+    draft: draftFromCandidate(lilies),
+  });
   const nextCapture = {
     ...capture,
     localId: "next-capture",
@@ -542,9 +573,20 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
   };
   updatePhotoSession(capture.owner, nextCapture.photoPath, {
     visit: { kind: "visit", localId: "eaebe816-f46f-5312-a657-f92d1af2cb76" },
-    photos: [{ localId: "detail", path: "detail.jpg", capturedAt: 5679, kind: "detail" }],
+    photos: [
+      {
+        localId: "detail",
+        path: "detail.jpg",
+        capturedAt: 5679,
+        kind: "detail",
+      },
+    ],
   });
-  const next = await saveResult({ capture: nextCapture, view, draft: draftFromCandidate(lilies) });
+  const next = await saveResult({
+    capture: nextCapture,
+    view,
+    draft: draftFromCandidate(lilies),
+  });
   expect(next.localId).toBe(first.localId);
   expect(selectArtworkPhotos(first.localId).all()).toEqual(
     expect.arrayContaining([
@@ -574,7 +616,9 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
 });
 
 it("can explicitly save a scan without its originally selected visit", async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { visit: { kind: "none" } });
+  updatePhotoSession(capture.owner, capture.photoPath, {
+    visit: { kind: "none" },
+  });
   const result = await saveResult({
     scanId: SCAN_ID,
     capture,
@@ -586,14 +630,19 @@ it("can explicitly save a scan without its originally selected visit", async () 
     "collections:saveToCollection",
     expect.objectContaining({ scanId: undefined, suggested: null }),
   );
-  expect(await getSavedWork(result.localId)).toMatchObject({ visitLocalId: null, venueId: null });
+  expect(await getSavedWork(result.localId)).toMatchObject({
+    visitLocalId: null,
+    venueId: null,
+  });
   expect(selectArtworkPhotos(result.localId).all()[0].visitLocalId).toBeNull();
   expect(result.completion.visitLabel).toBe("No visit · Collection only");
 });
 
 it("stops confirming a scan when saving a venue-only capture without its venue", async () => {
   const venueOnly = { ...capture, visitLocalId: null, visitId: null };
-  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, { visit: { kind: "none" } });
+  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, {
+    visit: { kind: "none" },
+  });
   const result = await saveResult({
     scanId: SCAN_ID,
     capture: venueOnly,
@@ -604,7 +653,11 @@ it("stops confirming a scan when saving a venue-only capture without its venue",
   await result.synced;
   expect(mockMutation).toHaveBeenCalledWith(
     "collections:saveToCollection",
-    expect.objectContaining({ scanId: undefined, venueId: undefined, suggested: null }),
+    expect.objectContaining({
+      scanId: undefined,
+      venueId: undefined,
+      suggested: null,
+    }),
   );
   expect(await getSavedWork(result.localId)).toMatchObject({
     visitLocalId: null,
@@ -614,14 +667,18 @@ it("stops confirming a scan when saving a venue-only capture without its venue",
 });
 
 it("keeps label-first captures classified as identification material after saving", async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { primaryKind: "label" });
+  updatePhotoSession(capture.owner, capture.photoPath, {
+    primaryKind: "label",
+  });
   const result = await saveResult({ capture, draft: draftFromCandidate() });
   expect(selectArtworkPhotos(result.localId).all()[0].kind).toBe("label");
   expect(isLabelCapture(capture)).toBe(true);
 });
 
 it("preserves label classification when a deleted label photo is saved again", async () => {
-  updatePhotoSession(capture.owner, capture.photoPath, { primaryKind: "label" });
+  updatePhotoSession(capture.owner, capture.photoPath, {
+    primaryKind: "label",
+  });
   await saveResult({ capture, draft: draftFromCandidate() });
   editArtworkPhoto(capture.localId, { deletedAt: 2000 });
   const restored = await saveResult({ capture, draft: draftFromCandidate() });

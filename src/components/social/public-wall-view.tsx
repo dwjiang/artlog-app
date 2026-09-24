@@ -26,7 +26,14 @@ export function PublicProfileHeader({
   children?: ReactNode;
 }) {
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
+    <View
+      style={{
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: 12,
+        gap: 12,
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
         <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={compact ? 44 : 64} />
         <View style={{ flex: 1, gap: 4 }}>
@@ -69,26 +76,19 @@ export function PublicWallView({
   onSelect: (item: PublicWall["items"][number]) => void;
 }) {
   const [width, setWidth] = useState(0);
-  if (!wall.items.length)
+  if (!wall.items.length) {
     return (
       <EmptyState
         title="No artworks on this wall yet."
         detail={`${arrangedBy ?? "This person"} hasn’t added any artworks yet.`}
         visual={<ArtworkCollage />}
       >
-        <GalleryButton
-          label="Back to friends"
-          variant="filled"
-          fullWidth
-          onPress={() => router.push("/people")}
-        />
+        <GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
       </EmptyState>
     );
+  }
   return (
-    <View
-      accessibilityLabel="Public collection wall"
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-    >
+    <View accessibilityLabel="Public collection wall" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {width > 0 && (
         <WallGallery
           width={width}
@@ -106,8 +106,7 @@ export function PublicWallView({
       )}
       <Text style={{ ...socialStyles.caption, padding: 20, lineHeight: 18 }}>
         {wall.artworkCount} {wall.artworkCount === 1 ? "artwork" : "artworks"}
-        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected for public display
-        appear here.
+        {arrangedBy ? ` · arranged by ${arrangedBy}` : ""}. Only notes selected for public display appear here.
       </Text>
     </View>
   );

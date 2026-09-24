@@ -16,16 +16,8 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
   const session = useSocialSession();
   const [selectedId, setSelectedId] = useState<string>();
   const selected = wall.items.find((item) => item.itemId === selectedId);
-  const profile = useSocialQuery(
-    api.profiles.getPublic,
-    { profileId: wall.profileId },
-    session.key,
-  );
-  const detail = useSocialQuery(
-    api.walls.getArtwork,
-    selected ? { itemId: selected.itemId } : "skip",
-    session.key,
-  );
+  const profile = useSocialQuery(api.profiles.getPublic, { profileId: wall.profileId }, session.key);
+  const detail = useSocialQuery(api.walls.getArtwork, selected ? { itemId: selected.itemId } : "skip", session.key);
   return (
     <GestureHandlerRootView style={{ flexGrow: 0 }}>
       <View style={{ paddingHorizontal: 20, paddingBottom: 16, gap: 6 }}>
@@ -44,12 +36,7 @@ export function PublicNotesPreview({ wall }: { wall: PublicWall }) {
       )}
       <PublicWallView wall={wall} onSelect={(item) => setSelectedId(item.itemId)} />
       {selected && (
-        <WallSheet
-          title="Visitor preview"
-          dismissLabel="Back to wall"
-          tall
-          onDismiss={() => setSelectedId(undefined)}
-        >
+        <WallSheet title="Visitor preview" dismissLabel="Back to wall" tall onDismiss={() => setSelectedId(undefined)}>
           <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
             <PublishedArtwork
               key={selected.itemId}

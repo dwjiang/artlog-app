@@ -21,8 +21,7 @@ it.each([
   ["generic", Array.from({ length: 20 }, (_, i) => `<a href='/artwork/${i}'>Work</a>`).join("")],
 ])("recognizes %s on a collection page", async (platform, html) => {
   fetchMock.mockImplementation(
-    async (url) =>
-      new Response(new URL(String(url)).pathname === "/collection" ? html : "", { status: 200 }),
+    async (url) => new Response(new URL(String(url)).pathname === "/collection" ? html : "", { status: 200 }),
   );
   expect(await probeCollectionSite("https://museum.example/about")).toEqual({
     collectionSiteUrl: "https://museum.example/collection",
@@ -46,8 +45,7 @@ it("probes no more than the six designated paths and identifies its User-Agent",
   expect(fetchMock.mock.calls[0][1]).toMatchObject({
     redirect: "manual",
     headers: {
-      "User-Agent":
-        "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
+      "User-Agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
     },
   });
 });
@@ -56,20 +54,17 @@ it("does not count duplicate or external links as a generic collection", async (
   fetchMock.mockImplementation(
     async () =>
       new Response(
-        '<a href="/artwork/1">Same work</a>'.repeat(20) +
-          Array.from(
-            { length: 20 },
-            (_, i) => `<a href="https://elsewhere.example/artwork/${i}">External</a>`,
-          ).join(""),
+        '<a href="/artwork/1">Same work</a>'.repeat(20)
+          + Array.from({ length: 20 }, (_, i) => `<a href="https://elsewhere.example/artwork/${i}">External</a>`).join(
+            "",
+          ),
       ),
   );
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
 });
 
 it("ignores external platform links", async () => {
-  fetchMock.mockImplementation(
-    async () => new Response('<a href="https://other.example/objects/1">External</a>'),
-  );
+  fetchMock.mockImplementation(async () => new Response('<a href="https://other.example/objects/1">External</a>'));
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
 });
 
@@ -100,25 +95,24 @@ it("allows same-host redirects within the total request budget", async () => {
   expect(fetchMock).toHaveBeenCalledTimes(2);
 });
 
-it.each([
-  "http://127.0.0.1/private",
-  "https://other.example/objects/",
-  "http://museum.example/objects/",
-])("rejects redirect target %s", async (location) => {
-  fetchMock.mockImplementation(
-    async () => new Response(null, { status: 302, headers: { location } }),
-  );
-  expect(await probeCollectionSite("https://museum.example")).toBeNull();
-  expect(fetchMock).toHaveBeenCalledTimes(6);
-  expect(
-    fetchMock.mock.calls.every(([url]) => String(url).startsWith("https://museum.example/")),
-  ).toBe(true);
-});
+it.each(["http://127.0.0.1/private", "https://other.example/objects/", "http://museum.example/objects/"])(
+  "rejects redirect target %s",
+  async (location) => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 302, headers: { location } }));
+    expect(await probeCollectionSite("https://museum.example")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith("https://museum.example/"))).toBe(true);
+  },
+);
 
 it("ends redirect loops and caps chains at six requests", async () => {
   let step = 0;
   fetchMock.mockImplementation(
-    async () => new Response(null, { status: 302, headers: { location: `/hop-${++step}` } }),
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: `/hop-${++step}` },
+      }),
   );
   expect(await probeCollectionSite("https://museum.example")).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -165,13 +159,10 @@ it.each([408, 429, 500, 503])(
   },
 );
 
-it.each([403, 404, 410])(
-  "treats definitive HTTP %s responses as an unavailable collection",
-  async (status) => {
-    fetchMock.mockImplementation(async () => new Response("", { status }));
-    expect(await probeCollectionSite("https://museum.example")).toBeNull();
-  },
-);
+it.each([403, 404, 410])("treats definitive HTTP %s responses as an unavailable collection", async (status) => {
+  fetchMock.mockImplementation(async () => new Response("", { status }));
+  expect(await probeCollectionSite("https://museum.example")).toBeNull();
+});
 
 it("rejects oversized bodies and continues past HTTP failures", async () => {
   fetchMock

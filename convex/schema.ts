@@ -354,7 +354,10 @@ export default defineSchema({
     multiViewVectorId: v.optional(v.id("vectors")),
     multiViewDuplicateVectorId: v.optional(v.id("vectors")),
     multiViewAgreement: v.optional(
-      v.object({ firstDeviceId: v.id("devices"), secondDeviceId: v.id("devices") }),
+      v.object({
+        firstDeviceId: v.id("devices"),
+        secondDeviceId: v.id("devices"),
+      }),
     ),
     createdAt: v.number(),
   })
@@ -362,12 +365,7 @@ export default defineSchema({
     .index("by_device_object", ["deviceId", "rejectedObjectId"])
     .index("by_scanId", ["scanId"])
     .index("by_venueId", ["venueId"])
-    .index("by_resolution_object_venue", [
-      "resolution.kind",
-      "resolution.objectId",
-      "venueId",
-      "createdAt",
-    ])
+    .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId", "createdAt"])
     .index("by_resolution_multiView", ["resolution.kind", "multiViewAt", "createdAt"])
     .index("by_multiViewFirstDevice", ["multiViewAgreement.firstDeviceId"])
     .index("by_multiViewDuplicateVectorId", ["multiViewDuplicateVectorId"])
@@ -446,7 +444,9 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   }).index("by_device", ["deviceId"]),
 
-  promotionState: defineTable({ multiViewCursor: v.union(v.string(), v.null()) }),
+  promotionState: defineTable({
+    multiViewCursor: v.union(v.string(), v.null()),
+  }),
 
   museumWorkIdentities: defineTable({
     venueId: v.id("museums"),
@@ -510,7 +510,11 @@ export default defineSchema({
     accountId: v.optional(v.id("accounts")),
     scopeRevision: v.optional(v.number()),
     appleLinkProof: v.optional(
-      v.object({ sub: v.string(), email: v.optional(v.string()), expiresAt: v.number() }),
+      v.object({
+        sub: v.string(),
+        email: v.optional(v.string()),
+        expiresAt: v.number(),
+      }),
     ),
     platform: devicePlatform,
     attestedAt: v.optional(v.number()),
@@ -609,9 +613,10 @@ export default defineSchema({
     .index("by_visitId", ["visitId"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"]),
 
-  journalSyncState: defineTable({ owner: journalOwner, version: v.number() }).index("by_owner", [
-    "owner",
-  ]),
+  journalSyncState: defineTable({
+    owner: journalOwner,
+    version: v.number(),
+  }).index("by_owner", ["owner"]),
   journalClaims: defineTable({
     deviceId: v.id("devices"),
     accountId: v.id("accounts"),
@@ -646,7 +651,10 @@ export default defineSchema({
     .index("by_username", ["username"])
     .index("by_active", ["active"])
     .index("by_leaderboard", ["leaderboardVisibility"])
-    .searchIndex("search_text", { searchField: "searchText", filterFields: ["active"] }),
+    .searchIndex("search_text", {
+      searchField: "searchText",
+      filterFields: ["active"],
+    }),
   walls: defineTable({
     profileId: v.id("profiles"),
     color: v.string(),

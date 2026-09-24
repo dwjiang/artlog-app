@@ -3,12 +3,7 @@ import model from "../../shared/model/model-version.json";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
-import {
-  AGREEMENT_MIN_COSINE,
-  contributionGroup,
-  REPLAY_COSINE,
-  verifiedAccession,
-} from "./agreement";
+import { AGREEMENT_MIN_COSINE, contributionGroup, REPLAY_COSINE, verifiedAccession } from "./agreement";
 import { cosine } from "./cosine";
 import {
   contributionRightsIssue,
@@ -26,17 +21,12 @@ export function earlier(a: Doc<"contributions">, b: Doc<"contributions"> | null)
 
 // The displayed reference can be withdrawn or banned before its rebuild runs. The oldest surviving
 // backer anchors the group meanwhile, so a concurrent submission joins the entry instead of forking it.
-async function eligibleAnchor(
-  ctx: QueryCtx,
-  object: Doc<"objects">,
-): Promise<Doc<"contributions"> | null> {
+async function eligibleAnchor(ctx: QueryCtx, object: Doc<"objects">): Promise<Doc<"contributions"> | null> {
   const source = object.sourceContributionId ? await ctx.db.get(object.sourceContributionId) : null;
   if (await eligibleContribution(ctx, source)) return source;
   const rows = await ctx.db
     .query("contributions")
-    .withIndex("by_object_status_created", (q) =>
-      q.eq("indexedObjectId", object._id).eq("status", "tentative"),
-    )
+    .withIndex("by_object_status_created", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
     .take(ANCHOR_PAGE);
   for (const row of rows) if (await eligibleContribution(ctx, row)) return row;
   return null;
@@ -64,21 +54,19 @@ export async function compatibleAnchor(
   object: Doc<"objects">,
 ): Promise<Doc<"contributions"> | null> {
   if (
-    object.identityStatus !== "tentative" ||
-    object.ownerId !== row.venueId ||
-    object.groupKey !== contributionGroup(row) ||
-    !(await eligibleObjectRecord(ctx, object))
-  )
+    object.identityStatus !== "tentative"
+    || object.ownerId !== row.venueId
+    || object.groupKey !== contributionGroup(row)
+    || !(await eligibleObjectRecord(ctx, object))
+  ) {
     return null;
+  }
   const anchor = await eligibleAnchor(ctx, object);
   if (!anchor || anchor.modelVersion !== row.modelVersion) return null;
   const accession = verifiedAccession(row);
-  if (
-    accession &&
-    object.provenance?.verifiedAccession &&
-    accession !== object.provenance.verifiedAccession
-  )
+  if (accession && object.provenance?.verifiedAccession && accession !== object.provenance.verifiedAccession) {
     return null;
+  }
   const similarity = cosine(row.vector, anchor.vector);
   return similarity >= AGREEMENT_MIN_COSINE && similarity < REPLAY_COSINE ? anchor : null;
 }
@@ -90,10 +78,10 @@ export async function applyReference(
   accession?: string,
 ): Promise<void> {
   if (
-    !source.orbStorageId ||
-    !source.orbSha256 ||
-    !source.cropStorageId ||
-    !(await eligibleContribution(ctx, source))
+    !source.orbStorageId
+    || !source.orbSha256
+    || !source.cropStorageId
+    || !(await eligibleContribution(ctx, source))
   ) {
     throw new ConvexError({ code: "reference_descriptors_required" });
   }
@@ -111,7 +99,11 @@ export async function applyReference(
     accession: source.fields.accession?.value,
     medium: source.fields.medium?.value,
     // Claims remain on contributions, including URLs and Wikidata IDs.
-    provenance: { contributionIds: [], deviceIds: [], verifiedAccession: accession },
+    provenance: {
+      contributionIds: [],
+      deviceIds: [],
+      verifiedAccession: accession,
+    },
   });
   const scan = source.scanId ? await ctx.db.get(source.scanId) : null;
   const placement = await ctx.db
@@ -150,7 +142,9 @@ export async function publishContribution(
   if (issue) throw new ConvexError({ code: issue });
   let object = groupObjectId ? await ctx.db.get(groupObjectId) : null;
   const anchor = object ? await compatibleAnchor(ctx, row, object) : null;
-  if (object && !anchor) throw new ConvexError({ code: "contributions_changed" });
+  if (object && !anchor) {
+    throw new ConvexError({ code: "contributions_changed" });
+  }
   if (object) {
     const own = await ctx.db
       .query("contributions")
@@ -208,12 +202,9 @@ export async function publishContribution(
   });
   await bumpCounter(ctx, "vectors", 1);
   const source = anchor && earlier(anchor, row) ? anchor : row;
-  await applyReference(
-    ctx,
-    object,
-    source,
-    object.provenance?.verifiedAccession ?? verifiedAccession(row),
-  );
-  await ctx.db.patch(object._id, { supportRevision: (object.supportRevision ?? 0) + 1 });
+  await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
+  await ctx.db.patch(object._id, {
+    supportRevision: (object.supportRevision ?? 0) + 1,
+  });
   return object._id;
 }

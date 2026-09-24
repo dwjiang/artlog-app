@@ -24,11 +24,7 @@ export function QueueBadge() {
         onPress={() => router.push("/queue")}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        <Image
-          source="sf:clock.arrow.circlepath"
-          style={styles.icon}
-          tintColor={Colors.light.overlayText}
-        />
+        <Image source="sf:clock.arrow.circlepath" style={styles.icon} tintColor={Colors.light.overlayText} />
         <ThemedText type="smallBold" themeColor="overlayText">
           Recent {items.length}
         </ThemedText>

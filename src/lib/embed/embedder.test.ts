@@ -10,9 +10,7 @@ function fakeNative(overrides: Partial<CoremlEmbed> = {}) {
     embeddingDim: model.embeddingDim,
     weightsSha256: "weights",
     warmUp: jest.fn().mockResolvedValue({ loadMs: 4100, predictMs: 66, alreadyLoaded: false }),
-    embed: jest
-      .fn()
-      .mockResolvedValue(Array.from({ length: model.embeddingDim }, (_, i) => (i === 0 ? 1 : 0))),
+    embed: jest.fn().mockResolvedValue(Array.from({ length: model.embeddingDim }, (_, i) => (i === 0 ? 1 : 0))),
     ...overrides,
   };
 }
@@ -30,9 +28,7 @@ it("embeds the crop file path and returns a typed array of the model dimension",
 });
 
 it("rejects a bundled model whose version differs from shared/model/model-version.json, naming both", () => {
-  const embedder = createEmbedder(() =>
-    fakeNative({ modelVersion: "c-radiov3-b-int8-512-dinov2-v2" }),
-  );
+  const embedder = createEmbedder(() => fakeNative({ modelVersion: "c-radiov3-b-int8-512-dinov2-v2" }));
   expect(() => embedder.modelVersion).toThrow(
     `Embedding model version mismatch: bundled "c-radiov3-b-int8-512-dinov2-v2", expected "${model.modelVersion}"`,
   );
@@ -87,10 +83,6 @@ it("warms up once for concurrent callers and again after a failure", async () =>
 });
 
 it("rejects an embedding of the wrong length", async () => {
-  const embedder = createEmbedder(() =>
-    fakeNative({ embed: jest.fn().mockResolvedValue([1, 2, 3]) }),
-  );
-  await expect(embedder.embed("file:///tmp/crop.jpg")).rejects.toThrow(
-    `3 values, expected ${model.embeddingDim}`,
-  );
+  const embedder = createEmbedder(() => fakeNative({ embed: jest.fn().mockResolvedValue([1, 2, 3]) }));
+  await expect(embedder.embed("file:///tmp/crop.jpg")).rejects.toThrow(`3 values, expected ${model.embeddingDim}`);
 });

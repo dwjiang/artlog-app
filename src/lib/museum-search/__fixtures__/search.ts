@@ -1,12 +1,11 @@
-import type {
-  LabelFlowDisplay,
-  MuseumSearchDisplay,
-  SearchCandidate,
-} from "../../../../convex/lib/validators";
+import type { LabelFlowDisplay, MuseumSearchDisplay, SearchCandidate } from "../../../../convex/lib/validators";
 
 export const candidate: SearchCandidate = {
   sourceUrl: "https://museum.example/exhibitions/colour",
-  exhibition: { title: "A Century of Colour", content: "Paintings from the collection." },
+  exhibition: {
+    title: "A Century of Colour",
+    content: "Paintings from the collection.",
+  },
   imageUrls: ["https://museum.example/blue.jpg", "https://museum.example/blue-detail.jpg"],
 };
 export const exhibitionCandidates: MuseumSearchDisplay = {
@@ -30,6 +29,9 @@ export const verified: LabelFlowDisplay = {
 export const confirmed: MuseumSearchDisplay = {
   stage: "confirmed",
   candidates: [candidate],
-  selected: { sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrls[0] },
+  selected: {
+    sourceUrl: candidate.sourceUrl,
+    imageUrl: candidate.imageUrls[0],
+  },
   updatedAt: 2,
 };

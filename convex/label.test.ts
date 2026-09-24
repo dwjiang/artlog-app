@@ -46,10 +46,7 @@ beforeEach(() => {
       const response = route(url, init);
       if (response) return response;
     }
-    if (
-      url.href === TOKEN_FACTORY &&
-      JSON.parse(String(init?.body)).model === "nvidia/Nemotron-3_5-Lightning"
-    ) {
+    if (url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === "nvidia/Nemotron-3_5-Lightning") {
       return completion({ flagged: false });
     }
     throw new Error(`Unexpected fetch ${url.href}`);
@@ -72,22 +69,17 @@ function wikidata(searches: Record<string, unknown> = {}, status = 200) {
     if (`${url.origin}${url.pathname}` !== WIKIDATA) return undefined;
     if (status !== 200) return new Response("down", { status });
     const action = url.searchParams.get("action");
-    if (action === "wbsearchentities")
+    if (action === "wbsearchentities") {
       return jsonResponse(searches[url.searchParams.get("search") ?? ""] ?? { search: [] });
+    }
     return jsonResponse(wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")));
   });
 }
-function tokenFactory(
-  handler: (body: { model: string; messages: { content: unknown }[] }) => Response,
-) {
-  routes.push((url, init) =>
-    url.href === TOKEN_FACTORY ? handler(JSON.parse(String(init?.body))) : undefined,
-  );
+function tokenFactory(handler: (body: { model: string; messages: { content: unknown }[] }) => Response) {
+  routes.push((url, init) => (url.href === TOKEN_FACTORY ? handler(JSON.parse(String(init?.body))) : undefined));
 }
 function models(reading: object = labelReading, flagged = false) {
-  tokenFactory((body) =>
-    body.model === LABEL_MODEL ? completion(reading) : completion({ flagged }),
-  );
+  tokenFactory((body) => (body.model === LABEL_MODEL ? completion(reading) : completion({ flagged })));
 }
 function tavily(response: unknown) {
   routes.push((url) => (url.href === TAVILY ? jsonResponse(response) : undefined));
@@ -96,11 +88,13 @@ function tavily(response: unknown) {
 function page(href: string, html: string, init?: ResponseInit) {
   routes.push((url) => (url.href === href ? new Response(html, init) : undefined));
 }
-const calls = (prefix: string) =>
-  fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
+const calls = (prefix: string) => fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
 
 type MuseumOverrides = Partial<Omit<Doc<"museums">, "_id" | "_creationTime">>;
-const MET: MuseumOverrides = { website: "https://www.metmuseum.org/", wikidataId: "Q160236" };
+const MET: MuseumOverrides = {
+  website: "https://www.metmuseum.org/",
+  wikidataId: "Q160236",
+};
 
 async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museums">) {
   const now = Date.now();
@@ -160,14 +154,19 @@ describe("scan restarts during label requests", () => {
       tavily({ results: [], usage: { credits: 1 } });
       const pending =
         action === "fetchQr"
-          ? user.as.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/art/1" })
+          ? user.as.action(api.label.fetchQr, {
+              scanId,
+              url: "https://www.metmuseum.org/art/1",
+            })
           : action === "readLabel"
             ? user.as.action(api.label.readLabel, { scanId, lines: LINES })
             : user.as.action(api.label.verifyLabel, {
                 scanId,
                 fields: { title: "Water Lilies", artist: "Claude Monet" },
               });
-      const rejected = expect(pending).rejects.toMatchObject({ data: { code: "scan_restarted" } });
+      const rejected = expect(pending).rejects.toMatchObject({
+        data: { code: "scan_restarted" },
+      });
       await started;
       const restarted = await t.mutation(internal.scans.create, {
         deviceId: user.deviceId,
@@ -182,7 +181,9 @@ describe("scan restarts during label requests", () => {
       resumeFetch();
       await rejected;
       expect(await stored()).toBeUndefined();
-      if (action === "readLabel") expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
+      if (action === "readLabel") {
+        expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
+      }
     },
   );
 });
@@ -207,7 +208,11 @@ describe("fetchQr", () => {
         date: { value: "1919", evidence: "qr", locked: true },
         accession: { value: "1998.325.2", evidence: "qr", locked: true },
         medium: { value: "Oil on canvas", evidence: "qr", locked: true },
-        creditLine: { value: "Gift of Louise Reinhardt Smith, 1983", evidence: "qr", locked: true },
+        creditLine: {
+          value: "Gift of Louise Reinhardt Smith, 1983",
+          evidence: "qr",
+          locked: true,
+        },
       },
     });
     expect(await stored()).toEqual(result);
@@ -233,14 +238,21 @@ describe("fetchQr", () => {
       headers: { location: "https://evil.example/" },
     });
     await expect(
-      user.as.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/q/1" }),
-    ).rejects.toMatchObject({ data: { code: "page_unavailable", reason: "redirect_off_host" } });
+      user.as.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.metmuseum.org/q/1",
+      }),
+    ).rejects.toMatchObject({
+      data: { code: "page_unavailable", reason: "redirect_off_host" },
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(await stored()).toBeUndefined();
   });
 
   it("falls back to og:title and meta author, and reports pages without an artwork", async () => {
-    const { user, scanId } = await fixture({ website: "https://www.artic.edu/" });
+    const { user, scanId } = await fixture({
+      website: "https://www.artic.edu/",
+    });
     page("https://www.artic.edu/artworks/111628/nighthawks", metaPage);
     page("https://www.artic.edu/visit", plainPage);
     await expect(
@@ -256,7 +268,10 @@ describe("fetchQr", () => {
       },
     });
     await expect(
-      user.as.action(api.label.fetchQr, { scanId, url: "https://www.artic.edu/visit" }),
+      user.as.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.artic.edu/visit",
+      }),
     ).rejects.toMatchObject({ data: { code: "qr_no_artwork" } });
   });
 
@@ -264,19 +279,31 @@ describe("fetchQr", () => {
     const { t, user, scanId } = await fixture();
     vi.stubEnv("FLAG_LABEL_FLOW", "off");
     await expect(
-      user.as.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/x" }),
+      user.as.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.metmuseum.org/x",
+      }),
     ).rejects.toMatchObject({ data: { code: "feature_off" } });
     vi.stubEnv("FLAG_LABEL_FLOW", "on");
     const other = await seedDevice(t);
     await expect(
-      other.as.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/x" }),
+      other.as.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.metmuseum.org/x",
+      }),
     ).rejects.toMatchObject({ data: { code: "scan_not_found" } });
     const unregistered = await signIn(t);
     await expect(
-      unregistered.as.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/x" }),
+      unregistered.as.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.metmuseum.org/x",
+      }),
     ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
     await expect(
-      t.action(api.label.fetchQr, { scanId, url: "https://www.metmuseum.org/x" }),
+      t.action(api.label.fetchQr, {
+        scanId,
+        url: "https://www.metmuseum.org/x",
+      }),
     ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -286,7 +313,10 @@ describe("readLabel", () => {
   it("sorts the phone's OCR lines into fields with the configured model, moderates them, keeps the raw reading, and settles spend", async () => {
     const { user, scanId, stored, spend } = await fixture();
     models();
-    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
+    const result = await user.as.action(api.label.readLabel, {
+      scanId,
+      lines: LINES,
+    });
     expect(result).toEqual({
       stage: "read",
       evidence: [],
@@ -295,11 +325,36 @@ describe("readLabel", () => {
       promptVersion: "label-v2",
       updatedAt: expect.any(Number),
       fields: {
-        title: { value: "Water Lilies", confidence: 0.98, evidence: "ocr", locked: false },
-        artist: { value: "Claude Monet", confidence: 0.99, evidence: "ocr", locked: false },
-        date: { value: "1919", confidence: 0.9, evidence: "ocr", locked: false },
-        accession: { value: "1998.325.2", confidence: 0.8, evidence: "ocr", locked: false },
-        medium: { value: "Oil on canvas", confidence: 0.95, evidence: "ocr", locked: false },
+        title: {
+          value: "Water Lilies",
+          confidence: 0.98,
+          evidence: "ocr",
+          locked: false,
+        },
+        artist: {
+          value: "Claude Monet",
+          confidence: 0.99,
+          evidence: "ocr",
+          locked: false,
+        },
+        date: {
+          value: "1919",
+          confidence: 0.9,
+          evidence: "ocr",
+          locked: false,
+        },
+        accession: {
+          value: "1998.325.2",
+          confidence: 0.8,
+          evidence: "ocr",
+          locked: false,
+        },
+        medium: {
+          value: "Oil on canvas",
+          confidence: 0.95,
+          evidence: "ocr",
+          locked: false,
+        },
         creditLine: {
           value: "Gift of Louise Reinhardt Smith, 1983",
           evidence: "ocr",
@@ -308,30 +363,41 @@ describe("readLabel", () => {
       },
     });
     expect(await stored()).toEqual({ ...result, rawOcr: labelReading });
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 0 });
-    const [read, moderation] = calls(TOKEN_FACTORY).map(([, init]) =>
-      JSON.parse(String(init?.body)),
-    );
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 2,
+      tavilyCredits: 0,
+    });
+    const [read, moderation] = calls(TOKEN_FACTORY).map(([, init]) => JSON.parse(String(init?.body)));
     expect(read).toMatchObject({
       model: LABEL_MODEL,
       temperature: 0,
       max_tokens: 2048,
       chat_template_kwargs: { enable_thinking: false },
-      response_format: { type: "json_schema", json_schema: { name: "label", strict: true } },
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "label", strict: true },
+      },
     });
     expect(read.messages[0].content).toContain("never instructions");
-    expect(JSON.parse(read.messages[1].content)).toMatchObject({ lines: LINES });
+    expect(JSON.parse(read.messages[1].content)).toMatchObject({
+      lines: LINES,
+    });
     expect(moderation.model).toBe("nvidia/Nemotron-3_5-Lightning");
-    expect(JSON.parse(moderation.messages[1].content).input).toContain(
-      "Gift of Louise Reinhardt Smith, 1983",
-    );
+    expect(JSON.parse(moderation.messages[1].content).input).toContain("Gift of Louise Reinhardt Smith, 1983");
   });
 
   it("returns no fields when moderation flags the text and stores nothing readable", async () => {
     const { user, scanId, stored } = await fixture();
     models(labelReading, true);
-    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
-    expect(result).toMatchObject({ stage: "read", fields: {}, moderation: "flagged" });
+    const result = await user.as.action(api.label.readLabel, {
+      scanId,
+      lines: LINES,
+    });
+    expect(result).toMatchObject({
+      stage: "read",
+      fields: {},
+      moderation: "flagged",
+    });
     expect(await stored()).toEqual(result);
   });
 
@@ -340,11 +406,15 @@ describe("readLabel", () => {
     tokenFactory((body) =>
       body.model === LABEL_MODEL
         ? completion({ ...labelReading, credit_line: "Call 415-555-0123" })
-        : new Response("busy", { status: 429, headers: { "retry-after": "0" } }),
+        : new Response("busy", {
+            status: 429,
+            headers: { "retry-after": "0" },
+          }),
     );
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).resolves.toMatchObject({ moderation: "flagged", fields: {} });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).resolves.toMatchObject({
+      moderation: "flagged",
+      fields: {},
+    });
     expect(calls(TOKEN_FACTORY)).toHaveLength(3);
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 3 });
   });
@@ -352,9 +422,9 @@ describe("readLabel", () => {
   it("surfaces a model failure after one retry, settles spend, and writes nothing", async () => {
     const { user, scanId, stored, spend } = await fixture();
     tokenFactory(() => new Response("busy", { status: 503, headers: { "retry-after": "0" } }));
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).rejects.toMatchObject({ data: { code: "model_error", reason: "http_503", calls: 2 } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({
+      data: { code: "model_error", reason: "http_503", calls: 2 },
+    });
     expect(await stored()).toBeUndefined();
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
   });
@@ -365,9 +435,15 @@ describe("readLabel", () => {
     tokenFactory((body) =>
       body.model === LABEL_MODEL
         ? completion({ ...labelReading, title: "faggot" })
-        : new Response("down", { status: 503, headers: { "retry-after": "0" } }),
+        : new Response("down", {
+            status: 503,
+            headers: { "retry-after": "0" },
+          }),
     );
-    const result = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
+    const result = await user.as.action(api.label.readLabel, {
+      scanId,
+      lines: LINES,
+    });
     expect(result).toMatchObject({ fields: {}, moderation: "flagged" });
     expect(await stored()).toEqual(result);
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 3 });
@@ -376,9 +452,9 @@ describe("readLabel", () => {
   it("enforces the flag, the line bounds, the model configuration, and the daily cap before any call", async () => {
     const { user, scanId, spend } = await fixture();
     vi.stubEnv("FLAG_LABEL_FLOW", "off");
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).rejects.toMatchObject({ data: { code: "feature_off" } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({
+      data: { code: "feature_off" },
+    });
     vi.stubEnv("FLAG_LABEL_FLOW", "on");
     const line = { text: "x", confidence: 1 };
     await expect(
@@ -394,23 +470,29 @@ describe("readLabel", () => {
       }),
     ).rejects.toMatchObject({ data: { code: "bad_lines" } });
     await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: [{ text: "x", confidence: 1.5 }] }),
+      user.as.action(api.label.readLabel, {
+        scanId,
+        lines: [{ text: "x", confidence: 1.5 }],
+      }),
     ).rejects.toMatchObject({ data: { code: "bad_lines" } });
     await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: [{ text: "  ", confidence: 1 }] }),
+      user.as.action(api.label.readLabel, {
+        scanId,
+        lines: [{ text: "  ", confidence: 1 }],
+      }),
     ).rejects.toMatchObject({ data: { code: "nothing_read" } });
     await expect(user.as.action(api.label.readLabel, { scanId, lines: [] })).rejects.toMatchObject({
       data: { code: "nothing_read" },
     });
     vi.stubEnv("LABEL_MODEL", "");
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).rejects.toMatchObject({ data: { code: "model_unconfigured" } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({
+      data: { code: "model_unconfigured" },
+    });
     vi.stubEnv("LABEL_MODEL", LABEL_MODEL);
     vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "3");
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).rejects.toMatchObject({ data: { code: "spend_cap", kind: "tokenFactory" } });
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({
+      data: { code: "spend_cap", kind: "tokenFactory" },
+    });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
   });
@@ -418,11 +500,12 @@ describe("readLabel", () => {
   it("limits a device to thirty reads per hour", async () => {
     const { user, scanId } = await fixture();
     models();
-    for (let i = 0; i < 30; i++)
+    for (let i = 0; i < 30; i++) {
       await user.as.action(api.label.readLabel, { scanId, lines: LINES });
-    await expect(
-      user.as.action(api.label.readLabel, { scanId, lines: LINES }),
-    ).rejects.toMatchObject({ data: { code: "rate_limited", name: "labelRead" } });
+    }
+    await expect(user.as.action(api.label.readLabel, { scanId, lines: LINES })).rejects.toMatchObject({
+      data: { code: "rate_limited", name: "labelRead" },
+    });
     expect(calls(TOKEN_FACTORY)).toHaveLength(60);
   });
 });
@@ -432,39 +515,37 @@ describe("verifyLabel", () => {
     ["Water Lilies at Giverny", "Study for Water Lilies at Giverny", false],
     ["Study for Water Lilies at Giverny", "Water Lilies at Giverny", false],
     ["Study for Water Lilies at Giverny", "Study for Water Lilies at Giverny", true],
-  ] as const)(
-    'verifies "%s" against Wikidata title "%s": %s',
-    async (title, candidateTitle, matches) => {
-      const { user, scanId } = await fixture(null);
-      routes.push((url) => {
-        if (
-          url.origin + url.pathname !== WIKIDATA ||
-          url.searchParams.get("action") !== "wbgetentities"
-        )
-          return undefined;
-        const response = structuredClone(
-          wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")),
-        );
-        const painting = response.entities.Q7973309 as WikidataEntity | undefined;
-        if (painting) painting.labels = { en: { value: candidateTitle } };
-        return jsonResponse(response);
-      });
-      wikidata({ [title]: { search: [{ id: "Q7973309" }] }, "Claude Monet": wikidataSearchMonet });
-      const result = await user.as.action(api.label.verifyLabel, {
-        scanId,
-        fields: { title, artist: "Claude Monet" },
-      });
-      expect(result.wikidataId).toBe(matches ? "Q7973309" : undefined);
-      expect(result.fields.title?.locked).toBe(matches);
-      expect(result.fields.artist?.locked).toBe(matches);
-    },
-  );
+  ] as const)('verifies "%s" against Wikidata title "%s": %s', async (title, candidateTitle, matches) => {
+    const { user, scanId } = await fixture(null);
+    routes.push((url) => {
+      if (url.origin + url.pathname !== WIKIDATA || url.searchParams.get("action") !== "wbgetentities") {
+        return undefined;
+      }
+      const response = structuredClone(wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")));
+      const painting = response.entities.Q7973309 as WikidataEntity | undefined;
+      if (painting) painting.labels = { en: { value: candidateTitle } };
+      return jsonResponse(response);
+    });
+    wikidata({
+      [title]: { search: [{ id: "Q7973309" }] },
+      "Claude Monet": wikidataSearchMonet,
+    });
+    const result = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields: { title, artist: "Claude Monet" },
+    });
+    expect(result.wikidataId).toBe(matches ? "Q7973309" : undefined);
+    expect(result.fields.title?.locked).toBe(matches);
+    expect(result.fields.artist?.locked).toBe(matches);
+  });
 
   it("does not downgrade an artist when Wikidata returns an HTTP 200 API error", async () => {
     const { user, scanId } = await fixture(null);
     routes.push((url) =>
       url.origin + url.pathname === WIKIDATA
-        ? jsonResponse({ error: { code: "ratelimited", info: "Rate limit exceeded" } })
+        ? jsonResponse({
+            error: { code: "ratelimited", info: "Rate limit exceeded" },
+          })
         : undefined,
     );
     const result = await user.as.action(api.label.verifyLabel, {
@@ -472,14 +553,21 @@ describe("verifyLabel", () => {
       fields: { title: "Water Lilies", artist: "Claude Monet" },
     });
     expect(result.warnings).toEqual([]);
-    expect(result.fields.artist).toMatchObject({ evidence: "ocr", locked: false });
+    expect(result.fields.artist).toMatchObject({
+      evidence: "ocr",
+      locked: false,
+    });
   });
 
   const cleveland: MuseumOverrides = {
     website: "https://www.clevelandart.org/",
     accessionUrlPattern: "https://www.clevelandart.org/art/{accession}",
   };
-  const thinker = { title: "The Thinker", artist: "Auguste Rodin", accession: "1917.42" };
+  const thinker = {
+    title: "The Thinker",
+    artist: "Auguste Rodin",
+    accession: "1917.42",
+  };
 
   it("does not lock an accession or fill blanks from a redirect to another cast", async () => {
     const { user, scanId, stored } = await fixture(cleveland);
@@ -490,13 +578,19 @@ describe("verifyLabel", () => {
     page("https://www.clevelandart.org/art/1979.138", graphPage.replaceAll("1917.42", "1979.138"));
     wikidata();
     tavily({ results: [], usage: { credits: 1 } });
-    const result = await user.as.action(api.label.verifyLabel, { scanId, fields: thinker });
+    const result = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields: thinker,
+    });
     expect(result.fields.accession).toMatchObject({
       value: "1917.42",
       evidence: "ocr",
       locked: false,
     });
-    expect(result.fields.title).toMatchObject({ evidence: "ocr", locked: false });
+    expect(result.fields.title).toMatchObject({
+      evidence: "ocr",
+      locked: false,
+    });
     expect(result.fields.medium).toBeUndefined();
     expect(result.sourceUrl).toBeUndefined();
     expect(await stored()).toEqual(result);
@@ -506,7 +600,10 @@ describe("verifyLabel", () => {
     const { user, scanId, stored, spend } = await fixture(cleveland);
     page("https://www.clevelandart.org/art/1917.42", graphPage);
     wikidata();
-    const result = await user.as.action(api.label.verifyLabel, { scanId, fields: thinker });
+    const result = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields: thinker,
+    });
     expect(result).toMatchObject({
       stage: "verified",
       evidence: ["accession"],
@@ -516,14 +613,21 @@ describe("verifyLabel", () => {
         title: { value: "The Thinker", evidence: "accession", locked: true },
         artist: { value: "Auguste Rodin", evidence: "accession", locked: true },
         accession: { value: "1917.42", evidence: "accession", locked: true },
-        date: { value: "1880–81, cast 1916", evidence: "accession", locked: true },
+        date: {
+          value: "1880–81, cast 1916",
+          evidence: "accession",
+          locked: true,
+        },
         medium: { value: "bronze", evidence: "accession", locked: true },
       },
     });
     expect(result.wikidataId).toBeUndefined();
     expect(await stored()).toEqual(result);
     expect(calls(TAVILY)).toHaveLength(0);
-    expect(await spend()).toMatchObject({ tavilyCredits: 0, tokenFactoryCalls: 1 });
+    expect(await spend()).toMatchObject({
+      tavilyCredits: 0,
+      tokenFactoryCalls: 1,
+    });
   });
 
   it.each([
@@ -537,13 +641,17 @@ describe("verifyLabel", () => {
     });
     wikidata();
     tavily({ results: [], usage: { credits: 1 } });
-    const result = await user.as.action(api.label.verifyLabel, { scanId, fields: thinker });
-    expect(result.fields.accession).toMatchObject({ evidence: "ocr", locked: false });
+    const result = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields: thinker,
+    });
+    expect(result.fields.accession).toMatchObject({
+      evidence: "ocr",
+      locked: false,
+    });
     const fetched = fetchMock.mock.calls.map(([url]) => new URL(String(url)).host);
     expect(
-      fetched.every((host) =>
-        ["www.wikidata.org", "api.tavily.com", "api.tokenfactory.nebius.com"].includes(host),
-      ),
+      fetched.every((host) => ["www.wikidata.org", "api.tavily.com", "api.tokenfactory.nebius.com"].includes(host)),
     ).toBe(true);
   });
 
@@ -565,7 +673,10 @@ describe("verifyLabel", () => {
       },
     });
     expect(calls(TAVILY)).toHaveLength(0);
-    expect(await spend()).toMatchObject({ tavilyCredits: 0, tokenFactoryCalls: 1 });
+    expect(await spend()).toMatchObject({
+      tavilyCredits: 0,
+      tokenFactoryCalls: 1,
+    });
   });
 
   it.each(["qr", "accession"] as const)(
@@ -574,9 +685,7 @@ describe("verifyLabel", () => {
       const sourceUrl = "https://www.metmuseum.org/art/collection/search/437137";
       const { user, scanId, stored } = await fixture({
         ...MET,
-        ...(evidence === "accession"
-          ? { accessionUrlPattern: sourceUrl + "?accession={accession}" }
-          : {}),
+        ...(evidence === "accession" ? { accessionUrlPattern: sourceUrl + "?accession={accession}" } : {}),
       });
       const fields = {
         title: "Water Lilies",
@@ -584,11 +693,12 @@ describe("verifyLabel", () => {
         accession: "1983.532",
         date: "1916–19",
       };
-      const html = jsonLdPage
-        .replaceAll("1998.325.2", fields.accession)
-        .replaceAll("1919", fields.date);
+      const html = jsonLdPage.replaceAll("1998.325.2", fields.accession).replaceAll("1919", fields.date);
       page(evidence === "qr" ? sourceUrl : sourceUrl + "?accession=1983.532", html);
-      wikidata({ "Water Lilies": wikidataSearchWaterLilies, "Claude Monet": wikidataSearchMonet });
+      wikidata({
+        "Water Lilies": wikidataSearchWaterLilies,
+        "Claude Monet": wikidataSearchMonet,
+      });
       if (evidence === "qr") {
         await user.as.action(api.label.fetchQr, { scanId, url: sourceUrl });
       } else {
@@ -598,7 +708,10 @@ describe("verifyLabel", () => {
         });
         expect(first.wikidataId).toBe("Q7973309");
       }
-      const result = await user.as.action(api.label.verifyLabel, { scanId, fields });
+      const result = await user.as.action(api.label.verifyLabel, {
+        scanId,
+        fields,
+      });
       expect(result.fields).toMatchObject({
         title: { value: fields.title, evidence, locked: true },
         artist: { value: fields.artist, evidence, locked: true },
@@ -611,7 +724,10 @@ describe("verifyLabel", () => {
         fields: { ...fields, date: "1950" },
       });
       expect(edited.wikidataId).toBeUndefined();
-      expect(edited.fields.date).toMatchObject({ evidence: "weak", locked: false });
+      expect(edited.fields.date).toMatchObject({
+        evidence: "weak",
+        locked: false,
+      });
       expect(edited.warnings).toContain("date_outside_lifespan");
       expect(calls(TAVILY)).toHaveLength(0);
     },
@@ -628,8 +744,14 @@ describe("verifyLabel", () => {
       fields: { title: "Water Lilies", artist: "Claude Monet", date: "1950" },
     });
     expect(result.warnings).toEqual(["date_outside_lifespan", "venue_unlikely"]);
-    expect(result.fields.date).toMatchObject({ evidence: "weak", locked: false });
-    expect(result.fields.artist).toMatchObject({ evidence: "wikidata", locked: true });
+    expect(result.fields.date).toMatchObject({
+      evidence: "weak",
+      locked: false,
+    });
+    expect(result.fields.artist).toMatchObject({
+      evidence: "wikidata",
+      locked: true,
+    });
   });
 
   it.each(["missing", "unrelated"])(
@@ -637,28 +759,32 @@ describe("verifyLabel", () => {
     async (occupation) => {
       const { user, scanId } = await fixture();
       routes.push((url) => {
-        if (
-          url.origin + url.pathname !== WIKIDATA ||
-          url.searchParams.get("action") !== "wbgetentities"
-        )
+        if (url.origin + url.pathname !== WIKIDATA || url.searchParams.get("action") !== "wbgetentities") {
           return undefined;
-        const response = structuredClone(
-          wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")),
-        );
+        }
+        const response = structuredClone(wikidataEntitiesResponse((url.searchParams.get("ids") ?? "").split("|")));
         const artist = response.entities.Q296 as WikidataEntity | undefined;
         if (artist?.claims) {
           if (occupation === "missing") delete artist.claims.P106;
-          else artist.claims.P106 = [{ mainsnak: { datavalue: { value: { id: "Q5" } } } }];
+          else {
+            artist.claims.P106 = [{ mainsnak: { datavalue: { value: { id: "Q5" } } } }];
+          }
         }
         return jsonResponse(response);
       });
-      wikidata({ "Water Lilies": wikidataSearchWaterLilies, "Claude Monet": wikidataSearchMonet });
+      wikidata({
+        "Water Lilies": wikidataSearchWaterLilies,
+        "Claude Monet": wikidataSearchMonet,
+      });
       tavily({ results: [], usage: { credits: 1 } });
       const result = await user.as.action(api.label.verifyLabel, {
         scanId,
         fields: { title: "Water Lilies", artist: "Claude Monet" },
       });
-      expect(result.fields.artist).toMatchObject({ evidence: "weak", locked: false });
+      expect(result.fields.artist).toMatchObject({
+        evidence: "weak",
+        locked: false,
+      });
       expect(result.warnings).toContain("artist_not_found");
       expect(result.wikidataId).toBeUndefined();
     },
@@ -697,8 +823,14 @@ describe("verifyLabel", () => {
       fields: { title: "Untitled", artist: "Nobody Fakename" },
     });
     expect(result.warnings).toEqual(["artist_not_found"]);
-    expect(result.fields.artist).toMatchObject({ evidence: "weak", locked: false });
-    expect(result.fields.title).toMatchObject({ evidence: "ocr", locked: false });
+    expect(result.fields.artist).toMatchObject({
+      evidence: "weak",
+      locked: false,
+    });
+    expect(result.fields.title).toMatchObject({
+      evidence: "ocr",
+      locked: false,
+    });
   });
 
   it("falls back to a museum-scoped web search, reserves one credit, and returns the object images", async () => {
@@ -769,18 +901,22 @@ describe("verifyLabel", () => {
     wikidata({ "Claude Monet": wikidataSearchMonet });
     tavily(tavilyMonet);
     const fields = { title: "Water Lilies", artist: "Claude Monet" };
-    const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+    const first = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
     const url = first.imageUrls![0];
     const before = fetchMock.mock.calls.length;
     for (const imageCheck of [
       { url, cosine: 0.5, homographyValid: true },
       { url, cosine: 0.9, homographyValid: false },
     ]) {
-      await expect(
-        user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck }),
-      ).resolves.toMatchObject({
+      await expect(user.as.action(api.label.verifyLabel, { scanId, fields, imageCheck })).resolves.toMatchObject({
         evidence: ["tavily"],
-        fields: { title: { evidence: "tavily" }, artist: { evidence: "tavily" } },
+        fields: {
+          title: { evidence: "tavily" },
+          artist: { evidence: "tavily" },
+        },
       });
     }
     const upgraded = await user.as.action(api.label.verifyLabel, {
@@ -799,24 +935,24 @@ describe("verifyLabel", () => {
     expect(await spend()).toMatchObject({ tavilyCredits: 1 });
   });
 
-  it.each([NaN, Infinity, -Infinity, 1.01, -1.01])(
-    "does not certify an invalid cosine %s",
-    async (cosine) => {
-      const { user, scanId, stored, spend } = await fixture();
-      wikidata({ "Claude Monet": wikidataSearchMonet });
-      tavily(tavilyMonet);
-      const fields = { title: "Water Lilies", artist: "Claude Monet" };
-      const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
-      const result = await user.as.action(api.label.verifyLabel, {
-        scanId,
-        fields,
-        imageCheck: { url: first.imageUrls![0], cosine, homographyValid: true },
-      });
-      expect(result).toEqual(first);
-      expect(await stored()).toEqual(first);
-      expect(await spend()).toMatchObject({ tavilyCredits: 1 });
-    },
-  );
+  it.each([NaN, Infinity, -Infinity, 1.01, -1.01])("does not certify an invalid cosine %s", async (cosine) => {
+    const { user, scanId, stored, spend } = await fixture();
+    wikidata({ "Claude Monet": wikidataSearchMonet });
+    tavily(tavilyMonet);
+    const fields = { title: "Water Lilies", artist: "Claude Monet" };
+    const first = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
+    const result = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+      imageCheck: { url: first.imageUrls![0], cosine, homographyValid: true },
+    });
+    expect(result).toEqual(first);
+    expect(await stored()).toEqual(first);
+    expect(await spend()).toMatchObject({ tavilyCredits: 1 });
+  });
 
   it.each(["tavily", "tavily+image"] as const)(
     "keeps %s evidence and its source when only the date changes",
@@ -825,12 +961,19 @@ describe("verifyLabel", () => {
       wikidata({ "Claude Monet": wikidataSearchMonet });
       tavily(tavilyMonet);
       const fields = { title: "Water Lilies", artist: "Claude Monet" };
-      let first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+      let first = await user.as.action(api.label.verifyLabel, {
+        scanId,
+        fields,
+      });
       if (evidence === "tavily+image") {
         first = await user.as.action(api.label.verifyLabel, {
           scanId,
           fields,
-          imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true },
+          imageCheck: {
+            url: first.imageUrls![0],
+            cosine: 0.9,
+            homographyValid: true,
+          },
         });
       }
       vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "0");
@@ -842,7 +985,10 @@ describe("verifyLabel", () => {
       expect(result.fields.artist).toEqual(first.fields.artist);
       expect(result.sourceUrl).toBe(first.sourceUrl);
       expect(result.imageUrls).toEqual(first.imageUrls);
-      expect(result.fields.date).toMatchObject({ value: "1919", evidence: "ocr" });
+      expect(result.fields.date).toMatchObject({
+        value: "1919",
+        evidence: "ocr",
+      });
       expect(await stored()).toEqual(result);
       expect(await spend()).toMatchObject({ tavilyCredits: 1 });
     },
@@ -852,7 +998,10 @@ describe("verifyLabel", () => {
     const { user, scanId } = await fixture();
     wikidata({ "Water Lilies": wikidataSearchWaterLilies });
     const fields = { title: "Water Lilies", artist: "Claude Monet" };
-    const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+    const first = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
     routes = [];
     wikidata({}, 503);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "0");
@@ -871,12 +1020,23 @@ describe("verifyLabel", () => {
       const { user, scanId } = await fixture();
       wikidata({ "Claude Monet": wikidataSearchMonet });
       tavily(tavilyMonet);
-      const fields = { title: "Water Lilies", artist: "Claude Monet", accession: "1998.325.2" };
-      const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+      const fields = {
+        title: "Water Lilies",
+        artist: "Claude Monet",
+        accession: "1998.325.2",
+      };
+      const first = await user.as.action(api.label.verifyLabel, {
+        scanId,
+        fields,
+      });
       await user.as.action(api.label.verifyLabel, {
         scanId,
         fields,
-        imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true },
+        imageCheck: {
+          url: first.imageUrls![0],
+          cosine: 0.9,
+          homographyValid: true,
+        },
       });
       vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "0");
       const result = await user.as.action(api.label.verifyLabel, {
@@ -898,7 +1058,10 @@ describe("verifyLabel", () => {
       scanId,
       fields: { title: "Water Lilies", artist: "Claude Monet" },
     });
-    expect(capped.fields.title).toMatchObject({ evidence: "ocr", locked: false });
+    expect(capped.fields.title).toMatchObject({
+      evidence: "ocr",
+      locked: false,
+    });
     expect(calls(TAVILY)).toHaveLength(0);
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "20");
     routes.push((url) => (url.href === TAVILY ? new Response("down", { status: 500 }) : undefined));
@@ -976,40 +1139,47 @@ describe("verifyLabel", () => {
   it("limits a device to sixty verifications per hour", async () => {
     const { user, scanId } = await fixture(null);
     wikidata();
-    for (let i = 0; i < 60; i++)
-      await user.as.action(api.label.verifyLabel, { scanId, fields: { title: "x" } });
-    await expect(
-      user.as.action(api.label.verifyLabel, { scanId, fields: { title: "x" } }),
-    ).rejects.toMatchObject({ data: { code: "rate_limited", name: "labelVerify" } });
+    for (let i = 0; i < 60; i++) {
+      await user.as.action(api.label.verifyLabel, {
+        scanId,
+        fields: { title: "x" },
+      });
+    }
+    await expect(user.as.action(api.label.verifyLabel, { scanId, fields: { title: "x" } })).rejects.toMatchObject({
+      data: { code: "rate_limited", name: "labelVerify" },
+    });
   });
 
-  it.each([
-    graphPage,
-    graphPage.replace('"creator":[{"@type":"Person","name":"Auguste Rodin"}],', ""),
-  ])("keeps an artist editable when the accession page contradicts or omits it", async (html) => {
-    const { user, scanId } = await fixture(cleveland);
-    page("https://www.clevelandart.org/art/1917.42", html);
-    wikidata({ "Claude Monet": wikidataSearchMonet });
-    tavily({ results: [], usage: { credits: 1 } });
-    const result = await user.as.action(api.label.verifyLabel, {
-      scanId,
-      fields: { ...thinker, artist: "Claude Monet" },
-    });
-    expect(result.fields.artist).toMatchObject({
-      value: "Claude Monet",
-      evidence: "ocr",
-      locked: false,
-    });
-    expect(result.fields.title).toMatchObject({ evidence: "accession", locked: true });
-    expect(result.fields.accession).toMatchObject({ evidence: "accession", locked: true });
-  });
+  it.each([graphPage, graphPage.replace('"creator":[{"@type":"Person","name":"Auguste Rodin"}],', "")])(
+    "keeps an artist editable when the accession page contradicts or omits it",
+    async (html) => {
+      const { user, scanId } = await fixture(cleveland);
+      page("https://www.clevelandart.org/art/1917.42", html);
+      wikidata({ "Claude Monet": wikidataSearchMonet });
+      tavily({ results: [], usage: { credits: 1 } });
+      const result = await user.as.action(api.label.verifyLabel, {
+        scanId,
+        fields: { ...thinker, artist: "Claude Monet" },
+      });
+      expect(result.fields.artist).toMatchObject({
+        value: "Claude Monet",
+        evidence: "ocr",
+        locked: false,
+      });
+      expect(result.fields.title).toMatchObject({
+        evidence: "accession",
+        locked: true,
+      });
+      expect(result.fields.accession).toMatchObject({
+        evidence: "accession",
+        locked: true,
+      });
+    },
+  );
 
   it("does not lock a conflicting artist with the same surname and qualifier", async () => {
     const { user, scanId } = await fixture(cleveland);
-    page(
-      "https://www.clevelandart.org/art/1917.42",
-      graphPage.replace("Auguste Rodin", "Pieter Brueghel the Younger"),
-    );
+    page("https://www.clevelandart.org/art/1917.42", graphPage.replace("Auguste Rodin", "Pieter Brueghel the Younger"));
     wikidata();
     tavily({ results: [], usage: { credits: 1 } });
     const result = await user.as.action(api.label.verifyLabel, {
@@ -1021,8 +1191,14 @@ describe("verifyLabel", () => {
       evidence: "weak",
       locked: false,
     });
-    expect(result.fields.title).toMatchObject({ evidence: "accession", locked: true });
-    expect(result.fields.accession).toMatchObject({ evidence: "accession", locked: true });
+    expect(result.fields.title).toMatchObject({
+      evidence: "accession",
+      locked: true,
+    });
+    expect(result.fields.accession).toMatchObject({
+      evidence: "accession",
+      locked: true,
+    });
   });
 
   it("does not accept a related-work thumbnail as image evidence", async () => {
@@ -1031,7 +1207,10 @@ describe("verifyLabel", () => {
     tavily(tavilyMonet);
     const fields = { title: "Water Lilies", artist: "Claude Monet" };
     const unrelated = "https://images.metmuseum.org/CRDImages/mi/web-large/238693.jpg";
-    const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+    const first = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
     expect(first.imageUrls).not.toContain(unrelated);
     const result = await user.as.action(api.label.verifyLabel, {
       scanId,
@@ -1051,12 +1230,23 @@ describe("verifyLabel", () => {
     const { user, scanId, stored } = await fixture();
     wikidata({ "Claude Monet": wikidataSearchMonet });
     tavily(tavilyMonet);
-    const fields = { title: "Water Lilies", artist: "Claude Monet", date: "1910" };
-    const first = await user.as.action(api.label.verifyLabel, { scanId, fields });
+    const fields = {
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      date: "1910",
+    };
+    const first = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
     const result = await user.as.action(api.label.verifyLabel, {
       scanId,
       fields: { ...fields, ...edit },
-      imageCheck: { url: first.imageUrls![0], cosine: 0.9, homographyValid: true },
+      imageCheck: {
+        url: first.imageUrls![0],
+        cosine: 0.9,
+        homographyValid: true,
+      },
     });
     for (const [name, value] of Object.entries(edit)) {
       expect(result.fields[name as keyof typeof result.fields]?.value).toBe(value);
@@ -1069,16 +1259,26 @@ describe("verifyLabel", () => {
     tokenFactory((body) =>
       body.model === LABEL_MODEL
         ? completion(labelReading)
-        : completion({ flagged: String(body.messages[1].content).includes("415-555-0123") }),
+        : completion({
+            flagged: String(body.messages[1].content).includes("415-555-0123"),
+          }),
     );
     wikidata({ "Claude Monet": wikidataSearchMonet });
     tavily(tavilyMonet);
     await user.as.action(api.label.readLabel, { scanId, lines: LINES });
     const result = await user.as.action(api.label.verifyLabel, {
       scanId,
-      fields: { title: "Water Lilies", artist: "Claude Monet", creditLine: "Call 415-555-0123" },
+      fields: {
+        title: "Water Lilies",
+        artist: "Claude Monet",
+        creditLine: "Call 415-555-0123",
+      },
     });
-    expect(result).toMatchObject({ moderation: "flagged", fields: {}, evidence: [] });
+    expect(result).toMatchObject({
+      moderation: "flagged",
+      fields: {},
+      evidence: [],
+    });
     expect(result.fields).toEqual({});
     expect(await stored()).toEqual(result);
     expect(result).not.toHaveProperty("rawOcr");
@@ -1091,12 +1291,16 @@ describe("verifyLabel", () => {
     const { user, scanId, stored } = await fixture();
     models();
     wikidata({ "Water Lilies": wikidataSearchWaterLilies });
-    const read = await user.as.action(api.label.readLabel, { scanId, lines: LINES });
-    const fields = Object.fromEntries(
-      Object.entries(read.fields).map(([name, field]) => [name, field.value]),
-    );
+    const read = await user.as.action(api.label.readLabel, {
+      scanId,
+      lines: LINES,
+    });
+    const fields = Object.fromEntries(Object.entries(read.fields).map(([name, field]) => [name, field.value]));
     vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "2");
-    const verified = await user.as.action(api.label.verifyLabel, { scanId, fields });
+    const verified = await user.as.action(api.label.verifyLabel, {
+      scanId,
+      fields,
+    });
     expect(verified.moderation).toBe("clear");
     expect(calls(TOKEN_FACTORY)).toHaveLength(2);
     await expect(
@@ -1104,7 +1308,9 @@ describe("verifyLabel", () => {
         scanId,
         fields: { ...fields, creditLine: "Edited" },
       }),
-    ).rejects.toMatchObject({ data: { code: "spend_cap", kind: "tokenFactory" } });
+    ).rejects.toMatchObject({
+      data: { code: "spend_cap", kind: "tokenFactory" },
+    });
     expect(await stored()).toEqual({ ...verified, rawOcr: labelReading });
   });
 });

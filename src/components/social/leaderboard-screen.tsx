@@ -34,9 +34,7 @@ export function LeaderboardScreen() {
   function manageParticipation() {
     if (guest) {
       setParticipationOpen(false);
-      router.push(
-        session.status === "signed-out" ? signInRoute("leaderboards") : "/create-profile",
-      );
+      router.push(session.status === "signed-out" ? signInRoute("leaderboards") : "/create-profile");
     } else setParticipationOpen(true);
   }
   const rows = board.data?.rows ?? [];
@@ -109,9 +107,7 @@ export function LeaderboardScreen() {
               }
               style={[styles.row, own && styles.ownRow, largeText && { flexWrap: "wrap" }]}
             >
-              <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>
-                {item.rank}
-              </Text>
+              <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
               <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.name}>
@@ -145,11 +141,7 @@ export function LeaderboardScreen() {
                     onPress={() => router.push("/create-profile")}
                   />
                 )}
-                <GalleryButton
-                  label="Browse Global"
-                  fullWidth
-                  onPress={() => filter({ audience: "global" })}
-                />
+                <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
               </EmptyState>
             ) : (
               <SocialGate session={session} />
@@ -157,11 +149,7 @@ export function LeaderboardScreen() {
           ) : board.loading && !board.error ? (
             <ListSkeleton label="Opening leaderboard…" avatar rows={6} />
           ) : board.error ? (
-            <SocialState
-              title="Couldn’t load the leaderboard."
-              action="Try again"
-              onAction={board.refresh}
-            />
+            <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
           ) : board.data ? (
             <EmptyState
               title={
@@ -181,13 +169,7 @@ export function LeaderboardScreen() {
               visual={<EmptyPodium />}
             >
               <GalleryButton
-                label={
-                  audience === "friends"
-                    ? "Find friends"
-                    : metric === "visits"
-                      ? "Add visit"
-                      : "Scan artwork"
-                }
+                label={audience === "friends" ? "Find friends" : metric === "visits" ? "Add visit" : "Scan artwork"}
                 variant="filled"
                 fullWidth
                 onPress={() => {
@@ -200,11 +182,7 @@ export function LeaderboardScreen() {
                 }}
               />
               {audience === "friends" && (
-                <GalleryButton
-                  label="Browse Global"
-                  fullWidth
-                  onPress={() => filter({ audience: "global" })}
-                />
+                <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
               )}
             </EmptyState>
           ) : null
@@ -233,9 +211,7 @@ export function LeaderboardScreen() {
           </View>
         }
       />
-      {participationOpen && (
-        <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />
-      )}
+      {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
     </View>
   );
 }
@@ -247,7 +223,11 @@ function LeaderboardSignIn() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  filters: { paddingHorizontal: 20, paddingTop: 10, backgroundColor: Gallery.paper },
+  filters: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    backgroundColor: Gallery.paper,
+  },
   filterRow: { flexDirection: "row", gap: 9, marginTop: 13 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   row: {
@@ -269,7 +249,12 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     borderBottomWidth: 0,
   },
-  rank: { minWidth: 25, fontSize: 14, color: Gallery.muted, fontVariant: ["tabular-nums"] },
+  rank: {
+    minWidth: 25,
+    fontSize: 14,
+    color: Gallery.muted,
+    fontVariant: ["tabular-nums"],
+  },
   ownRank: {
     color: Gallery.surface,
     backgroundColor: Gallery.ink,

@@ -20,7 +20,10 @@ describe("exhibition image candidates", () => {
     expect(exhibitionCandidates(response, ["museum.example"])).toEqual([
       {
         sourceUrl: "https://museum.example/exhibitions/colour",
-        exhibition: { title: "A Century of Colour", content: "Several artists." },
+        exhibition: {
+          title: "A Century of Colour",
+          content: "Several artists.",
+        },
         imageUrls: ["https://museum.example/red.jpg", "https://museum.example/blue.jpg"],
       },
     ]);
@@ -30,8 +33,14 @@ describe("exhibition image candidates", () => {
     const response = parseSearchResponse({
       images: ["https://museum.example/global.jpg"],
       results: [
-        { url: "https://evil.example/exhibitions/x", images: ["https://museum.example/one.jpg"] },
-        { url: "https://museum.example/shop/x", images: ["https://museum.example/two.jpg"] },
+        {
+          url: "https://evil.example/exhibitions/x",
+          images: ["https://museum.example/one.jpg"],
+        },
+        {
+          url: "https://museum.example/shop/x",
+          images: ["https://museum.example/two.jpg"],
+        },
         {
           url: "https://museum.example/exhibitions/x",
           images: [
@@ -67,7 +76,9 @@ describe("exhibition image candidates", () => {
       images: Array.from({ length: 20 }, (_, i) => `https://museum.example/${i}.jpg`),
     });
     const candidates = exhibitionCandidates(
-      parseSearchResponse({ results: [result(1), result(1), result(2), result(3), result(4)] }),
+      parseSearchResponse({
+        results: [result(1), result(1), result(2), result(3), result(4)],
+      }),
       ["museum.example"],
     );
     expect(candidates).toHaveLength(3);

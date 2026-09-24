@@ -2,12 +2,7 @@ import { withErrorReporting } from "./lib/observability";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type ActionCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { bumpCounter } from "./ingest";
 import { cosine } from "./lib/cosine";
 import { recognitionPartition } from "./lib/recognitionEligibility";
@@ -26,7 +21,10 @@ const multiViewCandidate = v.object({
   venueId: v.optional(v.id("museums")),
 });
 type MultiViewCandidate = Infer<typeof multiViewCandidate>;
-const multiViewPage = v.object({ rows: v.array(multiViewCandidate), cursor: cursorArg });
+const multiViewPage = v.object({
+  rows: v.array(multiViewCandidate),
+  cursor: cursorArg,
+});
 
 export const readMultiViewCursor = internalQuery({
   args: {},
@@ -53,9 +51,7 @@ export const listMultiViewCandidates = internalQuery({
   handler: async (ctx, { cursor, limit }) => {
     const result = await ctx.db
       .query("feedback")
-      .withIndex("by_resolution_multiView", (q) =>
-        q.eq("resolution.kind", "runner_up").eq("multiViewAt", undefined),
-      )
+      .withIndex("by_resolution_multiView", (q) => q.eq("resolution.kind", "runner_up").eq("multiViewAt", undefined))
       .paginate({
         cursor,
         numItems: Math.max(1, Math.min(PAGE_ITEMS, limit)),
@@ -99,7 +95,9 @@ export const listMultiViewAgreement = internalQuery({
     const rows = [];
     for (const row of page.page) {
       const device = await ctx.db.get(row.deviceId);
-      if (device && !device.banned) rows.push({ _id: row._id, deviceId: row.deviceId });
+      if (device && !device.banned) {
+        rows.push({ _id: row._id, deviceId: row.deviceId });
+      }
     }
     return { rows, cursor: page.isDone ? null : page.continueCursor };
   },
@@ -121,27 +119,29 @@ export const applyMultiView = internalMutation({
     const now = Date.now();
     const since = now - MULTI_VIEW_WINDOW_MS;
     const row = await ctx.db.get(feedbackId);
-    if (!row || row.resolution.kind !== "runner_up" || row.multiViewAt !== undefined) return done;
+    if (!row || row.resolution.kind !== "runner_up" || row.multiViewAt !== undefined) {
+      return done;
+    }
     const object = row.resolution.objectId ? await ctx.db.get(row.resolution.objectId) : null;
     const venue = row.venueId ? await ctx.db.get(row.venueId) : null;
     const device = await ctx.db.get(row.deviceId);
     const takedown =
-      object &&
-      (await ctx.db
+      object
+      && (await ctx.db
         .query("takedowns")
         .withIndex("by_artworkId", (q) => q.eq("artworkId", object.artworkId))
         .first());
     if (
-      !object ||
-      object.identityStatus !== "established" ||
-      object.reverted ||
-      object.mergedInto ||
-      !venue ||
-      (await isVenueOptedOut(ctx, venue)) ||
-      takedown ||
-      !device ||
-      device.banned ||
-      row.createdAt < since
+      !object
+      || object.identityStatus !== "established"
+      || object.reverted
+      || object.mergedInto
+      || !venue
+      || (await isVenueOptedOut(ctx, venue))
+      || takedown
+      || !device
+      || device.banned
+      || row.createdAt < since
     ) {
       await ctx.db.patch(row._id, { multiViewAt: now });
       return done;
@@ -151,13 +151,14 @@ export const applyMultiView = internalMutation({
     for (const id of agreementIds) {
       const partner = await ctx.db.get(id);
       if (
-        !partner ||
-        partner.resolution.kind !== "runner_up" ||
-        partner.resolution.objectId !== object._id ||
-        partner.venueId !== row.venueId ||
-        partner.createdAt < since
-      )
+        !partner
+        || partner.resolution.kind !== "runner_up"
+        || partner.resolution.objectId !== object._id
+        || partner.venueId !== row.venueId
+        || partner.createdAt < since
+      ) {
         return done;
+      }
       const partnerDevice = await ctx.db.get(partner.deviceId);
       if (!partnerDevice || partnerDevice.banned) return done;
       devices.add(partner.deviceId);
@@ -169,10 +170,10 @@ export const applyMultiView = internalMutation({
         q.eq("objectId", object._id).eq("modelVersion", row.modelVersion).eq("source", "user_scan"),
       )
       .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES });
-    const duplicate = page.page.find(
-      (vector) => cosine(vector.vector, row.vector) >= MULTI_VIEW_DUPLICATE_COSINE,
-    );
-    if (!duplicate && !page.isDone) return { inserted: false, cursor: page.continueCursor };
+    const duplicate = page.page.find((vector) => cosine(vector.vector, row.vector) >= MULTI_VIEW_DUPLICATE_COSINE);
+    if (!duplicate && !page.isDone) {
+      return { inserted: false, cursor: page.continueCursor };
+    }
     const multiViewVectorId = duplicate
       ? undefined
       : await ctx.db.insert("vectors", {
@@ -215,10 +216,12 @@ async function findMultiViewAgreement(
   const since = Date.now() - MULTI_VIEW_WINDOW_MS;
   let cursor: string | null = null;
   do {
-    const page: Infer<typeof agreementPage> = await ctx.runQuery(
-      internal.promotion.listMultiViewAgreement,
-      { objectId, venueId, since, cursor },
-    );
+    const page: Infer<typeof agreementPage> = await ctx.runQuery(internal.promotion.listMultiViewAgreement, {
+      objectId,
+      venueId,
+      since,
+      cursor,
+    });
     for (const row of page.rows) {
       devices.set(row.deviceId, row._id);
       if (devices.size === 2) return [...devices.values()];
@@ -233,10 +236,10 @@ async function promoteMultiView(ctx: ActionCtx): Promise<number> {
   let cursor = from;
   const rows: MultiViewCandidate[] = [];
   do {
-    const page: Infer<typeof multiViewPage> = await ctx.runQuery(
-      internal.promotion.listMultiViewCandidates,
-      { cursor, limit: MULTI_VIEW_PAGE_SIZE - rows.length },
-    );
+    const page: Infer<typeof multiViewPage> = await ctx.runQuery(internal.promotion.listMultiViewCandidates, {
+      cursor,
+      limit: MULTI_VIEW_PAGE_SIZE - rows.length,
+    });
     rows.push(...page.rows);
     cursor = page.cursor;
   } while (cursor !== null && rows.length < MULTI_VIEW_PAGE_SIZE);
@@ -248,16 +251,20 @@ async function promoteMultiView(ctx: ActionCtx): Promise<number> {
     for (const row of group) {
       let vectorCursor: string | null = null;
       do {
-        const result: Infer<typeof multiViewResult> = await ctx.runMutation(
-          internal.promotion.applyMultiView,
-          { feedbackId: row._id, agreementIds, cursor: vectorCursor },
-        );
+        const result: Infer<typeof multiViewResult> = await ctx.runMutation(internal.promotion.applyMultiView, {
+          feedbackId: row._id,
+          agreementIds,
+          cursor: vectorCursor,
+        });
         inserted += Number(result.inserted);
         vectorCursor = result.cursor;
       } while (vectorCursor !== null);
     }
   }
-  await ctx.runMutation(internal.promotion.advanceMultiViewCursor, { from, to: cursor });
+  await ctx.runMutation(internal.promotion.advanceMultiViewCursor, {
+    from,
+    to: cursor,
+  });
   return inserted;
 }
 
@@ -288,7 +295,10 @@ export const viewForReassessment = internalQuery({
 });
 
 export const replaceWitnesses = internalMutation({
-  args: { feedbackId: v.id("feedback"), agreementIds: v.array(v.id("feedback")) },
+  args: {
+    feedbackId: v.id("feedback"),
+    agreementIds: v.array(v.id("feedback")),
+  },
   returns: v.null(),
   handler: async (ctx, { feedbackId, agreementIds }) => {
     const row = await ctx.db.get(feedbackId);
@@ -299,19 +309,22 @@ export const replaceWitnesses = internalMutation({
       const partner = await ctx.db.get(id);
       const source = partner ? await ctx.db.get(partner.deviceId) : null;
       if (
-        partner &&
-        source &&
-        !source.banned &&
-        partner.resolution.kind === "runner_up" &&
-        partner.resolution.objectId === row.resolution.objectId &&
-        partner.venueId === row.venueId &&
-        partner.createdAt >= Date.now() - MULTI_VIEW_WINDOW_MS
-      )
+        partner
+        && source
+        && !source.banned
+        && partner.resolution.kind === "runner_up"
+        && partner.resolution.objectId === row.resolution.objectId
+        && partner.venueId === row.venueId
+        && partner.createdAt >= Date.now() - MULTI_VIEW_WINDOW_MS
+      ) {
         witnesses.add(partner.deviceId);
+      }
     }
     if (device && !device.banned && witnesses.size === 2) {
       const [firstDeviceId, secondDeviceId] = [...witnesses];
-      await ctx.db.patch(row._id, { multiViewAgreement: { firstDeviceId, secondDeviceId } });
+      await ctx.db.patch(row._id, {
+        multiViewAgreement: { firstDeviceId, secondDeviceId },
+      });
     } else {
       const vector = row.multiViewVectorId ? await ctx.db.get(row.multiViewVectorId) : null;
       if (vector) {
@@ -337,9 +350,14 @@ export const reassessView = internalAction({
   args: { feedbackId: v.id("feedback") },
   returns: v.null(),
   handler: async (ctx, { feedbackId }) => {
-    const row = await ctx.runQuery(internal.promotion.viewForReassessment, { feedbackId });
+    const row = await ctx.runQuery(internal.promotion.viewForReassessment, {
+      feedbackId,
+    });
     const agreementIds = row ? await findMultiViewAgreement(ctx, row.objectId, row.venueId) : [];
-    await ctx.runMutation(internal.promotion.replaceWitnesses, { feedbackId, agreementIds });
+    await ctx.runMutation(internal.promotion.replaceWitnesses, {
+      feedbackId,
+      agreementIds,
+    });
     return null;
   },
 });

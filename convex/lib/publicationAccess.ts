@@ -9,17 +9,14 @@ import { relationshipSnapshot } from "./friendships";
 import { revokeSaveMedia } from "./displayMedia";
 
 type ReadCtx = QueryCtx | MutationCtx;
-export async function clearEmptyNoteVisibility(
-  ctx: MutationCtx,
-  saveId: Id<"collections">,
-): Promise<void> {
+export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
   const save = await ctx.db.get(saveId);
   if (!save || save.note?.trim()) return;
   const items = await ctx.db
     .query("wallItems")
     .withIndex("by_save_active", (q) => q.eq("saveId", saveId).eq("active", true))
     .take(LIMITS.wallItems + 1);
-  for (const item of items)
+  for (const item of items) {
     if (item.noteResetVersion !== save.changeVersion) {
       await ctx.db.patch(item._id, {
         noteVisible: false,
@@ -27,11 +24,9 @@ export async function clearEmptyNoteVisibility(
         noteResetVersion: save.changeVersion,
       });
     }
+  }
 }
-export async function invalidateWallSave(
-  ctx: MutationCtx,
-  saveId: Id<"collections">,
-): Promise<void> {
+export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
   const items = await ctx.db
     .query("wallItems")
     .withIndex("by_save_active", (q) => q.eq("saveId", saveId).eq("active", true))
@@ -44,18 +39,18 @@ export async function invalidateWallSave(
       noteRevision: item.noteRevision + 1,
     });
     const wall = await ctx.db.get(item.wallId);
-    if (wall) await ctx.db.patch(wall._id, { layoutRevision: wall.layoutRevision + 1 });
+    if (wall) {
+      await ctx.db.patch(wall._id, { layoutRevision: wall.layoutRevision + 1 });
+    }
     const profile = await ctx.db.get(item.profileId);
-    if (profile && item.active)
+    if (profile && item.active) {
       await ctx.db.patch(profile._id, {
         publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
       });
+    }
   }
 }
-export async function invalidateDeletedSave(
-  ctx: MutationCtx,
-  save: Doc<"collections">,
-): Promise<void> {
+export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collections">): Promise<void> {
   await invalidateWallSave(ctx, save._id);
   const photos = await ctx.db
     .query("artworkPhotos")
@@ -72,8 +67,9 @@ export async function invalidateDeletedSave(
       changeVersion: await nextChangeVersion(ctx, save.owner),
     });
   }
-  for (const photo of photos)
+  for (const photo of photos) {
     if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
+  }
   const selections = await ctx.db
     .query("sharedVisitItems")
     .withIndex("by_saveId", (q) => q.eq("saveId", save._id))
@@ -81,11 +77,12 @@ export async function invalidateDeletedSave(
   for (const item of selections) {
     await ctx.db.delete(item._id);
     const publication = await ctx.db.get(item.publicationId);
-    if (publication)
+    if (publication) {
       await ctx.db.patch(publication._id, {
         publicationRevision: publication.publicationRevision + 1,
         updatedAt: Date.now(),
       });
+    }
   }
   await revokeSaveMedia(ctx, save._id);
   await deleteUnreferencedCollectionPhotos(ctx, save);
@@ -96,43 +93,40 @@ export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<"wallItems"
   const save = item ? await ctx.db.get(item.saveId) : null;
   const wall = item ? await ctx.db.get(item.wallId) : null;
   if (
-    !wall ||
-    wall.profileId !== item?.profileId ||
-    item?.saveLocalId !== save?.localId ||
-    !item?.active ||
-    item.removal ||
-    !profile ||
-    !save ||
-    save.deletedAt !== undefined ||
-    !sameOwner(save.owner, { kind: "account", accountId: profile.accountId })
-  )
+    !wall
+    || wall.profileId !== item?.profileId
+    || item?.saveLocalId !== save?.localId
+    || !item?.active
+    || item.removal
+    || !profile
+    || !save
+    || save.deletedAt !== undefined
+    || !sameOwner(save.owner, { kind: "account", accountId: profile.accountId })
+  ) {
     throw new ConvexError({ code: "not_found" });
+  }
   return { item, profile, save };
 }
-export async function readablePublication(
-  ctx: ReadCtx,
-  publication: Doc<"sharedVisits">,
-  viewerId?: Id<"profiles">,
-) {
+export async function readablePublication(ctx: ReadCtx, publication: Doc<"sharedVisits">, viewerId?: Id<"profiles">) {
   if (publication.status !== "active" || publication.removal) return null;
   if (viewerId && viewerId !== publication.profileId) {
-    const { block, reverseBlock } = await relationshipSnapshot(
-      ctx,
-      publication.profileId,
-      viewerId,
-    );
+    const { block, reverseBlock } = await relationshipSnapshot(ctx, publication.profileId, viewerId);
     if (block?.active || reverseBlock?.active) return null;
   }
   const profile = await activeProfile(ctx, publication.profileId);
   const visit = await ctx.db.get(publication.visitId);
   if (
-    !profile ||
-    !visit ||
-    visit.visibility !== "public" ||
-    visit.localId !== publication.visitLocalId ||
-    !sameOwner(visit.owner, { kind: "account", accountId: profile.accountId })
-  )
+    !profile
+    || !visit
+    || visit.visibility !== "public"
+    || visit.localId !== publication.visitLocalId
+    || !sameOwner(visit.owner, {
+      kind: "account",
+      accountId: profile.accountId,
+    })
+  ) {
     return null;
+  }
   return { publication, profile, visit };
 }
 export async function requireSharedVisit(ctx: ReadCtx, postId: string, viewerId?: Id<"profiles">) {
@@ -154,13 +148,14 @@ export async function requireSharedVisitItem(
   const item = await ctx.db.get(itemId);
   const save = item ? await ctx.db.get(item.saveId) : null;
   if (
-    !item ||
-    item.publicationId !== publication._id ||
-    item.saveLocalId !== save?.localId ||
-    !save ||
-    save.deletedAt !== undefined
-  )
+    !item
+    || item.publicationId !== publication._id
+    || item.saveLocalId !== save?.localId
+    || !save
+    || save.deletedAt !== undefined
+  ) {
     throw new ConvexError({ code: "not_found" });
+  }
   await requireMembership(ctx, save, visit);
   return { publication, item, save };
 }

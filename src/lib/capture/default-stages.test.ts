@@ -26,14 +26,16 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it.each([null, quad])(
-  "requires still-image evidence even when preview corners exist: %s",
-  async (preview) => {
-    mockStill.mockResolvedValue({ width: 1200, height: 1600, rectangles: [], subjects: [] });
-    expect(await warper.warpAndLetterbox("file:///photo.jpg", preview, 512)).toBeNull();
-    expect(mockWarp).not.toHaveBeenCalled();
-  },
-);
+it.each([null, quad])("requires still-image evidence even when preview corners exist: %s", async (preview) => {
+  mockStill.mockResolvedValue({
+    width: 1200,
+    height: 1600,
+    rectangles: [],
+    subjects: [],
+  });
+  expect(await warper.warpAndLetterbox("file:///photo.jpg", preview, 512)).toBeNull();
+  expect(mockWarp).not.toHaveBeenCalled();
+});
 
 it("retains the exact model crop and exposes upright dimensions and native content bounds", async () => {
   const bounds = { x: 0, y: 85, width: 512, height: 341 };
@@ -43,7 +45,11 @@ it("retains the exact model crop and exposes upright dimensions and native conte
     rectangles: [{ corners, confidence: 1 }],
     subjects: [],
   });
-  mockWarp.mockResolvedValue({ cropPath: "/crop.jpg", usedQuad: corners, contentBounds: bounds });
+  mockWarp.mockResolvedValue({
+    cropPath: "/crop.jpg",
+    usedQuad: corners,
+    contentBounds: bounds,
+  });
   expect(await warper.warpAndLetterbox("file:///rotated.jpg", null, 512)).toEqual({
     cropUri: "file:///crop.jpg",
     corners: quad,

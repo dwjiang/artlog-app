@@ -4,15 +4,7 @@ import { StyleSheet, Text, type TextStyle, useWindowDimensions } from "react-nat
 import { Fonts, Gallery, type TextRole, type ThemeColor, Typography } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
-type TextType =
-  | "default"
-  | "title"
-  | "small"
-  | "smallBold"
-  | "subtitle"
-  | "link"
-  | "linkPrimary"
-  | "code";
+type TextType = "default" | "title" | "small" | "smallBold" | "subtitle" | "link" | "linkPrimary" | "code";
 export type ThemedTextProps = ComponentPropsWithRef<typeof Text> & {
   variant?: TextRole;
   type?: TextType;
@@ -26,7 +18,11 @@ const typeStyles: Record<TextType, TextStyle> = {
   smallBold: { ...Typography.metadata, fontWeight: "600" },
   subtitle: Typography.section,
   link: { ...Typography.secondary, fontWeight: "500", color: Gallery.accent },
-  linkPrimary: { ...Typography.secondary, fontWeight: "500", color: Gallery.accent },
+  linkPrimary: {
+    ...Typography.secondary,
+    fontWeight: "500",
+    color: Gallery.accent,
+  },
   code: { ...Typography.metadata, fontFamily: Fonts.mono },
 };
 

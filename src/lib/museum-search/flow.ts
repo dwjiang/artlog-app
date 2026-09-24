@@ -17,12 +17,8 @@ export type MuseumSearchOutcome =
   | { stage: "cancelled" };
 
 export type MuseumSearchApi = {
-  searchExhibitions(
-    args: FunctionArgs<typeof api.museumSearch.searchExhibitions>,
-  ): Promise<MuseumSearchDisplay>;
-  confirmSearchCandidate(
-    args: FunctionArgs<typeof api.museumSearch.confirmSearchCandidate>,
-  ): Promise<LabelFlowDisplay>;
+  searchExhibitions(args: FunctionArgs<typeof api.museumSearch.searchExhibitions>): Promise<MuseumSearchDisplay>;
+  confirmSearchCandidate(args: FunctionArgs<typeof api.museumSearch.confirmSearchCandidate>): Promise<LabelFlowDisplay>;
 };
 
 export function museumSearchMessage(reason: string): string | undefined {
@@ -60,8 +56,7 @@ type Input = {
 
 export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome> {
   const { scanId, api, onStage } = input;
-  const canContinue = async () =>
-    (await getMuseumSearchConsent()) === "granted" && input.canContinue();
+  const canContinue = async () => (await getMuseumSearchConsent()) === "granted" && input.canContinue();
   const none = (reason: string): MuseumSearchOutcome => {
     onStage?.("none");
     return { stage: "none", reason };
@@ -91,7 +86,9 @@ export async function runMuseumSearch(input: Input): Promise<MuseumSearchOutcome
     if (!match) return none("no_match");
     const flow = await api.confirmSearchCandidate({ scanId, ...match });
     if (!(await canContinue())) return { stage: "cancelled" };
-    if (flow.moderation !== "clear" || flow.stage !== "verified") return none("model_error");
+    if (flow.moderation !== "clear" || flow.stage !== "verified") {
+      return none("model_error");
+    }
     addBreadcrumb("museum_search.confirmed");
     onStage?.("done");
     return { stage: "done", flow, confirmedAt: flow.updatedAt };

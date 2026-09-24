@@ -40,7 +40,9 @@ export const syncJournal = mutation({
       .query("journalSyncState")
       .withIndex("by_owner", (q) => q.eq("owner", owner))
       .unique();
-    if (args.since > (state?.version ?? 0)) throw new ConvexError({ code: "invalid_sync" });
+    if (args.since > (state?.version ?? 0)) {
+      throw new ConvexError({ code: "invalid_sync" });
+    }
     const acceptedVisits = [],
       acceptedSaves = [];
     for (const input of args.visits) {
@@ -63,15 +65,11 @@ export const syncJournal = mutation({
     }
     const visitChanges = await ctx.db
       .query("visits")
-      .withIndex("by_owner_changeVersion", (q) =>
-        q.eq("owner", owner).gt("changeVersion", args.since),
-      )
+      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", args.since))
       .take(LIMITS.batchRecords + 1);
     const saveChanges = await ctx.db
       .query("collections")
-      .withIndex("by_owner_changeVersion", (q) =>
-        q.eq("owner", owner).gt("changeVersion", args.since),
-      )
+      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", args.since))
       .take(LIMITS.batchRecords + 1);
     const changes = [
       ...visitChanges.map((row) => ({ kind: "visit" as const, row })),
@@ -85,9 +83,7 @@ export const syncJournal = mutation({
       processed = 0;
     for (const change of changes) {
       const parent =
-        change.kind === "save" &&
-        change.row.visitId &&
-        !visits.some((v) => v._id === change.row.visitId)
+        change.kind === "save" && change.row.visitId && !visits.some((v) => v._id === change.row.visitId)
           ? await ctx.db.get(change.row.visitId)
           : null;
       const alreadyAdded = change.kind === "visit" && visits.some((v) => v._id === change.row._id);
@@ -96,16 +92,14 @@ export const syncJournal = mutation({
       const museum = venueId && !venues.has(venueId) ? await ctx.db.get(venueId) : null;
       const venue = museum ? projectJournalVenue(museum) : null;
       const size =
-        (alreadyAdded ? 0 : utf8Bytes(change.row)) +
-        (parent ? utf8Bytes(parent) : 0) +
-        (venue ? utf8Bytes(venue) : 0);
+        (alreadyAdded ? 0 : utf8Bytes(change.row)) + (parent ? utf8Bytes(parent) : 0) + (venue ? utf8Bytes(venue) : 0);
       // The first change always ships, even oversized: an empty page would return the same checkpoint forever.
       if (
-        processed &&
-        (visits.length + saves.length + records > LIMITS.batchRecords ||
-          bytes + size > LIMITS.batchBytes - 1024)
-      )
+        processed
+        && (visits.length + saves.length + records > LIMITS.batchRecords || bytes + size > LIMITS.batchBytes - 1024)
+      ) {
         break;
+      }
       if (parent) visits.push(parent);
       if (venue) venues.set(venue.id, venue);
       if (change.kind === "visit") {

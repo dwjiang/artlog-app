@@ -17,10 +17,16 @@ export type TriageMetrics = { blurVariance: number; glareFraction: number };
 export type TriageResult = Awaited<ReturnType<Triage["check"]>>;
 
 export function decide({ blurVariance, glareFraction }: TriageMetrics): TriageResult {
-  if (blurVariance < BLUR_THRESHOLD)
+  if (blurVariance < BLUR_THRESHOLD) {
     return { ok: false, reason: "blur", message: "Hold steady and try again" };
-  if (glareFraction > GLARE_THRESHOLD)
-    return { ok: false, reason: "glare", message: "Adjust the angle to reduce glare" };
+  }
+  if (glareFraction > GLARE_THRESHOLD) {
+    return {
+      ok: false,
+      reason: "glare",
+      message: "Adjust the angle to reduce glare",
+    };
+  }
   return { ok: true };
 }
 
@@ -39,7 +45,9 @@ export function measureTriage(gray: Mat, cv: FastOpenCV): TriageMetrics {
     const glareFraction = OpenCV.countNonZero(highlights).value / (TRIAGE_SIZE * TRIAGE_SIZE);
     return { blurVariance: sigma * sigma, glareFraction };
   } finally {
-    for (const object of [size, small, laplacian, mean, stddev, highlights]) object.release();
+    for (const object of [size, small, laplacian, mean, stddev, highlights]) {
+      object.release();
+    }
   }
 }
 

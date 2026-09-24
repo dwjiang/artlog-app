@@ -12,6 +12,7 @@ export async function recognizeOfflineCapture(
   const current = captureOwner();
   if (current.owner !== payload.owner) return;
   const result = await identifyOffline(payload);
-  if (result && current.isOwnerCurrent())
+  if (result && current.isOwnerCurrent()) {
     await cacheOfflineResult(payload.localId, result, current.owner);
+  }
 }

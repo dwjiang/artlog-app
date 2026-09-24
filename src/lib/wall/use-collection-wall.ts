@@ -5,12 +5,7 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
 import { Image } from "react-native";
 import type { SavedWork } from "@/db/schema";
-import {
-  captureOwner,
-  useLocalOwner,
-  useOwnerGeneration,
-  useServerScope,
-} from "../account/owner-store";
+import { captureOwner, useLocalOwner, useOwnerGeneration, useServerScope } from "../account/owner-store";
 import { convexErrorCode } from "../network-error";
 import { captureFileUri } from "../files/photos";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -96,18 +91,16 @@ export function useCollectionWall(works: SavedWork[]) {
   }
 
   const draft =
-    state.layoutDraft ??
-    (state.acknowledged
+    state.layoutDraft
+    ?? (state.acknowledged
       ? {
           color: state.acknowledged.color,
-          items: state.acknowledged.items.map(
-            ({ placementId, photoLocalId, saveLocalId, layout }) => ({
-              placementId,
-              photoLocalId,
-              saveLocalId,
-              layout,
-            }),
-          ),
+          items: state.acknowledged.items.map(({ placementId, photoLocalId, saveLocalId, layout }) => ({
+            placementId,
+            photoLocalId,
+            saveLocalId,
+            layout,
+          })),
         }
       : null);
 
@@ -140,16 +133,14 @@ export function useCollectionWall(works: SavedWork[]) {
       const hung = new Set(draft?.items.map((item) => item.saveLocalId));
       setSelections((previous) => {
         const kept = reset ? previous.filter((item) => hung.has(item.localId)) : previous;
-        return [
-          ...kept,
-          ...page.filter((item) => !kept.some((old) => old.localId === item.localId)),
-        ];
+        return [...kept, ...page.filter((item) => !kept.some((old) => old.localId === item.localId))];
       });
       setCursor(result.isDone ? null : result.cursor);
     } catch (cause) {
       if (session.isCurrent()) reportError(cause, "wall.selections.load");
-      if (session.isCurrent())
+      if (session.isCurrent()) {
         setError(socialErrorMessage(cause) ?? "Artworks could not load. Try again.");
+      }
     } finally {
       if (session.isCurrent()) setLoadingSelections(false);
     }
@@ -162,8 +153,7 @@ export function useCollectionWall(works: SavedWork[]) {
   const albumPhoto = (saveLocalId: string, photoLocalId?: string) =>
     photoLocalId
       ? albumPhotos.data.find(
-          (row) =>
-            row.owner === owner && row.savedLocalId === saveLocalId && row.localId === photoLocalId,
+          (row) => row.owner === owner && row.savedLocalId === saveLocalId && row.localId === photoLocalId,
         )
       : undefined;
   const photoPaths = JSON.stringify(
@@ -191,37 +181,35 @@ export function useCollectionWall(works: SavedWork[]) {
     };
   }, [photoPaths]);
 
-  const pieces: WallPiece[] = (draft?.items ?? []).flatMap(
-    ({ placementId, photoLocalId, saveLocalId, layout }) => {
-      const published = state.acknowledged?.items.find((item) => item.placementId === placementId);
-      const selection = selections.find((item) => item.localId === saveLocalId);
-      const work = works.find((item) => item.localId === saveLocalId);
-      const snapshot = selection?.snapshot ?? work;
-      if (!published && !snapshot) return [];
-      const photo = albumPhoto(saveLocalId, photoLocalId);
-      return [
-        {
-          localId: placementId,
-          saveLocalId,
-          photoLocalId,
-          layout,
-          artwork: published?.artwork ?? {
-            title: snapshot!.title,
-            artist: snapshot!.artist,
-            date: snapshot!.date ?? undefined,
-            medium: snapshot!.medium ?? undefined,
-            media: { kind: "placeholder" as const, width: 1 as const, height: 1 as const },
+  const pieces: WallPiece[] = (draft?.items ?? []).flatMap(({ placementId, photoLocalId, saveLocalId, layout }) => {
+    const published = state.acknowledged?.items.find((item) => item.placementId === placementId);
+    const selection = selections.find((item) => item.localId === saveLocalId);
+    const work = works.find((item) => item.localId === saveLocalId);
+    const snapshot = selection?.snapshot ?? work;
+    if (!published && !snapshot) return [];
+    const photo = albumPhoto(saveLocalId, photoLocalId);
+    return [
+      {
+        localId: placementId,
+        saveLocalId,
+        photoLocalId,
+        layout,
+        artwork: published?.artwork ?? {
+          title: snapshot!.title,
+          artist: snapshot!.artist,
+          date: snapshot!.date ?? undefined,
+          medium: snapshot!.medium ?? undefined,
+          media: {
+            kind: "placeholder" as const,
+            width: 1 as const,
+            height: 1 as const,
           },
-          cropPath: photo?.path ?? (!published ? work?.cropPath : undefined),
-          cropAspectRatio: photo
-            ? photoAspects[photo.localId]
-            : !published
-              ? selection?.cropAspectRatio
-              : undefined,
         },
-      ];
-    },
-  );
+        cropPath: photo?.path ?? (!published ? work?.cropPath : undefined),
+        cropAspectRatio: photo ? photoAspects[photo.localId] : !published ? selection?.cropAspectRatio : undefined,
+      },
+    ];
+  });
 
   return {
     ...state,

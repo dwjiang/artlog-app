@@ -4,16 +4,33 @@ import { DocentSection } from "./docent-section";
 
 const mockOpenBrowser = jest.fn();
 
-jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (url: string) => mockOpenBrowser(url),
+}));
 
 const docent = [
-  { sentence: "Monet painted this pond at Giverny in 1916.", factIds: ["f1", "f2", "f3"] },
+  {
+    sentence: "Monet painted this pond at Giverny in 1916.",
+    factIds: ["f1", "f2", "f3"],
+  },
   { sentence: "It entered the collection in 1959.", factIds: ["missing"] },
 ];
 const factSheet = [
-  { id: "f1", sourceUrl: "https://www.wikidata.org/wiki/Q1", sourceLabel: "Wikidata" },
-  { id: "f2", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" },
-  { id: "f3", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" },
+  {
+    id: "f1",
+    sourceUrl: "https://www.wikidata.org/wiki/Q1",
+    sourceLabel: "Wikidata",
+  },
+  {
+    id: "f2",
+    sourceUrl: "https://museum.example/lilies",
+    sourceLabel: "Test Museum",
+  },
+  {
+    id: "f3",
+    sourceUrl: "https://museum.example/lilies",
+    sourceLabel: "Test Museum",
+  },
 ];
 
 beforeEach(() => {
@@ -25,10 +42,7 @@ it("lists each cited page once, in citation order, and opens it on tap", async (
   await render(<DocentSection docent={docent} factSheet={factSheet} />);
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByText("It entered the collection in 1959.")).toBeOnTheScreen();
-  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual([
-    "Wikidata",
-    "Test Museum",
-  ]);
+  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual(["Wikidata", "Test Museum"]);
   await fireEvent.press(screen.getByRole("link", { name: "Test Museum" }));
   expect(mockOpenBrowser).toHaveBeenCalledWith("https://museum.example/lilies");
 });
@@ -56,10 +70,7 @@ it("marks only the last sentence of each run that rests on the same pages", asyn
     .getAllByText(/^\d+$/, { includeHiddenElements: true })
     .map((marker) => marker.props.children);
   expect(markers).toEqual([1, 2, 1]);
-  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual([
-    "Test Museum",
-    "Wikidata",
-  ]);
+  expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual(["Test Museum", "Wikidata"]);
 });
 
 it("renders nothing without sentences", async () => {
@@ -78,12 +89,7 @@ describe("while the backend is still writing", () => {
     expect(screen.getByText("About this work")).toBeOnTheScreen();
     expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
     await view.rerender(
-      <DocentSection
-        title="About this work"
-        pending={false}
-        docent={docent}
-        factSheet={factSheet}
-      />,
+      <DocentSection title="About this work" pending={false} docent={docent} factSheet={factSheet} />,
     );
     expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
     expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
@@ -99,9 +105,7 @@ describe("while the backend is still writing", () => {
       jest.advanceTimersByTime(1);
     });
     expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
-    expect(
-      screen.getByText("Background information isn’t available for this work yet."),
-    ).toBeOnTheScreen();
+    expect(screen.getByText("Background information isn’t available for this work yet.")).toBeOnTheScreen();
   });
 });
 

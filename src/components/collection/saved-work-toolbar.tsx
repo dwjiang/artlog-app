@@ -15,14 +15,14 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
   const owner = useLocalOwner();
   const router = useRouter();
   const { data } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
-  const work = data.find(
-    (row) => row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   if (!work) return null;
   async function share() {
     if (!work?.cropPath) return;
     try {
-      await Sharing.shareAsync(captureFileUri(work.cropPath), { dialogTitle: work.title });
+      await Sharing.shareAsync(captureFileUri(work.cropPath), {
+        dialogTitle: work.title,
+      });
     } catch (cause) {
       reportError(cause, "collection.artwork.share");
       showToast("This artwork could not be shared.");
@@ -50,7 +50,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       >
         <Stack.Toolbar.MenuAction
           onPress={() =>
-            router.push({ pathname: "/identify-artwork", params: { savedId: work.localId } })
+            router.push({
+              pathname: "/identify-artwork",
+              params: { savedId: work.localId },
+            })
           }
         >
           {work.title === "Unidentified artwork" ? "Identify this artwork" : "Edit artwork details"}
@@ -72,7 +75,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
           onPress={() =>
-            router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })
+            router.push({
+              pathname: "/link-artwork",
+              params: { savedId: work.localId },
+            })
           }
         >
           Link visit
@@ -81,7 +87,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
           <Stack.Toolbar.MenuAction
             icon="slider.horizontal.3"
             onPress={() =>
-              router.push({ pathname: "/wall-display", params: { savedId: work.localId } })
+              router.push({
+                pathname: "/wall-display",
+                params: { savedId: work.localId },
+              })
             }
           >
             Wall display options

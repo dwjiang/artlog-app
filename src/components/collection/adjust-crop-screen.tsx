@@ -22,24 +22,17 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
   }, [queryError]);
   const work = works.data.find((row) => row.owner === owner && row.deletedAt === null);
   const album = photos.data.filter(
-    (row) =>
-      row.owner === owner &&
-      row.savedLocalId === savedId &&
-      row.deletedAt === null &&
-      row.kind !== "label",
+    (row) => row.owner === owner && row.savedLocalId === savedId && row.deletedAt === null && row.kind !== "label",
   );
   const source = photoId
     ? album.find((row) => row.localId === photoId)?.path
-    : (album.find((row) => row.path === work?.photoPath)?.path ??
-      album.find((row) => row.kind === "full" && row.path)?.path ??
-      album.find((row) => row.path)?.path ??
-      work?.photoPath);
-  if (!work || !source)
+    : (album.find((row) => row.path === work?.photoPath)?.path
+      ?? album.find((row) => row.kind === "full" && row.path)?.path
+      ?? album.find((row) => row.path)?.path
+      ?? work?.photoPath);
+  if (!work || !source) {
     return (
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: 24, gap: 16 }}
-      >
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 24, gap: 16 }}>
         <ThemedText>
           {!works.updatedAt || !photos.updatedAt
             ? "Loading your photo…"
@@ -48,6 +41,7 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
         <GalleryButton label="Back" onPress={() => router.back()} />
       </ScrollView>
     );
+  }
   return (
     <CropEditor
       key={`${owner}:${savedId}:${source}`}

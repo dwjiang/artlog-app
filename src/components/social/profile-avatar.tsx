@@ -6,15 +6,7 @@ import { initials } from "@/lib/social/presentation";
 
 import { Gallery } from "@/constants/theme";
 
-export function ProfileAvatar({
-  name,
-  photoUrl,
-  size = 40,
-}: {
-  name: string;
-  photoUrl?: string;
-  size?: number;
-}) {
+export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; photoUrl?: string; size?: number }) {
   const [failed, setFailed] = useState<string>();
   const letters = initials(name);
   return (

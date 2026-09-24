@@ -2,14 +2,11 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 import { act, renderHook } from "@testing-library/react-native";
 import { AppState, type AppStateStatus } from "react-native";
 import { softDeleteSavedWork } from "@/db/repos/saved-works";
-import {
-  commitRemoval,
-  scheduleRemoval,
-  undoRemoval,
-  usePendingRemovals,
-  useRemovedWorkIds,
-} from "./pending-removals";
-jest.mock("@/lib/observability", () => ({ addBreadcrumb: jest.fn(), reportError: jest.fn() }));
+import { commitRemoval, scheduleRemoval, undoRemoval, usePendingRemovals, useRemovedWorkIds } from "./pending-removals";
+jest.mock("@/lib/observability", () => ({
+  addBreadcrumb: jest.fn(),
+  reportError: jest.fn(),
+}));
 jest.mock("@/db/repos/saved-works", () => ({
   softDeleteSavedWork: jest.fn().mockResolvedValue(undefined),
 }));
@@ -56,10 +53,7 @@ it("commits to the original owner and exposes a failed removal for retry", async
   await act(() => jest.advanceTimersByTime(6000));
   expect(softDeleteSavedWork).toHaveBeenCalledWith("retry", expect.any(Number), "account:original");
   expect(view.result.current[0].status).toBe("failed");
-  expect(reportError).toHaveBeenCalledWith(
-    expect.objectContaining({ message: "Disk full" }),
-    "collection.remove",
-  );
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "Disk full" }), "collection.remove");
   expect(hidden.result.current).not.toContain(item.localId);
   expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
     ["collection.remove.scheduled"],
@@ -80,7 +74,11 @@ it("commits to the original owner and exposes a failed removal for retry", async
 });
 
 it("hides committed removals from late subscribers without hiding another ownerâ€™s artwork", async () => {
-  const item = { owner: "account:deleted-owner", localId: "shared-id", title: "Water Lilies" };
+  const item = {
+    owner: "account:deleted-owner",
+    localId: "shared-id",
+    title: "Water Lilies",
+  };
   await act(() => scheduleRemoval(item));
   await act(() => jest.advanceTimersByTime(6000));
   const view = await renderHook((owner: string) => useRemovedWorkIds(owner), {
@@ -91,7 +89,11 @@ it("hides committed removals from late subscribers without hiding another ownerâ
   expect(view.result.current).not.toContain(item.localId);
 });
 it("commits undoable removals when the app leaves the foreground instead of waiting for the timer", async () => {
-  const item = { owner: "account:a", localId: "background", title: "Haystacks" };
+  const item = {
+    owner: "account:a",
+    localId: "background",
+    title: "Haystacks",
+  };
   const view = await renderHook(usePendingRemovals);
   await act(() => scheduleRemoval(item));
   await act(() => appStateListener?.("background"));

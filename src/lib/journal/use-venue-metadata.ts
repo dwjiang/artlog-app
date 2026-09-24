@@ -6,26 +6,24 @@ import type { VenueRow } from "../venue/resolve";
 type Loaded = { owner: string; read: Set<string>; rows: Map<string, VenueRow> };
 
 // Reads accumulate per owner, so an id that leaves and returns (delete, then Undo) stays ready instead of blanking the visits.
-export function useVenueMetadata(
-  ids: string[],
-  owner: string,
-): { metadata: Map<string, VenueRow>; ready: boolean } {
+export function useVenueMetadata(ids: string[], owner: string): { metadata: Map<string, VenueRow>; ready: boolean } {
   const key = JSON.stringify([...new Set(ids)].sort());
   const [state, setState] = useState<Loaded>();
   useEffect(() => {
     let active = true;
     const requestedIds = JSON.parse(key) as string[];
     const merge = (current: Loaded | undefined, rows?: VenueRow[]): Loaded => {
-      const base =
-        current?.owner === owner
-          ? current
-          : { read: new Set<string>(), rows: new Map<string, VenueRow>() };
+      const base = current?.owner === owner ? current : { read: new Set<string>(), rows: new Map<string, VenueRow>() };
       const next = new Map(base.rows);
       if (rows) {
         for (const id of requestedIds) next.delete(id);
         for (const row of rows) next.set(row.id, row);
       }
-      return { owner, read: new Set([...base.read, ...requestedIds]), rows: next };
+      return {
+        owner,
+        read: new Set([...base.read, ...requestedIds]),
+        rows: next,
+      };
     };
     const refresh = () => {
       void venueMetadataForIds(requestedIds)

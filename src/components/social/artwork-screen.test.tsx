@@ -5,12 +5,21 @@ import type { SharedArtwork } from "@/lib/social/types";
 import { ArtworkScreen } from "./artwork-screen";
 
 const mockQuery = jest.fn();
-let mockSession = { key: "viewer", status: "ready", offline: false, token: "private-token" };
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+let mockSession = {
+  key: "viewer",
+  status: "ready",
+  offline: false,
+  token: "private-token",
+};
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
 }));
-jest.mock("@/components/settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("@/components/settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
@@ -23,13 +32,23 @@ const media = (photoLocalId: string): NonNullable<SharedArtwork["photos"]>[numbe
   kind: "photo",
   width: 200,
   height: 400,
-  reference: { kind: "sharedVisit", postId: "post-a", itemId: "art-a" as never, photoLocalId },
+  reference: {
+    kind: "sharedVisit",
+    postId: "post-a",
+    itemId: "art-a" as never,
+    photoLocalId,
+  },
 });
 let artwork: SharedArtwork;
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
-  mockSession = { key: "viewer", status: "ready", offline: false, token: "private-token" };
+  mockSession = {
+    key: "viewer",
+    status: "ready",
+    offline: false,
+    token: "private-token",
+  };
   artwork = {
     itemId: "art-a" as never,
     artwork: {
@@ -42,12 +61,7 @@ beforeEach(() => {
     photos: [media("selected-a"), media("selected-b")],
   };
   mockQuery.mockImplementation((query, args) => ({
-    data:
-      args === "skip"
-        ? undefined
-        : getFunctionName(query) === "sharedVisits:getArtwork"
-          ? artwork
-          : null,
+    data: args === "skip" ? undefined : getFunctionName(query) === "sharedVisits:getArtwork" ? artwork : null,
     refresh: jest.fn(),
   }));
 });
@@ -61,15 +75,12 @@ it("navigates only the selected shared photos and preserves authenticated media 
   expect(screen.getByRole("button", { name: "Next photo" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "Previous photo" }));
   expect(screen.getByText("1 / 2")).toBeOnTheScreen();
-  const photos = [1, 2].map((index) =>
-    screen.getByRole("image", { name: `Starry Night, photo ${index}` }),
-  );
-  expect(
-    photos.map((photo) => new URL(photo.props.source.uri).searchParams.get("photoLocalId")),
-  ).toEqual(["selected-a", "selected-b"]);
-  expect(
-    photos.every((photo) => photo.props.source.headers.Authorization === "Bearer private-token"),
-  ).toBe(true);
+  const photos = [1, 2].map((index) => screen.getByRole("image", { name: `Starry Night, photo ${index}` }));
+  expect(photos.map((photo) => new URL(photo.props.source.uri).searchParams.get("photoLocalId"))).toEqual([
+    "selected-a",
+    "selected-b",
+  ]);
+  expect(photos.every((photo) => photo.props.source.headers.Authorization === "Bearer private-token")).toBe(true);
   expect(photos.every((photo) => photo.props.cachePolicy === "none")).toBe(true);
   expect(screen.getByText(/Vincent van Gogh/)).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Starry Night" })).toBeOnTheScreen();

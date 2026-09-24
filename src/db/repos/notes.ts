@@ -17,7 +17,10 @@ export async function setNote(
   db.transaction((tx) => {
     tx.insert(notes)
       .values({ owner, savedLocalId, text, updatedAt })
-      .onConflictDoUpdate({ target: [notes.owner, notes.savedLocalId], set: { text, updatedAt } })
+      .onConflictDoUpdate({
+        target: [notes.owner, notes.savedLocalId],
+        set: { text, updatedAt },
+      })
       .run();
     tx.update(savedWorks)
       .set({ syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
@@ -27,10 +30,7 @@ export async function setNote(
   requestCollectionSync();
 }
 
-export async function getNote(
-  savedLocalId: string,
-  owner = getLocalOwner(),
-): Promise<Note | undefined> {
+export async function getNote(savedLocalId: string, owner = getLocalOwner()): Promise<Note | undefined> {
   return db
     .select()
     .from(notes)

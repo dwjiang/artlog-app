@@ -8,13 +8,7 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
-import {
-  seedArtworkWithObject,
-  seedDevice,
-  seedMuseum,
-  seedJournalVisit,
-  testVector,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 beforeEach(() => {
@@ -44,18 +38,29 @@ async function fixture(withWork = true) {
   const t = harness();
   const user = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
-  const visitId = await t.run((ctx) =>
-    seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: Date.now() }),
-  );
+  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId, { startedAt: Date.now() }));
   const work = withWork
     ? await t.run((ctx) =>
         seedArtworkWithObject(ctx, {
           descriptors: pair.ref,
-          placement: { venueId, gallery: "4", onView: true, source: "feed", confidence: 1 },
+          placement: {
+            venueId,
+            gallery: "4",
+            onView: true,
+            source: "feed",
+            confidence: 1,
+          },
         }),
       )
     : null;
-  return { t, user, venueId, visitId, work, args: { ...capture(), venueId, visitId } };
+  return {
+    t,
+    user,
+    venueId,
+    visitId,
+    work,
+    args: { ...capture(), venueId, visitId },
+  };
 }
 
 describe("identify action", () => {
@@ -87,9 +92,7 @@ describe("identify action", () => {
 
   it("reports a missing file among verified candidates as an error", async () => {
     const { t, user, args } = await fixture();
-    await t.run(async (ctx) =>
-      ctx.storage.delete((await ctx.db.query("descriptors").unique())!.storageId),
-    );
+    await t.run(async (ctx) => ctx.storage.delete((await ctx.db.query("descriptors").unique())!.storageId));
     await expect(
       user.as.action(api.identify.identify, {
         ...args,
@@ -275,17 +278,23 @@ describe("identify action", () => {
 
   it("requires an authenticated, registered, unbanned device", async () => {
     const t = harness();
-    await expect(
-      t.action(api.identify.identify, { ...capture(), scope: "unused" }),
-    ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+    await expect(t.action(api.identify.identify, { ...capture(), scope: "unused" })).rejects.toMatchObject({
+      data: { code: "unauthenticated" },
+    });
     const unregistered = await signIn(t);
     await expect(
-      unregistered.as.action(api.identify.identify, { ...capture(), scope: "unused" }),
+      unregistered.as.action(api.identify.identify, {
+        ...capture(),
+        scope: "unused",
+      }),
     ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
     const user = await seedDevice(t);
     await t.run((ctx) => ctx.db.patch(user.deviceId, { banned: true }));
     await expect(
-      user.as.action(api.identify.identify, { ...capture(), scope: user.scope }),
+      user.as.action(api.identify.identify, {
+        ...capture(),
+        scope: user.scope,
+      }),
     ).rejects.toMatchObject({ data: { code: "device_banned" } });
   });
 
@@ -304,14 +313,22 @@ describe("identify action", () => {
   it("filters vector search only by model version, including equally similar vectors from other models", async () => {
     const { t, user, args } = await fixture(false);
     await t.run(async (ctx) => {
-      for (let i = 0; i < 33; i++)
-        await seedArtworkWithObject(ctx, { modelVersion: "other-model", descriptors: pair.ref });
+      for (let i = 0; i < 33; i++) {
+        await seedArtworkWithObject(ctx, {
+          modelVersion: "other-model",
+          descriptors: pair.ref,
+        });
+      }
     });
     const result = await user.as.action(api.identify.identify, {
       ...args,
       scope: (await user.as.query(api.accounts.me, {})).scope,
     });
-    expect(result).toMatchObject({ status: "identified", outcome: "miss", runnerUps: [] });
+    expect(result).toMatchObject({
+      status: "identified",
+      outcome: "miss",
+      runnerUps: [],
+    });
     expect(result.best).toBeUndefined();
   });
 
@@ -356,8 +373,9 @@ describe("identify action", () => {
         outcome: "confident",
         best: { objectId: work.objectId },
       });
-      if (count === 0) expect(await storedCorners(t, result.scanId)).toBeUndefined();
-      else expect(await storedCorners(t, result.scanId)).toHaveLength(4);
+      if (count === 0) {
+        expect(await storedCorners(t, result.scanId)).toBeUndefined();
+      } else expect(await storedCorners(t, result.scanId)).toHaveLength(4);
     },
   );
 
@@ -380,17 +398,20 @@ describe("identify action", () => {
   it("rejects the 21st identify call in a burst", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     const { user, args } = await fixture(false);
-    for (let i = 0; i < 20; i++)
+    for (let i = 0; i < 20; i++) {
       await user.as.action(api.identify.identify, {
         ...args,
         scope: (await user.as.query(api.accounts.me, {})).scope,
       });
+    }
     await expect(
       user.as.action(api.identify.identify, {
         ...args,
         scope: (await user.as.query(api.accounts.me, {})).scope,
       }),
-    ).rejects.toMatchObject({ data: { code: "rate_limited", name: "identify" } });
+    ).rejects.toMatchObject({
+      data: { code: "rate_limited", name: "identify" },
+    });
   });
 
   it.each(["unique", "multiple", "unknown"] as const)(
@@ -406,8 +427,14 @@ describe("identify action", () => {
       });
       expect(result.outcome).toBe("confident");
       const propose = async (as: typeof user.as, scanId: typeof result.scanId) => {
-        const { nonce } = await as.mutation(api.devices.createChallenge, { purpose: "assert" });
-        await as.mutation(api.identify.proposeFromScan, { scanId, nonce, assertionBase64: "AAAA" });
+        const { nonce } = await as.mutation(api.devices.createChallenge, {
+          purpose: "assert",
+        });
+        await as.mutation(api.identify.proposeFromScan, {
+          scanId,
+          nonce,
+          assertionBase64: "AAAA",
+        });
       };
       await propose(user.as, result.scanId);
       await user.as.action(api.identify.identify, {
@@ -472,7 +499,12 @@ describe("enrichment after identification", () => {
                   sourceScore: 1,
                 },
               ]
-            : [{ sentence: "Claude Monet painted these water lilies in 1916.", fact_ids: ["f1"] }],
+            : [
+                {
+                  sentence: "Claude Monet painted these water lilies in 1916.",
+                  fact_ids: ["f1"],
+                },
+              ],
         );
       }
       if (url === TAVILY && body.topic === "news") {
@@ -527,15 +559,21 @@ describe("enrichment after identification", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent?.en).toEqual([
-      { sentence: "Claude Monet painted these water lilies in 1916.", factIds: ["f1"] },
+      {
+        sentence: "Claude Monet painted these water lilies in 1916.",
+        factIds: ["f1"],
+      },
     ]);
-    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    const display = await user.as.query(api.scans.get, {
+      scanId: result.scanId,
+    });
     expect(display?.docent).toEqual([
-      { sentence: "Claude Monet painted these water lilies in 1916.", factIds: ["f1"] },
+      {
+        sentence: "Claude Monet painted these water lilies in 1916.",
+        factIds: ["f1"],
+      },
     ]);
-    expect(display?.factSheet).toEqual([
-      { id: "f1", sourceUrl: SOURCE, sourceLabel: "metmuseum.org" },
-    ]);
+    expect(display?.factSheet).toEqual([{ id: "f1", sourceUrl: SOURCE, sourceLabel: "metmuseum.org" }]);
     expect(display?.rightNow).toEqual({
       text: "Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.",
       sourceUrl: "https://www.sfmoma.org/press/monet-water-lilies-returns",
@@ -560,7 +598,9 @@ describe("enrichment after identification", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(fetchMock).not.toHaveBeenCalled();
     expect((await t.run((ctx) => ctx.db.get(work!.artworkId)))?.docent).toBeUndefined();
-    const display = await user.as.query(api.scans.get, { scanId: result.scanId });
+    const display = await user.as.query(api.scans.get, {
+      scanId: result.scanId,
+    });
     expect(display).not.toHaveProperty("docent");
     expect(display).not.toHaveProperty("factSheet");
   });
@@ -571,7 +611,9 @@ describe("candidate loading", () => {
     const t = harness();
     const { target, merged, second, duplicate } = await t.run(async (ctx) => {
       const target = await seedArtworkWithObject(ctx);
-      const merged = await seedArtworkWithObject(ctx, { object: { mergedInto: target.objectId } });
+      const merged = await seedArtworkWithObject(ctx, {
+        object: { mergedInto: target.objectId },
+      });
       const second = await seedArtworkWithObject(ctx);
       const duplicate = await ctx.db.insert("vectors", {
         partition: JSON.stringify([model.modelVersion, "established"]),
@@ -599,7 +641,9 @@ describe("candidate loading", () => {
   it("excludes reverted objects, missing targets, and merge chains beyond one hop", async () => {
     const t = harness();
     const rows = await t.run(async (ctx) => {
-      const reverted = await seedArtworkWithObject(ctx, { object: { reverted: true } });
+      const reverted = await seedArtworkWithObject(ctx, {
+        object: { reverted: true },
+      });
       const toReverted = await seedArtworkWithObject(ctx, {
         object: { mergedInto: reverted.objectId },
       });
@@ -625,14 +669,21 @@ describe("candidate loading", () => {
     const { venueId, rows } = await t.run(async (ctx) => {
       const venueId = await seedMuseum(ctx);
       const rows = [];
-      for (let i = 0; i < 25; i++)
+      for (let i = 0; i < 25; i++) {
         rows.push(
           await seedArtworkWithObject(ctx, {
             descriptors: pair.ref,
             artwork: { rightsStatus: "in_copyright" },
-            placement: { venueId, gallery: "2", onView: false, source: "feed", confidence: 1 },
+            placement: {
+              venueId,
+              gallery: "2",
+              onView: false,
+              source: "feed",
+              confidence: 1,
+            },
           }),
         );
+      }
       return { venueId, rows };
     });
     const candidates = await t.query(internal.identify.loadCandidates, {

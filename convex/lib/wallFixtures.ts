@@ -5,11 +5,17 @@ import { seedDevice } from "./testFactories";
 export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().slice(0, 8)) {
   const device = await seedDevice(t);
   await t.run((ctx) =>
-    ctx.db.patch(device.deviceId, { appleLinkProof: { sub, expiresAt: Date.now() + 10000 } }),
+    ctx.db.patch(device.deviceId, {
+      appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
+    }),
   );
   const accountId = await device.as.mutation(api.accounts.linkAccount, {
     appleUserId: sub,
-    nonce: (await device.as.mutation(api.devices.createChallenge, { purpose: "assert" })).nonce,
+    nonce: (
+      await device.as.mutation(api.devices.createChallenge, {
+        purpose: "assert",
+      })
+    ).nonce,
     assertionBase64: "",
   });
   const { scope } = await device.as.query(api.accounts.me, {});
@@ -25,7 +31,12 @@ export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().
     ctx.db.insert("collections", {
       owner: { kind: "account", accountId },
       localId: saveLocalId,
-      snapshot: { title: "Saved title", artist: "Saved artist", date: "1900", medium: "Oil" },
+      snapshot: {
+        title: "Saved title",
+        artist: "Saved artist",
+        date: "1900",
+        medium: "Oil",
+      },
       savedAt: 1,
       note: "Private journal note",
       updatedAt: 1,
@@ -36,5 +47,15 @@ export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().
   const layout = { x: 0, y: 0, width: 0.5, layer: 0, frame: "oak" as const };
   const selection = { placementId: crypto.randomUUID(), saveLocalId, layout };
   const input = { scope, revision: 0, color: "#45524B", items: [selection] };
-  return { ...device, accountId, scope, profile, saveId, saveLocalId, layout, selection, input };
+  return {
+    ...device,
+    accountId,
+    scope,
+    profile,
+    saveId,
+    saveLocalId,
+    layout,
+    selection,
+    input,
+  };
 }

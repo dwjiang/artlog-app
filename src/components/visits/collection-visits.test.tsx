@@ -7,7 +7,9 @@ import { CollectionVisits } from "./collection-visits";
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({}) }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({}),
+}));
 let mockMode: "list" | "globe" | undefined = "list";
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
@@ -22,7 +24,9 @@ jest.mock("./visit-globe", () => ({
 jest.mock("@/lib/journal/use-visit-view", () => ({
   useVisitView: () => ({ mode: mockMode, changeMode: jest.fn() }),
 }));
-jest.mock("../collection/saved-work-image", () => ({ SavedWorkImage: () => null }));
+jest.mock("../collection/saved-work-image", () => ({
+  SavedWorkImage: () => null,
+}));
 const visit = {
   localId: "v",
   venueId: "m",

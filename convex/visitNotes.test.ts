@@ -20,7 +20,9 @@ it("defaults publishing to public and exposes notes only after publishing the vi
     visit: input,
   });
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
-  const state = await owner.as.query(api.sharedVisits.getState, { visitLocalId: visit.localId });
+  const state = await owner.as.query(api.sharedVisits.getState, {
+    visitLocalId: visit.localId,
+  });
   expect(state).toMatchObject({ audience: "public", status: "private" });
   expect(state.reflection).toBe(input.reflection);
   const selection = {
@@ -28,14 +30,10 @@ it("defaults publishing to public and exposes notes only after publishing the vi
     audience: "public" as const,
     reflection: state.reflection,
   };
-  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe(
-    input.reflection,
-  );
+  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe(input.reflection);
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   const published = await owner.as.mutation(api.sharedVisits.publish, selection);
-  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(
-    input.reflection,
-  );
+  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(input.reflection);
 });
 
 it("makes the whole visit private, hiding its notes and artworks from detail, profile history, and feeds", async () => {
@@ -43,18 +41,25 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
     owner = await socialUser(t),
     draft = await socialVisit(t, owner, 1);
   await t.run((ctx) => ctx.db.patch(draft.visit._id, { reflection: "Visit memory" }));
-  const selection = { ...draft.selection, audience: "public" as const, reflection: "Visit memory" };
-  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe(
-    "Visit memory",
-  );
+  const selection = {
+    ...draft.selection,
+    audience: "public" as const,
+    reflection: "Visit memory",
+  };
+  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe("Visit memory");
   const published = await owner.as.mutation(api.sharedVisits.publish, selection);
-  const visible = await t.query(api.sharedVisits.get, { postId: published.postId! });
+  const visible = await t.query(api.sharedVisits.get, {
+    postId: published.postId!,
+  });
   expect(visible.reflection).toBe("Visit memory");
   expect(visible.artworks.page).toHaveLength(1);
   expect((await t.query(api.sharedVisits.listPublic, {})).page[0].reflection).toBe("Visit memory");
   expect(
-    (await t.query(api.sharedVisits.listByProfile, { profileId: owner.profileId })).page[0]
-      .reflection,
+    (
+      await t.query(api.sharedVisits.listByProfile, {
+        profileId: owner.profileId,
+      })
+    ).page[0].reflection,
   ).toBe("Visit memory");
   const hidden = await setVisitVisibility(t, owner, draft.visit._id, "private");
   expect(hidden.status).toBe("private");
@@ -63,17 +68,25 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
   });
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   expect(
-    (await t.query(api.sharedVisits.listByProfile, { profileId: owner.profileId })).page,
+    (
+      await t.query(api.sharedVisits.listByProfile, {
+        profileId: owner.profileId,
+      })
+    ).page,
   ).toEqual([]);
   expect(
-    (await owner.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId }))
-      .reflection,
+    (
+      await owner.as.query(api.sharedVisits.getState, {
+        visitLocalId: draft.visit.localId,
+      })
+    ).reflection,
   ).toBe("Visit memory");
   await setVisitVisibility(t, owner, draft.visit._id, "public");
-  await owner.as.mutation(api.sharedVisits.publish, { ...selection, revision: hidden.revision });
-  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(
-    "Visit memory",
-  );
+  await owner.as.mutation(api.sharedVisits.publish, {
+    ...selection,
+    revision: hidden.revision,
+  });
+  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe("Visit memory");
 });
 
 it("refuses a stale note preview and keeps edits unpublished until an updated publish", async () => {
@@ -88,7 +101,10 @@ it("refuses a stale note preview and keeps edits unpublished until an updated pu
     timeZone: "UTC",
     reflection: "First draft",
   };
-  await owner.as.mutation(api.visits.upsertJournal, { scope: owner.scope, visit: input });
+  await owner.as.mutation(api.visits.upsertJournal, {
+    scope: owner.scope,
+    visit: input,
+  });
   const selection = {
     ...draft.selection,
     audience: "public" as const,
@@ -110,7 +126,5 @@ it("refuses a stale note preview and keeps edits unpublished until an updated pu
     scope: owner.scope,
     visit: { ...input, reflection: "Unpublished edit" },
   });
-  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(
-    "Edited draft",
-  );
+  expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe("Edited draft");
 });

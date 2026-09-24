@@ -12,7 +12,12 @@ export function VisitKeepsake() {
         <View
           style={[
             styles.postcard,
-            { width: size * 0.6, height: size * 0.48, top: size * 0.06, right: size * 0.02 },
+            {
+              width: size * 0.6,
+              height: size * 0.48,
+              top: size * 0.06,
+              right: size * 0.02,
+            },
           ]}
         >
           <Image
@@ -22,21 +27,18 @@ export function VisitKeepsake() {
             accessible={false}
           />
         </View>
-        <View
-          style={[styles.ticket, { width: size * 0.72, height: size * 0.39, top: size * 0.22 }]}
-        >
+        <View style={[styles.ticket, { width: size * 0.72, height: size * 0.39, top: size * 0.22 }]}>
           <View style={styles.ticketMain}>
-            <Image
-              source="sf:star"
-              tintColor={Gallery.accent}
-              style={styles.star}
-              accessible={false}
-            />
+            <Image source="sf:star" tintColor={Gallery.accent} style={styles.star} accessible={false} />
             <Text
               allowFontScaling={false}
               style={[
                 Typography.section,
-                { color: Gallery.accent, fontSize: size * 0.075, lineHeight: size * 0.085 },
+                {
+                  color: Gallery.accent,
+                  fontSize: size * 0.075,
+                  lineHeight: size * 0.085,
+                },
               ]}
             >
               YOUR{"\n"}NEXT VISIT

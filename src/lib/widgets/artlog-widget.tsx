@@ -15,10 +15,7 @@ import {
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
 import type { WidgetPresentation } from "./widget-layout";
 
-function ArtlogWidget(
-  props: WidgetPresentation,
-  environment: WidgetEnvironment & { width?: number; height?: number },
-) {
+function ArtlogWidget(props: WidgetPresentation, environment: WidgetEnvironment & { width?: number; height?: number }) {
   "widget";
   const layout = environment.widgetFamily === "systemSmall" ? props.small : props.medium;
   const scale = Math.min(
@@ -62,7 +59,10 @@ function ArtlogWidget(
             uiImage={layout.image.uri}
             modifiers={[
               resizable(),
-              frame({ width: layout.image.width * scale, height: layout.image.height * scale }),
+              frame({
+                width: layout.image.width * scale,
+                height: layout.image.height * scale,
+              }),
               offset({ x: layout.image.x * scale, y: layout.image.y * scale }),
             ]}
           />
@@ -73,7 +73,11 @@ function ArtlogWidget(
             key={index}
             alignment="topLeading"
             modifiers={[
-              frame({ width: row.width * scale, height: row.height * scale, alignment: "leading" }),
+              frame({
+                width: row.width * scale,
+                height: row.height * scale,
+                alignment: "leading",
+              }),
               offset({ x: row.x * scale, y: row.y * scale }),
             ]}
           >

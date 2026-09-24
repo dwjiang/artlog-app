@@ -10,12 +10,16 @@ const recovery = "Run `git lfs install` and `git lfs pull` before building or up
 const lfsPointerPrefix = "version https://git-lfs.github.com/spec/v1";
 
 function modelFile(path: string): Buffer {
-  if (!existsSync(path)) throw new Error(`Missing model file ${path}. ${recovery}`);
+  if (!existsSync(path)) {
+    throw new Error(`Missing model file ${path}. ${recovery}`);
+  }
   const contents = readFileSync(path);
   if (contents.subarray(0, lfsPointerPrefix.length).toString() === lfsPointerPrefix) {
     throw new Error(`Git LFS pointer found at ${path}. ${recovery}`);
   }
-  if (contents.length === 0) throw new Error(`Empty model file ${path}. ${recovery}`);
+  if (contents.length === 0) {
+    throw new Error(`Empty model file ${path}. ${recovery}`);
+  }
   return contents;
 }
 

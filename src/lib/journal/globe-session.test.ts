@@ -10,7 +10,11 @@ it("shares the camera and museum between compact and expanded views without shar
       camera: { yaw: 75, pitch: 30, zoom: 1.6 },
     }),
   );
-  expect(compact.result.current.camera).toEqual({ yaw: 75, pitch: 30, zoom: 1.6 });
+  expect(compact.result.current.camera).toEqual({
+    yaw: 75,
+    pitch: 30,
+    zoom: 1.6,
+  });
   expect(compact.result.current.selectedId).toBe("museum");
   expect(other.result.current.camera).toBeUndefined();
   await expanded.unmount();

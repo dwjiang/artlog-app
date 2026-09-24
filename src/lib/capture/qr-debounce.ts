@@ -3,7 +3,9 @@ export function createQrDebouncer(): (value: string, now: number) => boolean {
   return (value, now) => {
     try {
       const url = new URL(value);
-      if (!["https:", "http:"].includes(url.protocol) || !url.hostname) return false;
+      if (!["https:", "http:"].includes(url.protocol) || !url.hostname) {
+        return false;
+      }
     } catch {
       return false;
     }

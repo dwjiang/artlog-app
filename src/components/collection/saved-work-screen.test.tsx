@@ -10,22 +10,22 @@ import { SavedWorkScreen } from "./saved-work-screen";
 import { upsertVisit } from "@/db/repos/visits";
 import { getNote, setNote } from "@/db/repos/notes";
 import { insertSavedWork } from "@/db/repos/saved-works";
-import {
-  addArtworkPhoto,
-  editArtworkPhoto,
-  editEncounter,
-  linkArtworkVisit,
-} from "@/db/repos/artwork-album";
+import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from "@/db/repos/artwork-album";
 jest.mock("@/lib/audio/use-listening");
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
   useCachedNarrationDuration: () => undefined,
 }));
 
-let mockWall: Partial<
-  ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>
-> = { pieces: [], signedIn: false };
-jest.mock("@/lib/wall/use-collection-wall", () => ({ useCollectionWall: () => mockWall }));
-jest.mock("@/lib/collection/pending-removals", () => ({ scheduleRemoval: jest.fn() }));
+let mockWall: Partial<ReturnType<typeof import("@/lib/wall/use-collection-wall").useCollectionWall>> = {
+  pieces: [],
+  signedIn: false,
+};
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: () => mockWall,
+}));
+jest.mock("@/lib/collection/pending-removals", () => ({
+  scheduleRemoval: jest.fn(),
+}));
 const mockBack = jest.fn(),
   mockPush = jest.fn();
 const mockAuth = { isAuthenticated: true };
@@ -49,8 +49,19 @@ jest.mock("convex/react", () => ({
 }));
 
 const enrichment = {
-  docent: [{ sentence: "Monet painted this pond at Giverny in 1916.", factIds: ["f1"] }],
-  factSheet: [{ id: "f1", sourceUrl: "https://www.wikidata.org/wiki/Q1", sourceLabel: "Wikidata" }],
+  docent: [
+    {
+      sentence: "Monet painted this pond at Giverny in 1916.",
+      factIds: ["f1"],
+    },
+  ],
+  factSheet: [
+    {
+      id: "f1",
+      sourceUrl: "https://www.wikidata.org/wiki/Q1",
+      sourceLabel: "Wikidata",
+    },
+  ],
   rightsStatus: "public_domain",
 };
 
@@ -96,26 +107,30 @@ beforeEach(() => {
   mockAuth.isAuthenticated = true;
   results.clear();
   listeners.clear();
-  results.set("devices:me", { deviceId: "device-1", attested: false, trustWeight: 1 });
+  results.set("devices:me", {
+    deviceId: "device-1",
+    attested: false,
+    trustWeight: 1,
+  });
   results.set("artworks:enrichment", enrichment);
-  client = new ConvexReactClient("https://test.convex.cloud", { logger: false });
-  jest
-    .spyOn(client, "watchQuery")
-    .mockImplementation((...[query]: Parameters<ConvexReactClient["watchQuery"]>) => ({
-      localQueryResult: () => {
-        const result = results.get(getFunctionName(query));
-        if (result instanceof Error) throw result;
-        return result;
-      },
-      onUpdate: (callback) => {
-        listeners.add(callback);
-        return () => {
-          listeners.delete(callback);
-        };
-      },
-      localQueryLogs: () => undefined,
-      journal: () => undefined,
-    }));
+  client = new ConvexReactClient("https://test.convex.cloud", {
+    logger: false,
+  });
+  jest.spyOn(client, "watchQuery").mockImplementation((...[query]: Parameters<ConvexReactClient["watchQuery"]>) => ({
+    localQueryResult: () => {
+      const result = results.get(getFunctionName(query));
+      if (result instanceof Error) throw result;
+      return result;
+    },
+    onUpdate: (callback) => {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    },
+    localQueryLogs: () => undefined,
+    journal: () => undefined,
+  }));
 });
 afterEach(async () => {
   await client.close();
@@ -149,7 +164,13 @@ it("keeps a full wall from taking another artwork", async () => {
   const items = Array.from({ length: 100 }, (_, index) => ({
     placementId: `other-${index}`,
     saveLocalId: `other-${index}`,
-    layout: { x: 0.1, y: 0.1, width: 0.2, layer: index, frame: "gilt" as const },
+    layout: {
+      x: 0.1,
+      y: 0.1,
+      width: 0.2,
+      layer: index,
+      frame: "gilt" as const,
+    },
   }));
   const setLayoutDraft = jest.fn();
   mockWall = {
@@ -278,14 +299,16 @@ it("waits for authentication and device registration while showing the local sna
   mockAuth.isAuthenticated = true;
   await view.rerender(detail("lilies"));
   expect(screen.queryByText("About this work")).toBeNull();
-  expect(
-    jest
-      .mocked(client.watchQuery)
-      .mock.calls.every(([query]) => getFunctionName(query) === "devices:me"),
-  ).toBe(true);
+  expect(jest.mocked(client.watchQuery).mock.calls.every(([query]) => getFunctionName(query) === "devices:me")).toBe(
+    true,
+  );
 
   await act(() => {
-    results.set("devices:me", { deviceId: "device-1", attested: false, trustWeight: 1 });
+    results.set("devices:me", {
+      deviceId: "device-1",
+      attested: false,
+      trustWeight: 1,
+    });
     for (const listener of listeners) listener();
   });
   expect(await screen.findByText("About this work")).toBeOnTheScreen();
@@ -308,16 +331,16 @@ it.each(["devices:me", "artworks:enrichment"])(
     await waitFor(() => expect(input).toBeEnabled());
     await fireEvent.changeText(input, "Still editable without enrichment");
     await fireEvent(input, "blur");
-    expect(await getNote("lilies")).toMatchObject({ text: "Still editable without enrichment" });
+    expect(await getNote("lilies")).toMatchObject({
+      text: "Still editable without enrichment",
+    });
     expect(screen.getByRole("button", { name: "Done editing note" })).toBeOnTheScreen();
 
     await act(() => {
       results.set(query, success);
       for (const listener of listeners) listener();
     });
-    expect(
-      await screen.findByText("Monet painted this pond at Giverny in 1916."),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   },
 );
 

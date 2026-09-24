@@ -14,7 +14,11 @@ type FakeImage = {
 };
 
 function image(width: number, height: number): FakeImage {
-  return { width, height, saveAsync: (options) => mockSave(width, height, options) };
+  return {
+    width,
+    height,
+    saveAsync: (options) => mockSave(width, height, options),
+  };
 }
 
 jest.mock("expo-image-manipulator", () => ({
@@ -50,26 +54,26 @@ beforeEach(() => {
       },
       async renderAsync(): Promise<FakeImage> {
         const base = typeof source === "string" ? image(...sizes[source]) : source;
-        if (requested?.width)
+        if (requested?.width) {
           return image(requested.width, Math.round((base.height * requested.width) / base.width));
-        if (requested?.height)
+        }
+        if (requested?.height) {
           return image(Math.round((base.width * requested.height) / base.height), requested.height);
+        }
         return base;
       },
     };
     return context;
   });
-  mockSave.mockImplementation(
-    async (width: number, height: number, options: { base64?: boolean }) => {
-      mockExisting.add("file:///cache/out.jpg");
-      return {
-        uri: "file:///cache/out.jpg",
-        width,
-        height,
-        base64: options.base64 ? "QUJDRA==" : undefined,
-      };
-    },
-  );
+  mockSave.mockImplementation(async (width: number, height: number, options: { base64?: boolean }) => {
+    mockExisting.add("file:///cache/out.jpg");
+    return {
+      uri: "file:///cache/out.jpg",
+      width,
+      height,
+      base64: options.base64 ? "QUJDRA==" : undefined,
+    };
+  });
 });
 
 it("resizes the letterboxed crop to 256 px JPEG 0.85 without base64", async () => {
@@ -80,7 +84,11 @@ it("resizes the letterboxed crop to 256 px JPEG 0.85 without base64", async () =
     format: "jpeg",
     compress: CONTRIBUTION_CROP_QUALITY,
   });
-  expect(result).toMatchObject({ uri: "file:///cache/out.jpg", width: 256, height: 256 });
+  expect(result).toMatchObject({
+    uri: "file:///cache/out.jpg",
+    width: 256,
+    height: 256,
+  });
   expect(mockDelete).not.toHaveBeenCalled();
 });
 

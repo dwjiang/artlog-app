@@ -22,11 +22,7 @@ export function useCachedNarrationDuration(renderId: string | undefined) {
   // Loading a local file reads its duration without starting playback or fetching audio.
   const player = useAudioPlayer(uri ?? null);
   const status = useAudioPlayerStatus(player);
-  return uri &&
-    status.id === player.id &&
-    status.isLoaded &&
-    Number.isFinite(status.duration) &&
-    status.duration > 0
+  return uri && status.id === player.id && status.isLoaded && Number.isFinite(status.duration) && status.duration > 0
     ? status.duration
     : undefined;
 }

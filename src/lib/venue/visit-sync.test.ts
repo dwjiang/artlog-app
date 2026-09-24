@@ -7,7 +7,9 @@ import { isTransientError, SyncUnavailableError } from "@/lib/network-error";
 import { ConvexError } from "convex/values";
 
 const mockFlush = jest.fn();
-jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: () => mockFlush() }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushJournal: () => mockFlush(),
+}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
@@ -59,9 +61,7 @@ it("discards an in-flight result after an account switch", async () => {
   mockFlush.mockImplementation(async () => {
     switchOwner("account:other");
   });
-  await expect(resolveScanVisit("7288f45f-956f-5e34-ba13-5a375a2f4d78", venueId)).rejects.toThrow(
-    "owner changed",
-  );
+  await expect(resolveScanVisit("7288f45f-956f-5e34-ba13-5a375a2f4d78", venueId)).rejects.toThrow("owner changed");
 });
 it.each([new ConvexError({ code: "rate_limited" }), new SyncUnavailableError()])(
   "propagates the sync failure %s so the flusher does not count an attempt",

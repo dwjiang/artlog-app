@@ -55,13 +55,7 @@ export function SaveBar({
         <>
           {visit}
           {onLabel && labelFirst && (
-            <GalleryButton
-              label={LABEL_BUTTON}
-              variant="filled"
-              fullWidth
-              disabled={saving}
-              onPress={onLabel}
-            />
+            <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={onLabel} />
           )}
           <GalleryButton
             label={saveLabel}
@@ -93,5 +87,9 @@ export function SaveBar({
 
 const styles = StyleSheet.create({
   bar: { gap: Spacing.two },
-  saved: { minHeight: 44, justifyContent: "center", paddingVertical: Spacing.two },
+  saved: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingVertical: Spacing.two,
+  },
 });

@@ -29,7 +29,8 @@ export const ERROR_MESSAGES = {
 export function socialErrorMessage(error: unknown): string | undefined {
   if (!error || typeof error !== "object") return;
   const data = "data" in error ? error.data : error;
-  if (!data || typeof data !== "object" || !("code" in data) || typeof data.code !== "string")
+  if (!data || typeof data !== "object" || !("code" in data) || typeof data.code !== "string") {
     return;
+  }
   return ERROR_MESSAGES[data.code as keyof typeof ERROR_MESSAGES];
 }

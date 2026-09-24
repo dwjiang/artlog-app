@@ -8,7 +8,9 @@ beforeEach(() => {
 });
 
 test("reports a handled failure with its operation and stack, without serializing arbitrary error data", () => {
-  const error = Object.assign(new Error("disk is full"), { photo: "private image bytes" });
+  const error = Object.assign(new Error("disk is full"), {
+    photo: "private image bytes",
+  });
   reportError(error, "test.save", { data: { count: 2 } });
   expect(Sentry.captureException).toHaveBeenCalledWith(
     expect.objectContaining({ message: "disk is full", stack: error.stack }),
@@ -44,13 +46,10 @@ test.each([
     code: "page_unavailable",
     cause: new ConvexError({ code: "page_unavailable", reason: "http_429" }),
   }),
-])(
-  "keeps expected retry, validation and cancellation outcomes out of Sentry issues (%#)",
-  (error) => {
-    reportError(error, "test.expected");
-    expect(Sentry.captureException).not.toHaveBeenCalled();
-  },
-);
+])("keeps expected retry, validation and cancellation outcomes out of Sentry issues (%#)", (error) => {
+  reportError(error, "test.expected");
+  expect(Sentry.captureException).not.toHaveBeenCalled();
+});
 
 test("reports distinct failures from the same operation within the retry window", () => {
   reportError(new Error("database disk is full"), "test.distinct");
@@ -61,7 +60,11 @@ test("reports distinct failures from the same operation within the retry window"
 test("does not include parsed content or custom credentials in diagnostics", () => {
   const error = new SyntaxError('Unexpected token in "private label draft"');
   reportError(error, "test.parse", {
-    data: { nonce: "secret nonce", assertionBase64: "secret assertion", deviceId: "private id" },
+    data: {
+      nonce: "secret nonce",
+      assertionBase64: "secret assertion",
+      deviceId: "private id",
+    },
   });
   const [reported, context] = jest.mocked(Sentry.captureException).mock.calls[0];
   expect((reported as Error).message).toBe("Invalid data could not be parsed");
@@ -73,7 +76,9 @@ test("reports unexpected server codes without serializing server data", () => {
   reportError(new ConvexError({ code: "invalid_sync", note: "a private note" }), "test.sync");
   expect(Sentry.captureException).toHaveBeenCalledWith(
     expect.objectContaining({ message: "invalid_sync" }),
-    expect.objectContaining({ tags: { operation: "test.sync", error_code: "invalid_sync" } }),
+    expect.objectContaining({
+      tags: { operation: "test.sync", error_code: "invalid_sync" },
+    }),
   );
 });
 
@@ -98,10 +103,7 @@ test("unwraps an unexpected cause but filters wrapped offline failures", () => {
     expect.anything(),
   );
   jest.clearAllMocks();
-  reportError(
-    new Error("capture failed", { cause: new Error("Network request failed") }),
-    "test.offline-cause",
-  );
+  reportError(new Error("capture failed", { cause: new Error("Network request failed") }), "test.offline-cause");
   expect(Sentry.captureException).not.toHaveBeenCalled();
 });
 
@@ -124,12 +126,19 @@ test("keeps useful breadcrumbs and drops console messages and navigation payload
   });
   expect(sanitizeBreadcrumb({ category: "console", message: "private note" })).toBeNull();
   expect(
-    sanitizeBreadcrumb({ category: "navigation", data: { to: "/profile/private-id" } }),
+    sanitizeBreadcrumb({
+      category: "navigation",
+      data: { to: "/profile/private-id" },
+    }),
   ).toBeNull();
   expect(
     sanitizeBreadcrumb({
       category: "http",
-      data: { url: "https://example.com/photo?token=secret", method: "GET", status_code: 500 },
+      data: {
+        url: "https://example.com/photo?token=secret",
+        method: "GET",
+        status_code: 500,
+      },
     }),
   ).toEqual({ category: "http", data: { method: "GET", status_code: 500 } });
 });
@@ -142,7 +151,11 @@ test("scrubs credentials, image payloads, SQL parameters and request data before
     message:
       "GET https://example.com/photo?token=secret Bearer secret-token visitor@example.com file:///private/photo.jpg data:image/jpeg;base64,abcdef",
     exception: {
-      values: [{ value: "Failed query: insert into notes values (?)\nparams: private note" }],
+      values: [
+        {
+          value: "Failed query: insert into notes values (?)\nparams: private note",
+        },
+      ],
     },
   });
   const payload = JSON.stringify(event);
@@ -153,8 +166,9 @@ test("scrubs credentials, image payloads, SQL parameters and request data before
     "abcdef",
     "private note",
     "raw photo bytes",
-  ])
+  ]) {
     expect(payload).not.toContain(secret);
+  }
 });
 
 test("telemetry failures cannot interrupt saving or recovery", () => {
@@ -175,7 +189,9 @@ test("scrubs server validation values and SQL text containing private content", 
         {
           value: '[CONVEX M(notes:save)] ArgumentValidationError: Value: {"note":"a private note"}',
         },
-        { value: "Failed query: insert into notes values ('another private note')\nparams: []" },
+        {
+          value: "Failed query: insert into notes values ('another private note')\nparams: []",
+        },
       ],
     },
   });

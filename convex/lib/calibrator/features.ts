@@ -66,13 +66,16 @@ export function featurize(s: CandidateSignals): Float64Array {
 }
 
 function requireFinite(value: number, name: string): number {
-  if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite, got ${value}`);
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${name} must be finite, got ${value}`);
+  }
   return value;
 }
 
 function requireCount(value: number, name: string): number {
-  if (requireFinite(value, name) < 0)
+  if (requireFinite(value, name) < 0) {
     throw new RangeError(`${name} must not be negative, got ${value}`);
+  }
   return value;
 }
 

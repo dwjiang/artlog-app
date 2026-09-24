@@ -8,13 +8,7 @@ import { audioTime } from "@/lib/audio/narration";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { LoadingRing } from "@/components/loading-ring";
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
-export function PlayerTransport({
-  view,
-  onView,
-}: {
-  view: PlayerView;
-  onView: (view: PlayerView) => void;
-}) {
+export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();
   const { fontScale } = useWindowDimensions();
   const [scrubbing, setScrubbing] = useState(false);
@@ -27,16 +21,17 @@ export function PlayerTransport({
       <Slider
         accessibilityRole="adjustable"
         accessibilityLabel="Narration position"
-        accessibilityValue={{ text: `${audioTime(position)} of ${audioTime(audio.duration)}` }}
+        accessibilityValue={{
+          text: `${audioTime(position)} of ${audioTime(audio.duration)}`,
+        }}
         accessibilityActions={[
           { name: "increment", label: "Forward 15 seconds" },
           { name: "decrement", label: "Back 15 seconds" },
         ]}
         onAccessibilityAction={({ nativeEvent }) => {
-          if (ready)
-            void audio.controller.seek(
-              audio.position + (nativeEvent.actionName === "increment" ? 15 : -15),
-            );
+          if (ready) {
+            void audio.controller.seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
+          }
         }}
         value={audio.position}
         minimumValue={0}
@@ -98,13 +93,7 @@ export function PlayerTransport({
             <LoadingRing color={Gallery.surface} />
           ) : (
             <AudioIcon
-              name={
-                audio.phase === "error"
-                  ? "arrow.clockwise"
-                  : audio.playing
-                    ? "pause.fill"
-                    : "play.fill"
-              }
+              name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
               size={32}
               color={Gallery.surface}
             />
@@ -130,10 +119,7 @@ export function PlayerTransport({
           ]}
           onAccessibilityAction={({ nativeEvent }) =>
             audio.controller.setVolume(
-              Math.max(
-                0,
-                Math.min(1, audio.volume + (nativeEvent.actionName === "increment" ? 0.1 : -0.1)),
-              ),
+              Math.max(0, Math.min(1, audio.volume + (nativeEvent.actionName === "increment" ? 0.1 : -0.1))),
             )
           }
           value={audio.volume}
@@ -178,24 +164,19 @@ export function PlayerTransport({
           style={[styles.action, view === "transcript" && styles.selected]}
         >
           <AudioIcon name="text.alignleft" size={18} />
-          <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>
-            Transcript
-          </Text>
+          <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>Transcript</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Up next"
-          accessibilityState={{ selected: view === "queue" || view === "saved" }}
+          accessibilityState={{
+            selected: view === "queue" || view === "saved",
+          }}
           onPress={() => onView(view === "queue" || view === "saved" ? "player" : "queue")}
           style={[styles.action, (view === "queue" || view === "saved") && styles.selected]}
         >
           <AudioIcon name="list.bullet" size={20} />
-          <Text
-            style={[
-              styles.actionText,
-              (view === "queue" || view === "saved") && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.actionText, (view === "queue" || view === "saved") && styles.selectedText]}>
             Up next
           </Text>
         </Pressable>
@@ -210,8 +191,17 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.paper,
   },
   slider: { height: 44 },
-  times: { flexDirection: "row", justifyContent: "space-between", marginTop: -4 },
-  time: { fontSize: 12, lineHeight: 18, fontVariant: ["tabular-nums"], color: Gallery.muted },
+  times: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: -4,
+  },
+  time: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontVariant: ["tabular-nums"],
+    color: Gallery.muted,
+  },
   controls: {
     flexDirection: "row",
     justifyContent: "center",

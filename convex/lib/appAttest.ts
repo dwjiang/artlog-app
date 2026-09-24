@@ -1,8 +1,15 @@
 import { decode } from "cbor-x/decode";
 
-export type Assertion = { signature: Uint8Array; authenticatorData: Uint8Array };
+export type Assertion = {
+  signature: Uint8Array;
+  authenticatorData: Uint8Array;
+};
 
-export type AuthenticatorData = { rpIdHash: Uint8Array; flags: number; counter: number };
+export type AuthenticatorData = {
+  rpIdHash: Uint8Array;
+  flags: number;
+  counter: number;
+};
 
 export type AssertionCheck = {
   publicKeySpkiBase64: string;
@@ -70,15 +77,20 @@ export function decodeAssertion(base64: string): Assertion {
   const map = decoded as Record<string, unknown> | null;
   const signature = asBytes(map?.signature);
   const authenticatorData = asBytes(map?.authenticatorData);
-  if (!signature || !authenticatorData)
+  if (!signature || !authenticatorData) {
     throw new Error("assertion is missing signature or authenticatorData");
+  }
   return { signature, authenticatorData };
 }
 
 export function parseAuthenticatorData(authData: Uint8Array): AuthenticatorData {
   if (authData.length < 37) throw new Error("authenticatorData is too short");
   const view = new DataView(authData.buffer, authData.byteOffset, authData.byteLength);
-  return { rpIdHash: authData.slice(0, 32), flags: authData[32], counter: view.getUint32(33) };
+  return {
+    rpIdHash: authData.slice(0, 32),
+    flags: authData[32],
+    counter: view.getUint32(33),
+  };
 }
 
 function readDerInteger(der: Uint8Array, offset: number): { value: Uint8Array; next: number } {
@@ -136,32 +148,52 @@ export async function verifyAssertion(check: AssertionCheck): Promise<AssertionR
   try {
     assertion = decodeAssertion(check.assertionBase64);
   } catch (error) {
-    return { ok: false, counter: check.previousCounter, reason: (error as Error).message };
+    return {
+      ok: false,
+      counter: check.previousCounter,
+      reason: (error as Error).message,
+    };
   }
   let authData: AuthenticatorData;
   try {
     authData = parseAuthenticatorData(assertion.authenticatorData);
   } catch (error) {
-    return { ok: false, counter: check.previousCounter, reason: (error as Error).message };
+    return {
+      ok: false,
+      counter: check.previousCounter,
+      reason: (error as Error).message,
+    };
   }
   if (!bytesEqual(authData.rpIdHash, check.expectedRpIdHash)) {
     return { ok: false, counter: authData.counter, reason: "rp_id_mismatch" };
   }
   if (authData.counter <= check.previousCounter) {
-    return { ok: false, counter: authData.counter, reason: "counter_not_increasing" };
+    return {
+      ok: false,
+      counter: authData.counter,
+      reason: "counter_not_increasing",
+    };
   }
   let rawSignature: Uint8Array;
   try {
     rawSignature = derToRaw(assertion.signature);
   } catch (error) {
-    return { ok: false, counter: authData.counter, reason: (error as Error).message };
+    return {
+      ok: false,
+      counter: authData.counter,
+      reason: (error as Error).message,
+    };
   }
   const nonce = await sha256(concat(assertion.authenticatorData, await sha256(check.clientData)));
   let key: CryptoKey;
   try {
     key = await importAttestPublicKey(check.publicKeySpkiBase64);
   } catch {
-    return { ok: false, counter: authData.counter, reason: "invalid_public_key" };
+    return {
+      ok: false,
+      counter: authData.counter,
+      reason: "invalid_public_key",
+    };
   }
   const valid = await crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },

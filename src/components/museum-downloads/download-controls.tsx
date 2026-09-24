@@ -12,14 +12,7 @@ export function DownloadIcon({
   color?: string;
   size?: number;
 }) {
-  return (
-    <Image
-      source={`sf:${name}`}
-      tintColor={color}
-      style={{ width: size, height: size }}
-      accessible={false}
-    />
-  );
+  return <Image source={`sf:${name}`} tintColor={color} style={{ width: size, height: size }} accessible={false} />;
 }
 export function IconAction({
   label,
@@ -91,9 +84,7 @@ export function DownloadButton({
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {icon && (
-        <DownloadIcon name={icon} size={19} color={secondary ? Gallery.accent : Gallery.surface} />
-      )}
+      {icon && <DownloadIcon name={icon} size={19} color={secondary ? Gallery.accent : Gallery.surface} />}
       <Text
         style={{
           fontSize: 14,
@@ -134,7 +125,12 @@ export function DownloadProgress({ name, progress }: { name: string; progress: n
   );
 }
 const styles = StyleSheet.create({
-  icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  icon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
     minHeight: 48,
     minWidth: 44,

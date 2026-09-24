@@ -15,10 +15,7 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
   const [root] = useSegments();
   const inset = offset ?? (root === "(tabs)" ? BottomTabInset : 0);
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}
-    >
+    <View pointerEvents="box-none" style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}>
       {children}
       {toast && (
         <ToastPill

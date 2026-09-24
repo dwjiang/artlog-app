@@ -27,7 +27,7 @@ export function CameraPermission({
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
-  if (hasPermission)
+  if (hasPermission) {
     return (
       <>
         {children}
@@ -38,6 +38,7 @@ export function CameraPermission({
         )}
       </>
     );
+  }
   const invitation = (
     <EmptyState
       inset={false}
@@ -65,9 +66,7 @@ export function CameraPermission({
             .finally(() => setBusy(false));
         }}
       />
-      {onImport && (
-        <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />
-      )}
+      {onImport && <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />}
       {(error ?? notice) && (
         <ThemedText themeColor="error" accessibilityRole="alert">
           {error ?? notice}
@@ -81,7 +80,11 @@ export function CameraPermission({
     <ScrollView
       style={{ marginBottom: bottomInset }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20 }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        justifyContent: "center",
+        padding: 20,
+      }}
     >
       {invitation}
     </ScrollView>

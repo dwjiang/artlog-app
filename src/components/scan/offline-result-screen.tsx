@@ -37,9 +37,7 @@ export function OfflineResultScreen({
     : {
         kind: chosen ? "soft" : "confident",
         primary: chosen ?? result.best,
-        runnerUps: (result.runnerUps ?? []).filter(
-          (candidate) => candidate.objectId !== chosen?.objectId,
-        ),
+        runnerUps: (result.runnerUps ?? []).filter((candidate) => candidate.objectId !== chosen?.objectId),
         docent: chosen ? undefined : result.docent,
         factSheet: chosen ? undefined : result.factSheet,
         editable: true,
@@ -52,42 +50,44 @@ export function OfflineResultScreen({
     });
   };
   const adjustCrop = () => {
-    if (hasEdits)
-      Alert.alert(
-        "Adjust this crop?",
-        "Recognition will run again. Unsaved artwork details will be discarded.",
-        [
-          { text: "Keep editing", style: "cancel" },
-          {
-            text: "Adjust crop",
-            onPress: () => {
-              setHasEdits(false);
-              setEditingCrop(true);
-            },
+    if (hasEdits) {
+      Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Adjust crop",
+          onPress: () => {
+            setHasEdits(false);
+            setEditingCrop(true);
           },
-        ],
-      );
-    else setEditingCrop(true);
+        },
+      ]);
+    } else setEditingCrop(true);
   };
   // The queue identified this capture after the local match; the server's card may name a different work.
   const viewResult =
-    onViewResult &&
-    (() => {
-      if (hasEdits)
+    onViewResult
+    && (() => {
+      if (hasEdits) {
         Alert.alert(
           "Discard your edits?",
           "Save your entry first to keep these details, or discard them to view the online result.",
           [
             { text: "Keep editing", style: "cancel" },
-            { text: "Discard edits", style: "destructive", onPress: onViewResult },
+            {
+              text: "Discard edits",
+              style: "destructive",
+              onPress: onViewResult,
+            },
           ],
         );
-      else onViewResult();
+      } else onViewResult();
     });
-  if (editingCrop)
+  if (editingCrop) {
     return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
-  if (saved.completion)
+  }
+  if (saved.completion) {
     return <CaptureCompletion completion={saved.completion} onViewResult={onViewResult} />;
+  }
   return (
     <ThemedView style={{ flex: 1 }}>
       <ResultCard
@@ -104,15 +104,13 @@ export function OfflineResultScreen({
             cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
             artworkTitle={view.primary?.title}
             kind={view.kind}
-            onNotRight={
-              !saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined
-            }
+            onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
             onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />
         }
         context={
-          viewResult &&
-          !saved.savedId && (
+          viewResult
+          && !saved.savedId && (
             <GalleryButton
               label="View the online result"
               icon="antenna.radiowaves.left.and.right"
@@ -121,11 +119,7 @@ export function OfflineResultScreen({
             />
           )
         }
-        visit={
-          !saved.savedId && (
-            <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />
-          )
-        }
+        visit={!saved.savedId && <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />}
         onLabel={onLabel}
         onPick={setChosen}
         onEdit={() => setHasEdits(true)}
@@ -137,7 +131,10 @@ export function OfflineResultScreen({
           void saved.save({ capture, draft: draftFromCandidate() });
         }}
         onViewSaved={() =>
-          router.push({ pathname: "/saved/[savedId]", params: { savedId: saved.savedId ?? "" } })
+          router.push({
+            pathname: "/saved/[savedId]",
+            params: { savedId: saved.savedId ?? "" },
+          })
         }
       />
       <NotRightSheet

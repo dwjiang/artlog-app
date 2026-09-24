@@ -26,7 +26,5 @@ export function audioTime(seconds: number) {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
 }
 export function durationLabel(duration?: number) {
-  return duration !== undefined && Number.isFinite(duration) && duration > 0
-    ? audioTime(duration)
-    : undefined;
+  return duration !== undefined && Number.isFinite(duration) && duration > 0 ? audioTime(duration) : undefined;
 }

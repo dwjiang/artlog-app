@@ -69,11 +69,7 @@ export function PublishedArtwork({
         {enrichment && (
           <>
             <View style={styles.divider} />
-            <DocentSection
-              docent={enrichment.docent}
-              factSheet={enrichment.factSheet}
-              title="About this work"
-            />
+            <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" />
           </>
         )}
         <View style={styles.divider} />
@@ -113,13 +109,14 @@ function PublishedArtworkGallery({
     setPage(next);
     gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
   };
-  if (!photos.length)
+  if (!photos.length) {
     return (
       <View style={styles.emptyGallery}>
         <EmptySymbol name="photo" />
         <Text style={styles.caption}>No photos shared for this artwork.</Text>
       </View>
     );
+  }
   return (
     <View>
       <ScrollView
@@ -129,12 +126,7 @@ function PublishedArtworkGallery({
         showsHorizontalScrollIndicator={false}
         accessibilityLabel="Artwork photos"
         onMomentumScrollEnd={({ nativeEvent }) =>
-          setPage(
-            Math.max(
-              0,
-              Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width)),
-            ),
-          )
+          setPage(Math.max(0, Math.min(photos.length - 1, Math.round(nativeEvent.contentOffset.x / width))))
         }
       >
         {photos.map((media, index) => {
@@ -164,10 +156,7 @@ function PublishedArtworkGallery({
           >
             <Text style={styles.arrowText}>‹</Text>
           </Pressable>
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.caption, { fontVariant: ["tabular-nums"] }]}
-          >
+          <Text accessibilityLiveRegion="polite" style={[styles.caption, { fontVariant: ["tabular-nums"] }]}>
             {page + 1} / {photos.length}
           </Text>
           <Pressable
@@ -186,7 +175,12 @@ function PublishedArtworkGallery({
 }
 
 const styles = StyleSheet.create({
-  slide: { paddingTop: 8, paddingHorizontal: 20, alignItems: "center", justifyContent: "center" },
+  slide: {
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   galleryFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -194,15 +188,28 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 20,
   },
-  arrow: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  arrow: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   arrowText: { fontSize: 24, color: Gallery.ink },
   details: { padding: 20, gap: 16 },
   museumLabel: { gap: 4 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Gallery.separator },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Gallery.separator,
+  },
   artist: { ...Typography.display, color: Gallery.ink },
   title: { color: Gallery.ink, fontSize: 20, lineHeight: 26 },
   medium: { color: Gallery.muted, fontSize: 15, lineHeight: 22 },
-  note: { ...socialStyles.body, textAlign: "left", color: Gallery.ink, marginLeft: 24 },
+  note: {
+    ...socialStyles.body,
+    textAlign: "left",
+    color: Gallery.ink,
+    marginLeft: 24,
+  },
   caption: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   emptyGallery: {
     gap: 12,

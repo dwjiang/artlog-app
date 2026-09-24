@@ -1,8 +1,4 @@
-import {
-  getMeasurementUnits,
-  setMeasurementUnits,
-  subscribeMeasurementUnits,
-} from "./measurement-units";
+import { getMeasurementUnits, setMeasurementUnits, subscribeMeasurementUnits } from "./measurement-units";
 import { removeSetting, setSetting } from "@/db/repos/settings";
 
 jest.mock("@/db/client", () => ({
@@ -17,8 +13,7 @@ it("defaults to metric and persists the selected units across fresh reads", asyn
   expect(await getMeasurementUnits()).toBe("metric");
   await setMeasurementUnits("imperial");
   await jest.isolateModulesAsync(async () => {
-    const settings =
-      jest.requireActual<typeof import("./measurement-units")>("./measurement-units");
+    const settings = jest.requireActual<typeof import("./measurement-units")>("./measurement-units");
     expect(await settings.getMeasurementUnits()).toBe("imperial");
   });
   await setMeasurementUnits("metric");

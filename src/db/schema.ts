@@ -1,12 +1,4 @@
-import {
-  customType,
-  foreignKey,
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-} from "drizzle-orm/sqlite-core";
+import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { OfflineResult } from "../../shared/offline/types";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -145,7 +137,9 @@ export const artworkEncounters = sqliteTable(
     revision: integer().notNull().default(0),
   },
   (table) => [
-    primaryKey({ columns: [table.owner, table.savedLocalId, table.visitLocalId] }),
+    primaryKey({
+      columns: [table.owner, table.savedLocalId, table.visitLocalId],
+    }),
     foreignKey({
       columns: [table.owner, table.savedLocalId],
       foreignColumns: [savedWorks.owner, savedWorks.localId],
@@ -222,9 +216,15 @@ export const settings = sqliteTable("settings", {
 });
 
 export type Visit = typeof visits.$inferSelect;
-export type NewVisit = Omit<typeof visits.$inferInsert, "owner"> & { owner?: string };
+export type NewVisit = Omit<typeof visits.$inferInsert, "owner"> & {
+  owner?: string;
+};
 export type SavedWork = typeof savedWorks.$inferSelect;
-export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, "owner"> & { owner?: string };
+export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, "owner"> & {
+  owner?: string;
+};
 export type Note = typeof notes.$inferSelect;
 export type PendingScan = typeof pendingScans.$inferSelect;
-export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, "owner"> & { owner?: string };
+export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, "owner"> & {
+  owner?: string;
+};

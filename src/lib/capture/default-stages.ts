@@ -24,8 +24,7 @@ export const warper: Warper = {
         ),
         rectangles: still.rectangles.length,
         subjectNote: still.subjectNote,
-        selected:
-          selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ") ?? "no boundary",
+        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ") ?? "no boundary",
       });
     }
     if (!selected) return null;

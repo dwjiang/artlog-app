@@ -30,9 +30,15 @@ jest.mock("@/db/repos/artwork-album", () => ({
   editArtworkPhoto: jest.fn(),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: jest.fn() }));
-jest.mock("@/lib/wall/use-collection-wall", () => ({ useCollectionWall: jest.fn() }));
-jest.mock("@/lib/account/collection-sync", () => ({ flushCollectionMedia: jest.fn() }));
-jest.mock("@/lib/collection/pending-removals", () => ({ scheduleRemoval: jest.fn() }));
+jest.mock("@/lib/wall/use-collection-wall", () => ({
+  useCollectionWall: jest.fn(),
+}));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushCollectionMedia: jest.fn(),
+}));
+jest.mock("@/lib/collection/pending-removals", () => ({
+  scheduleRemoval: jest.fn(),
+}));
 jest.mock("./note-editor", () => ({ NoteEditor: () => null }));
 jest.mock("./artwork-album", () => ({ ArtworkAlbum: () => null }));
 jest.mock("./artwork-enrichment", () => ({ ArtworkEnrichment: () => null }));
@@ -113,9 +119,7 @@ it("keeps manual identification edits when saving fails", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Save details" }));
   expect(screen.getByDisplayValue("Water Lilies")).toBeOnTheScreen();
   expect(
-    screen.getByText(
-      "Your artwork details could not be saved. Your edits are still here. Try again.",
-    ),
+    screen.getByText("Your artwork details could not be saved. Your edits are still here. Try again."),
   ).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });

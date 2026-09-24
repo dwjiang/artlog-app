@@ -21,8 +21,9 @@ export const save = action({
       const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
       let photo: Id<"_storage"> | null | undefined = input.photo === null ? null : undefined;
       if (input.photo) {
-        if (input.photo.byteLength > 512 * 1024)
+        if (input.photo.byteLength > 512 * 1024) {
           throw new ConvexError({ code: "invalid_profile_photo" });
+        }
         let encoded: Buffer;
         try {
           encoded = await sharp(Buffer.from(input.photo), {
@@ -36,9 +37,7 @@ export const save = action({
         } catch {
           throw new ConvexError({ code: "invalid_profile_photo" });
         }
-        photo = await ctx.storage.store(
-          new Blob([new Uint8Array(encoded)], { type: "image/jpeg" }),
-        );
+        photo = await ctx.storage.store(new Blob([new Uint8Array(encoded)], { type: "image/jpeg" }));
       }
       try {
         return await ctx.runMutation(internal.profilePhotoData.save, {

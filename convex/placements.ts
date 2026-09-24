@@ -1,12 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server";
+import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { recognitionPartition } from "./lib/recognitionEligibility";
 import { bumpCounter } from "./ingest";
@@ -20,11 +15,7 @@ const DAY = 86_400_000;
 const MAX_EVIDENCE_SCANS = 6;
 const MAX_CLOSED_PLACEMENTS = 100;
 
-export function readyForReview(
-  deviceIds: Id<"devices">[],
-  firstSeenAt: number,
-  lastSeenAt: number,
-): boolean {
+export function readyForReview(deviceIds: Id<"devices">[], firstSeenAt: number, lastSeenAt: number): boolean {
   const devices = new Set(deviceIds).size;
   return devices >= 3 || (devices >= 2 && lastSeenAt - firstSeenAt >= DAY);
 }
@@ -51,9 +42,7 @@ function retainEvidence(scans: Doc<"scans">[]): Doc<"scans">[] {
       if (scan.createdAt > previous.last.createdAt) previous.last = scan;
     }
   }
-  return [...byDevice.values()].flatMap(({ first, last }) =>
-    first._id === last._id ? [first] : [first, last],
-  );
+  return [...byDevice.values()].flatMap(({ first, last }) => (first._id === last._id ? [first] : [first, last]));
 }
 
 async function isValidEvidence(
@@ -74,9 +63,7 @@ async function isValidEvidence(
   const rejected = feedback.some(
     (row) => row.rejectedObjectId === objectId && row.resolution.kind !== "false_rejection",
   );
-  const resolved = feedback.some(
-    (row) => row.resolution.kind === "runner_up" && row.resolution.objectId === objectId,
-  );
+  const resolved = feedback.some((row) => row.resolution.kind === "runner_up" && row.resolution.objectId === objectId);
   const confident = scan.outcome === "confident" && scan.best?.objectId === objectId;
   return feedback.length <= 32 && !rejected && (confident || resolved);
 }
@@ -90,7 +77,9 @@ async function loadValidEvidence(
   const scans: Doc<"scans">[] = [];
   for (const scanId of new Set(scanIds)) {
     const scan = await ctx.db.get(scanId);
-    if (scan && (await isValidEvidence(ctx, scan, objectId, venueId))) scans.push(scan);
+    if (scan && (await isValidEvidence(ctx, scan, objectId, venueId))) {
+      scans.push(scan);
+    }
   }
   return scans;
 }
@@ -109,11 +98,11 @@ export async function proposePlacementFromScan(
   const { scan, objectId, proposedVenueId, deviceId } = input;
   const object = await ctx.db.get(objectId);
   if (
-    !object ||
-    object.reverted ||
-    object.mergedInto ||
-    scan.deviceId !== deviceId ||
-    scan.venueId !== proposedVenueId
+    !object
+    || object.reverted
+    || object.mergedInto
+    || scan.deviceId !== deviceId
+    || scan.venueId !== proposedVenueId
   ) {
     throw new ConvexError({ code: "invalid_scan" });
   }
@@ -121,45 +110,41 @@ export async function proposePlacementFromScan(
   const artwork = await ctx.db.get(object.artworkId);
   if (!artwork) throw new ConvexError({ code: "invalid_scan" });
   const venue = await ctx.db.get(proposedVenueId);
-  if (!venue || (await isVenueOptedOut(ctx, venue)))
+  if (!venue || (await isVenueOptedOut(ctx, venue))) {
     throw new ConvexError({ code: "invalid_venue" });
+  }
   const now = Date.now();
   const placement = await loadCurrentPlacement(ctx, objectId, now);
   if (placement?.venueId === proposedVenueId) return null;
   const existing = await ctx.db
     .query("placementProposals")
-    .withIndex("by_object_venue", (q) =>
-      q.eq("objectId", objectId).eq("proposedVenueId", proposedVenueId),
-    )
+    .withIndex("by_object_venue", (q) => q.eq("objectId", objectId).eq("proposedVenueId", proposedVenueId))
     .unique();
   if (existing && existing.status !== "pending") return null;
-  if ((existing?.scanIds.length ?? 0) > MAX_EVIDENCE_SCANS)
+  if ((existing?.scanIds.length ?? 0) > MAX_EVIDENCE_SCANS) {
     throw new ConvexError({ code: "invalid_proposal_evidence" });
+  }
   const scans = await loadValidEvidence(ctx, existing?.scanIds ?? [], objectId, proposedVenueId);
   // Freeze valid agreement, but let fresh scans replace withdrawn or missing evidence.
   if (
-    !summarizeEvidence(scans).readyForReview &&
-    !scans.some((row) => row._id === scan._id) &&
-    (await isValidEvidence(ctx, scan, objectId, proposedVenueId))
+    !summarizeEvidence(scans).readyForReview
+    && !scans.some((row) => row._id === scan._id)
+    && (await isValidEvidence(ctx, scan, objectId, proposedVenueId))
   ) {
     scans.push(scan);
   }
   const retained = retainEvidence(scans);
   const scanIds = retained.map((row) => row._id);
   if (!existing && !scanIds.length) return null;
-  if (
-    existing &&
-    scanIds.length === existing.scanIds.length &&
-    scanIds.every((id, i) => id === existing.scanIds[i])
-  ) {
+  if (existing && scanIds.length === existing.scanIds.length && scanIds.every((id, i) => id === existing.scanIds[i])) {
     return null;
   }
   const evidence = summarizeEvidence(retained);
   await input.beforeWrite?.();
   const kind = artwork.multiplicity === "unique" ? "move" : "new_object";
   const proposalId =
-    existing?._id ??
-    (await ctx.db.insert("placementProposals", {
+    existing?._id
+    ?? (await ctx.db.insert("placementProposals", {
       objectId,
       proposedVenueId,
       kind,
@@ -167,18 +152,21 @@ export async function proposePlacementFromScan(
       ...evidence,
       status: "pending",
     }));
-  if (existing) await ctx.db.patch(existing._id, { kind, scanIds, ...evidence });
+  if (existing) {
+    await ctx.db.patch(existing._id, { kind, scanIds, ...evidence });
+  }
   const links = await ctx.db
     .query("proposalEvidence")
     .withIndex("by_proposal", (q) => q.eq("proposalId", proposalId))
     .take(MAX_EVIDENCE_SCANS);
   for (const link of links) await ctx.db.delete(link._id);
-  for (const scan of retained)
+  for (const scan of retained) {
     await ctx.db.insert("proposalEvidence", {
       proposalId,
       deviceId: scan.deviceId,
       scanId: scan._id,
     });
+  }
   return null;
 }
 
@@ -205,27 +193,30 @@ export const reviewPlacement = internalMutation({
         throw new ConvexError({ code: "invalid_proposal_evidence" });
       }
       const object = await ctx.db.get(proposal.objectId);
-      if (!object || object.reverted || object.mergedInto)
+      if (!object || object.reverted || object.mergedInto) {
         throw new ConvexError({ code: "object_not_found" });
+      }
       const artwork = await ctx.db.get(object.artworkId);
       if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
       if (proposal.kind !== (artwork.multiplicity === "unique" ? "move" : "new_object")) {
         throw new ConvexError({ code: "proposal_kind_changed" });
       }
       const venue = await ctx.db.get(proposal.proposedVenueId);
-      if (!venue || (await isVenueOptedOut(ctx, venue)))
+      if (!venue || (await isVenueOptedOut(ctx, venue))) {
         throw new ConvexError({ code: "invalid_venue" });
+      }
       const deviceIds = [...new Set(proposal.deviceIds)];
       const scans = await loadValidEvidence(ctx, proposal.scanIds, object._id, venue._id);
       if (
-        scans.length !== new Set(proposal.scanIds).size ||
-        scans.some((scan) => !deviceIds.includes(scan.deviceId)) ||
-        new Set(scans.map((scan) => scan.deviceId)).size !== deviceIds.length
+        scans.length !== new Set(proposal.scanIds).size
+        || scans.some((scan) => !deviceIds.includes(scan.deviceId))
+        || new Set(scans.map((scan) => scan.deviceId)).size !== deviceIds.length
       ) {
         throw new ConvexError({ code: "invalid_proposal_evidence" });
       }
-      if (!summarizeEvidence(scans).readyForReview)
+      if (!summarizeEvidence(scans).readyForReview) {
         throw new ConvexError({ code: "proposal_not_ready" });
+      }
       let objectId = object._id;
       const closedPlacementIds: Id<"placements">[] = [];
       if (proposal.kind === "move") {
@@ -233,9 +224,13 @@ export const reviewPlacement = internalMutation({
           .query("placements")
           .withIndex("by_objectId", (q) => q.eq("objectId", objectId))) {
           if (row.venueId !== venue._id && currentPlacement([row], now)) {
-            if (closedPlacementIds.length === MAX_CLOSED_PLACEMENTS)
+            if (closedPlacementIds.length === MAX_CLOSED_PLACEMENTS) {
               throw new ConvexError({ code: "too_many_current_placements" });
-            await ctx.db.patch(row._id, { closedAt: now, closedByProposalId: proposalId });
+            }
+            await ctx.db.patch(row._id, {
+              closedAt: now,
+              closedByProposalId: proposalId,
+            });
             closedPlacementIds.push(row._id);
           }
         }
@@ -315,14 +310,12 @@ export const revertMove = internalMutation({
   returns: v.null(),
   handler: async (ctx, { proposalId }) => {
     const proposal = await ctx.db.get(proposalId);
-    if (
-      !proposal ||
-      proposal.status !== "promoted" ||
-      proposal.kind !== "move" ||
-      proposal.revertedAt !== undefined
-    )
+    if (!proposal || proposal.status !== "promoted" || proposal.kind !== "move" || proposal.revertedAt !== undefined) {
       return null;
-    if (!proposal.promotion) throw new ConvexError({ code: "missing_placement_promotion" });
+    }
+    if (!proposal.promotion) {
+      throw new ConvexError({ code: "missing_placement_promotion" });
+    }
     await ctx.db.patch(proposalId, { revertedAt: Date.now() });
     const placement = await ctx.db.get(proposal.promotion.placementId);
     // A later move owns the current location. Its rollback will skip this revoked predecessor.
@@ -346,16 +339,23 @@ export const revertMove = internalMutation({
         if (!row || row.closedByProposalId !== previous.proposalId) continue;
         const origin = row.proposalId ? await ctx.db.get(row.proposalId) : null;
         if (origin?.revertedAt !== undefined) {
-          if (origin.promotion)
+          if (origin.promotion) {
             pending.push({
               proposalId: origin._id,
               placementIds: origin.promotion.closedPlacementIds,
             });
+          }
           continue;
         }
         const from = resumeAt === undefined ? row.from : Math.max(row.from ?? -Infinity, resumeAt);
-        if (from !== undefined && row.to !== undefined && from > row.to) continue;
-        await ctx.db.patch(row._id, { closedAt: undefined, closedByProposalId: undefined, from });
+        if (from !== undefined && row.to !== undefined && from > row.to) {
+          continue;
+        }
+        await ctx.db.patch(row._id, {
+          closedAt: undefined,
+          closedByProposalId: undefined,
+          from,
+        });
       }
     }
     return null;
@@ -366,29 +366,33 @@ const cursorArg = v.union(v.string(), v.null());
 
 export const listProposals = internalQuery({
   args: { status: proposalStatus, cursor: v.optional(cursorArg) },
-  returns: v.object({ rows: v.array(schema.doc("placementProposals")), cursor: cursorArg }),
+  returns: v.object({
+    rows: v.array(schema.doc("placementProposals")),
+    cursor: cursorArg,
+  }),
   handler: async (ctx, { status, cursor }) => {
     const page = await ctx.db
       .query("placementProposals")
       .withIndex("by_status", (q) => q.eq("status", status))
       .order("desc")
-      .paginate({ cursor: cursor ?? null, numItems: 100, maximumBytesRead: 1024 * 1024 });
-    return { rows: page.page, cursor: page.isDone ? null : page.continueCursor };
+      .paginate({
+        cursor: cursor ?? null,
+        numItems: 100,
+        maximumBytesRead: 1024 * 1024,
+      });
+    return {
+      rows: page.page,
+      cursor: page.isDone ? null : page.continueCursor,
+    };
   },
 });
 
-export async function reassessProposal(
-  ctx: MutationCtx,
-  proposalId: Id<"placementProposals">,
-): Promise<void> {
+export async function reassessProposal(ctx: MutationCtx, proposalId: Id<"placementProposals">): Promise<void> {
   const proposal = await ctx.db.get(proposalId);
-  if (!proposal || proposal.status === "rejected" || proposal.revertedAt !== undefined) return;
-  const scans = await loadValidEvidence(
-    ctx,
-    proposal.scanIds,
-    proposal.objectId,
-    proposal.proposedVenueId,
-  );
+  if (!proposal || proposal.status === "rejected" || proposal.revertedAt !== undefined) {
+    return;
+  }
+  const scans = await loadValidEvidence(ctx, proposal.scanIds, proposal.objectId, proposal.proposedVenueId);
   const summary = summarizeEvidence(scans);
   await ctx.db.patch(proposalId, {
     scanIds: scans.map((scan) => scan._id),
@@ -396,15 +400,18 @@ export async function reassessProposal(
     readyForReview: proposal.status === "pending" && summary.readyForReview,
   });
   if (proposal.status !== "promoted" || summary.readyForReview) return;
-  if (proposal.kind === "move")
-    await ctx.scheduler.runAfter(0, internal.placements.revertMove, { proposalId });
-  else {
+  if (proposal.kind === "move") {
+    await ctx.scheduler.runAfter(0, internal.placements.revertMove, {
+      proposalId,
+    });
+  } else {
     await ctx.db.patch(proposalId, { revertedAt: Date.now() });
     const placement = proposal.promotion ? await ctx.db.get(proposal.promotion.placementId) : null;
-    if (placement)
+    if (placement) {
       await ctx.scheduler.runAfter(0, internal.revert.revertObjectById, {
         objectId: placement.objectId,
         reason: "proposal_evidence_removed",
       });
+    }
   }
 }

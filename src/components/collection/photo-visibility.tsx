@@ -23,16 +23,15 @@ function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photo
     session.status === "ready" && scope ? { scope, savedLocalId: savedId } : "skip",
     session.key,
   );
-  if (session.status === "profile-required")
+  if (session.status === "profile-required") {
     return <VisibilityLabel>This photo is private.</VisibilityLabel>;
-  if (session.offline || session.error || visibility.error)
-    return (
-      <VisibilityLabel>
-        Photo visibility unavailable. Connect to check where it is shared.
-      </VisibilityLabel>
-    );
-  if (session.status !== "ready" || !scope || !visibility.data)
+  }
+  if (session.offline || session.error || visibility.error) {
+    return <VisibilityLabel>Photo visibility unavailable. Connect to check where it is shared.</VisibilityLabel>;
+  }
+  if (session.status !== "ready" || !scope || !visibility.data) {
     return <TextSkeleton label="Checking photo visibility…" width={180} />;
+  }
   const photo = visibility.data.find((row) => row.photoLocalId === photoId);
   const wall = photo?.wallPlacements ?? 0,
     visits = photo?.sharedVisits ?? 0;
@@ -42,9 +41,7 @@ function PublishedPhotoVisibility({ savedId, photoId }: { savedId: string; photo
   ].filter(Boolean);
   return (
     <VisibilityLabel>
-      {parts.length
-        ? `${parts.join(" · ")}. Other photos have their own sharing choices.`
-        : "This photo is private."}
+      {parts.length ? `${parts.join(" · ")}. Other photos have their own sharing choices.` : "This photo is private."}
     </VisibilityLabel>
   );
 }

@@ -30,7 +30,9 @@ describe("decide", () => {
       reason: "blur",
       message: "Hold steady and try again",
     });
-    expect(decide({ blurVariance: BLUR_THRESHOLD, glareFraction: 0 })).toEqual({ ok: true });
+    expect(decide({ blurVariance: BLUR_THRESHOLD, glareFraction: 0 })).toEqual({
+      ok: true,
+    });
   });
 
   it("asks to dodge glare above the highlight fraction", () => {
@@ -43,7 +45,9 @@ describe("decide", () => {
   });
 
   it("reports blur before glare when both fail", () => {
-    expect(decide({ blurVariance: 0, glareFraction: 1 })).toMatchObject({ reason: "blur" });
+    expect(decide({ blurVariance: 0, glareFraction: 1 })).toMatchObject({
+      reason: "blur",
+    });
   });
 });
 
@@ -78,7 +82,9 @@ describe("check", () => {
 
   it("passes a sharp, glare-free crop and releases everything", async () => {
     const fake = crop({ laplacianStddev: 45, highlightPixels: 0 });
-    await expect(check("file:///crop.jpg", fake.cv)).resolves.toEqual({ ok: true });
+    await expect(check("file:///crop.jpg", fake.cv)).resolves.toEqual({
+      ok: true,
+    });
     expect(fake.leaked()).toEqual([]);
   });
 

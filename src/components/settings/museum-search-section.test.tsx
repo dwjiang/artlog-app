@@ -9,14 +9,21 @@ import * as museumSearch from "@/lib/settings/museum-search";
 
 const { getMuseumSearchConsent, setMuseumSearchConsent } = museumSearch;
 
-jest.mock("./leaderboard-preference", () => ({ LeaderboardPreference: () => null }));
+jest.mock("./leaderboard-preference", () => ({
+  LeaderboardPreference: () => null,
+}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
 jest.mock("@/lib/account/use-account", () => ({
-  useAccount: () => ({ account: null, available: false, busy: false, ready: false }),
+  useAccount: () => ({
+    account: null,
+    available: false,
+    busy: false,
+    ready: false,
+  }),
 }));
 jest.mock("convex/react", () => ({
   useQuery: () => undefined,
@@ -39,34 +46,30 @@ afterEach(() => jest.restoreAllMocks());
 it("ends loading with a footer message when the stored choice cannot be read", async () => {
   jest.spyOn(museumSearch, "getMuseumSearchConsent").mockRejectedValue(new Error("Read failed"));
   await render(<SettingsDetailScreen section="privacy" />);
-  expect(
-    await screen.findByText("Couldn't read your choice. Reopen Settings to try again."),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("Couldn't read your choice. Reopen Settings to try again.")).toBeOnTheScreen();
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeDisabled();
 });
 
 it("mounts the privacy control in Settings and requires consent before enabling it", async () => {
   await render(<SettingsDetailScreen section="privacy" />);
-  const toggle = await screen.findByRole("switch", { name: MUSEUM_SEARCH_SETTING });
+  const toggle = await screen.findByRole("switch", {
+    name: MUSEUM_SEARCH_SETTING,
+  });
   await waitFor(() => expect(toggle).toBeEnabled());
   expect(toggle).not.toBeChecked();
   await fireEvent.press(toggle);
   expect(await screen.findByText(SEARCH_CONSENT_TITLE)).toBeOnTheScreen();
   expect(await getMuseumSearchConsent()).toBe("unset");
   await fireEvent.press(screen.getByRole("button", { name: "Search this museum" }));
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   expect(await getMuseumSearchConsent()).toBe("granted");
 });
 
 it("persists off as declined through a remount and keeps cancellation off", async () => {
   await setMuseumSearchConsent("granted");
   const view = await render(<SettingsDetailScreen section="privacy" />);
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
   let release!: () => void;
   jest.spyOn(museumSearch, "setMuseumSearchConsent").mockImplementationOnce(async (value) => {
     await new Promise<void>((resolve) => {
@@ -77,15 +80,11 @@ it("persists off as declined through a remount and keeps cancellation off", asyn
   await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
   expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeDisabled();
   await act(() => release());
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   expect(await getMuseumSearchConsent()).toBe("declined");
   await view.unmount();
   await render(<SettingsDetailScreen section="privacy" />);
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeEnabled(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeEnabled());
   expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
   await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
   await fireEvent.press(await screen.findByRole("button", { name: "Not now" }));
@@ -93,9 +92,7 @@ it("persists off as declined through a remount and keeps cancellation off", asyn
   expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked();
   await fireEvent.press(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING }));
   await fireEvent.press(await screen.findByRole("button", { name: "Search this museum" }));
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).toBeChecked());
 });
 
 it("prevents any request after revoking consent in Settings and returning to a scan", async () => {
@@ -104,9 +101,7 @@ it("prevents any request after revoking consent in Settings and returning to a s
   const toggle = screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING });
   await waitFor(() => expect(toggle).toBeChecked());
   await fireEvent.press(toggle);
-  await waitFor(() =>
-    expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked(),
-  );
+  await waitFor(() => expect(screen.getByRole("switch", { name: MUSEUM_SEARCH_SETTING })).not.toBeChecked());
   await view.unmount();
   const searchExhibitions = jest.fn();
   expect(

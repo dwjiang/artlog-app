@@ -4,7 +4,9 @@ import { artworkEncounters, artworkPhotos, savedWorks, visits } from "../schema"
 import * as repo from "./visits";
 import { onCollectionChange } from "../../lib/account/sync-events";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 const venueId = "museum-1" as Id<"museums">;
 const first = "00000000-0000-4000-8000-000000000001";
 const second = "00000000-0000-4000-8000-000000000002";
@@ -32,12 +34,14 @@ it("creates and links a visit atomically without copying photos, including retri
   await repo.upsertVisit(visit, "account:me", "art");
   expect(await repo.listVisits("account:me")).toHaveLength(1);
   expect(await db.select().from(artworkEncounters)).toEqual([
-    expect.objectContaining({ owner: "account:me", savedLocalId: "art", visitLocalId: first }),
+    expect.objectContaining({
+      owner: "account:me",
+      savedLocalId: "art",
+      visitLocalId: first,
+    }),
   ]);
   expect(await db.select().from(artworkPhotos)).toEqual([]);
-  await expect(
-    repo.upsertVisit({ ...visit, localId: second }, "account:other", "art"),
-  ).rejects.toThrow("not_found");
+  await expect(repo.upsertVisit({ ...visit, localId: second }, "account:other", "art")).rejects.toThrow("not_found");
   expect(await repo.listVisits("account:other")).toEqual([]);
 });
 
@@ -46,7 +50,11 @@ it("preserves empty, manual and repeat visits and retries the same UUID", async 
   await repo.upsertVisit(visit);
   await repo.upsertVisit({ ...visit, localId: second });
   expect((await repo.listVisits()).map((v) => v.localId)).toEqual([second, first]);
-  expect(await repo.getVisit(first)).toMatchObject({ startedAt: null, endedAt: null, revision: 0 });
+  expect(await repo.getVisit(first)).toMatchObject({
+    startedAt: null,
+    endedAt: null,
+    revision: 0,
+  });
 });
 it.each([
   { localId: "invalid" },
@@ -66,17 +74,14 @@ it("validates merged patches, allows reflection clearing and refuses foreign tar
     reflection: "private",
     startedAt: Date.parse("2024-02-29T12:00Z"),
   });
-  await expect(repo.patchVisit(first, { visitedOn: "2024-02-28" })).rejects.toThrow(
-    "invalid_visit",
-  );
-  await expect(repo.patchVisit(first, { reflection: "" }, "account:other")).rejects.toThrow(
-    "not_found",
-  );
+  await expect(repo.patchVisit(first, { visitedOn: "2024-02-28" })).rejects.toThrow("invalid_visit");
+  await expect(repo.patchVisit(first, { reflection: "" }, "account:other")).rejects.toThrow("not_found");
   await repo.patchVisit(first, { reflection: null });
-  expect(await repo.getVisit(first)).toMatchObject({ visitedOn: "2024-02-29", reflection: null });
-  await expect(repo.upsertVisit({ ...visit, venueId: "other" as never })).rejects.toThrow(
-    "invalid_visit",
-  );
+  expect(await repo.getVisit(first)).toMatchObject({
+    visitedOn: "2024-02-29",
+    reflection: null,
+  });
+  await expect(repo.upsertVisit({ ...visit, venueId: "other" as never })).rejects.toThrow("invalid_visit");
 });
 it("keeps edits made during sync pending until their own revision is acknowledged", async () => {
   await repo.upsertVisit(visit);
@@ -102,8 +107,13 @@ it("leaves a sync: false patch pending without requesting a sync", async () => {
   try {
     await repo.upsertVisit(visit);
     requests.mockClear();
-    await repo.patchVisit(first, { reflection: "pause" }, undefined, { sync: false });
-    expect(await repo.getVisit(first)).toMatchObject({ reflection: "pause", syncedAt: null });
+    await repo.patchVisit(first, { reflection: "pause" }, undefined, {
+      sync: false,
+    });
+    expect(await repo.getVisit(first)).toMatchObject({
+      reflection: "pause",
+      syncedAt: null,
+    });
     expect(requests).not.toHaveBeenCalled();
     await repo.patchVisit(first, { reflection: "blur" });
     expect(requests).toHaveBeenCalledTimes(1);
@@ -167,9 +177,7 @@ it("finds the visit at a museum on a day, latest started first, and only open on
   });
   expect((await repo.findVisitOnDay(venueId, "2024-02-29"))?.localId).toBe(second);
   await repo.patchVisit(second, { endedAt: noon + 3 });
-  expect(
-    await repo.findVisitOnDay(venueId, "2024-02-29", undefined, { open: true }),
-  ).toBeUndefined();
+  expect(await repo.findVisitOnDay(venueId, "2024-02-29", undefined, { open: true })).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-02-29", "account:other")).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-03-01")).toBeUndefined();
 });
@@ -184,9 +192,16 @@ it("lists open visits across museums and days, earliest first, skipping manual o
     startedAt: noon - 24 * 60 * 60 * 1000,
     venueId: "museum-2" as Id<"museums">,
   });
-  await repo.upsertVisit({ ...visit, localId: "00000000-0000-4000-8000-000000000004" });
+  await repo.upsertVisit({
+    ...visit,
+    localId: "00000000-0000-4000-8000-000000000004",
+  });
   await repo.upsertVisit(
-    { ...visit, localId: "00000000-0000-4000-8000-000000000005", startedAt: noon + 3 },
+    {
+      ...visit,
+      localId: "00000000-0000-4000-8000-000000000005",
+      startedAt: noon + 3,
+    },
     "account:other",
   );
   expect((await repo.listOpenVisits()).map((row) => row.localId)).toEqual([

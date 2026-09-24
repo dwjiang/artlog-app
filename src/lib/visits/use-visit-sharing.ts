@@ -29,7 +29,12 @@ export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
             .all()
             .filter((photo) => photo.kind !== "label");
           return photos.length
-            ? [{ saveLocalId, photoLocalIds: photos.map((photo) => photo.localId) }]
+            ? [
+                {
+                  saveLocalId,
+                  photoLocalIds: photos.map((photo) => photo.localId),
+                },
+              ]
             : [];
         }),
     });

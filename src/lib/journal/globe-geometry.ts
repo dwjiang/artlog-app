@@ -1,6 +1,16 @@
 export type GlobeCamera = { yaw: number; pitch: number; zoom: number };
-export type GlobePin = { id: string; latitude: number; longitude: number; label: string };
-export type GlobeCluster = { x: number; y: number; ids: string[]; label: string };
+export type GlobePin = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  label: string;
+};
+export type GlobeCluster = {
+  x: number;
+  y: number;
+  ids: string[];
+  label: string;
+};
 const radians = Math.PI / 180;
 
 export function globeGeometry(width: number, height: number, zoom: number) {
@@ -13,7 +23,11 @@ export function globeGeometry(width: number, height: number, zoom: number) {
 }
 export function globeCamera(latitude: number, longitude: number): GlobeCamera {
   "worklet";
-  return { yaw: -longitude, pitch: Math.max(-70, Math.min(70, latitude)), zoom: 1 };
+  return {
+    yaw: -longitude,
+    pitch: Math.max(-70, Math.min(70, latitude)),
+    zoom: 1,
+  };
 }
 export function projectGlobePin(pin: GlobePin, camera: GlobeCamera, width: number, height: number) {
   "worklet";
@@ -30,27 +44,23 @@ export function projectGlobePin(pin: GlobePin, camera: GlobeCamera, width: numbe
     depth: y * Math.sin(pitch) + z * Math.cos(pitch),
   };
 }
-export function globeClusters(
-  pins: GlobePin[],
-  camera: GlobeCamera,
-  width: number,
-  height: number,
-): GlobeCluster[] {
+export function globeClusters(pins: GlobePin[], camera: GlobeCamera, width: number, height: number): GlobeCluster[] {
   "worklet";
   const groups: GlobeCluster[] = [];
   for (const pin of pins) {
     const point = projectGlobePin(pin, camera, width, height);
-    if (point.depth < 0.04 || point.x < 0 || point.x > width || point.y < 0 || point.y > height)
+    if (point.depth < 0.04 || point.x < 0 || point.x > width || point.y < 0 || point.y > height) {
       continue;
-    const group = groups.find(
-      (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < 27,
-    );
+    }
+    const group = groups.find((candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < 27);
     if (group) {
       const count = group.ids.length;
       group.x = (group.x * count + point.x) / (count + 1);
       group.y = (group.y * count + point.y) / (count + 1);
       group.ids.push(pin.id);
-    } else groups.push({ x: point.x, y: point.y, ids: [pin.id], label: pin.label });
+    } else {
+      groups.push({ x: point.x, y: point.y, ids: [pin.id], label: pin.label });
+    }
   }
   return groups;
 }

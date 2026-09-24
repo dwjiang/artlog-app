@@ -3,7 +3,9 @@ import { WelcomeScreen } from "./welcome-screen";
 
 const mockBack = jest.fn(),
   mockReplace = jest.fn();
-jest.mock("expo-router", () => ({ useRouter: () => ({ back: mockBack, replace: mockReplace }) }));
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ back: mockBack, replace: mockReplace }),
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
 }));

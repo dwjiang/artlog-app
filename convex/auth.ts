@@ -15,9 +15,7 @@ const anonymous = ConvexCredentials({
     }
     // The phone keeps a random 256-bit credential; only its hash is stored on the server.
     const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
-    const accountId = Array.from(new Uint8Array(hash), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
+    const accountId = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const { user } = await createAccount(ctx, {
       provider: "anonymous",
       account: { id: accountId },
@@ -32,8 +30,9 @@ const appleNative = ConvexCredentials({
   authorize: async (params, ctx) => {
     // Convex Auth replaces ctx.auth inside credentials providers; internal calls retain the caller identity.
     const device = await ctx.runQuery(internal.devices.getForCaller, {});
-    if (!device?.authUserId || device.banned)
+    if (!device?.authUserId || device.banned) {
       throw new ConvexError({ code: "device_not_registered" });
+    }
     const userId = device.authUserId as Id<"users">;
     if (typeof params.identityToken !== "string" || typeof params.nonce !== "string") {
       throw new ConvexError({ code: "invalid_apple_identity" });

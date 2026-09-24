@@ -7,8 +7,13 @@ const mockCreate = jest.fn();
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ key: "account:test", status: "ready" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({ data: true }) }));
-jest.mock("convex/react", () => ({ useMutation: () => mockCreate, useAction: () => jest.fn() }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({ data: true }),
+}));
+jest.mock("convex/react", () => ({
+  useMutation: () => mockCreate,
+  useAction: () => jest.fn(),
+}));
 jest.mock("./wall-sheet", () => ({
   WallSheet: ({ children }: { children: ReactNode }) => children,
 }));
@@ -24,7 +29,11 @@ it("creates a profile only after submission and normalizes the name and username
   await fireEvent.changeText(screen.getByLabelText("Username"), " Alex-Chen ");
   expect(mockCreate).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
-  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex Chen", username: "alex-chen", bio: "" });
+  expect(mockCreate).toHaveBeenCalledWith({
+    name: "Alex Chen",
+    username: "alex-chen",
+    bio: "",
+  });
   expect(onCreated).toHaveBeenCalledTimes(1);
 });
 

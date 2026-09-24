@@ -15,17 +15,15 @@ export type WallPiece = {
 };
 
 export function wallAspect(piece: Pick<WallPiece, "artwork" | "cropAspectRatio">): number {
-  if (piece.cropAspectRatio && Number.isFinite(piece.cropAspectRatio) && piece.cropAspectRatio > 0)
+  if (piece.cropAspectRatio && Number.isFinite(piece.cropAspectRatio) && piece.cropAspectRatio > 0) {
     return piece.cropAspectRatio;
+  }
   const { width, height } = piece.artwork.media;
   return width > 0 && height > 0 ? width / height : 1;
 }
 
 export function wallBottom(pieces: WallPiece[]): number {
-  return Math.max(
-    0,
-    ...pieces.map((piece) => piece.layout.y + piece.layout.width / wallAspect(piece)),
-  );
+  return Math.max(0, ...pieces.map((piece) => piece.layout.y + piece.layout.width / wallAspect(piece)));
 }
 
 export function constrainLayout(layout: WallLayout, patch: Partial<WallLayout>): WallLayout {
@@ -53,9 +51,7 @@ export function nextWallLayout(pieces: WallPiece[]): WallLayout {
   ];
   const placement = placements[index % placements.length];
   const neighbors = pieces.filter(
-    ({ layout }) =>
-      placement.x < layout.x + layout.width + 0.025 &&
-      placement.x + placement.width + 0.025 > layout.x,
+    ({ layout }) => placement.x < layout.x + layout.width + 0.025 && placement.x + placement.width + 0.025 > layout.x,
   );
   return {
     ...placement,

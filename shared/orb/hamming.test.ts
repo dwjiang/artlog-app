@@ -23,9 +23,7 @@ describe("hammingDistance32", () => {
   });
 
   it("is 256 between all-ones and all-zeros", () => {
-    const words = descriptorWords(
-      featuresFromDescriptors([new Uint8Array(32).fill(0xff), new Uint8Array(32)]),
-    );
+    const words = descriptorWords(featuresFromDescriptors([new Uint8Array(32).fill(0xff), new Uint8Array(32)]));
 
     expect(hammingDistance32(words, 0, words, 8)).toBe(256);
   });

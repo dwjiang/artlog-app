@@ -21,7 +21,9 @@ beforeEach(() => {
 
 it("decodes the file and converts it to a single gray channel, releasing the color image", async () => {
   const fake = fakeOpenCV({
-    images: { "b64:file:///crops/a%20b.jpg": { rows: 512, cols: 512, channels: 3 } },
+    images: {
+      "b64:file:///crops/a%20b.jpg": { rows: 512, cols: 512, channels: 3 },
+    },
   });
   const image = await loadGray("file:///crops/a%20b.jpg", fake.cv);
   expect(mockBase64).toHaveBeenCalledWith("file:///crops/a%20b.jpg");

@@ -8,15 +8,10 @@ export async function deleteUnreferencedCollectionPhotos(
   if (row.cropStorageId) await deleteUnreferencedPhoto(ctx, row.cropStorageId);
 }
 
-export async function deleteUnreferencedPhoto(
-  ctx: MutationCtx,
-  storageId: Id<"_storage">,
-): Promise<void> {
+export async function deleteUnreferencedPhoto(ctx: MutationCtx, storageId: Id<"_storage">): Promise<void> {
   const crop = await ctx.db
     .query("collections")
-    .withIndex("by_cropStorageId_deletedAt", (q) =>
-      q.eq("cropStorageId", storageId).eq("deletedAt", undefined),
-    )
+    .withIndex("by_cropStorageId_deletedAt", (q) => q.eq("cropStorageId", storageId).eq("deletedAt", undefined))
     .first();
   const asset = await ctx.db
     .query("mediaAssets")
@@ -27,10 +22,11 @@ export async function deleteUnreferencedPhoto(
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
     .first();
   if (
-    !crop &&
-    !asset &&
-    (!album || album.deletedAt !== undefined) &&
-    (await ctx.db.system.get("_storage", storageId))
-  )
+    !crop
+    && !asset
+    && (!album || album.deletedAt !== undefined)
+    && (await ctx.db.system.get("_storage", storageId))
+  ) {
     await ctx.storage.delete(storageId);
+  }
 }

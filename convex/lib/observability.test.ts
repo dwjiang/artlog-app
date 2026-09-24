@@ -44,8 +44,9 @@ it("sends code locations and operation names without error text, input, or crede
     },
     fingerprint: ["convex", "docent.ensure", "{{ default }}"],
   });
-  for (const value of ["private note", "alice@", "secret", "photo", "user", "request"])
+  for (const value of ["private note", "alice@", "secret", "photo", "user", "request"]) {
     expect(body).not.toContain(value);
+  }
 });
 
 it.each([
@@ -65,11 +66,18 @@ it.each([
 
 it("reports provider failures using only known codes and safe status reasons", async () => {
   await reportBackendError(
-    new ConvexError({ code: "model_error", reason: "http_503", prompt: "private text" }),
+    new ConvexError({
+      code: "model_error",
+      reason: "http_503",
+      prompt: "private text",
+    }),
     "docent.ensure",
   );
   const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
-  expect(event.tags).toMatchObject({ error_code: "model_error", reason: "http_503" });
+  expect(event.tags).toMatchObject({
+    error_code: "model_error",
+    reason: "http_503",
+  });
   expect(event.fingerprint).toEqual(["convex", "docent.ensure", "model_error"]);
   expect(JSON.stringify(event)).not.toContain("private text");
 });

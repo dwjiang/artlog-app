@@ -7,7 +7,9 @@ import { SavedWorkToolbar } from "./saved-work-toolbar";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("@/lib/collection/pending-removals", () => ({ scheduleRemoval: jest.fn() }));
+jest.mock("@/lib/collection/pending-removals", () => ({
+  scheduleRemoval: jest.fn(),
+}));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
@@ -30,19 +32,20 @@ jest.mock("expo-router", () => {
     disabled?: boolean;
     onPress: () => void;
   }) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      disabled={disabled}
-      onPress={onPress}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress}>
       <Text>{children}</Text>
     </Pressable>
   );
   const Group = ({ children }: { children: unknown }) => <View>{children as never}</View>;
   return {
     useRouter: () => ({ back: mockBack, push: mockPush }),
-    Stack: { Toolbar: Object.assign(Group, { Button, Menu: Group, MenuAction: Button }) },
+    Stack: {
+      Toolbar: Object.assign(Group, {
+        Button,
+        Menu: Group,
+        MenuAction: Button,
+      }),
+    },
   };
 });
 
@@ -54,7 +57,12 @@ beforeAll(async () => {
     artist: "Unknown",
     cropPath: "crops/plain.jpg",
   });
-  await insertSavedWork({ localId: "no-photo", savedAt: 2, title: "Sketch", artist: "Unknown" });
+  await insertSavedWork({
+    localId: "no-photo",
+    savedAt: 2,
+    title: "Sketch",
+    artist: "Unknown",
+  });
 });
 beforeEach(() => jest.clearAllMocks());
 
@@ -66,9 +74,7 @@ it("offers an undo window before deletion and returns to the collection", async 
   const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
   expect(confirm).toBeDefined();
   confirm?.onPress?.();
-  expect(scheduleRemoval).toHaveBeenCalledWith(
-    expect.objectContaining({ localId: "plain", title: "Untitled" }),
-  );
+  expect(scheduleRemoval).toHaveBeenCalledWith(expect.objectContaining({ localId: "plain", title: "Untitled" }));
   expect((await getSavedWork("plain"))?.deletedAt).toBeNull();
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
@@ -88,7 +94,12 @@ it("routes editing actions from the overflow menu", async () => {
   await fireEvent.press(await screen.findByRole("button", { name: "Add photos" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/add-photos",
-    params: { draftId: "saved:plain", savedId: "plain", title: "Untitled", visitId: "visit-1" },
+    params: {
+      draftId: "saved:plain",
+      savedId: "plain",
+      title: "Untitled",
+      visitId: "visit-1",
+    },
   });
   await fireEvent.press(screen.getByRole("button", { name: "Link visit" }));
   expect(mockPush).toHaveBeenLastCalledWith({

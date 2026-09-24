@@ -44,36 +44,24 @@ describe("text matching", () => {
       "Water Lilies",
       "The Metropolitan Museum of Art",
     ]);
-    expect(
-      titleMatches("Water Lilies", "Claude Monet - Water Lilies - The Metropolitan Museum of Art"),
-    ).toBe(true);
+    expect(titleMatches("Water Lilies", "Claude Monet - Water Lilies - The Metropolitan Museum of Art")).toBe(true);
     expect(
       titleMatches(
         "Water Lilies",
         "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
       ),
     ).toBe(false);
-    expect(
-      titleSimilarity("A Sunday on La Grande Jatte", "A Sunday on La Grande Jatte — 1884"),
-    ).toBe(1);
-    expect(
-      titleSimilarity("A Sunday on La Grande Jatte", "A Sunday on La Grande Jatte—1884"),
-    ).toBeCloseTo(6 / 7);
-    expect(
-      exactTitle(
-        "The Starry Night",
-        "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 | MoMA",
-      ),
-    ).toBe(true);
+    expect(titleSimilarity("A Sunday on La Grande Jatte", "A Sunday on La Grande Jatte — 1884")).toBe(1);
+    expect(titleSimilarity("A Sunday on La Grande Jatte", "A Sunday on La Grande Jatte—1884")).toBeCloseTo(6 / 7);
+    expect(exactTitle("The Starry Night", "Vincent van Gogh. The Starry Night. Saint Rémy, June 1889 | MoMA")).toBe(
+      true,
+    );
     expect(exactTitle("Water Lilies", "Bridge over a Pond of Water Lilies")).toBe(false);
   });
 
   it("finds whole-phrase mentions in page text", () => {
     expect(
-      mentions(
-        "Studies for A Sunday on La Grande Jatte—1884, now a centerpiece",
-        "A Sunday on La Grande Jatte",
-      ),
+      mentions("Studies for A Sunday on La Grande Jatte—1884, now a centerpiece", "A Sunday on La Grande Jatte"),
     ).toBe(true);
     expect(mentions("Water Lilies and Japanese Bridge", "Lilies and")).toBe(true);
     expect(mentions("Waterlilies", "Water Lilies")).toBe(false);
@@ -105,13 +93,9 @@ describe("text matching", () => {
   });
 
   it("accepts explicit abbreviated and reordered artist names", () => {
-    expect(
-      artistMentioned("This is a description of an oil painting by JMW Turner", "J. M. W. Turner"),
-    ).toBe(true);
+    expect(artistMentioned("This is a description of an oil painting by JMW Turner", "J. M. W. Turner")).toBe(true);
     expect(artistMentioned("A painting by JMW Turner", "Joseph Mallord William Turner")).toBe(true);
-    expect(artistMentioned("A painting by J. M. W. Turner", "Joseph Mallord William Turner")).toBe(
-      true,
-    );
+    expect(artistMentioned("A painting by J. M. W. Turner", "Joseph Mallord William Turner")).toBe(true);
     expect(artistMentioned("Artist: Monet, Claude", "Claude Monet")).toBe(true);
     expect(artistMentioned("## Artist\n: Georges Seurat", "Georges Seurat")).toBe(true);
     expect(artistMentioned("A painting by Wei Li", "Ana Li")).toBe(false);

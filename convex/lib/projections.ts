@@ -9,10 +9,7 @@ import {
 import type { QueryCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 
-export async function projectProfile(
-  ctx: QueryCtx,
-  profile: Doc<"profiles">,
-): Promise<Infer<typeof publicProfile>> {
+export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
   const photoUrl = profile.photoStorageId ? await ctx.storage.getUrl(profile.photoStorageId) : null;
   return {
     profileId: profile._id,
@@ -28,13 +25,17 @@ export function projectArtwork(
   asset?: Doc<"mediaAssets"> | null,
   reference?: Infer<typeof displayMediaContext>,
 ): Infer<typeof publicArtwork> {
-  let media: Infer<typeof displayMedia> = { kind: "placeholder", width: 1, height: 1 };
+  let media: Infer<typeof displayMedia> = {
+    kind: "placeholder",
+    width: 1,
+    height: 1,
+  };
   if (asset && asset.saveId === save._id && asset.revokedAt === undefined) {
     try {
       validateMedia(asset.source);
       const { width, height, credit } = asset.source;
       const metadata = { width, height, ...(credit ? { credit } : {}) };
-      if (asset.source.kind === "catalog")
+      if (asset.source.kind === "catalog") {
         media = {
           kind: "catalog",
           url: asset.source.url,
@@ -42,14 +43,26 @@ export function projectArtwork(
           rights: asset.source.rights,
           ...metadata,
         };
-      else if (reference && asset.storageId)
-        media = { kind: "derivative", rights: "contributor_consent", reference, ...metadata };
+      } else if (reference && asset.storageId) {
+        media = {
+          kind: "derivative",
+          rights: "contributor_consent",
+          reference,
+          ...metadata,
+        };
+      }
     } catch {
       /* Ineligible media renders the same placeholder as missing media. */
     }
   }
   const { title, artist, date, medium } = save.snapshot;
-  return { title, artist, ...(date ? { date } : {}), ...(medium ? { medium } : {}), media };
+  return {
+    title,
+    artist,
+    ...(date ? { date } : {}),
+    ...(medium ? { medium } : {}),
+    media,
+  };
 }
 export function projectWallArtwork(
   item: Doc<"wallItems">,
@@ -59,7 +72,10 @@ export function projectWallArtwork(
   return {
     itemId: item._id,
     layout: item.layout,
-    artwork: projectArtwork(save, asset, { kind: "wallItem", itemId: item._id }),
+    artwork: projectArtwork(save, asset, {
+      kind: "wallItem",
+      itemId: item._id,
+    }),
     ...(item.noteVisible && save.note?.trim() ? { note: save.note } : {}),
   };
 }
@@ -71,10 +87,6 @@ export function projectSharedVisitCard(
 ) {
   return {
     itemId: item._id,
-    artwork: projectArtwork(
-      save,
-      asset,
-      postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined,
-    ),
+    artwork: projectArtwork(save, asset, postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined),
   };
 }

@@ -5,11 +5,7 @@ import type { ContributionField, EvidenceKind } from "./validators";
 
 // The museum's page, not the visitor, named the work. `tavily+image` qualifies because
 // the phone confirmed the page's own image against the scan by embedding and homography.
-export const STRONG_EVIDENCE: ReadonlySet<EvidenceKind> = new Set([
-  "accession",
-  "qr",
-  "tavily+image",
-]);
+export const STRONG_EVIDENCE: ReadonlySet<EvidenceKind> = new Set(["accession", "qr", "tavily+image"]);
 export const AGREEMENT_MIN_COSINE = 0.9;
 // An exact-duplicate embedding is a replay, not an independent scan.
 export const REPLAY_COSINE = 0.999;
@@ -20,7 +16,11 @@ export type AgreementContribution = {
   venueId: Id<"museums">;
   modelVersion: string;
   vector: number[];
-  fields: { title: ContributionField; artist: ContributionField; accession?: ContributionField };
+  fields: {
+    title: ContributionField;
+    artist: ContributionField;
+    accession?: ContributionField;
+  };
   evidence: EvidenceKind[];
   createdAt: number;
 };
@@ -34,18 +34,14 @@ export function contributionGroup(row: Pick<Doc<"contributions">, "venueId" | "f
   return JSON.stringify([row.venueId, workKey(row.fields)]);
 }
 
-export function verifiedAccession(
-  contribution: Pick<AgreementContribution, "fields">,
-): string | undefined {
+export function verifiedAccession(contribution: Pick<AgreementContribution, "fields">): string | undefined {
   const accession = contribution.fields.accession;
   // Museum search confirms the page image on title/artist; its other page fields retain `tavily`.
   const confirmedPage =
-    accession?.evidence === "tavily" &&
-    contribution.fields.title.evidence === "tavily+image" &&
-    contribution.fields.artist.evidence === "tavily+image";
-  return accession &&
-    !accession.edited &&
-    (STRONG_EVIDENCE.has(accession.evidence) || confirmedPage)
+    accession?.evidence === "tavily"
+    && contribution.fields.title.evidence === "tavily+image"
+    && contribution.fields.artist.evidence === "tavily+image";
+  return accession && !accession.edited && (STRONG_EVIDENCE.has(accession.evidence) || confirmedPage)
     ? normalizeAccession(accession.value) || undefined
     : undefined;
 }

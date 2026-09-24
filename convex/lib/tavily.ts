@@ -104,13 +104,20 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
         },
         body: JSON.stringify(body),
       },
-      { timeoutMs: request.includeRawContent ? 20_000 : TIMEOUT_MS, maxBytes: MAX_RESPONSE_BYTES },
+      {
+        timeoutMs: request.includeRawContent ? 20_000 : TIMEOUT_MS,
+        maxBytes: MAX_RESPONSE_BYTES,
+      },
     );
   } catch {
     throw new ConvexError({ code: "search_error", reason: "fetch_failed" });
   }
-  if (page.status !== 200)
-    throw new ConvexError({ code: "search_error", reason: `http_${page.status}` });
+  if (page.status !== 200) {
+    throw new ConvexError({
+      code: "search_error",
+      reason: `http_${page.status}`,
+    });
+  }
   try {
     return parseSearchResponse(JSON.parse(page.body));
   } catch {

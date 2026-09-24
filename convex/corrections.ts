@@ -22,15 +22,12 @@ export const correctFact = mutation({
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get(args.artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
-    if (!artwork.factSheet?.some((fact) => fact.id === args.factId))
+    if (!artwork.factSheet?.some((fact) => fact.id === args.factId)) {
       throw new ConvexError({ code: "unknown_fact" });
+    }
     const message = args.message.trim();
     const contact = args.contact?.trim() || undefined;
-    if (
-      !message ||
-      message.length > MAX_MESSAGE_CHARS ||
-      (contact && contact.length > MAX_CONTACT_CHARS)
-    ) {
+    if (!message || message.length > MAX_MESSAGE_CHARS || (contact && contact.length > MAX_CONTACT_CHARS)) {
       throw new ConvexError({ code: "invalid_correction" });
     }
     await limitDevice(ctx, "correctFact", device._id);

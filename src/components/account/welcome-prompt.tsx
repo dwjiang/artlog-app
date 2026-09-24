@@ -19,7 +19,9 @@ export function WelcomePrompt() {
       await setSetting("welcome-seen", "true");
       if (cancelled) return;
       setChecked(true);
-      if (seen !== "true" && !owner.startsWith("account:")) router.push("/welcome");
+      if (seen !== "true" && !owner.startsWith("account:")) {
+        router.push("/welcome");
+      }
     })().catch((cause) => {
       reportError(cause, "account.welcome.load");
       if (!cancelled) setChecked(true);

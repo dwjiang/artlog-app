@@ -75,6 +75,8 @@ export async function runCalibrationExport(
 
 async function readCalibrationUrls(): Promise<string[]> {
   const asset = await Asset.fromModule(calibrationUrlsAsset).downloadAsync();
-  if (!asset.localUri) throw new Error("The calibration URL list is not bundled");
+  if (!asset.localUri) {
+    throw new Error("The calibration URL list is not bundled");
+  }
   return parseCalibrationUrls(await new File(asset.localUri).text());
 }

@@ -51,14 +51,7 @@ export function CropCorners({
           );
         })}
         {corners.map((_, i) => (
-          <Corner
-            key={i}
-            index={i}
-            corners={corners}
-            width={photo.width}
-            height={photo.height}
-            onChange={onChange}
-          />
+          <Corner key={i} index={i} corners={corners} width={photo.width} height={photo.height} onChange={onChange} />
         ))}
       </View>
     </View>
@@ -128,7 +121,12 @@ function Corner({
   );
 }
 const styles = StyleSheet.create({
-  canvas: { flex: 1, minHeight: 180, margin: 24, backgroundColor: Gallery.fill },
+  canvas: {
+    flex: 1,
+    minHeight: 180,
+    margin: 24,
+    backgroundColor: Gallery.fill,
+  },
   handle: {
     position: "absolute",
     width: 48,

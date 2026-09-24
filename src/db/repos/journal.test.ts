@@ -6,7 +6,9 @@ import { db } from "../client";
 import { notes, pendingScans, savedWorks, visits } from "../schema";
 import { initializeOwner, switchOwner } from "../../lib/account/owner-store";
 const mockMetadata = jest.fn();
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 jest.mock("../../lib/venue/venue-db", () => ({
   venueMetadataForIds: (...args: unknown[]) => mockMetadata(...args),
 }));
@@ -28,7 +30,13 @@ beforeEach(async () => {
   initializeOwner("test-installation");
   switchOwner(owner);
   mockMetadata.mockResolvedValue([
-    { id: venueId, name: "Musée", city: "Paris", country: "FR", cityKey: "wikidata:Q90" },
+    {
+      id: venueId,
+      name: "Musée",
+      city: "Paris",
+      country: "FR",
+      cityKey: "wikidata:Q90",
+    },
   ]);
 });
 it("binds all reads to the owner and computes summaries from the complete journal before pagination", async () => {
@@ -41,7 +49,11 @@ it("binds all reads to the owner and computes summaries from the complete journa
   const last = await repo.history({ search: "france", cursor: first.cursor });
   expect(last.page.map((row) => row.localId)).toEqual([uuid(2), uuid(1), uuid(0)]);
   expect((await repo.summaries("place")).page).toEqual([
-    expect.objectContaining({ museumCount: 1, visitCount: 23, latestVisitedOn: "2024-02-29" }),
+    expect.objectContaining({
+      museumCount: 1,
+      visitCount: 23,
+      latestVisitedOn: "2024-02-29",
+    }),
   ]);
   await expect(repo.detail(uuid(99))).rejects.toThrow("not_found");
 });

@@ -10,7 +10,9 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 jest.mock("@/lib/venue/search-venues", () => ({ searchVenues: jest.fn() }));
-jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => true }));
+jest.mock("@/hooks/use-reduced-motion", () => ({
+  useReducedMotion: () => true,
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }),
 }));
@@ -152,9 +154,7 @@ describe("choosing a museum", () => {
     ]);
     await render(<VenuePickerSheet />);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "Metropolitan");
-    await fireEvent.press(
-      await screen.findByRole("button", { name: "Metropolitan Museum of Art" }),
-    );
+    await fireEvent.press(await screen.findByRole("button", { name: "Metropolitan Museum of Art" }));
     expect(mockConfirm).toHaveBeenCalledWith(
       {
         kind: "seeded",
@@ -292,28 +292,26 @@ describe("choosing a museum", () => {
     expect(screen.queryByText("Confirming…")).toBeNull();
   });
 
-  it.each(["Not here", "swipe"])(
-    "cancels a pending confirmation on %s without navigating again",
-    async (method) => {
-      let finish!: () => void;
-      mockConfirm.mockReturnValue(
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-      );
-      const view = await render(<VenuePickerSheet />);
-      await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
-      if (method === "Not here")
-        await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
-      await view.unmount();
-      const [, signal] = mockConfirm.mock.calls[0];
-      expect(signal.aborted).toBe(true);
-      await act(async () => {
-        finish();
-      });
-      expect(mockBack).toHaveBeenCalledTimes(method === "Not here" ? 1 : 0);
-    },
-  );
+  it.each(["Not here", "swipe"])("cancels a pending confirmation on %s without navigating again", async (method) => {
+    let finish!: () => void;
+    mockConfirm.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const view = await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
+    if (method === "Not here") {
+      await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
+    }
+    await view.unmount();
+    const [, signal] = mockConfirm.mock.calls[0];
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      finish();
+    });
+    expect(mockBack).toHaveBeenCalledTimes(method === "Not here" ? 1 : 0);
+  });
 });
 
 describe("the open visit", () => {
@@ -381,9 +379,7 @@ describe("the open visit", () => {
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole("button", { name: "Change museum" }));
     expect(screen.getByText("No nearby museums found.")).toBeOnTheScreen();
-    expect(
-      screen.getByText("Search by museum or city, or keep your current visit."),
-    ).toBeOnTheScreen();
+    expect(screen.getByText("Search by museum or city, or keep your current visit.")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Continue without a museum" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Keep current visit" }));
     expect(screen.getByRole("button", { name: "End visit" })).toBeOnTheScreen();
@@ -422,7 +418,12 @@ describe("the open visit", () => {
       status: "choose",
       venue: undefined,
       options: [
-        { ...seeded, venueId: "id-guggenheim" as never, name: "Guggenheim", distanceM: 120 },
+        {
+          ...seeded,
+          venueId: "id-guggenheim" as never,
+          name: "Guggenheim",
+          distanceM: 120,
+        },
         neighbour,
       ],
     };

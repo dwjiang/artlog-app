@@ -15,9 +15,7 @@ describe("DEFAULT_CALIBRATOR", () => {
   });
 
   it("keeps the confident threshold at or above the soft threshold", () => {
-    expect(DEFAULT_CALIBRATOR.thresholds.confident).toBeGreaterThanOrEqual(
-      DEFAULT_CALIBRATOR.thresholds.soft,
-    );
+    expect(DEFAULT_CALIBRATOR.thresholds.confident).toBeGreaterThanOrEqual(DEFAULT_CALIBRATOR.thresholds.soft);
   });
 
   it("scores the strong anchor above 0.99", () => {

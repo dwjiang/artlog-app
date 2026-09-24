@@ -75,22 +75,42 @@ const labelInput = v.object({
 
 export const load = internalQuery({
   args: { scanId: v.id("scans"), deviceId: v.id("devices") },
-  returns: v.object({ scan: schema.doc("scans"), venue: v.union(schema.doc("museums"), v.null()) }),
+  returns: v.object({
+    scan: schema.doc("scans"),
+    venue: v.union(schema.doc("museums"), v.null()),
+  }),
   handler: async (ctx, { scanId, deviceId }) => {
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: "scan_not_found" });
-    return { scan, venue: scan.venueId ? await ctx.db.get(scan.venueId) : null };
+    if (!scan || scan.deviceId !== deviceId) {
+      throw new ConvexError({ code: "scan_not_found" });
+    }
+    return {
+      scan,
+      venue: scan.venueId ? await ctx.db.get(scan.venueId) : null,
+    };
   },
 });
 
 export const write = internalMutation({
-  args: { scanId: v.id("scans"), deviceId: v.id("devices"), generation: v.number(), labelFlow },
+  args: {
+    scanId: v.id("scans"),
+    deviceId: v.id("devices"),
+    generation: v.number(),
+    labelFlow,
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const scan = await ctx.db.get(args.scanId);
-    if (!scan || scan.deviceId !== args.deviceId) throw new ConvexError({ code: "scan_not_found" });
-    if (scan.generation !== args.generation) throw new ConvexError({ code: "scan_restarted" });
-    await ctx.db.patch(scan._id, { labelFlow: args.labelFlow, updatedAt: Date.now() });
+    if (!scan || scan.deviceId !== args.deviceId) {
+      throw new ConvexError({ code: "scan_not_found" });
+    }
+    if (scan.generation !== args.generation) {
+      throw new ConvexError({ code: "scan_restarted" });
+    }
+    await ctx.db.patch(scan._id, {
+      labelFlow: args.labelFlow,
+      updatedAt: Date.now(),
+    });
     await resolveFalseRejections(ctx, scan, args.labelFlow);
     return null;
   },
@@ -99,7 +119,10 @@ export const write = internalMutation({
 async function start(ctx: ActionCtx, scanId: Id<"scans">) {
   const device = await requireDeviceFromAction(ctx);
   if (!isEnabled("labelFlow")) throw new ConvexError({ code: "feature_off" });
-  const context = await ctx.runQuery(internal.label.load, { scanId, deviceId: device._id });
+  const context = await ctx.runQuery(internal.label.load, {
+    scanId,
+    deviceId: device._id,
+  });
   return { device, ...context };
 }
 
@@ -108,16 +131,17 @@ const ocrLine = v.object({ text: v.string(), confidence: v.number() });
 
 function usableLines(lines: OcrLine[]): OcrLine[] {
   if (
-    lines.length > MAX_OCR_LINES ||
-    lines.some(
+    lines.length > MAX_OCR_LINES
+    || lines.some(
       (line) =>
-        line.text.length > MAX_OCR_LINE_CHARS ||
-        !Number.isFinite(line.confidence) ||
-        line.confidence < 0 ||
-        line.confidence > 1,
+        line.text.length > MAX_OCR_LINE_CHARS
+        || !Number.isFinite(line.confidence)
+        || line.confidence < 0
+        || line.confidence > 1,
     )
-  )
+  ) {
     throw new ConvexError({ code: "bad_lines" });
+  }
   const usable = lines
     .map((line) => ({ text: line.text.trim(), confidence: line.confidence }))
     .filter((line) => line.text);
@@ -138,15 +162,10 @@ function readFields(reading: LabelReading): LabelFields {
   const fields: LabelFields = {};
   for (const name of FIELD_NAMES) {
     const key = READING_KEYS[name];
-    const value =
-      key === "title" && reading.title
-        ? titleWithoutDate(reading.title, reading.work_date)
-        : reading[key];
+    const value = key === "title" && reading.title ? titleWithoutDate(reading.title, reading.work_date) : reading[key];
     if (typeof value !== "string" || !value.trim()) continue;
     const confidence =
-      key in reading.confidence
-        ? reading.confidence[key as keyof LabelReading["confidence"]]
-        : undefined;
+      key in reading.confidence ? reading.confidence[key as keyof LabelReading["confidence"]] : undefined;
     fields[name] = labelField(value.trim(), "ocr", confidence);
   }
   return fields;
@@ -159,11 +178,15 @@ export const fetchQr = action({
     withErrorReporting("label.fetchQr", async () => {
       const { device, scan, venue } = await start(ctx, scanId);
       const hosts = venue ? venueHosts(venue) : [];
-      if (!allowedVenueUrl(url, hosts)) throw new ConvexError({ code: "qr_host_not_allowed" });
+      if (!allowedVenueUrl(url, hosts)) {
+        throw new ConvexError({ code: "qr_host_not_allowed" });
+      }
       await limitDevice(ctx, "labelVerify", device._id);
       const page = await fetchVenuePage(url, hosts);
       const extracted = extractPage(page.html);
-      if (!hasArtworkMetadata(extracted)) throw new ConvexError({ code: "qr_no_artwork" });
+      if (!hasArtworkMetadata(extracted)) {
+        throw new ConvexError({ code: "qr_no_artwork" });
+      }
       const fields: LabelFields = {};
       for (const name of FIELD_NAMES) {
         const value = extracted.fields[name];
@@ -244,8 +267,9 @@ export const readLabel = action({
         });
         return flow;
       } catch (error) {
-        if (error instanceof ConvexError && typeof error.data.calls === "number")
+        if (error instanceof ConvexError && typeof error.data.calls === "number") {
           calls += error.data.calls;
+        }
         throw error;
       } finally {
         await ctx.runMutation(internal.spend.reconcile, {
@@ -258,11 +282,7 @@ export const readLabel = action({
     }),
 });
 
-async function searchMuseumSite(
-  ctx: ActionCtx,
-  hosts: string[],
-  pair: TavilyPair,
-): Promise<TavilyEvidence | null> {
+async function searchMuseumSite(ctx: ActionCtx, hosts: string[], pair: TavilyPair): Promise<TavilyEvidence | null> {
   const response = await searchWithCredit(ctx, {
     query: `"${pair.title.replace(/"/g, "")}" ${pair.artist}`,
     includeDomains: hosts,
@@ -273,11 +293,15 @@ async function searchMuseumSite(
 }
 
 function applyImageCheck(flow: LabelFlow, check: ImageCheck): LabelFlow {
-  if (!imageCheckPasses(check) || !flow.imageUrls?.includes(check.url)) return flow;
+  if (!imageCheckPasses(check) || !flow.imageUrls?.includes(check.url)) {
+    return flow;
+  }
   const fields = { ...flow.fields };
   for (const name of ["title", "artist"] as const) {
     const field = fields[name];
-    if (field?.evidence === "tavily") fields[name] = withEvidence(field, "tavily+image");
+    if (field?.evidence === "tavily") {
+      fields[name] = withEvidence(field, "tavily+image");
+    }
   }
   return { ...flow, fields, evidence: evidenceSummary(fields) };
 }
@@ -288,15 +312,18 @@ export async function moderateVerifiedFields(
   stored?: LabelFlow,
 ): Promise<"clear" | "flagged"> {
   if (
-    stored?.moderation === "clear" &&
-    FIELD_NAMES.every((name) => fields[name]?.value === stored.fields[name]?.value)
+    stored?.moderation === "clear"
+    && FIELD_NAMES.every((name) => fields[name]?.value === stored.fields[name]?.value)
   ) {
     return "clear";
   }
   const values = FIELD_NAMES.map((name) => fields[name]?.value);
   const reserved = process.env.MODERATION_MODEL && values.some(Boolean) ? MAX_MODERATION_CALLS : 0;
   const day = reserved
-    ? await ctx.runMutation(internal.spend.reserve, { kind: "tokenFactory", amount: reserved })
+    ? await ctx.runMutation(internal.spend.reserve, {
+        kind: "tokenFactory",
+        amount: reserved,
+      })
     : undefined;
   let calls = 0;
   try {
@@ -304,13 +331,14 @@ export async function moderateVerifiedFields(
     calls = result.calls;
     return result.flagged ? "flagged" : "clear";
   } finally {
-    if (day !== undefined)
+    if (day !== undefined) {
       await ctx.runMutation(internal.spend.reconcile, {
         kind: "tokenFactory",
         day,
         reserved,
         actual: calls,
       });
+    }
   }
 }
 
@@ -331,27 +359,28 @@ export const verifyLabel = action({
       const objectUnchanged = pairUnchanged && unchanged("accession");
       const retained = (name: LabelFieldName) => {
         const previous = unchanged(name) ? stored?.fields[name] : undefined;
-        if (!previous || !LOCKING_EVIDENCE.has(previous.evidence)) return undefined;
+        if (!previous || !LOCKING_EVIDENCE.has(previous.evidence)) {
+          return undefined;
+        }
         // Wikidata identifies a named work; museum and image evidence also binds its accession.
-        return (previous.evidence === "wikidata" ? pairUnchanged : objectUnchanged)
-          ? previous
-          : undefined;
+        return (previous.evidence === "wikidata" ? pairUnchanged : objectUnchanged) ? previous : undefined;
       };
       if (
-        args.imageCheck &&
-        stored?.stage === "verified" &&
-        FIELD_NAMES.every(unchanged) &&
-        stored.imageUrls?.includes(args.imageCheck.url)
+        args.imageCheck
+        && stored?.stage === "verified"
+        && FIELD_NAMES.every(unchanged)
+        && stored.imageUrls?.includes(args.imageCheck.url)
       ) {
         // The phone compared one of the returned images; no new search or credit is needed.
         const upgraded = applyImageCheck(stored, args.imageCheck);
-        if (upgraded !== stored)
+        if (upgraded !== stored) {
           await ctx.runMutation(internal.label.write, {
             scanId: args.scanId,
             deviceId: device._id,
             generation: scan.generation,
             labelFlow: upgraded,
           });
+        }
         return displayLabelFlow(upgraded);
       }
       await limitDevice(ctx, "labelVerify", device._id);
@@ -363,8 +392,7 @@ export const verifyLabel = action({
         const previous = unchanged(name) ? stored?.fields[name] : undefined;
         fields[name] = retained(name) ?? labelField(value, "ocr", previous?.confidence);
       }
-      const museum = (name: LabelFieldName) =>
-        fields[name] !== undefined && MUSEUM_EVIDENCE.has(fields[name].evidence);
+      const museum = (name: LabelFieldName) => fields[name] !== undefined && MUSEUM_EVIDENCE.has(fields[name].evidence);
       const verified = (name: LabelFieldName) =>
         fields[name] !== undefined && LOCKING_EVIDENCE.has(fields[name].evidence);
       let sourceUrl = objectUnchanged ? stored?.sourceUrl : undefined;
@@ -378,16 +406,14 @@ export const verifyLabel = action({
           const field = fields[name];
           if (field) fields[name] = withEvidence(field, "accession");
         }
-        if (
-          fields.artist &&
-          accession.fields.artist &&
-          personMatches(fields.artist.value, accession.fields.artist)
-        ) {
+        if (fields.artist && accession.fields.artist && personMatches(fields.artist.value, accession.fields.artist)) {
           fields.artist = withEvidence(fields.artist, "accession");
         }
         for (const name of FIELD_NAMES) {
           const value = accession.fields[name];
-          if (!fields[name] && value) fields[name] = labelField(value, "accession");
+          if (!fields[name] && value) {
+            fields[name] = labelField(value, "accession");
+          }
         }
         sourceUrl = accession.sourceUrl;
         identityImageUrl = undefined;
@@ -397,22 +423,18 @@ export const verifyLabel = action({
       let countryMatch: boolean | undefined;
       // A title/artist pair cannot bind a Wikidata ID to the specific museum object, even if its names agree.
       const museumIdentity =
-        museum("title") ||
-        museum("artist") ||
-        museum("accession") ||
-        identityImageUrl !== undefined;
+        museum("title") || museum("artist") || museum("accession") || identityImageUrl !== undefined;
       if (museumIdentity) wikidataId = undefined;
       if (input.artist) {
         try {
-          const pair =
-            input.title && !museumIdentity
-              ? await findWikidataPainting(input.title, input.artist)
-              : null;
+          const pair = input.title && !museumIdentity ? await findWikidataPainting(input.title, input.artist) : null;
           if (pair) {
             wikidataId = pair.paintingId;
             for (const name of ["title", "artist"] as const) {
               const field = fields[name];
-              if (field && !museum(name)) fields[name] = withEvidence(field, "wikidata");
+              if (field && !museum(name)) {
+                fields[name] = withEvidence(field, "wikidata");
+              }
             }
           }
           artist = pair?.artist ?? (await findArtist(input.artist));
@@ -424,12 +446,7 @@ export const verifyLabel = action({
         }
       }
 
-      if (
-        input.title &&
-        input.artist &&
-        hosts.length &&
-        !(verified("title") && verified("artist"))
-      ) {
+      if (input.title && input.artist && hosts.length && !(verified("title") && verified("artist"))) {
         const evidence = await searchMuseumSite(ctx, hosts, {
           title: input.title,
           artist: input.artist,
@@ -438,7 +455,9 @@ export const verifyLabel = action({
         if (evidence) {
           for (const name of ["title", "artist"] as const) {
             const field = fields[name];
-            if (field && !museum(name)) fields[name] = withEvidence(field, "tavily");
+            if (field && !museum(name)) {
+              fields[name] = withEvidence(field, "tavily");
+            }
           }
           sourceUrl = evidence.sourceUrl;
           identityImageUrl = undefined;
@@ -455,16 +474,12 @@ export const verifyLabel = action({
               date: input.date,
               venueCountryMatch: countryMatch,
             });
-      if (
-        warnings.includes("artist_not_found") &&
-        fields.artist &&
-        !museum("artist") &&
-        !retained("artist")
-      ) {
+      if (warnings.includes("artist_not_found") && fields.artist && !museum("artist") && !retained("artist")) {
         fields.artist = withEvidence(fields.artist, "weak");
       }
-      if (warnings.includes("date_outside_lifespan") && fields.date && !museum("date"))
+      if (warnings.includes("date_outside_lifespan") && fields.date && !museum("date")) {
         fields.date = withEvidence(fields.date, "weak");
+      }
 
       const moderation = await moderateVerifiedFields(ctx, fields, stored);
       let flow: LabelFlow =

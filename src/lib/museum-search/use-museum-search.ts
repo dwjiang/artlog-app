@@ -40,7 +40,9 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
   }, []);
 
   const run = useCallback(async () => {
-    if (!scan || !canRun.current || inFlight.current || stored?.stage === "confirmed") return;
+    if (!scan || !canRun.current || inFlight.current || stored?.stage === "confirmed") {
+      return;
+    }
     inFlight.current = true;
     attempted.current = true;
     setPhase({
@@ -69,16 +71,17 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
 
   useEffect(() => {
     if (
-      automatic &&
-      phase.stage !== "running" &&
-      available &&
-      active &&
-      online &&
-      consent === "granted" &&
-      !attempted.current &&
-      (!stored || stored.stage === "exhibitions")
-    )
+      automatic
+      && phase.stage !== "running"
+      && available
+      && active
+      && online
+      && consent === "granted"
+      && !attempted.current
+      && (!stored || stored.stage === "exhibitions")
+    ) {
       void run();
+    }
   }, [automatic, available, active, online, consent, stored, run, phase.stage]);
 
   useEffect(() => {
@@ -89,8 +92,9 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
         if (!current) return;
         setPhase((previous) => {
           if (!flow) return { stage: "none", reason: "model_error" };
-          if (previous.stage === "done" && previous.confirmedAt === stored.updatedAt)
+          if (previous.stage === "done" && previous.confirmedAt === stored.updatedAt) {
             return previous;
+          }
           return { stage: "done", flow, confirmedAt: stored.updatedAt };
         });
       },
@@ -133,8 +137,7 @@ export function useMuseumSearch(scan: ScanResult | undefined, active: boolean) {
     running: phase.stage === "running" && !flow,
     progress: phase.stage === "running" ? phase.progress : undefined,
     message: reason === undefined ? undefined : museumSearchMessage(reason),
-    visible:
-      available && !hidden && (consent !== "declined" || !!flow || restoring || restoreError),
+    visible: available && !hidden && (consent !== "declined" || !!flow || restoring || restoreError),
   };
 }
 

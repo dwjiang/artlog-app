@@ -63,7 +63,10 @@ export async function persistCapture({
   try {
     const { x, y, width, height } = contentBounds;
     image = await context.crop({ originX: x, originY: y, width, height }).renderAsync();
-    const preview = await image.saveAsync({ format: SaveFormat.JPEG, compress: 1 });
+    const preview = await image.saveAsync({
+      format: SaveFormat.JPEG,
+      compress: 1,
+    });
     const photoPath = await moveInto("photos", photoUri, localId);
     const cropPath = await moveInto("crops", cropUri, localId);
     await new File(preview.uri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
@@ -75,13 +78,7 @@ export async function persistCapture({
 }
 
 /** Keeps a label photo captured offline beside the scan until the queue reads it. */
-export async function persistLabelPhoto({
-  photoUri,
-  localId,
-}: {
-  photoUri: string;
-  localId: string;
-}): Promise<string> {
+export async function persistLabelPhoto({ photoUri, localId }: { photoUri: string; localId: string }): Promise<string> {
   return moveInto("labels", photoUri, `${localId}-${randomUUID()}`);
 }
 

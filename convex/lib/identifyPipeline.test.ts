@@ -76,7 +76,9 @@ it("returns a confident match with verified corners for matching features", () =
   const match = candidate("one", 0.99, pair.ref);
   const result = run([match]);
   expect(result.decision.outcome).toBe("confident");
-  expect(result.verifications.get(match.object._id)).toMatchObject({ verified: true });
+  expect(result.verifications.get(match.object._id)).toMatchObject({
+    verified: true,
+  });
   expect(result.verifications.get(match.object._id)?.corners).toHaveLength(4);
 });
 
@@ -84,9 +86,7 @@ it("applies combined corpus and rejection penalties through the configured coeff
   const config = {
     ...DEFAULT_CALIBRATOR,
     bias: 0,
-    weights: DEFAULT_CALIBRATOR.weights.map((_, i) =>
-      i === featureIndex("objectPenalty") ? -3 : 0,
-    ),
+    weights: DEFAULT_CALIBRATOR.weights.map((_, i) => (i === featureIndex("objectPenalty") ? -3 : 0)),
   };
   const score = (match: LoadedCandidate) =>
     runPipeline({
@@ -105,7 +105,10 @@ it("applies combined corpus and rejection penalties through the configured coeff
     [0.9, 0.2, 0.9],
   ]) {
     const match = candidate("one", 0.93, pair.ref);
-    Object.assign(match.object, { calibratorPenalty: corpus, rejectionPenalty: rejection });
+    Object.assign(match.object, {
+      calibratorPenalty: corpus,
+      rejectionPenalty: rejection,
+    });
     const best = score(match);
     expect(best.features[featureIndex("objectPenalty")]).toBeCloseTo(effective);
     expect(best.probability).toBeLessThan(probability);
@@ -142,7 +145,10 @@ it.each([
 it("treats missing gallery context as unknown", () => {
   const match = candidate();
   match.placement!.gallery = undefined;
-  const result = run([match], { lastConfidentGallery: "4", lastConfidentAt: now });
+  const result = run([match], {
+    lastConfidentGallery: "4",
+    lastConfidentAt: now,
+  });
   expect(result.decision.best!.features[featureIndex("galleryDifferent")]).toBe(0);
   expect(run([candidate()]).decision.best!.features[featureIndex("gallerySame")]).toBe(0);
 });
@@ -161,9 +167,7 @@ it("does not infer venue agreement from two absent venues", () => {
 });
 
 it("verifies only the ten highest-similarity candidates with descriptors without mutating input", () => {
-  const candidates = Array.from({ length: 12 }, (_, i) =>
-    candidate(String(i), 0.99 - i / 100, pair.ref),
-  ).reverse();
+  const candidates = Array.from({ length: 12 }, (_, i) => candidate(String(i), 0.99 - i / 100, pair.ref)).reverse();
   const ids = candidates.map((c) => c.object._id);
   const result = run(candidates);
   expect(result.verifications.size).toBe(10);
@@ -180,7 +184,11 @@ it("uses the strongest different object for the similarity margin", () => {
 });
 
 it("returns a miss with no candidates", () => {
-  expect(run([]).decision).toMatchObject({ outcome: "miss", best: null, runnerUps: [] });
+  expect(run([]).decision).toMatchObject({
+    outcome: "miss",
+    best: null,
+    runnerUps: [],
+  });
 });
 
 it("caps verified tentative identities at soft and isolates established confidence from their count and scores", () => {

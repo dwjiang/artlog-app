@@ -8,9 +8,7 @@ export type SnapshotField = (typeof SNAPSHOT_FIELDS)[number];
 export type SnapshotDraft = Record<SnapshotField, string>;
 export type Suggestion = { title: string; artist: string };
 
-export function draftFromCandidate(
-  candidate?: Pick<ResultCandidate, SnapshotField>,
-): SnapshotDraft {
+export function draftFromCandidate(candidate?: Pick<ResultCandidate, SnapshotField>): SnapshotDraft {
   return {
     title: candidate?.title ?? "",
     artist: candidate?.artist ?? "",
@@ -46,8 +44,6 @@ export function buildSnapshot(
     institution: optional(draft.institution),
   };
   const suggested =
-    view?.kind === "confident" && view.primary
-      ? { title: view.primary.title, artist: view.primary.artist }
-      : null;
+    view?.kind === "confident" && view.primary ? { title: view.primary.title, artist: view.primary.artist } : null;
   return { snapshot, suggested };
 }

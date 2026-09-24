@@ -46,10 +46,13 @@ import { useScan } from "@/lib/result/use-scan";
 export const QR_FOUND = "Found a QR code";
 export const QUEUED_MESSAGE = "Saved — we’ll finish this when you’re back online";
 export const QUEUED_ONLINE_MESSAGE = "Saved — we’ll finish this label shortly";
-const MISSING_CAPTURE =
-  "Your photo of this scan isn’t on this phone, so the label can’t be kept with it.";
+const MISSING_CAPTURE = "Your photo of this scan isn’t on this phone, so the label can’t be kept with it.";
 // Label saves never count as confirms of a match: the view carries no primary work, so `suggested` is null.
-const LABEL_VIEW: ResultViewState = { kind: "unidentified", runnerUps: [], editable: true };
+const LABEL_VIEW: ResultViewState = {
+  kind: "unidentified",
+  runnerUps: [],
+  editable: true,
+};
 export type LabelCaptureScreenProps = {
   scanId: string;
   intent?: "capture" | "review";
@@ -76,7 +79,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
-  const [phase, setPhase] = useState<Phase>({ kind: "capture", restore: intent !== "capture" });
+  const [phase, setPhase] = useState<Phase>({
+    kind: "capture",
+    restore: intent !== "capture",
+  });
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
   const labelOnly = !!capture && isLabelCapture(capture);
@@ -108,8 +114,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const pendingLabel = !!(capture?.labelPhotoPath || capture?.qrUrl);
   const storeOnly = !remoteScanId || network.isInternetReachable === false;
   const restoring = !!remoteScanId && !storeOnly && scan === undefined;
-  const active =
-    isFocused && appState === "active" && phase.kind === "capture" && !restoring && !pendingLabel;
+  const active = isFocused && appState === "active" && phase.kind === "capture" && !restoring && !pendingLabel;
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
 
   useEffect(() => {
@@ -125,9 +130,9 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     if (pendingLabel) {
       if (phase.kind === "capture") setPhase({ kind: "queued" });
     } else if (
-      (phase.kind === "queued" || phase.restore !== false) &&
-      storedFlow?.stage === "verified" &&
-      storedFlow.moderation === "clear"
+      (phase.kind === "queued" || phase.restore !== false)
+      && storedFlow?.stage === "verified"
+      && storedFlow.moderation === "clear"
     ) {
       setPhase({ kind: "review", flow: storedFlow });
     }
@@ -135,16 +140,24 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
 
   async function queueLabel(label: { photoUri?: string; qrUrl?: string }) {
     if (!capture) {
-      if (mounted.current) setPhase({ kind: "error", message: MISSING_CAPTURE });
+      if (mounted.current) {
+        setPhase({ kind: "error", message: MISSING_CAPTURE });
+      }
       return;
     }
-    if (label.photoUri)
+    if (label.photoUri) {
       await setLabelPhoto(
         capture.localId,
-        await persistLabelPhoto({ localId: capture.localId, photoUri: label.photoUri }),
+        await persistLabelPhoto({
+          localId: capture.localId,
+          photoUri: label.photoUri,
+        }),
         capture.owner,
       );
-    if (label.qrUrl) await setQrUrl(capture.localId, label.qrUrl, capture.owner);
+    }
+    if (label.qrUrl) {
+      await setQrUrl(capture.localId, label.qrUrl, capture.owner);
+    }
     if (mounted.current) setPhase({ kind: "queued" });
     void flushQueue();
   }
@@ -156,8 +169,9 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     setPhase({ kind: "running", stage: qr ? "qr" : "read", qr });
     try {
       const flow = await runLabelFlowForScan(remoteScanId, source, (stage) => {
-        if (mounted.current)
+        if (mounted.current) {
           setPhase((current) => (current.kind === "running" ? { ...current, stage } : current));
+        }
       });
       if (!mounted.current) return;
       setPhase({ kind: "review", flow });
@@ -167,15 +181,18 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       console.warn("Label flow failed", error);
       if (isTransientError(error instanceof LabelFlowError ? (error.cause ?? error) : error)) {
         keepSource = true;
-        await queueLabel({ photoUri: source.labelPhotoUri, qrUrl: source.qrUrl });
+        await queueLabel({
+          photoUri: source.labelPhotoUri,
+          qrUrl: source.qrUrl,
+        });
         return;
       }
-      if (mounted.current)
+      if (mounted.current) {
         setPhase({
           kind: "error",
-          message:
-            error instanceof LabelFlowError ? error.message : "Couldn’t verify the label right now",
+          message: error instanceof LabelFlowError ? error.message : "Couldn’t verify the label right now",
         });
+      }
     } finally {
       if (!keepSource && source.labelPhotoUri) removeFile(source.labelPhotoUri);
     }
@@ -200,13 +217,12 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     } catch (error) {
       reportError(error, "label.capture");
       console.warn("Could not keep the label", error);
-      if (mounted.current)
+      if (mounted.current) {
         setPhase({
           kind: "error",
-          message:
-            failureMessage ??
-            (error instanceof Error ? error.message : "Couldn’t keep the label. Try again."),
+          message: failureMessage ?? (error instanceof Error ? error.message : "Couldn’t keep the label. Try again."),
         });
+      }
     } finally {
       inFlight.current = false;
       if (mounted.current) setBusy(false);
@@ -222,10 +238,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     void latestHandleLabel.current(async () => ({ qrUrl: url }));
   }, []);
   const qrOutput = useQrScanner(active && !busy, onCode);
-  const outputs = useMemo(
-    () => (qrOutput ? [photoOutput, qrOutput] : [photoOutput]),
-    [photoOutput, qrOutput],
-  );
+  const outputs = useMemo(() => (qrOutput ? [photoOutput, qrOutput] : [photoOutput]), [photoOutput, qrOutput]);
 
   function takePhoto() {
     if (!active || !cameraReady || busy) return;
@@ -258,8 +271,12 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     } catch (error) {
       reportError(error, "label.discard");
       console.warn("Could not discard the pending label", error);
-      if (mounted.current)
-        setPhase({ kind: "error", message: "Couldn’t replace the label. Try again." });
+      if (mounted.current) {
+        setPhase({
+          kind: "error",
+          message: "Couldn’t replace the label. Try again.",
+        });
+      }
     } finally {
       inFlight.current = false;
       if (mounted.current) setBusy(false);
@@ -274,11 +291,12 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       await retryPendingLabel(capture.localId);
     } catch (error) {
       reportError(error, "label.retry");
-      if (mounted.current)
+      if (mounted.current) {
         setPhase({
           kind: "error",
           message: "Couldn’t retry this label. Your scan and label are still on this phone.",
         });
+      }
     } finally {
       inFlight.current = false;
       if (mounted.current) setBusy(false);
@@ -328,7 +346,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
             variant="filled"
             fullWidth
             onPress={() =>
-              router.replace({ pathname: "/result/[scanId]", params: { scanId: scan.scanId } })
+              router.replace({
+                pathname: "/result/[scanId]",
+                params: { scanId: scan.scanId },
+              })
             }
           />
         </StateCard>
@@ -364,22 +385,18 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
         title={network.isInternetReachable === false ? QUEUED_MESSAGE : QUEUED_ONLINE_MESSAGE}
         detail="Your scan and this label are queued together; we’ll identify and read them in order."
       >
-        <GalleryButton
-          label="Back to the scan"
-          variant="filled"
-          fullWidth
-          onPress={() => router.back()}
-        />
+        <GalleryButton label="Back to the scan" variant="filled" fullWidth onPress={() => router.back()} />
       </StateCard>
     );
   }
 
-  if (phase.kind === "capture" && restoring)
+  if (phase.kind === "capture" && restoring) {
     return (
       <StateCard>
         <FormSkeleton label="Loading the label…" />
       </StateCard>
     );
+  }
 
   if (phase.kind === "capture" && phase.restore !== false && scan instanceof Error && !storeOnly) {
     return (
@@ -410,7 +427,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
           label="Enter details myself"
           fullWidth
           onPress={() =>
-            router.replace({ pathname: "/result/[scanId]", params: { scanId, edit: "1" } })
+            router.replace({
+              pathname: "/result/[scanId]",
+              params: { scanId, edit: "1" },
+            })
           }
         />
       </StateCard>
@@ -421,9 +441,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
     return (
       <StateCard title={formError?.message}>
         {!formError && <FormSkeleton label="Loading the label…" />}
-        {formError && (
-          <GalleryButton label="Try again" variant="filled" fullWidth onPress={retryForm} />
-        )}
+        {formError && <GalleryButton label="Try again" variant="filled" fullWidth onPress={retryForm} />}
       </StateCard>
     );
   }
@@ -501,7 +519,10 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
               void retrySharing();
             }}
             onViewSaved={() =>
-              router.push({ pathname: "/saved/[savedId]", params: { savedId: savedId ?? "" } })
+              router.push({
+                pathname: "/saved/[savedId]",
+                params: { savedId: savedId ?? "" },
+              })
             }
           />
         </ScrollView>
@@ -522,12 +543,14 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
       }}
     >
       <ThemedText themeColor="textSecondary">Fill the frame with the museum label.</ThemedText>
-      <CameraPermission
-        compact
-        onImport={importPhoto}
-        loading={active && !cameraReady && !cameraError && !busy}
-      >
-        <View style={{ height: 260, marginHorizontal: -20, backgroundColor: Gallery.fill }}>
+      <CameraPermission compact onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
+        <View
+          style={{
+            height: 260,
+            marginHorizontal: -20,
+            backgroundColor: Gallery.fill,
+          }}
+        >
           <Camera
             style={StyleSheet.absoluteFill}
             device="back"
@@ -581,13 +604,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
         busy={busy}
         onPress={takePhoto}
       />
-      <GalleryButton
-        label="Import a label photo"
-        icon="photo"
-        fullWidth
-        disabled={busy}
-        onPress={importPhoto}
-      />
+      <GalleryButton label="Import a label photo" icon="photo" fullWidth disabled={busy} onPress={importPhoto} />
     </ScrollView>
   );
 }
@@ -607,12 +624,7 @@ function StateCard({
     <ThemedView style={styles.container}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         {illustrated && title ? (
-          <EmptyState
-            inset={false}
-            visual={<EmptyPaper kind="label" />}
-            title={title}
-            detail={detail ?? ""}
-          >
+          <EmptyState inset={false} visual={<EmptyPaper kind="label" />} title={title} detail={detail ?? ""}>
             {children}
           </EmptyState>
         ) : (

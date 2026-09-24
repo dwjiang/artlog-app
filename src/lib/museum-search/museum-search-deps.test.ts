@@ -54,9 +54,7 @@ it("resumes freshly stored exhibition images if the live subscription has not ca
     canContinue: () => true,
     onStage: jest.fn(),
   });
-  expect(runMuseumSearch).toHaveBeenCalledWith(
-    expect.objectContaining({ stored: exhibitionCandidates }),
-  );
+  expect(runMuseumSearch).toHaveBeenCalledWith(expect.objectContaining({ stored: exhibitionCandidates }));
 });
 
 it("restores a freshly confirmed search without another request", async () => {
@@ -68,22 +66,29 @@ it("restores a freshly confirmed search without another request", async () => {
     canContinue: () => true,
     onStage: jest.fn(),
   });
-  expect(result).toEqual({ stage: "done", flow: verified, confirmedAt: verified.updatedAt });
+  expect(result).toEqual({
+    stage: "done",
+    flow: verified,
+    confirmedAt: verified.updatedAt,
+  });
   expect(runMuseumSearch).not.toHaveBeenCalled();
   expect(convex.action).not.toHaveBeenCalled();
 });
 
 it("restores a freshly completed none result without searching again", async () => {
-  jest
-    .mocked(convex.query)
-    .mockResolvedValue({ museumSearch: { stage: "none", reason: "no_match", updatedAt: 1 } });
+  jest.mocked(convex.query).mockResolvedValue({
+    museumSearch: { stage: "none", reason: "no_match", updatedAt: 1 },
+  });
   const input = {
     scanId: "scan-4" as Id<"scans">,
     localId: "capture-4",
     canContinue: () => true,
     onStage: jest.fn(),
   };
-  expect(await runMuseumSearchForScan(input)).toEqual({ stage: "none", reason: "no_match" });
+  expect(await runMuseumSearchForScan(input)).toEqual({
+    stage: "none",
+    reason: "no_match",
+  });
   expect(runMuseumSearch).not.toHaveBeenCalled();
 });
 
@@ -97,12 +102,12 @@ it("restores an edited confirmation from the latest query without searching agai
       title: { value: "My title", evidence: "ocr" as const, locked: false },
     },
   };
-  jest
-    .mocked(loadLabelDraft)
-    .mockResolvedValue(setFieldValue(formStateFromFlow(verified), "title", "My title"));
-  jest
-    .mocked(convex.query)
-    .mockResolvedValue({ scanId: "scan-5", museumSearch: confirmed, labelFlow: flow });
+  jest.mocked(loadLabelDraft).mockResolvedValue(setFieldValue(formStateFromFlow(verified), "title", "My title"));
+  jest.mocked(convex.query).mockResolvedValue({
+    scanId: "scan-5",
+    museumSearch: confirmed,
+    labelFlow: flow,
+  });
   expect(
     await runMuseumSearchForScan({
       scanId: "scan-5" as Id<"scans">,

@@ -14,11 +14,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Colors } from "@/constants/theme";
-import {
-  interpolateCorners,
-  perspectiveMatrix,
-  revealGeometry,
-} from "@/lib/capture/reveal-geometry";
+import { interpolateCorners, perspectiveMatrix, revealGeometry } from "@/lib/capture/reveal-geometry";
 import type { CapturePresentation } from "@/lib/capture/use-capture";
 
 export const HIGHLIGHT_MS = 150;
@@ -91,7 +87,7 @@ export function CaptureReveal({
         ),
       ),
     );
-    if (!reduced)
+    if (!reduced) {
       shine.set(
         withDelay(
           HIGHLIGHT_MS + SHINE_DELAY_MS,
@@ -107,32 +103,26 @@ export function CaptureReveal({
           ),
         ),
       );
+    }
     return () => {
       cancelAnimation(progress);
       cancelAnimation(highlight);
       cancelAnimation(shine);
     };
-  }, [
-    displayed,
-    painting,
-    layout.width,
-    layout.height,
-    geometry,
-    reduced,
-    finish,
-    highlight,
-    progress,
-    shine,
-  ]);
+  }, [displayed, painting, layout.width, layout.height, geometry, reduced, finish, highlight, progress, shine]);
 
-  const backgroundStyle = useAnimatedStyle(() => ({ opacity: 1 - progress.get() }));
-  const liftedBackgroundStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
-  const shadowStyle = useAnimatedStyle(() => ({ opacity: reduced ? 0 : progress.get() }));
+  const backgroundStyle = useAnimatedStyle(() => ({
+    opacity: 1 - progress.get(),
+  }));
+  const liftedBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: progress.get(),
+  }));
+  const shadowStyle = useAnimatedStyle(() => ({
+    opacity: reduced ? 0 : progress.get(),
+  }));
   const artworkStyle = useAnimatedStyle(() => {
     if (!geometry) return { opacity: 0 };
-    const corners = reduced
-      ? geometry.to
-      : interpolateCorners(geometry.from, geometry.to, progress.get());
+    const corners = reduced ? geometry.to : interpolateCorners(geometry.from, geometry.to, progress.get());
     const matrix = perspectiveMatrix(geometry.width, geometry.height, corners);
     return {
       opacity: matrix ? (reduced ? progress.get() : 1) : 0,
@@ -144,7 +134,9 @@ export function CaptureReveal({
   }));
   const shineStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: (geometry?.width ?? 0) * 0.46 * (-1.7 + shine.get() * 4.9) },
+      {
+        translateX: (geometry?.width ?? 0) * 0.46 * (-1.7 + shine.get() * 4.9),
+      },
       { skewX: "-18deg" },
     ],
   }));
@@ -153,9 +145,7 @@ export function CaptureReveal({
     <View
       pointerEvents="none"
       style={styles.container}
-      onLayout={({ nativeEvent: { layout: next } }) =>
-        setLayout({ width: next.width, height: next.height })
-      }
+      onLayout={({ nativeEvent: { layout: next } }) => setLayout({ width: next.width, height: next.height })}
     >
       <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
         <Image
@@ -183,9 +173,7 @@ export function CaptureReveal({
         </Animated.View>
       )}
       {geometry && crop && (
-        <Animated.View
-          style={[styles.artwork, { width: geometry.width, height: geometry.height }, artworkStyle]}
-        >
+        <Animated.View style={[styles.artwork, { width: geometry.width, height: geometry.height }, artworkStyle]}>
           <Animated.View style={[StyleSheet.absoluteFill, styles.shadow, shadowStyle]} />
           <View style={[StyleSheet.absoluteFill, styles.crop]}>
             <Image
@@ -229,7 +217,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     overflow: "hidden",
   },
-  artwork: { position: "absolute", top: 0, left: 0, transformOrigin: [0, 0, 0] },
+  artwork: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    transformOrigin: [0, 0, 0],
+  },
   crop: { overflow: "hidden" },
   wash: { backgroundColor: Colors.light.background, opacity: 0.65 },
   shadow: {

@@ -5,7 +5,11 @@ import { reportError } from "@/lib/observability";
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 
 it("keeps the ghost until the image loads and starts a fresh ghost for a changed source", async () => {
-  const props = { uri: "file:///first.jpg", label: "Artwork", style: { width: 120, height: 160 } };
+  const props = {
+    uri: "file:///first.jpg",
+    label: "Artwork",
+    style: { width: 120, height: 160 },
+  };
   const view = await render(<LoadingImage {...props} />);
   expect(screen.getByRole("progressbar", { name: "Loading image: Artwork" })).toBeOnTheScreen();
   expect(screen.queryByText(/Loading/)).toBeNull();

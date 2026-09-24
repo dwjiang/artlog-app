@@ -7,12 +7,7 @@ import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { Gallery, Spacing } from "@/constants/theme";
-import {
-  constrainLayout,
-  wallAspect,
-  type WallLayout,
-  type WallPiece,
-} from "@/lib/wall/wall-layout";
+import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
 import { WallArtwork } from "./wall-artwork";
 import { GalleryButton } from "./gallery-button";
 import { WallFramePicker } from "./wall-options";
@@ -57,12 +52,7 @@ function WallSizeSlider({
     if (!disabled && latest.current !== width) onChange(latest.current);
   }
   return (
-    <Host
-      matchContents={{ vertical: true }}
-      colorScheme="light"
-      seedColor={Gallery.accent}
-      style={{ width: "100%" }}
-    >
+    <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent} style={{ width: "100%" }}>
       <Slider
         value={value}
         min={0.16}
@@ -187,9 +177,7 @@ export function WallArtworkSheet({
                   onPress={() => change({ y: piece.layout.y + 0.025 })}
                 />
               </View>
-              <Text style={styles.caption}>
-                You can also hold and drag the artwork on your wall.
-              </Text>
+              <Text style={styles.caption}>You can also hold and drag the artwork on your wall.</Text>
             </View>
             <View style={[styles.section, styles.removal]}>
               <GalleryButton
@@ -201,9 +189,7 @@ export function WallArtworkSheet({
                 fullWidth
                 destructive
               />
-              <Text style={[styles.caption, { textAlign: "center" }]}>
-                The artwork stays in your collection.
-              </Text>
+              <Text style={[styles.caption, { textAlign: "center" }]}>The artwork stays in your collection.</Text>
             </View>
           </>
         )}
@@ -238,6 +224,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.separator,
   },
-  directions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12 },
+  directions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   removal: { paddingTop: 0 },
 });

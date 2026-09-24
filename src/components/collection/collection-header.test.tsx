@@ -3,11 +3,15 @@ import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { CollectionHeader } from "./collection-header";
 
 const mockPush = jest.fn();
-jest.mock("expo-router", () => ({ router: { push: (...args: unknown[]) => mockPush(...args) } }));
+jest.mock("expo-router", () => ({
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+}));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({ data: undefined }) }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({ data: undefined }),
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -36,7 +40,10 @@ it("asks for sign-in only when the guest chooses to share a wall", async () => {
   await render(<CollectionHeader artworkCount={1} />);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Share your wall" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "wall" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "wall" },
+  });
 });
 
 it("keeps an empty guest collection focused on starting and settings", async () => {

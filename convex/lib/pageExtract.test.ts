@@ -29,9 +29,7 @@ describe("page extraction", () => {
       medium: "bronze",
       accession: "1917.42",
     });
-    expect(page.imageUrls).toEqual([
-      "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_web.jpg",
-    ]);
+    expect(page.imageUrls).toEqual(["https://openaccess-cdn.clevelandart.org/1917.42/1917.42_web.jpg"]);
   });
 
   it("falls back to og:title, meta author, a cued accession and og:image", () => {
@@ -53,20 +51,22 @@ describe("page extraction", () => {
     );
     expect(page.fields.accession).toBeUndefined();
     expect(
-      extractPage(
-        "<html><body>Bequest, 1998. Object 1998.325.2 hangs in Gallery 819.</body></html>",
-      ).fields.accession,
+      extractPage("<html><body>Bequest, 1998. Object 1998.325.2 hangs in Gallery 819.</body></html>").fields.accession,
     ).toBe("1998.325.2");
-    expect(
-      extractPage("<html><body>Bequest of Sam Salz, 1998.325.2</body></html>").fields.accession,
-    ).toBe("1998.325.2");
+    expect(extractPage("<html><body>Bequest of Sam Salz, 1998.325.2</body></html>").fields.accession).toBe(
+      "1998.325.2",
+    );
   });
 
   it("reports pages without artwork data and keeps the whole title when it has no site suffix", () => {
     const page = extractPage(plainPage);
     expect(page.source).toBe("meta");
     expect(page.fields).toEqual({ title: "Visit us" });
-    expect(extractPage("<html></html>")).toEqual({ fields: {}, imageUrls: [], source: "none" });
+    expect(extractPage("<html></html>")).toEqual({
+      fields: {},
+      imageUrls: [],
+      source: "none",
+    });
   });
 
   it("decodes named, decimal and hex entities and leaves unknown ones alone", () => {
@@ -79,21 +79,15 @@ describe("page extraction", () => {
     expect(hasArtworkMetadata(extractPage(jsonLdPage))).toBe(true);
     expect(hasArtworkMetadata(extractPage(metaPage))).toBe(true);
     expect(hasArtworkMetadata(extractPage(plainPage))).toBe(false);
+    expect(hasArtworkMetadata(extractPage('<title>Visit us</title><meta name="author" content="Museum staff">'))).toBe(
+      false,
+    );
     expect(
-      hasArtworkMetadata(
-        extractPage('<title>Visit us</title><meta name="author" content="Museum staff">'),
-      ),
+      hasArtworkMetadata(extractPage('<script type="application/ld+json">{"@type":"VisualArtwork"}</script>')),
     ).toBe(false);
     expect(
       hasArtworkMetadata(
-        extractPage('<script type="application/ld+json">{"@type":"VisualArtwork"}</script>'),
-      ),
-    ).toBe(false);
-    expect(
-      hasArtworkMetadata(
-        extractPage(
-          '<title>Visit us</title><script type="application/ld+json">{"@type":"VisualArtwork"}</script>',
-        ),
+        extractPage('<title>Visit us</title><script type="application/ld+json">{"@type":"VisualArtwork"}</script>'),
       ),
     ).toBe(false);
   });
@@ -103,8 +97,6 @@ describe("page extraction", () => {
       "<head>",
       '<head><meta property="og:image" content="https://www.clevelandart.org/unrelated.jpg">',
     );
-    expect(extractPage(html).imageUrls).toEqual([
-      "https://openaccess-cdn.clevelandart.org/1917.42/1917.42_web.jpg",
-    ]);
+    expect(extractPage(html).imageUrls).toEqual(["https://openaccess-cdn.clevelandart.org/1917.42/1917.42_web.jpg"]);
   });
 });

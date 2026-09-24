@@ -15,9 +15,7 @@ export function testVector(similarity = 1): number[] {
   return vector;
 }
 
-export async function seedDevice(
-  t: Harness,
-): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
+export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
   const userId = await t.run((ctx) => ctx.db.insert("users", { isAnonymous: true }));
   const sessionId = await t.run((ctx) =>
     ctx.db.insert("authSessions", {
@@ -25,7 +23,10 @@ export async function seedDevice(
       expirationTime: Date.now() + 60 * 60 * 1000,
     }),
   );
-  const user = { userId, as: t.withIdentity({ subject: `${userId}|${sessionId}` }) };
+  const user = {
+    userId,
+    as: t.withIdentity({ subject: `${userId}|${sessionId}` }),
+  };
   const deviceId = await t.run((ctx) =>
     ctx.db.insert("devices", {
       authUserId: user.userId,
@@ -113,18 +114,21 @@ export async function seedArtworkWithObject(
       extractedFrom: "synthetic fixture",
     });
   }
-  if (options.placement)
+  if (options.placement) {
     await ctx.db.insert("placements", {
       identityStatus: options.object?.identityStatus ?? "established",
       objectId,
       ...options.placement,
     });
+  }
   return { artworkId, objectId, vectorId };
 }
 
 export async function seedScan(
   ctx: MutationCtx,
-  overrides: Partial<Omit<Doc<"scans">, "_id" | "_creationTime">> & { deviceId: Id<"devices"> },
+  overrides: Partial<Omit<Doc<"scans">, "_id" | "_creationTime">> & {
+    deviceId: Id<"devices">;
+  },
 ): Promise<Id<"scans">> {
   const now = Date.now();
   return ctx.db.insert("scans", {

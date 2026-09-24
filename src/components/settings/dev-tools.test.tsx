@@ -17,11 +17,15 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 jest.mock("convex/react", () => ({ useMutation: () => mockAssertSmoke }));
-jest.mock("@/lib/app-attest", () => ({ getAppAttest: () => mockGetAppAttest() }));
+jest.mock("@/lib/app-attest", () => ({
+  getAppAttest: () => mockGetAppAttest(),
+}));
 jest.mock("@/lib/attested-write", () => ({
   signPayload: (...args: unknown[]) => mockSignPayload(...args),
 }));
-jest.mock("@/lib/embed/embedder", () => ({ embedder: { warmUp: () => mockWarmUp() } }));
+jest.mock("@/lib/embed/embedder", () => ({
+  embedder: { warmUp: () => mockWarmUp() },
+}));
 jest.mock("@/lib/embed/run-calibration-export", () => ({
   runCalibrationExport: (...args: unknown[]) => mockRunCalibrationExport(...args),
 }));
@@ -41,7 +45,11 @@ beforeEach(() => {
     assertionBase64: "assertion",
     payloadJson: "{}",
   });
-  mockWarmUp.mockResolvedValue({ loadMs: 4100.4, predictMs: 66.2, alreadyLoaded: false });
+  mockWarmUp.mockResolvedValue({
+    loadMs: 4100.4,
+    predictMs: 66.2,
+    alreadyLoaded: false,
+  });
 });
 
 it("shows accepted and rejected replay results using the exact same signed request", async () => {
@@ -77,9 +85,7 @@ it("shows signing errors and makes the check available again", async () => {
 
 it("shows the embedding model load and prediction times once the warm-up finishes", async () => {
   await render(<DevTools attested />);
-  expect(
-    await screen.findByText("Embedding model: ready · load 4100 ms · predict 66 ms"),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("Embedding model: ready · load 4100 ms · predict 66 ms")).toBeOnTheScreen();
   mockWarmUp.mockRejectedValue(new Error("The CoreML model asset is missing from this build"));
   await render(<DevTools attested />);
   expect(
@@ -101,7 +107,9 @@ it("exports the calibration embeddings, showing progress while it runs and the r
   expect(screen.getByRole("button", { name: "Export calibration embeddings" })).toBeDisabled();
   expect(screen.getByText("1/2 embeddings")).toBeOnTheScreen();
   expect(
-    screen.getByRole("progressbar", { name: "Export calibration embeddings in progress" }),
+    screen.getByRole("progressbar", {
+      name: "Export calibration embeddings in progress",
+    }),
   ).toBeOnTheScreen();
   await act(async () => {
     finish({
@@ -109,9 +117,7 @@ it("exports the calibration embeddings, showing progress while it runs and the r
       report: { count: 2, embedMedianMs: 66.44, device: "iPhone17,1" },
     });
   });
-  expect(
-    screen.getByText("Calibration: 2 embeddings · median 66.4 ms · iPhone17,1"),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Calibration: 2 embeddings · median 66.4 ms · iPhone17,1")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Export calibration embeddings" })).toBeEnabled();
   expect(mockRunCalibrationExport).toHaveBeenCalledTimes(1);
 });
@@ -167,7 +173,9 @@ it("shows ORB parity errors and makes the check available again", async () => {
 it("persists the timings switch and hides capture timings when returning to the scan", async () => {
   await setSetting("dev-timings", "true");
   const view = await render(<DevTools attested />);
-  const toggle = await screen.findByRole("switch", { name: "Show capture timings" });
+  const toggle = await screen.findByRole("switch", {
+    name: "Show capture timings",
+  });
   expect(toggle).toBeChecked();
   await fireEvent.press(toggle);
   expect(await getSetting("dev-timings")).toBe("false");

@@ -14,7 +14,9 @@ jest.mock("convex/react", () => ({
   useMutation: (query: FunctionReference<"mutation">) => (args: unknown) =>
     mockMutate(jest.requireActual("convex/server").getFunctionName(query), args),
 }));
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: mockSummary, refresh: mockRefresh }),
   useCursorPages: () => ({
@@ -91,7 +93,12 @@ it("keeps the like state and exposes retry after a failed write", async () => {
 });
 
 it("lets guests read comments and asks them to sign in before reacting", async () => {
-  mockSession = { ...mockSession, status: "signed-out", profileId: undefined, token: null };
+  mockSession = {
+    ...mockSession,
+    status: "signed-out",
+    profileId: undefined,
+    token: null,
+  };
   mockComments = [
     {
       commentId: "comment",
@@ -106,7 +113,10 @@ it("lets guests read comments and asks them to sign in before reacting", async (
   expect(screen.getByText("Beautiful light.")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Add a comment")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "reactions" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "reactions" },
+  });
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
@@ -118,9 +128,7 @@ it("preserves a failed comment draft and reuses its request ID on retry", async 
   await fireEvent.changeText(screen.getByLabelText("Add a comment"), "A familiar favorite.");
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
   expect(screen.getByLabelText("Add a comment").props.value).toBe("A familiar favorite.");
-  expect(
-    screen.getByText("Couldn’t post your comment. Your text is still here."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Couldn’t post your comment. Your text is still here.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
   expect(mockMutate.mock.calls[0]).toEqual(mockMutate.mock.calls[1]);
   expect(screen.getByLabelText("Add a comment").props.value).toBe("");

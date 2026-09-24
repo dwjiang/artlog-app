@@ -14,13 +14,7 @@ import { useAccount } from "@/lib/account/use-account";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { AppleSignInAction } from "./apple-sign-in-action";
 
-export function SignInScreen({
-  context = "account",
-  visitId,
-}: {
-  context?: SignInContext;
-  visitId?: string;
-}) {
+export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
   const state = useAccount();
   const { account, busy } = state;
   const owner = useLocalOwner();
@@ -30,13 +24,15 @@ export function SignInScreen({
   const copy = signInContexts[context];
   const initialDetent = height < 760 ? 0.8 : context === "visit" ? 0.5 : 0.62;
   const continuingVisit = context === "visit" && !!visitId;
-  const waitingForJournal =
-    continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
+  const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
   useEffect(() => {
     if (!account?.linked || busy || waitingForJournal) return;
-    if (continuingVisit)
-      router.replace({ pathname: "/visit-share/[visitId]", params: { visitId } });
-    else router.back();
+    if (continuingVisit) {
+      router.replace({
+        pathname: "/visit-share/[visitId]",
+        params: { visitId },
+      });
+    } else router.back();
   }, [account?.linked, busy, continuingVisit, router, visitId, waitingForJournal]);
 
   return (
@@ -56,12 +52,7 @@ export function SignInScreen({
           <View style={styles.artworks}>
             <ArtworkStrip />
           </View>
-          <GalleryIconButton
-            label="Close sign-in"
-            icon="xmark"
-            disabled={busy}
-            onPress={() => router.back()}
-          />
+          <GalleryIconButton label="Close sign-in" icon="xmark" disabled={busy} onPress={() => router.back()} />
         </View>
         <Text
           accessibilityRole="header"
@@ -95,9 +86,20 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  preview: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 4 },
+  preview: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 4,
+  },
   artworks: { flex: 1 },
-  title: { ...Typography.display, fontSize: 36, lineHeight: 42, maxWidth: 300, color: Gallery.ink },
+  title: {
+    ...Typography.display,
+    fontSize: 36,
+    lineHeight: 42,
+    maxWidth: 300,
+    color: Gallery.ink,
+  },
   detail: { ...Typography.body, color: Gallery.muted },
   actions: { gap: 8, paddingTop: 8 },
   preparing: { minHeight: 50, alignItems: "center", gap: 8 },

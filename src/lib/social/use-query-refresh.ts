@@ -13,7 +13,11 @@ export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
 ) {
   const token = useAuthToken();
   const key = `${scope}:${getFunctionName(query)}:${JSON.stringify(args)}`;
-  const [state, setState] = useState<{ key: string; busy: boolean; error?: Error }>({
+  const [state, setState] = useState<{
+    key: string;
+    busy: boolean;
+    error?: Error;
+  }>({
     key,
     busy: false,
   });
@@ -44,8 +48,9 @@ export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
     try {
       await client.query(query, args);
     } catch (cause) {
-      if (session.isCurrent() && !controller.signal.aborted)
+      if (session.isCurrent() && !controller.signal.aborted) {
         reportError(cause, `social.query.${getFunctionName(query)}`);
+      }
       error = cause instanceof Error ? cause : new Error("Couldn’t refresh. Try again.", { cause });
     } finally {
       if (session.isCurrent() && !controller.signal.aborted) {

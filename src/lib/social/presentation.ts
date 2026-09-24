@@ -1,11 +1,7 @@
 import { isCalendarDate, LIMITS, normalizeSearch } from "@/shared/journal/limits";
 import type { FriendshipAction, Relationship } from "./types";
 
-export function visitDate(
-  value: string,
-  locale?: string,
-  format: "full" | "short" = "full",
-): string {
+export function visitDate(value: string, locale?: string, format: "full" | "short" = "full"): string {
   if (!isCalendarDate(value)) return "Date unavailable";
   return new Intl.DateTimeFormat(locale, {
     month: format === "short" ? "short" : "long",
@@ -28,10 +24,10 @@ export function initials(name: string): string {
 
 export function peopleSearch(value: string): string | undefined {
   const normalized = normalizeSearch(value);
-  return value.length <= LIMITS.searchMax &&
-    normalized.length >= LIMITS.searchMin &&
-    normalized.length <= LIMITS.searchMax &&
-    normalized.split(" ").length <= 16
+  return value.length <= LIMITS.searchMax
+    && normalized.length >= LIMITS.searchMin
+    && normalized.length <= LIMITS.searchMax
+    && normalized.split(" ").length <= 16
     ? normalized
     : undefined;
 }
@@ -39,7 +35,8 @@ export function peopleSearch(value: string): string | undefined {
 export function friendshipActions(state: Relationship, viewerId: string): FriendshipAction[] {
   if (state.blocked) return [];
   if (state.state === "accepted") return ["remove"];
-  if (state.state === "pending")
+  if (state.state === "pending") {
     return state.requesterId === viewerId ? ["cancel"] : ["accept", "decline"];
+  }
   return ["request"];
 }

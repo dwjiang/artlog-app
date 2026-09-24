@@ -10,12 +10,7 @@ import { Alert, ScrollView, TextInput, View } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { applyAlbum } from "@/db/repos/artwork-album";
-import {
-  editSavedWork,
-  listSavedWorks,
-  selectSavedWork,
-  upsertFromRemote,
-} from "@/db/repos/saved-works";
+import { editSavedWork, listSavedWorks, selectSavedWork, upsertFromRemote } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
@@ -37,25 +32,12 @@ export function IdentifyArtworkScreen() {
     />
   );
 }
-function ArtworkQuery({
-  owner,
-  savedId,
-  onRetry,
-}: {
-  owner: string;
-  savedId: string;
-  onRetry: () => void;
-}) {
-  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [
-    savedId,
-    owner,
-  ]);
+function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   useEffect(() => {
     if (error) reportError(error, "collection.artwork.load");
   }, [error]);
-  const work = data.find(
-    (row) => row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? (
     <Editor key={`${owner}:${savedId}`} work={work} />
   ) : (
@@ -74,14 +56,16 @@ function Editor({ work }: { work: SavedWork }) {
     [error, setError] = useState<string>();
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
   useEffect(() => {
-    if (works.error) reportError(works.error, "collection.merge-destinations.load");
+    if (works.error) {
+      reportError(works.error, "collection.merge-destinations.load");
+    }
   }, [works.error]);
   const matches = works.data.filter(
     (target) =>
-      target.owner === work.owner &&
-      target.localId !== work.localId &&
-      target.deletedAt === null &&
-      `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase()),
+      target.owner === work.owner
+      && target.localId !== work.localId
+      && target.deletedAt === null
+      && `${target.title} ${target.artist}`.toLowerCase().includes(search.toLowerCase()),
   );
   async function merge(target: SavedWork) {
     const session = captureOwner();
@@ -92,7 +76,9 @@ function Editor({ work }: { work: SavedWork }) {
     setBusy(true);
     setError(undefined);
     try {
-      await flushCollectionMedia({ saveLocalIds: [work.localId, target.localId] });
+      await flushCollectionMedia({
+        saveLocalIds: [work.localId, target.localId],
+      });
       if (!session.isCurrent()) return;
       const result = await convex.mutation(api.artworkAlbums.merge, {
         scope: session.scope,
@@ -102,7 +88,10 @@ function Editor({ work }: { work: SavedWork }) {
       if (!session.isCurrent()) return;
       await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner));
       applyAlbum(result.photos, result.encounters, session.owner);
-      router.replace({ pathname: "/saved/[savedId]", params: { savedId: target.localId } });
+      router.replace({
+        pathname: "/saved/[savedId]",
+        params: { savedId: target.localId },
+      });
     } catch (cause) {
       reportError(cause, "collection.artwork.merge");
       setError(
@@ -158,7 +147,14 @@ function Editor({ work }: { work: SavedWork }) {
           />
         </View>
       ))}
-      <View style={{ borderTopWidth: 1, borderColor: Gallery.separator, paddingTop: 24, gap: 8 }}>
+      <View
+        style={{
+          borderTopWidth: 1,
+          borderColor: Gallery.separator,
+          paddingTop: 24,
+          gap: 8,
+        }}
+      >
         <GalleryButton
           label="This is an artwork I already saved"
           disabled={busy}
@@ -193,9 +189,7 @@ function Editor({ work }: { work: SavedWork }) {
               <ListSkeleton label="Loading artworks…" rows={3} />
             ) : !matches.length ? (
               <Text style={{ color: Gallery.muted }}>
-                {search
-                  ? "No matching artworks. Try another title or artist."
-                  : "No other saved artworks to combine."}
+                {search ? "No matching artworks. Try another title or artist." : "No other saved artworks to combine."}
               </Text>
             ) : null}
             {matches.map((target) => (
@@ -244,9 +238,7 @@ function Editor({ work }: { work: SavedWork }) {
             router.back();
           } catch (cause) {
             reportError(cause, "collection.artwork.update");
-            setError(
-              "Your artwork details could not be saved. Your edits are still here. Try again.",
-            );
+            setError("Your artwork details could not be saved. Your edits are still here. Try again.");
           }
         }}
       />

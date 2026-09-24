@@ -8,11 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
-import {
-  chooseProfilePhoto,
-  profilePhotoBytes,
-  removeProfilePhotoDraft,
-} from "@/lib/social/profile-photo";
+import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { showToast } from "@/lib/ui/toast";
@@ -25,13 +21,9 @@ import { SocialGate, SocialState } from "./social-state";
 
 export function EditProfileScreen() {
   const session = useSocialSession();
-  const profile = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const profile = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   if (session.status !== "ready") return <SocialGate session={session} />;
-  if (profile.data === null)
+  if (profile.data === null) {
     return (
       <SocialState
         title="Profile unavailable."
@@ -40,7 +32,8 @@ export function EditProfileScreen() {
         onAction={() => router.back()}
       />
     );
-  if (!profile.data)
+  }
+  if (!profile.data) {
     return (
       <SocialState
         title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
@@ -49,6 +42,7 @@ export function EditProfileScreen() {
         onAction={profile.refresh}
       />
     );
+  }
   return <EditProfileForm key={session.key} profile={profile.data} />;
 }
 
@@ -85,7 +79,9 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       }
     } catch (cause) {
       reportError(cause, "profile.photo.choose");
-      if (mounted.current) setError("This photo could not be opened. Try another image.");
+      if (mounted.current) {
+        setError("This photo could not be opened. Try another image.");
+      }
     } finally {
       if (mounted.current) setOperation(undefined);
     }
@@ -109,8 +105,9 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       }
     } catch (cause) {
       reportError(cause, "profile.update");
-      if (owner.isCurrent() && mounted.current)
+      if (owner.isCurrent() && mounted.current) {
         setError(socialErrorMessage(cause) ?? "Your profile was not saved. Please try again.");
+      }
     } finally {
       if (owner.isCurrent() && mounted.current) setOperation(undefined);
     }
@@ -119,11 +116,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
   return (
     <>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          disabled={busy}
-          tintColor={Gallery.accent}
-          onPress={() => router.back()}
-        >
+        <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.accent} onPress={() => router.back()}>
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -159,7 +152,12 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
         </View>
         {[
           { label: "Name", value: name, change: setName, max: LIMITS.name },
-          { label: "Introduction", value: bio, change: setBio, max: LIMITS.bio },
+          {
+            label: "Introduction",
+            value: bio,
+            change: setBio,
+            max: LIMITS.bio,
+          },
         ].map((field) => (
           <View key={field.label} style={{ gap: 8 }}>
             <Text>{field.label}</Text>

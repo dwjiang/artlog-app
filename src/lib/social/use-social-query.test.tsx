@@ -23,16 +23,12 @@ jest.mock("convex/react", () => ({
   useQueries: (requests: typeof mockRequests) => {
     mockRequests = requests;
     return Object.fromEntries(
-      Object.entries(requests).map(([key, request]) => [
-        key,
-        mockResults[request.args.cursor ?? "first"],
-      ]),
+      Object.entries(requests).map(([key, request]) => [key, mockResults[request.args.cursor ?? "first"]]),
     );
   },
 }));
 const identify = (profile: PublicProfile) => profile.profileId;
-const select = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) =>
-  result;
+const select = (result: { page: PublicProfile[]; cursor: string | null; isDone: boolean }) => result;
 const page = (name: string, cursor: string | null, isDone = false) => ({
   page: [{ profileId: name, name, username: name, publishedWallCount: 0 }],
   cursor,
@@ -48,13 +44,7 @@ it("gates requests and clears content when the account changes or becomes unavai
   mockResults.first = page("alex", "next");
   const view = await renderHook(
     ({ scope, enabled }: { scope: string; enabled: boolean }) =>
-      useCursorPages(
-        api.profiles.search,
-        enabled ? { query: "alex" } : "skip",
-        scope,
-        select,
-        identify,
-      ),
+      useCursorPages(api.profiles.search, enabled ? { query: "alex" } : "skip", scope, select, identify),
     { initialProps: { scope: "account-a", enabled: true } },
   );
   expect(view.result.current.items[0].name).toBe("alex");
@@ -93,7 +83,11 @@ it("keeps delivered pages on screen through a pull-to-refresh, then restarts fro
   expect(view.result.current.canLoadMore).toBe(false);
   expect(mockRequests).toEqual({});
   expect(getFunctionName(mockHttpQuery.mock.calls[0][0])).toBe("profiles:search");
-  expect(mockHttpQuery.mock.calls[0][1]).toEqual({ query: "art", cursor: null, limit: 10 });
+  expect(mockHttpQuery.mock.calls[0][1]).toEqual({
+    query: "art",
+    cursor: null,
+    limit: 10,
+  });
   // The fresh subscription has not answered yet: the old pages stay up and the pull indicator stays engaged.
   mockResults = {};
   await act(() => finish());
@@ -148,11 +142,7 @@ it("drops dependent subscriptions when reactive pagination cursors change", asyn
 it("catches query errors and suppresses inaccessible data", async () => {
   mockResults.first = new ConvexError({ code: "not_found" });
   const { result } = await renderHook(() =>
-    useSocialQuery(
-      api.sharedVisits.getArtwork,
-      { postId: "post", itemId: "item" as never },
-      "account-a",
-    ),
+    useSocialQuery(api.sharedVisits.getArtwork, { postId: "post", itemId: "item" as never }, "account-a"),
   );
   expect(result.current.data).toBeUndefined();
   expect(result.current.error).toBeInstanceOf(ConvexError);
@@ -167,8 +157,7 @@ it("ignores a stale refresh failure after changing the query scope", async () =>
       }),
   );
   const view = await renderHook(
-    ({ scope }: { scope: string }) =>
-      useSocialQuery(api.profiles.getPublic, { profileId: scope as never }, scope),
+    ({ scope }: { scope: string }) => useSocialQuery(api.profiles.getPublic, { profileId: scope as never }, scope),
     { initialProps: { scope: "old" } },
   );
   await act(() => view.result.current.refresh());
@@ -183,11 +172,7 @@ it("restores the live subscription when arguments return during a refresh", asyn
   mockHttpQuery.mockImplementation(() => new Promise(() => {}));
   const view = await renderHook(
     ({ enabled }: { enabled: boolean }) =>
-      useSocialQuery(
-        api.profiles.getPublic,
-        enabled ? { profileId: "alex" as never } : "skip",
-        "account-a",
-      ),
+      useSocialQuery(api.profiles.getPublic, enabled ? { profileId: "alex" as never } : "skip", "account-a"),
     { initialProps: { enabled: true } },
   );
   await act(() => view.result.current.refresh());
@@ -218,7 +203,10 @@ it("shows live data that arrives after a failed refresh instead of the stale err
 });
 
 it("keeps loaded rows visible while retrying a failed later page", async () => {
-  mockResults = { first: page("alex", "next"), next: new TypeError("Network request failed") };
+  mockResults = {
+    first: page("alex", "next"),
+    next: new TypeError("Network request failed"),
+  };
   const view = await renderHook(() =>
     useCursorPages(api.profiles.search, { query: "art" }, "account-a", select, identify),
   );
@@ -235,11 +223,7 @@ it("reports subscription failures with the query name and no private query argum
   const failure = new Error("Unexpected profile query failure");
   mockResults.first = failure;
   const view = await renderHook(() =>
-    useSocialQuery(
-      api.profiles.getPublic,
-      { profileId: "private-profile-id" as never },
-      "private-account-scope",
-    ),
+    useSocialQuery(api.profiles.getPublic, { profileId: "private-profile-id" as never }, "private-account-scope"),
   );
   expect(view.result.current.error).toBe(failure);
   expect(reportError).toHaveBeenCalledWith(failure, "social.query.profiles:getPublic");
@@ -250,15 +234,12 @@ it("reports subscription failures with the query name and no private query argum
 
 it("reports failed later pages without including the cursor or search text", async () => {
   const failure = new Error("Unexpected page failure");
-  mockResults = { first: page("alex", "private-cursor"), "private-cursor": failure };
+  mockResults = {
+    first: page("alex", "private-cursor"),
+    "private-cursor": failure,
+  };
   const view = await renderHook(() =>
-    useCursorPages(
-      api.profiles.search,
-      { query: "private search text" },
-      "private-scope",
-      select,
-      identify,
-    ),
+    useCursorPages(api.profiles.search, { query: "private search text" }, "private-scope", select, identify),
   );
   await act(() => view.result.current.loadMore());
   expect(view.result.current.error).toBe(failure);

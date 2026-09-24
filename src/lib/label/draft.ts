@@ -25,10 +25,7 @@ export function saveLabelDraft(
   museumSearchUpdatedAt?: number,
   owner = getLocalOwner(),
 ): Promise<void> {
-  return setSetting(
-    key(scanId, owner),
-    JSON.stringify({ state, museumSearchUpdatedAt } satisfies LabelDraft),
-  );
+  return setSetting(key(scanId, owner), JSON.stringify({ state, museumSearchUpdatedAt } satisfies LabelDraft));
 }
 
 export function clearLabelDraft(scanId: Id<"scans">, owner = getLocalOwner()): Promise<void> {

@@ -3,7 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { verifyAppleIdentityToken } from "./appleToken";
 
-vi.mock("jose", () => ({ createRemoteJWKSet: vi.fn(() => "apple-keys"), jwtVerify: vi.fn() }));
+vi.mock("jose", () => ({
+  createRemoteJWKSet: vi.fn(() => "apple-keys"),
+  jwtVerify: vi.fn(),
+}));
 
 beforeEach(() => {
   vi.stubEnv("APPLE_BUNDLE_ID", "app.artlog.ios");

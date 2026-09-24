@@ -9,15 +9,21 @@ import { ImageSkeleton } from "@/components/loading-skeleton";
 import { reportError } from "@/lib/observability";
 
 type Media = NonNullable<FunctionReturnType<typeof api.walls.getArtwork>>["artwork"]["media"];
-type Props = { media: Media; label: string; width: number; height?: number; token?: string | null };
+type Props = {
+  media: Media;
+  label: string;
+  width: number;
+  height?: number;
+  token?: string | null;
+};
 
 export function DisplayMedia(props: Props) {
   const { media, token } = props;
   let uri: string | undefined;
   if (media.kind === "catalog") uri = media.url;
   else if (
-    (media.kind === "derivative" || media.kind === "photo") &&
-    (media.reference.kind !== "sharedVisitPreview" || token)
+    (media.kind === "derivative" || media.kind === "photo")
+    && (media.reference.kind !== "sharedVisitPreview" || token)
   ) {
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
     if (site) {
@@ -29,9 +35,13 @@ export function DisplayMedia(props: Props) {
         url.searchParams.set("saveLocalId", reference.saveLocalId);
       } else {
         url.searchParams.set("itemId", reference.itemId);
-        if (reference.kind === "sharedVisit") url.searchParams.set("postId", reference.postId);
+        if (reference.kind === "sharedVisit") {
+          url.searchParams.set("postId", reference.postId);
+        }
       }
-      if (reference.photoLocalId) url.searchParams.set("photoLocalId", reference.photoLocalId);
+      if (reference.photoLocalId) {
+        url.searchParams.set("photoLocalId", reference.photoLocalId);
+      }
       uri = url.href;
     }
   }
@@ -43,16 +53,13 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const validDimensions =
-    Number.isFinite(media.width) &&
-    Number.isFinite(media.height) &&
-    media.width > 0 &&
-    media.height > 0;
+    Number.isFinite(media.width) && Number.isFinite(media.height) && media.width > 0 && media.height > 0;
   const missing = !uri || failed || !validDimensions;
   const size = {
     width,
     height: height ?? (missing ? width : (width * media.height) / media.width),
   };
-  if (missing)
+  if (missing) {
     return (
       <View
         accessible
@@ -71,6 +78,7 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
         </ThemedText>
       </View>
     );
+  }
   return (
     <View style={size}>
       <Image
@@ -78,9 +86,7 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
         accessibilityLabel={label}
         source={{
           uri,
-          ...((media.kind === "derivative" || media.kind === "photo") &&
-          media.reference.kind !== "wallItem" &&
-          token
+          ...((media.kind === "derivative" || media.kind === "photo") && media.reference.kind !== "wallItem" && token
             ? { headers: { Authorization: `Bearer ${token}` } }
             : {}),
         }}
@@ -97,9 +103,7 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
           setFailed(true);
         }}
       />
-      {!loaded && (
-        <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />
-      )}
+      {!loaded && <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />}
     </View>
   );
 }

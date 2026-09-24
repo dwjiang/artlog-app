@@ -32,14 +32,14 @@ export function parseYearRange(value: string): YearRange | null {
 
 // The date must fall within the artist's lifespan. A living artist's window opens ten
 // years after birth; a death-only record allows a long working life before it.
-export function lifespanWindow(
-  span: Lifespan,
-  now = new Date().getUTCFullYear(),
-): YearRange | null {
-  if (span.birth !== undefined && span.death !== undefined)
+export function lifespanWindow(span: Lifespan, now = new Date().getUTCFullYear()): YearRange | null {
+  if (span.birth !== undefined && span.death !== undefined) {
     return { start: span.birth, end: span.death };
+  }
   if (span.birth !== undefined) return { start: span.birth + 10, end: now };
-  if (span.death !== undefined) return { start: span.death - 120, end: span.death };
+  if (span.death !== undefined) {
+    return { start: span.death - 120, end: span.death };
+  }
   return null;
 }
 
@@ -57,8 +57,9 @@ export function assessPlausibility(input: PlausibilityInput): PlausibilityWarnin
   if (input.artistFound === false) warnings.push("artist_not_found");
   const range = input.date ? parseYearRange(input.date) : null;
   const window = input.lifespan ? lifespanWindow(input.lifespan) : null;
-  if (range && window && (range.end < window.start || range.start > window.end))
+  if (range && window && (range.end < window.start || range.start > window.end)) {
     warnings.push("date_outside_lifespan");
+  }
   if (input.venueCountryMatch === false) warnings.push("venue_unlikely");
   return warnings;
 }

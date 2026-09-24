@@ -10,7 +10,12 @@ import type { PendingScan } from "@/db/schema";
 import { startPendingShareFlusher } from "@/lib/label/share-saved-label";
 import { startQueueFlusher } from "./queue";
 
-export type QueueState = { pending: number; items: PendingScan[]; loading: boolean; error?: Error };
+export type QueueState = {
+  pending: number;
+  items: PendingScan[];
+  loading: boolean;
+  error?: Error;
+};
 
 /** Pending counts unfinished requests; items keep every unsaved capture available to resume. */
 export function useQueue(): QueueState {
@@ -23,11 +28,7 @@ export function useQueue(): QueueState {
     });
     return () => subscription.remove();
   }, []);
-  const {
-    data: rows,
-    updatedAt,
-    error,
-  } = useLiveQuery(pendingScansQuery(owner), [owner, albumRevision]);
+  const { data: rows, updatedAt, error } = useLiveQuery(pendingScansQuery(owner), [owner, albumRevision]);
   useEffect(() => {
     if (error) reportError(error, "queue.load");
   }, [error]);

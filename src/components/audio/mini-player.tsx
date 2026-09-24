@@ -42,24 +42,13 @@ export function MiniPlayer() {
         </Pressable>
         <AudioIconButton
           name={audio.playing ? "pause.fill" : "play.fill"}
-          label={
-            audio.phase === "error"
-              ? "Retry narration"
-              : audio.playing
-                ? "Pause narration"
-                : "Play narration"
-          }
+          label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
           onPress={audio.controller.toggle}
           disabled={audio.phase === "loading"}
           color={Gallery.accent}
           size={23}
         />
-        <AudioIconButton
-          name="list.bullet"
-          label="Up next"
-          onPress={() => openPlayer("queue")}
-          size={22}
-        />
+        <AudioIconButton name="list.bullet" label="Up next" onPress={() => openPlayer("queue")} size={22} />
       </View>
       <View style={styles.track}>
         <View
@@ -82,6 +71,12 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 5,
   },
-  summary: { flex: 1, minHeight: 64, flexDirection: "row", alignItems: "center", gap: 10 },
+  summary: {
+    flex: 1,
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   track: { height: 2, backgroundColor: Gallery.softBorder },
 });

@@ -9,11 +9,7 @@ describe("title without its printed date", () => {
     ["Retrato de D. Alfonso XIII (1929)", "(1929)", "Retrato de D. Alfonso XIII"],
     ["Hasta verte Cristo mío 1895", "1895", "Hasta verte Cristo mío"],
     ["Flying female shaman, ca. 1850", "ca. 1850", "Flying female shaman"],
-    [
-      "Skeleton bear (in shamanic transformation), n.d.",
-      "n.d.",
-      "Skeleton bear (in shamanic transformation)",
-    ],
+    ["Skeleton bear (in shamanic transformation), n.d.", "n.d.", "Skeleton bear (in shamanic transformation)"],
   ])("strips %s with work date %s", (title, workDate, expected) => {
     expect(titleWithoutDate(title, workDate)).toBe(expected);
   });
@@ -26,12 +22,9 @@ describe("title without its printed date", () => {
     ["Playground", "n.d."],
     ["Room 11969", "1969"],
     ["Water Lilies", null],
-  ])(
-    "keeps %s when the date is absent, different, inside, unbounded, or the whole title",
-    (title, workDate) => {
-      expect(titleWithoutDate(title, workDate)).toBe(title);
-    },
-  );
+  ])("keeps %s when the date is absent, different, inside, unbounded, or the whole title", (title, workDate) => {
+    expect(titleWithoutDate(title, workDate)).toBe(title);
+  });
 });
 
 describe("label reading contract", () => {
@@ -47,7 +40,13 @@ describe("label reading contract", () => {
   });
 
   it("rejects readings with extra keys, wrong types, or confidences outside the unit interval", () => {
-    const confidence = { title: 1, artist: 0.5, work_date: 0, medium: 1, accession: 1 };
+    const confidence = {
+      title: 1,
+      artist: 0.5,
+      work_date: 0,
+      medium: 1,
+      accession: 1,
+    };
     const reading = {
       title: "A",
       artist: null,
@@ -61,7 +60,12 @@ describe("label reading contract", () => {
     expect(parseLabelReading(reading)).toEqual(reading);
     expect(parseLabelReading({ ...reading, extra: 1 })).toBeNull();
     expect(parseLabelReading({ ...reading, title: 1 })).toBeNull();
-    expect(parseLabelReading({ ...reading, confidence: { ...confidence, title: 1.5 } })).toBeNull();
+    expect(
+      parseLabelReading({
+        ...reading,
+        confidence: { ...confidence, title: 1.5 },
+      }),
+    ).toBeNull();
     expect(parseLabelReading({ ...reading, confidence: { title: 1 } })).toBeNull();
   });
 });

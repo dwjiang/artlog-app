@@ -17,18 +17,12 @@ it.each([
     "The connection dropped before the server answered.",
   ],
   ["some_new_code", "Something went wrong while identifying this painting."],
-  [
-    "The capture visit is missing its venue",
-    "Something went wrong while identifying this painting.",
-  ],
+  ["The capture visit is missing its venue", "Something went wrong while identifying this painting."],
   [
     "[CONVEX Q(scans:get)] [Request ID: sensitive-id] ArgumentValidationError: Value does not match validator.\nCalled by client",
     "This scan link is invalid or no longer available.",
   ],
-  [
-    "[CONVEX Q(scans:get)] Server Error\nCalled by client",
-    "Something went wrong while identifying this painting.",
-  ],
+  ["[CONVEX Q(scans:get)] Server Error\nCalled by client", "Something went wrong while identifying this painting."],
 ])('turns "%s" into friendly copy', (error, expected) => {
   expect(failureCopy(error)).toBe(expected);
 });

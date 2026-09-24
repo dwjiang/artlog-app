@@ -7,7 +7,9 @@ import { clearPhotoDraft, readPhotoDraft } from "./photo-draft";
 export async function discardCapture(localId: string, owner: string): Promise<void> {
   const capture = await getPendingScan(localId, owner);
   if (!capture) return;
-  if (findArtworkPhoto(localId, owner)) throw new Error("This scan has already been saved.");
+  if (findArtworkPhoto(localId, owner)) {
+    throw new Error("This scan has already been saved.");
+  }
   const paths = new Set([
     capture.photoPath,
     capture.cropPath,

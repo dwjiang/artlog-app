@@ -36,7 +36,14 @@ const entity = {
         },
       },
     ],
-    P217: [{ mainsnak: { snaktype: "value", datavalue: { type: "string", value: "1993.132" } } }],
+    P217: [
+      {
+        mainsnak: {
+          snaktype: "value",
+          datavalue: { type: "string", value: "1993.132" },
+        },
+      },
+    ],
     P195: [
       {
         mainsnak: {
@@ -51,7 +58,10 @@ const entity = {
           snaktype: "value",
           datavalue: {
             type: "quantity",
-            value: { amount: "+73", unit: "http://www.wikidata.org/entity/Q174728" },
+            value: {
+              amount: "+73",
+              unit: "http://www.wikidata.org/entity/Q174728",
+            },
           },
         },
       },
@@ -81,8 +91,7 @@ const searchResponse = {
       url: SEARCH_HIT,
       title: "Wheat Field with Cypresses",
       content: "Short snippet.",
-      raw_content:
-        "The painting was acquired in 1993. The lively brushwork conveys wind through the wheat field.",
+      raw_content: "The painting was acquired in 1993. The lively brushwork conveys wind through the wheat field.",
       score: 0.9,
     },
     {
@@ -163,7 +172,10 @@ const facts = [
   },
 ];
 const prose = [
-  { sentence: "Vincent van Gogh painted this wheat field in 1889.", fact_ids: ["f1"] },
+  {
+    sentence: "Vincent van Gogh painted this wheat field in 1889.",
+    fact_ids: ["f1"],
+  },
   {
     sentence: "The museum acquired it in 1993 under inventory number 1993.132.",
     fact_ids: ["f2", "f3"],
@@ -209,19 +221,15 @@ function wikidata(status = 200) {
     if (status !== 200) return new Response("down", { status });
     const ids = (url.searchParams.get("ids") ?? "").split("|");
     const entities: Record<string, unknown> = {};
-    for (const id of ids)
-      entities[id] =
-        id === "Q18689458" ? entity : id === "Q160236" ? museumEntity : { id, missing: "" };
+    for (const id of ids) {
+      entities[id] = id === "Q18689458" ? entity : id === "Q160236" ? museumEntity : { id, missing: "" };
+    }
     return jsonResponse({ entities });
   });
 }
 function tavily(response: unknown = searchResponse, status = 200) {
   routes.push((url) =>
-    url.href === TAVILY
-      ? status === 200
-        ? jsonResponse(response)
-        : new Response("down", { status })
-      : undefined,
+    url.href === TAVILY ? (status === 200 ? jsonResponse(response) : new Response("down", { status })) : undefined,
   );
 }
 function models(sheet: unknown = facts, sentences: unknown = prose) {
@@ -237,12 +245,15 @@ function everything() {
   tavily();
   models();
 }
-const calls = (prefix: string) =>
-  fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
+const calls = (prefix: string) => fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
 const bodies = (prefix: string) => calls(prefix).map(([, init]) => JSON.parse(String(init?.body)));
 
 async function fixture(
-  options: { pageUrl?: string | null; wikidataId?: string | null; optOut?: boolean } = {},
+  options: {
+    pageUrl?: string | null;
+    wikidataId?: string | null;
+    optOut?: boolean;
+  } = {},
 ) {
   const t = harness();
   const { deviceId } = await seedDevice(t);
@@ -304,7 +315,10 @@ describe("docent.ensure", () => {
     ]);
     expect(stored?.docent).toEqual({
       en: [
-        { sentence: "Vincent van Gogh painted this wheat field in 1889.", factIds: ["f1"] },
+        {
+          sentence: "Vincent van Gogh painted this wheat field in 1889.",
+          factIds: ["f1"],
+        },
         {
           sentence: "The museum acquired it in 1993 under inventory number 1993.132.",
           factIds: ["f2", "f3"],
@@ -314,7 +328,10 @@ describe("docent.ensure", () => {
     expect(stored?.factSheetUpdatedAt).toEqual(expect.any(Number));
     expect(stored?.docentUpdatedAt).toEqual(expect.any(Number));
     expect(stored?.enrichClaimedAt).toBeUndefined();
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 1 });
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 2,
+      tavilyCredits: 1,
+    });
 
     const [search] = bodies(TAVILY);
     expect(search).toMatchObject({
@@ -359,7 +376,11 @@ describe("docent.ensure", () => {
     expect(input[2].text).toContain("Collection: Metropolitan Museum of Art");
     expect(input[2].text).toContain("Height: 73 cm");
     expect(input[2].text).toContain("Inventory number: 1993.132");
-    expect(docent).toMatchObject({ model: DOCENT_MODEL, temperature: 0, max_tokens: 1024 });
+    expect(docent).toMatchObject({
+      model: DOCENT_MODEL,
+      temperature: 0,
+      max_tokens: 1024,
+    });
     expect(JSON.parse(docent.messages[1].content).input).toEqual(stored?.factSheet);
   });
 
@@ -386,7 +407,9 @@ describe("docent.ensure", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
     await t.run((ctx) =>
-      ctx.db.patch(work.artworkId, { enrichClaimedAt: Date.now() - 11 * 60 * 1000 }),
+      ctx.db.patch(work.artworkId, {
+        enrichClaimedAt: Date.now() - 11 * 60 * 1000,
+      }),
     );
     await ensure();
     expect((await artwork())?.docent?.en).toHaveLength(2);
@@ -412,31 +435,40 @@ describe("docent.ensure", () => {
     everything();
     await offHost.ensure();
     expect(calls("https://mirror.example")).toEqual([]);
-    expect((await offHost.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([
-      WIKIDATA_PAGE,
-    ]);
+    expect((await offHost.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([WIKIDATA_PAGE]);
 
     fetchMock.mockClear();
     const optedOut = await fixture({ optOut: true });
     await optedOut.ensure();
     expect(calls(PAGE)).toEqual([]);
-    expect((await optedOut.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([
-      WIKIDATA_PAGE,
-    ]);
+    expect((await optedOut.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([WIKIDATA_PAGE]);
   });
 
   it("caches an empty sheet when no admissible source exists, but retries later after fetch failures", async () => {
     const bare = await fixture({ pageUrl: null, wikidataId: null });
     tavily({
-      results: [{ url: "https://randomblog.example/x", title: "x", content: "y", score: 0.9 }],
+      results: [
+        {
+          url: "https://randomblog.example/x",
+          title: "x",
+          content: "y",
+          score: 0.9,
+        },
+      ],
       usage: { credits: 1 },
     });
     models();
     await bare.ensure();
-    expect(await bare.artwork()).toMatchObject({ factSheet: [], docent: { en: [] } });
+    expect(await bare.artwork()).toMatchObject({
+      factSheet: [],
+      docent: { en: [] },
+    });
     expect(await bare.artwork()).not.toHaveProperty("enrichClaimedAt");
     expect(calls(TOKEN_FACTORY)).toEqual([]);
-    expect(await bare.spend()).toMatchObject({ tokenFactoryCalls: 0, tavilyCredits: 1 });
+    expect(await bare.spend()).toMatchObject({
+      tokenFactoryCalls: 0,
+      tavilyCredits: 1,
+    });
 
     fetchMock.mockClear();
     routes = [];
@@ -459,9 +491,7 @@ describe("docent.ensure", () => {
     wikidata();
     tavily();
     routes.push((url) =>
-      url.href === TOKEN_FACTORY
-        ? new Response("busy", { status: 503, headers: { "retry-after": "0" } })
-        : undefined,
+      url.href === TOKEN_FACTORY ? new Response("busy", { status: 503, headers: { "retry-after": "0" } }) : undefined,
     );
     await expect(ensure()).rejects.toMatchObject({
       data: { code: "model_error", reason: "http_503", calls: 2 },
@@ -469,7 +499,10 @@ describe("docent.ensure", () => {
     const stored = await artwork();
     expect(stored?.factSheet).toBeUndefined();
     expect(stored?.enrichClaimedAt).toBeUndefined();
-    expect(await spend()).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 1 });
+    expect(await spend()).toMatchObject({
+      tokenFactoryCalls: 2,
+      tavilyCredits: 1,
+    });
   });
 
   it("rewrites only the sentences when a current fact sheet exists", async () => {
@@ -492,7 +525,10 @@ describe("docent.ensure", () => {
     const stored = await artwork();
     expect(stored).toMatchObject({ factSheet, factSheetUpdatedAt: 5 });
     expect(stored?.docent?.en).toEqual([
-      { sentence: "Vincent van Gogh painted this wheat field in 1889.", factIds: ["f1"] },
+      {
+        sentence: "Vincent van Gogh painted this wheat field in 1889.",
+        factIds: ["f1"],
+      },
     ]);
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 1 });
   });
@@ -504,10 +540,13 @@ describe("docent.ensure", () => {
     models();
     const artworkIds: Id<"artworks">[] = [];
     await t.run(async (ctx) => {
-      for (let i = 0; i < 61; i++) artworkIds.push((await seedArtworkWithObject(ctx)).artworkId);
+      for (let i = 0; i < 61; i++) {
+        artworkIds.push((await seedArtworkWithObject(ctx)).artworkId);
+      }
     });
-    for (const artworkId of artworkIds)
+    for (const artworkId of artworkIds) {
       await t.action(internal.docent.ensure, { artworkId, deviceId });
+    }
     const last = await t.run((ctx) => ctx.db.get(artworkIds[60]));
     expect(last?.factSheet).toBeUndefined();
     expect(last?.enrichClaimedAt).toBeUndefined();
@@ -524,9 +563,17 @@ describe("docent write mutations", () => {
   it("writeEnrichment stores the sheet and sentences for the owning claim", async () => {
     const t = harness();
     const { artworkId } = await seeded(t);
-    const generation = (await t.mutation(internal.docent.claim, { artworkId }))!;
+    const generation = (await t.mutation(internal.docent.claim, {
+      artworkId,
+    }))!;
     const factSheet = [
-      { id: "f1", text: "A fact.", sourceUrl: PAGE, sourceLabel: "The Met", sourceScore: 1 },
+      {
+        id: "f1",
+        text: "A fact.",
+        sourceUrl: PAGE,
+        sourceLabel: "The Met",
+        sourceScore: 1,
+      },
     ];
     const docentEn = [{ sentence: "A sentence with four words.", factIds: ["f1"] }];
     await t.mutation(internal.docent.writeEnrichment, {
@@ -559,16 +606,24 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
   await t.run((ctx) => ctx.db.patch(artworkId, { enrichClaimedAt: Date.now() - 11 * 60 * 1000 }));
   const next = (await t.mutation(internal.docent.claim, { artworkId }))!;
   const result = { artworkId, factSheet: [], docentEn: [] };
-  expect(await t.mutation(internal.docent.writeEnrichment, { ...result, generation })).toBe(false);
+  expect(
+    await t.mutation(internal.docent.writeEnrichment, {
+      ...result,
+      generation,
+    }),
+  ).toBe(false);
   await t.mutation(internal.enrich.releaseClaim, { artworkId, generation });
   expect(await t.run((ctx) => ctx.db.get(artworkId))).toMatchObject({
     enrichGeneration: next,
     enrichClaimedAt: expect.any(Number),
   });
   await t.mutation(internal.docent.invalidateDocent, { artworkId });
-  expect(await t.mutation(internal.docent.writeEnrichment, { ...result, generation: next })).toBe(
-    false,
-  );
+  expect(
+    await t.mutation(internal.docent.writeEnrichment, {
+      ...result,
+      generation: next,
+    }),
+  ).toBe(false);
   expect((await t.run((ctx) => ctx.db.get(artworkId)))?.docent).toBeUndefined();
 });
 
@@ -584,24 +639,23 @@ it("shares a single research search between independent docent and audio scripts
           guideBodyFixture.map(({ sentence, factIds }) => ({
             sentence,
             fact_ids: factIds,
-            support: researched!
-              .factSheet!.find((fact) => fact.id === factIds[0])!
-              .text.slice(0, 30),
+            support: researched!.factSheet!.find((fact) => fact.id === factIds[0])!.text.slice(0, 30),
           })),
         )
       : undefined,
   );
   routes.push((url) =>
     url.href.includes("api.openai.com")
-      ? new Response(new Uint8Array([73, 68, 51]), { headers: { "Content-Type": "audio/mpeg" } })
+      ? new Response(new Uint8Array([73, 68, 51]), {
+          headers: { "Content-Type": "audio/mpeg" },
+        })
       : undefined,
   );
   const { as } = await seedDevice(t);
-  const spoken = await as.action(api.narration.render, { artworkId: work.artworkId });
-  expect(spoken.sentences).toEqual([
-    { sentence: guideOpening(researched!), factIds: [] },
-    ...guideBodyFixture,
-  ]);
+  const spoken = await as.action(api.narration.render, {
+    artworkId: work.artworkId,
+  });
+  expect(spoken.sentences).toEqual([{ sentence: guideOpening(researched!), factIds: [] }, ...guideBodyFixture]);
   expect((await artwork())?.docent).toEqual(researched?.docent);
   expect(calls(TAVILY)).toHaveLength(1);
   expect(JSON.parse(bodies(TOKEN_FACTORY)[2].messages[1].content).research).toEqual(
@@ -625,7 +679,9 @@ it("refreshes the shared research when explicitly invalidated", async () => {
 });
 
 it("includes museum essays linked to the exact artwork while excluding another version", async () => {
-  const { ensure } = await fixture({ pageUrl: PAGE.replace("https:", "http:") });
+  const { ensure } = await fixture({
+    pageUrl: PAGE.replace("https:", "http:"),
+  });
   page(PAGE, ownerPage);
   wikidata();
   models();
@@ -633,8 +689,7 @@ it("includes museum essays linked to the exact artwork while excluding another v
     results: [
       {
         url: "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",
-        raw_content:
-          "Historical context for [this painting](/exhibitions/view?oid=436535&exhibitionId=one).",
+        raw_content: "Historical context for [this painting](/exhibitions/view?oid=436535&exhibitionId=one).",
       },
       {
         url: "https://www.metmuseum.org/perspectives/another-version",
@@ -684,9 +739,8 @@ it("sends markdown search pages as plain prose, so a fact copied from an essay s
     usage: { credits: 1 },
   });
   await ensure();
-  const sources: { url: string; text: string }[] = JSON.parse(
-    bodies(TOKEN_FACTORY)[0].messages[1].content,
-  ).input.sources;
+  const sources: { url: string; text: string }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input
+    .sources;
   expect(sources.find((source) => source.url === essay)?.text).toBe(
     "Cypresses\nLetters\n\nHe described the cypresses in Wheat Field with Cypresses as a splash of black. See the painting.",
   );
@@ -726,12 +780,18 @@ it.each([
       usage: { credits: 1 },
     });
     await ensure();
-    const sources: { url: string; label: string; score: number; text: string }[] = JSON.parse(
-      bodies(TOKEN_FACTORY)[0].messages[1].content,
-    ).input.sources;
+    const sources: {
+      url: string;
+      label: string;
+      score: number;
+      text: string;
+    }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
     const owner = sources.filter((source) => source.url === PAGE);
     expect(owner).toEqual([
-      expect.objectContaining({ label: "The Metropolitan Museum of Art", score: 1 }),
+      expect.objectContaining({
+        label: "The Metropolitan Museum of Art",
+        score: 1,
+      }),
     ]);
     expect(owner[0].text).toContain(kept);
     expect((await artwork())?.factSheet?.map((fact) => fact.text)).toEqual([quoted.text]);

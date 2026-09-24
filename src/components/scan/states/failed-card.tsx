@@ -19,9 +19,7 @@ export function FailedCard({ error, onRetry, retrying = false }: FailedCardProps
       <View style={styles.section}>
         <ThemedText type="title">{FAILED_TITLE}</ThemedText>
         <ThemedText themeColor="textSecondary">{failureCopy(error)}</ThemedText>
-        <ThemedText themeColor="textSecondary">
-          Your photo is still here. Try again or keep it for later.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Your photo is still here. Try again or keep it for later.</ThemedText>
       </View>
       {onRetry && (
         <GalleryButton

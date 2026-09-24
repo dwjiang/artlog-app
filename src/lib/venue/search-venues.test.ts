@@ -10,7 +10,9 @@ beforeEach(() => {
   insert.run("orsay", "Musée d’Orsay", "Paris", "FR");
   sql.prepare("INSERT INTO venues VALUES ('met', 'The Met', NULL, NULL, 'new-york')").run();
   insert.run("literal", "100% Museum", "London", "GB");
-  for (let i = 0; i < 40; i++) insert.run(`other-${i}`, `Museum ${i}`, "New York", "US");
+  for (let i = 0; i < 40; i++) {
+    insert.run(`other-${i}`, `Museum ${i}`, "New York", "US");
+  }
   db = {
     execAsync: async (query: string) => {
       sql.exec(query);

@@ -3,13 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  seedArtworkWithObject,
-  seedContribution,
-  seedDevice,
-  seedMuseum,
-  seedScan,
-} from "./lib/testFactories";
+import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 const factSheet = [
@@ -26,7 +20,9 @@ async function fixture() {
   const t = harness({ transactionLimits: true });
   const user = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet, factSheetUpdatedAt: 1 } }),
+    seedArtworkWithObject(ctx, {
+      artwork: { factSheet, factSheetUpdatedAt: 1 },
+    }),
   );
   await user.as.mutation(api.corrections.correctFact, {
     artworkId,
@@ -96,7 +92,11 @@ describe("review.replaceFactSheet", () => {
 
   it("allows a sheet edit without resolving unaddressed reports", async () => {
     const { t, artworkId } = await fixture();
-    await t.mutation(internal.review.replaceFactSheet, { artworkId, factSheet, correctionIds: [] });
+    await t.mutation(internal.review.replaceFactSheet, {
+      artworkId,
+      factSheet,
+      correctionIds: [],
+    });
     expect((await t.run((ctx) => ctx.db.get(artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
@@ -104,7 +104,7 @@ describe("review.replaceFactSheet", () => {
   it("drains a backlog through bounded reviews without hiding the remaining reports", async () => {
     const { t, user, artworkId } = await fixture();
     await t.run(async (ctx) => {
-      for (let i = 0; i < 100; i++)
+      for (let i = 0; i < 100; i++) {
         await ctx.db.insert("factCorrections", {
           artworkId,
           factId: "f1",
@@ -113,6 +113,7 @@ describe("review.replaceFactSheet", () => {
           createdAt: Date.now(),
           status: "open",
         });
+      }
     });
     const first = await t.query(internal.review.listCorrections, {});
     expect(first).toHaveLength(100);
@@ -172,9 +173,7 @@ describe("review queues", () => {
       await proposal([user.deviceId]);
       return { venueId, flagged, pending, ready };
     });
-    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([
-      { _id: seeded.flagged.objectId },
-    ]);
+    expect(await t.query(internal.review.listFlaggedObjects, {})).toMatchObject([{ _id: seeded.flagged.objectId }]);
     const { rows: pending } = await t.query(internal.review.listContributions, {});
     expect(pending).toMatchObject([
       {
@@ -187,7 +186,11 @@ describe("review queues", () => {
     expect(pending[0]).not.toHaveProperty("vector");
     expect(pending[0]).not.toHaveProperty("descriptors");
     expect(
-      (await t.query(internal.review.listContributions, { status: "tentative" })).rows,
+      (
+        await t.query(internal.review.listContributions, {
+          status: "tentative",
+        })
+      ).rows,
     ).toHaveLength(1);
     expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([
       { _id: seeded.ready, readyForReview: true },
@@ -208,7 +211,11 @@ it("can list pending contributions that were accepted within document limits", a
         fields: {
           title: { value: "Water Lilies", edited: false, evidence: "ocr" },
           artist: { value: "Claude Monet", edited: false, evidence: "ocr" },
-          creditLine: { value: "x".repeat(450_000), edited: true, evidence: "user_edited" },
+          creditLine: {
+            value: "x".repeat(450_000),
+            edited: true,
+            evidence: "user_edited",
+          },
         },
       }),
     );

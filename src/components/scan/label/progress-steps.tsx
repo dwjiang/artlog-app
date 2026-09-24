@@ -16,7 +16,13 @@ export const STEP_LABELS = {
 } as const;
 
 // The server runs the three verification checks inside one call, so their rows advance together.
-const ORDER: Record<LabelStage, number> = { qr: 0, read: 0, verify: 1, "image-check": 2, done: 3 };
+const ORDER: Record<LabelStage, number> = {
+  qr: 0,
+  read: 0,
+  verify: 1,
+  "image-check": 2,
+  done: 3,
+};
 const ICON_SIZE = 20;
 
 function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
@@ -49,11 +55,7 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
           >
             <View style={styles.icon}>
               {done ? (
-                <Image
-                  source="sf:checkmark.circle.fill"
-                  tintColor={Colors.light.success}
-                  style={styles.glyph}
-                />
+                <Image source="sf:checkmark.circle.fill" tintColor={Colors.light.success} style={styles.glyph} />
               ) : spinner ? (
                 <LoadingRing color={Colors.light.accent} />
               ) : (
@@ -73,7 +75,12 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
 const styles = StyleSheet.create({
   list: { gap: Spacing.three },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
-  icon: { width: ICON_SIZE, height: ICON_SIZE, alignItems: "center", justifyContent: "center" },
+  icon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   glyph: { width: ICON_SIZE, height: ICON_SIZE },
   dot: {
     width: Spacing.two,

@@ -4,7 +4,9 @@ import type { VenueView } from "@/lib/venue/use-venue";
 const mockPush = jest.fn();
 let mockVisit: VenueView["visit"];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit }) }));
+jest.mock("@/lib/venue/use-venue", () => ({
+  useVenue: () => ({ visit: mockVisit }),
+}));
 beforeEach(() => {
   jest.clearAllMocks();
   mockVisit = {

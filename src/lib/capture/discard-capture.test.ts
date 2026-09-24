@@ -9,13 +9,17 @@ import { readPhotoDraft, writePhotoDraft } from "./photo-draft";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("@/lib/account/photo-transfer", () => ({ removePhotoFile: jest.fn() }));
+jest.mock("@/lib/account/photo-transfer", () => ({
+  removePhotoFile: jest.fn(),
+}));
 
 const owner = "device:test-installation";
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) db.delete(table).run();
+  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) {
+    db.delete(table).run();
+  }
   await enqueuePendingScan({
     localId: "scan",
     photoPath: "photos/scan.jpg",
@@ -30,7 +34,12 @@ beforeEach(async () => {
     createdAt: 1,
   });
   writePhotoDraft(owner, "photos/scan.jpg", [
-    { localId: "detail", path: "photos/detail.jpg", kind: "detail", capturedAt: 2 },
+    {
+      localId: "detail",
+      path: "photos/detail.jpg",
+      kind: "detail",
+      capturedAt: 2,
+    },
   ]);
 });
 

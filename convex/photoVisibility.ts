@@ -7,7 +7,11 @@ import { readablePublication, requirePublicWallItem } from "./lib/publicationAcc
 export const forArtwork = query({
   args: { scope: v.string(), savedLocalId: v.string() },
   returns: v.array(
-    v.object({ photoLocalId: v.string(), wallPlacements: v.number(), sharedVisits: v.number() }),
+    v.object({
+      photoLocalId: v.string(),
+      wallPlacements: v.number(),
+      sharedVisits: v.number(),
+    }),
   ),
   handler: async (ctx, { scope, savedLocalId }) => {
     const { owner } = await requireJournalOwner(ctx, scope);
@@ -18,10 +22,7 @@ export const forArtwork = query({
       .withIndex("by_save_deletedAt", (q) => q.eq("saveId", save._id).eq("deletedAt", undefined))
       .take(101);
     const counts = new Map(
-      photos.map((photo) => [
-        photo.localId,
-        { photoLocalId: photo.localId, wallPlacements: 0, sharedVisits: 0 },
-      ]),
+      photos.map((photo) => [photo.localId, { photoLocalId: photo.localId, wallPlacements: 0, sharedVisits: 0 }]),
     );
     const placements = await ctx.db
       .query("wallItems")
@@ -34,7 +35,9 @@ export const forArtwork = query({
         await requirePublicWallItem(ctx, item._id);
         count.wallPlacements++;
       } catch (error) {
-        if (!(error instanceof ConvexError) || error.data.code !== "not_found") throw error;
+        if (!(error instanceof ConvexError) || error.data.code !== "not_found") {
+          throw error;
+        }
       }
     }
     const selections = await ctx.db
@@ -44,13 +47,14 @@ export const forArtwork = query({
     for (const item of selections) {
       if (item.saveLocalId !== save.localId) continue;
       const publication = await ctx.db.get(item.publicationId);
-      const access =
-        publication && (await readablePublication(ctx, publication, publication.profileId));
+      const access = publication && (await readablePublication(ctx, publication, publication.profileId));
       if (!access) continue;
       try {
         await requireMembership(ctx, save, access.visit);
       } catch (error) {
-        if (!(error instanceof ConvexError) || error.data.code !== "not_found") throw error;
+        if (!(error instanceof ConvexError) || error.data.code !== "not_found") {
+          throw error;
+        }
         continue;
       }
       for (const photoLocalId of new Set(item.photoLocalIds ?? [])) {

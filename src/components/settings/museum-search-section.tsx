@@ -18,8 +18,7 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
   const { consent, failed } = useMuseumSearchConsent(useScreenActive());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
-  const footer =
-    error ?? (failed ? "Couldn't read your choice. Reopen Settings to try again." : undefined);
+  const footer = error ?? (failed ? "Couldn't read your choice. Reopen Settings to try again." : undefined);
 
   async function change(enabled: boolean) {
     setError(undefined);
@@ -39,7 +38,14 @@ export function MuseumSearchSection({ onRequestConsent }: { onRequestConsent: ()
   }
 
   return (
-    <View style={{ padding: 16, gap: 10, backgroundColor: Gallery.surface, ...SettingsOutline }}>
+    <View
+      style={{
+        padding: 16,
+        gap: 10,
+        backgroundColor: Gallery.surface,
+        ...SettingsOutline,
+      }}
+    >
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
         {consent === undefined && !failed ? (
           <LoadingRing accessibilityLabel={`Loading ${MUSEUM_SEARCH_SETTING.toLowerCase()}`} />

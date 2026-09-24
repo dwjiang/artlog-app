@@ -47,10 +47,11 @@ export function DevTools({ attested }: { attested: boolean }) {
     let active = true;
     embedder.warmUp().then(
       (warm) => {
-        if (active)
+        if (active) {
           setModelStatus(
             `Embedding model: ready · load ${Math.round(warm.loadMs)} ms · predict ${Math.round(warm.predictMs)} ms`,
           );
+        }
       },
       (error: unknown) => {
         reportError(error, "diagnostics.model.warm-up");
@@ -75,9 +76,7 @@ export function DevTools({ attested }: { attested: boolean }) {
       }
       const first = await assertSmoke(signed);
       const replay = await assertSmoke(signed);
-      setResult(
-        `Assertion: ${first.ok ? "accepted" : "rejected"} · Replay: ${replay.ok ? "accepted" : "rejected"}`,
-      );
+      setResult(`Assertion: ${first.ok ? "accepted" : "rejected"} · Replay: ${replay.ok ? "accepted" : "rejected"}`);
     } catch (error) {
       reportError(error, "diagnostics.attestation");
       setResult(message(error));
@@ -93,9 +92,7 @@ export function DevTools({ attested }: { attested: boolean }) {
     setCalibration(undefined);
     setProgress("");
     try {
-      const { report } = await runCalibrationExport((done, total) =>
-        setProgress(`${done}/${total} embeddings`),
-      );
+      const { report } = await runCalibrationExport((done, total) => setProgress(`${done}/${total} embeddings`));
       setCalibration(
         `Calibration: ${report.count} embeddings · median ${report.embedMedianMs.toFixed(1)} ms · ${report.device}`,
       );
@@ -116,9 +113,9 @@ export function DevTools({ attested }: { attested: boolean }) {
     try {
       const report = await runOrbParityCheck();
       setOrbParity(
-        `ORB: ${report.count}/${report.expectedCount} keypoints · ${report.rowsAnywhere} rows match (${report.rowsInOrder} in order)` +
-          ` · extract ${report.extractMs.toFixed(1)} ms · blur ${Math.round(report.blurVariance)} · glare ${(report.glareFraction * 100).toFixed(1)}%` +
-          ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
+        `ORB: ${report.count}/${report.expectedCount} keypoints · ${report.rowsAnywhere} rows match (${report.rowsInOrder} in order)`
+          + ` · extract ${report.extractMs.toFixed(1)} ms · blur ${Math.round(report.blurVariance)} · glare ${(report.glareFraction * 100).toFixed(1)}%`
+          + ` · triage ${report.triageMs.toFixed(1)} ms · ${report.device}`,
       );
     } catch (error) {
       reportError(error, "diagnostics.orb-parity");
@@ -153,9 +150,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         )}
       </GroupedSection>
       <GroupedSection title="App Attest">
-        <Status>
-          {supported ? "App Attest: supported" : "App Attest: unsupported on this device"}
-        </Status>
+        <Status>{supported ? "App Attest: supported" : "App Attest: unsupported on this device"}</Status>
         <ActionRow
           label="Check App Attest"
           busy={running}
@@ -167,11 +162,7 @@ export function DevTools({ attested }: { attested: boolean }) {
         {result ? <Status>{result}</Status> : null}
       </GroupedSection>
       <GroupedSection title="Embedding">
-        {modelStatus ? (
-          <Status>{modelStatus}</Status>
-        ) : (
-          <ValueRow label="Embedding model" loading />
-        )}
+        {modelStatus ? <Status>{modelStatus}</Status> : <ValueRow label="Embedding model" loading />}
         <ActionRow
           label="Export calibration embeddings"
           busy={progress !== undefined}

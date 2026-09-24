@@ -7,7 +7,10 @@ jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
 }));
-let mockRelationship: { state: string; blocked: boolean } = { state: "none", blocked: false };
+let mockRelationship: { state: string; blocked: boolean } = {
+  state: "none",
+  blocked: false,
+};
 const mockPerson = {
   profileId: "friend" as never,
   username: "friend",
@@ -37,7 +40,12 @@ jest.mock("expo-router", () => {
 jest.mock("../collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => ({ FriendshipControls: () => null }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ key: "a", status: "ready", profileId: "owner", offline: false }),
+  useSocialSession: () => ({
+    key: "a",
+    status: "ready",
+    profileId: "owner",
+    offline: false,
+  }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: Parameters<typeof mockGetFunctionName>[0]) => ({
@@ -90,7 +98,11 @@ it("uses the same shared visit card as Home", async () => {
       publishedAt: 1,
       revision: 1,
       reflection: "",
-      venue: { venueId: "museum" as never, name: "Museum of Modern Art", city: "New York" },
+      venue: {
+        venueId: "museum" as never,
+        name: "Museum of Modern Art",
+        city: "New York",
+      },
       visitedOn: "2026-09-12",
       artworks: { page: [], cursor: null, isDone: true },
     },

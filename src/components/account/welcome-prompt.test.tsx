@@ -9,7 +9,9 @@ let mockActive = true;
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => mockActive }));
+jest.mock("@/hooks/use-screen-active", () => ({
+  useScreenActive: () => mockActive,
+}));
 jest.mock("expo-router", () => ({ useRouter: () => mockRouter }));
 beforeEach(async () => {
   jest.clearAllMocks();

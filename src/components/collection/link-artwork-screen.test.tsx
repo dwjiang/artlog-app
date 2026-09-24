@@ -1,15 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { LinkArtworkScreen } from "./link-artwork-screen";
-jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+}));
 const mockPush = jest.fn(),
   mockDismiss = jest.fn(),
   mockDismissAll = jest.fn(),
   mockLink = jest.fn(),
   mockToast = jest.fn();
-jest.mock("@/lib/ui/toast", () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+}));
 let mockEmpty = false;
 let mockParams: { savedId?: string; visitId?: string };
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:guest" }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "device:guest",
+}));
 jest.mock("@/db/repos/artwork-album", () => ({
   selectArtworkEncounters: () => [],
   linkArtworkVisits: (...args: unknown[]) => mockLink(...args),
@@ -68,13 +74,7 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   Stack: {
     Screen: () => null,
-    SearchBar: ({
-      placeholder,
-      onChangeText,
-    }: {
-      placeholder: string;
-      onChangeText: (event: unknown) => void;
-    }) => {
+    SearchBar: ({ placeholder, onChangeText }: { placeholder: string; onChangeText: (event: unknown) => void }) => {
       const { TextInput } = jest.requireActual("react-native");
       return (
         <TextInput
@@ -123,7 +123,10 @@ it("carries the chosen visit from an empty artwork picker into Scan", async () =
   await render(<LinkArtworkScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/scan", params: { visitId: "paris" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/scan",
+    params: { visitId: "paris" },
+  });
   expect(mockLink).not.toHaveBeenCalled();
 });
 

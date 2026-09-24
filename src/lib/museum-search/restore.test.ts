@@ -4,8 +4,14 @@ import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/field
 import { confirmed, verified } from "./__fixtures__/search";
 import { restoreConfirmedMuseumFlow } from "./restore";
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
-const scan = { scanId: "scan-1" as Id<"scans">, museumSearch: confirmed, labelFlow: verified };
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
+const scan = {
+  scanId: "scan-1" as Id<"scans">,
+  museumSearch: confirmed,
+  labelFlow: verified,
+};
 
 beforeEach(async () => {
   await drafts.clearLabelDraft(scan.scanId);
@@ -21,11 +27,7 @@ it("restores an unchanged museum confirmation without requiring a local draft", 
 it.each([undefined, verified.sourceUrl, "https://museum.example/another-page"])(
   "restores a sharing edit with source %s",
   async (sourceUrl) => {
-    const draft = setFieldValue(
-      unlockField(formStateFromFlow(verified), "title"),
-      "title",
-      "My title",
-    );
+    const draft = setFieldValue(unlockField(formStateFromFlow(verified), "title"), "title", "My title");
     await drafts.saveLabelDraft(scan.scanId, draft, confirmed.updatedAt);
     const flow = {
       ...verified,
@@ -53,7 +55,10 @@ it.each([undefined, verified.sourceUrl])(
 it("does not use a draft from an earlier museum confirmation", async () => {
   await drafts.saveLabelDraft(scan.scanId, formStateFromFlow(verified), confirmed.updatedAt - 1);
   expect(
-    await restoreConfirmedMuseumFlow({ ...scan, labelFlow: { ...verified, updatedAt: 3 } }),
+    await restoreConfirmedMuseumFlow({
+      ...scan,
+      labelFlow: { ...verified, updatedAt: 3 },
+    }),
   ).toBeUndefined();
 });
 
@@ -70,6 +75,9 @@ it("never restores a result whose fields failed moderation, even with a draft", 
 it("surfaces draft storage failures instead of treating edits as absent", async () => {
   jest.spyOn(drafts, "loadLabelDraft").mockRejectedValue(new Error("Disk read failed"));
   await expect(
-    restoreConfirmedMuseumFlow({ ...scan, labelFlow: { ...verified, sourceUrl: undefined } }),
+    restoreConfirmedMuseumFlow({
+      ...scan,
+      labelFlow: { ...verified, sourceUrl: undefined },
+    }),
   ).rejects.toThrow("Disk read failed");
 });

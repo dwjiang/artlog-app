@@ -21,7 +21,12 @@ const verified: LabelFlowDisplay = {
     title: { value: "The Thinker", evidence: "accession", locked: true },
     artist: { value: "Auguste Rodin", evidence: "wikidata", locked: true },
     date: { value: "1880", evidence: "weak", locked: false },
-    medium: { value: "bronze", evidence: "ocr", locked: false, confidence: 0.7 },
+    medium: {
+      value: "bronze",
+      evidence: "ocr",
+      locked: false,
+      confidence: 0.7,
+    },
   },
 };
 
@@ -34,7 +39,11 @@ it("starts from the verifier’s values with their locks, leaving unread fields 
     locked: true,
     unlocked: false,
   });
-  expect(state.date).toMatchObject({ value: "1880", evidence: "weak", locked: false });
+  expect(state.date).toMatchObject({
+    value: "1880",
+    evidence: "weak",
+    locked: false,
+  });
   expect(state.accession).toEqual({
     value: "",
     original: "",
@@ -48,7 +57,11 @@ it("starts from the verifier’s values with their locks, leaving unread fields 
 
 it("unlocking marks a verified field edited even before a keystroke", () => {
   const state = unlockField(formStateFromFlow(verified), "title");
-  expect(state.title).toMatchObject({ locked: false, unlocked: true, value: "The Thinker" });
+  expect(state.title).toMatchObject({
+    locked: false,
+    unlocked: true,
+    value: "The Thinker",
+  });
   expect(isEdited(state.title)).toBe(true);
   expect(state.artist.locked).toBe(true);
 });
@@ -58,11 +71,21 @@ it("typing over a verified field opens its lock and typing the verified value ba
   const changed = setFieldValue(base, "title", "The Thinker, cast");
   expect(changed.title).toMatchObject({ locked: false, unlocked: true });
   expect(isEdited(changed.title)).toBe(true);
-  expect(toSubmittedFields(changed)?.title).toEqual({ value: "The Thinker, cast", edited: true });
+  expect(toSubmittedFields(changed)?.title).toEqual({
+    value: "The Thinker, cast",
+    edited: true,
+  });
   const restored = setFieldValue(changed, "title", " The Thinker ");
-  expect(restored.title).toMatchObject({ locked: true, unlocked: false, value: " The Thinker " });
+  expect(restored.title).toMatchObject({
+    locked: true,
+    unlocked: false,
+    value: " The Thinker ",
+  });
   expect(isEdited(restored.title)).toBe(false);
-  expect(toSubmittedFields(restored)?.title).toEqual({ value: "The Thinker", edited: false });
+  expect(toSubmittedFields(restored)?.title).toEqual({
+    value: "The Thinker",
+    edited: false,
+  });
 });
 
 it("typing over an unverified field marks it edited and reverting clears it", () => {

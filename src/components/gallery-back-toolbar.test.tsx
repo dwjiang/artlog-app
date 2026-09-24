@@ -21,11 +21,7 @@ const tabs = (tab: string, screen?: string) => ({
 });
 
 it.each([
-  [
-    "the collection tab",
-    [tabs("(collection)", "collection"), { name: "saved/[savedId]" }],
-    "Collection",
-  ],
+  ["the collection tab", [tabs("(collection)", "collection"), { name: "saved/[savedId]" }], "Collection"],
   [
     "visits by museum inside the collection tab",
     [tabs("(collection)", "visit-place"), { name: "journal/[visitId]" }],
@@ -37,25 +33,27 @@ it.each([
     [tabs("(scan)"), { name: "result/[scanId]" }, { name: "saved/[savedId]" }],
     "Result",
   ],
-  [
-    "the leaderboard under people",
-    [tabs("(home)"), { name: "leaderboards" }, { name: "people" }],
-    "Leaderboards",
-  ],
+  ["the leaderboard under people", [tabs("(home)"), { name: "leaderboards" }, { name: "people" }], "Leaderboards"],
 ])("names %s", (_, routes, label) => {
   expect(previousScreenLabel({ index: routes.length - 1, routes })).toBe(label);
 });
 
 it("has no name for an unlisted screen or the first route", () => {
   expect(
-    previousScreenLabel({ index: 1, routes: [{ name: "index" }, { name: "preview" }] }),
+    previousScreenLabel({
+      index: 1,
+      routes: [{ name: "index" }, { name: "preview" }],
+    }),
   ).toBeUndefined();
   expect(previousScreenLabel({ index: 0, routes: [{ name: "settings" }] })).toBeUndefined();
   expect(previousScreenLabel(undefined)).toBeUndefined();
 });
 
 it("labels the back button after the screen underneath and pops on press", async () => {
-  mockState = { index: 1, routes: [tabs("(collection)", "collection"), { name: "settings" }] };
+  mockState = {
+    index: 1,
+    routes: [tabs("(collection)", "collection"), { name: "settings" }],
+  };
   await render(<GalleryBackToolbar />);
   await fireEvent.press(screen.getByRole("button", { name: "Back to Collection" }));
   expect(mockBack).toHaveBeenCalledTimes(1);

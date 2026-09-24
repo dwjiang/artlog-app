@@ -12,7 +12,9 @@ import {
 
 let mockReduced = false;
 const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] = [];
-jest.mock("react-native-worklets", () => ({ scheduleOnRN: (fn: () => void) => fn() }));
+jest.mock("react-native-worklets", () => ({
+  scheduleOnRN: (fn: () => void) => fn(),
+}));
 jest.mock("react-native-reanimated", () => {
   const { View } = jest.requireActual("react-native");
   const { useRef } = jest.requireActual("react");
@@ -65,33 +67,28 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-it.each([false, true])(
-  "finishes once after the reveal, with a crossfade for reduced motion: %s",
-  async (reduced) => {
-    mockReduced = reduced;
-    const complete = jest.fn();
-    const view = await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
-    await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
-      nativeEvent: { layout: { width: 390, height: 844 } },
-    });
-    await fireEvent(screen.getByLabelText("Isolated painting"), "display");
-    expect(mockAnimations.map((a) => a.duration)).toEqual(
-      reduced ? [0, CROSSFADE_MS] : [HIGHLIGHT_MS, STRAIGHTEN_MS, SHINE_MS],
-    );
+it.each([false, true])("finishes once after the reveal, with a crossfade for reduced motion: %s", async (reduced) => {
+  mockReduced = reduced;
+  const complete = jest.fn();
+  const view = await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
+    nativeEvent: { layout: { width: 390, height: 844 } },
+  });
+  await fireEvent(screen.getByLabelText("Isolated painting"), "display");
+  expect(mockAnimations.map((a) => a.duration)).toEqual(
+    reduced ? [0, CROSSFADE_MS] : [HIGHLIGHT_MS, STRAIGHTEN_MS, SHINE_MS],
+  );
+  expect(complete).not.toHaveBeenCalled();
+  if (!reduced) {
+    await act(() => mockAnimations.find((animation) => animation.duration === STRAIGHTEN_MS)!.finish!(true));
     expect(complete).not.toHaveBeenCalled();
-    if (!reduced) {
-      await act(() =>
-        mockAnimations.find((animation) => animation.duration === STRAIGHTEN_MS)!.finish!(true),
-      );
-      expect(complete).not.toHaveBeenCalled();
-    }
-    await act(() => mockAnimations.at(-1)!.finish!(true));
-    await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
-    await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
-    expect(complete).toHaveBeenCalledTimes(1);
-    expect(mockAnimations).toHaveLength(reduced ? 2 : 3);
-  },
-);
+  }
+  await act(() => mockAnimations.at(-1)!.finish!(true));
+  await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
+  expect(complete).toHaveBeenCalledTimes(1);
+  expect(mockAnimations).toHaveLength(reduced ? 2 : 3);
+});
 
 it("falls through once when image display fails or never arrives", async () => {
   const complete = jest.fn();

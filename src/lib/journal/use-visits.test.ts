@@ -4,21 +4,28 @@ import { useVisits } from "./use-visits";
 import { useVisitWorks } from "./use-visit-works";
 
 const mockReads: Record<string, { data: unknown[]; updatedAt?: Date; error?: Error }> = {};
-jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: (query: string) => mockReads[query] }));
-jest.mock("@/db/repos/artwork-album", () => ({ selectArtworkEncounters: () => "encounters" }));
+jest.mock("drizzle-orm/expo-sqlite", () => ({
+  useLiveQuery: (query: string) => mockReads[query],
+}));
+jest.mock("@/db/repos/artwork-album", () => ({
+  selectArtworkEncounters: () => "encounters",
+}));
 jest.mock("@/db/repos/saved-works", () => ({
   listSavedWorks: () => "works",
   softDeleteSavedWork: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: () => "visits" }));
-jest.mock("../account/owner-store", () => ({ useLocalOwner: () => "account:a" }));
+jest.mock("../account/owner-store", () => ({
+  useLocalOwner: () => "account:a",
+}));
 jest.mock("./use-venue-metadata", () => ({
   useVenueMetadata: () => ({ metadata: new Map(), ready: true }),
 }));
 
 beforeEach(() => {
-  for (const key of ["encounters", "works", "visits"])
+  for (const key of ["encounters", "works", "visits"]) {
     mockReads[key] = { data: [], updatedAt: new Date() };
+  }
 });
 
 it.each(["visit summaries", "visit artworks"])(
@@ -70,7 +77,12 @@ it.each(["expires", "is undone"])(
         },
       ];
       mockReads.encounters.data = [
-        { owner: work.owner, visitLocalId: "visit", savedLocalId: work.localId, deletedAt: null },
+        {
+          owner: work.owner,
+          visitLocalId: "visit",
+          savedLocalId: work.localId,
+          deletedAt: null,
+        },
       ];
       const summaries = await renderHook(useVisits);
       const active = await renderHook(() => useVisitWorks("visit", work.owner));

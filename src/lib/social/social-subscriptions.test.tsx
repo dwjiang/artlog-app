@@ -23,7 +23,9 @@ it("keeps live Convex subscriptions stable across renders with equivalent argume
       query: useSocialQuery(api.walls.getMine, {}, "account"),
       feed: useCursorPages(api.sharedVisits.listFeed, {}, "account", select, identify),
     }),
-    { wrapper: ({ children }) => <ConvexProvider client={client}>{children}</ConvexProvider> },
+    {
+      wrapper: ({ children }) => <ConvexProvider client={client}>{children}</ConvexProvider>,
+    },
   );
   await view.rerender({});
   expect(view.result.current.query.loading).toBe(true);

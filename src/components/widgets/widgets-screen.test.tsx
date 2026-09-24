@@ -30,7 +30,13 @@ jest.mock("@/lib/widgets/widget-provider", () => ({
       prepared: mockEmpty ? [] : [mockArtwork],
       artworks: mockEmpty ? [] : [mockArtwork],
       allArtworks: mockEmpty ? [] : [mockArtwork],
-      visits: [{ localId: "paris", venueName: "Musée de l’Orangerie", visitedOn: "2026-06-14" }],
+      visits: [
+        {
+          localId: "paris",
+          venueName: "Musée de l’Orangerie",
+          visitedOn: "2026-06-14",
+        },
+      ],
       encounters: [{ savedLocalId: "monet", visitLocalId: "paris", deletedAt: null }],
       loading: false,
       syncing: false,
@@ -62,12 +68,16 @@ it("selects the actual visit or artwork and returns to the editor", async () => 
   await fireEvent.press(screen.getByRole("button", { name: /^Artwork source,/ }));
   await fireEvent.press(screen.getByRole("button", { name: /^A visit,/ }));
   await fireEvent.press(screen.getByRole("button", { name: /^Musée de l’Orangerie,/ }));
-  expect(mockUpdate).toHaveBeenLastCalledWith({ source: { kind: "visit", id: "paris" } });
+  expect(mockUpdate).toHaveBeenLastCalledWith({
+    source: { kind: "visit", id: "paris" },
+  });
   expect(screen.getByRole("button", { name: /Artwork source, A visit/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: /^Artwork source,/ }));
   await fireEvent.press(screen.getByRole("button", { name: /^One artwork,/ }));
   await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
-  expect(mockUpdate).toHaveBeenLastCalledWith({ source: { kind: "artwork", id: "monet" } });
+  expect(mockUpdate).toHaveBeenLastCalledWith({
+    source: { kind: "artwork", id: "monet" },
+  });
   expect(screen.getByText("Keeps this painting on your Home Screen.")).toBeOnTheScreen();
 });
 

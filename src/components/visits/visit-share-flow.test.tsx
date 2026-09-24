@@ -17,7 +17,9 @@ const mockController = {
 };
 const mockCopy = jest.fn(),
   mockPatchVisit = jest.fn();
-jest.mock("expo-clipboard", () => ({ setStringAsync: (...args: unknown[]) => mockCopy(...args) }));
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: (...args: unknown[]) => mockCopy(...args),
+}));
 jest.mock("@/db/repos/visits", () => ({
   patchVisit: (...args: unknown[]) => mockPatchVisit(...args),
 }));
@@ -31,17 +33,32 @@ const mockVisit = {
   venueName: "Museum",
   visitedOn: "2024-02-29",
   reflection: "PRIVATE REFLECTION",
-  works: [{ localId: "save", title: "Water Lilies", artist: "Claude Monet", cropPath: null }],
+  works: [
+    {
+      localId: "save",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      cropPath: null,
+    },
+  ],
 } as VisitSummary;
 jest.mock("@/lib/journal/use-visits", () => ({
-  useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }),
+  useVisits: () => ({
+    owner: mockVisit.owner,
+    visits: [mockVisit],
+    loading: false,
+  }),
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
 }));
-jest.mock("@/lib/visits/use-visit-sharing", () => ({ useVisitSharing: () => mockSharing }));
+jest.mock("@/lib/visits/use-visit-sharing", () => ({
+  useVisitSharing: () => mockSharing,
+}));
 jest.mock("../social/profile-form", () => ({ ProfileForm: () => null }));
-jest.mock("../settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("../settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 jest.mock("drizzle-orm/expo-sqlite", () => ({
   ...jest.requireActual("drizzle-orm/expo-sqlite"),
   useLiveQuery: () => ({ data: mockPhotos }),
@@ -105,7 +122,12 @@ beforeEach(() => {
   mockVisit.visibility = "public";
   mockPhotos = [];
   mockVisit.works = [
-    { localId: "save", title: "Water Lilies", artist: "Claude Monet", cropPath: null },
+    {
+      localId: "save",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      cropPath: null,
+    },
   ] as VisitSummary["works"];
   mockSharing = {
     acknowledged: {
@@ -221,7 +243,10 @@ it("includes the saved notes without a second writing field", async () => {
 it("lets an artwork tile change the shared selection without changing the reflection", async () => {
   mockSharing.draft!.reflection = "A visit memory";
   await render(<VisitShareLayout />);
-  const choice = screen.getByRole("checkbox", { name: "Share Water Lilies", checked: true });
+  const choice = screen.getByRole("checkbox", {
+    name: "Share Water Lilies",
+    checked: true,
+  });
   await fireEvent.press(choice);
   expect(mockController.edit).toHaveBeenCalledWith({ saveLocalIds: [] });
   expect(screen.getByText("A visit memory")).toBeOnTheScreen();
@@ -244,11 +269,11 @@ it("explains the highlight limit inside the sheet, where the root toast layer is
   await view.rerender(<VisitShareLayout />);
   await fireEvent.press(screen.getByRole("button", { name: "Highlight Work d" }));
   expect(mockController.edit).not.toHaveBeenCalled();
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Choose up to 3 highlights. Remove one to choose another.",
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Choose up to 3 highlights. Remove one to choose another.");
   await fireEvent.press(screen.getByRole("button", { name: "Remove highlight Work c" }));
-  expect(mockController.edit).toHaveBeenCalledWith({ highlightLocalIds: ["a", "b"] });
+  expect(mockController.edit).toHaveBeenCalledWith({
+    highlightLocalIds: ["a", "b"],
+  });
 });
 it("renders the server preview in published order and stays on it when publishing fails", async () => {
   mockPage = "preview";
@@ -282,10 +307,7 @@ it("renders the server preview in published order and stays on it when publishin
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350, height: 220, x: 0, y: 0 } },
   });
-  expect(screen.getAllByRole("image").map((image) => image.props.children)).toEqual([
-    "Haystacks",
-    "Water Lilies",
-  ]);
+  expect(screen.getAllByRole("image").map((image) => image.props.children)).toEqual(["Haystacks", "Water Lilies"]);
   expect(screen.queryByText("PRIVATE REFLECTION")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Publish visit" }));
   expect(mockBack).not.toHaveBeenCalled();
@@ -487,10 +509,7 @@ it("shows the artworks it just published on the success screen after the control
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350, height: 220, x: 0, y: 0 } },
   });
-  expect(screen.getAllByRole("image").map((image) => image.props.children)).toEqual([
-    "Haystacks",
-    "Water Lilies",
-  ]);
+  expect(screen.getAllByRole("image").map((image) => image.props.children)).toEqual(["Haystacks", "Water Lilies"]);
   expect(screen.getByText(/· 2 artworks$/)).toBeOnTheScreen();
 });
 

@@ -64,12 +64,18 @@ export function CollectionArtworks({
   function addWorks(items: Work[]) {
     for (let index = 0; index < items.length; index += columns) {
       const group = items.slice(index, index + columns);
-      rows.push({ key: `works:${group[0].localId}`, kind: "works", works: group });
+      rows.push({
+        key: `works:${group[0].localId}`,
+        kind: "works",
+        works: group,
+      });
     }
   }
-  if (controls) rows.push({ key: "controls", kind: "element", element: controls });
+  if (controls) {
+    rows.push({ key: "controls", kind: "element", element: controls });
+  }
   const initialLoading = loading && !error && !works.length;
-  if (!initialLoading && works.length > 0)
+  if (!initialLoading && works.length > 0) {
     rows.push({
       key: "count",
       kind: "element",
@@ -106,15 +112,18 @@ export function CollectionArtworks({
         </View>
       ),
     });
+  }
   if (sort === "artist") {
     for (const section of artistSections(filtered)) {
-      rows.push({ key: `artist:${section.key}`, kind: "artist", title: section.title });
+      rows.push({
+        key: `artist:${section.key}`,
+        kind: "artist",
+        title: section.title,
+      });
       addWorks(section.data);
     }
   } else {
-    addWorks(
-      [...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId)),
-    );
+    addWorks([...filtered].sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId)));
   }
   const empty = initialLoading ? (
     <VisitSkeleton heading={false} label="Opening collection…" />
@@ -150,7 +159,12 @@ export function CollectionArtworks({
           {empty}
           {!wall.signedIn && works.length > 0 && (
             <View
-              style={{ padding: 20, gap: 6, borderTopWidth: 0.5, borderColor: Gallery.softBorder }}
+              style={{
+                padding: 20,
+                gap: 6,
+                borderTopWidth: 0.5,
+                borderColor: Gallery.softBorder,
+              }}
             >
               <Text style={{ color: Gallery.muted, fontSize: 13 }}>
                 Sign in to share your wall and connect with friends.
@@ -163,18 +177,30 @@ export function CollectionArtworks({
       stickyHeaderIndices={controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined}
       renderItem={({ item }) => {
         if (item.kind === "element") return item.element;
-        if (item.kind === "artist")
+        if (item.kind === "artist") {
           return (
             <Text
               variant="section"
               accessibilityRole="header"
-              style={{ paddingHorizontal: 20, paddingVertical: 12, color: Gallery.ink }}
+              style={{
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                color: Gallery.ink,
+              }}
             >
               {item.title}
             </Text>
           );
+        }
         return (
-          <View style={{ flexDirection: "row", gap: 14, paddingHorizontal: 20, paddingBottom: 22 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 14,
+              paddingHorizontal: 20,
+              paddingBottom: 22,
+            }}
+          >
             {item.works.map((work) => {
               const hung = wall.draft?.items.some((piece) => piece.saveLocalId === work.localId);
               return (
@@ -185,7 +211,10 @@ export function CollectionArtworks({
                       path={work.cropPath}
                       syncing={cropSyncing(work)}
                       title={work.title}
-                      style={{ width: tileWidth - 24, height: tileWidth * 1.18 - 24 }}
+                      style={{
+                        width: tileWidth - 24,
+                        height: tileWidth * 1.18 - 24,
+                      }}
                     />
                   </View>
                   <View style={{ gap: 2 }}>

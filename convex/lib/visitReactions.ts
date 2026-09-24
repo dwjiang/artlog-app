@@ -17,14 +17,18 @@ export async function changeEngagement(
   delta: number,
 ) {
   const current = await engagement(ctx, publicationId);
-  if (current) await ctx.db.patch(current._id, { [field]: Math.max(0, current[field] + delta) });
-  else if (delta > 0)
+  if (current) {
+    await ctx.db.patch(current._id, {
+      [field]: Math.max(0, current[field] + delta),
+    });
+  } else if (delta > 0) {
     await ctx.db.insert("visitEngagement", {
       publicationId,
       likeCount: 0,
       commentCount: 0,
       [field]: delta,
     });
+  }
 }
 
 // The visit's author is checked alongside the viewer so a block also hides the participant from everyone else reading that visit.
@@ -37,11 +41,9 @@ export async function visibleParticipant(
   if (!profile) return null;
   for (const other of new Set(others)) {
     if (!other || other === profileId) continue;
-    if (
-      (await findBlock(ctx, profileId, other))?.active ||
-      (await findBlock(ctx, other, profileId))?.active
-    )
+    if ((await findBlock(ctx, profileId, other))?.active || (await findBlock(ctx, other, profileId))?.active) {
       return null;
+    }
   }
   return profile;
 }

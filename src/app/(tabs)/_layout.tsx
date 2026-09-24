@@ -16,7 +16,10 @@ export const unstable_settings = {
   anchor: "(home)",
 };
 
-type RouteState = { index?: number; routes: { name: string; state?: RouteState }[] };
+type RouteState = {
+  index?: number;
+  routes: { name: string; state?: RouteState }[];
+};
 
 /** The tab navigator's state, nested under expo-router's `__root` route and any wrapper above the tabs. */
 function findTabsState(state: RouteState | undefined): RouteState | undefined {
@@ -31,9 +34,7 @@ function findTabsState(state: RouteState | undefined): RouteState | undefined {
 /** The selected tab, unchanged while a sheet or modal sits above the tabs. Reads the parent stack's state and follows its changes. */
 function useSelectedTab(): string | undefined {
   const navigation = useNavigation();
-  const [tabs, setTabs] = useState(() =>
-    findTabsState(navigation.getState() as RouteState | undefined),
-  );
+  const [tabs, setTabs] = useState(() => findTabsState(navigation.getState() as RouteState | undefined));
   useEffect(
     () =>
       navigation.addListener("state", (event) => {
@@ -55,12 +56,7 @@ export default function TabsLayout() {
   return (
     <TabBarVisibility value={setHidden}>
       <View style={{ flex: 1 }}>
-        <NativeTabs
-          minimizeBehavior="never"
-          hidden={hidden}
-          tintColor={Gallery.accent}
-          backgroundColor={Gallery.paper}
-        >
+        <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
           <NativeTabs.Trigger name="(home)">
             <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
@@ -72,7 +68,10 @@ export default function TabsLayout() {
           <NativeTabs.Trigger name="(collection)">
             <NativeTabs.Trigger.Label>Collection</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon
-              sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }}
+              sf={{
+                default: "square.grid.2x2",
+                selected: "square.grid.2x2.fill",
+              }}
             />
           </NativeTabs.Trigger>
         </NativeTabs>

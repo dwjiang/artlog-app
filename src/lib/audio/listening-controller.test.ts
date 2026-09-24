@@ -132,7 +132,11 @@ it("ignores late synthesis after a different track or stop", async () => {
   const old = controller.play(track("a"));
   await Promise.resolve();
   await controller.play(track("b"));
-  resolve({ uri: "old", duration: 3, sentences: [{ sentence: "Old script.", factIds: ["f1"] }] });
+  resolve({
+    uri: "old",
+    duration: 3,
+    sentences: [{ sentence: "Old script.", factIds: ["f1"] }],
+  });
   await old;
   expect(deps.create).toHaveBeenCalledTimes(1);
   expect(controller.snapshot().current?.work.title).toBe("b");
@@ -173,7 +177,9 @@ it("resets progress when the research changes", async () => {
   player.emit({ currentTime: 22 });
   expect(controller.progressFor(original)?.position).toBe(22);
   expect(
-    controller.progressFor({ work: { ...original.work, researchUpdatedAt: 6 } }),
+    controller.progressFor({
+      work: { ...original.work, researchUpdatedAt: 6 },
+    }),
   ).toBeUndefined();
   controller.dispose();
 });
@@ -196,7 +202,11 @@ it("learns the duration from downloaded audio and uses it when resuming and fini
   await Promise.resolve();
   expect(resumed.seekTo).toHaveBeenCalledWith(12);
   resumed.emit({ currentTime: 27, duration: 27, didJustFinish: true });
-  expect(controller.snapshot()).toMatchObject({ duration: 27, position: 27, playing: false });
+  expect(controller.snapshot()).toMatchObject({
+    duration: 27,
+    position: 27,
+    playing: false,
+  });
   controller.dispose();
 });
 
@@ -204,9 +214,7 @@ it("shows the spoken transcript while retaining the original evidence for replay
   const { controller, play, deps } = setup();
   const original = track("a");
   await play(original);
-  expect(controller.snapshot().sentences).toEqual([
-    { sentence: "A spoken guide.", factIds: ["f1"] },
-  ]);
+  expect(controller.snapshot().sentences).toEqual([{ sentence: "A spoken guide.", factIds: ["f1"] }]);
   expect(controller.snapshot().current).toEqual(original);
   controller.restart();
   await Promise.resolve();

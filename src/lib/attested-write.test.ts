@@ -6,7 +6,9 @@ const mockAssertion = jest.fn();
 const mockGetAppAttest = jest.fn();
 
 jest.mock("@/lib/installation-storage", () => ({
-  installationStorage: { getItem: (...args: unknown[]) => mockGetItem(...args) },
+  installationStorage: {
+    getItem: (...args: unknown[]) => mockGetItem(...args),
+  },
 }));
 jest.mock("@/lib/convex-client", () => ({
   convex: { mutation: (...args: unknown[]) => mockMutation(...args) },
@@ -73,8 +75,7 @@ it("requires a saved key before requesting a challenge", async () => {
 it.each(["keychain", "challenge", "assertion"])(
   "propagates %s errors instead of returning an unsigned fallback",
   async (stage) => {
-    const call =
-      stage === "keychain" ? mockGetItem : stage === "challenge" ? mockMutation : mockAssertion;
+    const call = stage === "keychain" ? mockGetItem : stage === "challenge" ? mockMutation : mockAssertion;
     call.mockRejectedValueOnce(new Error("unavailable"));
     await expect(signPayload({})).rejects.toThrow("unavailable");
     if (stage !== "assertion") expect(mockAssertion).not.toHaveBeenCalled();
@@ -95,10 +96,7 @@ it("signs a pre-serialized payload verbatim", async () => {
   expect((await signPayload('{"operation":"rejectMatch","scanId":"s"}'))?.payloadJson).toBe(
     '{"operation":"rejectMatch","scanId":"s"}',
   );
-  expect(mockAssertion).toHaveBeenCalledWith(
-    "saved-key",
-    'server-nonce.{"operation":"rejectMatch","scanId":"s"}',
-  );
+  expect(mockAssertion).toHaveBeenCalledWith("saved-key", 'server-nonce.{"operation":"rejectMatch","scanId":"s"}');
 });
 
 it("rejects non-JSON payloads before contacting the server", async () => {

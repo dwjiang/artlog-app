@@ -11,15 +11,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { SocialGate, SocialState } from "./social-state";
 import { PublishedArtwork } from "./published-artwork";
 
-export function ArtworkScreen({
-  kind,
-  itemId,
-  postId,
-}: {
-  kind: string;
-  itemId: string;
-  postId?: string;
-}) {
+export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: string; postId?: string }) {
   const session = useSocialSession();
   const shared = kind === "visit";
   const invalid = !itemId || (kind !== "wall" && !shared) || (shared && !postId);

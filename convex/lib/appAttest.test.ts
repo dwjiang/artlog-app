@@ -12,13 +12,7 @@ import {
   sha256,
   verifyAssertion,
 } from "./appAttest";
-import {
-  authenticatorData,
-  encodeAssertion,
-  makeSigner,
-  rawToDer,
-  signAssertion,
-} from "./appAttest.fixtures";
+import { authenticatorData, encodeAssertion, makeSigner, rawToDer, signAssertion } from "./appAttest.fixtures";
 
 const hex = (s: string) => Uint8Array.from(s.match(/../g)!.map((b) => parseInt(b, 16)));
 
@@ -72,9 +66,7 @@ describe("decodeAssertion", () => {
 
   it("rejects malformed input", () => {
     expect(() => decodeAssertion("AAAA")).toThrow();
-    expect(() => decodeAssertion(bytesToBase64(Uint8Array.from([0xa0])))).toThrow(
-      "missing signature",
-    );
+    expect(() => decodeAssertion(bytesToBase64(Uint8Array.from([0xa0])))).toThrow("missing signature");
   });
 });
 
@@ -111,8 +103,7 @@ describe("verifyAssertion", () => {
         "omlzaWduYXR1cmVYRzBFAiBB8BGAwkmFCg1M5J0mOYEun0SUN1/lse79/7ypG9WiMQIhAIHvqj7eg59B1PMFX1CN4GMGlsgfFtdL30pHCf7G/dNRcWF1dGhlbnRpY2F0b3JEYXRhWCXKPdw7T3iujcFZbHVrHX0mDSMrNms5PzEbrFbQPRA6rEAAAAAB",
       publicKeySpkiBase64:
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEg69t2YzgcPTLUx8Zgu+rbcikeaEL8Ppb+HG0QTIulz8YUB9tgv1pDRruWk87nZC3our56pzIWaqXEbaWyamdzA==",
-      clientData:
-        '{"subject":"Lorem ipsum","message":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}',
+      clientData: '{"subject":"Lorem ipsum","message":"Lorem ipsum dolor sit amet, consectetur adipiscing elit."}',
       expectedRpIdHash: await sha256("V8H6LQ9448.io.uebelacker.AppAttestExample"),
       previousCounter: 0,
     });
@@ -150,7 +141,10 @@ describe("verifyAssertion", () => {
     };
 
     expect(
-      await verifyAssertion({ ...base, clientData: 'nonce.{"objectId":"xyz"}' }),
+      await verifyAssertion({
+        ...base,
+        clientData: 'nonce.{"objectId":"xyz"}',
+      }),
     ).toMatchObject({
       ok: false,
       reason: "invalid_signature",
@@ -160,10 +154,16 @@ describe("verifyAssertion", () => {
       reason: "counter_not_increasing",
     });
     expect(
-      await verifyAssertion({ ...base, publicKeySpkiBase64: other.publicKeySpkiBase64 }),
+      await verifyAssertion({
+        ...base,
+        publicKeySpkiBase64: other.publicKeySpkiBase64,
+      }),
     ).toMatchObject({ ok: false, reason: "invalid_signature" });
     expect(
-      await verifyAssertion({ ...base, expectedRpIdHash: await sha256("OTHER.app") }),
+      await verifyAssertion({
+        ...base,
+        expectedRpIdHash: await sha256("OTHER.app"),
+      }),
     ).toMatchObject({ ok: false, reason: "rp_id_mismatch" });
   });
 

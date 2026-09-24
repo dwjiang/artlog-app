@@ -48,7 +48,9 @@ afterEach(() => {
 async function notifyVisitChange() {
   // The in-memory database needs the change event normally emitted by Expo SQLite.
   await act(() => {
-    for (const listener of mockDatabaseListeners) listener({ tableName: "visits" });
+    for (const listener of mockDatabaseListeners) {
+      listener({ tableName: "visits" });
+    }
   });
 }
 
@@ -63,7 +65,9 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
   await fireEvent.changeText(input, "  Remember the light  ");
   await fireEvent(input, "blur");
   await waitFor(async () =>
-    expect(await visits.getVisit(localId)).toMatchObject({ reflection: "Remember the light" }),
+    expect(await visits.getVisit(localId)).toMatchObject({
+      reflection: "Remember the light",
+    }),
   );
   await view.unmount();
   await render(<Notes />);
@@ -134,7 +138,9 @@ it("flushes the newest text when closing during an earlier save", async () => {
     finishWrite();
   });
   await waitFor(async () =>
-    expect(await visits.getVisit(localId)).toMatchObject({ reflection: "Newest draft" }),
+    expect(await visits.getVisit(localId)).toMatchObject({
+      reflection: "Newest draft",
+    }),
   );
 });
 
@@ -149,7 +155,9 @@ it("saves when the app goes into the background", async () => {
   await fireEvent.changeText(await screen.findByLabelText("Notes"), "Before backgrounding");
   await act(() => changeState("background"));
   await waitFor(async () =>
-    expect(await visits.getVisit(localId)).toMatchObject({ reflection: "Before backgrounding" }),
+    expect(await visits.getVisit(localId)).toMatchObject({
+      reflection: "Before backgrounding",
+    }),
   );
 });
 
@@ -171,14 +179,10 @@ it("keeps a failed draft visible and retries without more typing", async () => {
   const input = await screen.findByLabelText("Notes");
   await fireEvent.changeText(input, "Keep this draft");
   await fireEvent(input, "blur");
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Your note could not be saved. Try again.",
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Your note could not be saved. Try again.");
   expect(input).toHaveProp("value", "Keep this draft");
   await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
-  await waitFor(async () =>
-    expect((await visits.getVisit(localId))?.reflection).toBe("Keep this draft"),
-  );
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Keep this draft"));
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
@@ -190,9 +194,7 @@ it("saves the previous owner’s draft only to their journal when switching acco
   await act(() => switchOwner("account:other", "scope-other"));
   expect(await screen.findByText("Other owner note")).toBeOnTheScreen();
   await waitFor(async () =>
-    expect((await visits.getVisit(localId, anonymousOwner()))?.reflection).toBe(
-      "Original owner draft",
-    ),
+    expect((await visits.getVisit(localId, anonymousOwner()))?.reflection).toBe("Original owner draft"),
   );
   expect((await visits.getVisit(localId, "account:other"))?.reflection).toBe("Other owner note");
 });
@@ -209,9 +211,7 @@ it("accepts synced notes when idle and keeps an unsaved local draft during a ref
   await notifyVisitChange();
   expect(input).toHaveProp("value", "Local draft");
   await fireEvent(input, "blur");
-  await waitFor(async () =>
-    expect((await visits.getVisit(localId))?.reflection).toBe("Local draft"),
-  );
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Local draft"));
 });
 
 it("keeps end-visit notes unsaved through pauses, blur, backgrounding and dismissal", async () => {

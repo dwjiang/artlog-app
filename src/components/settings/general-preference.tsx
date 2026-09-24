@@ -43,18 +43,14 @@ export function GeneralPreference() {
     }
   }
 
-  const message =
-    error ??
-    (failed ? "The preference could not load. Choose your units to try again." : undefined);
+  const message = error ?? (failed ? "The preference could not load. Choose your units to try again." : undefined);
   return (
     <GroupedSection
       title="Measurement units"
       footer={
         <GroupedFooter tone={message ? "destructive" : "muted"}>
-          {message ??
-            (saving
-              ? "Saving measurement units…"
-              : "Used for nearby museum distances. Saved on this iPhone.")}
+          {message
+            ?? (saving ? "Saving measurement units…" : "Used for nearby museum distances. Saved on this iPhone.")}
         </GroupedFooter>
       }
     >
@@ -77,25 +73,16 @@ export function GeneralPreference() {
             ]}
           >
             <Row spacing={12} alignment="center" modifiers={[contentShape(shapes.rectangle())]}>
-              <Column
-                spacing={2}
-                alignment="start"
-                modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
-              >
+              <Column spacing={2} alignment="start" modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
                 <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
                   {option.label}
                 </Text>
-                <Text
-                  textStyle={{ color: Gallery.muted }}
-                  modifiers={[font({ textStyle: "footnote" })]}
-                >
+                <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "footnote" })]}>
                   {option.detail}
                 </Text>
               </Column>
               <Row modifiers={[frame({ width: 20 })]}>
-                {units === option.value && (
-                  <Icon name="checkmark" size={18} color={Gallery.accent} />
-                )}
+                {units === option.value && <Icon name="checkmark" size={18} color={Gallery.accent} />}
               </Row>
             </Row>
           </Button>

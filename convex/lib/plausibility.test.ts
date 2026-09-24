@@ -18,8 +18,14 @@ describe("plausibility", () => {
   });
 
   it("builds the lifespan window from birth and death, birth only, or death only", () => {
-    expect(lifespanWindow({ birth: 1840, death: 1926 })).toEqual({ start: 1840, end: 1926 });
-    expect(lifespanWindow({ birth: 1980 }, 2026)).toEqual({ start: 1990, end: 2026 });
+    expect(lifespanWindow({ birth: 1840, death: 1926 })).toEqual({
+      start: 1840,
+      end: 1926,
+    });
+    expect(lifespanWindow({ birth: 1980 }, 2026)).toEqual({
+      start: 1990,
+      end: 2026,
+    });
     expect(lifespanWindow({ death: 1926 })).toEqual({ start: 1806, end: 1926 });
     expect(lifespanWindow({})).toBeNull();
   });
@@ -27,9 +33,7 @@ describe("plausibility", () => {
   it("warns when the date falls outside the artist lifespan and stays quiet inside it", () => {
     const lifespan = { birth: 1840, death: 1926 };
     expect(assessPlausibility({ artistFound: true, lifespan, date: "1919" })).toEqual([]);
-    expect(assessPlausibility({ artistFound: true, lifespan, date: "1950" })).toEqual([
-      "date_outside_lifespan",
-    ]);
+    expect(assessPlausibility({ artistFound: true, lifespan, date: "1950" })).toEqual(["date_outside_lifespan"]);
     expect(assessPlausibility({ artistFound: true, lifespan, date: "1920–1930" })).toEqual([]);
     expect(assessPlausibility({ artistFound: true, lifespan, date: "undated" })).toEqual([]);
   });

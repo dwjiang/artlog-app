@@ -26,10 +26,8 @@ export type LabelSource = { labelPhotoUri?: string; qrUrl?: string };
 
 export const labelApi: LabelApi = {
   fetchQr: (args: FunctionArgs<typeof api.label.fetchQr>) => convex.action(api.label.fetchQr, args),
-  readLabel: (args: FunctionArgs<typeof api.label.readLabel>) =>
-    convex.action(api.label.readLabel, args),
-  verifyLabel: (args: FunctionArgs<typeof api.label.verifyLabel>) =>
-    convex.action(api.label.verifyLabel, args),
+  readLabel: (args: FunctionArgs<typeof api.label.readLabel>) => convex.action(api.label.readLabel, args),
+  verifyLabel: (args: FunctionArgs<typeof api.label.verifyLabel>) => convex.action(api.label.verifyLabel, args),
 };
 
 const IMAGE_FOLDER = "label-images";
@@ -54,11 +52,7 @@ export const imageCheckDeps: ImageCheckDeps = {
   },
   async letterbox(uri) {
     // No quad: the museum's reproduction is letterboxed whole, as the index build does (scripts/data/pipeline/letterbox.py).
-    const result = await getVisionRect().warpAndLetterbox(
-      filePath(uri),
-      undefined,
-      model.inputSize,
-    );
+    const result = await getVisionRect().warpAndLetterbox(filePath(uri), undefined, model.inputSize);
     return `file://${result.cropPath}`;
   },
   embed: (uri) => embedder.embed(uri),
@@ -66,9 +60,7 @@ export const imageCheckDeps: ImageCheckDeps = {
   remove: removeFile,
 };
 
-export function imageCheckFor(
-  scan: ScanFeatures,
-): (urls: string[]) => ReturnType<typeof checkImages> {
+export function imageCheckFor(scan: ScanFeatures): (urls: string[]) => ReturnType<typeof checkImages> {
   return (urls) => checkImages(urls, scan, imageCheckDeps, { inputSize: model.inputSize });
 }
 

@@ -31,11 +31,7 @@ export function AboutSection() {
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
       <View style={{ gap: 6, paddingTop: 18 }}>
-        <ThemedText
-          variant="wordmark"
-          style={{ fontSize: 64, lineHeight: 76 }}
-          accessibilityRole="header"
-        >
+        <ThemedText variant="wordmark" style={{ fontSize: 64, lineHeight: 76 }} accessibilityRole="header">
           Artlog
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -44,9 +40,24 @@ export function AboutSection() {
       </View>
       <View accessibilityElementsHidden style={{ height: 220 }}>
         {[
-          { art: introArtworks.lilies, left: "0%" as const, rotate: "-12deg", top: 28 },
-          { art: introArtworks.stars, left: "60%" as const, rotate: "10deg", top: 28 },
-          { art: introArtworks.pearl, left: "30%" as const, rotate: "4deg", top: 8 },
+          {
+            art: introArtworks.lilies,
+            left: "0%" as const,
+            rotate: "-12deg",
+            top: 28,
+          },
+          {
+            art: introArtworks.stars,
+            left: "60%" as const,
+            rotate: "10deg",
+            top: 28,
+          },
+          {
+            art: introArtworks.pearl,
+            left: "30%" as const,
+            rotate: "4deg",
+            top: 8,
+          },
         ].map(({ art, left, rotate, top }) => (
           <View
             key={art.title}
@@ -77,7 +88,10 @@ export function AboutSection() {
             label: "Privacy policy",
             icon: "lock",
             action: () =>
-              router.push({ pathname: "/settings-detail", params: { section: "privacy" } }),
+              router.push({
+                pathname: "/settings-detail",
+                params: { section: "privacy" },
+              }),
           },
           { label: "Terms", icon: "doc.text", detail: "Coming soon" },
           {
@@ -119,22 +133,14 @@ export function AboutSection() {
               borderTopColor: SettingsOutline.borderColor,
             })}
           >
-            <Image
-              source={`sf:${icon}`}
-              tintColor={Gallery.ink}
-              style={{ width: 18, height: 18 }}
-            />
+            <Image source={`sf:${icon}`} tintColor={Gallery.ink} style={{ width: 18, height: 18 }} />
             <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
             {detail ? (
               <ThemedText type="small" themeColor="textSecondary">
                 {detail}
               </ThemedText>
             ) : (
-              <Image
-                source="sf:chevron.right"
-                tintColor={Gallery.muted}
-                style={{ width: 10, height: 12 }}
-              />
+              <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 10, height: 12 }} />
             )}
           </Pressable>
         ))}
@@ -148,17 +154,15 @@ export function AboutSection() {
         type="small"
         themeColor="textSecondary"
         onPress={() => {
-          void open(
-            "https://commons.wikimedia.org/wiki/File:Art_Institute_of_Chicago_from_across_Michigan_Avenue.jpg",
-          );
+          void open("https://commons.wikimedia.org/wiki/File:Art_Institute_of_Chicago_from_across_Michigan_Avenue.jpg");
         }}
         accessibilityRole="link"
       >
         Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0. Displayed cropped.
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors. Licensed under the SIL Open
-        Font License, Version 1.1.
+        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors. Licensed under the SIL Open Font License,
+        Version 1.1.
       </ThemedText>
     </ScrollView>
   );

@@ -69,21 +69,13 @@ export function VisitReactionsSheet({
           </View>
           <View style={styles.context}>
             {kind === "comments" && visit.media && (
-              <DisplayMedia
-                media={visit.media}
-                label="Visit artwork"
-                token={session.token}
-                width={40}
-                height={40}
-              />
+              <DisplayMedia media={visit.media} label="Visit artwork" token={session.token} width={40} height={40} />
             )}
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.contextName}>
                 {visit.author.name}’s visit to {visit.venue.name}
               </Text>
-              {kind === "comments" && (
-                <Text style={styles.meta}>{visitDate(visit.visitedOn, undefined, "short")}</Text>
-              )}
+              {kind === "comments" && <Text style={styles.meta}>{visitDate(visit.visitedOn, undefined, "short")}</Text>}
             </View>
           </View>
           {kind === "comments" ? (
@@ -97,23 +89,9 @@ export function VisitReactionsSheet({
   );
 }
 
-function Likes({
-  postId,
-  session,
-  onDismiss,
-}: {
-  postId: string;
-  session: SocialSession;
-  onDismiss: () => void;
-}) {
+function Likes({ postId, session, onDismiss }: { postId: string; session: SocialSession; onDismiss: () => void }) {
   const router = useRouter();
-  const likes = useCursorPages(
-    api.visitReactions.listLikes,
-    { postId },
-    session.key,
-    likesPage,
-    profileId,
-  );
+  const likes = useCursorPages(api.visitReactions.listLikes, { postId }, session.key, likesPage, profileId);
   return (
     <FlatList
       data={likes.items}
@@ -156,15 +134,7 @@ function Likes({
   );
 }
 
-function Comments({
-  visit,
-  session,
-  onJoin,
-}: {
-  visit: ReactionVisit;
-  session: SocialSession;
-  onJoin: () => void;
-}) {
+function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: SocialSession; onJoin: () => void }) {
   const comments = useCursorPages(
     api.visitReactions.listComments,
     { postId: visit.postId },
@@ -172,11 +142,7 @@ function Comments({
     commentsPage,
     commentId,
   );
-  const viewer = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const viewer = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   const addComment = useMutation(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
   const list = useRef<FlatList<Comment>>(null);
@@ -204,9 +170,15 @@ function Comments({
     pending.current = true;
     setBusy(true);
     setError(undefined);
-    if (request.current?.body !== body) request.current = { body, id: randomUUID() };
+    if (request.current?.body !== body) {
+      request.current = { body, id: randomUUID() };
+    }
     try {
-      const id = await addComment({ postId: visit.postId, body, requestId: request.current.id });
+      const id = await addComment({
+        postId: visit.postId,
+        body,
+        requestId: request.current.id,
+      });
       setDraft("");
       request.current = null;
       setPosted(id);
@@ -229,7 +201,10 @@ function Comments({
           setDeleting(item.commentId);
           setError(undefined);
           try {
-            await deleteComment({ postId: visit.postId, commentId: item.commentId });
+            await deleteComment({
+              postId: visit.postId,
+              commentId: item.commentId,
+            });
           } catch (cause) {
             setError(socialErrorMessage(cause) ?? "Couldn’t delete your comment. Try again.");
           } finally {
@@ -265,9 +240,10 @@ function Comments({
                 <Text style={styles.meta}>
                   {now - item.createdAt < 86_400_000
                     ? formatRelativeTime(item.createdAt, now)
-                    : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(
-                        item.createdAt,
-                      )}
+                    : new Intl.DateTimeFormat(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      }).format(item.createdAt)}
                 </Text>
               </View>
               <Text selectable style={styles.body}>
@@ -285,9 +261,7 @@ function Comments({
                   onPress={() => remove(item)}
                   style={styles.delete}
                 >
-                  <Text style={styles.meta}>
-                    {deleting === item.commentId ? "Deleting…" : "Delete"}
-                  </Text>
+                  <Text style={styles.meta}>{deleting === item.commentId ? "Deleting…" : "Delete"}</Text>
                 </Pressable>
               )}
             </View>
@@ -315,11 +289,7 @@ function Comments({
         {session.status === "ready" ? (
           <>
             <View style={styles.inputRow}>
-              <ProfileAvatar
-                name={viewer.data?.name ?? "You"}
-                photoUrl={viewer.data?.photoUrl}
-                size={32}
-              />
+              <ProfileAvatar name={viewer.data?.name ?? "You"} photoUrl={viewer.data?.photoUrl} size={32} />
               <View style={[styles.inputWrap, focused && { borderColor: Gallery.accent }]}>
                 <TextInput
                   accessibilityLabel="Add a comment"
@@ -337,7 +307,10 @@ function Comments({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={busy ? "Posting comment" : "Post comment"}
-                  accessibilityState={{ disabled: !draft.trim() || busy || !!deleting, busy }}
+                  accessibilityState={{
+                    disabled: !draft.trim() || busy || !!deleting,
+                    busy,
+                  }}
                   disabled={!draft.trim() || busy || !!deleting}
                   onPress={() => void send()}
                   style={styles.sendTarget}
@@ -345,17 +318,15 @@ function Comments({
                   <View
                     style={[
                       styles.send,
-                      (!draft.trim() || busy) && { backgroundColor: Gallery.fill },
+                      (!draft.trim() || busy) && {
+                        backgroundColor: Gallery.fill,
+                      },
                     ]}
                   >
                     {busy ? (
                       <LoadingRing accessibilityLabel="Posting comment" size={18} />
                     ) : (
-                      <VisitSymbol
-                        name="arrow.up"
-                        size={18}
-                        color={draft.trim() ? Gallery.surface : Gallery.muted}
-                      />
+                      <VisitSymbol name="arrow.up" size={18} color={draft.trim() ? Gallery.surface : Gallery.muted} />
                     )}
                   </View>
                 </Pressable>
@@ -392,8 +363,19 @@ function Empty({ title, detail }: { title: string; detail: string }) {
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: Gallery.paper },
-  heading: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, minHeight: 48 },
-  title: { flex: 1, textAlign: "center", fontSize: 17, lineHeight: 24, fontWeight: "600" },
+  heading: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    minHeight: 48,
+  },
+  title: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "600",
+  },
   total: { color: Gallery.muted, fontWeight: "400", fontSize: 13 },
   context: {
     marginHorizontal: 20,
@@ -405,9 +387,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.separator,
   },
-  contextName: { fontSize: 13, lineHeight: 19, fontWeight: "500", color: Gallery.ink },
+  contextName: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
+    color: Gallery.ink,
+  },
   list: { flex: 1 },
-  listContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
+  listContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
   person: {
     minHeight: 69,
     flexDirection: "row",
@@ -417,13 +409,30 @@ const styles = StyleSheet.create({
     borderColor: Gallery.softBorder,
   },
   comment: { flexDirection: "row", gap: 10, paddingVertical: 12 },
-  byline: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 7, rowGap: 2 },
+  byline: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    columnGap: 7,
+    rowGap: 2,
+  },
   name: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: Gallery.ink },
   author: { fontSize: 10, lineHeight: 16, color: Gallery.accent },
   meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   body: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  delete: { minHeight: 44, minWidth: 44, alignSelf: "flex-start", justifyContent: "center" },
-  empty: { flex: 1, minHeight: 180, alignItems: "center", justifyContent: "center", gap: 8 },
+  delete: {
+    minHeight: 44,
+    minWidth: 44,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+  },
+  empty: {
+    flex: 1,
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   composer: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -453,7 +462,12 @@ const styles = StyleSheet.create({
     paddingBottom: 13,
     color: Gallery.ink,
   },
-  sendTarget: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
+  sendTarget: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   send: {
     width: 32,
     height: 32,
@@ -462,7 +476,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  audience: { fontSize: 10, lineHeight: 16, color: Gallery.muted, marginLeft: 41 },
+  audience: {
+    fontSize: 10,
+    lineHeight: 16,
+    color: Gallery.muted,
+    marginLeft: 41,
+  },
   join: { flexDirection: "row", alignItems: "center", gap: 12 },
   error: { fontSize: 13, lineHeight: 19, color: Gallery.destructive },
 });

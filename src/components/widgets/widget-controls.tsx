@@ -32,12 +32,7 @@ export function WidgetSettingRow({
 }) {
   return (
     <View style={{ borderBottomWidth: 0.5, borderBottomColor: Gallery.softBorder }}>
-      <Host
-        matchContents={{ vertical: true }}
-        colorScheme="light"
-        ignoreSafeArea="all"
-        style={{ width: "100%" }}
-      >
+      <Host matchContents={{ vertical: true }} colorScheme="light" ignoreSafeArea="all" style={{ width: "100%" }}>
         <Button
           variant="text"
           onPress={onPress}
@@ -52,21 +47,14 @@ export function WidgetSettingRow({
             spacing={12}
             alignment="center"
             style={{ paddingVertical: 14 }}
-            modifiers={[
-              frame({ maxWidth: Infinity, minHeight: 58 }),
-              contentShape(shapes.rectangle()),
-            ]}
+            modifiers={[frame({ maxWidth: Infinity, minHeight: 58 }), contentShape(shapes.rectangle())]}
           >
             {!!children && (
               <RNHostView matchContents>
                 <View>{children}</View>
               </RNHostView>
             )}
-            <Column
-              spacing={5}
-              alignment="start"
-              modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}
-            >
+            <Column spacing={5} alignment="start" modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
               <NativeText
                 textStyle={{ color: Gallery.ink }}
                 modifiers={[font({ textStyle: "body", weight: "semibold" })]}
@@ -74,10 +62,7 @@ export function WidgetSettingRow({
                 {title}
               </NativeText>
               {!!subtitle && (
-                <NativeText
-                  textStyle={{ color: Gallery.muted }}
-                  modifiers={[font({ textStyle: "caption" })]}
-                >
+                <NativeText textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "caption" })]}>
                   {subtitle}
                 </NativeText>
               )}
@@ -97,10 +82,7 @@ export function WidgetSettingRow({
               </RNHostView>
             )}
             {!!detail && (
-              <NativeText
-                textStyle={{ color: Gallery.accent }}
-                modifiers={[font({ textStyle: "subheadline" })]}
-              >
+              <NativeText textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
                 {detail}
               </NativeText>
             )}

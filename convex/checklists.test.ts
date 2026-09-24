@@ -8,12 +8,21 @@ import { harness } from "./test.helpers";
 async function fixture() {
   const t = harness({ transactionLimits: true });
   const seeded = await t.run(async (ctx) => {
-    const venueId = await seedMuseum(ctx, { key: "example:venue", lat: 37.78, lng: -122.4 });
+    const venueId = await seedMuseum(ctx, {
+      key: "example:venue",
+      lat: 37.78,
+      lng: -122.4,
+    });
     const ownerId = await seedMuseum(ctx, { key: "example:lender" });
     const work = await seedArtworkWithObject(ctx, {
       artwork: { wikidataId: "Q123" },
       object: { key: "example:object", ownerId, accession: "2026.1" },
-      placement: { venueId: ownerId, onView: true, source: "wikidata", confidence: 0.9 },
+      placement: {
+        venueId: ownerId,
+        onView: true,
+        source: "wikidata",
+        confidence: 0.9,
+      },
     });
     return { venueId, ownerId, ...work };
   });
@@ -44,13 +53,18 @@ it("resolves every identity mode, deduplicates objects, preserves provenance and
     unresolved: [],
   });
   expect(await t.run((ctx) => ctx.db.query("placements").collect())).toEqual(rows);
-  expect(await t.query(internal.ingest.counts, {})).toMatchObject({ placements: 1 });
+  expect(await t.query(internal.ingest.counts, {})).toMatchObject({
+    placements: 1,
+  });
 });
 
 it.each(example.works)("resolves an individual work: %j", async (input) => {
   const { t } = await fixture();
   expect(
-    await t.mutation(internal.checklists.ingestChecklist, { ...example, works: [input] }),
+    await t.mutation(internal.checklists.ingestChecklist, {
+      ...example,
+      works: [input],
+    }),
   ).toEqual({ placed: 1, unresolved: [] });
 });
 
@@ -59,15 +73,22 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
   await t.run(async (ctx) => {
     const object = (await ctx.db.get(objectId))!;
     const { _id, _creationTime, ...fields } = object;
-    await ctx.db.insert("objects", { ...fields, key: "second", accession: "2026.2" });
+    await ctx.db.insert("objects", {
+      ...fields,
+      key: "second",
+      accession: "2026.2",
+    });
   });
-  for (const input of [
-    { wikidataId: "Q123" },
-    { wikidataId: "Q123", ownerKey: "example:lender" },
-  ]) {
+  for (const input of [{ wikidataId: "Q123" }, { wikidataId: "Q123", ownerKey: "example:lender" }]) {
     expect(
-      await t.mutation(internal.checklists.ingestChecklist, { ...example, works: [input] }),
-    ).toEqual({ placed: 0, unresolved: [{ input, reason: "ambiguous_object" }] });
+      await t.mutation(internal.checklists.ingestChecklist, {
+        ...example,
+        works: [input],
+      }),
+    ).toEqual({
+      placed: 0,
+      unresolved: [{ input, reason: "ambiguous_object" }],
+    });
   }
   expect(
     await t.mutation(internal.checklists.ingestChecklist, {
@@ -75,7 +96,10 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
       works: [{ wikidataId: "Q123", ownerKey: "example:lender", accession: "2026.1" }],
     }),
   ).toEqual({ placed: 1, unresolved: [] });
-  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({ artworkId, ownerId });
+  expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+    artworkId,
+    ownerId,
+  });
 });
 
 it("reports missing identities and unindexed title matches instead of guessing", async () => {
@@ -85,9 +109,19 @@ it("reports missing identities and unindexed title matches instead of guessing",
     { wikidataId: "Q404" },
     { wikidataId: "Q123", ownerKey: "missing" },
     { title: "Water Lilies", artist: "Claude Monet" },
-    { title: "Water Lilies", artist: "Claude Monet", ownerKey: "example:lender", accession: "404" },
+    {
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      ownerKey: "example:lender",
+      accession: "404",
+    },
   ];
-  expect(await t.mutation(internal.checklists.ingestChecklist, { ...example, works })).toEqual({
+  expect(
+    await t.mutation(internal.checklists.ingestChecklist, {
+      ...example,
+      works,
+    }),
+  ).toEqual({
     placed: 0,
     unresolved: works.map((input, i) => ({
       input,
@@ -102,18 +136,13 @@ it("reports missing identities and unindexed title matches instead of guessing",
   });
 });
 
-it.each(["reverted", "mergedInto"] as const)(
-  "does not place %s objects through any identity mode",
-  async (field) => {
-    const { t, objectId } = await fixture();
-    await t.run((ctx) =>
-      ctx.db.patch(objectId, field === "reverted" ? { reverted: true } : { mergedInto: objectId }),
-    );
-    const result = await t.mutation(internal.checklists.ingestChecklist, example);
-    expect(result.placed).toBe(0);
-    expect(result.unresolved).toHaveLength(3);
-  },
-);
+it.each(["reverted", "mergedInto"] as const)("does not place %s objects through any identity mode", async (field) => {
+  const { t, objectId } = await fixture();
+  await t.run((ctx) => ctx.db.patch(objectId, field === "reverted" ? { reverted: true } : { mergedInto: objectId }));
+  const result = await t.mutation(internal.checklists.ingestChecklist, example);
+  expect(result.placed).toBe(0);
+  expect(result.unresolved).toHaveLength(3);
+});
 
 it("closes only overlapping checklist rows for the resolved object at the same venue", async () => {
   const { t, objectId, ownerId } = await fixture();
@@ -212,7 +241,10 @@ it("rejects missing hosts, invalid sources, and oversized requests before writin
   for (const [args, code] of [
     [{ ...example, venueKey: "missing" }, "venue_not_found"],
     [
-      { ...example, exhibition: { ...example.exhibition, sourceUrl: "not a URL" } },
+      {
+        ...example,
+        exhibition: { ...example.exhibition, sourceUrl: "not a URL" },
+      },
       "invalid_checklist_source",
     ],
     [{ ...example, works: Array(101).fill(example.works[0]) }, "checklist_too_large"],
@@ -228,7 +260,12 @@ it("an owner disambiguator selects that lender’s object and does not change un
   const { t, artworkId, objectId, ownerId, venueId } = await fixture();
   const unlisted = await t.run(async (ctx) => {
     const other = await seedArtworkWithObject(ctx, {
-      placement: { venueId, source: "checklist", onView: true, confidence: 0.85 },
+      placement: {
+        venueId,
+        source: "checklist",
+        onView: true,
+        confidence: 0.85,
+      },
     });
     await ctx.db.patch(other.objectId, { artworkId });
     return ctx.db
@@ -238,7 +275,10 @@ it("an owner disambiguator selects that lender’s object and does not change un
   });
   const input = { wikidataId: "Q123" };
   expect(
-    await t.mutation(internal.checklists.ingestChecklist, { ...example, works: [input] }),
+    await t.mutation(internal.checklists.ingestChecklist, {
+      ...example,
+      works: [input],
+    }),
   ).toEqual({ placed: 0, unresolved: [{ input, reason: "ambiguous_object" }] });
   expect(
     await t.mutation(internal.checklists.ingestChecklist, {

@@ -25,7 +25,9 @@ export function showToast(message: string, action?: ToastAction) {
   current = { id: ++nextId, message, action };
   emit();
   // Dismissal is scheduled only while a layer is showing the toast, so screens under test leave no timers behind.
-  if (listeners.size) timer = setTimeout(() => dismissToast(current?.id), DURATION_MS);
+  if (listeners.size) {
+    timer = setTimeout(() => dismissToast(current?.id), DURATION_MS);
+  }
 }
 export function dismissToast(id = current?.id) {
   if (!current || current.id !== id) return;

@@ -22,9 +22,10 @@ export function createWallTransport(url: string, fetcher: typeof globalThis.fetc
     setLayout: (args: LayoutInput, context: RequestContext) =>
       client(context).mutation(api.walls.setLayout, args, { skipQueue: true }),
     setNoteVisibility: (args: VisibilityInput, context: RequestContext) =>
-      client(context).mutation(api.walls.setNoteVisibility, args, { skipQueue: true }),
-    listMine: (args: CollectionInput, context: RequestContext) =>
-      client(context).query(api.collections.listMine, args),
+      client(context).mutation(api.walls.setNoteVisibility, args, {
+        skipQueue: true,
+      }),
+    listMine: (args: CollectionInput, context: RequestContext) => client(context).query(api.collections.listMine, args),
   };
 }
 export type WallTransport = ReturnType<typeof createWallTransport>;
@@ -32,9 +33,7 @@ export type WallTransport = ReturnType<typeof createWallTransport>;
 export function createPublicWallReader(url: string) {
   const client = new ConvexHttpClient(url);
   return {
-    getWall: (args: FunctionArgs<typeof api.walls.getPublic>) =>
-      client.query(api.walls.getPublic, args),
-    getArtwork: (args: FunctionArgs<typeof api.walls.getArtwork>) =>
-      client.query(api.walls.getArtwork, args),
+    getWall: (args: FunctionArgs<typeof api.walls.getPublic>) => client.query(api.walls.getPublic, args),
+    getArtwork: (args: FunctionArgs<typeof api.walls.getArtwork>) => client.query(api.walls.getArtwork, args),
   };
 }

@@ -21,8 +21,7 @@ export const wallFrames: {
     name: "Baroque",
     color: "#8A6620",
     width: 8,
-    gradient:
-      "linear-gradient(135deg, #D9B95E 0%, #8A6620 30%, #F0D68A 50%, #7A5A18 78%, #D9B95E 100%)",
+    gradient: "linear-gradient(135deg, #D9B95E 0%, #8A6620 30%, #F0D68A 50%, #7A5A18 78%, #D9B95E 100%)",
   },
   {
     value: "walnut",
@@ -51,15 +50,7 @@ export function wallFrameInset(frame: Frame, width: number) {
   return Math.min(finish.width, (finish.width * width) / 166);
 }
 
-export function WallFrame({
-  frame,
-  children,
-  width,
-}: {
-  frame: Frame;
-  children: ReactNode;
-  width: number;
-}) {
+export function WallFrame({ frame, children, width }: { frame: Frame; children: ReactNode; width: number }) {
   const finish = wallFrames.find((item) => item.value === frame)!;
   const inset = wallFrameInset(frame, width);
   return (

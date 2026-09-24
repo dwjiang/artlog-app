@@ -36,8 +36,7 @@ export function mat3mul(a: ArrayLike<number>, b: ArrayLike<number>): Float64Arra
   const out = new Float64Array(9);
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
-      out[row * 3 + col] =
-        a[row * 3] * b[col] + a[row * 3 + 1] * b[3 + col] + a[row * 3 + 2] * b[6 + col];
+      out[row * 3 + col] = a[row * 3] * b[col] + a[row * 3 + 1] * b[3 + col] + a[row * 3 + 2] * b[6 + col];
     }
   }
   return out;
@@ -114,17 +113,7 @@ export function solveHomography(src: Point[], dst: Point[]): Float64Array | null
     0,
     1,
   ]);
-  const fromDst = new Float64Array([
-    1 / dstNorm.scale,
-    0,
-    dstNorm.cx,
-    0,
-    1 / dstNorm.scale,
-    dstNorm.cy,
-    0,
-    0,
-    1,
-  ]);
+  const fromDst = new Float64Array([1 / dstNorm.scale, 0, dstNorm.cx, 0, 1 / dstNorm.scale, dstNorm.cy, 0, 0, 1]);
   const H = mat3mul(fromDst, mat3mul(normalized, toSrc));
   if (Math.abs(H[8]) > PIVOT_EPSILON) {
     for (let i = 0; i < 9; i++) H[i] /= H[8];
@@ -148,12 +137,7 @@ function normalization(points: Point[]): { cx: number; cy: number; scale: number
   return { cx, cy, scale: Math.SQRT2 / meanDistance };
 }
 
-function accumulateNormalEquations(
-  m: Float64Array,
-  rhs: Float64Array,
-  row: Float64Array,
-  b: number,
-): void {
+function accumulateNormalEquations(m: Float64Array, rhs: Float64Array, row: Float64Array, b: number): void {
   for (let r = 0; r < 8; r++) {
     const rv = row[r];
     if (rv === 0) continue;
@@ -266,7 +250,9 @@ export function ransacHomography(
       bound = Math.min(maxIterations, iterationBound(count / n, confidence));
     }
   }
-  if (bestH === null || bestCount < 4) return { H: null, inlierMask, inlierCount: 0, iterations };
+  if (bestH === null || bestCount < 4) {
+    return { H: null, inlierMask, inlierCount: 0, iterations };
+  }
 
   countInliers(bestH, sx, sy, dx, dy, threshold2, inlierMask);
   const refit = solveHomography(maskedPoints(sx, sy, inlierMask), maskedPoints(dx, dy, inlierMask));
@@ -323,6 +309,8 @@ function iterationBound(inlierRatio: number, confidence: number): number {
 
 function maskedPoints(xs: Float64Array, ys: Float64Array, mask: Uint8Array): Point[] {
   const points: Point[] = [];
-  for (let i = 0; i < mask.length; i++) if (mask[i]) points.push([xs[i], ys[i]]);
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) points.push([xs[i], ys[i]]);
+  }
   return points;
 }

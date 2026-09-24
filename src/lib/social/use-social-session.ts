@@ -18,14 +18,10 @@ export function useSocialSession() {
   const account = useSocialQuery(api.accounts.me, deviceReady && !offline ? {} : "skip", key);
   const linked = account.data?.linked === true;
   const accountReady =
-    linked &&
-    !!token &&
-    account.data?.scope === serverScope &&
-    owner === `account:${account.data?.accountId}`;
+    linked && !!token && account.data?.scope === serverScope && owner === `account:${account.data?.accountId}`;
   const mine = useSocialQuery(api.walls.getMine, accountReady && !offline ? {} : "skip", key);
   const profileRequired = convexErrorCode(mine.error) === "profile_required";
-  const profileId =
-    accountReady && mine.data?.scope === account.data?.scope ? mine.data?.profileId : undefined;
+  const profileId = accountReady && mine.data?.scope === account.data?.scope ? mine.data?.profileId : undefined;
   const error = account.error ?? (profileRequired ? undefined : mine.error);
   const status = offline
     ? "offline"

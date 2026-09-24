@@ -26,7 +26,9 @@ beforeEach(async () => {
   initializeOwner("test-installation");
 });
 it("passes venue-only and empty contexts through without starting a visit", async () => {
-  expect(await prepareCaptureVisit({ venueId }, capturedAt)).toEqual({ venueId });
+  expect(await prepareCaptureVisit({ venueId }, capturedAt)).toEqual({
+    venueId,
+  });
   expect(await prepareCaptureVisit({}, capturedAt)).toEqual({});
   expect(await db.select().from(visits)).toEqual([]);
   await expect(prepareCaptureVisit({ venueId }, -1)).rejects.toThrow("Invalid capture date");
@@ -39,15 +41,13 @@ it("preserves an explicit ended visit for delayed captures and rejects foreign o
     startedAt: capturedAt,
     endedAt: capturedAt + 60_000,
   });
-  await expect(
-    prepareCaptureVisit({ ...original, venueId: "other" as never }, capturedAt),
-  ).rejects.toThrow("invalid visit");
-  await expect(
-    prepareCaptureVisit({ ...original, visitId: "remote" as never }, capturedAt),
-  ).rejects.toThrow("invalid visit");
-  await expect(
-    prepareCaptureVisit({ venueId, visitLocalId: "missing" }, capturedAt),
-  ).rejects.toThrow("invalid visit");
+  await expect(prepareCaptureVisit({ ...original, venueId: "other" as never }, capturedAt)).rejects.toThrow(
+    "invalid visit",
+  );
+  await expect(prepareCaptureVisit({ ...original, visitId: "remote" as never }, capturedAt)).rejects.toThrow(
+    "invalid visit",
+  );
+  await expect(prepareCaptureVisit({ venueId, visitLocalId: "missing" }, capturedAt)).rejects.toThrow("invalid visit");
   switchOwner("account:other");
   await expect(prepareCaptureVisit(original, capturedAt)).rejects.toThrow("invalid visit");
 });
@@ -57,7 +57,10 @@ it("uses the shutter date when location resolution crosses local midnight", asyn
   const context = await startVisit(after);
   expect(await getVisit(localId)).toMatchObject({ visitedOn: "2024-03-10" });
   expect(await prepareCaptureVisit(context, before)).toEqual(context);
-  expect(await getVisit(localId)).toMatchObject({ visitedOn: "2024-03-09", startedAt: before });
+  expect(await getVisit(localId)).toMatchObject({
+    visitedOn: "2024-03-09",
+    startedAt: before,
+  });
 });
 it("does not add timestamps to an explicitly associated manual visit", async () => {
   await upsertVisit({
@@ -68,5 +71,8 @@ it("does not add timestamps to an explicitly associated manual visit", async () 
     timeZone: "UTC",
   });
   await prepareCaptureVisit({ venueId, visitLocalId: localId }, capturedAt);
-  expect(await getVisit(localId)).toMatchObject({ startedAt: null, endedAt: null });
+  expect(await getVisit(localId)).toMatchObject({
+    startedAt: null,
+    endedAt: null,
+  });
 });

@@ -1,17 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  chmod,
-  copyFile,
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { chmod, copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -20,7 +10,11 @@ import { afterEach, beforeEach, test } from "node:test";
 let directory: string;
 let models: string;
 let compiled: string;
-const contract = { modelVersion: "test-v1", inputSize: 512, embeddingDim: 1536 };
+const contract = {
+  modelVersion: "test-v1",
+  inputSize: 512,
+  embeddingDim: 1536,
+};
 
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "artlog-model-test-"));
@@ -30,10 +24,7 @@ beforeEach(async () => {
   await mkdir(join(compiled, "analytics"));
   await mkdir(join(directory, "scripts/model"), { recursive: true });
   await mkdir(join(directory, "shared/model"), { recursive: true });
-  await copyFile(
-    new URL("./check-model.mts", import.meta.url),
-    join(directory, "scripts/model/check-model.mts"),
-  );
+  await copyFile(new URL("./check-model.mts", import.meta.url), join(directory, "scripts/model/check-model.mts"));
   await writeFile(join(directory, "shared/model/model-version.json"), JSON.stringify(contract));
   await writeFile(
     join(models, "model-manifest.json"),
@@ -132,7 +123,11 @@ async function compilerFixture() {
       cwd: directory,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, ARTLOG_TEST_COMPILED: result },
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        ARTLOG_TEST_COMPILED: result,
+      },
     });
   return { compile, output };
 }
@@ -147,10 +142,7 @@ test("installs a validated compiler result into the tracked model directory", as
 test("keeps the existing model when a new export does not match the app", async () => {
   const { compile, output } = await compilerFixture();
   const manifest = JSON.parse(await readFile(join(output, "model-manifest.json"), "utf8"));
-  await writeFile(
-    join(output, "model-manifest.json"),
-    JSON.stringify({ ...manifest, modelVersion: "wrong" }),
-  );
+  await writeFile(join(output, "model-manifest.json"), JSON.stringify({ ...manifest, modelVersion: "wrong" }));
   assert.throws(compile, /does not match/);
   assert.match(checkModel(), /Model test-v1 ready/);
 });

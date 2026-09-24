@@ -22,9 +22,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
           <Pressable
             key={candidate.objectId}
             accessibilityRole="button"
-            accessibilityLabel={[candidate.title, candidate.artist, confidence]
-              .filter(Boolean)
-              .join(", ")}
+            accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
             onPress={() => onPick(candidate)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
           >
@@ -50,11 +48,7 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
               )}
               {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
             </View>
-            <Image
-              source="sf:chevron.right"
-              tintColor={Gallery.muted}
-              style={{ width: 12, height: 12 }}
-            />
+            <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
           </Pressable>
         );
       })}
@@ -79,7 +73,10 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: Colors.light.backgroundElement,
   },
-  placeholder: { borderWidth: StyleSheet.hairlineWidth, borderColor: Gallery.separator },
+  placeholder: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.separator,
+  },
   text: { flex: 1, gap: Spacing.half },
   confidence: { fontVariant: ["tabular-nums"] },
 });

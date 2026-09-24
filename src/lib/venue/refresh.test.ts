@@ -6,7 +6,11 @@ jest.mock("@/lib/convex-client", () => ({}));
 jest.mock("../../../convex/_generated/api", () => ({ api: {} }));
 jest.mock("expo-file-system", () => ({ File: class {} }));
 
-const latest = { version: 200, rowCount: 42_452, url: "https://storage.example/venues.db" };
+const latest = {
+  version: 200,
+  rowCount: 42_452,
+  url: "https://storage.example/venues.db",
+};
 let deps: jest.Mocked<RefreshDependencies>;
 
 beforeEach(() => {

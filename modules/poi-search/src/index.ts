@@ -24,7 +24,8 @@ let instance: PoiSearch | null | undefined;
 
 export function getPoiSearch(): PoiSearch {
   instance ??= requireOptionalNativeModule<PoiSearch>("PoiSearch");
-  if (!instance)
+  if (!instance) {
     throw new Error("The PoiSearch native module is unavailable; rebuild the dev client");
+  }
   return instance;
 }

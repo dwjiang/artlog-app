@@ -28,7 +28,9 @@ export function encodeAssertion(signature: Uint8Array, authenticatorData: Uint8A
 
 function derInteger(bytes: Uint8Array): Uint8Array {
   let body = bytes;
-  while (body.length > 1 && body[0] === 0 && !(body[1] & 0x80)) body = body.slice(1);
+  while (body.length > 1 && body[0] === 0 && !(body[1] & 0x80)) {
+    body = body.slice(1);
+  }
   if (body[0] & 0x80) body = concat(Uint8Array.from([0]), body);
   return concat(Uint8Array.from([0x02, body.length]), body);
 }
@@ -49,26 +51,18 @@ export function authenticatorData(rpIdHash: Uint8Array, counter: number): Uint8A
 export type Signer = { privateKey: CryptoKey; publicKeySpkiBase64: string };
 
 export async function makeSigner(): Promise<Signer> {
-  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
+  const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
   const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
-  return { privateKey: pair.privateKey, publicKeySpkiBase64: bytesToBase64(spki) };
+  return {
+    privateKey: pair.privateKey,
+    publicKeySpkiBase64: bytesToBase64(spki),
+  };
 }
 
-export async function signAssertion(
-  signer: Signer,
-  authData: Uint8Array,
-  clientData: string,
-): Promise<string> {
+export async function signAssertion(signer: Signer, authData: Uint8Array, clientData: string): Promise<string> {
   const nonce = await sha256(concat(authData, await sha256(clientData)));
   const raw = new Uint8Array(
-    await crypto.subtle.sign(
-      { name: "ECDSA", hash: "SHA-256" },
-      signer.privateKey,
-      nonce as BufferSource,
-    ),
+    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, signer.privateKey, nonce as BufferSource),
   );
   return bytesToBase64(encodeAssertion(rawToDer(raw), authData));
 }

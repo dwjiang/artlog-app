@@ -10,9 +10,7 @@ import { harness, type Harness } from "./test.helpers";
 vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn() }));
 let privateKey: string;
 beforeAll(async () => {
-  privateKey = await exportPKCS8(
-    (await generateKeyPair("RS256", { extractable: true })).privateKey,
-  );
+  privateKey = await exportPKCS8((await generateKeyPair("RS256", { extractable: true })).privateKey);
 });
 beforeEach(() => {
   vi.stubEnv("JWT_PRIVATE_KEY", privateKey);
@@ -26,7 +24,9 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 async function appleSignIn(device: Awaited<ReturnType<typeof seedDevice>>) {
-  const { nonce } = await device.as.mutation(api.devices.createChallenge, { purpose: "apple" });
+  const { nonce } = await device.as.mutation(api.devices.createChallenge, {
+    purpose: "apple",
+  });
   return device.as.action(api.auth.signIn, {
     provider: "apple-native",
     params: { identityToken: "verified-token", nonce },
@@ -34,8 +34,14 @@ async function appleSignIn(device: Awaited<ReturnType<typeof seedDevice>>) {
 }
 
 async function link(device: Awaited<ReturnType<typeof seedDevice>>, appleUserId = "apple-user") {
-  const { nonce } = await device.as.mutation(api.devices.createChallenge, { purpose: "assert" });
-  return device.as.mutation(api.accounts.linkAccount, { appleUserId, nonce, assertionBase64: "" });
+  const { nonce } = await device.as.mutation(api.devices.createChallenge, {
+    purpose: "assert",
+  });
+  return device.as.mutation(api.accounts.linkAccount, {
+    appleUserId,
+    nonce,
+    assertionBase64: "",
+  });
 }
 
 async function pair(t: Harness) {
@@ -90,17 +96,17 @@ it("consumes Apple challenges and rejects replay, expiration and another deviceâ
   const t = harness();
   const a = await seedDevice(t),
     b = await seedDevice(t);
-  const { nonce } = await a.as.mutation(api.devices.createChallenge, { purpose: "apple" });
+  const { nonce } = await a.as.mutation(api.devices.createChallenge, {
+    purpose: "apple",
+  });
   const args = { sub: "apple-user", nonce };
-  await expect(b.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow(
-    "challenge_invalid",
-  );
+  await expect(b.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args);
-  await expect(a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow(
-    "challenge_invalid",
-  );
+  await expect(a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await t.run((ctx) =>
-    ctx.db.patch(a.deviceId, { appleLinkProof: { sub: "apple-user", expiresAt: 0 } }),
+    ctx.db.patch(a.deviceId, {
+      appleLinkProof: { sub: "apple-user", expiresAt: 0 },
+    }),
   );
   await expect(link(a)).rejects.toThrow("apple_sign_in_required");
 });
@@ -110,7 +116,11 @@ it("links idempotently and reports two devices without exposing the Apple subjec
   const { a, b } = await pair(t);
   await link(a);
   const me = await b.as.query(api.accounts.me, {});
-  expect(me).toMatchObject({ linked: true, deviceCount: 2, email: "me@example.com" });
+  expect(me).toMatchObject({
+    linked: true,
+    deviceCount: 2,
+    email: "me@example.com",
+  });
   expect(me).not.toHaveProperty("appleUserId");
 });
 
@@ -123,11 +133,13 @@ it("aggregates trust on linking while leaving rate limits per device", async () 
   await link(a);
   await appleSignIn(b);
   await link(b);
-  expect(await t.run((ctx) => ctx.db.get(b.deviceId))).toMatchObject({ trustWeight: 0.9 });
-  for (let i = 0; i < 10; i++) await t.run((ctx) => limitDevice(ctx, "sync", a.deviceId));
-  await expect(t.run((ctx) => limitDevice(ctx, "sync", a.deviceId))).rejects.toThrow(
-    "rate_limited",
-  );
+  expect(await t.run((ctx) => ctx.db.get(b.deviceId))).toMatchObject({
+    trustWeight: 0.9,
+  });
+  for (let i = 0; i < 10; i++) {
+    await t.run((ctx) => limitDevice(ctx, "sync", a.deviceId));
+  }
+  await expect(t.run((ctx) => limitDevice(ctx, "sync", a.deviceId))).rejects.toThrow("rate_limited");
   await expect(t.run((ctx) => limitDevice(ctx, "sync", b.deviceId))).resolves.toBeNull();
 });
 
@@ -135,18 +147,29 @@ it("unlink removes only this device and clears pending proof so it cannot silent
   const t = harness();
   const { a, b } = await pair(t);
   await a.as.mutation(api.accounts.unlink, {});
-  expect(await a.as.query(api.accounts.me, {})).toMatchObject({ linked: false, deviceCount: 0 });
-  expect(await b.as.query(api.accounts.me, {})).toMatchObject({ linked: true, deviceCount: 1 });
+  expect(await a.as.query(api.accounts.me, {})).toMatchObject({
+    linked: false,
+    deviceCount: 0,
+  });
+  expect(await b.as.query(api.accounts.me, {})).toMatchObject({
+    linked: true,
+    deviceCount: 1,
+  });
   await expect(link(a)).rejects.toThrow("apple_sign_in_required");
-  expect(await t.run((ctx) => ctx.db.get(a.deviceId))).toMatchObject({ authUserId: a.userId });
+  expect(await t.run((ctx) => ctx.db.get(a.deviceId))).toMatchObject({
+    authUserId: a.userId,
+  });
 });
 
 it("deleting an account unlinks every device and removes its Apple auth association", async () => {
   const t = harness();
   const { a, b } = await pair(t);
   await a.as.mutation(api.accounts.deleteAccount, {});
-  for (const device of [a, b])
-    expect(await device.as.query(api.accounts.me, {})).toMatchObject({ linked: false });
+  for (const device of [a, b]) {
+    expect(await device.as.query(api.accounts.me, {})).toMatchObject({
+      linked: false,
+    });
+  }
   expect(await t.run((ctx) => ctx.db.query("accounts").collect())).toHaveLength(0);
   expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(0);
 });
@@ -157,9 +180,7 @@ it("keeps interrupted claims linked until they can finish without stranding pare
   await appleSignIn(device);
   await link(device);
   await expect(device.as.mutation(api.accounts.unlink, {})).rejects.toThrow("claim_required");
-  await expect(device.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow(
-    "claim_required",
-  );
+  await expect(device.as.mutation(api.accounts.deleteAccount, {})).rejects.toThrow("claim_required");
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(true);
 });
 

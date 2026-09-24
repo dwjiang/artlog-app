@@ -15,18 +15,15 @@ export function matchesSearch(fields: (string | null | undefined)[], term: strin
   return term.split(" ").every((word) => text.includes(word));
 }
 
-export function pageRows<T>(
-  rows: T[],
-  key: (row: T) => string,
-  scope: string,
-  options: PageOptions = {},
-): Page<T> {
+export function pageRows<T>(rows: T[], key: (row: T) => string, scope: string, options: PageOptions = {}): Page<T> {
   const { numItems, cursor } = pagination(options);
   let after: string | undefined;
   if (cursor) {
     try {
       const decoded = JSON.parse(cursor);
-      if (decoded.scope !== scope || typeof decoded.after !== "string") throw new Error();
+      if (decoded.scope !== scope || typeof decoded.after !== "string") {
+        throw new Error();
+      }
       after = decoded.after;
     } catch {
       throw new ConvexError({ code: "invalid_pagination" });

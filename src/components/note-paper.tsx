@@ -15,7 +15,14 @@ export function NotePaper({ children, label }: { children: ReactNode; label?: st
       }}
     >
       {label && (
-        <Text style={{ fontSize: 10, lineHeight: 16, letterSpacing: 1.2, color: Gallery.muted }}>
+        <Text
+          style={{
+            fontSize: 10,
+            lineHeight: 16,
+            letterSpacing: 1.2,
+            color: Gallery.muted,
+          }}
+        >
           {label.toUpperCase()}
         </Text>
       )}

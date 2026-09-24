@@ -53,9 +53,7 @@ const DERIVATIVE_QUALIFIERS = /\b(?:study|studies|sketch|poster|print|copy|after
 export function titleQualifiersMatch(a: string, b: string): boolean {
   const qualifiers = (title: string) =>
     new Set(
-      (normalizeText(title).match(DERIVATIVE_QUALIFIERS) ?? []).map((term) =>
-        term === "studies" ? "study" : term,
-      ),
+      (normalizeText(title).match(DERIVATIVE_QUALIFIERS) ?? []).map((term) => (term === "studies" ? "study" : term)),
     );
   const left = qualifiers(a);
   const right = qualifiers(b);
@@ -85,9 +83,7 @@ function nameTokens(value: string): string[] {
 function personNameTokens(value: string): string[] {
   const parts = value
     .split(",")
-    .map((part) =>
-      nameTokens(part).filter((token) => token !== "the" && !Object.hasOwn(NAME_QUALIFIERS, token)),
-    )
+    .map((part) => nameTokens(part).filter((token) => token !== "the" && !Object.hasOwn(NAME_QUALIFIERS, token)))
     .filter((part) => part.length);
   // A comma separates family and given names; suffix-only parts have already been removed.
   return parts.length === 2 ? [...parts[1], ...parts[0]] : parts.flat();
@@ -100,7 +96,9 @@ export function personMatches(a: string, b: string): boolean {
       .map((token) => NAME_QUALIFIERS[token])
       .find(Boolean);
   const [leftQualifier, rightQualifier] = [qualifier(a), qualifier(b)];
-  if (leftQualifier && rightQualifier && leftQualifier !== rightQualifier) return false;
+  if (leftQualifier && rightQualifier && leftQualifier !== rightQualifier) {
+    return false;
+  }
   const left = personNameTokens(a);
   const right = personNameTokens(b);
   if (!left.length || !right.length) return false;
@@ -110,9 +108,9 @@ export function personMatches(a: string, b: string): boolean {
   if (left.length === 1 || right.length === 1) return true;
   const [first, other] = [left[0], right[0]];
   return (
-    first === other ||
-    (first.length === 1 && other.startsWith(first)) ||
-    (other.length === 1 && first.startsWith(other))
+    first === other
+    || (first.length === 1 && other.startsWith(first))
+    || (other.length === 1 && first.startsWith(other))
   );
 }
 
@@ -123,9 +121,7 @@ export function artistMentioned(text: string, artist: string): boolean {
   const last = tokens[tokens.length - 1];
   const given = tokens.slice(0, -1);
   const initials = given.map((token) => token[0]);
-  return [
-    `${last} ${given.join(" ")}`,
-    `${initials.join(" ")} ${last}`,
-    `${initials.join("")} ${last}`,
-  ].some((variant) => mentions(text, variant));
+  return [`${last} ${given.join(" ")}`, `${initials.join(" ")} ${last}`, `${initials.join("")} ${last}`].some(
+    (variant) => mentions(text, variant),
+  );
 }

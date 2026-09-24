@@ -1,12 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
-import {
-  browsedProfile,
-  publicProfile,
-  validateProfile,
-  validateSearch,
-} from "../shared/social/contracts";
+import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
@@ -14,11 +9,7 @@ import { acceptedRelationships, findBlock, relationshipSnapshot } from "./lib/fr
 import { projectProfile } from "./lib/projections";
 
 // Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
-async function projectBrowsedProfile(
-  ctx: QueryCtx,
-  viewer: Doc<"profiles"> | null,
-  profile: Doc<"profiles">,
-) {
+async function projectBrowsedProfile(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
   const person = await projectProfile(ctx, profile);
   if (!viewer || viewer._id === profile._id) return person;
   return {
@@ -38,7 +29,9 @@ export const create = mutation({
       .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
       .unique();
     if (existing) {
-      if (!existing.active || existing.removal) throw new ConvexError({ code: "profile_required" });
+      if (!existing.active || existing.removal) {
+        throw new ConvexError({ code: "profile_required" });
+      }
       return projectProfile(ctx, existing);
     }
     if (
@@ -86,10 +79,16 @@ export const search = query({
       .withSearchIndex("search_text", (q) => q.search("searchText", search).eq("active", true))
       .paginate(pagination(input));
     const page = [];
-    for (const profile of result.page)
-      if (!profile.removal && (await ctx.db.get(profile.accountId)))
+    for (const profile of result.page) {
+      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
-    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+      }
+    }
+    return {
+      page,
+      cursor: result.isDone ? null : result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -109,9 +108,9 @@ export const friends = query({
       const id = edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId;
       const person = await activeProfile(ctx, id);
       if (
-        person &&
-        !(await findBlock(ctx, profile._id, id))?.active &&
-        !(await findBlock(ctx, id, profile._id))?.active
+        person
+        && !(await findBlock(ctx, profile._id, id))?.active
+        && !(await findBlock(ctx, id, profile._id))?.active
       ) {
         people.push(await projectProfile(ctx, person));
       }
@@ -135,10 +134,16 @@ export const discover = query({
       .order("desc")
       .paginate(pagination(input));
     const page = [];
-    for (const profile of result.page)
-      if (!profile.removal && (await ctx.db.get(profile.accountId)))
+    for (const profile of result.page) {
+      if (!profile.removal && (await ctx.db.get(profile.accountId))) {
         page.push(await projectBrowsedProfile(ctx, viewer, profile));
-    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+      }
+    }
+    return {
+      page,
+      cursor: result.isDone ? null : result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -164,15 +169,11 @@ export const requests = query({
       await Promise.all([
         ctx.db
           .query("friendships")
-          .withIndex("by_first_state", (q) =>
-            q.eq("firstProfileId", profile._id).eq("state", "pending"),
-          )
+          .withIndex("by_first_state", (q) => q.eq("firstProfileId", profile._id).eq("state", "pending"))
           .take(LIMITS.friends + 1),
         ctx.db
           .query("friendships")
-          .withIndex("by_second_state", (q) =>
-            q.eq("secondProfileId", profile._id).eq("state", "pending"),
-          )
+          .withIndex("by_second_state", (q) => q.eq("secondProfileId", profile._id).eq("state", "pending"))
           .take(LIMITS.friends + 1),
       ])
     ).flat();
@@ -181,9 +182,9 @@ export const requests = query({
       if (edge.requesterId === profile._id) continue;
       const person = await activeProfile(ctx, edge.requesterId);
       if (
-        person &&
-        !(await findBlock(ctx, profile._id, person._id))?.active &&
-        !(await findBlock(ctx, person._id, profile._id))?.active
+        person
+        && !(await findBlock(ctx, profile._id, person._id))?.active
+        && !(await findBlock(ctx, person._id, profile._id))?.active
       ) {
         requests.push(await projectBrowsedProfile(ctx, profile, person));
       }

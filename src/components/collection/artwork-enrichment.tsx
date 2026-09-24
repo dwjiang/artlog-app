@@ -15,22 +15,27 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) 
   const ready = useDeviceReady();
   const enrichmentQuery = useMemo(
     (): RequestForQueries =>
-      ready ? { enrichment: { query: api.artworks.enrichment, args: { artworkId } } } : {},
+      ready
+        ? {
+            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
+          }
+        : {},
     [artworkId, ready],
   );
   const {
     enrichment,
-  }: { enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error } =
-    useQueries(enrichmentQuery);
-  if (!enrichment || (!(enrichment instanceof Error) && !enrichment.docent?.length)) return null;
+  }: {
+    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
+  } = useQueries(enrichmentQuery);
+  if (!enrichment || (!(enrichment instanceof Error) && !enrichment.docent?.length)) {
+    return null;
+  }
 
   return (
     <View style={styles.section}>
       <ThemedText variant="section">About this work</ThemedText>
       {enrichment instanceof Error ? (
-        <ThemedText themeColor="textSecondary">
-          Details about this work are unavailable right now.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Details about this work are unavailable right now.</ThemedText>
       ) : (
         <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} />
       )}

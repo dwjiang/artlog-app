@@ -61,17 +61,19 @@ export function ScanScreen() {
   // A visit chosen in link-artwork covers one capture: it ends at the result or when another tab is selected.
   // Sheets and the visit's own screen sit above the tab and keep it.
   useEffect(() => {
-    if (visitId && phase === "result") navigation.setParams({ visitId: undefined });
+    if (visitId && phase === "result") {
+      navigation.setParams({ visitId: undefined });
+    }
   }, [navigation, phase, visitId]);
   useEffect(() => {
     if (!visitId) return;
     return navigation.getParent()?.addListener("state", ({ data }) => {
-      if (data.state.routes[data.state.index]?.name !== "(scan)")
+      if (data.state.routes[data.state.index]?.name !== "(scan)") {
         navigation.setParams({ visitId: undefined });
+      }
     });
   }, [navigation, visitId]);
-  const searching =
-    !occupied && (phase === "searching" || (phase === "retry" && source !== "library"));
+  const searching = !occupied && (phase === "searching" || (phase === "retry" && source !== "library"));
   const detecting = active && !help && cameraReady && searching;
   const { resetDetection } = capture.controller;
   useEffect(() => {
@@ -79,13 +81,13 @@ export function ScanScreen() {
   }, [detecting, resetDetection]);
   const frameOutput = useRectDetector(detecting, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
-    if (attempt)
+    if (attempt) {
       void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
+    }
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !["searching", "retry"].includes(phase);
-  const cameraActive =
-    active && !help && (searching || (phase === "capturing" && source === "camera"));
+  const cameraActive = active && !help && (searching || (phase === "capturing" && source === "camera"));
   const failedImport = phase === "retry" && source === "library";
   const retryHint = failedImport
     ? undefined
@@ -111,9 +113,7 @@ export function ScanScreen() {
   return (
     <View
       style={styles.container}
-      onLayout={({ nativeEvent: { layout } }) =>
-        setPreview({ width: layout.width, height: layout.height })
-      }
+      onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}
     >
       <CameraPermission
         bottomInset={audioInset}
@@ -147,15 +147,15 @@ export function ScanScreen() {
           pointerEvents="box-none"
           style={[
             styles.overlay,
-            { paddingBottom: bottom + BottomTabInset + audioInset + Spacing.three },
+            {
+              paddingBottom: bottom + BottomTabInset + audioInset + Spacing.three,
+            },
           ]}
         >
           <View
             pointerEvents="box-none"
             style={styles.bottom}
-            onLayout={({ nativeEvent: { layout } }) =>
-              setControls((value) => ({ ...value, bottom: layout.height }))
-            }
+            onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
           >
             <DevTimings timings={busy ? undefined : capture.timings} />
             {message ? (
@@ -188,16 +188,9 @@ export function ScanScreen() {
                     onPress={() => {
                       void capture.importPhoto();
                     }}
-                    style={({ pressed }) => [
-                      styles.importContent,
-                      (pressed || busy) && styles.dimmed,
-                    ]}
+                    style={({ pressed }) => [styles.importContent, (pressed || busy) && styles.dimmed]}
                   >
-                    <Image
-                      source="sf:photo"
-                      style={styles.importIcon}
-                      tintColor={Colors.light.overlayText}
-                    />
+                    <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
                   </Pressable>
                 </GlassSurface>
                 <CaptureShutter
@@ -234,9 +227,7 @@ export function ScanScreen() {
         <View
           pointerEvents="box-none"
           style={styles.top}
-          onLayout={({ nativeEvent: { layout } }) =>
-            setControls((value) => ({ ...value, top: layout.height }))
-          }
+          onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, top: layout.height }))}
         >
           <View pointerEvents="box-none" style={styles.topRow}>
             {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
@@ -272,27 +263,19 @@ export function ScanScreen() {
             <Image
               source={introArtworks.stars.source}
               contentFit="contain"
-              style={{ width: "100%", height: 180, backgroundColor: Gallery.fill }}
+              style={{
+                width: "100%",
+                height: 180,
+                backgroundColor: Gallery.fill,
+              }}
               accessibilityLabel="Example of an artwork framed straight on"
             />
-            <ThemedText>
-              Fit the whole artwork in the frame, face it straight on, and hold steady.
-            </ThemedText>
+            <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
             <ThemedText themeColor="textSecondary">
-              Avoid glare by moving a little to the side. If the artwork is hard to identify, try
-              its museum label.
+              Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.
             </ThemedText>
-            <GalleryButton
-              label="Ready to scan"
-              variant="filled"
-              fullWidth
-              onPress={() => setHelp(undefined)}
-            />
-            <GalleryButton
-              label="Import a photo instead"
-              fullWidth
-              onPress={() => setHelp("import")}
-            />
+            <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
+            <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp("import")} />
           </ScrollView>
         </WallSheet>
       )}
@@ -324,7 +307,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   bottom: { gap: Spacing.three },
-  controls: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  controls: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   importButton: {
     width: IMPORT_SIZE,
     height: IMPORT_SIZE,
@@ -333,6 +320,11 @@ const styles = StyleSheet.create({
   },
   importContent: { flex: 1, alignItems: "center", justifyContent: "center" },
   importIcon: { width: 24, height: 24 },
-  tips: { width: 56, height: 56, alignItems: "center", justifyContent: "center" },
+  tips: {
+    width: 56,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dimmed: { opacity: 0.7 },
 });

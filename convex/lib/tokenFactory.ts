@@ -25,17 +25,18 @@ export type ChatJsonResponse<T> = { value: T; calls: number };
 export function retryDelayMs(retryAfter: string | null, now = Date.now()): number {
   if (retryAfter) {
     const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds)) return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, seconds * 1000));
+    if (Number.isFinite(seconds)) {
+      return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, seconds * 1000));
+    }
     const at = Date.parse(retryAfter);
-    if (Number.isFinite(at)) return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, at - now));
+    if (Number.isFinite(at)) {
+      return Math.min(MAX_RETRY_DELAY_MS, Math.max(0, at - now));
+    }
   }
   return 1000;
 }
 
-function modelError(
-  reason: string,
-  calls: number,
-): ConvexError<{ code: string; reason: string; calls: number }> {
+function modelError(reason: string, calls: number): ConvexError<{ code: string; reason: string; calls: number }> {
   return new ConvexError({ code: "model_error", reason, calls });
 }
 
@@ -47,7 +48,9 @@ function parseCompletion<T>(body: string, parse: (value: unknown) => T | null, c
     throw modelError("bad_response", calls);
   }
   const choice = (
-    json as { choices?: { message?: { content?: unknown }; finish_reason?: unknown }[] }
+    json as {
+      choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
+    }
   ).choices?.[0];
   if (choice?.finish_reason === "length") throw modelError("truncated", calls);
   const content = choice?.message?.content;
@@ -82,15 +85,17 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
       ],
       response_format: {
         type: "json_schema",
-        json_schema: { name: request.schemaName, strict: true, schema: request.schema },
+        json_schema: {
+          name: request.schemaName,
+          strict: true,
+          schema: request.schema,
+        },
       },
       temperature: 0,
       max_tokens: request.maxTokens,
       // Short tasks skip reasoning; longer grounded guides opt in with a larger token budget.
       chat_template_kwargs:
-        request.reasoning === "low"
-          ? { enable_thinking: true, low_effort: true }
-          : { enable_thinking: false },
+        request.reasoning === "low" ? { enable_thinking: true, low_effort: true } : { enable_thinking: false },
     }),
   };
   let calls = 0;
@@ -107,9 +112,7 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
     }
     if (page.status === 429 || page.status >= 500) {
       if (calls < 2) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))),
-        );
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))));
         continue;
       }
       throw modelError(`http_${page.status}`, calls);

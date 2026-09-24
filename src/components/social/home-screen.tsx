@@ -20,8 +20,7 @@ import { GalleryIconButton } from "../collection/gallery-icon-button";
 import { FeedSkeleton, Ghost } from "@/components/loading-skeleton";
 import { LoadingRing } from "@/components/loading-ring";
 
-const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) =>
-  result;
+const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
 
 export function HomeScreen() {
@@ -53,11 +52,7 @@ export function HomeScreen() {
         renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
         refreshControl={
           ready ? (
-            <RefreshControl
-              refreshing={feed.refreshing}
-              tintColor="transparent"
-              onRefresh={feed.refresh}
-            />
+            <RefreshControl refreshing={feed.refreshing} tintColor="transparent" onRefresh={feed.refresh} />
           ) : undefined
         }
         ListHeaderComponent={
@@ -67,21 +62,16 @@ export function HomeScreen() {
                 Artlog
               </Text>
               <View style={styles.headerActions}>
-                <GalleryIconButton
-                  icon="trophy"
-                  label="Leaderboards"
-                  onPress={() => router.push("/leaderboards")}
-                />
-                <GalleryIconButton
-                  icon="magnifyingglass"
-                  label="Find friends"
-                  onPress={() => router.push("/people")}
-                />
+                <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
+                <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
                 <GalleryIconButton
                   icon="person.2"
                   label="Friends"
                   onPress={() =>
-                    router.push({ pathname: "/people", params: { filter: "friends" } })
+                    router.push({
+                      pathname: "/people",
+                      params: { filter: "friends" },
+                    })
                   }
                 />
               </View>
@@ -99,18 +89,18 @@ export function HomeScreen() {
                   gap: 8,
                 }}
               >
-                <Image
-                  source="sf:person.2"
-                  tintColor={Gallery.accent}
-                  style={{ width: 22, height: 22 }}
-                />
-                <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, color: Gallery.muted }}>
+                <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    lineHeight: 18,
+                    color: Gallery.muted,
+                  }}
+                >
                   Sign in to connect with friends.
                 </Text>
-                <GalleryButton
-                  label="Sign in"
-                  onPress={() => router.push(signInRoute("friends"))}
-                />
+                <GalleryButton label="Sign in" onPress={() => router.push(signInRoute("friends"))} />
                 <GalleryIconButton
                   label="Dismiss sign-in invitation"
                   icon="xmark"
@@ -154,11 +144,7 @@ export function HomeScreen() {
                 fullWidth
                 onPress={() => router.push("/people")}
               />
-              <GalleryButton
-                label="Scan an artwork"
-                fullWidth
-                onPress={() => router.navigate("/scan")}
-              />
+              <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate("/scan")} />
             </SocialInvitation>
           ) : null
         }
@@ -185,7 +171,12 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   mastheadLarge: { flexDirection: "column", alignItems: "flex-start" },
-  headerActions: { flexDirection: "row", gap: 8, alignSelf: "flex-end", paddingBottom: 12 },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+    alignSelf: "flex-end",
+    paddingBottom: 12,
+  },
   heading: {
     flexDirection: "row",
     alignItems: "center",

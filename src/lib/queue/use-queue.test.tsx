@@ -10,8 +10,12 @@ const mockStopShares = jest.fn();
 let mockRows: Partial<PendingScan>[] = [];
 
 jest.mock("convex/react", () => ({ useConvexAuth: () => mockAuth }));
-jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: () => ({ data: mockRows }) }));
-jest.mock("@/db/repos/pending-scans", () => ({ pendingScansQuery: () => "query" }));
+jest.mock("drizzle-orm/expo-sqlite", () => ({
+  useLiveQuery: () => ({ data: mockRows }),
+}));
+jest.mock("@/db/repos/pending-scans", () => ({
+  pendingScansQuery: () => "query",
+}));
 jest.mock("./queue", () => ({ startQueueFlusher: () => mockStart() }));
 jest.mock("@/lib/label/share-saved-label", () => ({
   startPendingShareFlusher: () => mockStartShares(),

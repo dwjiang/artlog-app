@@ -11,15 +11,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -32,12 +24,7 @@ import { formatDistance } from "@/lib/venue/resolve";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
-import {
-  activeVisit,
-  venueOptionKey,
-  type CurrentVisit,
-  type VenueOption,
-} from "@/lib/venue/venue-reducer";
+import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from "@/lib/venue/venue-reducer";
 
 /**
  * `fitToContents` derives the sheet height from this scroll view, so an uncapped one grows past the
@@ -49,13 +36,11 @@ function useSheetStyle() {
   return [styles.container, { maxHeight: height - top }];
 }
 
-function detail(
-  option: VenueOption,
-  nearest: boolean,
-  units: MeasurementUnits | undefined,
-): string {
+function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits | undefined): string {
   const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ""];
-  if (option.kind === "poi" && option.category !== "unknown") parts.push(option.category);
+  if (option.kind === "poi" && option.category !== "unknown") {
+    parts.push(option.category);
+  }
   if (nearest) parts.push("nearest");
   return parts.filter(Boolean).join(" · ");
 }
@@ -72,8 +57,9 @@ export function VenuePickerSheet() {
   const [mode, setMode] = useState<"visit" | "change" | "choose">(
     activeVisit(view) && requested !== "choose" ? "visit" : "choose",
   );
-  if (mode === "visit" && visit && view.status !== "denied")
+  if (mode === "visit" && visit && view.status !== "denied") {
     return <VisitSheet visit={visit} onChange={() => setMode("change")} />;
+  }
   return (
     <ChooserSheet
       view={view}
@@ -91,7 +77,10 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
   const sheetStyle = useSheetStyle();
   const count = `${works.length} ${works.length === 1 ? "artwork" : "artworks"} this visit`;
   const openVisit = () =>
-    router.replace({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } });
+    router.replace({
+      pathname: "/journal/[visitId]",
+      params: { visitId: visit.localId },
+    });
   return (
     <ScrollView
       style={sheetStyle}
@@ -112,11 +101,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
         <TextSkeleton label="Loading visit artwork count" width={180} />
       ) : (
         <ThemedText themeColor="textSecondary">
-          {error
-            ? "Artwork count unavailable"
-            : summary?.location
-              ? `${summary.location} · ${count}`
-              : count}
+          {error ? "Artwork count unavailable" : summary?.location ? `${summary.location} · ${count}` : count}
         </ThemedText>
       )}
       {works.length > 0 && <ArtworkPreviews works={works} overflow />}
@@ -132,31 +117,22 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
         }
       />
       <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
-      <GalleryButton
-        label="Open visit"
-        icon="chevron.right"
-        iconPosition="trailing"
-        onPress={openVisit}
-      />
+      <GalleryButton label="Open visit" icon="chevron.right" iconPosition="trailing" onPress={openVisit} />
     </ScrollView>
   );
 }
 
-function ChooserSheet({
-  view,
-  prompted,
-  keepVisit,
-}: {
-  view: VenueView;
-  prompted: boolean;
-  keepVisit?: () => void;
-}) {
+function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted: boolean; keepVisit?: () => void }) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
   const sheetStyle = useSheetStyle();
   const { status, options, error, confirm, dismiss, declinePrompt } = view;
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<{ query: string; rows: VenueRow[]; error?: string }>();
+  const [results, setResults] = useState<{
+    query: string;
+    rows: VenueRow[];
+    error?: string;
+  }>();
   const searching = query.trim().length >= 2;
   useEffect(() => {
     if (!searching) return;
@@ -168,8 +144,13 @@ function ChooserSheet({
         })
         .catch((cause) => {
           reportError(cause, "venue.search");
-          if (active)
-            setResults({ query, rows: [], error: "Museums could not load. Try another search." });
+          if (active) {
+            setResults({
+              query,
+              rows: [],
+              error: "Museums could not load. Try another search.",
+            });
+          }
         });
     }, 200);
     return () => {
@@ -204,10 +185,9 @@ function ChooserSheet({
       router.back();
     } catch (cause) {
       if (!request.signal.aborted) reportError(cause, "venue.confirm");
-      if (!request.signal.aborted)
-        setFailure(
-          cause instanceof Error ? cause.message : "Could not confirm the venue. Try again.",
-        );
+      if (!request.signal.aborted) {
+        setFailure(cause instanceof Error ? cause.message : "Could not confirm the venue. Try again.");
+      }
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
       if (pending.current === request) pending.current = undefined;
@@ -278,11 +258,7 @@ function ChooserSheet({
               }}
               style={styles.option}
             >
-              <Image
-                source="sf:building.columns"
-                tintColor={Gallery.muted}
-                style={{ width: 22, height: 22 }}
-              />
+              <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
               <View style={styles.optionText}>
                 <ThemedText>{row.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -300,9 +276,7 @@ function ChooserSheet({
           inset={false}
           title={status === "denied" ? "Location access is off." : "No nearby museums found."}
           detail={
-            status === "denied"
-              ? `Allow location in Settings to find nearby museums. ${emptyDetail}`
-              : emptyDetail
+            status === "denied" ? `Allow location in Settings to find nearby museums. ${emptyDetail}` : emptyDetail
           }
           visual={<EmptyMap />}
         >
@@ -318,7 +292,9 @@ function ChooserSheet({
               fullWidth
               onPress={() => {
                 void Linking.openSettings().catch((cause) => {
-                  reportError(cause, "venue.open-settings", { level: "warning" });
+                  reportError(cause, "venue.open-settings", {
+                    level: "warning",
+                  });
                   setFailure("Could not open Settings.");
                 });
               }}
@@ -335,18 +311,17 @@ function ChooserSheet({
               key={venueOptionKey(option)}
               accessibilityRole="button"
               accessibilityLabel={option.name}
-              accessibilityState={{ busy: busy === venueOptionKey(option), disabled: !!busy }}
+              accessibilityState={{
+                busy: busy === venueOptionKey(option),
+                disabled: !!busy,
+              }}
               disabled={!!busy}
               onPress={() => {
                 void choose(option);
               }}
               style={[styles.option, styles.unselectedOption]}
             >
-              <Image
-                source="sf:building.columns"
-                tintColor={Gallery.muted}
-                style={{ width: 22, height: 22 }}
-              />
+              <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
               <View style={styles.optionText}>
                 <ThemedText>{option.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -377,7 +352,12 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.content, gap: Spacing.three },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   eyebrow: { letterSpacing: 1.1, textTransform: "uppercase" },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.success },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Gallery.success,
+  },
   option: {
     minHeight: 44,
     flexDirection: "row",

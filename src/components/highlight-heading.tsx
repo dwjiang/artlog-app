@@ -2,13 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Gallery, Spacing } from "@/constants/theme";
 import { ThemedText } from "./themed-text";
 
-export function HighlightHeading({
-  children,
-  small = false,
-}: {
-  children: string;
-  small?: boolean;
-}) {
+export function HighlightHeading({ children, small = false }: { children: string; small?: boolean }) {
   return (
     <View style={styles.highlight}>
       <ThemedText

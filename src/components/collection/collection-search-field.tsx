@@ -98,5 +98,10 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Gallery.ink,
   },
-  clear: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  clear: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

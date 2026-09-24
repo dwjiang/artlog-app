@@ -24,9 +24,7 @@ export function sortMuseums(
 ): MuseumSummary[] {
   const search = query.trim().normalize("NFKC").toLocaleLowerCase();
   return museums
-    .filter((m) =>
-      `${m.name} ${m.city ?? ""}`.normalize("NFKC").toLocaleLowerCase().includes(search),
-    )
+    .filter((m) => `${m.name} ${m.city ?? ""}`.normalize("NFKC").toLocaleLowerCase().includes(search))
     .sort(
       (a, b) =>
         (sort === "size"
@@ -37,17 +35,12 @@ export function sortMuseums(
     );
 }
 export function formatDownloadSize(bytes: number): string {
-  return bytes < 1_000_000
-    ? `${Math.max(1, Math.ceil(bytes / 1000))} KB`
-    : `${Math.ceil(bytes / 1_000_000)} MB`;
+  return bytes < 1_000_000 ? `${Math.max(1, Math.ceil(bytes / 1000))} KB` : `${Math.ceil(bytes / 1_000_000)} MB`;
 }
 export function downloadProgress(row?: MuseumDownload): number {
   if (!row) return 0;
   if (row.status === "ready") return 100;
   return row.pending
-    ? Math.min(
-        99,
-        Math.floor((row.completed / Math.max(1, row.pending.manifest.chunks.length)) * 100),
-      )
+    ? Math.min(99, Math.floor((row.completed / Math.max(1, row.pending.manifest.chunks.length)) * 100))
     : 0;
 }

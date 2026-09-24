@@ -52,15 +52,26 @@ beforeEach(() => {
 it("requests and cancels using the server revision and the captured account token", async () => {
   mockMutation
     .mockResolvedValueOnce(
-      relationship({ state: "pending", revision: 1, requesterId: "viewer" as never }),
+      relationship({
+        state: "pending",
+        revision: 1,
+        requesterId: "viewer" as never,
+      }),
     )
     .mockResolvedValueOnce(
-      relationship({ state: "none", revision: 2, requesterId: "viewer" as never }),
+      relationship({
+        state: "none",
+        revision: 2,
+        requesterId: "viewer" as never,
+      }),
     );
   const { result } = await renderHook(() => useFriendship("other" as never, session));
   await act(() => result.current.act("request"));
   expect(getFunctionName(mockMutation.mock.calls[0][0])).toBe("friendships:request");
-  expect(mockMutation.mock.calls[0][1]).toEqual({ profileId: "other", revision: 0 });
+  expect(mockMutation.mock.calls[0][1]).toEqual({
+    profileId: "other",
+    revision: 0,
+  });
   expect(mockOptions).toHaveBeenCalledWith(expect.objectContaining({ auth: "token-a" }));
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["cancel"]);
   await act(() => result.current.act("cancel"));
@@ -68,24 +79,19 @@ it("requests and cancels using the server revision and the captured account toke
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["request"]);
 });
 
-it.each(["accept", "decline", "remove"] as const)(
-  "applies a confirmed %s transition",
-  async (action) => {
-    mockRelationship = relationship({
-      state: action === "remove" ? "accepted" : "pending",
-      requesterId: "other" as never,
-      revision: 4,
-    });
-    const next = action === "accept" ? "accepted" : "none";
-    mockMutation.mockResolvedValue(
-      relationship({ state: next, revision: 5, requesterId: "other" as never }),
-    );
-    const { result } = await renderHook(() => useFriendship("other" as never, session));
-    await act(() => result.current.act(action));
-    expect(result.current.state?.state).toBe(next);
-    expect(mockMutation.mock.calls[0][1].revision).toBe(4);
-  },
-);
+it.each(["accept", "decline", "remove"] as const)("applies a confirmed %s transition", async (action) => {
+  mockRelationship = relationship({
+    state: action === "remove" ? "accepted" : "pending",
+    requesterId: "other" as never,
+    revision: 4,
+  });
+  const next = action === "accept" ? "accepted" : "none";
+  mockMutation.mockResolvedValue(relationship({ state: next, revision: 5, requesterId: "other" as never }));
+  const { result } = await renderHook(() => useFriendship("other" as never, session));
+  await act(() => result.current.act(action));
+  expect(result.current.state?.state).toBe(next);
+  expect(mockMutation.mock.calls[0][1].revision).toBe(4);
+});
 
 it("prevents double submission while a friendship request is in flight", async () => {
   let resolve!: (state: Relationship) => void;
@@ -103,7 +109,13 @@ it("prevents double submission while a friendship request is in flight", async (
   expect(mockMutation).toHaveBeenCalledTimes(1);
   expect(result.current.busy).toBe(true);
   await act(() =>
-    resolve(relationship({ state: "pending", revision: 1, requesterId: "viewer" as never })),
+    resolve(
+      relationship({
+        state: "pending",
+        revision: 1,
+        requesterId: "viewer" as never,
+      }),
+    ),
   );
   expect(result.current.busy).toBe(false);
 });
@@ -125,10 +137,9 @@ it("ignores an old account’s mutation response and refuses actions while offli
         resolve = done;
       }),
   );
-  const view = await renderHook(
-    ({ current }: { current: SocialSession }) => useFriendship("other" as never, current),
-    { initialProps: { current: session } },
-  );
+  const view = await renderHook(({ current }: { current: SocialSession }) => useFriendship("other" as never, current), {
+    initialProps: { current: session },
+  });
   await act(() => {
     void view.result.current.act("request");
   });
@@ -145,7 +156,11 @@ it("ignores an old account’s mutation response and refuses actions while offli
 it("acts on a caller-held relationship without opening its own subscription and refreshes through the caller", async () => {
   const refresh = jest.fn();
   const source = {
-    data: relationship({ state: "pending", requesterId: "other" as never, revision: 2 }),
+    data: relationship({
+      state: "pending",
+      requesterId: "other" as never,
+      revision: 2,
+    }),
     refresh,
   };
   mockMutation.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
@@ -153,7 +168,10 @@ it("acts on a caller-held relationship without opening its own subscription and 
   expect(mockQueryArgs).toHaveBeenLastCalledWith("skip");
   expect(result.current.state).toEqual(source.data);
   await act(() => result.current.act("accept"));
-  expect(mockMutation.mock.calls[0][1]).toEqual({ profileId: "other", revision: 2 });
+  expect(mockMutation.mock.calls[0][1]).toEqual({
+    profileId: "other",
+    revision: 2,
+  });
   expect(refresh).toHaveBeenCalledTimes(1);
   expect(mockRefresh).not.toHaveBeenCalled();
 });

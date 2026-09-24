@@ -62,7 +62,9 @@ export function GroupedSection({
           listRowSeparator("hidden"),
           background(
             destructive ? Gallery.destructiveFill : Gallery.surface,
-            shapes.roundedRectangle({ cornerRadius: SettingsOutline.borderRadius }),
+            shapes.roundedRectangle({
+              cornerRadius: SettingsOutline.borderRadius,
+            }),
           ),
           strokeBorder({
             color: SettingsOutline.borderColor,
@@ -87,8 +89,15 @@ export function GroupedSection({
               )}
               <Row
                 modifiers={[
-                  padding({ horizontal: Spacing.three, vertical: Spacing.compact }),
-                  frame({ maxWidth: Infinity, minHeight: 44, alignment: "leading" }),
+                  padding({
+                    horizontal: Spacing.three,
+                    vertical: Spacing.compact,
+                  }),
+                  frame({
+                    maxWidth: Infinity,
+                    minHeight: 44,
+                    alignment: "leading",
+                  }),
                 ]}
               >
                 {child}
@@ -100,17 +109,13 @@ export function GroupedSection({
   );
 }
 
-export function GroupedFooter({
-  children,
-  tone = "muted",
-}: {
-  children: string;
-  tone?: "muted" | "destructive";
-}) {
+export function GroupedFooter({ children, tone = "muted" }: { children: string; tone?: "muted" | "destructive" }) {
   return (
     <Text
       modifiers={[font({ textStyle: "footnote" })]}
-      textStyle={{ color: tone === "destructive" ? Gallery.destructive : Gallery.muted }}
+      textStyle={{
+        color: tone === "destructive" ? Gallery.destructive : Gallery.muted,
+      }}
     >
       {children}
     </Text>
@@ -137,10 +142,7 @@ export function NavigationRow({
           {loading ? (
             <NativeLoadingRing label={`Loading ${label.toLowerCase()}`} />
           ) : value ? (
-            <Text
-              modifiers={[font({ textStyle: "subheadline" })]}
-              textStyle={{ color: Gallery.muted }}
-            >
+            <Text modifiers={[font({ textStyle: "subheadline" })]} textStyle={{ color: Gallery.muted }}>
               {value}
             </Text>
           ) : null}
@@ -211,16 +213,10 @@ export function ActionRow({
       <Row
         spacing={12}
         alignment="center"
-        modifiers={[
-          frame({ maxWidth: Infinity, alignment: "leading" }),
-          contentShape(shapes.rectangle()),
-        ]}
+        modifiers={[frame({ maxWidth: Infinity, alignment: "leading" }), contentShape(shapes.rectangle())]}
       >
         {icon && indicator}
-        <Text
-          modifiers={[font({ textStyle: "body" }), multilineTextAlignment("leading")]}
-          textStyle={{ color }}
-        >
+        <Text modifiers={[font({ textStyle: "body" }), multilineTextAlignment("leading")]} textStyle={{ color }}>
           {label}
         </Text>
         {!icon && indicator}
@@ -229,15 +225,7 @@ export function ActionRow({
   );
 }
 
-export function ValueRow({
-  label,
-  value,
-  loading = false,
-}: {
-  label: string;
-  value?: string;
-  loading?: boolean;
-}) {
+export function ValueRow({ label, value, loading = false }: { label: string; value?: string; loading?: boolean }) {
   return (
     <LabeledContent label={label} modifiers={[font({ textStyle: "body" })]}>
       {loading ? (

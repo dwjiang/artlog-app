@@ -115,9 +115,7 @@ describe("pickVenue", () => {
   });
 
   it("asks between venues that are all beyond 150 m but within 400 m", () => {
-    expect(pickVenue([candidate("A", 200), candidate("B", 300), candidate("C", 380)]).kind).toBe(
-      "choose",
-    );
+    expect(pickVenue([candidate("A", 200), candidate("B", 300), candidate("C", 380)]).kind).toBe("choose");
   });
 
   it("finds nothing for an empty list or a single venue beyond 400 m", () => {

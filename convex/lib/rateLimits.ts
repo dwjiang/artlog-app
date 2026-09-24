@@ -36,14 +36,14 @@ export type RateLimitName = keyof typeof limits;
 
 export const limiter = new RateLimiter(components.rateLimiter, limits);
 
-export async function limitKey(
-  ctx: MutationCtx | ActionCtx,
-  name: RateLimitName,
-  key: string,
-): Promise<void> {
+export async function limitKey(ctx: MutationCtx | ActionCtx, name: RateLimitName, key: string): Promise<void> {
   const status = await limiter.limit(ctx, name, { key });
   if (!status.ok) {
-    throw new ConvexError({ code: "rate_limited", name, retryAfter: status.retryAfter });
+    throw new ConvexError({
+      code: "rate_limited",
+      name,
+      retryAfter: status.retryAfter,
+    });
   }
 }
 

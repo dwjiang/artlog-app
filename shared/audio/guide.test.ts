@@ -15,9 +15,13 @@ it("preserves a substantial spoken guide and all its supporting citations", () =
   expect(validateGuideBody(guideBodyFixture, ids)).toEqual(guideBodyFixture);
 });
 it("opens with title, artist and the recorded date without inventing missing years", () => {
-  expect(guideOpening({ title: "Water Lilies", artist: "Claude Monet", date: "1916" })).toBe(
-    openingFixture,
-  );
+  expect(
+    guideOpening({
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      date: "1916",
+    }),
+  ).toBe(openingFixture);
   expect(
     guideOpening({
       title: " Study\n of a Young Woman ",
@@ -62,12 +66,7 @@ it("rejects a script whose sentence carries leaked JSON or markup, or was cut of
     "Cassatt said she wanted to draw out the",
     "Notice the lilies on the pond, and the reflections around them",
   ]) {
-    expect(
-      validateGuideBody(
-        [...guideBodyFixture.slice(0, 9), { sentence: leak, factIds: ["f1"] }],
-        ids,
-      ),
-    ).toBeNull();
+    expect(validateGuideBody([...guideBodyFixture.slice(0, 9), { sentence: leak, factIds: ["f1"] }], ids)).toBeNull();
   }
 });
 it("accepts a sentence only when its support span is copied verbatim from a cited fact", () => {

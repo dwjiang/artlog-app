@@ -40,8 +40,9 @@ const photo = (localId: string, fields: Partial<typeof artworkPhotos.$inferInser
 });
 
 beforeEach(async () => {
-  for (const table of [artworkPhotos, artworkEncounters, savedWorks, settings])
+  for (const table of [artworkPhotos, artworkEncounters, savedWorks, settings]) {
     db.delete(table).run();
+  }
   jest.clearAllMocks();
   mockMutation.mockResolvedValue({
     photos: [],
@@ -97,15 +98,15 @@ it("removes the files of deleted album photos unless a live row still uses them"
     .values([
       photo("orphan", { path: "artwork-photos/orphan.jpg", deletedAt: 5 }),
       photo("seed", { path: "artwork-photos/seed.jpg", deletedAt: 5 }),
-      photo("live", { path: "artwork-photos/live.jpg", storageId: "cloud" as Id<"_storage"> }),
+      photo("live", {
+        path: "artwork-photos/live.jpg",
+        storageId: "cloud" as Id<"_storage">,
+      }),
     ])
     .run();
   await syncArtworkAlbums(context, "token", () => true);
   expect(mockRemove.mock.calls).toEqual([["artwork-photos/orphan.jpg"]]);
-  const paths = db
-    .select({ localId: artworkPhotos.localId, path: artworkPhotos.path })
-    .from(artworkPhotos)
-    .all();
+  const paths = db.select({ localId: artworkPhotos.localId, path: artworkPhotos.path }).from(artworkPhotos).all();
   expect(paths).toEqual(
     expect.arrayContaining([
       { localId: "orphan", path: null },

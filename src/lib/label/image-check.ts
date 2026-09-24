@@ -19,8 +19,9 @@ export type ImageCheckDeps = {
 };
 
 export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): number {
-  if (a.length !== b.length)
+  if (a.length !== b.length) {
     throw new Error(`Cannot compare vectors of ${a.length} and ${b.length} values`);
+  }
   let dot = 0;
   let normA = 0;
   let normB = 0;
@@ -52,7 +53,9 @@ export async function checkImages(
         const letterboxed = await deps.letterbox(downloaded);
         files.push(letterboxed);
         const cosine = cosineSimilarity(scan.vector, await deps.embed(letterboxed));
-        if (!best || cosine > best.cosine) best = { url, cosine, uri: letterboxed };
+        if (!best || cosine > best.cosine) {
+          best = { url, cosine, uri: letterboxed };
+        }
       } catch (error) {
         reportError(error, "label.check_museum_image", { level: "warning" });
         console.warn("Could not check a museum image", error);
@@ -65,7 +68,11 @@ export async function checkImages(
       decodeOrbFeatures(candidate.descriptors, candidate.keypoints),
       { inputSize },
     );
-    return { url: best.url, cosine: best.cosine, homographyValid: result.verified };
+    return {
+      url: best.url,
+      cosine: best.cosine,
+      homographyValid: result.verified,
+    };
   } finally {
     for (const uri of files) deps.remove(uri);
   }

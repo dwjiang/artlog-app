@@ -19,12 +19,21 @@ let mockOffline = false;
 const contribution = {
   contributionId: "contribution-1",
   status: "tentative",
-  fields: { title: { value: "Water Lilies" }, artist: { value: "Claude Monet" } },
+  fields: {
+    title: { value: "Water Lilies" },
+    artist: { value: "Claude Monet" },
+  },
 };
 
-jest.mock("./leaderboard-preference", () => ({ LeaderboardPreference: () => null }));
+jest.mock("./leaderboard-preference", () => ({
+  LeaderboardPreference: () => null,
+}));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ status: mockSessionStatus, key: "settings", offline: mockOffline }),
+  useSocialSession: () => ({
+    status: mockSessionStatus,
+    key: "settings",
+    offline: mockOffline,
+  }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({
@@ -32,13 +41,18 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-network", () => ({
-  useNetworkState: () => ({ isConnected: !mockOffline, isInternetReachable: !mockOffline }),
+  useNetworkState: () => ({
+    isConnected: !mockOffline,
+    isInternetReachable: !mockOffline,
+  }),
 }));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
-jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => mockReady }));
+jest.mock("@/lib/use-device-ready", () => ({
+  useDeviceReady: () => mockReady,
+}));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
 jest.mock("expo-apple-authentication", () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 },
@@ -103,8 +117,9 @@ it("shows grouped settings and opens the matching detail", async () => {
   await render(<SettingsScreen />);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   expect(screen.queryByText("YA", { includeHiddenElements: true })).toBeNull();
-  for (const title of ["Settings", "Your journal", "Artlog", "Developer"])
+  for (const title of ["Settings", "Your journal", "Artlog", "Developer"]) {
     expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
+  }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
   for (const [label, section] of [
     ["General", "general"],
@@ -144,24 +159,21 @@ it("opens account management from the profile row", async () => {
 it("keeps privacy and About details accessible", async () => {
   const view = await render(<SettingsDetailScreen section="privacy" />);
   expect(
-    screen.getByText(
-      /Apple Maps searches may send a search area centered on your location to Apple/,
-    ),
+    screen.getByText(/Apple Maps searches may send a search area centered on your location to Apple/),
   ).toBeOnTheScreen();
   expect(
     screen.getByText(/Artlog’s servers receive the selected museum, but not your GPS coordinates/),
   ).toBeOnTheScreen();
   expect(
-    screen.getByText(
-      /Confirming a new place also sends that place’s name, coordinates and website to Artlog/,
-    ),
+    screen.getByText(/Confirming a new place also sends that place’s name, coordinates and website to Artlog/),
   ).toBeOnTheScreen();
   expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
   expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
   await view.rerender(<SettingsDetailScreen section="about" />);
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
-  for (const label of ["Privacy policy", "Send feedback", "Source code"])
+  for (const label of ["Privacy policy", "Send feedback", "Source code"]) {
     expect(screen.getByRole("button", { name: label })).toBeOnTheScreen();
+  }
 });
 
 it("shares confirmed works automatically even when an old local preference was off", async () => {
@@ -178,7 +190,9 @@ it("opens contributions and withdraws the selected work", async () => {
   expect(screen.getByText("Shared · Tentative")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Withdraw" }));
   await confirmDestructive();
-  expect(mockWithdraw).toHaveBeenCalledWith({ contributionId: "contribution-1" });
+  expect(mockWithdraw).toHaveBeenCalledWith({
+    contributionId: "contribution-1",
+  });
   expect(screen.getByText("Withdrawn")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull();
 });
@@ -200,7 +214,10 @@ it("opens contextual sign-in while keeping the guest journal available", async (
   expect(screen.queryByText(/sync across devices/i)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
   expect(mockSignIn).not.toHaveBeenCalled();
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "account" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "account" },
+  });
 });
 
 it("holds the account row behind a ghost only while the account can still load", async () => {

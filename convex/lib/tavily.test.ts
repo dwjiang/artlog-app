@@ -25,7 +25,10 @@ describe("Tavily search", () => {
     });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.tavily.com/search");
-    expect(init).toMatchObject({ method: "POST", headers: { Authorization: "Bearer tvly-test" } });
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: { Authorization: "Bearer tvly-test" },
+    });
     expect(JSON.parse(String(init?.body))).toEqual({
       query: '"A Sunday on La Grande Jatte" Georges Seurat',
       search_depth: "basic",
@@ -62,11 +65,7 @@ describe("Tavily search", () => {
           },
           { bogus: true },
         ],
-        images: [
-          { url: "https://a.example/i.jpg", description: "d" },
-          "https://a.example/j.jpg",
-          7,
-        ],
+        images: [{ url: "https://a.example/i.jpg", description: "d" }, "https://a.example/j.jpg", 7],
         usage: { credits: 2 },
         answer: "text",
       }),
@@ -114,7 +113,11 @@ describe("Tavily search", () => {
             content: "Snippet",
             raw_content: "Full curatorial essay",
           },
-          { url: "https://museum.example/two", content: "Usable snippet", raw_content: null },
+          {
+            url: "https://museum.example/two",
+            content: "Usable snippet",
+            raw_content: null,
+          },
         ],
         usage: { credits: 1 },
       }),
@@ -130,7 +133,10 @@ describe("Tavily search", () => {
       include_raw_content: "markdown",
     });
     expect(response.results[0].rawContent).toBe("Full curatorial essay");
-    expect(response.results[1]).toMatchObject({ content: "Usable snippet", rawContent: undefined });
+    expect(response.results[1]).toMatchObject({
+      content: "Usable snippet",
+      rawContent: undefined,
+    });
     expect(response.credits).toBe(1);
   });
 

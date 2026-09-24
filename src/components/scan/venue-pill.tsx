@@ -49,13 +49,7 @@ export function VenuePill() {
         onPress={() => router.push("/venue-picker")}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        {!active && (
-          <Image
-            source="sf:building.columns"
-            style={styles.icon}
-            tintColor={Colors.light.overlayText}
-          />
-        )}
+        {!active && <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
         {locating ? (
           <LoadingRing accessibilityLabel={label} color={Colors.light.overlayText} />
         ) : (
@@ -63,8 +57,8 @@ export function VenuePill() {
             {label}
           </ThemedText>
         )}
-        {active &&
-          (loading ? (
+        {active
+          && (loading ? (
             <TextSkeleton label="Loading visit artwork count" width={24} />
           ) : (
             !error && (

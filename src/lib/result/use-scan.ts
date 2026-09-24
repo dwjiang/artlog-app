@@ -11,8 +11,7 @@ import type { ScanResult } from "./state";
 export function useScan(scanId: Id<"scans"> | undefined): ScanResult | Error | undefined {
   const ready = useDeviceReady();
   const query = useMemo(
-    (): RequestForQueries =>
-      ready && scanId ? { scan: { query: api.scans.get, args: { scanId } } } : {},
+    (): RequestForQueries => (ready && scanId ? { scan: { query: api.scans.get, args: { scanId } } } : {}),
     [ready, scanId],
   );
   const { scan }: { scan?: ScanResult | Error } = useQueries(query);

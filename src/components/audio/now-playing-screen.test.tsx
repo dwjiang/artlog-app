@@ -24,10 +24,20 @@ const mockAudio = {
   phase: "ready",
   controller: {},
 };
-jest.mock("@/lib/audio/use-listening", () => ({ useListening: () => mockAudio }));
-jest.mock("expo-router", () => ({ useLocalSearchParams: () => ({}), router: { back: jest.fn() } }));
-jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
-jest.mock("./listening-queue", () => ({ ListeningQueue: () => null, QueueOptions: () => null }));
+jest.mock("@/lib/audio/use-listening", () => ({
+  useListening: () => mockAudio,
+}));
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({}),
+  router: { back: jest.fn() },
+}));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+}));
+jest.mock("./listening-queue", () => ({
+  ListeningQueue: () => null,
+  QueueOptions: () => null,
+}));
 jest.mock("./add-saved-works", () => ({ AddSavedWorks: () => null }));
 jest.mock("./player-transport", () => ({
   PlayerTransport: ({ onView }: { onView: (view: string) => void }) => {

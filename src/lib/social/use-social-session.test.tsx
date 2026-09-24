@@ -11,7 +11,9 @@ let mockAccount: unknown;
 let mockMine: unknown;
 const mockRead = jest.fn();
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
-jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: !mockOffline }) }));
+jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isConnected: !mockOffline }),
+}));
 jest.mock("../use-device-ready", () => ({ useDeviceReady: () => mockReady }));
 jest.mock("./use-social-query", () => ({
   useSocialQuery: (query: FunctionReference<"query">, args: unknown) => {

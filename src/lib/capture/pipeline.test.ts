@@ -2,13 +2,7 @@ import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { ConvexError } from "convex/values";
 
 import { runCapture } from "./pipeline";
-import type {
-  CaptureDependencies,
-  CaptureInput,
-  CapturePayload,
-  IdentifyResponse,
-  PreparedPainting,
-} from "./stages";
+import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from "./stages";
 
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "capture-uuid") }));
 
@@ -40,7 +34,9 @@ const response = {
 
 function dependencies() {
   return {
-    warper: { warpAndLetterbox: jest.fn(async (): Promise<PreparedPainting | null> => painting) },
+    warper: {
+      warpAndLetterbox: jest.fn(async (): Promise<PreparedPainting | null> => painting),
+    },
     triage: { check: jest.fn(async () => ({ ok: true as const })) },
     embedder: {
       modelVersion: "test-model",
@@ -88,11 +84,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   });
   expect(deps.store.enqueue).toHaveBeenCalledWith(payload, "identifying");
   expect(deps.identify).toHaveBeenCalledWith(payload);
-  expect(deps.store.recordResult).toHaveBeenCalledWith(
-    "capture-uuid",
-    response,
-    "device:test-installation",
-  );
+  expect(deps.store.recordResult).toHaveBeenCalledWith("capture-uuid", response, "device:test-installation");
   const calls = [
     deps.warper.warpAndLetterbox,
     deps.triage.check,
@@ -115,23 +107,24 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   });
 });
 
-it.each(["blur", "glare"] as const)(
-  "returns a retake for %s before extracting features",
-  async (reason) => {
-    const deps: CaptureDependencies = dependencies();
-    deps.triage.check = jest.fn(async () => ({ ok: false, reason, message: "Try again" }));
-    const result = await runCapture(input, deps, options);
-    expect(result).toMatchObject({
-      kind: "retake",
-      reason,
-      message: "Try again",
-      timings: { triage: expect.any(Number) },
-    });
-    expect(deps.embedder.embed).not.toHaveBeenCalled();
-    expect(deps.identify).not.toHaveBeenCalled();
-    expect(deps.store.enqueue).not.toHaveBeenCalled();
-  },
-);
+it.each(["blur", "glare"] as const)("returns a retake for %s before extracting features", async (reason) => {
+  const deps: CaptureDependencies = dependencies();
+  deps.triage.check = jest.fn(async () => ({
+    ok: false,
+    reason,
+    message: "Try again",
+  }));
+  const result = await runCapture(input, deps, options);
+  expect(result).toMatchObject({
+    kind: "retake",
+    reason,
+    message: "Try again",
+    timings: { triage: expect.any(Number) },
+  });
+  expect(deps.embedder.embed).not.toHaveBeenCalled();
+  expect(deps.identify).not.toHaveBeenCalled();
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+});
 
 it("queues the crop and binary features when offline", async () => {
   const deps = dependencies();
@@ -187,12 +180,13 @@ it("syncs a new visit first so the first scan at a museum identifies immediately
   expect(deps.resolveVisitId).toHaveBeenCalledWith("local-visit", "museum-1");
   expect(result).toMatchObject({ kind: "sent", scanId: "scan-id" });
   expect(deps.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({ visitLocalId: "local-visit", visitId: "remote-visit" }),
+    expect.objectContaining({
+      visitLocalId: "local-visit",
+      visitId: "remote-visit",
+    }),
     "identifying",
   );
-  expect(deps.identify).toHaveBeenCalledWith(
-    expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }),
-  );
+  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }));
 });
 
 it("falls back to the queue when the visit sync fails or takes too long, and skips it offline", async () => {
@@ -203,9 +197,14 @@ it("falls back to the queue when the visit sync fails or takes too long, and ski
       throw new Error("offline");
     }),
   };
-  expect(await runCapture(atVisit, failing, options)).toMatchObject({ kind: "queued" });
+  expect(await runCapture(atVisit, failing, options)).toMatchObject({
+    kind: "queued",
+  });
   expect(failing.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({ visitLocalId: "local-visit", visitId: undefined }),
+    expect.objectContaining({
+      visitLocalId: "local-visit",
+      visitId: undefined,
+    }),
     "queued",
   );
   expect(failing.identify).not.toHaveBeenCalled();
@@ -232,9 +231,7 @@ it("falls back to the queue when the visit sync fails or takes too long, and ski
 
 it.each([
   new Error("Connection lost while action was in flight"),
-  new Error(
-    "[CONVEX A(identify:identify)] Connection lost while action was in flight\n  Called by client",
-  ),
+  new Error("[CONVEX A(identify:identify)] Connection lost while action was in flight\n  Called by client"),
   new TypeError("Network request failed"),
   new TypeError("Failed to fetch"),
 ])("returns the stored capture to the queue after a transport failure: %s", async (error) => {
@@ -246,11 +243,7 @@ it.each([
   });
   expect(deps.store.enqueue).toHaveBeenCalledTimes(1);
   expect(deps.store.enqueue.mock.calls[0][0]).toBe(deps.identify.mock.calls[0][0]);
-  expect(deps.store.requeue).toHaveBeenCalledWith(
-    "capture-uuid",
-    error.message,
-    "device:test-installation",
-  );
+  expect(deps.store.requeue).toHaveBeenCalledWith("capture-uuid", error.message, "device:test-installation");
   expect(deps.embedder.embed).toHaveBeenCalledTimes(1);
 });
 
@@ -262,11 +255,7 @@ it.each([
   const deps = dependencies();
   deps.identify.mockRejectedValue(error);
   await expect(runCapture(input, deps, options)).rejects.toBe(error);
-  expect(deps.store.requeue).toHaveBeenCalledWith(
-    "capture-uuid",
-    message,
-    "device:test-installation",
-  );
+  expect(deps.store.requeue).toHaveBeenCalledWith("capture-uuid", message, "device:test-installation");
   expect(deps.store.recordResult).not.toHaveBeenCalled();
 });
 
@@ -291,11 +280,10 @@ it("keeps a capture made before registration when the same installation becomes 
     switchOwner(anonymousOwner(), "test-scope");
     return new Float32Array([1]);
   });
-  expect(await runCapture(input, deps, options)).toMatchObject({ kind: "queued" });
-  expect(deps.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({ owner: anonymousOwner() }),
-    "queued",
-  );
+  expect(await runCapture(input, deps, options)).toMatchObject({
+    kind: "queued",
+  });
+  expect(deps.store.enqueue).toHaveBeenCalledWith(expect.objectContaining({ owner: anonymousOwner() }), "queued");
   expect(deps.identify).not.toHaveBeenCalled();
 });
 
@@ -335,10 +323,7 @@ it("starts preparation presentation concurrently but retains images before persi
   retained();
   expect(await pending).toMatchObject({ kind: "sent" });
   expect(deps.identify).toHaveBeenCalledTimes(1);
-  expect(deps.store.enqueue.mock.calls[0][0]).toHaveProperty(
-    "contentBounds",
-    painting.contentBounds,
-  );
+  expect(deps.store.enqueue.mock.calls[0][0]).toHaveProperty("contentBounds", painting.contentBounds);
 });
 
 it("preserves recognition when presentation decoding fails", async () => {
@@ -371,7 +356,10 @@ it("recognizes a persisted offline capture locally without delaying the queued r
   const result = await runCapture(input, { ...deps, recognizeOffline }, options);
   expect(result).toMatchObject({ kind: "queued", localId: "capture-uuid" });
   expect(recognizeOffline).toHaveBeenCalledWith(
-    expect.objectContaining({ localId: "capture-uuid", owner: "device:test-installation" }),
+    expect.objectContaining({
+      localId: "capture-uuid",
+      owner: "device:test-installation",
+    }),
   );
   expect(deps.identify).not.toHaveBeenCalled();
   finish();

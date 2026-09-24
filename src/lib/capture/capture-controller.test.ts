@@ -10,21 +10,23 @@ const painting: Quad = [
   [0.15, 0.75],
 ];
 const shifted = (dx: number, dy = 0) => painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
-function observe(
-  controller: CaptureController,
-  now: number,
-  quads: Quad[] = [painting],
-  preview: FrameSize = frame,
-) {
+function observe(controller: CaptureController, now: number, quads: Quad[] = [painting], preview: FrameSize = frame) {
   return controller.observe(
-    { ...frame, observations: quads.map((quad) => ({ confidence: 1, corners: toCorners(quad) })) },
+    {
+      ...frame,
+      observations: quads.map((quad) => ({
+        confidence: 1,
+        corners: toCorners(quad),
+      })),
+    },
     preview,
     now,
   );
 }
 function hold(controller: CaptureController, from = 0, quads = [painting], preview = frame) {
-  for (let now = from; now < from + 800; now += 100)
+  for (let now = from; now < from + 800; now += 100) {
     expect(observe(controller, now, quads, preview)).toBeUndefined();
+  }
   return observe(controller, from + 800, quads, preview);
 }
 function failed(attempt = (controller: CaptureController) => hold(controller)!) {
@@ -46,7 +48,11 @@ it("captures once after 800 ms of steady framing and blocks overlapping imports 
 
 it("starts a shutter capture without live corners and blocks overlapping work", () => {
   const controller = new CaptureController();
-  expect(controller.begin("camera")).toMatchObject({ source: "camera", quad: null, valid: true });
+  expect(controller.begin("camera")).toMatchObject({
+    source: "camera",
+    quad: null,
+    valid: true,
+  });
   expect(controller.begin("camera")).toBeUndefined();
   expect(observe(controller, 0)).toBeUndefined();
   expect(controller.getSnapshot().phase).toBe("capturing");
@@ -65,7 +71,9 @@ it("publishes preview-aligned corners and hold progress without rerendering the 
   const feedbackChanged = jest.fn();
   controller.subscribe(stateChanged);
   controller.subscribeFeedback(feedbackChanged);
-  for (let now = 0; now <= 400; now += 100) observe(controller, now, [painting], preview);
+  for (let now = 0; now <= 400; now += 100) {
+    observe(controller, now, [painting], preview);
+  }
   expect(controller.getFeedback()).toEqual({
     quad: previewQuad(painting, frame, preview),
     progress: 0.5,
@@ -89,7 +97,10 @@ it("shows a visible but small painting without advancing capture progress", () =
     [0.3, 0.7],
   ];
   expect(hold(controller, 0, [small])).toBeUndefined();
-  expect(controller.getFeedback()).toEqual({ quad: previewQuad(small, frame, frame), progress: 0 });
+  expect(controller.getFeedback()).toEqual({
+    quad: previewQuad(small, frame, frame),
+    progress: 0,
+  });
 });
 
 it("clears feedback when pausing or starting either capture path", () => {
@@ -147,12 +158,9 @@ it.each([
     ],
     frame,
   ],
-] as [Quad, FrameSize][])(
-  "rejects cropped, off-center, small, or skewed candidates",
-  (quad, preview) => {
-    expect(hold(new CaptureController(), 0, [quad], preview)).toBeUndefined();
-  },
-);
+] as [Quad, FrameSize][])("rejects cropped, off-center, small, or skewed candidates", (quad, preview) => {
+  expect(hold(new CaptureController(), 0, [quad], preview)).toBeUndefined();
+});
 
 it("selects the largest eligible candidate from several rectangles", () => {
   const detail: Quad = [
@@ -173,9 +181,13 @@ it("requires a new full window after the candidate leaves the visible preview", 
 
 it("does not recapture an unchanged failure, even with another candidate present", () => {
   const controller = failed();
-  for (let now = 900; now <= 5000; now += 100)
+  for (let now = 900; now <= 5000; now += 100) {
     expect(observe(controller, now, [painting, shifted(0.14, 0.14)])).toBeUndefined();
-  expect(controller.getSnapshot()).toMatchObject({ phase: "retry", rearm: "reframe" });
+  }
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "retry",
+    rearm: "reframe",
+  });
 });
 
 it("rearms after movement of 10% of the frame diagonal followed by fresh stability", () => {
@@ -209,8 +221,9 @@ it("keeps a shutter failure on screen until the artwork leaves the frame or the 
     occupied: false,
     rearm: "shutter",
   });
-  for (let now = 100; now <= 3000; now += 100)
+  for (let now = 100; now <= 3000; now += 100) {
     expect(observe(controller, now, [shifted(0.1, 0.1)])).toBeUndefined();
+  }
   expect(controller.getSnapshot().phase).toBe("retry");
   observe(controller, 3100, []);
   observe(controller, 3800, []);

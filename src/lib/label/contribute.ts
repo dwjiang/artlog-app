@@ -20,10 +20,7 @@ export type ContributionOutcome = FunctionReturnType<typeof api.contributions.co
 
 export type ContributeInput = {
   scanId: Id<"scans">;
-  capture: Pick<
-    PendingScan,
-    "localId" | "owner" | "photoPath" | "cropPath" | "descriptors" | "keypoints"
-  >;
+  capture: Pick<PendingScan, "localId" | "owner" | "photoPath" | "cropPath" | "descriptors" | "keypoints">;
   state: LabelFormState;
   museumSearchUpdatedAt?: number;
 };
@@ -34,9 +31,12 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<"_s
     uploadType: UploadType.BINARY_CONTENT,
     headers: { "Content-Type": "image/jpeg" },
   });
-  if (response.status < 200 || response.status >= 300)
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`Crop upload failed with HTTP ${response.status}`);
-  const { storageId } = JSON.parse(response.body) as { storageId: Id<"_storage"> };
+  }
+  const { storageId } = JSON.parse(response.body) as {
+    storageId: Id<"_storage">;
+  };
   return storageId;
 }
 
@@ -47,8 +47,9 @@ export async function contributeLabel({
   state,
   museumSearchUpdatedAt,
 }: ContributeInput): Promise<ContributionOutcome> {
-  if (isLabelCapture(capture))
+  if (isLabelCapture(capture)) {
     throw new Error("An artwork photo is required to contribute to the shared index");
+  }
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error("A title and an artist are required to share");
   await saveLabelDraft(scanId, state, museumSearchUpdatedAt);
@@ -80,8 +81,9 @@ export async function contributeLabel({
 }
 
 export function contributionErrorMessage(error: unknown): string {
-  if (isNetworkError(error))
+  if (isNetworkError(error)) {
     return "No connection — it will be saved to the shared index when you’re back online";
+  }
   switch (errorMessage(error)) {
     case "rate_limited":
       return "Try again in a minute";

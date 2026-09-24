@@ -7,29 +7,27 @@ import type { Id } from "../../../convex/_generated/dataModel";
 
 import { LocalScanScreen, MISSING_TITLE } from "./local-scan-screen";
 import { RETRY_BUTTON } from "./states/failed-card";
-import {
-  IDENTIFYING_TITLE,
-  LABEL_NOW,
-  WAITING_LINE,
-  WAITING_TITLE,
-} from "./states/waiting-for-signal-card";
-import {
-  enqueuePendingScan,
-  markIdentified,
-  markIdentifying,
-  retryPendingScan,
-} from "@/db/repos/pending-scans";
+import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE } from "./states/waiting-for-signal-card";
+import { enqueuePendingScan, markIdentified, markIdentifying, retryPendingScan } from "@/db/repos/pending-scans";
 import * as resultSave from "@/lib/result/save";
 import { getSavedWork } from "@/db/repos/saved-works";
 import type { NewPendingScan } from "@/db/schema";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
 import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
 import { confidentScan } from "./result/__fixtures__/scan";
-jest.mock("@/components/audio/listen-actions", () => ({ ListenActions: () => null }));
-jest.mock("./capture-context-button", () => ({ CaptureContextButton: () => null }));
+jest.mock("@/components/audio/listen-actions", () => ({
+  ListenActions: () => null,
+}));
+jest.mock("./capture-context-button", () => ({
+  CaptureContextButton: () => null,
+}));
 jest.mock("./capture-photos-button", () => ({
   CapturePhotosButton: () => null,
-  useCapturePhotos: () => ({ label: "Add photos", open: jest.fn(), unavailable: false }),
+  useCapturePhotos: () => ({
+    label: "Add photos",
+    open: jest.fn(),
+    unavailable: false,
+  }),
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
@@ -53,7 +51,9 @@ jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
-jest.mock("@/lib/venue/venue-db", () => ({ venueNameById: async () => "Legion of Honor" }));
+jest.mock("@/lib/venue/venue-db", () => ({
+  venueNameById: async () => "Legion of Honor",
+}));
 // A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
 const mockVisitForSave = jest.fn();
 jest.mock("@/lib/venue/use-venue", () => ({
@@ -84,7 +84,9 @@ jest.mock("@/lib/convex-client", () => ({
   },
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `saved-${++mockUuid}` }));
-jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => mockFocused }));
+jest.mock("expo-router/react-navigation", () => ({
+  useIsFocused: () => mockFocused,
+}));
 jest.mock("expo-router", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   const Action = ({
@@ -136,11 +138,13 @@ beforeAll(async () => {
   await enqueuePendingScan(row("cap-queued", { status: "queued" }));
   await enqueuePendingScan(row("cap-flight", { status: "identifying" }));
   await enqueuePendingScan(
-    row("cap-failed", { status: "failed", lastError: "bad_features", attempts: 5 }),
+    row("cap-failed", {
+      status: "failed",
+      lastError: "bad_features",
+      attempts: 5,
+    }),
   );
-  await enqueuePendingScan(
-    row("cap-done", { status: "identified", scanId: "scan-9" as Id<"scans"> }),
-  );
+  await enqueuePendingScan(row("cap-done", { status: "identified", scanId: "scan-9" as Id<"scans"> }));
   await enqueuePendingScan(
     row("cap-old", {
       status: "failed",
@@ -164,7 +168,11 @@ beforeEach(() => {
     };
   });
   mockRetry.mockResolvedValue(undefined);
-  mockMutation.mockResolvedValue({ collectionId: "col-1", updatedAt: 20, updatedBy: "device" });
+  mockMutation.mockResolvedValue({
+    collectionId: "col-1",
+    updatedAt: 20,
+    updatedBy: "device",
+  });
   mockHaptic.mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());
@@ -222,12 +230,16 @@ it("drops a picked runner-up from the other possibilities of a cached recognitio
   await render(<LocalScanScreen localId="offline-pick" />);
   await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
   await fireEvent.press(
-    screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet/ }),
+    screen.getByRole("button", {
+      name: /^The Japanese Footbridge, Claude Monet/,
+    }),
   );
   expect(screen.getByText("Could this be The Japanese Footbridge?")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(
-    screen.queryByRole("button", { name: /^The Japanese Footbridge, Claude Monet/ }),
+    screen.queryByRole("button", {
+      name: /^The Japanese Footbridge, Claude Monet/,
+    }),
   ).toBeNull();
 });
 
@@ -246,7 +258,9 @@ it("keeps a manual draft on completion, then saves it before opening the result"
   expect(alert).toHaveBeenCalledWith("Discard your edits?", expect.any(String), expect.any(Array));
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
   );
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
@@ -275,7 +289,9 @@ it("finishes an in-flight save when identification completes and keeps the saved
   await fireEvent.press(await screen.findByRole("button", { name: "Add details (optional)" }));
   await fireEvent.changeText(await screen.findByLabelText("Title"), "My saved title");
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
   );
   await screen.findByRole("button", {
     name: /^Save (to collection|photo for later)$/,
@@ -288,7 +304,9 @@ it("finishes an in-flight save when identification completes and keeps the saved
     finishWrite();
   });
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
-  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: "My saved title" });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: "My saved title",
+  });
   expect(screen.getByRole("button", { name: "View result" })).toBeEnabled();
   expect(mockReplace).not.toHaveBeenCalled();
 });
@@ -336,14 +354,19 @@ it("saves a queued photo without asking for details", async () => {
 
 it("opens the detail fields at once when the person chose to enter details, even for a label capture", async () => {
   await enqueuePendingScan(
-    row("cap-manual", { status: "queued", labelPhotoPath: "labels/cap-manual.jpg" }),
+    row("cap-manual", {
+      status: "queued",
+      labelPhotoPath: "labels/cap-manual.jpg",
+    }),
   );
   await render(<LocalScanScreen localId="cap-manual" manual />);
   expect(await screen.findByLabelText("Title")).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.changeText(screen.getByLabelText("Title"), "My own entry");
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
-  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: "My own entry" });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: "My own entry",
+  });
 });
 
 it("shows the queued capture as waiting for signal, sends the label offline and saves with optional details", async () => {
@@ -359,12 +382,16 @@ it("shows the queued capture as waiting for signal, sends the label offline and 
     params: { scanId: "local-cap-queued", offline: "1" },
   });
   expect(
-    screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
   ).toBeEnabled();
   await fireEvent.press(screen.getByRole("button", { name: "Add details (optional)" }));
   await fireEvent.changeText(screen.getByLabelText("Title"), "Pond at dusk");
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
   );
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
@@ -389,7 +416,10 @@ it("shows the queued capture as waiting for signal, sends the label offline and 
   expect(screen.queryByLabelText("Title")).toBeNull();
   expect(screen.getByText("Pond at dusk")).toBeOnTheScreen();
   await fireEvent.press(link);
-  expect(mockNavigate).toHaveBeenCalledWith({ pathname: "/saved/[savedId]", params: { savedId } });
+  expect(mockNavigate).toHaveBeenCalledWith({
+    pathname: "/saved/[savedId]",
+    params: { savedId },
+  });
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
@@ -402,48 +432,53 @@ it("reads as identifying while the flusher has the capture in flight", async () 
 it.each([
   ["queued", WAITING_TITLE],
   ["identifying", IDENTIFYING_TITLE],
-] as const)(
-  "keeps an unsupported retry local while %s, then opens the completed result",
-  async (status, title) => {
-    const localId = `unsupported-retry-${status}`;
-    const scanId = `scan-${localId}` as Id<"scans">;
-    await enqueuePendingScan(
-      row(localId, { status: "failed", scanId, lastError: "Update the app to identify." }),
-    );
-    await retryPendingScan(localId);
-    if (status === "identifying") await markIdentifying(localId);
+] as const)("keeps an unsupported retry local while %s, then opens the completed result", async (status, title) => {
+  const localId = `unsupported-retry-${status}`;
+  const scanId = `scan-${localId}` as Id<"scans">;
+  await enqueuePendingScan(
+    row(localId, {
+      status: "failed",
+      scanId,
+      lastError: "Update the app to identify.",
+    }),
+  );
+  await retryPendingScan(localId);
+  if (status === "identifying") await markIdentifying(localId);
 
-    await render(<LocalScanScreen localId={localId} />);
-    expect(
-      await (status === "identifying" ? screen.findByLabelText(title) : screen.findByText(title)),
-    ).toBeOnTheScreen();
-    expect(mockReplace).not.toHaveBeenCalled();
-    expect(screen.queryByText("Your result is ready")).toBeNull();
-    expect(screen.queryByRole("button", { name: "View result" })).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
-    ).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole("button", { name: LABEL_NOW }));
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/label/[scanId]",
-      params: { scanId: `local-${localId}`, offline: "1" },
-    });
+  await render(<LocalScanScreen localId={localId} />);
+  expect(await (status === "identifying" ? screen.findByLabelText(title) : screen.findByText(title))).toBeOnTheScreen();
+  expect(mockReplace).not.toHaveBeenCalled();
+  expect(screen.queryByText("Your result is ready")).toBeNull();
+  expect(screen.queryByRole("button", { name: "View result" })).toBeNull();
+  expect(
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
+  ).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: LABEL_NOW }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/label/[scanId]",
+    params: { scanId: `local-${localId}`, offline: "1" },
+  });
 
-    await complete(localId);
-    await waitFor(() =>
-      expect(mockReplace).toHaveBeenCalledWith({
-        pathname: "/result/[scanId]",
-        params: { scanId },
-      }),
-    );
-  },
-);
+  await complete(localId);
+  await waitFor(() =>
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/result/[scanId]",
+      params: { scanId },
+    }),
+  );
+});
 
 it("saves a manual entry during an unsupported retry without presenting the old result as ready", async () => {
   const localId = "unsupported-retry-save";
   const scanId = `scan-${localId}` as Id<"scans">;
   await enqueuePendingScan(
-    row(localId, { status: "failed", scanId, lastError: "Update the app to identify." }),
+    row(localId, {
+      status: "failed",
+      scanId,
+      lastError: "Update the app to identify.",
+    }),
   );
   await retryPendingScan(localId);
 
@@ -453,10 +488,15 @@ it("saves a manual entry during an unsupported retry without presenting the old 
   expect(screen.getByText(WAITING_TITLE)).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "View result" })).toBeNull();
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Save (to collection|photo for later)$/ }),
+    screen.getByRole("button", {
+      name: /^Save (to collection|photo for later)$/,
+    }),
   );
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
-  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({ title: "My painting", scanId });
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: "My painting",
+    scanId,
+  });
   expect(mockReplace).not.toHaveBeenCalled();
 
   await complete(localId);
@@ -464,15 +504,16 @@ it("saves a manual entry during an unsupported retry without presenting the old 
   expect(screen.getByText(/^(View artwork|Saved · View in collection)$/)).toBeOnTheScreen();
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "View result" }));
-  expect(mockReplace).toHaveBeenCalledWith({ pathname: "/result/[scanId]", params: { scanId } });
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: "/result/[scanId]",
+    params: { scanId },
+  });
 });
 
 it("explains a failed capture and retries it through the queue", async () => {
   await render(<LocalScanScreen localId="cap-failed" />);
   expect(await screen.findByText(FAILED_TITLE)).toBeOnTheScreen();
-  expect(
-    screen.getByText("The photo couldn’t be read. Try scanning the painting again."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("The photo couldn’t be read. Try scanning the painting again.")).toBeOnTheScreen();
   expect(screen.queryByText(WAITING_TITLE)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: RETRY_BUTTON }));
   expect(mockRetry).toHaveBeenCalledWith("cap-failed");
@@ -484,7 +525,10 @@ it.each([
 ])("hands an %s capture over to its server card", async (_state, localId, scanId) => {
   await render(<LocalScanScreen localId={localId} />);
   await waitFor(() =>
-    expect(mockReplace).toHaveBeenCalledWith({ pathname: "/result/[scanId]", params: { scanId } }),
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/result/[scanId]",
+      params: { scanId },
+    }),
   );
   expect(screen.queryByText(WAITING_TITLE)).toBeNull();
   expect(screen.queryByText(FAILED_TITLE)).toBeNull();
@@ -504,8 +548,6 @@ it("keeps a failed scan and explains a failed retry", async () => {
   mockRetry.mockRejectedValueOnce(new Error("Unavailable"));
   await render(<LocalScanScreen localId="cap-failed" />);
   await fireEvent.press(await screen.findByRole("button", { name: RETRY_BUTTON }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    /Couldn’t retry this scan\. Your photo is still here\./,
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn’t retry this scan\. Your photo is still here\./);
   expect(screen.getByRole("button", { name: RETRY_BUTTON })).toBeEnabled();
 });

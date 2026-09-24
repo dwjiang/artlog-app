@@ -22,7 +22,10 @@ describe("shared app text", () => {
         <ThemedText style={[{ fontSize: 24 }, { color: "red" }]}>Numeral</ThemedText>
       </>,
     );
-    expect(screen.getByText("Body copy")).toHaveStyle({ fontSize: 16, lineHeight: 24 });
+    expect(screen.getByText("Body copy")).toHaveStyle({
+      fontSize: 16,
+      lineHeight: 24,
+    });
     expect(screen.getByText("Caption")).toHaveStyle({ fontSize: 13 });
     expect(screen.getByText("Caption")).not.toHaveStyle({ lineHeight: 24 });
     expect(screen.getByText("Numeral")).not.toHaveStyle({ lineHeight: 24 });
@@ -36,9 +39,7 @@ describe("shared app text", () => {
       </ThemedText>,
     );
     const initialMountCalls = ref.mock.calls.length;
-    jest
-      .mocked(useWindowDimensions)
-      .mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 3.1 });
+    jest.mocked(useWindowDimensions).mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 3.1 });
     await screen.rerender(
       <ThemedText ref={ref} variant="display">
         A long artist name — 藤田嗣治

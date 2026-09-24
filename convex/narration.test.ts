@@ -23,9 +23,14 @@ const script = guideBodyFixture.map(({ sentence, factIds }) => ({
   support: supportFor[factIds[0]],
 }));
 const completion = (value = script) =>
-  new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  new Response(
+    JSON.stringify({
+      choices: [{ message: { content: JSON.stringify(value) } }],
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 async function setup() {
   const t = harness();
   const device = await seedDevice(t);
@@ -74,9 +79,7 @@ it("generates Shimmer with the museum instructions once and shares cached audio 
   expect(first.uri).toBeTruthy();
   expect(first.renderId).toBeTruthy();
   expect(first.sentences).toEqual(guideFixture);
-  const authoring = JSON.parse(
-    (fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
-  );
+  const authoring = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
   expect(authoring.model).toBe("nvidia/Nemotron-3-Ultra-550b-a55b");
   expect(JSON.parse(authoring.messages[1].content).research).toEqual(researchFixture);
   const spend = await t.run((ctx) => ctx.db.query("dailySpend").take(1));
@@ -107,13 +110,19 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
     data: { code: "narration_unavailable" },
   });
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, { factSheetNeedsReview: undefined, factSheet: [catalogueFact] }),
+    ctx.db.patch(artworkId, {
+      factSheetNeedsReview: undefined,
+      factSheet: [catalogueFact],
+    }),
   );
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
   });
   await t.run((ctx) =>
-    ctx.db.patch(artworkId, { factSheet: researchFixture, retiredAt: Date.now() }),
+    ctx.db.patch(artworkId, {
+      factSheet: researchFixture,
+      retiredAt: Date.now(),
+    }),
   );
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
@@ -127,7 +136,9 @@ it("is independent of the written docent and re-renders only when the research i
   const first = await as.action(api.narration.render, args);
   await t.run((ctx) =>
     ctx.db.patch(artworkId, {
-      docent: { en: [{ sentence: "Changed written docent.", factIds: ["f1"] }] },
+      docent: {
+        en: [{ sentence: "Changed written docent.", factIds: ["f1"] }],
+      },
     }),
   );
   expect(await as.action(api.narration.render, args)).toEqual(first);
@@ -140,8 +151,7 @@ it("is independent of the written docent and re-renders only when the research i
   const updated = await as.action(api.narration.render, args);
   expect(updated.renderId).not.toBe(first.renderId);
   expect(
-    JSON.parse((fetcher.mock.calls[2] as unknown as [string, RequestInit])[1].body as string)
-      .messages[1].content,
+    JSON.parse((fetcher.mock.calls[2] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   ).toContain("Corrected evidence.");
   expect(fetcher).toHaveBeenCalledTimes(4);
   expect(fetcher.mock.calls.every(([url]) => !url.includes("tavily"))).toBe(true);
@@ -165,9 +175,7 @@ it("re-renders from corrected artwork metadata even when the research is unchang
   expect(updated.renderId).not.toBe(first.renderId);
   expect(updated.sentences).toEqual([{ sentence: opening, factIds: [] }, ...guideBodyFixture]);
   expect(fetcher).toHaveBeenCalledTimes(4);
-  const speech = JSON.parse(
-    (fetcher.mock.calls[3] as unknown as [string, RequestInit])[1].body as string,
-  );
+  const speech = JSON.parse((fetcher.mock.calls[3] as unknown as [string, RequestInit])[1].body as string);
   expect(speech.input.startsWith(`${opening} ${guideBodyFixture[0].sentence}`)).toBe(true);
 });
 
@@ -187,17 +195,11 @@ it("re-renders audio that was made with another voice or model", async () => {
 
 it("tells the client which render is current only while it is fresh", async () => {
   const { t, as, args, artworkId } = await setup();
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId,
-  ).toBeUndefined();
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
   const first = await as.action(api.narration.render, args);
-  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBe(
-    first.renderId,
-  );
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBe(first.renderId);
   await t.run((ctx) => ctx.db.patch(artworkId, { factSheetUpdatedAt: 6 }));
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId,
-  ).toBeUndefined();
+  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
 });
 
 it("clears every rendering and its audio so the next play renders again", async () => {
@@ -226,8 +228,14 @@ it("releases failed generations, hides provider response details, and permits re
 
 it("allows only one generation claim and rejects a late completion after a stale claim is replaced", async () => {
   const { t, as, args, rows } = await setup();
-  const first = await as.mutation(internal.narration.claim, { ...args, claim: "first" });
-  const second = await as.mutation(internal.narration.claim, { ...args, claim: "second" });
+  const first = await as.mutation(internal.narration.claim, {
+    ...args,
+    claim: "first",
+  });
+  const second = await as.mutation(internal.narration.claim, {
+    ...args,
+    claim: "second",
+  });
   expect(first.owned).toBe(true);
   expect(second.owned).toBe(false);
   await t.run(async (ctx) => {
@@ -235,7 +243,12 @@ it("allows only one generation claim and rejects a late completion after a stale
     await ctx.db.patch(row._id, { claimedAt: Date.now() - 181_000 });
   });
   expect(
-    (await as.mutation(internal.narration.claim, { ...args, claim: "replacement" })).owned,
+    (
+      await as.mutation(internal.narration.claim, {
+        ...args,
+        claim: "replacement",
+      })
+    ).owned,
   ).toBe(true);
   const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["obsolete"])));
   await t.mutation(internal.narration.finish, {
@@ -253,9 +266,7 @@ it("allows only one generation claim and rejects a late completion after a stale
 it("takes over a shared generation once its owner releases it instead of waiting out the poll", async () => {
   vi.useFakeTimers();
   const { t, as, args, fetcher } = await setup();
-  expect((await as.mutation(internal.narration.claim, { ...args, claim: "failing" })).owned).toBe(
-    true,
-  );
+  expect((await as.mutation(internal.narration.claim, { ...args, claim: "failing" })).owned).toBe(true);
   const waiting = as.action(api.narration.render, args);
   await vi.advanceTimersByTimeAsync(3000);
   expect(fetcher).not.toHaveBeenCalled();
@@ -294,9 +305,7 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   fetcher.mockResolvedValueOnce(completion(invented));
   expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(3);
-  const retry = JSON.parse(
-    (fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string,
-  );
+  const retry = JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
   expect(retry.messages[1].content).toContain("lilies float serenely");
   expect(retry.messages[1].content).toContain("not verbatim");
   expect((await t.run((ctx) => ctx.db.query("dailySpend").take(1)))[0].tokenFactoryCalls).toBe(2);
@@ -307,8 +316,7 @@ it("asks for the thin-research length, not the full one, when a script from thin
   fetcher.mockResolvedValueOnce(completion(script.slice(0, 2)));
   expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
   const retry = JSON.parse(
-    JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string)
-      .messages[1].content,
+    JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   );
   expect(retry.previousAttemptProblems).toContain("110 to 200 words after the opening");
 });
@@ -317,12 +325,20 @@ it("rejects invented citations before generating speech and releases the claim f
   const { as, args, fetcher, rows } = await setup();
   fetcher.mockResolvedValueOnce(
     completion([
-      { sentence: "An unsupported story.", fact_ids: ["invented"], support: "unsupported" },
+      {
+        sentence: "An unsupported story.",
+        fact_ids: ["invented"],
+        support: "unsupported",
+      },
     ]),
   );
   fetcher.mockResolvedValueOnce(
     completion([
-      { sentence: "An unsupported story.", fact_ids: ["invented"], support: "unsupported" },
+      {
+        sentence: "An unsupported story.",
+        fact_ids: ["invented"],
+        support: "unsupported",
+      },
     ]),
   );
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({

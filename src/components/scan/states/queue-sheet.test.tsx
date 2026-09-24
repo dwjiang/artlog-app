@@ -5,7 +5,9 @@ import { RETRY_ROW } from "./queue-row";
 import { QUEUE_FOOTER, QueueSheet } from "./queue-sheet";
 import type { PendingScan } from "@/db/schema";
 
-jest.mock("@/lib/capture/photo-draft", () => ({ readPhotoSession: () => ({ photos: [] }) }));
+jest.mock("@/lib/capture/photo-draft", () => ({
+  readPhotoSession: () => ({ photos: [] }),
+}));
 jest.mock("@/lib/capture/discard-capture", () => ({
   discardCapture: (...args: unknown[]) => mockDiscard(...args),
 }));
@@ -20,7 +22,11 @@ let mockLoading = false;
 let mockError: Error | undefined;
 
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ dismiss: mockDismiss, push: mockPush, navigate: mockNavigate }),
+  useRouter: () => ({
+    dismiss: mockDismiss,
+    push: mockPush,
+    navigate: mockNavigate,
+  }),
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
@@ -84,9 +90,7 @@ it("discards only after confirmation and keeps the sheet usable after a failure"
     confirmation?.onPress?.();
   });
   expect(mockDiscard).toHaveBeenCalledWith("draft", "device:test-installation");
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Couldn’t finish removing this scan. Try again.",
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t finish removing this scan. Try again.");
   expect(screen.getByRole("button", { name: /Scan from/ })).toBeEnabled();
   alert.mockRestore();
 });
@@ -101,7 +105,9 @@ it("lists the waiting scans with their status, closes itself and opens the tappe
   expect(screen.getByText(new RegExp(QUEUE_FOOTER.replace(".", "\\.")))).toBeOnTheScreen();
   expect(screen.queryByText("No recent scans.")).toBeNull();
   await fireEvent.press(
-    screen.getByRole("button", { name: "Scan from 40 min ago, Waiting for signal" }),
+    screen.getByRole("button", {
+      name: "Scan from 40 min ago, Waiting for signal",
+    }),
   );
   expect(mockDismiss).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenCalledWith({

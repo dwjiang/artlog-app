@@ -73,7 +73,12 @@ const pendingScan = {
 const saveCapture = () =>
   saveArtworkSession(
     "saved-1",
-    { localId: "saved-1", title: "Water Lilies", artist: "Claude Monet", savedAt: 1 },
+    {
+      localId: "saved-1",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      savedAt: 1,
+    },
     [
       {
         localId: "capture",
@@ -110,12 +115,22 @@ it("clears the queued share once the contribution succeeds", async () => {
 
 it("keeps a share queued after a transport failure and drops it after a failure the person must fix", async () => {
   jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
-  expect(await shareSavedLabel(input, "saved-1")).toEqual({ error: "Network request failed" });
+  expect(await shareSavedLabel(input, "saved-1")).toEqual({
+    error: "Network request failed",
+  });
   expect((await queued()).map((row) => JSON.parse(row.value))).toEqual([
-    { scanId, captureLocalId: "capture", savedLocalId: "saved-1", state, museumSearchUpdatedAt: 7 },
+    {
+      scanId,
+      captureLocalId: "capture",
+      savedLocalId: "saved-1",
+      state,
+      museumSearchUpdatedAt: 7,
+    },
   ]);
   jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("label_unverified"));
-  expect(await shareSavedLabel(input, "saved-1")).toEqual({ error: "label_unverified" });
+  expect(await shareSavedLabel(input, "saved-1")).toEqual({
+    error: "label_unverified",
+  });
   expect(await queued()).toEqual([]);
 });
 
@@ -138,7 +153,11 @@ it("flushes queued shares with the capture bytes reloaded from the phone and dro
   jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("Network request failed"));
   await shareSavedLabel(input, "saved-1");
   await shareSavedLabel(
-    { ...input, scanId: "scan-2" as Id<"scans">, capture: { ...capture, localId: "missing" } },
+    {
+      ...input,
+      scanId: "scan-2" as Id<"scans">,
+      capture: { ...capture, localId: "missing" },
+    },
     "saved-2",
   );
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: false });
@@ -150,7 +169,11 @@ it("flushes queued shares with the capture bytes reloaded from the phone and dro
   await flushPendingShares();
   expect(contributeLabel).toHaveBeenLastCalledWith({
     scanId,
-    capture: expect.objectContaining({ localId: "capture", descriptors, keypoints }),
+    capture: expect.objectContaining({
+      localId: "capture",
+      descriptors,
+      keypoints,
+    }),
     state,
     museumSearchUpdatedAt: 7,
   });
@@ -164,7 +187,12 @@ it("keeps a queued share after the artwork is deleted and the same scan is saved
   // saveResult gives the second save's copy of the photo a fresh id; the capture's original row stays tombstoned.
   saveArtworkSession(
     "saved-2",
-    { localId: "saved-2", title: "Water Lilies", artist: "Claude Monet", savedAt: 2 },
+    {
+      localId: "saved-2",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      savedAt: 2,
+    },
     [
       {
         localId: "capture-again",
@@ -192,7 +220,12 @@ it("keeps a queued share after its artwork is merged into another", async () => 
   await shareSavedLabel(input, "saved-1");
   saveArtworkSession(
     "target",
-    { localId: "target", title: "Water Lilies", artist: "Claude Monet", savedAt: 2 },
+    {
+      localId: "target",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      savedAt: 2,
+    },
     [],
     undefined,
     owner,

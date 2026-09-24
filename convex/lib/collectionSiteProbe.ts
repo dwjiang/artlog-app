@@ -13,17 +13,18 @@ export function websiteUrl(value: string): URL | null {
     const url = new URL(value);
     const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (
-      !["https:", "http:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      (url.port && !["80", "443"].includes(url.port)) ||
-      !host.includes(".") ||
-      /(^|\.)(localhost|local|internal|test|invalid)$/.test(host) ||
-      host.includes(":") ||
-      /^[\d.]+$/.test(host) ||
-      value.length > 2048
-    )
+      !["https:", "http:"].includes(url.protocol)
+      || url.username
+      || url.password
+      || (url.port && !["80", "443"].includes(url.port))
+      || !host.includes(".")
+      || /(^|\.)(localhost|local|internal|test|invalid)$/.test(host)
+      || host.includes(":")
+      || /^[\d.]+$/.test(host)
+      || value.length > 2048
+    ) {
       return null;
+    }
     url.hash = "";
     return url;
   } catch {
@@ -33,9 +34,7 @@ export function websiteUrl(value: string): URL | null {
 
 function sameHostUrl(value: string, base: URL): URL | null {
   const url = websiteUrl(new URL(value, base).href);
-  return url &&
-    url.hostname === base.hostname &&
-    !(base.protocol === "https:" && url.protocol === "http:")
+  return url && url.hostname === base.hostname && !(base.protocol === "https:" && url.protocol === "http:")
     ? url
     : null;
 }
@@ -47,10 +46,7 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
   );
   for (const match of rawLinks) {
     try {
-      const link = sameHostUrl(
-        (match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(),
-        page,
-      );
+      const link = sameHostUrl((match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/&amp;/g, "&").trim(), page);
       if (link) links.push(link);
     } catch {
       /* Malformed markup is not a probe target. */
@@ -63,24 +59,22 @@ function detectCollection(body: string, page: URL): CollectionSite | null {
       ? new URL(target.pathname.replace(/\/[^/]+\/?$/, "/"), target).href
       : page.origin
     : page.href;
-  if (/\bcollectionspace\b/i.test(body)) return { collectionSiteUrl, platform: "collectionspace" };
-  if (links.some((link) => /\/iiif\//i.test(link.pathname)))
+  if (/\bcollectionspace\b/i.test(body)) {
+    return { collectionSiteUrl, platform: "collectionspace" };
+  }
+  if (links.some((link) => /\/iiif\//i.test(link.pathname))) {
     return { collectionSiteUrl, platform: "iiif" };
+  }
   if (/\bemuseum\b/i.test(body) || links.some((link) => /\/objects\//i.test(link.pathname))) {
     return { collectionSiteUrl, platform: "emuseum" };
   }
-  if (
-    new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname))
-      .size >= 20
-  ) {
+  if (new Set(links.filter((link) => collectionPath.test(link.pathname)).map((link) => link.pathname)).size >= 20) {
     return { collectionSiteUrl, platform: "generic" };
   }
   return null;
 }
 
-export async function probeCollectionSite(
-  website: string,
-): Promise<CollectionSite | null | "retry"> {
+export async function probeCollectionSite(website: string): Promise<CollectionSite | null | "retry"> {
   const root = websiteUrl(website);
   if (!root) return null;
   const pending = PATHS.map((path) => new URL(path, root));
@@ -96,7 +90,10 @@ export async function probeCollectionSite(
       const response = await fetch(url.href, {
         redirect: "manual",
         signal: controller.signal,
-        headers: { "User-Agent": userAgent(), Accept: "text/html, application/xml;q=0.9" },
+        headers: {
+          "User-Agent": userAgent(),
+          Accept: "text/html, application/xml;q=0.9",
+        },
       });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
@@ -106,8 +103,9 @@ export async function probeCollectionSite(
         continue;
       }
       if (!response.ok) {
-        if (response.status === 408 || response.status === 429 || response.status >= 500)
+        if (response.status === 408 || response.status === 429 || response.status >= 500) {
           retryable = true;
+        }
         await response.body?.cancel();
         continue;
       }

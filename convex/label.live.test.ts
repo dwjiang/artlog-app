@@ -22,12 +22,13 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
     const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
     const venueId = process.env.LABEL_LIVE_VENUE_ID as Id<"museums"> | undefined;
     const ocr = process.env.LABEL_LIVE_OCR;
-    if (!url || !venueId || !ocr)
+    if (!url || !venueId || !ocr) {
       throw new Error("CONVEX_URL, LABEL_LIVE_VENUE_ID and LABEL_LIVE_OCR are required");
+    }
     const client = new ConvexHttpClient(url);
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
-      b.toString(16).padStart(2, "0"),
-    ).join("");
+    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     const signedIn = await client.action(api.auth.signIn, {
       provider: "anonymous",
       params: { secret },
@@ -35,7 +36,9 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
     const token = signedIn.tokens?.token;
     if (!token) throw new Error("Anonymous sign-in returned no token");
     client.setAuth(token);
-    await client.mutation(api.devices.registerDevice, { platform: "simulator" });
+    await client.mutation(api.devices.registerDevice, {
+      platform: "simulator",
+    });
     const pair = makeSyntheticPair({ count: 120 });
     const scan = await client.action(api.identify.identify, {
       localId: crypto.randomUUID(),
@@ -61,11 +64,12 @@ it.skipIf(process.env.LABEL_LIVE !== "1")(
     );
     expect(read.stage).toBe("read");
 
-    const fields = Object.fromEntries(
-      Object.entries(read.fields).map(([name, field]) => [name, field.value]),
-    );
+    const fields = Object.fromEntries(Object.entries(read.fields).map(([name, field]) => [name, field.value]));
     started = Date.now();
-    const verified = await client.action(api.label.verifyLabel, { scanId: scan.scanId, fields });
+    const verified = await client.action(api.label.verifyLabel, {
+      scanId: scan.scanId,
+      fields,
+    });
     stdout.write(`verifyLabel ${Date.now() - started} ms\n${JSON.stringify(verified, null, 2)}\n`);
     expect(verified.stage).toBe("verified");
     const status = await client.query(api.scans.get, { scanId: scan.scanId });

@@ -14,12 +14,7 @@ export default function SavedWorkRoute() {
   return (
     <>
       <GalleryBackToolbar />
-      <SavedWorkScreen
-        savedId={savedId}
-        visitId={visitId}
-        photoId={photoId}
-        editNote={editNote === "1"}
-      />
+      <SavedWorkScreen savedId={savedId} visitId={visitId} photoId={photoId} editNote={editNote === "1"} />
       <SavedWorkToolbar savedId={savedId} visitId={visitId} />
     </>
   );

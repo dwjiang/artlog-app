@@ -18,7 +18,10 @@ export function WelcomeScreen() {
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={[
         styles.content,
-        { paddingTop: top + Spacing.three, paddingBottom: Math.max(24, bottom) },
+        {
+          paddingTop: top + Spacing.three,
+          paddingBottom: Math.max(24, bottom),
+        },
       ]}
     >
       <Text
@@ -32,20 +35,13 @@ export function WelcomeScreen() {
         <ArtworkCollage welcome />
         <View style={styles.copy}>
           <Text style={fontScale > 1.3 ? Typography.display : styles.tagline}>
-            {fontScale > 1.3
-              ? "Remember the art that stays with you."
-              : "Remember\nthe art that\nstays with you."}
+            {fontScale > 1.3 ? "Remember the art that stays with you." : "Remember\nthe art that\nstays with you."}
           </Text>
           <Text themeColor="textSecondary">Scan artworks and save your museum visits.</Text>
         </View>
       </View>
       <View style={styles.actions}>
-        <GalleryButton
-          label="Get started"
-          fullWidth
-          variant="filled"
-          onPress={() => router.back()}
-        />
+        <GalleryButton label="Get started" fullWidth variant="filled" onPress={() => router.back()} />
         <GalleryButton
           label="I already have an account"
           fullWidth
@@ -68,6 +64,11 @@ const styles = StyleSheet.create({
   },
   brand: { flexGrow: 1, justifyContent: "center", gap: Spacing.three },
   copy: { gap: Spacing.compact },
-  tagline: { ...Typography.display, fontSize: 44, lineHeight: 50, color: Gallery.ink },
+  tagline: {
+    ...Typography.display,
+    fontSize: 44,
+    lineHeight: 50,
+    color: Gallery.ink,
+  },
   actions: { gap: Spacing.two, paddingTop: Spacing.two },
 });

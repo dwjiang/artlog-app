@@ -7,13 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanima
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Gallery } from "@/constants/theme";
-import {
-  constrainLayout,
-  isLightWall,
-  wallBottom,
-  type WallLayout,
-  type WallPiece,
-} from "@/lib/wall/wall-layout";
+import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
 import { WallArtwork } from "./wall-artwork";
 
 export function WallGallery({
@@ -114,7 +108,7 @@ function Hanging({
       offsetY.set((next.y - layout.y) * width);
     })
     .onEnd(() => {
-      if (onMove)
+      if (onMove) {
         scheduleOnRN(
           onMove,
           piece.localId,
@@ -123,6 +117,7 @@ function Hanging({
             y: layout.y + offsetY.get() / width,
           }),
         );
+      }
     })
     .onFinalize((_event, success) => {
       dragging.set(false);
@@ -135,16 +130,15 @@ function Hanging({
     .enabled(editing && selected)
     .blocksExternalGesture(pan)
     .onUpdate((event) => {
-      const next = constrainLayout(layout, { width: layout.width + event.translationX / width });
+      const next = constrainLayout(layout, {
+        width: layout.width + event.translationX / width,
+      });
       scale.set(next.width / layout.width);
     })
     .onEnd(() => {
-      if (onMove)
-        scheduleOnRN(
-          onMove,
-          piece.localId,
-          constrainLayout(layout, { width: layout.width * scale.get() }),
-        );
+      if (onMove) {
+        scheduleOnRN(onMove, piece.localId, constrainLayout(layout, { width: layout.width * scale.get() }));
+      }
     })
     .onFinalize((_event, success) => {
       if (!success) scale.set(1);
@@ -219,11 +213,7 @@ function Hanging({
                 },
               ]}
             >
-              <Image
-                source="sf:minus.circle.fill"
-                style={{ width: 20, height: 20 }}
-                tintColor={Gallery.destructive}
-              />
+              <Image source="sf:minus.circle.fill" style={{ width: 20, height: 20 }} tintColor={Gallery.destructive} />
             </Pressable>
             <GestureDetector gesture={resize}>
               <Animated.View
@@ -274,7 +264,12 @@ function Hanging({
 }
 
 const styles = StyleSheet.create({
-  label: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingTop: 8 },
+  label: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    paddingTop: 8,
+  },
   artist: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
   title: { fontSize: 12, lineHeight: 16 },
   editBadge: {

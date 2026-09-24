@@ -56,7 +56,12 @@ function fixture() {
     online,
     capture: () => {
       const captured = version;
-      return { owner, scope, token: `token-${owner}`, isCurrent: () => captured === version };
+      return {
+        owner,
+        scope,
+        token: `token-${owner}`,
+        isCurrent: () => captured === version,
+      };
     },
     subscribeOwner: (listener) => {
       changed = listener;
@@ -88,7 +93,10 @@ it("keeps drafts separate and updates acknowledged state only after the server r
   const pending = deferred<OwnerWall>();
   transport.setLayout.mockReturnValueOnce(pending.promise);
   const publishing = repository.publishLayout();
-  expect(repository.getSnapshot()).toMatchObject({ pending: true, acknowledged: wall });
+  expect(repository.getSnapshot()).toMatchObject({
+    pending: true,
+    acknowledged: wall,
+  });
   await Promise.resolve();
   pending.resolve({ ...wall, revision: 2 });
   await publishing;
@@ -167,7 +175,9 @@ it("refreshes conflicts and requires a new note confirmation using current revis
     ...wall,
     items: [{ ...wall.items[0], noteRevision: 2 }],
   });
-  await expect(repository.publishNotes()).rejects.toMatchObject({ data: { code: "conflict" } });
+  await expect(repository.publishNotes()).rejects.toMatchObject({
+    data: { code: "conflict" },
+  });
   expect(repository.getSnapshot()).toMatchObject({
     noteDraft: [],
     needsNoteConfirmation: true,
@@ -207,7 +217,9 @@ it("keeps the layout draft’s base revision through a notes conflict", async ()
     revision: 7,
     items: [{ ...wall.items[0], noteRevision: 2 }],
   });
-  await expect(repository.publishNotes()).rejects.toMatchObject({ data: { code: "conflict" } });
+  await expect(repository.publishNotes()).rejects.toMatchObject({
+    data: { code: "conflict" },
+  });
   await repository.publishLayout();
   expect(transport.setLayout.mock.calls[0][0].revision).toBe(1);
   repository.dispose();

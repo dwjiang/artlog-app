@@ -1,14 +1,5 @@
 import { ConvexError, type Infer, v } from "convex/values";
-import {
-  calendarDate,
-  isCalendarDate,
-  isRevision,
-  isTimestamp,
-  isTimeZone,
-  isUuid,
-  LIMITS,
-  utf8Bytes,
-} from "./limits";
+import { calendarDate, isCalendarDate, isRevision, isTimestamp, isTimeZone, isUuid, LIMITS, utf8Bytes } from "./limits";
 
 export const journalOwner = v.union(
   v.object({ kind: v.literal("account"), accountId: v.id("accounts") }),
@@ -58,10 +49,10 @@ export const pageArgs = {
 export function pagination(input: { cursor?: string | null; limit?: number }) {
   const limit = input.limit ?? LIMITS.page;
   if (
-    !Number.isInteger(limit) ||
-    limit < 1 ||
-    limit > LIMITS.maxPage ||
-    (input.cursor && new TextEncoder().encode(input.cursor).byteLength > LIMITS.cursorBytes)
+    !Number.isInteger(limit)
+    || limit < 1
+    || limit > LIMITS.maxPage
+    || (input.cursor && new TextEncoder().encode(input.cursor).byteLength > LIMITS.cursorBytes)
   ) {
     throw new ConvexError({ code: "invalid_pagination" });
   }
@@ -69,45 +60,42 @@ export function pagination(input: { cursor?: string | null; limit?: number }) {
 }
 export function validateVisit(visit: JournalVisit, now = Date.now()): void {
   if (
-    (visit.visibility !== "public" && visit.visibility !== "private") ||
-    !isUuid(visit.localId) ||
-    !isCalendarDate(visit.visitedOn) ||
-    !isTimeZone(visit.timeZone) ||
-    visit.visitedOn > calendarDate(now, visit.timeZone) ||
-    (visit.reflection?.length ?? 0) > LIMITS.note ||
-    (visit.startedAt !== undefined &&
-      (!isTimestamp(visit.startedAt) ||
-        calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn)) ||
-    (visit.endedAt !== undefined &&
-      (!isTimestamp(visit.endedAt) ||
-        visit.startedAt === undefined ||
-        visit.endedAt < visit.startedAt))
+    (visit.visibility !== "public" && visit.visibility !== "private")
+    || !isUuid(visit.localId)
+    || !isCalendarDate(visit.visitedOn)
+    || !isTimeZone(visit.timeZone)
+    || visit.visitedOn > calendarDate(now, visit.timeZone)
+    || (visit.reflection?.length ?? 0) > LIMITS.note
+    || (visit.startedAt !== undefined
+      && (!isTimestamp(visit.startedAt) || calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn))
+    || (visit.endedAt !== undefined
+      && (!isTimestamp(visit.endedAt) || visit.startedAt === undefined || visit.endedAt < visit.startedAt))
   ) {
     throw new ConvexError({ code: "invalid_visit" });
   }
 }
 export function validateSave(save: JournalSave): void {
   if (
-    !isUuid(save.localId) ||
-    (save.visitLocalId !== undefined && !isUuid(save.visitLocalId)) ||
-    !isTimestamp(save.savedAt) ||
-    !save.snapshot.title.trim() ||
-    Object.values(save.snapshot).some((s) => (s?.length ?? 0) > LIMITS.snapshot) ||
-    (save.note?.length ?? 0) > LIMITS.note ||
-    (save.venueName?.length ?? 0) > LIMITS.snapshot ||
-    (save.gallery?.length ?? 0) > LIMITS.snapshot ||
-    (save.deletedAt !== undefined && !isTimestamp(save.deletedAt))
+    !isUuid(save.localId)
+    || (save.visitLocalId !== undefined && !isUuid(save.visitLocalId))
+    || !isTimestamp(save.savedAt)
+    || !save.snapshot.title.trim()
+    || Object.values(save.snapshot).some((s) => (s?.length ?? 0) > LIMITS.snapshot)
+    || (save.note?.length ?? 0) > LIMITS.note
+    || (save.venueName?.length ?? 0) > LIMITS.snapshot
+    || (save.gallery?.length ?? 0) > LIMITS.snapshot
+    || (save.deletedAt !== undefined && !isTimestamp(save.deletedAt))
   ) {
     throw new ConvexError({ code: "invalid_save" });
   }
 }
 export function validateBatch(visits: JournalVisit[], saves: JournalSave[], since: number): void {
   if (
-    !isRevision(since) ||
-    visits.length + saves.length > LIMITS.batchRecords ||
-    utf8Bytes({ visits, saves }) > LIMITS.batchBytes ||
-    new Set(visits.map((row) => row.localId)).size !== visits.length ||
-    new Set(saves.map((row) => row.localId)).size !== saves.length
+    !isRevision(since)
+    || visits.length + saves.length > LIMITS.batchRecords
+    || utf8Bytes({ visits, saves }) > LIMITS.batchBytes
+    || new Set(visits.map((row) => row.localId)).size !== visits.length
+    || new Set(saves.map((row) => row.localId)).size !== saves.length
   ) {
     throw new ConvexError({ code: "invalid_sync" });
   }

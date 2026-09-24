@@ -93,7 +93,9 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
       throw new LabelFlowError("nothing_read");
     }
     const fields = toLabelInput(flow.fields);
-    if (Object.keys(fields).length === 0) throw new LabelFlowError("nothing_read");
+    if (Object.keys(fields).length === 0) {
+      throw new LabelFlowError("nothing_read");
+    }
 
     onStage?.("verify");
     let verified = await api.verifyLabel({ scanId, fields });
@@ -106,16 +108,20 @@ export async function runLabelFlow(input: LabelFlowInput): Promise<LabelFlowDisp
         return null;
       });
       // Resending the verified values takes the server's no-search path, so this costs no credit.
-      if (check?.homographyValid)
+      if (check?.homographyValid) {
         verified = await api.verifyLabel({
           scanId,
           fields: toLabelInput(verified.fields),
           imageCheck: check,
         });
+      }
     }
-    if (verified.moderation !== "clear") throw new LabelFlowError("label_flagged");
-    if (Object.keys(toLabelInput(verified.fields)).length === 0)
+    if (verified.moderation !== "clear") {
+      throw new LabelFlowError("label_flagged");
+    }
+    if (Object.keys(toLabelInput(verified.fields)).length === 0) {
       throw new LabelFlowError("nothing_read");
+    }
     onStage?.("done");
     return verified;
   } catch (error) {

@@ -22,13 +22,14 @@ it("stops at the first passing image and removes its downloaded and letterboxed 
   const images = deps();
   expect(await checkCandidates([candidate, candidate], scan, images, options)).toMatchObject({
     sourceUrl: candidate.sourceUrl,
-    imageCheck: { url: candidate.imageUrls[0], cosine: 1, homographyValid: true },
+    imageCheck: {
+      url: candidate.imageUrls[0],
+      cosine: 1,
+      homographyValid: true,
+    },
   });
   expect(images.download).toHaveBeenCalledTimes(1);
-  expect(images.remove.mock.calls.flat()).toEqual([
-    "file:///cache/blue.jpg",
-    "file:///cache/blue.jpg.box.jpg",
-  ]);
+  expect(images.remove.mock.calls.flat()).toEqual(["file:///cache/blue.jpg", "file:///cache/blue.jpg.box.jpg"]);
 });
 
 it("requires cosine ≥ 0.85 before extracting ORB", async () => {
@@ -41,9 +42,7 @@ it("requires cosine ≥ 0.85 before extracting ORB", async () => {
 
 it("rejects a high-cosine image whose homography fails, then checks the next image", async () => {
   const images = deps();
-  images.extractOrb.mockResolvedValueOnce(
-    encodeOrbFeatures(makeSyntheticPair({ seed: 8, count: 120 }).ref),
-  );
+  images.extractOrb.mockResolvedValueOnce(encodeOrbFeatures(makeSyntheticPair({ seed: 8, count: 120 }).ref));
   expect(await checkCandidates([candidate], scan, images, options)).toMatchObject({
     imageCheck: { url: candidate.imageUrls[1] },
   });
@@ -86,13 +85,8 @@ it("stops downloading when consent or connectivity is withdrawn", async () => {
 it("cleans downloaded files when native ORB extraction fails", async () => {
   const images = deps();
   images.extractOrb.mockRejectedValue(new Error("native extraction failed"));
-  await expect(checkCandidates([candidate], scan, images, options)).rejects.toThrow(
-    "native extraction failed",
-  );
-  expect(images.remove.mock.calls.flat()).toEqual([
-    "file:///cache/blue.jpg",
-    "file:///cache/blue.jpg.box.jpg",
-  ]);
+  await expect(checkCandidates([candidate], scan, images, options)).rejects.toThrow("native extraction failed");
+  expect(images.remove.mock.calls.flat()).toEqual(["file:///cache/blue.jpg", "file:///cache/blue.jpg.box.jpg"]);
 });
 
 it("can match a later artwork on an exhibition page", async () => {
@@ -101,9 +95,7 @@ it("can match a later artwork on an exhibition page", async () => {
     ...candidate,
     imageUrls: Array.from({ length: 8 }, (_, i) => `https://museum.example/${i}.jpg`),
   };
-  images.embed
-    .mockResolvedValueOnce(Float32Array.from([0, 1]))
-    .mockResolvedValueOnce(Float32Array.from([0, 1]));
+  images.embed.mockResolvedValueOnce(Float32Array.from([0, 1])).mockResolvedValueOnce(Float32Array.from([0, 1]));
   expect(await checkCandidates([exhibition], scan, images, options)).toMatchObject({
     imageCheck: { url: exhibition.imageUrls[2] },
   });

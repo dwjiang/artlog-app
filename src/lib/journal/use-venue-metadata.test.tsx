@@ -14,7 +14,13 @@ jest.mock("../venue/venue-db", () => ({
   onVenueMetadataChange: () => () => {},
 }));
 const row = (id: string) =>
-  ({ id, name: id, region: "paris", lat: 48.8, lng: 2.3 }) as unknown as VenueRow;
+  ({
+    id,
+    name: id,
+    region: "paris",
+    lat: 48.8,
+    lng: 2.3,
+  }) as unknown as VenueRow;
 
 it("is not ready until the rows for the current museums have been read", async () => {
   const hook = await renderHook((ids: string[]) => useVenueMetadata(ids, "a"), {

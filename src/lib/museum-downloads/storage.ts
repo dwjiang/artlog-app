@@ -13,10 +13,8 @@ import { MuseumDownloadsController, type DownloadDependencies } from "./controll
 import type { LocalPackage } from "./model";
 
 const SETTING = "museumDownloads";
-export const packageDirectory = (folder: string) =>
-  new Directory(Paths.document, "museum-downloads", folder);
-const partFile = (pack: LocalPackage, index: number) =>
-  new File(packageDirectory(pack.folder), `${index}.json`);
+export const packageDirectory = (folder: string) => new Directory(Paths.document, "museum-downloads", folder);
+const partFile = (pack: LocalPackage, index: number) => new File(packageDirectory(pack.folder), `${index}.json`);
 export async function readEntries(pack: LocalPackage, index: number): Promise<MuseumEntry[]> {
   return jsonToConvex(JSON.parse(await partFile(pack, index).text())) as unknown as MuseumEntry[];
 }
@@ -34,7 +32,9 @@ async function download(url: string, signal: AbortSignal): Promise<Uint8Array<Ar
   if (!response.ok) throw new Error(`Download failed (${response.status})`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (signal.aborted) throw new Error("Download paused");
-  if (Paths.availableDiskSpace < bytes.byteLength + 1_000_000) throw new Error("space");
+  if (Paths.availableDiskSpace < bytes.byteLength + 1_000_000) {
+    throw new Error("space");
+  }
   return bytes;
 }
 const deps: DownloadDependencies = {
@@ -45,9 +45,9 @@ const deps: DownloadDependencies = {
     if (!saved) return;
     for (const [id, row] of Object.entries(saved.downloads)) {
       if (
-        row.active &&
-        (row.active.manifest.modelVersion !== model.modelVersion ||
-          !row.active.manifest.chunks.every((_, index) => partFile(row.active!, index).exists))
+        row.active
+        && (row.active.manifest.modelVersion !== model.modelVersion
+          || !row.active.manifest.chunks.every((_, index) => partFile(row.active!, index).exists))
       ) {
         removePackage(row.active.folder);
         row.active = undefined;
@@ -65,7 +65,9 @@ const deps: DownloadDependencies = {
     do {
       const result: FunctionReturnType<typeof api.museumDownloads.catalog> = await convex.query(
         api.museumDownloads.catalog,
-        { paginationOpts: { cursor, numItems: 64 } },
+        {
+          paginationOpts: { cursor, numItems: 64 },
+        },
       );
       museums.push(...result.page);
       if (result.isDone) return museums;
@@ -82,12 +84,12 @@ const deps: DownloadDependencies = {
   async download(pack, index, signal) {
     const part = pack.manifest.chunks[index];
     const bytes = await download(part.url, signal);
-    const hash = Array.from(
-      new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, bytes)),
-      (byte) => byte.toString(16).padStart(2, "0"),
+    const hash = Array.from(new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, bytes)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
     ).join("");
-    if (hash !== part.sha256 || bytes.byteLength !== part.size)
+    if (hash !== part.sha256 || bytes.byteLength !== part.size) {
       throw new Error("Incomplete download");
+    }
     if (signal.aborted) return;
     const directory = packageDirectory(pack.folder);
     directory.create({ intermediates: true, idempotent: true });

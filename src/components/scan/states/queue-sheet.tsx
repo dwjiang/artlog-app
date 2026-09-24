@@ -60,7 +60,10 @@ function QueueContent() {
 
   function open(item: PendingScan) {
     router.dismiss();
-    router.push({ pathname: "/result/[scanId]", params: { scanId: `local-${item.localId}` } });
+    router.push({
+      pathname: "/result/[scanId]",
+      params: { scanId: `local-${item.localId}` },
+    });
   }
 
   function retry(item: PendingScan) {
@@ -94,9 +97,7 @@ function QueueContent() {
       </View>
       {items.some((item) => item.status === "queued") && (
         <View style={{ padding: 14, backgroundColor: "#EEF2FF", borderRadius: 8 }}>
-          <ThemedText type="small">
-            Waiting for a connection. Your photos are safely saved on this iPhone.
-          </ThemedText>
+          <ThemedText type="small">Waiting for a connection. Your photos are safely saved on this iPhone.</ThemedText>
         </View>
       )}
       {loading && !error && !items.length && <ListSkeleton label="Loading scans…" rows={3} />}
@@ -122,11 +123,7 @@ function QueueContent() {
                 justifyContent: "center",
               }}
             >
-              <Image
-                source="sf:checkmark"
-                tintColor={Gallery.ink}
-                style={{ width: 48, height: 48 }}
-              />
+              <Image source="sf:checkmark" tintColor={Gallery.ink} style={{ width: 48, height: 48 }} />
             </View>
           }
         >

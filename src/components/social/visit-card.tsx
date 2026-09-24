@@ -28,9 +28,7 @@ export function ProfileIdentity({
     <>
       <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>
-          {profile.name}
-        </Text>
+        <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
         <Text style={socialStyles.caption}>@{profile.username}</Text>
       </View>
       {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
@@ -46,7 +44,10 @@ export function ProfileIdentity({
       accessibilityRole="button"
       accessibilityLabel={`View ${profile.name}’s profile`}
       onPress={() =>
-        router.push({ pathname: "/profile/[profileId]", params: { profileId: profile.profileId } })
+        router.push({
+          pathname: "/profile/[profileId]",
+          params: { profileId: profile.profileId },
+        })
       }
       style={styles.identity}
     >
@@ -62,12 +63,14 @@ const GAP = 8,
 const aspect = ({ media }: { media: SharedArtwork["artwork"]["media"] }) =>
   media.width > 0 && media.height > 0 ? media.width / media.height : 1;
 
-type Candidate = { key: string; media: SharedArtwork["artwork"]["media"]; title: string };
+type Candidate = {
+  key: string;
+  media: SharedArtwork["artwork"]["media"];
+  title: string;
+};
 
 /** One slot per leading artwork, so every ranked highlight appears; spare slots take their extra selected photos. */
-function previewCandidates(
-  artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[],
-): Candidate[] {
+function previewCandidates(artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[]): Candidate[] {
   const shown = artworks.slice(0, 3);
   const candidates: Candidate[] = [];
   shown.forEach(({ itemId, artwork, photos }, index) => {
@@ -97,33 +100,28 @@ export function VisitArtworks({
   const [width, setWidth] = useState(0);
   const candidates = previewCandidates(artworks);
   const fit = (count: number) =>
-    (width - GAP * (count - 1)) /
-    candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
-  const count =
-    [3, 2].find((n) => n <= candidates.length && fit(n) >= MIN_HEIGHT) ??
-    Math.min(1, candidates.length);
+    (width - GAP * (count - 1)) / candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
+  const count = [3, 2].find((n) => n <= candidates.length && fit(n) >= MIN_HEIGHT) ?? Math.min(1, candidates.length);
   const preview = candidates.slice(0, count);
   const ratios = preview.map(aspect);
-  const height = Math.min(
-    count === 1 ? width * 1.25 : compact ? 236 : 300,
-    Math.max(0, fit(count)),
-  );
+  const height = Math.min(count === 1 ? width * 1.25 : compact ? 236 : 300, Math.max(0, fit(count)));
   return (
     <View
       testID="visit-artworks"
       style={[styles.strip, { gap: GAP }]}
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
     >
-      {width > 0 &&
-        preview.map(({ key, media, title }, index) => (
-          <View key={key} style={{ width: height * ratios[index], height, overflow: "hidden" }}>
-            <DisplayMedia
-              media={media}
-              label={title}
-              token={token}
-              width={height * ratios[index]}
-              height={height}
-            />
+      {width > 0
+        && preview.map(({ key, media, title }, index) => (
+          <View
+            key={key}
+            style={{
+              width: height * ratios[index],
+              height,
+              overflow: "hidden",
+            }}
+          >
+            <DisplayMedia media={media} label={title} token={token} width={height * ratios[index]} height={height} />
           </View>
         ))}
       {!preview.length && <Text style={socialStyles.caption}>No artwork previews.</Text>}
@@ -142,7 +140,10 @@ export function VisitCard({
 }) {
   const router = useRouter();
   const openVisit = () =>
-    router.push({ pathname: "/visit/[postId]", params: { postId: visit.postId } });
+    router.push({
+      pathname: "/visit/[postId]",
+      params: { postId: visit.postId },
+    });
   const openProfile = () =>
     router.push({
       pathname: "/profile/[profileId]",
@@ -170,10 +171,7 @@ export function VisitCard({
       token={token}
       showAuthor={showAuthor}
       reactions={
-        <VisitReactions
-          visit={{ ...visit, media: visit.artworks.page[0]?.artwork.media }}
-          onOpenVisit={openVisit}
-        />
+        <VisitReactions visit={{ ...visit, media: visit.artworks.page[0]?.artwork.media }} onOpenVisit={openVisit} />
       }
       onOpenVisit={openVisit}
       onOpenProfile={openProfile}
@@ -287,8 +285,8 @@ export function VisitFeedCard({
           {date}
         </View>
       )}
-      {!!artworks.length &&
-        (onOpenVisit ? (
+      {!!artworks.length
+        && (onOpenVisit ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`View ${author.name}’s visit to ${venue.name}`}
@@ -317,17 +315,57 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Gallery.softBorder,
   },
-  feedHeading: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  feedIdentity: { flex: 1, flexDirection: "row", alignItems: "center", gap: 11, minHeight: 44 },
-  feedName: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: Gallery.ink },
-  nameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 6 },
-  location: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
-  locationText: { fontSize: 12, lineHeight: 18, color: Gallery.muted, flexShrink: 1 },
+  feedHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  feedIdentity: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    minHeight: 44,
+  },
+  feedName: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: Gallery.ink,
+  },
+  nameRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+    columnGap: 6,
+  },
+  location: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 1,
+  },
+  locationText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: Gallery.muted,
+    flexShrink: 1,
+  },
   feedDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   notes: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  identity: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 },
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 44,
+  },
   name: { ...Typography.secondary, fontWeight: "600", color: Gallery.ink },
-  strip: { flexDirection: "row", alignItems: "center", backgroundColor: Gallery.paper },
+  strip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Gallery.paper,
+  },
   photoBadge: {
     position: "absolute",
     bottom: 10,

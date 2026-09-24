@@ -7,12 +7,19 @@ import type { CaptureVisitChoice, PhotoSessionDraft } from "./photo-draft";
  * visit was ended by hand on the capture's day.
  */
 export function captureVisitChoice(
-  capture: { venueId?: Id<"museums"> | null; visitLocalId?: string | null; capturedAt?: number },
+  capture: {
+    venueId?: Id<"museums"> | null;
+    visitLocalId?: string | null;
+    capturedAt?: number;
+  },
   session: Pick<PhotoSessionDraft, "visit">,
 ): CaptureVisitChoice {
   if (session.visit) return session.visit;
-  if (capture.visitLocalId != null) return { kind: "visit", localId: capture.visitLocalId };
-  if (capture.venueId && visitByDefault(capture.venueId, capture.capturedAt))
+  if (capture.visitLocalId != null) {
+    return { kind: "visit", localId: capture.visitLocalId };
+  }
+  if (capture.venueId && visitByDefault(capture.venueId, capture.capturedAt)) {
     return { kind: "venue", venueId: capture.venueId };
+  }
   return { kind: "none" };
 }

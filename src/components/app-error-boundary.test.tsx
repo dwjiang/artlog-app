@@ -3,7 +3,10 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AppErrorBoundary } from "./app-error-boundary";
 import { reportError } from "@/lib/observability";
 
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 jest.mock("@/components/collection/gallery-button", () => {
   const { Pressable, Text } = jest.requireActual("react-native");
   return {

@@ -6,10 +6,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import type { useAccount } from "@/lib/account/use-account";
 
-type SignInState = Pick<
-  ReturnType<typeof useAccount>,
-  "available" | "busy" | "error" | "ready" | "signInWithApple"
->;
+type SignInState = Pick<ReturnType<typeof useAccount>, "available" | "busy" | "error" | "ready" | "signInWithApple">;
 
 export function AppleSignInAction({ state }: { state: SignInState }) {
   const network = useNetworkState();
@@ -53,6 +50,11 @@ const styles = StyleSheet.create({
   root: { gap: Spacing.two, width: "100%" },
   button: { width: "100%", height: 50 },
   progress: { minHeight: 50, alignItems: "center", justifyContent: "center" },
-  footnote: { fontSize: 13, lineHeight: 18, color: Gallery.muted, textAlign: "center" },
+  footnote: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Gallery.muted,
+    textAlign: "center",
+  },
   error: { fontSize: 14, lineHeight: 20, color: Gallery.destructive },
 });

@@ -14,7 +14,12 @@ describe("identity of the matched exhibition image", () => {
         "@type": "ExhibitionEvent",
         name: "A Century of Colour",
         workFeatured: [
-          { "@type": "Painting", name: "Red", creator: "First Artist", image: "/red.jpg" },
+          {
+            "@type": "Painting",
+            name: "Red",
+            creator: "First Artist",
+            image: "/red.jpg",
+          },
           {
             "@type": "Painting",
             name: "Blue",
@@ -26,7 +31,9 @@ describe("identity of the matched exhibition image", () => {
       pageUrl,
       imageUrl,
     );
-    expect(evidence).toEqual({ fields: { title: "Blue", artist: "Second Artist" } });
+    expect(evidence).toEqual({
+      fields: { title: "Blue", artist: "Second Artist" },
+    });
   });
 
   it("reads array creators, PropertyValue identifiers and image objects, and never takes a URL identifier as an accession", () => {
@@ -39,18 +46,21 @@ describe("identity of the matched exhibition image", () => {
     expect(
       artworkImageEvidence(
         html({
-          "@graph": [{ ...work, identifier: { "@type": "PropertyValue", value: "1917.42" } }],
+          "@graph": [
+            {
+              ...work,
+              identifier: { "@type": "PropertyValue", value: "1917.42" },
+            },
+          ],
         }),
         pageUrl,
         imageUrl,
       ),
-    ).toEqual({ fields: { title: "Blue", artist: "Second Artist", accession: "1917.42" } });
+    ).toEqual({
+      fields: { title: "Blue", artist: "Second Artist", accession: "1917.42" },
+    });
     expect(
-      artworkImageEvidence(
-        html({ ...work, identifier: "https://museum.example/objects/1" }),
-        pageUrl,
-        imageUrl,
-      ),
+      artworkImageEvidence(html({ ...work, identifier: "https://museum.example/objects/1" }), pageUrl, imageUrl),
     ).toEqual({ fields: { title: "Blue", artist: "Second Artist" } });
   });
 
@@ -64,7 +74,12 @@ describe("identity of the matched exhibition image", () => {
     ).toEqual({});
     expect(
       artworkImageEvidence(
-        html({ "@type": "Painting", name: "Red", creator: "First Artist", image: "/red.jpg" }),
+        html({
+          "@type": "Painting",
+          name: "Red",
+          creator: "First Artist",
+          image: "/red.jpg",
+        }),
         pageUrl,
         imageUrl,
       ),
@@ -75,8 +90,18 @@ describe("identity of the matched exhibition image", () => {
     expect(
       artworkImageEvidence(
         html([
-          { "@type": "Painting", name: "Red", creator: "First Artist", image: imageUrl },
-          { "@type": "Painting", name: "Blue", creator: "Second Artist", image: imageUrl },
+          {
+            "@type": "Painting",
+            name: "Red",
+            creator: "First Artist",
+            image: imageUrl,
+          },
+          {
+            "@type": "Painting",
+            name: "Blue",
+            creator: "Second Artist",
+            image: imageUrl,
+          },
         ]),
         pageUrl,
         imageUrl,
@@ -86,8 +111,8 @@ describe("identity of the matched exhibition image", () => {
 
   it("uses only the caption attached to the matched image", () => {
     const page =
-      '<figure><img src="/red.jpg"><figcaption>First Artist, Red</figcaption></figure>' +
-      '<figure><picture><img src="/blue.jpg"></picture><figcaption>Second Artist, <em>Blue</em>, 2020.</figcaption></figure>';
+      '<figure><img src="/red.jpg"><figcaption>First Artist, Red</figcaption></figure>'
+      + '<figure><picture><img src="/blue.jpg"></picture><figcaption>Second Artist, <em>Blue</em>, 2020.</figcaption></figure>';
     expect(artworkImageEvidence(page, pageUrl, imageUrl)).toEqual({
       caption: "Second Artist, Blue, 2020.",
     });

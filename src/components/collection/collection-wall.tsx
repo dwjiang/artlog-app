@@ -11,14 +11,7 @@ import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gallery, Radius } from "@/constants/theme";
@@ -55,13 +48,7 @@ type CollectionWallProps = {
   header?: ReactElement;
   controls?: ReactElement;
 };
-export function CollectionWall({
-  works,
-  hiddenIds,
-  onEditingChange,
-  header,
-  controls,
-}: CollectionWallProps) {
+export function CollectionWall({ works, hiddenIds, onEditingChange, header, controls }: CollectionWallProps) {
   const wall = useCollectionWall(works);
   return (
     <CollectionWallContent
@@ -104,13 +91,10 @@ export function CollectionWallContent({
     wallTop = useRef(0),
     controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
-  const pieces = wall.pieces.filter(
-    (piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId),
-  );
+  const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
   const color = wall.draft?.color ?? DEFAULT_WALL_COLOR;
-  const count =
-    wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
+  const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const opening = wall.loading && !wall.draft && !wall.error;
   const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
   const hasSavedArt = works.some((work) => !hiddenIds.includes(work.localId));
@@ -138,7 +122,9 @@ export function CollectionWallContent({
   }, [wall.acknowledged, editing]);
   useFocusEffect(
     useCallback(() => {
-      if (wall.signedIn && focus.current.loaded && !focus.current.editing) void wall.refresh();
+      if (wall.signedIn && focus.current.loaded && !focus.current.editing) {
+        void wall.refresh();
+      }
       // oxlint-disable-next-line react-hooks/exhaustive-deps
     }, [wall.repository, wall.signedIn]),
   );
@@ -173,11 +159,16 @@ export function CollectionWallContent({
         ...snapshot.layoutDraft,
         items: snapshot.layoutDraft.items
           .filter((item) => !hiddenIds.includes(item.saveLocalId))
-          .map((item, layer) => ({ ...item, layout: { ...item.layout, layer } })),
+          .map((item, layer) => ({
+            ...item,
+            layout: { ...item.layout, layer },
+          })),
       });
       await wall.repository.publishLayout();
     } catch (cause) {
-      if (!session.isCurrent() || !wall.repository.getSnapshot().layoutDraft) return;
+      if (!session.isCurrent() || !wall.repository.getSnapshot().layoutDraft) {
+        return;
+      }
       reportError(cause, "wall.layout.publish");
       setOptions(false);
       setPhotoPicker(undefined);
@@ -189,12 +180,9 @@ export function CollectionWallContent({
     }
   }
   function commit(draft: WallDraft) {
-    if (
-      blocked ||
-      wall.repository.getSnapshot().pending ||
-      !wall.repository.getSnapshot().acknowledged
-    )
+    if (blocked || wall.repository.getSnapshot().pending || !wall.repository.getSnapshot().acknowledged) {
       return;
+    }
     wall.repository.setLayoutDraft(draft);
     void publish();
   }
@@ -218,12 +206,14 @@ export function CollectionWallContent({
     const placementId = randomUUID();
     revealId.current = placementId;
     const photoLocalId =
-      chosenPhotoId ??
-      selectArtworkPhotos(localId)
+      chosenPhotoId
+      ?? selectArtworkPhotos(localId)
         .all()
         .find((photo) => photo.kind !== "label")?.localId;
     const layout = nextWallLayout(pieces);
-    if (chosenPhotoId && selected?.saveLocalId === localId) layout.frame = selected.layout.frame;
+    if (chosenPhotoId && selected?.saveLocalId === localId) {
+      layout.frame = selected.layout.frame;
+    }
     commit({
       ...wall.draft,
       items: [...wall.draft.items, { placementId, photoLocalId, saveLocalId: localId, layout }],
@@ -242,12 +232,9 @@ export function CollectionWallContent({
     const items = [...wall.draft.items];
     for (const localId of picker) {
       const selection = available.find((item) => item.localId === localId);
-      if (
-        !selection ||
-        items.some((item) => item.saveLocalId === localId) ||
-        items.length >= LIMITS.wallItems
-      )
+      if (!selection || items.some((item) => item.saveLocalId === localId) || items.length >= LIMITS.wallItems) {
         continue;
+      }
       const placementId = randomUUID(),
         layout = nextWallLayout(nextPieces);
       const photoLocalId = selectArtworkPhotos(localId)
@@ -259,7 +246,10 @@ export function CollectionWallContent({
         saveLocalId: localId,
         layout,
         cropAspectRatio: selection.cropAspectRatio,
-        artwork: { ...selection.snapshot, media: { kind: "placeholder", width: 1, height: 1 } },
+        artwork: {
+          ...selection.snapshot,
+          media: { kind: "placeholder", width: 1, height: 1 },
+        },
       });
     }
     commit({ ...wall.draft, items });
@@ -325,9 +315,7 @@ export function CollectionWallContent({
                   />
                 )}
                 <View style={styles.toolbarTrailing}>
-                  {wall.loading && wall.draft && !wall.error && (
-                    <LoadingRing accessibilityLabel="Refreshing wall" />
-                  )}
+                  {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
                   <GalleryButton
                     label="All artworks"
                     icon="chevron.right"
@@ -341,9 +329,7 @@ export function CollectionWallContent({
             )}
           </View>
         </View>
-        {editing && (
-          <Text style={styles.publicNotice}>Hold and drag to move. Drag a corner to resize.</Text>
-        )}
+        {editing && <Text style={styles.publicNotice}>Hold and drag to move. Drag a corner to resize.</Text>}
         {editing && (
           <ScrollView
             horizontal
@@ -357,12 +343,20 @@ export function CollectionWallContent({
                 key={swatchColor}
                 accessibilityRole="button"
                 accessibilityLabel={`${name} wall`}
-                accessibilityState={{ selected: color === swatchColor, disabled: blocked }}
+                accessibilityState={{
+                  selected: color === swatchColor,
+                  disabled: blocked,
+                }}
                 disabled={blocked}
                 onPress={() => {
                   if (wall.draft) commit({ ...wall.draft, color: swatchColor });
                 }}
-                style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                style={{
+                  width: 44,
+                  height: 44,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 <View
                   style={{
@@ -395,11 +389,7 @@ export function CollectionWallContent({
                     void publish();
                   }}
                 />
-                <GalleryButton
-                  label="Discard unsaved change"
-                  disabled={wall.pending}
-                  onPress={discard}
-                />
+                <GalleryButton label="Discard unsaved change" disabled={wall.pending} onPress={discard} />
               </View>
             ) : (
               <GalleryButton
@@ -422,7 +412,9 @@ export function CollectionWallContent({
           <View
             style={[
               styles.blankWall,
-              { backgroundColor: color === DEFAULT_WALL_COLOR ? "#EFEEE7" : color },
+              {
+                backgroundColor: color === DEFAULT_WALL_COLOR ? "#EFEEE7" : color,
+              },
             ]}
           >
             <EmptyState
@@ -477,12 +469,15 @@ export function CollectionWallContent({
                 onMove={move}
                 onSelect={(piece) => {
                   if (editing) setSelectedId(piece.localId);
-                  else if (works.some((work) => work.localId === piece.saveLocalId))
+                  else if (works.some((work) => work.localId === piece.saveLocalId)) {
                     router.push({
                       pathname: "/saved/[savedId]",
-                      params: { savedId: piece.saveLocalId!, photoId: piece.photoLocalId },
+                      params: {
+                        savedId: piece.saveLocalId!,
+                        photoId: piece.photoLocalId,
+                      },
                     });
-                  else {
+                  } else {
                     setSelectedId(piece.localId);
                     setOptions(true);
                   }
@@ -497,9 +492,7 @@ export function CollectionWallContent({
                     )}
                     {!opening && (
                       <Text style={[styles.emptyCaption, { color: wallInk }]}>
-                        {editing
-                          ? "Tap a saved artwork below to hang it."
-                          : "Choose from your saved artworks."}
+                        {editing ? "Tap a saved artwork below to hang it." : "Choose from your saved artworks."}
                       </Text>
                     )}
                     {opening ? (
@@ -566,8 +559,9 @@ export function CollectionWallContent({
                     if (placement) {
                       setSelectedId(placement.localId);
                       revealId.current = placement.localId;
-                    } else if (add(item.localId))
+                    } else if (add(item.localId)) {
                       showToast("Selected image added to your wall. Other photos stay private.");
+                    }
                   }}
                   style={[
                     styles.artworkCard,
@@ -582,9 +576,7 @@ export function CollectionWallContent({
                     <WallFrame frame={frame} width={88}>
                       <SavedWorkImage
                         path={works.find((work) => work.localId === item.localId)?.cropPath ?? null}
-                        syncing={works.some(
-                          (work) => work.localId === item.localId && cropSyncing(work),
-                        )}
+                        syncing={works.some((work) => work.localId === item.localId && cropSyncing(work))}
                         title={item.snapshot.title}
                         contain
                         style={{ width: imageWidth, height: 60 }}
@@ -641,9 +633,7 @@ export function CollectionWallContent({
       {picker && (
         <WallSheet title="Choose artworks" tall onDismiss={() => setPicker(undefined)}>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
-            <Text style={styles.caption}>
-              {count + picker.length} selected · Your wall is public
-            </Text>
+            <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
             {available.map((item) => {
               const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
               const checked = hung || picker.includes(item.localId);
@@ -653,9 +643,7 @@ export function CollectionWallContent({
                   accessibilityRole="checkbox"
                   accessibilityLabel={item.snapshot.title}
                   accessibilityState={{ checked, disabled: hung }}
-                  disabled={
-                    hung || blocked || (!checked && count + picker.length >= LIMITS.wallItems)
-                  }
+                  disabled={hung || blocked || (!checked && count + picker.length >= LIMITS.wallItems)}
                   onPress={() =>
                     setPicker((ids) =>
                       ids?.includes(item.localId)
@@ -734,8 +722,9 @@ export function CollectionWallContent({
           onDismiss={() => setPhotoPicker(undefined)}
           onConfirm={(photoLocalId) => {
             if (photoPicker.kind === "duplicate") {
-              if (add(selected.saveLocalId!, photoLocalId))
+              if (add(selected.saveLocalId!, photoLocalId)) {
                 showToast("Second placement added. Only this photo is public.");
+              }
             } else if (wall.draft && !blocked) {
               commit({
                 ...wall.draft,
@@ -763,11 +752,7 @@ export function CollectionWallContent({
           }}
           onChange={(layout) => move(selected.localId, layout)}
           onRemove={() => remove(selected.localId)}
-          onChoosePhoto={
-            selected.saveLocalId
-              ? () => setPhotoPicker({ kind: "choose", presented: false })
-              : undefined
-          }
+          onChoosePhoto={selected.saveLocalId ? () => setPhotoPicker({ kind: "choose", presented: false }) : undefined}
           onDuplicatePhoto={
             selected.saveLocalId && count < LIMITS.wallItems
               ? () => setPhotoPicker({ kind: "duplicate", presented: false })
@@ -814,11 +799,32 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     backgroundColor: Gallery.paper,
   },
-  error: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Gallery.fill },
-  blankWall: { flex: 1, minHeight: 360, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
-  empty: { minHeight: 440, padding: 32, alignItems: "center", justifyContent: "center", gap: 20 },
+  error: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: Gallery.fill,
+  },
+  blankWall: {
+    flex: 1,
+    minHeight: 360,
+    borderTopWidth: 0.5,
+    borderTopColor: Gallery.separator,
+  },
+  empty: {
+    minHeight: 440,
+    padding: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 20,
+  },
   emptyTitle: { textAlign: "center" },
-  emptyCaption: { fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 280, opacity: 0.85 },
+  emptyCaption: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+    maxWidth: 280,
+    opacity: 0.85,
+  },
   publicNotice: {
     fontSize: 12,
     lineHeight: 18,
@@ -827,7 +833,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 8,
   },
-  tray: { backgroundColor: Gallery.paper, borderTopWidth: 0.5, borderTopColor: Gallery.separator },
+  tray: {
+    backgroundColor: Gallery.paper,
+    borderTopWidth: 0.5,
+    borderTopColor: Gallery.separator,
+  },
   trayHeading: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -835,8 +845,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   trayLabel: { paddingHorizontal: 20, paddingTop: 12 },
-  artworkStrip: { gap: 8, paddingHorizontal: 20, paddingVertical: 12, alignItems: "center" },
-  artworkCard: { borderRadius: Radius.input, padding: 6, backgroundColor: Gallery.surface, gap: 2 },
+  artworkStrip: {
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  artworkCard: {
+    borderRadius: Radius.input,
+    padding: 6,
+    backgroundColor: Gallery.surface,
+    gap: 2,
+  },
   artworkMat: {
     height: 68,
     backgroundColor: Gallery.fill,
@@ -844,5 +864,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 3,
   },
-  trayActions: { flexDirection: "row", gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
+  trayActions: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
 });

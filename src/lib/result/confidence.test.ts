@@ -9,9 +9,6 @@ it.each([
   expect(formatConfidence(probability)).toBe(label);
 });
 
-it.each([undefined, NaN, Infinity, -0.1, 1.1])(
-  "omits unavailable or invalid confidence %s",
-  (probability) => {
-    expect(formatConfidence(probability)).toBeUndefined();
-  },
-);
+it.each([undefined, NaN, Infinity, -0.1, 1.1])("omits unavailable or invalid confidence %s", (probability) => {
+  expect(formatConfidence(probability)).toBeUndefined();
+});

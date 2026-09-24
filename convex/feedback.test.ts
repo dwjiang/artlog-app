@@ -32,7 +32,12 @@ async function fixture() {
     });
     const runnerUp = await seedArtworkWithObject(ctx, {
       artwork: { title: "Haystacks", artist: "Claude Monet" },
-      placement: { venueId: elsewhere, onView: true, source: "feed", confidence: 1 },
+      placement: {
+        venueId: elsewhere,
+        onView: true,
+        source: "feed",
+        confidence: 1,
+      },
     });
     const other = await seedArtworkWithObject(ctx, {
       artwork: { title: "The Starry Night", artist: "Vincent van Gogh" },
@@ -78,7 +83,11 @@ async function fixture() {
     assertionBase64: "AAAA",
   });
   const reject = async (objectId: Id<"objects">, scan = scanId, as = user.as) =>
-    as.mutation(api.feedback.rejectMatch, { scanId: scan, objectId, ...(await sign(as)) });
+    as.mutation(api.feedback.rejectMatch, {
+      scanId: scan,
+      objectId,
+      ...(await sign(as)),
+    });
   const object = (id: Id<"objects">) => t.run((ctx) => ctx.db.get(id));
   const feedback = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get(id));
   const feedbackRows = () => t.run((ctx) => ctx.db.query("feedback").collect());
@@ -125,7 +134,11 @@ describe("rejectMatch", () => {
       },
     ]);
     const counted = await object(best.objectId);
-    expect(counted).toMatchObject({ rejectCount: 1, confirmCount: 0, calibratorPenalty: 0 });
+    expect(counted).toMatchObject({
+      rejectCount: 1,
+      confirmCount: 0,
+      calibratorPenalty: 0,
+    });
     expect(counted?.flaggedForReview).toBeUndefined();
     await reject(runnerUp.objectId);
     expect((await feedbackRows())[1]).toMatchObject({
@@ -159,8 +172,9 @@ describe("rejectMatch", () => {
   it("limits rejections of one work per device per day while another work still passes", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     const { scanId, best, runnerUp, seedRejectableScan, reject } = await fixture();
-    for (const scan of [scanId, await seedRejectableScan(), await seedRejectableScan()])
+    for (const scan of [scanId, await seedRejectableScan(), await seedRejectableScan()]) {
       await reject(best.objectId, scan);
+    }
     const fourth = await seedRejectableScan();
     await expect(reject(best.objectId, fourth)).rejects.toMatchObject({
       data: { code: "rate_limited", name: "rejectPerWork" },
@@ -175,7 +189,11 @@ describe("rejectMatch", () => {
       confirmCount: 40,
       rejectCount: 19,
       calibratorPenalty: 0,
-      expected: { rejectCount: 20, flaggedForReview: true, calibratorPenalty: 0.2 },
+      expected: {
+        rejectCount: 20,
+        flaggedForReview: true,
+        calibratorPenalty: 0.2,
+      },
     },
     {
       confirmCount: 100,
@@ -193,27 +211,32 @@ describe("rejectMatch", () => {
       confirmCount: 0,
       rejectCount: 30,
       calibratorPenalty: 0.7,
-      expected: { rejectCount: 31, flaggedForReview: true, calibratorPenalty: 0.8 },
+      expected: {
+        rejectCount: 31,
+        flaggedForReview: true,
+        calibratorPenalty: 0.8,
+      },
     },
-  ])(
-    "flags and penalizes an object only past the rejection threshold (%#)",
-    async ({ expected, ...counts }) => {
-      const { t, best, reject, object } = await fixture();
-      await t.run((ctx) => ctx.db.patch(best.objectId, counts));
-      await reject(best.objectId);
-      const row = await object(best.objectId);
-      const { calibratorPenalty, ...expectedState } = expected;
-      expect(row).toMatchObject(expectedState);
-      expect(effectiveObjectPenalty(row!)).toBeCloseTo(calibratorPenalty);
-      if (!("flaggedForReview" in expected)) expect(row?.flaggedForReview).toBeUndefined();
-    },
-  );
+  ])("flags and penalizes an object only past the rejection threshold (%#)", async ({ expected, ...counts }) => {
+    const { t, best, reject, object } = await fixture();
+    await t.run((ctx) => ctx.db.patch(best.objectId, counts));
+    await reject(best.objectId);
+    const row = await object(best.objectId);
+    const { calibratorPenalty, ...expectedState } = expected;
+    expect(row).toMatchObject(expectedState);
+    expect(effectiveObjectPenalty(row!)).toBeCloseTo(calibratorPenalty);
+    if (!("flaggedForReview" in expected)) {
+      expect(row?.flaggedForReview).toBeUndefined();
+    }
+  });
 
   it("requires an attested device when attestation is enforced", async () => {
     vi.stubEnv("APP_ATTEST_REQUIRED", "true");
     const t = harness();
     const user = await signIn(t);
-    const { deviceId } = await user.as.mutation(api.devices.registerDevice, { platform: "ios" });
+    const { deviceId } = await user.as.mutation(api.devices.registerDevice, {
+      platform: "ios",
+    });
     const work = await t.run((ctx) => seedArtworkWithObject(ctx));
     const scanId = await t.run((ctx) =>
       seedScan(ctx, {
@@ -237,7 +260,9 @@ describe("rejectMatch", () => {
         ],
       }),
     );
-    const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: "assert" });
+    const { nonce } = await user.as.mutation(api.devices.createChallenge, {
+      purpose: "assert",
+    });
     await expect(
       user.as.mutation(api.feedback.rejectMatch, {
         scanId,
@@ -246,14 +271,15 @@ describe("rejectMatch", () => {
         assertionBase64: "AAAA",
       }),
     ).rejects.toMatchObject({ data: { code: "device_not_attested" } });
-    expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({ rejectCount: 0 });
+    expect(await t.run((ctx) => ctx.db.get(work.objectId))).toMatchObject({
+      rejectCount: 0,
+    });
   });
 });
 
 describe("resolveRejection", () => {
   it("keeps a completed resolution immutable while allowing identical retries", async () => {
-    const { t, user, scanId, venueId, best, runnerUp, other, reject, feedback, proposals } =
-      await fixture();
+    const { t, user, scanId, venueId, best, runnerUp, other, reject, feedback, proposals } = await fixture();
     await t.run((ctx) =>
       ctx.db.patch(scanId, {
         runnerUps: [runnerUp, other].map((work) => ({
@@ -265,19 +291,30 @@ describe("resolveRejection", () => {
       }),
     );
     const { feedbackId } = await reject(best.objectId);
-    const resolution = { kind: "runner_up" as const, objectId: runnerUp.objectId };
-    await user.as.mutation(api.feedback.resolveRejection, { feedbackId, resolution });
-    await user.as.mutation(api.feedback.resolveRejection, { feedbackId, resolution });
-    const contributionId = await t.run((ctx) =>
-      seedContribution(ctx, { deviceId: user.deviceId, venueId, scanId }),
-    );
+    const resolution = {
+      kind: "runner_up" as const,
+      objectId: runnerUp.objectId,
+    };
+    await user.as.mutation(api.feedback.resolveRejection, {
+      feedbackId,
+      resolution,
+    });
+    await user.as.mutation(api.feedback.resolveRejection, {
+      feedbackId,
+      resolution,
+    });
+    const contributionId = await t.run((ctx) => seedContribution(ctx, { deviceId: user.deviceId, venueId, scanId }));
     for (const replacement of [
       { kind: "runner_up" as const, objectId: other.objectId },
       { kind: "label" as const, contributionId },
-    ])
+    ]) {
       await expect(
-        user.as.mutation(api.feedback.resolveRejection, { feedbackId, resolution: replacement }),
+        user.as.mutation(api.feedback.resolveRejection, {
+          feedbackId,
+          resolution: replacement,
+        }),
       ).rejects.toMatchObject({ data: { code: "invalid_resolution" } });
+    }
     expect(await feedback(feedbackId)).toMatchObject({ resolution });
     expect((await proposals()).map((proposal) => proposal.objectId)).toEqual([runnerUp.objectId]);
   });
@@ -285,8 +322,14 @@ describe("resolveRejection", () => {
   it("resolves to a runner-up and proposes its venue once when the placement disagrees", async () => {
     const { user, scanId, venueId, best, runnerUp, reject, feedback, proposals } = await fixture();
     const { feedbackId } = await reject(best.objectId);
-    const resolution = { kind: "runner_up" as const, objectId: runnerUp.objectId };
-    await user.as.mutation(api.feedback.resolveRejection, { feedbackId, resolution });
+    const resolution = {
+      kind: "runner_up" as const,
+      objectId: runnerUp.objectId,
+    };
+    await user.as.mutation(api.feedback.resolveRejection, {
+      feedbackId,
+      resolution,
+    });
     expect(await feedback(feedbackId)).toMatchObject({ resolution });
     expect(await proposals()).toMatchObject([
       {
@@ -298,7 +341,10 @@ describe("resolveRejection", () => {
         readyForReview: false,
       },
     ]);
-    await user.as.mutation(api.feedback.resolveRejection, { feedbackId, resolution });
+    await user.as.mutation(api.feedback.resolveRejection, {
+      feedbackId,
+      resolution,
+    });
     expect((await proposals())[0].scanIds).toEqual([scanId]);
   });
 
@@ -318,9 +364,7 @@ describe("resolveRejection", () => {
   it("resolves to the device’s own label contribution for the same scan", async () => {
     const { t, user, scanId, venueId, best, reject, feedback } = await fixture();
     const { feedbackId } = await reject(best.objectId);
-    const contributionId = await t.run((ctx) =>
-      seedContribution(ctx, { deviceId: user.deviceId, venueId, scanId }),
-    );
+    const contributionId = await t.run((ctx) => seedContribution(ctx, { deviceId: user.deviceId, venueId, scanId }));
     await user.as.mutation(api.feedback.resolveRejection, {
       feedbackId,
       resolution: { kind: "label", contributionId },
@@ -357,22 +401,28 @@ describe("resolveRejection", () => {
     });
     const otherScan = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
     const otherScanContribution = await t.run((ctx) =>
-      seedContribution(ctx, { deviceId: user.deviceId, venueId, scanId: otherScan }),
+      seedContribution(ctx, {
+        deviceId: user.deviceId,
+        venueId,
+        scanId: otherScan,
+      }),
     );
-    await expect(
-      resolve({ kind: "label", contributionId: otherScanContribution }),
-    ).rejects.toMatchObject({ data: { code: "invalid_resolution" } });
+    await expect(resolve({ kind: "label", contributionId: otherScanContribution })).rejects.toMatchObject({
+      data: { code: "invalid_resolution" },
+    });
     const stranger = await seedDevice(t);
     const strangerContribution = await t.run((ctx) =>
       seedContribution(ctx, { deviceId: stranger.deviceId, venueId, scanId }),
     );
-    await expect(
-      resolve({ kind: "label", contributionId: strangerContribution }),
-    ).rejects.toMatchObject({ data: { code: "invalid_resolution" } });
-    await expect(
-      resolve({ kind: "runner_up", objectId: runnerUp.objectId }, stranger.as),
-    ).rejects.toMatchObject({ data: { code: "feedback_not_found" } });
-    expect(await feedback(feedbackId)).toMatchObject({ resolution: { kind: "unresolved" } });
+    await expect(resolve({ kind: "label", contributionId: strangerContribution })).rejects.toMatchObject({
+      data: { code: "invalid_resolution" },
+    });
+    await expect(resolve({ kind: "runner_up", objectId: runnerUp.objectId }, stranger.as)).rejects.toMatchObject({
+      data: { code: "feedback_not_found" },
+    });
+    expect(await feedback(feedbackId)).toMatchObject({
+      resolution: { kind: "unresolved" },
+    });
   });
 });
 
@@ -382,12 +432,13 @@ describe("false rejections", () => {
     async (basePenalty) => {
       const { t, user, scanId, best, reject, object, feedback } = await fixture();
       await t.run((ctx) =>
-        ctx.db.patch(best.objectId, { rejectCount: 19, calibratorPenalty: basePenalty }),
+        ctx.db.patch(best.objectId, {
+          rejectCount: 19,
+          calibratorPenalty: basePenalty,
+        }),
       );
       const { feedbackId } = await reject(best.objectId);
-      expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(
-        Math.min(0.8, basePenalty + 0.2),
-      );
+      expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(Math.min(0.8, basePenalty + 0.2));
       const write = () =>
         t.mutation(internal.label.write, {
           scanId,
@@ -407,7 +458,9 @@ describe("false rejections", () => {
         });
       await write();
       await write();
-      expect(await feedback(feedbackId)).toMatchObject({ resolution: { kind: "false_rejection" } });
+      expect(await feedback(feedbackId)).toMatchObject({
+        resolution: { kind: "false_rejection" },
+      });
       expect((await object(best.objectId))?.calibratorPenalty).toBeCloseTo(basePenalty);
       expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(basePenalty);
       expect(await object(best.objectId)).toMatchObject({ rejectCount: 19 });
@@ -446,13 +499,19 @@ describe("false rejections", () => {
     expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(0.55);
     await verify(otherScanId);
     expect(effectiveObjectPenalty((await object(best.objectId))!)).toBeCloseTo(0.35);
-    expect(await object(best.objectId)).toMatchObject({ rejectCount: 19, calibratorPenalty: 0.35 });
+    expect(await object(best.objectId)).toMatchObject({
+      rejectCount: 19,
+      calibratorPenalty: 0.35,
+    });
   });
 
   it("keeps a rejection when the verified title is similar but names a different work", async () => {
     const { t, user, scanId, best, reject, object, feedback } = await fixture();
     await t.run((ctx) =>
-      ctx.db.patch(best.artworkId, { title: "Still Life with Apples", artist: "Paul Cézanne" }),
+      ctx.db.patch(best.artworkId, {
+        title: "Still Life with Apples",
+        artist: "Paul Cézanne",
+      }),
     );
     const { feedbackId } = await reject(best.objectId);
     await t.mutation(internal.label.write, {
@@ -471,7 +530,9 @@ describe("false rejections", () => {
         },
       },
     });
-    expect(await feedback(feedbackId)).toMatchObject({ resolution: { kind: "unresolved" } });
+    expect(await feedback(feedbackId)).toMatchObject({
+      resolution: { kind: "unresolved" },
+    });
     expect(await object(best.objectId)).toMatchObject({ rejectCount: 1 });
   });
 
@@ -497,16 +558,23 @@ describe("false rejections", () => {
       artist: labelField("Claude Monet", "ocr"),
     });
     await write(
-      { title: labelField("Water Lilies", "ocr"), artist: labelField("Claude Monet", "ocr") },
+      {
+        title: labelField("Water Lilies", "ocr"),
+        artist: labelField("Claude Monet", "ocr"),
+      },
       "read",
     );
-    expect(await feedback(feedbackId)).toMatchObject({ resolution: { kind: "unresolved" } });
+    expect(await feedback(feedbackId)).toMatchObject({
+      resolution: { kind: "unresolved" },
+    });
     expect(await object(best.objectId)).toMatchObject({ rejectCount: 1 });
     await write({
       title: labelField("Water lilies", "ocr"),
       artist: labelField("Monet, Claude", "wikidata"),
     });
-    expect(await feedback(feedbackId)).toMatchObject({ resolution: { kind: "false_rejection" } });
+    expect(await feedback(feedbackId)).toMatchObject({
+      resolution: { kind: "false_rejection" },
+    });
     expect(await object(best.objectId)).toMatchObject({ rejectCount: 0 });
     await write({
       title: labelField("Water Lilies", "ocr"),

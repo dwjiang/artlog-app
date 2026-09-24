@@ -2,12 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-} from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { isEnabled } from "./lib/flags";
 import { limitDevice } from "./lib/rateLimits";
 import { regionDomains } from "./lib/regions";
@@ -26,11 +21,17 @@ export function artistKey(artistId: string | undefined, artist: string): string 
 }
 
 export const load = internalQuery({
-  args: { scanId: v.id("scans"), deviceId: v.id("devices"), venueId: v.optional(v.id("museums")) },
+  args: {
+    scanId: v.id("scans"),
+    deviceId: v.id("devices"),
+    venueId: v.optional(v.id("museums")),
+  },
   returns: v.object({ region: v.union(v.string(), v.null()) }),
   handler: async (ctx, { scanId, deviceId, venueId }) => {
     const scan = await ctx.db.get(scanId);
-    if (!scan || scan.deviceId !== deviceId) throw new ConvexError({ code: "scan_not_found" });
+    if (!scan || scan.deviceId !== deviceId) {
+      throw new ConvexError({ code: "scan_not_found" });
+    }
     const venue = venueId ? await ctx.db.get(venueId) : null;
     return { region: venue?.region ?? null };
   },
@@ -54,12 +55,7 @@ export const claim = internalMutation({
     scanId: v.id("scans"),
     generation: v.number(),
   },
-  returns: v.union(
-    v.literal("hit"),
-    v.literal("empty"),
-    v.literal("pending"),
-    v.object({ claimId: v.string() }),
-  ),
+  returns: v.union(v.literal("hit"), v.literal("empty"), v.literal("pending"), v.object({ claimId: v.string() })),
   handler: async (ctx, { artistKey: artistId, region, scanId, generation }) => {
     const now = Date.now();
     const row = await ctx.db
@@ -71,21 +67,31 @@ export const claim = internalMutation({
       await applyCard(
         ctx,
         { scanId, generation },
-        { text: row.text, sourceUrl: row.sourceUrl, sourceLabel: row.sourceLabel },
+        {
+          text: row.text,
+          sourceUrl: row.sourceUrl,
+          sourceLabel: row.sourceLabel,
+        },
       );
       return "hit";
     }
     if (row?.pendingAt !== undefined && row.pendingAt > now - PENDING_MS) {
       const queue = row.waiting ?? [];
       if (!queue.some((entry) => entry.scanId === scanId)) {
-        await ctx.db.patch(row._id, { waiting: [...queue, { scanId, generation }] });
+        await ctx.db.patch(row._id, {
+          waiting: [...queue, { scanId, generation }],
+        });
       }
       return "pending";
     }
     const claimId = crypto.randomUUID();
-    if (row)
-      await ctx.db.patch(row._id, { pendingAt: now, claimId, waiting: [{ scanId, generation }] });
-    else
+    if (row) {
+      await ctx.db.patch(row._id, {
+        pendingAt: now,
+        claimId,
+        waiting: [{ scanId, generation }],
+      });
+    } else {
       await ctx.db.insert("artistContext", {
         artistId,
         region,
@@ -98,6 +104,7 @@ export const claim = internalMutation({
         claimId,
         waiting: [{ scanId, generation }],
       });
+    }
     return { claimId };
   },
 });
@@ -126,7 +133,11 @@ export const write = internalMutation({
       claimId: undefined,
       waiting: undefined,
     });
-    if (card) for (const target of row.waiting ?? []) await applyCard(ctx, target, card);
+    if (card) {
+      for (const target of row.waiting ?? []) {
+        await applyCard(ctx, target, card);
+      }
+    }
     return true;
   },
 });
@@ -141,8 +152,13 @@ export const release = internalMutation({
       .unique();
     if (!row || row.claimId !== claimId) return null;
     if (row.fetchedAt === 0) await ctx.db.delete(row._id);
-    else
-      await ctx.db.patch(row._id, { pendingAt: undefined, claimId: undefined, waiting: undefined });
+    else {
+      await ctx.db.patch(row._id, {
+        pendingAt: undefined,
+        claimId: undefined,
+        waiting: undefined,
+      });
+    }
     return null;
   },
 });
@@ -188,7 +204,11 @@ export const fetch = internalAction({
         maxResults: 5,
       });
       if (!response) return null;
-      const card = acceptRightNow(response, { artist: args.artist, domains, now: Date.now() });
+      const card = acceptRightNow(response, {
+        artist: args.artist,
+        domains,
+        now: Date.now(),
+      });
       // Review trail for the acceptance boundary: what was offered and whether it passed.
       const top = response.results[0];
       console.log("Right now", {
@@ -211,8 +231,13 @@ export const fetch = internalAction({
       }
       throw error;
     } finally {
-      if (!written)
-        await ctx.runMutation(internal.rightNow.release, { artistKey: key, region, claimId });
+      if (!written) {
+        await ctx.runMutation(internal.rightNow.release, {
+          artistKey: key,
+          region,
+          claimId,
+        });
+      }
     }
     return null;
   },

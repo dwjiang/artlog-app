@@ -15,7 +15,9 @@ let mockPhotos = initialPhotos;
 let mockPhotosUpdatedAt: Date | undefined;
 let mockPhotosError: Error | undefined;
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
-jest.mock("@/lib/files/photos", () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock("@/lib/files/photos", () => ({
+  captureFileUri: (path: string) => `file:///${path}`,
+}));
 jest.mock("@/db/repos/artwork-album", () => ({
   selectArtworkPhotos: () => "photos",
   selectArtworkEncounters: () => "encounters",
@@ -45,9 +47,7 @@ beforeEach(() => {
 it("selects a thumbnail and edits that photo", async () => {
   await render(<ArtworkAlbum work={work} />);
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 3" }));
-  expect(
-    screen.getByRole("button", { name: "Show full photo 3", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 3", selected: true })).toBeOnTheScreen();
   expect(screen.getByText("Museum view 3")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Edit full photo 3" }));
   expect(router.push).toHaveBeenCalledWith({
@@ -88,19 +88,13 @@ it("waits for the photo read before showing an empty album and distinguishes a r
 it("moves to the last remaining photo after photos are deleted, and lets the first remaining thumbnail be selected", async () => {
   const view = await render(<ArtworkAlbum work={work} />);
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 4" }));
-  expect(
-    screen.getByRole("button", { name: "Show full photo 4", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 4", selected: true })).toBeOnTheScreen();
   mockPhotos = initialPhotos.slice(0, 2);
   await view.rerender(<ArtworkAlbum work={work} />);
-  expect(
-    screen.getByRole("button", { name: "Show full photo 2", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 2", selected: true })).toBeOnTheScreen();
   expect(screen.getByText("Museum view 2")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 1" }));
-  expect(
-    screen.getByRole("button", { name: "Show full photo 1", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 1", selected: true })).toBeOnTheScreen();
   expect(screen.getByText("Museum view 1")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Show full photo 1" })).toBeSelected();
 });
@@ -123,21 +117,15 @@ it("opens the wall photo that was tapped after the album loads", async () => {
   const view = await render(<ArtworkAlbum work={work} photoId="photo-2" />);
   mockPhotos = initialPhotos;
   await view.rerender(<ArtworkAlbum work={work} photoId="photo-2" />);
-  expect(
-    screen.getByRole("button", { name: "Show full photo 3", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 3", selected: true })).toBeOnTheScreen();
   expect(screen.getByText("Museum view 3")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 2" }));
-  expect(
-    screen.getByRole("button", { name: "Show full photo 2", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 2", selected: true })).toBeOnTheScreen();
 });
 
 it("falls back to the first available photo if the requested photo was removed", async () => {
   await render(<ArtworkAlbum work={work} photoId="removed" />);
-  expect(
-    screen.getByRole("button", { name: "Show full photo 1", selected: true }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Show full photo 1", selected: true })).toBeOnTheScreen();
 });
 
 it("adds photos to the displayed artwork from an empty album", async () => {
@@ -147,7 +135,12 @@ it("adds photos to the displayed artwork from an empty album", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Add photos" }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/add-photos",
-    params: { draftId: "saved:work", savedId: "work", title: "Water Lilies", visitId: undefined },
+    params: {
+      draftId: "saved:work",
+      savedId: "work",
+      title: "Water Lilies",
+      visitId: undefined,
+    },
   });
 });
 
@@ -157,7 +150,12 @@ it("keeps the selected visit for new photos and offers the complete album", asyn
   await fireEvent.press(screen.getByRole("button", { name: "Add photos" }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/add-photos",
-    params: { draftId: "saved:work", savedId: "work", title: "Water Lilies", visitId: "visit-a" },
+    params: {
+      draftId: "saved:work",
+      savedId: "work",
+      title: "Water Lilies",
+      visitId: "visit-a",
+    },
   });
   await fireEvent.press(screen.getByRole("button", { name: "View all photos" }));
   expect(screen.getByText("Museum view 1")).toBeOnTheScreen();

@@ -1,10 +1,4 @@
-import {
-  globeCamera,
-  globeClusters,
-  globeGeometry,
-  hitGlobePin,
-  projectGlobePin,
-} from "./globe-geometry";
+import { globeCamera, globeClusters, globeGeometry, hitGlobePin, projectGlobePin } from "./globe-geometry";
 const pin = (id: string, latitude: number, longitude: number) => ({
   id,
   latitude,
@@ -19,9 +13,7 @@ it("centers the most recent museum and hides museums on the far side", () => {
   expect(point.y).toBeCloseTo(center.cy);
   expect(point.depth).toBeCloseTo(1);
   expect(
-    globeClusters([pin("Met", 40, -74), pin("far", -40, 106)], camera, 370, 337).map(
-      (group) => group.ids,
-    ),
+    globeClusters([pin("Met", 40, -74), pin("far", -40, 106)], camera, 370, 337).map((group) => group.ids),
   ).toEqual([["Met"]]);
 });
 it("clusters nearby museums, hits the visible cluster, and ignores empty space", () => {

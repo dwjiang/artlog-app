@@ -1,15 +1,12 @@
 import { getFunctionName } from "convex/server";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import {
-  handOffLabelRejection,
-  rejectMatch,
-  resolveWithLabel,
-  resolveWithRunnerUp,
-} from "./feedback";
+import { handOffLabelRejection, rejectMatch, resolveWithLabel, resolveWithRunnerUp } from "./feedback";
 
 const mockSign = jest.fn();
-jest.mock("@/lib/attested-write", () => ({ signPayload: (payload: unknown) => mockSign(payload) }));
+jest.mock("@/lib/attested-write", () => ({
+  signPayload: (payload: unknown) => mockSign(payload),
+}));
 
 const mutation = jest.fn();
 const client = {
@@ -20,15 +17,17 @@ const objectId = "obj-1" as Id<"objects">;
 
 beforeEach(() => {
   jest.resetAllMocks();
-  mockSign.mockResolvedValue({ nonce: "n", assertionBase64: "a", payloadJson: "p" });
+  mockSign.mockResolvedValue({
+    nonce: "n",
+    assertionBase64: "a",
+    payloadJson: "p",
+  });
   mutation.mockResolvedValue({ feedbackId: "fb-1" });
 });
 
 it("signs the shared rejection payload and sends the attested mutation", async () => {
   await expect(rejectMatch(client as never, scanId, objectId)).resolves.toBe("fb-1");
-  expect(mockSign).toHaveBeenCalledWith(
-    '{"objectId":"obj-1","operation":"rejectMatch","scanId":"scan-1"}',
-  );
+  expect(mockSign).toHaveBeenCalledWith('{"objectId":"obj-1","operation":"rejectMatch","scanId":"scan-1"}');
   expect(mutation).toHaveBeenCalledWith("feedback:rejectMatch", {
     scanId,
     objectId,
@@ -60,9 +59,7 @@ it("resolves a handed-over rejection even when the contribution finishes first",
       finish = resolve;
     }),
   );
-  expect(
-    resolveWithLabel(client as never, scanId, "contrib-1" as Id<"contributions">),
-  ).toBeUndefined();
+  expect(resolveWithLabel(client as never, scanId, "contrib-1" as Id<"contributions">)).toBeUndefined();
   expect(mutation).not.toHaveBeenCalled();
   finish("fb-1" as Id<"feedback">);
   await Promise.resolve();

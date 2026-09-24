@@ -16,9 +16,18 @@ async function increment(
         q.eq("accountId", accountId).eq("metric", metric).eq("period", period),
       )
       .unique();
-    if (score) await ctx.db.patch(score._id, { score: Math.max(0, score.score + amount) });
-    else if (amount > 0)
-      await ctx.db.insert("leaderboardScores", { accountId, metric, period, score: amount });
+    if (score) {
+      await ctx.db.patch(score._id, {
+        score: Math.max(0, score.score + amount),
+      });
+    } else if (amount > 0) {
+      await ctx.db.insert("leaderboardScores", {
+        accountId,
+        metric,
+        period,
+        score: amount,
+      });
+    }
   }
 }
 export async function recordVisitScore(
@@ -32,13 +41,14 @@ export async function recordVisitScore(
   const onDay = (date: string) =>
     ctx.db
       .query("visits")
-      .withIndex("by_owner_venue_history", (q) =>
-        q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date),
-      )
+      .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date))
       .take(2);
-  if (previousDay && !(await onDay(previousDay)).length)
+  if (previousDay && !(await onDay(previousDay)).length) {
     await increment(ctx, owner.accountId, "visits", previousDay, -1);
-  if ((await onDay(day)).length === 1) await increment(ctx, owner.accountId, "visits", day, 1);
+  }
+  if ((await onDay(day)).length === 1) {
+    await increment(ctx, owner.accountId, "visits", day, 1);
+  }
 }
 export async function recordArtworkScore(
   ctx: MutationCtx,
@@ -59,9 +69,7 @@ export async function recordArtworkScore(
     : [];
   const other = matches.find((row) => row.localId !== save.localId);
   const firstMonth = (row?: JournalSave | null) => {
-    const dates = [other, row].flatMap((entry) =>
-      entry && entry.deletedAt === undefined ? [entry.savedAt] : [],
-    );
+    const dates = [other, row].flatMap((entry) => (entry && entry.deletedAt === undefined ? [entry.savedAt] : []));
     return dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 7) : undefined;
   };
   const before = firstMonth(previous),

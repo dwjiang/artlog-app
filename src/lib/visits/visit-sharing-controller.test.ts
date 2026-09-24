@@ -4,7 +4,10 @@ import { ConvexError } from "convex/values";
 import { createVisitSharingController } from "./visit-sharing-controller";
 import type { SharePreview, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
 import { captureOwner, subscribeOwner, switchOwner } from "../account/owner-store";
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 const initial: ShareState = {
   audience: "public",
   status: "private",
@@ -63,7 +66,10 @@ beforeEach(() => {
 });
 afterEach(() => controller.dispose());
 it("selects at most 50 artworks, uses the saved public notes, and allows zero", async () => {
-  transport.getState.mockResolvedValue({ ...initial, reflection: "For friends" });
+  transport.getState.mockResolvedValue({
+    ...initial,
+    reflection: "For friends",
+  });
   await controller.load();
   expect(controller.getSnapshot().draft?.saveLocalIds).toHaveLength(50);
   expect(controller.getSnapshot().draft?.reflection).toBe("For friends");
@@ -98,7 +104,10 @@ it("flushes before every request and sends no request when sync fails", async ()
 it("invalidates a preview when the saved note changes without a publication revision change", async () => {
   await controller.load();
   await controller.preview();
-  transport.getState.mockResolvedValueOnce({ ...initial, reflection: "Changed on another device" });
+  transport.getState.mockResolvedValueOnce({
+    ...initial,
+    reflection: "Changed on another device",
+  });
   await controller.load();
   expect(controller.getSnapshot().preview).toBeNull();
   expect(controller.getSnapshot().draft?.reflection).toBe("Changed on another device");
@@ -124,14 +133,25 @@ it("refreshes visit notes after a conflict while preserving the selected artwork
   await controller.preview();
   transport.publish.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   await controller.publish();
-  expect(controller.getSnapshot()).toMatchObject({ conflict: true, preview: null });
+  expect(controller.getSnapshot()).toMatchObject({
+    conflict: true,
+    preview: null,
+  });
   await controller.publish();
   expect(transport.publish).toHaveBeenCalledTimes(1);
-  transport.getState.mockResolvedValueOnce({ ...initial, revision: 7, reflection: "Other device" });
+  transport.getState.mockResolvedValueOnce({
+    ...initial,
+    revision: 7,
+    reflection: "Other device",
+  });
   await controller.preview();
   await controller.publish();
   expect(transport.publish).toHaveBeenLastCalledWith(
-    expect.objectContaining({ revision: 7, reflection: "Other device", saveLocalIds: [] }),
+    expect.objectContaining({
+      revision: 7,
+      reflection: "Other device",
+      saveLocalIds: [],
+    }),
     expect.anything(),
   );
 });
@@ -205,7 +225,11 @@ it("surfaces profile requirements and refuses anonymous sharing", async () => {
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
 it("reads all artwork pages of a shared visit", async () => {
-  transport.getState.mockResolvedValue({ ...initial, postId: "post", status: "active" });
+  transport.getState.mockResolvedValue({
+    ...initial,
+    postId: "post",
+    status: "active",
+  });
   transport.get.mockResolvedValueOnce({
     ...preview,
     artworks: { page: [{ itemId: "one" }], isDone: false, cursor: "next" },
@@ -215,10 +239,7 @@ it("reads all artwork pages of a shared visit", async () => {
     artworks: { page: [{ itemId: "two" }], isDone: true, cursor: null },
   });
   await controller.view();
-  expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual([
-    "one",
-    "two",
-  ]);
+  expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual(["one", "two"]);
 });
 
 it("keeps publishing public and requires a fresh preview when the selection changes", async () => {
@@ -230,10 +251,7 @@ it("keeps publishing public and requires a fresh preview when the selection chan
   expect(await controller.publish()).toBe(false);
   await controller.preview();
   await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith(
-    expect.objectContaining({ audience: "public" }),
-    expect.anything(),
-  );
+  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "public" }), expect.anything());
 });
 
 it("reports publication failures without attaching the selected artwork or reflection", async () => {

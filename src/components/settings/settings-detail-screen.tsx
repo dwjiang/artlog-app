@@ -12,13 +12,7 @@ import { LeaderboardPreference } from "./leaderboard-preference";
 import { PrivacySection } from "./privacy-section";
 import { ContributionsScreen } from "./sharing-section";
 import { VisitPreference } from "./visit-preference";
-import {
-  ActionRow,
-  GroupedFooter,
-  GroupedList,
-  GroupedSection,
-  ValueRow,
-} from "@/components/grouped-list";
+import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { SearchConsentSheet } from "@/components/scan/result/search-consent-sheet";
 import { LeaderboardParticipation } from "@/components/social/leaderboard-participation";
 import { useDeviceReady } from "@/lib/use-device-ready";
@@ -42,22 +36,20 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.devices.me, section === "developer" && isAuthenticated ? {} : "skip");
   const health = useQuery(api.health.ping, section === "developer" ? {} : "skip");
-  const contributions = useQuery(
-    api.contributions.mine,
-    section === "contributions" && ready ? {} : "skip",
-  );
+  const contributions = useQuery(api.contributions.mine, section === "contributions" && ready ? {} : "skip");
   const network = useNetworkState();
   const offline = network.isConnected === false || network.isInternetReachable === false;
   const title = titles[section as keyof typeof titles] ?? "Settings";
   const close = () => setSheet(undefined);
-  if (section === "contributions")
+  if (section === "contributions") {
     return (
       <>
         <Stack.Screen options={{ title }} />
         <ContributionsScreen contributions={contributions} offline={offline} />
       </>
     );
-  if (section === "privacy")
+  }
+  if (section === "privacy") {
     return (
       <>
         <Stack.Screen options={{ title }} />
@@ -65,13 +57,15 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         <SearchConsentSheet open={sheet === "consent"} onGranted={close} onDismiss={close} />
       </>
     );
-  if (section === "about")
+  }
+  if (section === "about") {
     return (
       <>
         <Stack.Screen options={{ title }} />
         <AboutSection />
       </>
     );
+  }
   return (
     <>
       <Stack.Screen options={{ title }} />
@@ -87,18 +81,14 @@ export function SettingsDetailScreen({ section }: { section: string }) {
         {section === "account" && <AccountSection />}
         {section === "general" && <GeneralPreference />}
         {section === "visits" && <VisitPreference />}
-        {section === "leaderboards" && (
-          <LeaderboardPreference onManage={() => setSheet("participation")} />
-        )}
+        {section === "leaderboards" && <LeaderboardPreference onManage={() => setSheet("participation")} />}
         {section === "developer" && __DEV__ && (
           <>
             <GroupedSection title="Device">
               <ValueRow
                 label="Registration"
                 loading={me === undefined}
-                value={
-                  me ? `${me.deviceId} · attested: ${me.attested ? "yes" : "no"}` : "Unavailable"
-                }
+                value={me ? `${me.deviceId} · attested: ${me.attested ? "yes" : "no"}` : "Unavailable"}
               />
               <ValueRow label="Model" value={model.modelVersion} />
               <ValueRow label="Backend" value="Connected" loading={!health} />

@@ -48,13 +48,8 @@ it("holds a ghost until the saved note is read instead of showing the empty-note
 it("ends loading with an error if the note read fails", async () => {
   jest.spyOn(notes, "getNote").mockRejectedValueOnce(new Error("Read failed"));
   await render(<NoteEditor savedLocalId="work" />);
-  expect(
-    await screen.findByText("Your note could not load. Reopen this artwork to try again."),
-  ).toBeOnTheScreen();
-  expect(reportError).toHaveBeenCalledWith(
-    expect.objectContaining({ message: "Read failed" }),
-    "collection.note.load",
-  );
+  expect(await screen.findByText("Your note could not load. Reopen this artwork to try again.")).toBeOnTheScreen();
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "Read failed" }), "collection.note.load");
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.queryByText("Keep a private note about this work.")).toBeNull();
 });
@@ -72,16 +67,11 @@ it("keeps a failed draft visible and lets the user retry saving it", async () =>
   const { input } = await editNote();
   await fireEvent(input, "blur");
   expect(await screen.findByText("Couldn’t save. Your draft is still here.")).toBeOnTheScreen();
-  expect(reportError).toHaveBeenCalledWith(
-    expect.objectContaining({ message: "SQLITE_BUSY" }),
-    "collection.note.save",
-  );
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "SQLITE_BUSY" }), "collection.note.save");
   expect(screen.getByDisplayValue("New note")).toBeOnTheScreen();
   expect(await notes.getNote("work")).toMatchObject({ text: "Original note" });
   await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
-  await waitFor(async () =>
-    expect(await notes.getNote("work")).toMatchObject({ text: "New note" }),
-  );
+  await waitFor(async () => expect(await notes.getNote("work")).toMatchObject({ text: "New note" }));
   expect(screen.queryByText("Couldn’t save. Your draft is still here.")).toBeNull();
 });
 
@@ -94,9 +84,7 @@ it.each(["blur", "close"])("retries an unchanged failed draft on %s", async (eve
     await fireEvent(input, "focus");
     await fireEvent(input, "blur");
   }
-  await waitFor(async () =>
-    expect(await notes.getNote("work")).toMatchObject({ text: "New note" }),
-  );
+  await waitFor(async () => expect(await notes.getNote("work")).toMatchObject({ text: "New note" }));
 });
 
 it("preserves the newest edit when closing during an earlier write", async () => {
@@ -116,9 +104,7 @@ it("preserves the newest edit when closing during an earlier write", async () =>
   await act(async () => {
     finishWrite();
   });
-  await waitFor(async () =>
-    expect(await notes.getNote("work")).toMatchObject({ text: "Newest note" }),
-  );
+  await waitFor(async () => expect(await notes.getNote("work")).toMatchObject({ text: "Newest note" }));
 });
 
 it("explains the note limit when reached and saves a note at the limit", async () => {

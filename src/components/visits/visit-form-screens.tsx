@@ -13,12 +13,7 @@ import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { venueLocation } from "@/lib/venue/venue-location";
-import {
-  dateFromPicker,
-  pickerDate,
-  validVisitDate,
-  venueTimeZone,
-} from "@/lib/journal/visit-date";
+import { dateFromPicker, pickerDate, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
 import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
@@ -33,22 +28,16 @@ import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 export function VisitCreateScreen() {
   const owner = useLocalOwner();
-  const { savedId, venueId } = useLocalSearchParams<{ savedId?: string; venueId?: string }>();
-  return (
-    <CreateForm
-      key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`}
-      savedId={savedId}
-      initialVenueId={venueId}
-    />
-  );
+  const { savedId, venueId } = useLocalSearchParams<{
+    savedId?: string;
+    venueId?: string;
+  }>();
+  return <CreateForm key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`} savedId={savedId} initialVenueId={venueId} />;
 }
 /** Apple Maps is asked only when our table has nothing for the name; a short query would match too much of the world. */
 const PLACE_SEARCH_MIN = 3;
 
-async function searchPlaces(
-  query: string,
-  near?: { lat: number; lng: number },
-): Promise<PoiOption[]> {
+async function searchPlaces(query: string, near?: { lat: number; lng: number }): Promise<PoiOption[]> {
   if (query.trim().length < PLACE_SEARCH_MIN) return [];
   const places = await getPoiSearch().searchByName(query, near?.lat, near?.lng);
   return places.map((place) => ({
@@ -126,14 +115,18 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           });
           return places
             ? { rows, places }
-            : { rows, places: [], error: "Apple Maps could not be reached. Try again." };
+            : {
+                rows,
+                places: [],
+                error: "Apple Maps could not be reached. Try again.",
+              };
         })
         .then((found) => {
           if (active) setResults({ query, retry, ...found });
         })
         .catch((cause) => {
           reportError(cause, "visit.venues.search");
-          if (active)
+          if (active) {
             setResults({
               query,
               retry,
@@ -141,6 +134,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
               places: [],
               error: "Museums could not load. Try again.",
             });
+          }
         });
     }, 200);
     return () => {
@@ -167,11 +161,9 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       if (row) chooseVenue(row);
     } catch (cause) {
       reportError(cause, "visit.venue.confirm");
-      if (session.isOwnerCurrent())
-        setError(
-          socialErrorMessage(cause) ??
-            "This museum could not be added. Check your connection and try again.",
-        );
+      if (session.isOwnerCurrent()) {
+        setError(socialErrorMessage(cause) ?? "This museum could not be added. Check your connection and try again.");
+      }
     } finally {
       if (session.isOwnerCurrent()) setAdding(undefined);
     }
@@ -199,14 +191,18 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       );
       if (session.isOwnerCurrent()) {
         showToast(savedId ? "New visit linked. Other photos are unchanged." : "Visit saved.");
-        if (savedId)
-          router.dismissTo({ pathname: "/saved/[savedId]", params: { savedId, visitId: localId } });
-        else router.back();
+        if (savedId) {
+          router.dismissTo({
+            pathname: "/saved/[savedId]",
+            params: { savedId, visitId: localId },
+          });
+        } else router.back();
       }
     } catch (cause) {
       reportError(cause, "visit.create");
-      if (session.isOwnerCurrent())
+      if (session.isOwnerCurrent()) {
         setError(socialErrorMessage(cause) ?? "Your visit could not be saved. Try again.");
+      }
     } finally {
       if (session.isOwnerCurrent()) {
         submitting.current = false;
@@ -240,11 +236,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           <View style={styles.card}>
             <Text style={styles.body}>{venue.name}</Text>
             <Text style={styles.caption}>{venueLocation(venue).location}</Text>
-            <GalleryButton
-              label="Change museum"
-              disabled={busy}
-              onPress={() => setVenue(undefined)}
-            />
+            <GalleryButton label="Change museum" disabled={busy} onPress={() => setVenue(undefined)} />
           </View>
         ) : (
           <>
@@ -306,7 +298,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
                       key={key}
                       accessibilityRole="button"
                       accessibilityLabel={`${place.name}, ${placeLocation(place) || place.name}`}
-                      accessibilityState={{ busy: adding === key, disabled: !!adding }}
+                      accessibilityState={{
+                        busy: adding === key,
+                        disabled: !!adding,
+                      }}
                       disabled={!!adding}
                       style={styles.card}
                       onPress={() => {
@@ -324,8 +319,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             )}
             {venues.length === MUSEUM_SEARCH_LIMIT && (
               <Text style={styles.caption}>
-                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to
-                narrow your search.
+                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to narrow your search.
               </Text>
             )}
           </>

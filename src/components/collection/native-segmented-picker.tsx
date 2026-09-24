@@ -25,7 +25,11 @@ export function NativeSegmentedPicker<T extends string>({
 }: {
   label: string;
   value?: T;
-  options: { value: T; label: string; icon?: ComponentProps<typeof Icon>["name"] }[];
+  options: {
+    value: T;
+    label: string;
+    icon?: ComponentProps<typeof Icon>["name"];
+  }[];
   onChange: (value: T) => void;
   disabled?: boolean;
   compact?: boolean;
@@ -74,33 +78,36 @@ export function NativeSegmentedPicker<T extends string>({
               <Row
                 alignment="center"
                 spacing={Spacing.one}
-                style={{ paddingHorizontal: Spacing.two, paddingVertical: Spacing.two }}
+                style={{
+                  paddingHorizontal: Spacing.two,
+                  paddingVertical: Spacing.two,
+                }}
                 modifiers={[
-                  frame({ ...(fillWidth ? { maxWidth: Infinity } : {}), minHeight: 44 }),
+                  frame({
+                    ...(fillWidth ? { maxWidth: Infinity } : {}),
+                    minHeight: 44,
+                  }),
                   contentShape(shapes.rectangle()),
                   background(
-                    selected
-                      ? compact
-                        ? Gallery.surface
-                        : Gallery.segmentSelection
-                      : Gallery.segmentTrack,
-                    shapes.roundedRectangle({ cornerRadius: Radius.input - Spacing.half }),
+                    selected ? (compact ? Gallery.surface : Gallery.segmentSelection) : Gallery.segmentTrack,
+                    shapes.roundedRectangle({
+                      cornerRadius: Radius.input - Spacing.half,
+                    }),
                   ),
                 ]}
               >
                 {option.icon && (
-                  <Icon
-                    name={option.icon}
-                    size={17}
-                    color={compact && selected ? Gallery.accent : Gallery.muted}
-                  />
+                  <Icon name={option.icon} size={17} color={compact && selected ? Gallery.accent : Gallery.muted} />
                 )}
                 <Text
                   textStyle={{
                     color: compact ? (selected ? Gallery.accent : Gallery.muted) : Gallery.ink,
                   }}
                   modifiers={[
-                    font({ textStyle: "subheadline", weight: selected ? "semibold" : "regular" }),
+                    font({
+                      textStyle: "subheadline",
+                      weight: selected ? "semibold" : "regular",
+                    }),
                   ]}
                 >
                   {option.label}

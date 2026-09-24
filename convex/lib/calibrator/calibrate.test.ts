@@ -39,21 +39,19 @@ describe("sigmoid", () => {
 
 describe("scoreCandidates", () => {
   it("never lowers probability when similarity, margin or inliers rise", () => {
-    const base = signals({ similarity: 0.8, runnerUpSimilarity: 0.78, orbInliers: 10 });
+    const base = signals({
+      similarity: 0.8,
+      runnerUpSimilarity: 0.78,
+      orbInliers: 10,
+    });
     for (const similarity of [0.82, 0.86, 0.9, 0.95]) {
-      expect(probability(signals({ ...base, similarity }))).toBeGreaterThanOrEqual(
-        probability(base),
-      );
+      expect(probability(signals({ ...base, similarity }))).toBeGreaterThanOrEqual(probability(base));
     }
     for (const runnerUpSimilarity of [0.75, 0.7, 0.5]) {
-      expect(probability(signals({ ...base, runnerUpSimilarity }))).toBeGreaterThanOrEqual(
-        probability(base),
-      );
+      expect(probability(signals({ ...base, runnerUpSimilarity }))).toBeGreaterThanOrEqual(probability(base));
     }
     for (const orbInliers of [15, 30, 100]) {
-      expect(probability(signals({ ...base, orbInliers }))).toBeGreaterThanOrEqual(
-        probability(base),
-      );
+      expect(probability(signals({ ...base, orbInliers }))).toBeGreaterThanOrEqual(probability(base));
     }
   });
 
@@ -73,20 +71,30 @@ describe("scoreCandidates", () => {
         i === featureIndex("gallerySame") || i === featureIndex("galleryDifferent") ? 0 : w,
       ),
     };
-    const unknown = signals({ gallery: "unknown", similarity: 0.8, runnerUpSimilarity: 0.795 });
+    const unknown = signals({
+      gallery: "unknown",
+      similarity: 0.8,
+      runnerUpSimilarity: 0.795,
+    });
     expect(probability(unknown)).toBe(probability(unknown, galleryFree));
     expect(probability({ ...unknown, gallery: "same" })).toBeGreaterThan(probability(unknown));
   });
 
   it("blocks confidence for textured works without a homography or enough inliers", () => {
     const [noHomography] = scoreCandidates([
-      { candidate: "x", signals: signals({ homographyValid: false, orbInliers: 40 }) },
+      {
+        candidate: "x",
+        signals: signals({ homographyValid: false, orbInliers: 40 }),
+      },
     ]);
     expect(noHomography.eligibleForConfident).toBe(false);
     expect(noHomography.reasons).toEqual(["textured:no-homography"]);
 
     const [fewInliers] = scoreCandidates([
-      { candidate: "x", signals: signals({ homographyValid: true, orbInliers: 14 }) },
+      {
+        candidate: "x",
+        signals: signals({ homographyValid: true, orbInliers: 14 }),
+      },
     ]);
     expect(fewInliers.eligibleForConfident).toBe(false);
     expect(fewInliers.reasons).toEqual(["textured:few-inliers"]);
@@ -107,30 +115,35 @@ describe("scoreCandidates", () => {
     const [atVenue] = scoreCandidates([{ candidate: "x", signals: lowTexture }]);
     expect(atVenue.eligibleForConfident).toBe(true);
 
-    const [offVenue] = scoreCandidates([
-      { candidate: "x", signals: { ...lowTexture, atVenue: false } },
-    ]);
+    const [offVenue] = scoreCandidates([{ candidate: "x", signals: { ...lowTexture, atVenue: false } }]);
     expect(offVenue.eligibleForConfident).toBe(false);
     expect(offVenue.reasons).toEqual(["low-texture:venue"]);
 
     const [weak] = scoreCandidates([
       {
         candidate: "x",
-        signals: { ...lowTexture, similarity: 0.92, runnerUpSimilarity: 0.9, atVenue: false },
+        signals: {
+          ...lowTexture,
+          similarity: 0.92,
+          runnerUpSimilarity: 0.9,
+          atVenue: false,
+        },
       },
     ]);
-    expect(weak.reasons).toEqual([
-      "low-texture:similarity",
-      "low-texture:margin",
-      "low-texture:venue",
-    ]);
+    expect(weak.reasons).toEqual(["low-texture:similarity", "low-texture:margin", "low-texture:venue"]);
   });
 
   it("sorts by probability and breaks ties by similarity", () => {
     const scored = scoreCandidates([
-      { candidate: "weak", signals: signals({ similarity: 0.7, runnerUpSimilarity: 0.69 }) },
+      {
+        candidate: "weak",
+        signals: signals({ similarity: 0.7, runnerUpSimilarity: 0.69 }),
+      },
       { candidate: "strong", signals: strong },
-      { candidate: "middle", signals: signals({ similarity: 0.8, runnerUpSimilarity: 0.79 }) },
+      {
+        candidate: "middle",
+        signals: signals({ similarity: 0.8, runnerUpSimilarity: 0.79 }),
+      },
     ]);
     expect(scored.map((s) => s.candidate)).toEqual(["strong", "middle", "weak"]);
 
@@ -149,28 +162,28 @@ describe("scoreCandidates", () => {
   });
 
   it("rejects a config whose weight count does not match the feature vector", () => {
-    const short: CalibratorConfig = { ...DEFAULT_CALIBRATOR, weights: [1, 2, 3] };
+    const short: CalibratorConfig = {
+      ...DEFAULT_CALIBRATOR,
+      weights: [1, 2, 3],
+    };
     expect(() => scoreCandidates([{ candidate: "x", signals: strong }], short)).toThrow(RangeError);
   });
 });
 
 describe("decide", () => {
-  it.each([null, 0, 40])(
-    "distinguishes unknown reference texture from measured low texture (%s)",
-    (keypointCount) => {
-      const decision = decideOne(
-        signals({
-          keypointCount,
-          similarity: 0.99,
-          runnerUpSimilarity: 0.8,
-          homographyValid: false,
-          orbInliers: 0,
-        }),
-      );
-      expect(decision.best?.probability).toBeGreaterThan(DEFAULT_CALIBRATOR.thresholds.confident);
-      expect(decision.outcome).toBe(keypointCount === null ? "soft" : "confident");
-    },
-  );
+  it.each([null, 0, 40])("distinguishes unknown reference texture from measured low texture (%s)", (keypointCount) => {
+    const decision = decideOne(
+      signals({
+        keypointCount,
+        similarity: 0.99,
+        runnerUpSimilarity: 0.8,
+        homographyValid: false,
+        orbInliers: 0,
+      }),
+    );
+    expect(decision.best?.probability).toBeGreaterThan(DEFAULT_CALIBRATOR.thresholds.confident);
+    expect(decision.outcome).toBe(keypointCount === null ? "soft" : "confident");
+  });
 
   it("returns confident for a strong, eligible best candidate", () => {
     const decision = decideOne(strong);
@@ -187,10 +200,10 @@ describe("decide", () => {
   });
 
   it("never returns confident without eligibility across a sweep of signals", () => {
-    for (const similarity of [0.7, 0.85, 0.93, 0.97])
-      for (const keypointCount of [20, 300])
-        for (const homographyValid of [true, false])
-          for (const orbInliers of [0, 10, 40])
+    for (const similarity of [0.7, 0.85, 0.93, 0.97]) {
+      for (const keypointCount of [20, 300]) {
+        for (const homographyValid of [true, false]) {
+          for (const orbInliers of [0, 10, 40]) {
             for (const atVenue of [true, false]) {
               const decision = decideOne(
                 signals({
@@ -202,9 +215,14 @@ describe("decide", () => {
                   atVenue,
                 }),
               );
-              if (decision.outcome === "confident")
+              if (decision.outcome === "confident") {
                 expect(decision.best?.eligibleForConfident).toBe(true);
+              }
             }
+          }
+        }
+      }
+    }
   });
 
   it("returns miss with the best candidate still attached when it falls under the soft threshold", () => {
@@ -251,7 +269,10 @@ describe("decide", () => {
   it("is deterministic for identical inputs", () => {
     const items = [
       { candidate: { id: "a" }, signals: strong },
-      { candidate: { id: "b" }, signals: signals({ similarity: 0.8, homographyValid: false }) },
+      {
+        candidate: { id: "b" },
+        signals: signals({ similarity: 0.8, homographyValid: false }),
+      },
     ];
     expect(decide(scoreCandidates(items))).toEqual(decide(scoreCandidates(items)));
   });

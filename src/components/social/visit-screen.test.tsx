@@ -11,13 +11,19 @@ jest.mock("convex/react", () => ({
   useMutation: () => jest.fn(),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ status: "ready", key: "viewer", token: "visit-token" }),
+  useSocialSession: () => ({
+    status: "ready",
+    key: "viewer",
+    token: "visit-token",
+  }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: () => ({ data: undefined }),
 }));
-jest.mock("@/components/settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("@/components/settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
@@ -107,25 +113,25 @@ it("offers search at five artworks and matches titles or artists without case or
   expect(screen.queryByRole("button", { name: "View Water Lilies" })).toBeNull();
   await fireEvent.changeText(search, "no match");
   expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
-  mockPages.mockReturnValue(
-    pages({ first: { ...visit, artworkCount: 4 }, items: works.slice(0, 4) }),
-  );
+  mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 4 }, items: works.slice(0, 4) }));
   await view.rerender(<VisitScreen postId="post-b" />);
   expect(screen.queryByLabelText("Search visit artworks")).toBeNull();
 });
 
 it("searches later pages and waits until all pages arrive before declaring no matches", async () => {
   mockPages.mockReturnValue(
-    pages({ first: { ...visit, artworkCount: 6 }, done: false, canLoadMore: true }),
+    pages({
+      first: { ...visit, artworkCount: 6 },
+      done: false,
+      canLoadMore: true,
+    }),
   );
   const view = await render(<VisitScreen postId="post-a" />);
   mockLoadMore.mockClear();
   await fireEvent.changeText(screen.getByLabelText("Search visit artworks"), "Starry");
   expect(mockLoadMore).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("No artworks found.")).toBeNull();
-  mockPages.mockReturnValue(
-    pages({ first: { ...visit, artworkCount: 6 }, done: false, loading: true }),
-  );
+  mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 6 }, done: false, loading: true }));
   await view.rerender(<VisitScreen postId="post-a" />);
   expect(screen.getByLabelText("Loading artworks…")).toBeOnTheScreen();
   expect(screen.queryByText("No artworks found.")).toBeNull();

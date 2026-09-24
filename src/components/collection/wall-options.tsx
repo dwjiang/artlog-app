@@ -50,10 +50,7 @@ function WallChoice({
         <Column
           spacing={7}
           alignment="center"
-          modifiers={[
-            frame({ maxWidth: Infinity, minHeight: 72 }),
-            contentShape(shapes.rectangle()),
-          ]}
+          modifiers={[frame({ maxWidth: Infinity, minHeight: 72 }), contentShape(shapes.rectangle())]}
         >
           <RNHostView matchContents>
             <View pointerEvents="none" style={styles.preview}>
@@ -89,11 +86,7 @@ export function WallFramePicker({
   piece?: WallPiece;
 }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.frames}
-    >
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.frames}>
       {wallFrames.map((finish) => (
         <WallChoice
           key={finish.value}
@@ -105,7 +98,10 @@ export function WallFramePicker({
         >
           {piece ? (
             <WallArtwork
-              piece={{ ...piece, layout: { ...piece.layout, frame: finish.value } }}
+              piece={{
+                ...piece,
+                layout: { ...piece.layout, frame: finish.value },
+              }}
               width={Math.min(64, 48 * wallAspect(piece))}
             />
           ) : (
@@ -126,6 +122,11 @@ export function WallFramePicker({
 }
 
 const styles = StyleSheet.create({
-  preview: { width: 70, height: 56, alignItems: "center", justifyContent: "center" },
+  preview: {
+    width: 70,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   frames: { paddingHorizontal: 0, gap: 8, paddingBottom: 4 },
 });

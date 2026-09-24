@@ -93,7 +93,9 @@ export function CropEditor({
       setPreview(crop);
     } catch (error) {
       if (active.current) reportError(error, "capture.preview_crop");
-      if (active.current) setError("Couldn’t prepare this crop. Adjust the corners and try again.");
+      if (active.current) {
+        setError("Couldn’t prepare this crop. Adjust the corners and try again.");
+      }
     } finally {
       working.current = false;
       if (active.current) setBusy(undefined);
@@ -114,8 +116,9 @@ export function CropEditor({
       await onSave(preview, () => active.current);
     } catch (error) {
       if (active.current) reportError(error, "capture.save_crop");
-      if (active.current)
+      if (active.current) {
         setError("Couldn’t save this crop. Your previous crop is still available. Try again.");
+      }
     } finally {
       working.current = false;
       if (active.current) setBusy(undefined);
@@ -124,9 +127,7 @@ export function CropEditor({
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 16) }]}>
       <Text style={styles.instructions}>
-        {preview
-          ? "Check the painting before saving."
-          : "Drag each corner onto the painting’s corners."}
+        {preview ? "Check the painting before saving." : "Drag each corner onto the painting’s corners."}
       </Text>
       {preview ? (
         <View style={styles.preview}>
@@ -203,7 +204,12 @@ export function CropEditor({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
   instructions: { paddingHorizontal: 24, paddingTop: 16, color: Gallery.muted },
-  preview: { flex: 1, minHeight: 180, margin: 24, backgroundColor: Gallery.fill },
+  preview: {
+    flex: 1,
+    minHeight: 180,
+    margin: 24,
+    backgroundColor: Gallery.fill,
+  },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   controls: { paddingHorizontal: 24, gap: 4 },
 });

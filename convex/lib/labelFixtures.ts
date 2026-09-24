@@ -16,8 +16,7 @@ export const tavilySeurat = {
   results: [
     {
       url: artic("/artworks/150773/seated-woman-with-a-parasol-study-for-la-grande-jatte"),
-      title:
-        "Seated Woman with a Parasol (study for La Grande Jatte) | The Art Institute of Chicago",
+      title: "Seated Woman with a Parasol (study for La Grande Jatte) | The Art Institute of Chicago",
       content:
         "During 1884 and 1885, Georges Seurat was hard at work on the most ambitious painting of his career, A Sunday on La Grande Jatte—1884, now a centerpiece of the Art Institute’s collection of 19th-century French painting.",
       score: 0.8536326,
@@ -33,8 +32,7 @@ export const tavilySeurat = {
     },
     {
       url: "https://shop.artic.edu/products/60442",
-      title:
-        "Georges Seurat A Sunday on La Grande Jatte—1884 Poster – The Art Institute of Chicago Museum Shop",
+      title: "Georges Seurat A Sunday on La Grande Jatte—1884 Poster – The Art Institute of Chicago Museum Shop",
       content:
         "Poster developed from Georges Seurat’s A Sunday on La Grande Jatte—1884, 1884/86 from The Art Institute of Chicago’s collection.",
       score: 0.8430832,
@@ -46,9 +44,7 @@ export const tavilySeurat = {
       content:
         "Large painting of people in a crowded park, brushstrokes are dots. A Sunday on La Grande Jatte — 1884, 1884–86, border added 1888–89 Georges Seurat",
       score: 0.8184036,
-      images: [
-        "https://artic-web.imgix.net/a0b8219d-bd2c-41d2-b99d-58a7549f59d8/Georges_Seurat_1888.jpg",
-      ],
+      images: ["https://artic-web.imgix.net/a0b8219d-bd2c-41d2-b99d-58a7549f59d8/Georges_Seurat_1888.jpg"],
     },
     {
       url: artic("/artworks/27992/a-sunday-on-la-grande-jatte-1884"),
@@ -97,8 +93,7 @@ export const tavilyMonet = {
     },
     {
       url: met("/perspectives/monet-conversation"),
-      title:
-        "Exploring Late Monet with Art Historian Kathryn Calley Galitz - The Metropolitan Museum of Art",
+      title: "Exploring Late Monet with Art Historian Kathryn Calley Galitz - The Metropolitan Museum of Art",
       content:
         "Water Lilies (1916–19) by Monet\n\nClaude Monet (French, 1840–1926). Water Lilies, 1916–19. Oil on canvas, 51 1/4 x 79 in. The Metropolitan Museum of Art, New York, Gift of Louise Reinhardt Smith, 1983",
       score: 0.79119295,
@@ -112,19 +107,14 @@ export const tavilyMonet = {
       content:
         "# Water Lilies\n\nWater Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas\n\n## Artwork Details\n\n## Audio",
       score: 0.78334314,
-      images: [
-        "https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted",
-      ],
+      images: ["https://collectionapi.metmuseum.org/api/collection/v1/iiif/438008/1606693/restricted"],
     },
     {
       url: met("/art/collection/search/437127"),
       title: "Claude Monet - Bridge over a Pond of Water Lilies - The Metropolitan Museum of Art",
-      content:
-        "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas",
+      content: "Bridge over a Pond of Water Lilies, Claude Monet (French, Paris 1840–1926 Giverny), Oil on canvas",
       score: 0.7610953,
-      images: [
-        "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/restricted",
-      ],
+      images: ["https://collectionapi.metmuseum.org/api/collection/v1/iiif/437127/2331256/restricted"],
     },
   ],
   usage: { credits: 1 },
@@ -142,9 +132,7 @@ export const tavilyRodin = {
         "A shiny dark-brown and green bronze sculpture depicts a muscular, nude man seated, his right elbow supported by his left knee as he rests his chin on the back of his hand. Auguste Rodin, bronze, 1979.138.",
       score: 0.8095324,
       images: [
-        cma(
-          "/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1979.138_o5.jpg&w=640&q=75",
-        ),
+        cma("/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1979.138_o5.jpg&w=640&q=75"),
       ],
     },
     {
@@ -154,9 +142,7 @@ export const tavilyRodin = {
         "# Artwork Page for The Thinker\n\n## Details / Information for The Thinker\n\n### The Thinker\n\n#### Auguste Rodin\n\n(French, 1840–1917)\n\nCulture\n\nFrance, 19th century\n\nMedium\n\nbronze",
       score: 0.78334314,
       images: [
-        cma(
-          "/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1917.42_o5.jpg&w=640&q=75",
-        ),
+        cma("/_next/image?url=https%3A%2F%2Fpiction.clevelandart.org%2Fcma%2Fump.di%3Ff%3D1917.42_o5.jpg&w=640&q=75"),
       ],
     },
     {
@@ -209,9 +195,7 @@ export const tavilyStarryNight = {
       content:
         "This poster features a reproduction of The Starry Night by Vincent van Gogh, one of the most popular paintings in MoMA’s collection.",
       score: 0.82560414,
-      images: [
-        "http://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9.jpg?v=1704232502",
-      ],
+      images: ["http://store.moma.org/cdn/shop/files/4488_a_94c65c14-58ec-4bcd-b7fc-a9a07db805b9.jpg?v=1704232502"],
     },
   ],
   usage: { credits: 1 },
@@ -219,7 +203,10 @@ export const tavilyStarryNight = {
 };
 
 const item = (id: string) => ({
-  mainsnak: { snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id } } },
+  mainsnak: {
+    snaktype: "value",
+    datavalue: { type: "wikibase-entityid", value: { id } },
+  },
 });
 const time = (value: string) => ({
   mainsnak: {
@@ -236,7 +223,11 @@ export const wikidataSearchWaterLilies = {
       label: "Water Lilies",
       description: "series of approximately 250 paintings by Claude Monet",
     },
-    { id: "Q7973309", label: "Water Lilies", description: "1919 painting by Claude Monet" },
+    {
+      id: "Q7973309",
+      label: "Water Lilies",
+      description: "1919 painting by Claude Monet",
+    },
     {
       id: "Q93512",
       label: "Water Lilies",
@@ -248,7 +239,11 @@ export const wikidataSearchWaterLilies = {
 
 export const wikidataSearchMonet = {
   search: [
-    { id: "Q296", label: "Claude Monet", description: "French impressionist painter (1840–1926)" },
+    {
+      id: "Q296",
+      label: "Claude Monet",
+      description: "French impressionist painter (1840–1926)",
+    },
   ],
   success: 1,
 };
@@ -257,7 +252,11 @@ export const wikidataEntities: Record<string, object> = {
   Q1189907: {
     id: "Q1189907",
     labels: label("Water Lilies"),
-    claims: { P31: [item("Q15727816")], P170: [item("Q296")], P17: [item("Q142")] },
+    claims: {
+      P31: [item("Q15727816")],
+      P170: [item("Q296")],
+      P17: [item("Q142")],
+    },
   },
   Q7973309: {
     id: "Q7973309",
@@ -302,9 +301,13 @@ export const wikidataEntities: Record<string, object> = {
   },
 };
 
-export function wikidataEntitiesResponse(ids: string[]): { entities: Record<string, object> } {
+export function wikidataEntitiesResponse(ids: string[]): {
+  entities: Record<string, object>;
+} {
   const entities: Record<string, object> = {};
-  for (const id of ids) entities[id] = wikidataEntities[id] ?? { id, missing: "" };
+  for (const id of ids) {
+    entities[id] = wikidataEntities[id] ?? { id, missing: "" };
+  }
   return { entities };
 }
 
@@ -335,8 +338,7 @@ export const metaPage = `<html><head>
 <dl><dt>Reference Number</dt><dd>1942.51</dd><dt>Dimensions</dt><dd>84.1 &times; 152.4 cm</dd></dl>
 <p>Object number 1942.51</p></body></html>`;
 
-export const plainPage =
-  "<html><head><title>Visit us</title></head><body><p>Opening hours</p></body></html>";
+export const plainPage = "<html><head><title>Visit us</title></head><body><p>Opening hours</p></body></html>";
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -348,7 +350,12 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 export function completion(content: unknown, finishReason = "stop"): Response {
   return jsonResponse({
-    choices: [{ message: { content: JSON.stringify(content) }, finish_reason: finishReason }],
+    choices: [
+      {
+        message: { content: JSON.stringify(content) },
+        finish_reason: finishReason,
+      },
+    ],
   });
 }
 
@@ -360,5 +367,11 @@ export const labelReading = {
   medium: "Oil on canvas",
   accession: "1998.325.2",
   credit_line: "Gift of Louise Reinhardt Smith, 1983",
-  confidence: { title: 0.98, artist: 0.99, work_date: 0.9, medium: 0.95, accession: 0.8 },
+  confidence: {
+    title: 0.98,
+    artist: 0.99,
+    work_date: 0.9,
+    medium: 0.95,
+    accession: 0.8,
+  },
 };

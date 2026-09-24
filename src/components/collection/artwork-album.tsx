@@ -27,10 +27,7 @@ export function ArtworkAlbum({
   photoId?: string;
   children?: ReactNode;
 }) {
-  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [
-    work.localId,
-    work.owner,
-  ]);
+  const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "collection.album.load");
   }, [photos.error]);
@@ -44,9 +41,9 @@ export function ArtworkAlbum({
   const { width, fontScale } = useWindowDimensions();
   const rows = photos.data.filter(
     (row) =>
-      row.owner === work.owner &&
-      row.savedLocalId === work.localId &&
-      (scope === "all" || row.visitLocalId === visitId),
+      row.owner === work.owner
+      && row.savedLocalId === work.localId
+      && (scope === "all" || row.visitLocalId === visitId),
   );
   const lastPage = Math.max(0, rows.length - 1);
   if (requestedPhoto && (photos.updatedAt || rows.length)) {
@@ -61,10 +58,7 @@ export function ArtworkAlbum({
   const selectedPhoto = rows[Math.min(page, lastPage)];
   const imageHeight =
     selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
-      ? Math.max(
-          44,
-          Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)),
-        )
+      ? Math.max(44, Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)))
       : 180 * fontScale;
   const goTo = (next: number) => {
     setPage(next);
@@ -75,8 +69,8 @@ export function ArtworkAlbum({
       {!rows.length && !photos.updatedAt && !photos.error ? (
         <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
       ) : (
-        !rows.length &&
-        (photos.error ? (
+        !rows.length
+        && (photos.error ? (
           <Text accessibilityRole="alert" style={styles.secondary}>
             Photos couldn’t load. Close and reopen this artwork to try again.
           </Text>
@@ -103,11 +97,12 @@ export function ArtworkAlbum({
             showsHorizontalScrollIndicator={false}
             style={{ height: imageHeight }}
             onContentSizeChange={() =>
-              gallery.current?.scrollTo({ x: Math.min(page, lastPage) * width, animated: false })
+              gallery.current?.scrollTo({
+                x: Math.min(page, lastPage) * width,
+                animated: false,
+              })
             }
-            onMomentumScrollEnd={({ nativeEvent }) =>
-              setPage(Math.round(nativeEvent.contentOffset.x / width))
-            }
+            onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.round(nativeEvent.contentOffset.x / width))}
           >
             {rows.map((photo, i) => (
               <View key={photo.localId} style={{ width, paddingHorizontal: 20 }}>
@@ -132,14 +127,18 @@ export function ArtworkAlbum({
                       uri={captureFileUri(photo.path)}
                       label={`${photo.kind} photo ${i + 1} of ${work.title}`}
                       onError={() =>
-                        setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))
+                        setFailedPhotos((previous) => ({
+                          ...previous,
+                          [photo.path!]: true,
+                        }))
                       }
                       onLoad={({ source }) => {
-                        if (source.width > 0 && source.height > 0)
+                        if (source.width > 0 && source.height > 0) {
                           setRatios((previous) => ({
                             ...previous,
                             [photo.localId]: source.width / source.height,
                           }));
+                        }
                       }}
                       style={{ width: "100%", height: "100%" }}
                       contentFit="contain"
@@ -211,11 +210,7 @@ export function ArtworkAlbum({
                     style={{ width: "100%", height: "100%" }}
                   />
                 ) : (
-                  <Image
-                    source="sf:photo"
-                    tintColor={Gallery.muted}
-                    style={{ width: 22, height: 22 }}
-                  />
+                  <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
                 )}
               </Pressable>
             ))}
@@ -329,6 +324,11 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.fill,
   },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  title: { fontSize: 18, lineHeight: 22, color: Gallery.ink, fontWeight: "500" },
+  title: {
+    fontSize: 18,
+    lineHeight: 22,
+    color: Gallery.ink,
+    fontWeight: "500",
+  },
   medium: { fontSize: 15, lineHeight: 22, color: Gallery.muted },
 });

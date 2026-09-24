@@ -25,12 +25,17 @@ export function VisitRow({
   isNew?: boolean;
   isOpen?: boolean;
 }) {
-  const place =
-    visit.city || visit.regionName || countryName(visit.country) || "Location unavailable";
+  const place = visit.city || visit.regionName || countryName(visit.country) || "Location unavailable";
   const artworks = `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"}`;
   const meta = `${formatVisitDate(visit.visitedOn)} · ${place} · ${artworks}${shared ? " · Shared ✓" : ""}`;
   return (
-    <Link href={{ pathname: "/journal/[visitId]", params: { visitId: visit.localId } }} asChild>
+    <Link
+      href={{
+        pathname: "/journal/[visitId]",
+        params: { visitId: visit.localId },
+      }}
+      asChild
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${visit.venueName}, ${formatVisitDate(visit.visitedOn)}, ${artworks}${isOpen ? ", visiting now" : isNew ? ", new" : ""}`}
@@ -81,11 +86,7 @@ export function VisitTimeline({
     });
   }, [headerHeight, scrollResetKey]);
   const session = useSocialSession();
-  const sharing = useSocialQuery(
-    api.sharedVisits.listShared,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === "ready" ? {} : "skip", session.key);
   const shared = new Set(sharing.data);
   const seen = useSeenVisits(useLocalOwner());
   const venue = useVenue();
@@ -101,10 +102,18 @@ export function VisitTimeline({
     | { key: string; kind: "month"; title: string }
     | { key: string; kind: "visit"; visit: VisitSummary };
   const rows: Row[] = [];
-  if (controls) rows.push({ key: "controls", kind: "element", element: controls });
+  if (controls) {
+    rows.push({ key: "controls", kind: "element", element: controls });
+  }
   for (const section of sections) {
-    rows.push({ key: `month:${section.key}`, kind: "month", title: section.title });
-    for (const visit of section.data) rows.push({ key: visit.localId, kind: "visit", visit });
+    rows.push({
+      key: `month:${section.key}`,
+      kind: "month",
+      title: section.title,
+    });
+    for (const visit of section.data) {
+      rows.push({ key: visit.localId, kind: "visit", visit });
+    }
   }
   return (
     <FlatList
@@ -120,11 +129,7 @@ export function VisitTimeline({
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
       ListHeaderComponent={
-        header && (
-          <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-            {header}
-          </View>
-        )
+        header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>
       }
       stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
       // Shorter content must still let the header scroll away without moving pinned controls.
@@ -167,8 +172,19 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   content: { flex: 1, alignSelf: "stretch" },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  name: { flexShrink: 1, fontSize: 17, lineHeight: 25, fontWeight: "600", color: Gallery.ink },
+  name: {
+    flexShrink: 1,
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: "600",
+    color: Gallery.ink,
+  },
   spacer: { flex: 1 },
   meta: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2 },
-  section: { color: Gallery.muted, paddingTop: 15, paddingBottom: 8, paddingHorizontal: 20 },
+  section: {
+    color: Gallery.muted,
+    paddingTop: 15,
+    paddingBottom: 8,
+    paddingHorizontal: 20,
+  },
 });

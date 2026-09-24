@@ -1,10 +1,4 @@
-import {
-  constrainLayout,
-  nextWallLayout,
-  removeWallPiece,
-  wallBottom,
-  type WallPiece,
-} from "./wall-layout";
+import { constrainLayout, nextWallLayout, removeWallPiece, wallBottom, type WallPiece } from "./wall-layout";
 
 const piece = (width: number, height: number): WallPiece => ({
   localId: "one",
@@ -35,7 +29,11 @@ it("keeps a newly hung local photo at its original proportions before publishing
 it("uses a thin black frame for every new placement without changing existing customization", () => {
   const pieces = [
     piece(1, 1),
-    { ...piece(2, 1), localId: "two", layout: { ...piece(2, 1).layout, frame: "walnut" as const } },
+    {
+      ...piece(2, 1),
+      localId: "two",
+      layout: { ...piece(2, 1).layout, frame: "walnut" as const },
+    },
   ];
   expect(nextWallLayout([]).frame).toBe("black");
   expect(nextWallLayout(pieces).frame).toBe("black");
@@ -43,10 +41,17 @@ it("uses a thin black frame for every new placement without changing existing cu
 });
 
 it("keeps a moved or enlarged artwork inside the wall", () => {
-  const layout = constrainLayout(piece(1, 1).layout, { x: 2, y: -1, width: 0.9 });
+  const layout = constrainLayout(piece(1, 1).layout, {
+    x: 2,
+    y: -1,
+    width: 0.9,
+  });
   expect(layout.x + layout.width).toBeLessThanOrEqual(0.975);
   expect(layout.y).toBe(0.04);
-  expect(constrainLayout(layout, { width: -1, y: 200 })).toMatchObject({ width: 0.16, y: 99 });
+  expect(constrainLayout(layout, { width: -1, y: 200 })).toMatchObject({
+    width: 0.16,
+    y: 99,
+  });
 });
 
 it("varies new artwork sizes while keeping each placement clear of existing paintings and labels", () => {
@@ -56,12 +61,16 @@ it("varies new artwork sizes while keeping each placement clear of existing pain
     expect(next.x).toBeGreaterThanOrEqual(0.025);
     expect(next.x + next.width).toBeLessThanOrEqual(0.975);
     for (const previous of pieces) {
-      const overlaps =
-        next.x < previous.layout.x + previous.layout.width &&
-        next.x + next.width > previous.layout.x;
-      if (overlaps) expect(next.y).toBeGreaterThanOrEqual(wallBottom([previous]) + 0.14);
+      const overlaps = next.x < previous.layout.x + previous.layout.width && next.x + next.width > previous.layout.x;
+      if (overlaps) {
+        expect(next.y).toBeGreaterThanOrEqual(wallBottom([previous]) + 0.14);
+      }
     }
-    pieces.push({ ...piece(index % 2 ? 2 : 1, 2), localId: String(index), layout: next });
+    pieces.push({
+      ...piece(index % 2 ? 2 : 1, 2),
+      localId: String(index),
+      layout: next,
+    });
   }
   expect(new Set(pieces.map((item) => item.layout.width)).size).toBeGreaterThan(3);
   expect(pieces[1].layout.y).toBeLessThan(wallBottom([pieces[0]]));
@@ -76,9 +85,7 @@ it("removes only the wall placement and compacts layers for the API", () => {
       layout: { ...piece(1, 1).layout, layer },
     })),
   };
-  expect(
-    removeWallPiece(draft, "two").items.map((item) => [item.saveLocalId, item.layout.layer]),
-  ).toEqual([
+  expect(removeWallPiece(draft, "two").items.map((item) => [item.saveLocalId, item.layout.layer])).toEqual([
     ["one", 0],
     ["three", 1],
   ]);

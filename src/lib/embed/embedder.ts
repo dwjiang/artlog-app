@@ -21,9 +21,7 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
     if (checked) return checked;
     const candidate = native();
     if (candidate.modelVersion === null) {
-      throw new Error(
-        "The CoreML model asset is missing from this build; run `git lfs pull` and rebuild",
-      );
+      throw new Error("The CoreML model asset is missing from this build; run `git lfs pull` and rebuild");
     }
     if (candidate.modelVersion !== model.modelVersion) {
       throw new Error(
@@ -51,9 +49,7 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
     async embed(cropUri) {
       const values = await nativeModule().embed(filePath(cropUri));
       if (values.length !== model.embeddingDim) {
-        throw new Error(
-          `The embedding has ${values.length} values, expected ${model.embeddingDim}`,
-        );
+        throw new Error(`The embedding has ${values.length} values, expected ${model.embeddingDim}`);
       }
       return Float32Array.from(values);
     },

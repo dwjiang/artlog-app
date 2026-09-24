@@ -26,10 +26,7 @@ export function WallPhotoPicker({
 }) {
   const owner = useLocalOwner();
   const { fontScale } = useWindowDimensions();
-  const { data, updatedAt, error } = useLiveQuery(selectArtworkPhotos(savedId, owner), [
-    savedId,
-    owner,
-  ]);
+  const { data, updatedAt, error } = useLiveQuery(selectArtworkPhotos(savedId, owner), [savedId, owner]);
   const visits = useLiveQuery(listVisits(owner), [owner]);
   const queryError = error ?? visits.error;
   useEffect(() => {
@@ -37,15 +34,14 @@ export function WallPhotoPicker({
   }, [queryError]);
   const photos = data.filter((photo) => photo.owner === owner);
   const selected = photos.find((photo) => photo.localId === selectedId);
-  const selectedVisit = visits.data.find(
-    (visit) => visit.owner === owner && visit.localId === selected?.visitLocalId,
-  );
-  if (error)
+  const selectedVisit = visits.data.find((visit) => visit.owner === owner && visit.localId === selected?.visitLocalId);
+  if (error) {
     return (
       <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
         Photos could not load. Reopen the photo picker to try again.
       </Text>
     );
+  }
   if (!updatedAt && !photos.length) return <PhotoStripSkeleton />;
   return (
     <View style={{ gap: 4 }}>
@@ -55,15 +51,8 @@ export function WallPhotoPicker({
         contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
       >
         {photos.map((photo, index) => {
-          const visit = visits.data.find(
-            (visit) => visit.owner === owner && visit.localId === photo.visitLocalId,
-          );
-          const kind =
-            photo.kind === "full"
-              ? "Full painting"
-              : photo.kind === "detail"
-                ? "Detail"
-                : "Wall label";
+          const visit = visits.data.find((visit) => visit.owner === owner && visit.localId === photo.visitLocalId);
+          const kind = photo.kind === "full" ? "Full painting" : photo.kind === "detail" ? "Detail" : "Wall label";
           return (
             <Pressable
               key={photo.localId}
@@ -72,11 +61,7 @@ export function WallPhotoPicker({
               accessibilityHint={[
                 photo.caption,
                 kind,
-                visit
-                  ? formatVisitDate(visit.visitedOn)
-                  : visits.updatedAt
-                    ? "Not linked to a visit"
-                    : "",
+                visit ? formatVisitDate(visit.visitedOn) : visits.updatedAt ? "Not linked to a visit" : "",
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -111,7 +96,12 @@ export function WallPhotoPicker({
               {!compact && (
                 <>
                   <Text
-                    style={{ color: Gallery.ink, fontSize: 15, lineHeight: 22, fontWeight: "500" }}
+                    style={{
+                      color: Gallery.ink,
+                      fontSize: 15,
+                      lineHeight: 22,
+                      fontWeight: "500",
+                    }}
                   >
                     {photo.caption || kind}
                     {photo.localId === selectedId ? " ✓" : ""}
@@ -119,7 +109,13 @@ export function WallPhotoPicker({
                   {!visits.updatedAt && !visits.error ? (
                     <TextSkeleton label="Loading photo visit" width="80%" />
                   ) : (
-                    <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
+                    <Text
+                      style={{
+                        color: Gallery.muted,
+                        fontSize: 13,
+                        lineHeight: 18,
+                      }}
+                    >
                       {visits.error
                         ? "Visit unavailable"
                         : visit
@@ -151,12 +147,8 @@ export function WallPhotoPicker({
       </ScrollView>
       {compact && selected && (
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
-          {selected.caption ||
-            (selected.kind === "full"
-              ? "Full painting"
-              : selected.kind === "detail"
-                ? "Detail"
-                : "Wall label")}
+          {selected.caption
+            || (selected.kind === "full" ? "Full painting" : selected.kind === "detail" ? "Detail" : "Wall label")}
           {selectedVisit ? ` · ${formatVisitDate(selectedVisit.visitedOn)}` : ""}
         </Text>
       )}

@@ -7,8 +7,7 @@ import { measureCrop, type TriageMetrics } from "@/lib/capture/triage";
 import { extractOrb } from "./extract";
 import { compareDescriptors, decodeBase64, type OrbParity } from "./parity";
 
-export type OrbParityReport = OrbParity &
-  TriageMetrics & { extractMs: number; triageMs: number; device: string };
+export type OrbParityReport = OrbParity & TriageMetrics & { extractMs: number; triageMs: number; device: string };
 
 /**
  * Dev-only tripwire for the phone ↔ Python ORB contract: extracts from the Python letterbox fixture

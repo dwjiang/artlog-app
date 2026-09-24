@@ -12,12 +12,13 @@ export const publicArtworkStory = v.object({
 export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections">) {
   const artwork = save.artworkId ? await ctx.db.get(save.artworkId) : null;
   if (
-    !artwork ||
-    artwork.identityStatus !== "established" ||
-    artwork.retiredAt !== undefined ||
-    artwork.factSheetNeedsReview
-  )
+    !artwork
+    || artwork.identityStatus !== "established"
+    || artwork.retiredAt !== undefined
+    || artwork.factSheetNeedsReview
+  ) {
     return undefined;
+  }
   const facts = artwork.factSheet ?? [];
   const sources = new Set(facts.map((fact) => fact.id));
   const docent = artwork.docent?.en?.filter(
@@ -29,6 +30,10 @@ export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections"
     docent,
     factSheet: facts
       .filter((fact) => cited.has(fact.id))
-      .map(({ id, sourceUrl, sourceLabel }) => ({ id, sourceUrl, sourceLabel })),
+      .map(({ id, sourceUrl, sourceLabel }) => ({
+        id,
+        sourceUrl,
+        sourceLabel,
+      })),
   };
 }

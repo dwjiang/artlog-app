@@ -3,24 +3,21 @@
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "import"],
   "jsPlugins": ["eslint-plugin-expo", "./oxlint-plugin.js"],
   "categories": { "correctness": "error" },
-  "ignorePatterns": [
-    ".agents/**",
-    ".claude/**",
-    "convex/_generated/**",
-    "src/db/migrations/**",
-    "scripts/data/**"
-  ],
+  "ignorePatterns": [".agents/**", ".claude/**", "convex/_generated/**", "src/db/migrations/**", "scripts/data/**"],
   "rules": {
+    "curly": ["error", "multi-line"],
     "eqeqeq": ["error", "smart"],
+    "no-else-return": "error",
     "no-extend-native": "error",
     "no-extra-bind": "error",
+    "no-lonely-if": "error",
     "no-redeclare": "error",
+    "no-unneeded-ternary": "error",
     "no-unused-expressions": ["error", { "allowShortCircuit": true, "enforceForJSX": true }],
-    "no-unused-vars": [
-      "error",
-      { "args": "none", "ignoreRestSiblings": true, "caughtErrors": "all" }
-    ],
+    "no-unused-vars": ["error", { "args": "none", "ignoreRestSiblings": true, "caughtErrors": "all" }],
     "no-useless-constructor": "error",
+    "no-useless-rename": "error",
+    "no-useless-return": "error",
     "no-var": "error",
     "unicode-bom": "error",
     "import/first": "error",
@@ -33,12 +30,15 @@
     "react/no-unknown-property": "error",
     "react/rules-of-hooks": "error",
     "react/unsupported-syntax": "error",
+    "unicorn/prefer-logical-operator-over-ternary": "error",
     "typescript/array-type": ["error", { "default": "array" }],
     "typescript/consistent-type-assertions": [
       "error",
       { "assertionStyle": "as", "objectLiteralTypeAssertions": "allow" }
     ],
     "typescript/no-empty-object-type": "error",
+    "typescript/no-inferrable-types": "error",
+    "typescript/prefer-optional-chain": "error",
     "expo/no-dynamic-env-var": "error",
     "expo/no-env-var-destructuring": "error",
     "expo/use-dom-exports": "error",

@@ -6,12 +6,7 @@ it("groups accented artists under their letter and puts unnamed artists at the e
     { localId: "3", artist: "", title: "Untitled", date: null },
     { localId: "4", artist: "Édouard Manet", title: "Earlier", date: "1860" },
   ];
-  expect(
-    artistSections(works).map((section) => [
-      section.title,
-      section.data.map((work) => work.localId),
-    ]),
-  ).toEqual([
+  expect(artistSections(works).map((section) => [section.title, section.data.map((work) => work.localId)])).toEqual([
     ["C", ["2"]],
     ["E", ["4", "1"]],
     ["#", ["3"]],

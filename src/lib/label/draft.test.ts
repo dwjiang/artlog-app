@@ -4,7 +4,9 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { clearLabelDraft, loadLabelDraft, saveLabelDraft } from "./draft";
 import { formStateFromFlow, toSubmittedFields, unlockField } from "./fields";
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 
 it("persists edit provenance per scan and clears it for a new label", async () => {
   const first = "scan-first" as Id<"scans">;
@@ -62,7 +64,9 @@ it("claims anonymous label edits and hides account drafts after sign-out", async
     evidence: [],
     warnings: [],
     updatedAt: 1,
-    fields: { title: { value: "Private title", evidence: "ocr", locked: false } },
+    fields: {
+      title: { value: "Private title", evidence: "ocr", locked: false },
+    },
   });
   await saveLabelDraft(scanId, state);
   await claimLocalJournal(anonymousOwner(), "account:a", "claim-draft");

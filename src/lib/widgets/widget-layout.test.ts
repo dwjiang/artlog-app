@@ -14,8 +14,8 @@ const painting: PreparedWidgetArtwork = {
 };
 
 it("preserves full painting proportions and keeps every element within the widget for each layout", () => {
-  for (const aspect of [0.1, 0.37, 0.75, 1, 1.5, 2.25, 6.4, 20])
-    for (const caption of widgetCaptions)
+  for (const aspect of [0.1, 0.37, 0.75, 1, 1.5, 2.25, 6.4, 20]) {
+    for (const caption of widgetCaptions) {
       for (const frame of widgetFrames) {
         for (const size of ["small", "medium"] as const) {
           const layout = widgetLayout(
@@ -41,6 +41,8 @@ it("preserves full painting proportions and keeps every element within the widge
           }
         }
       }
+    }
+  }
 });
 
 it("wraps long titles, places panoramic captions below the painting, and honors caption choices", () => {
@@ -63,8 +65,8 @@ it("wraps long titles, places panoramic captions below the painting, and honors 
   expect(imageOnly.texts).toEqual([]);
   expect(imageOnly.image!.x + imageOnly.image!.width / 2).toBe(167);
   expect(
-    widgetLayout(painting, { ...defaultWidgetSettings, caption: "artwork" }, "medium").texts.some(
-      (row) => row.text.includes("Visited"),
+    widgetLayout(painting, { ...defaultWidgetSettings, caption: "artwork" }, "medium").texts.some((row) =>
+      row.text.includes("Visited"),
     ),
   ).toBe(false);
 });

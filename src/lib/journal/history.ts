@@ -52,9 +52,7 @@ export function filterVisits<T extends JournalVisit>(visits: T[], query = ""): T
     ),
   );
 }
-export function groupHistoryByMonth<T extends JournalVisit>(
-  visits: T[],
-): { key: string; title: string; data: T[] }[] {
+export function groupHistoryByMonth<T extends JournalVisit>(visits: T[]): { key: string; title: string; data: T[] }[] {
   const groups = new Map<string, T[]>();
   for (const visit of [...visits].sort(
     (a, b) => compareText(b.visitedOn, a.visitedOn) || compareText(b.localId, a.localId),
@@ -82,19 +80,30 @@ export type JournalSummary = {
   venueIds: string[];
 };
 
-export function placeIdentity(visit: JournalVisit): { key: string; name: string } {
-  if (visit.cityKey) return { key: visit.cityKey, name: visit.city || visit.venueName };
+export function placeIdentity(visit: JournalVisit): {
+  key: string;
+  name: string;
+} {
+  if (visit.cityKey) {
+    return { key: visit.cityKey, name: visit.city || visit.venueName };
+  }
   if (visit.city) return { key: `venue:${visit.venueId}`, name: visit.city };
-  if (visit.regionKey && visit.regionName) return { key: visit.regionKey, name: visit.regionName };
-  if (visit.country) return { key: `country:${visit.country}`, name: countryName(visit.country) };
+  if (visit.regionKey && visit.regionName) {
+    return { key: visit.regionKey, name: visit.regionName };
+  }
+  if (visit.country) {
+    return {
+      key: `country:${visit.country}`,
+      name: countryName(visit.country),
+    };
+  }
   return { key: `venue:${visit.venueId}`, name: visit.venueName };
 }
 
 export function summarizeJournal(visits: JournalVisit[], by: "museum" | "place"): JournalSummary[] {
   const groups = new Map<string, JournalSummary>();
   for (const visit of visits) {
-    const { key, name } =
-      by === "museum" ? { key: visit.venueId, name: visit.venueName } : placeIdentity(visit);
+    const { key, name } = by === "museum" ? { key: visit.venueId, name: visit.venueName } : placeIdentity(visit);
     const group = groups.get(key) ?? {
       key,
       name,
@@ -106,9 +115,13 @@ export function summarizeJournal(visits: JournalVisit[], by: "museum" | "place")
       venueIds: [],
     };
     group.visitCount++;
-    if (!group.venueIds.includes(visit.venueId)) group.venueIds.push(visit.venueId);
+    if (!group.venueIds.includes(visit.venueId)) {
+      group.venueIds.push(visit.venueId);
+    }
     group.museumCount = group.venueIds.length;
-    if (visit.visitedOn > group.latestVisitedOn) group.latestVisitedOn = visit.visitedOn;
+    if (visit.visitedOn > group.latestVisitedOn) {
+      group.latestVisitedOn = visit.visitedOn;
+    }
     groups.set(key, group);
   }
   return [...groups.values()];

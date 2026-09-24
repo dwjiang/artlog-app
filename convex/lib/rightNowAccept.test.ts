@@ -83,17 +83,26 @@ describe("publication window and page types", () => {
     ["future", new Date(FIXTURE_NOW + DAY).toUTCString()],
     ["older than 31 days", new Date(FIXTURE_NOW - 32 * DAY).toUTCString()],
   ])("refuses a %s publication date", (_label, publishedDate) => {
-    expect(eligibleResults([{ ...base, publishedDate }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
+    expect(
+      eligibleResults([{ ...base, publishedDate }], {
+        domains,
+        now: FIXTURE_NOW,
+      }),
+    ).toEqual([]);
   });
 
   it("keeps a date exactly inside the window and refuses a score below 0.60", () => {
-    const inside = { ...base, publishedDate: new Date(FIXTURE_NOW - 30 * DAY).toUTCString() };
+    const inside = {
+      ...base,
+      publishedDate: new Date(FIXTURE_NOW - 30 * DAY).toUTCString(),
+    };
     expect(eligibleResults([inside], { domains, now: FIXTURE_NOW })).toHaveLength(1);
-    expect(eligibleResults([{ ...inside, score: 0.59 }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
+    expect(
+      eligibleResults([{ ...inside, score: 0.59 }], {
+        domains,
+        now: FIXTURE_NOW,
+      }),
+    ).toEqual([]);
   });
 
   it("refuses hosts outside the region list and non-https pages", () => {
@@ -114,17 +123,21 @@ describe("publication window and page types", () => {
   it("treats a recently dated archive or category page as no evidence of a current event", () => {
     const archive = rightNowFixtures.hockneySf.response.results[0];
     expect(isListingUrl(archive.url)).toBe(true);
-    expect(eligibleResults([{ ...archive, score: 0.9 }], { domains, now: FIXTURE_NOW })).toEqual(
-      [],
-    );
+    expect(
+      eligibleResults([{ ...archive, score: 0.9 }], {
+        domains,
+        now: FIXTURE_NOW,
+      }),
+    ).toEqual([]);
     for (const url of [
       "https://www.kqed.org/arts/tag/featured?page=190",
       "https://www.nytimes.com/section/arts/design?page=4",
       "https://www.nytimes.com/topic/ewan-mcgregor",
       "https://shop.artic.edu/products/60442",
       "https://www.nytimes.com/spotlight/what-to-watch",
-    ])
+    ]) {
       expect(isListingUrl(url)).toBe(true);
+    }
     expect(isListingUrl(base.url)).toBe(false);
   });
 });
@@ -132,7 +145,11 @@ describe("publication window and page types", () => {
 describe("complete source sentences and event dates", () => {
   const date = "September 12, 2026";
   const sentence = `Mira Vale opens “Harbor at Dawn” at the Bay Museum on ${date} with 40 works.`;
-  const options = { artist: "Mira Vale", domains: ["museum.example"], now: FIXTURE_NOW };
+  const options = {
+    artist: "Mira Vale",
+    domains: ["museum.example"],
+    now: FIXTURE_NOW,
+  };
   const result = {
     url: "https://museum.example/news/harbor-at-dawn",
     title: "Exhibition announcement",
@@ -186,9 +203,7 @@ describe("complete source sentences and event dates", () => {
   });
 
   it("allows typography and whitespace differences without discarding words or punctuation", () => {
-    expect(
-      card(sentence, sentence.replace(/[“”]/g, '"').replace("opens", "opens   ")),
-    ).not.toBeNull();
+    expect(card(sentence, sentence.replace(/[“”]/g, '"').replace("opens", "opens   "))).not.toBeNull();
   });
 
   it.each([
@@ -196,14 +211,8 @@ describe("complete source sentences and event dates", () => {
     ["a changed number", sentence.replace("40", "41")],
     ["a missing negation", sentence.replace("opens", "will not open")],
     ["a claim reported as false", `The rumour that ${sentence} is false.`],
-    [
-      "a dropped qualification",
-      sentence.replace(/\.$/, ", but this opening has since been cancelled."),
-    ],
-    [
-      "an omitted part of the snippet",
-      sentence.replace(" at the Bay Museum ", " [...] at the Bay Museum "),
-    ],
+    ["a dropped qualification", sentence.replace(/\.$/, ", but this opening has since been cancelled.")],
+    ["an omitted part of the snippet", sentence.replace(" at the Bay Museum ", " [...] at the Bay Museum ")],
   ])("refuses %s even when the artist, venue and title match", (_name, content) => {
     expect(card(sentence, content)).toBeNull();
   });
@@ -237,16 +246,11 @@ describe("complete source sentences and event dates", () => {
   });
 
   it("does not treat related-story boilerplate as a qualification of the article", () => {
-    expect(
-      card(sentence, `${sentence}\n## Related stories\nAnother exhibition has been cancelled.`),
-    ).not.toBeNull();
+    expect(card(sentence, `${sentence}\n## Related stories\nAnother exhibition has been cancelled.`)).not.toBeNull();
   });
 
   it("refuses overlong sentences instead of truncating a qualification", () => {
-    const text = sentence.replace(
-      /\.$/,
-      ` ${"with additional displays ".repeat(8)}, but the show has been cancelled.`,
-    );
+    const text = sentence.replace(/\.$/, ` ${"with additional displays ".repeat(8)}, but the show has been cancelled.`);
     expect(text.length).toBeGreaterThan(200);
     expect(card(text, text)).toBeNull();
   });
@@ -254,16 +258,10 @@ describe("complete source sentences and event dates", () => {
 
 describe("first sentence", () => {
   it("preserves initials, titles and month abbreviations", () => {
-    expect(
-      firstSentence(
-        "Rupy C. Tut's new show opens at Mr. Smith's gallery on Aug. 14. It runs for a month.",
-      ),
-    ).toBe("Rupy C. Tut's new show opens at Mr. Smith's gallery on Aug. 14.");
-    expect(sentences("One sentence. Another one! A third?")).toEqual([
-      "One sentence.",
-      "Another one!",
-      "A third?",
-    ]);
+    expect(firstSentence("Rupy C. Tut's new show opens at Mr. Smith's gallery on Aug. 14. It runs for a month.")).toBe(
+      "Rupy C. Tut's new show opens at Mr. Smith's gallery on Aug. 14.",
+    );
+    expect(sentences("One sentence. Another one! A third?")).toEqual(["One sentence.", "Another one!", "A third?"]);
     expect(firstSentence("  Spaced   out\nanswer.  ")).toBe("Spaced out answer.");
   });
 });

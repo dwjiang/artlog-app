@@ -23,21 +23,23 @@ export type AlbumEncounter = Infer<typeof albumEncounter>;
 
 export function validateAlbumPhoto(photo: AlbumPhoto) {
   if (
-    !isUuid(photo.localId) ||
-    !isUuid(photo.savedLocalId) ||
-    !isTimestamp(photo.capturedAt) ||
-    (photo.visitLocalId !== undefined && !isUuid(photo.visitLocalId)) ||
-    (photo.caption?.length ?? 0) > LIMITS.note ||
-    (photo.deletedAt !== undefined && !isTimestamp(photo.deletedAt))
-  )
+    !isUuid(photo.localId)
+    || !isUuid(photo.savedLocalId)
+    || !isTimestamp(photo.capturedAt)
+    || (photo.visitLocalId !== undefined && !isUuid(photo.visitLocalId))
+    || (photo.caption?.length ?? 0) > LIMITS.note
+    || (photo.deletedAt !== undefined && !isTimestamp(photo.deletedAt))
+  ) {
     throw new ConvexError({ code: "invalid_photo" });
+  }
 }
 export function validateAlbumEncounter(encounter: AlbumEncounter) {
   if (
-    !isUuid(encounter.savedLocalId) ||
-    !isUuid(encounter.visitLocalId) ||
-    (encounter.note?.length ?? 0) > LIMITS.note ||
-    (encounter.deletedAt !== undefined && !isTimestamp(encounter.deletedAt))
-  )
+    !isUuid(encounter.savedLocalId)
+    || !isUuid(encounter.visitLocalId)
+    || (encounter.note?.length ?? 0) > LIMITS.note
+    || (encounter.deletedAt !== undefined && !isTimestamp(encounter.deletedAt))
+  ) {
     throw new ConvexError({ code: "invalid_encounter" });
+  }
 }

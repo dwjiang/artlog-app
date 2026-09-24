@@ -14,7 +14,10 @@ export async function searchWithCredit(
 ): Promise<TavilySearchResponse | null> {
   let day: string;
   try {
-    day = await ctx.runMutation(internal.spend.reserve, { kind: "tavily", amount: 1 });
+    day = await ctx.runMutation(internal.spend.reserve, {
+      kind: "tavily",
+      amount: 1,
+    });
   } catch (error) {
     if (error instanceof ConvexError && error.data.code === "spend_cap") {
       console.warn("Tavily daily cap reached; skipping web search");

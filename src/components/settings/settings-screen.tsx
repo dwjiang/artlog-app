@@ -21,24 +21,20 @@ export function SettingsScreen() {
   const signIn = useAccount();
   const { account } = signIn;
   const session = useSocialSession();
-  const { data: profile } = useSocialQuery(
-    api.profiles.mine,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
-  const detail = (section: string) => () =>
-    router.push({ pathname: "/settings-detail", params: { section } });
+  const { data: profile } = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
+  const detail = (section: string) => () => router.push({ pathname: "/settings-detail", params: { section } });
   const accountName = profile?.name ?? "Your Artlog account";
-  const accountDetail = account?.linked
-    ? profile
-      ? `@${profile.username}`
-      : account.email
-    : undefined;
+  const accountDetail = account?.linked ? (profile ? `@${profile.username}` : account.email) : undefined;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 16 }}
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: 28,
+        gap: 16,
+      }}
     >
       <ThemedText variant={fontScale > 1.3 ? "display" : "pageTitle"} accessibilityRole="header">
         Settings
@@ -120,11 +116,7 @@ export function SettingsScreen() {
               </ThemedText>
             </View>
           </View>
-          <ThemedText
-            variant="display"
-            accessibilityRole="header"
-            style={{ fontSize: 28, lineHeight: 34 }}
-          >
+          <ThemedText variant="display" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>
             Share your collection
           </ThemedText>
           <ThemedText variant="body" themeColor="textSecondary">
@@ -145,21 +137,11 @@ export function SettingsScreen() {
           icon="arrow.down.to.line"
           onPress={() => router.push("/museum-downloads")}
         />
-        <SettingsRow
-          label="Widgets"
-          icon="square.grid.2x2"
-          onPress={() => router.push("/widgets")}
-        />
+        <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
         <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
+        {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
         {account?.linked && (
-          <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />
-        )}
-        {account?.linked && (
-          <SettingsRow
-            label="Public notes"
-            icon="text.bubble"
-            onPress={() => router.push("/public-notes")}
-          />
+          <SettingsRow label="Public notes" icon="text.bubble" onPress={() => router.push("/public-notes")} />
         )}
         <SettingsRow label="Contributions" icon="person.2" onPress={detail("contributions")} />
       </SettingsGroup>
@@ -172,11 +154,7 @@ export function SettingsScreen() {
       </ThemedText>
       {__DEV__ && (
         <SettingsGroup title="Developer">
-          <SettingsRow
-            label="Developer tools"
-            icon="wrench.and.screwdriver"
-            onPress={detail("developer")}
-          />
+          <SettingsRow label="Developer tools" icon="wrench.and.screwdriver" onPress={detail("developer")} />
         </SettingsGroup>
       )}
     </ScrollView>
@@ -226,26 +204,16 @@ function SettingsRow({
 }) {
   return (
     <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
-      <Button
-        variant="text"
-        onPress={onPress}
-        modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}
-      >
+      <Button variant="text" onPress={onPress} modifiers={[accessibilityLabel(label), frame({ maxWidth: Infinity })]}>
         <Row
           spacing={16}
           alignment="center"
-          modifiers={[
-            frame({ maxWidth: Infinity, minHeight: 54 }),
-            contentShape(shapes.rectangle()),
-          ]}
+          modifiers={[frame({ maxWidth: Infinity, minHeight: 54 }), contentShape(shapes.rectangle())]}
         >
           <Icon name={icon} size={22} color={Gallery.ink} modifiers={[frame({ width: 28 })]} />
           <NativeText
             textStyle={{ color: Gallery.ink }}
-            modifiers={[
-              font({ textStyle: "body" }),
-              frame({ maxWidth: Infinity, alignment: "leading" }),
-            ]}
+            modifiers={[font({ textStyle: "body" }), frame({ maxWidth: Infinity, alignment: "leading" })]}
           >
             {label}
           </NativeText>

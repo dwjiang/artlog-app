@@ -7,7 +7,9 @@ import { getNote, setNote } from "./notes";
 import { getSetting, setSetting } from "./settings";
 import { anonymousOwner, initializeOwner, switchOwner } from "../../lib/account/owner-store";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 beforeEach(async () => {
   await db.delete(notes);
   await db.delete(savedWorks);
@@ -47,7 +49,10 @@ it("claims associations, notes, photos and tombstones atomically and safely repe
     photoPath: "photo.jpg",
     deletedAt: 2,
   });
-  expect(await getNote("save")).toMatchObject({ text: "My note", owner: "account:a" });
+  expect(await getNote("save")).toMatchObject({
+    text: "My note",
+    owner: "account:a",
+  });
   expect(await visitRepo.getVisit("e7257140-7164-58eb-88ac-f010276ded02")).toMatchObject({
     owner: "account:a",
   });
@@ -103,14 +108,9 @@ it("carries the seen visits to the account, merged with the ones the account alr
 });
 it("carries queued index shares to the account with their captures", async () => {
   const source = anonymousOwner();
-  await setSetting(
-    `pendingShare:${source}:scan-1`,
-    '{"scanId":"scan-1","captureLocalId":"capture"}',
-  );
+  await setSetting(`pendingShare:${source}:scan-1`, '{"scanId":"scan-1","captureLocalId":"capture"}');
   await claimLocalJournal(source, "account:a", "claim");
-  expect(await getSetting("pendingShare:account:a:scan-1")).toBe(
-    '{"scanId":"scan-1","captureLocalId":"capture"}',
-  );
+  expect(await getSetting("pendingShare:account:a:scan-1")).toBe('{"scanId":"scan-1","captureLocalId":"capture"}');
   expect(await getSetting(`pendingShare:${source}:scan-1`)).toBeUndefined();
 });
 it("hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them", async () => {
@@ -120,7 +120,12 @@ it("hides account rows and suspends edits on sign-out, restores them on sign-in,
   switchOwner(anonymousOwner());
   expect(await saves.listUnsynced()).toEqual([]);
   expect(await getNote("save")).toBeUndefined();
-  await saves.insertSavedWork({ localId: "save", title: "Anonymous", artist: "", savedAt: 1 });
+  await saves.insertSavedWork({
+    localId: "save",
+    title: "Anonymous",
+    artist: "",
+    savedAt: 1,
+  });
   await claimLocalJournal(anonymousOwner(), "account:b", "b");
   switchOwner("account:b");
   expect((await saves.getSavedWork("save"))?.title).toBe("Anonymous");
@@ -130,7 +135,12 @@ it("hides account rows and suspends edits on sign-out, restores them on sign-in,
 });
 it("rejects collisions before moving any rows and enforces owner foreign keys", async () => {
   await saves.insertSavedWork({ localId: "same", title: "A", artist: "", savedAt: 1 }, "account:a");
-  await saves.insertSavedWork({ localId: "same", title: "Anonymous", artist: "", savedAt: 1 });
+  await saves.insertSavedWork({
+    localId: "same",
+    title: "Anonymous",
+    artist: "",
+    savedAt: 1,
+  });
   await expect(claimLocalJournal(anonymousOwner(), "account:a", "a")).rejects.toThrow("collision");
   expect((await saves.getSavedWork("same"))?.title).toBe("Anonymous");
   await visitRepo.upsertVisit(

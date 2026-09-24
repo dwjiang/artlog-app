@@ -46,12 +46,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   );
   function changeTab(value: "wall" | "visits") {
     setTab(value);
-    requestAnimationFrame(() =>
-      scroll.current?.scrollTo({ y: offsets.current[value], animated: false }),
-    );
+    requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false }));
   }
   if (session.offline) return <SocialGate session={session} />;
-  if (!profileId || profile.data === null)
+  if (!profileId || profile.data === null) {
     return (
       <SocialState
         action="Back to Home"
@@ -63,7 +61,8 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         detail="This public profile is no longer available."
       />
     );
-  if (profile.error)
+  }
+  if (profile.error) {
     return (
       <SocialState
         title="Couldn’t load this profile."
@@ -72,12 +71,14 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         onAction={profile.refresh}
       />
     );
-  if (!profile.data)
+  }
+  if (!profile.data) {
     return (
       <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
         <ProfileSkeleton />
       </ScrollView>
     );
+  }
   const person = profile.data;
   return (
     <GestureHandlerRootView style={socialStyles.root}>
@@ -89,7 +90,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           tintColor={Gallery.ink}
           hidesSharedBackground
           onPress={() =>
-            router.push({ pathname: "/share-profile", params: { profileId: person.profileId } })
+            router.push({
+              pathname: "/share-profile",
+              params: { profileId: person.profileId },
+            })
           }
         >
           Share
@@ -150,17 +154,16 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         </View>
         {tab === "wall" ? (
           wall.error ? (
-            <SocialState
-              title="Couldn’t load this wall."
-              action="Try again"
-              onAction={wall.refresh}
-            />
+            <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
           ) : wall.data ? (
             <PublicWallView
               wall={wall.data}
               arrangedBy={person.name.split(" ")[0]}
               onSelect={(item) =>
-                router.push({ pathname: "/artwork", params: { kind: "wall", itemId: item.itemId } })
+                router.push({
+                  pathname: "/artwork",
+                  params: { kind: "wall", itemId: item.itemId },
+                })
               }
             />
           ) : (

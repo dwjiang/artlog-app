@@ -17,13 +17,11 @@ export type SyntheticPair = {
   truth: { H: Float64Array; correspondences: [number, number][] };
 };
 
-export function makeRandomFeatures(
-  rand: () => number,
-  count: number,
-  inputSize: number,
-): OrbFeatures {
+export function makeRandomFeatures(rand: () => number, count: number, inputSize: number): OrbFeatures {
   const descriptors = new Uint8Array(count * DESCRIPTOR_BYTES);
-  for (let i = 0; i < descriptors.length; i++) descriptors[i] = Math.floor(rand() * 256);
+  for (let i = 0; i < descriptors.length; i++) {
+    descriptors[i] = Math.floor(rand() * 256);
+  }
   const keypoints = new Float32Array(count * KEYPOINT_FLOATS);
   for (let i = 0; i < count; i++) {
     keypoints[i * KEYPOINT_FLOATS] = 16 + rand() * (inputSize - 32);
@@ -85,7 +83,9 @@ export function makeSyntheticPair(opts: SyntheticPairOptions = {}): SyntheticPai
     unshuffled.keypoints[kp + 3] = ref.keypoints[kp + 3];
     for (let b = 0; b < DESCRIPTOR_BYTES; b++) {
       let byte = ref.descriptors[i * DESCRIPTOR_BYTES + b];
-      for (let bit = 0; bit < 8; bit++) if (rand() < bitFlipFraction) byte ^= 1 << bit;
+      for (let bit = 0; bit < 8; bit++) {
+        if (rand() < bitFlipFraction) byte ^= 1 << bit;
+      }
       unshuffled.descriptors[i * DESCRIPTOR_BYTES + b] = byte;
     }
   }

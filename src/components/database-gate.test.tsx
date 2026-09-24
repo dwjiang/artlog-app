@@ -6,8 +6,13 @@ import { reportError } from "@/lib/observability";
 
 const mockState: { success: boolean; error?: Error } = { success: false };
 
-jest.mock("@/db/use-database-migrations", () => ({ useDatabaseMigrations: () => mockState }));
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
+jest.mock("@/db/use-database-migrations", () => ({
+  useDatabaseMigrations: () => mockState,
+}));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 
 function renderGate() {
   return render(

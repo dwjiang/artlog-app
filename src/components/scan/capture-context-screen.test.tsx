@@ -7,11 +7,14 @@ import { calendarDate } from "@/shared/journal/limits";
 
 const mockBack = jest.fn();
 const mockUpdateSession = jest.fn();
-let mockParams: { draftId?: string; visitId?: string; venueId?: string; capturedAt?: string } = {};
+let mockParams: {
+  draftId?: string;
+  visitId?: string;
+  venueId?: string;
+  capturedAt?: string;
+} = {};
 let mockSession: PhotoSessionDraft = { photos: [] };
-let mockOpenVisit:
-  | { localId: string; venueId: string; visitedOn: string; timeZone: string }
-  | undefined;
+let mockOpenVisit: { localId: string; venueId: string; visitedOn: string; timeZone: string } | undefined;
 const mockVisitByDefault = jest.fn();
 let mockQuery = {
   data: [] as {
@@ -32,8 +35,13 @@ jest.mock("expo-router", () => ({
   router: { back: () => mockBack(), push: jest.fn() },
 }));
 jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: () => mockQuery }));
-jest.mock("@/db/repos/visits", () => ({ listVisits: jest.fn(), getVisit: jest.fn() }));
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "owner" }));
+jest.mock("@/db/repos/visits", () => ({
+  listVisits: jest.fn(),
+  getVisit: jest.fn(),
+}));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "owner",
+}));
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({ visit: mockOpenVisit }),
   visitByDefault: (...args: unknown[]) => mockVisitByDefault(...args),
@@ -87,10 +95,17 @@ beforeEach(() => {
 
 it("marks the capture’s own visit until the draft overrides it", async () => {
   mockParams = { draftId: "capture.jpg", visitId: "captured-visit" };
-  mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
+  mockQuery = {
+    data: [museum, other],
+    updatedAt: new Date(),
+    error: undefined,
+  };
   const view = await render(<CaptureContextScreen />);
   expect(
-    screen.getByRole("button", { name: "Museum · 29 Feb 2024", selected: true }),
+    screen.getByRole("button", {
+      name: "Museum · 29 Feb 2024",
+      selected: true,
+    }),
   ).toBeOnTheScreen();
   mockSession = { photos: [], visit: { kind: "none" } };
   mockParams = { draftId: "other.jpg", visitId: "captured-visit" };
@@ -99,7 +114,11 @@ it("marks the capture’s own visit until the draft overrides it", async () => {
 });
 
 it("writes the choice to the draft only and closes", async () => {
-  mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
+  mockQuery = {
+    data: [museum, other],
+    updatedAt: new Date(),
+    error: undefined,
+  };
   await render(<CaptureContextScreen />);
   expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Other museum · 1 Mar 2024" }));
@@ -115,7 +134,11 @@ it("writes the choice to the draft only and closes", async () => {
 
 describe("a capture scanned at a museum with no visit yet", () => {
   beforeEach(() => {
-    mockParams = { draftId: "capture.jpg", venueId: "id-met", capturedAt: String(Date.now()) };
+    mockParams = {
+      draftId: "capture.jpg",
+      venueId: "id-met",
+      capturedAt: String(Date.now()),
+    };
     mockQuery = { data: [other], updatedAt: new Date(), error: undefined };
   });
 
@@ -157,10 +180,17 @@ describe("a capture scanned at a museum with no visit yet", () => {
       visitedOn: "2024-02-29",
       timeZone: "America/New_York",
     };
-    mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
+    mockQuery = {
+      data: [museum, other],
+      updatedAt: new Date(),
+      error: undefined,
+    };
     await render(<CaptureContextScreen />);
     expect(
-      await screen.findByRole("button", { name: "Museum · Visiting now", selected: true }),
+      await screen.findByRole("button", {
+        name: "Museum · Visiting now",
+        selected: true,
+      }),
     ).toBeOnTheScreen();
     expect(screen.queryByText(/Starts with this artwork/)).toBeNull();
   });
@@ -174,7 +204,10 @@ describe("a capture scanned at a museum with no visit yet", () => {
     };
     await render(<CaptureContextScreen />);
     expect(
-      await screen.findByRole("button", { name: "Museum · 29 Feb 2024", selected: true }),
+      await screen.findByRole("button", {
+        name: "Museum · 29 Feb 2024",
+        selected: true,
+      }),
     ).toBeOnTheScreen();
     expect(screen.queryByText(/Starts with this artwork/)).toBeNull();
   });
@@ -194,7 +227,10 @@ describe("a capture scanned at a museum with no visit yet", () => {
       }),
     ).toBeOnTheScreen();
     expect(
-      screen.getByRole("button", { name: `Museum · ${formatVisitDate(today)}`, selected: false }),
+      screen.getByRole("button", {
+        name: `Museum · ${formatVisitDate(today)}`,
+        selected: false,
+      }),
     ).toBeOnTheScreen();
   });
 
@@ -232,7 +268,10 @@ describe("a capture scanned at a museum with no visit yet", () => {
       selected: true,
     });
     expect(
-      screen.getByRole("button", { name: "Museum · Visiting now", selected: false }),
+      screen.getByRole("button", {
+        name: "Museum · Visiting now",
+        selected: false,
+      }),
     ).toBeOnTheScreen();
     await fireEvent.press(option);
     expect(mockUpdateSession).toHaveBeenLastCalledWith("owner", "capture.jpg", {
@@ -253,7 +292,11 @@ describe("a capture scanned at a museum with no visit yet", () => {
 });
 
 it("places artwork only before museum visits and creation after them", async () => {
-  mockQuery = { data: [museum, other], updatedAt: new Date(), error: undefined };
+  mockQuery = {
+    data: [museum, other],
+    updatedAt: new Date(),
+    error: undefined,
+  };
   await render(<CaptureContextScreen />);
   const choices = screen.getAllByRole("button").map((button) => button.props.accessibilityLabel);
   expect(choices.indexOf("Artwork only")).toBeLessThan(choices.indexOf("Museum · 29 Feb 2024"));
@@ -288,9 +331,7 @@ it("preserves the current choice when saving the new choice fails", async () => 
   });
   await render(<CaptureContextScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Museum · 29 Feb 2024" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    /Your previous selection is unchanged\./,
-  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(/Your previous selection is unchanged\./);
   expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
 });

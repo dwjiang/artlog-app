@@ -40,11 +40,7 @@ const modes = [
 
 export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void }) {
   const session = useSocialSession();
-  const preference = useSocialQuery(
-    api.leaderboards.preference,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const preference = useSocialQuery(api.leaderboards.preference, session.status === "ready" ? {} : "skip", session.key);
   const change = useMutation(api.leaderboards.setPreference);
   const [draft, setDraft] = useState<LeaderboardVisibility>();
   const [pending, setPending] = useState(false),
@@ -75,12 +71,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     }
   }
   return (
-    <LeaderboardSheet
-      title="Participation"
-      dismissLabel="Cancel"
-      dismissDisabled={pending}
-      onDismiss={onDismiss}
-    >
+    <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>
       <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>
         Choose who can see your activity totals.
       </Text>
@@ -104,10 +95,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
                   <Row
                     spacing={12}
                     alignment="center"
-                    modifiers={[
-                      frame({ maxWidth: Infinity, alignment: "leading" }),
-                      contentShape(shapes.rectangle()),
-                    ]}
+                    modifiers={[frame({ maxWidth: Infinity, alignment: "leading" }), contentShape(shapes.rectangle())]}
                   >
                     <Icon
                       name={value === mode.value ? "largecircle.fill.circle" : "circle"}
@@ -121,14 +109,16 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
                     >
                       <NativeText
                         textStyle={{ color: Gallery.ink }}
-                        modifiers={[font({ textStyle: "subheadline", weight: "semibold" })]}
+                        modifiers={[
+                          font({
+                            textStyle: "subheadline",
+                            weight: "semibold",
+                          }),
+                        ]}
                       >
                         {PARTICIPATION_LABELS[mode.value]}
                       </NativeText>
-                      <NativeText
-                        textStyle={{ color: Gallery.muted }}
-                        modifiers={[font({ textStyle: "footnote" })]}
-                      >
+                      <NativeText textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "footnote" })]}>
                         {mode.description}
                       </NativeText>
                     </Column>
@@ -139,19 +129,15 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
           </Host>
           {preference.loading && <SocialState title="Loading participation…" loading />}
           {preference.error && (
-            <SocialState
-              title="Couldn’t load participation."
-              action="Try again"
-              onAction={preference.refresh}
-            />
+            <SocialState title="Couldn’t load participation." action="Try again" onAction={preference.refresh} />
           )}
         </>
       ) : (
         <SocialGate session={session} context="leaderboards" />
       )}
       <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>
-        Only your name, photo and activity totals are shared. Museum names, visit dates, private
-        notes and the rest of your collection stay private.
+        Only your name, photo and activity totals are shared. Museum names, visit dates, private notes and the rest of
+        your collection stay private.
       </Text>
       {error && (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>

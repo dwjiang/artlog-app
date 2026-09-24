@@ -8,14 +8,18 @@ const mockShare = jest.fn(),
   mockReleaseImage = jest.fn(),
   mockReleaseContext = jest.fn();
 const mockManipulate = jest.fn();
-jest.mock("expo-sharing", () => ({ shareAsync: (...args: unknown[]) => mockShare(...args) }));
+jest.mock("expo-sharing", () => ({
+  shareAsync: (...args: unknown[]) => mockShare(...args),
+}));
 jest.mock("expo-file-system", () => ({
   File: class {
     delete = mockDelete;
   },
 }));
 jest.mock("expo-image-manipulator", () => ({
-  ImageManipulator: { manipulate: (...args: unknown[]) => mockManipulate(...args) },
+  ImageManipulator: {
+    manipulate: (...args: unknown[]) => mockManipulate(...args),
+  },
   SaveFormat: { PNG: "png" },
 }));
 jest.mock("react-native-safe-area-context", () => ({
@@ -69,7 +73,11 @@ it("retries an unsuccessful profile query without calling it unavailable", async
 
 it("shows the profile identity and shares a PNG QR code through the native share sheet", async () => {
   mockResult = {
-    data: { profileId: "public-profile", name: "Jamie Lee", username: "jamielee" },
+    data: {
+      profileId: "public-profile",
+      name: "Jamie Lee",
+      username: "jamielee",
+    },
     loading: false,
   };
   await render(<ShareProfileScreen />);
@@ -92,7 +100,11 @@ it("shows the profile identity and shares a PNG QR code through the native share
 
 it("allows retry when QR image preparation fails before creating a context", async () => {
   mockResult = {
-    data: { profileId: "public-profile", name: "Jamie Lee", username: "jamielee" },
+    data: {
+      profileId: "public-profile",
+      name: "Jamie Lee",
+      username: "jamielee",
+    },
     loading: false,
   };
   mockManipulate.mockImplementationOnce(() => {
@@ -100,9 +112,7 @@ it("allows retry when QR image preparation fails before creating a context", asy
   });
   await render(<ShareProfileScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Your QR code could not be shared. Try again.",
-  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Your QR code could not be shared. Try again.");
   expect(screen.getByRole("button", { name: "Share QR code" })).toBeEnabled();
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
   await waitFor(() => expect(mockShare).toHaveBeenCalledTimes(1));

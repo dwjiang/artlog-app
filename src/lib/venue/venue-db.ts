@@ -24,7 +24,11 @@ export const VENUE_DB_NAME = "venues.db";
 export const STAGED_VENUE_DB_NAME = "venues.next.db";
 const INSTALLED_ASSET_SETTING = "venueTableAssetHash";
 
-export type VenueTableMeta = { version: number; generatedAt: string; rowCount: number };
+export type VenueTableMeta = {
+  version: number;
+  generatedAt: string;
+  rowCount: number;
+};
 
 /** The live copy stays at this path; staged tables are applied at launch in a transaction. */
 export function venueDbFile(): File {
@@ -39,15 +43,17 @@ const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, 
  * Journal venues are read out first so the caller can carry them into the new copy: the sync
  * checkpoint has already passed them, so nothing would send them again.
  */
-async function installBundledTable(
-  target: File,
-): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
+async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
   const assetKey = asset.hash ?? asset.uri;
   const reusable = target.exists && (await installedTableIsValid());
-  if (reusable && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) return undefined;
+  if (reusable && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) {
+    return undefined;
+  }
   await asset.downloadAsync();
-  if (!asset.localUri) throw new Error("The bundled venue table could not be loaded");
+  if (!asset.localUri) {
+    throw new Error("The bundled venue table could not be loaded");
+  }
   const carried = reusable ? await journalVenueRows() : [];
   target.parentDirectory.create({ intermediates: true, idempotent: true });
   await new File(asset.localUri).copy(target, { overwrite: true });
@@ -88,9 +94,7 @@ let opening: Promise<SQLiteDatabase> | undefined;
 async function installStagedTable(db: SQLiteDatabase): Promise<void> {
   const staged = new File(venueDbFile().parentDirectory, STAGED_VENUE_DB_NAME);
   if (!staged.exists) return;
-  await db.execAsync(
-    `ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`,
-  );
+  await db.execAsync(`ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`);
   try {
     await validateVenueTable(db, "downloaded");
     const current = await readVenueTableMeta(db);
@@ -118,10 +122,7 @@ async function installStagedTable(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export async function validateVenueTable(
-  db: SQLiteDatabase,
-  schema: "main" | "downloaded" = "main",
-): Promise<void> {
+export async function validateVenueTable(db: SQLiteDatabase, schema: "main" | "downloaded" = "main"): Promise<void> {
   await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM ${schema}.venues LIMIT 0`);
 }
 
@@ -135,7 +136,9 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
       await validateVenueTable(db);
       await db.execAsync("CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)");
       if (installed) {
-        for (const venue of installed.carried) await writeVenue(db, venue, "IGNORE");
+        for (const venue of installed.carried) {
+          await writeVenue(db, venue, "IGNORE");
+        }
         await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
       }
       await installStagedTable(db).catch((error: unknown) => {
@@ -157,19 +160,13 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
 }
 
 export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTableMeta> {
-  const meta = await db.getFirstAsync<VenueTableMeta>(
-    "SELECT version, generatedAt, rowCount FROM main.meta LIMIT 1",
-  );
+  const meta = await db.getFirstAsync<VenueTableMeta>("SELECT version, generatedAt, rowCount FROM main.meta LIMIT 1");
   if (!meta) throw new Error("The venue table has no meta row");
   return meta;
 }
 
 /** Seeded venues within `radiusM`, nearest first (a bounding-box scan of the 42k-row table takes a few ms). */
-export async function nearest(
-  db: SQLiteDatabase,
-  origin: Coordinate,
-  radiusM: number,
-): Promise<VenueCandidate[]> {
+export async function nearest(db: SQLiteDatabase, origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
   const box = boundingBox(origin, radiusM);
   const rows = await db.getAllAsync<VenueRow>(
     `SELECT ${VENUE_COLUMNS} FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
@@ -243,16 +240,12 @@ export async function venueMetadataForIds(ids: string[]): Promise<VenueRow[]> {
 
 /** The display name of a venue from the local table; a saved work keeps it as text. */
 export async function venueNameById(id: Id<"museums">): Promise<string | undefined> {
-  const row = await (
-    await openVenueDb()
-  ).getFirstAsync<{ name: string }>("SELECT name FROM venues WHERE id = ?", id);
+  const row = await (await openVenueDb()).getFirstAsync<{ name: string }>("SELECT name FROM venues WHERE id = ?", id);
   return row?.name;
 }
 
 export async function venueCoordinates(id: Id<"museums">): Promise<Coordinate | undefined> {
   return (
-    (await (
-      await openVenueDb()
-    ).getFirstAsync<Coordinate>("SELECT lat, lng FROM venues WHERE id = ?", id)) ?? undefined
+    (await (await openVenueDb()).getFirstAsync<Coordinate>("SELECT lat, lng FROM venues WHERE id = ?", id)) ?? undefined
   );
 }

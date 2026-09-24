@@ -32,11 +32,9 @@ jest.mock("expo-router", () => {
   );
   return {
     ...actual,
-    Stack: Object.assign(
-      (props: object) => React.createElement(actual.Stack, props),
-      actual.Stack,
-      { Toolbar: Object.assign(View, { Menu: View, MenuAction }) },
-    ),
+    Stack: Object.assign((props: object) => React.createElement(actual.Stack, props), actual.Stack, {
+      Toolbar: Object.assign(View, { Menu: View, MenuAction }),
+    }),
   };
 });
 async function makePrivate() {
@@ -55,19 +53,36 @@ const mockVisit = {
   reflection: "The afternoon light",
   startedAt: 1,
   endedAt: 5,
-  works: [{ localId: "painting", title: "Water Lilies", artist: "Claude Monet", cropPath: null }],
+  works: [
+    {
+      localId: "painting",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      cropPath: null,
+    },
+  ],
 } as VisitSummary;
 const mockEnd = jest.fn();
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ end: mockEnd }) }));
+jest.mock("@/lib/venue/use-venue", () => ({
+  useVenue: () => ({ end: mockEnd }),
+}));
 const mockToast = jest.fn();
-jest.mock("@/lib/ui/toast", () => ({ showToast: (...args: unknown[]) => mockToast(...args) }));
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+}));
 const mockLoad = jest.fn();
 const mockFlush = jest.fn();
-jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: () => mockFlush() }));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushJournal: () => mockFlush(),
+}));
 let mockSharingBusy = false;
 let mockPublication: { status: string; audience: "public" } | null = null;
 jest.mock("@/lib/journal/use-visits", () => ({
-  useVisits: () => ({ owner: mockVisit.owner, visits: [mockVisit], loading: false }),
+  useVisits: () => ({
+    owner: mockVisit.owner,
+    visits: [mockVisit],
+    loading: false,
+  }),
 }));
 jest.mock("@/lib/visits/use-visit-sharing", () => ({
   useVisitSharing: () => ({
@@ -78,7 +93,9 @@ jest.mock("@/lib/visits/use-visit-sharing", () => ({
   }),
 }));
 jest.mock("../loading-ring", () => ({ LoadingRing: () => null }));
-jest.mock("../collection/saved-work-image", () => ({ SavedWorkImage: () => null }));
+jest.mock("../collection/saved-work-image", () => ({
+  SavedWorkImage: () => null,
+}));
 const mockMarkSeen = jest.fn();
 jest.mock("@/lib/journal/visit-seen", () => ({
   markVisitSeen: (...args: unknown[]) => mockMarkSeen(...args),
@@ -92,7 +109,12 @@ beforeEach(() => {
   mockSharingBusy = false;
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   mockVisit.works = [
-    { localId: "painting", title: "Water Lilies", artist: "Claude Monet", cropPath: null },
+    {
+      localId: "painting",
+      title: "Water Lilies",
+      artist: "Claude Monet",
+      cropPath: null,
+    },
   ] as VisitSummary["works"];
   mockPublication = null;
   mockVisit.owner = "device:test-installation";
@@ -118,7 +140,10 @@ it("opens sign-in directly above a guest visit and preserves the visit when dism
   await navigation;
   await fireEvent.press(screen.getByRole("button", { name: "Prepare to share" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/sign-in"));
-  expect(navigation.getSearchParams()).toMatchObject({ context: "visit", visitId: "visit" });
+  expect(navigation.getSearchParams()).toMatchObject({
+    context: "visit",
+    visitId: "visit",
+  });
   await act(() => router.back());
   expect(navigation.getPathname()).toBe("/journal/visit");
   expect(screen.getByText("The afternoon light")).toBeOnTheScreen();
@@ -289,9 +314,7 @@ it("does not call a new unsynced private visit a pending privacy change", async 
     { initialUrl: "/journal/visit" },
   );
   expect(screen.getByText("Private visit")).toBeOnTheScreen();
-  expect(
-    screen.getByText("You choose what to share before anything is published."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("You choose what to share before anything is published.")).toBeOnTheScreen();
   expect(screen.queryByText(/waiting to sync/i)).toBeNull();
 });
 
@@ -338,10 +361,7 @@ it("warns when a privacy change cannot sync and retries without toggling again",
   await fireEvent.press(screen.getByRole("button", { name: "Retry visibility" }));
   await waitFor(() => expect(mockFlush).toHaveBeenCalledTimes(2));
   expect(save).toHaveBeenCalledTimes(2);
-  expect(save.mock.calls.map((call) => call[1])).toEqual([
-    { visibility: "private" },
-    { visibility: "private" },
-  ]);
+  expect(save.mock.calls.map((call) => call[1])).toEqual([{ visibility: "private" }, { visibility: "private" }]);
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
@@ -409,12 +429,7 @@ it("waits for pending notes to save before opening sharing", async () => {
   expect(navigation.getPathname()).toBe("/journal/visit");
   await act(async () => finish());
   await waitFor(() => expect(navigation.getPathname()).toBe("/visit-share/visit"));
-  expect(save).toHaveBeenCalledWith(
-    "visit",
-    { reflection: "Remember the blue room" },
-    mockVisit.owner,
-    { sync: true },
-  );
+  expect(save).toHaveBeenCalledWith("visit", { reflection: "Remember the blue room" }, mockVisit.owner, { sync: true });
 });
 
 it("keeps a pending Private sync distinct from a completed private save", async () => {
@@ -426,9 +441,7 @@ it("keeps a pending Private sync distinct from a completed private save", async 
     { initialUrl: "/journal/visit" },
   );
   expect(screen.getByText("Privacy change waiting to sync")).toBeOnTheScreen();
-  expect(
-    screen.getByText("Waiting to sync. The published visit is still visible."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("Waiting to sync. The published visit is still visible.")).toBeOnTheScreen();
   expect(screen.queryByText("Saved privately")).toBeNull();
   expect(screen.getByRole("button", { name: "Save" })).toBeOnTheScreen();
 });
@@ -437,10 +450,7 @@ async function openEndReview() {
   const navigation = renderRouter({
     _layout: () => <Stack />,
     index: () => (
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push("/journal/visit?endVisit=true")}
-      >
+      <Pressable accessibilityRole="button" onPress={() => router.push("/journal/visit?endVisit=true")}>
         <Text>End visit</Text>
       </Pressable>
     ),
@@ -552,11 +562,6 @@ it("offers Save for an already private visit and confirms it without sharing", a
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Latest private note");
   await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Visit saved."));
-  expect(save).toHaveBeenCalledWith(
-    "visit",
-    { reflection: "Latest private note" },
-    mockVisit.owner,
-    { sync: true },
-  );
+  expect(save).toHaveBeenCalledWith("visit", { reflection: "Latest private note" }, mockVisit.owner, { sync: true });
   expect(mockEnd).not.toHaveBeenCalled();
 });

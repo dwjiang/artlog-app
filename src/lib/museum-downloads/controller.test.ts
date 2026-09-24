@@ -14,7 +14,11 @@ const pack: MuseumManifest = {
   size: 3000,
   count: 2,
   previews: [],
-  chunks: [0, 1, 2].map((n) => ({ url: `https://file/${n}`, size: 1000, sha256: "hash" })),
+  chunks: [0, 1, 2].map((n) => ({
+    url: `https://file/${n}`,
+    size: 1000,
+    sha256: "hash",
+  })),
 };
 function fixture() {
   let saved: Parameters<DownloadDependencies["write"]>[0] | undefined;

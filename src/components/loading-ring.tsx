@@ -62,12 +62,7 @@ export function LoadingRing({
                 }),
           }}
         >
-          <Image
-            source={arc}
-            tintColor={color}
-            accessible={false}
-            style={{ width: diameter, height: diameter }}
-          />
+          <Image source={arc} tintColor={color} accessible={false} style={{ width: diameter, height: diameter }} />
         </Animated.View>
       </View>
     </View>

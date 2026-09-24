@@ -5,19 +5,17 @@ import { api } from "../../../convex/_generated/api";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
 import { addBreadcrumb, reportError } from "@/lib/observability";
-import {
-  openVenueDb,
-  readVenueTableMeta,
-  STAGED_VENUE_DB_NAME,
-  validateVenueTable,
-  venueDbFile,
-} from "./venue-db";
+import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from "./venue-db";
 
 export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";
 export const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const TEMP_DB_NAME = "venues.db.tmp";
 
-export type LatestVenueTable = { version: number; rowCount: number; url: string };
+export type LatestVenueTable = {
+  version: number;
+  rowCount: number;
+  url: string;
+};
 
 export type RefreshDependencies = {
   getCheckedAt(): Promise<number | undefined>;
@@ -35,10 +33,14 @@ export type RefreshOutcome = "skipped" | "current" | "downloaded";
 export async function refreshVenueTable(deps: RefreshDependencies): Promise<RefreshOutcome> {
   const now = deps.now();
   const checkedAt = await deps.getCheckedAt();
-  if (checkedAt !== undefined && now - checkedAt < REFRESH_INTERVAL_MS) return "skipped";
+  if (checkedAt !== undefined && now - checkedAt < REFRESH_INTERVAL_MS) {
+    return "skipped";
+  }
   const latest = await deps.fetchLatest();
   await deps.setCheckedAt(now);
-  if (!latest || latest.version <= (await deps.localVersion())) return "current";
+  if (!latest || latest.version <= (await deps.localVersion())) {
+    return "current";
+  }
   await deps.install(latest);
   return "downloaded";
 }
@@ -48,7 +50,9 @@ async function installTable(latest: LatestVenueTable): Promise<void> {
   const temp = new File(target.parentDirectory, TEMP_DB_NAME);
   if (temp.exists) temp.delete();
   await File.downloadFileAsync(latest.url, temp);
-  const downloaded = await openDatabaseAsync(TEMP_DB_NAME, { useNewConnection: true });
+  const downloaded = await openDatabaseAsync(TEMP_DB_NAME, {
+    useNewConnection: true,
+  });
   try {
     await validateVenueTable(downloaded);
     const meta = await readVenueTableMeta(downloaded);
@@ -60,7 +64,9 @@ async function installTable(latest: LatestVenueTable): Promise<void> {
   } finally {
     await downloaded.closeAsync();
   }
-  await temp.move(new File(target.parentDirectory, STAGED_VENUE_DB_NAME), { overwrite: true });
+  await temp.move(new File(target.parentDirectory, STAGED_VENUE_DB_NAME), {
+    overwrite: true,
+  });
 }
 
 export const refreshDependencies: RefreshDependencies = {

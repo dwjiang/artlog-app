@@ -13,7 +13,11 @@ const kinds: Record<SpendKind, { field: SpendField; env: string; defaultCap: num
     env: "DAILY_TOKEN_FACTORY_CALL_CAP",
     defaultCap: 2000,
   },
-  tavily: { field: "tavilyCredits", env: "DAILY_TAVILY_CREDIT_CAP", defaultCap: 2000 },
+  tavily: {
+    field: "tavilyCredits",
+    env: "DAILY_TAVILY_CREDIT_CAP",
+    defaultCap: 2000,
+  },
 };
 
 export function dailyCap(kind: SpendKind): number {
@@ -41,13 +45,17 @@ export async function spentToday(ctx: QueryCtx | MutationCtx, kind: SpendKind): 
 export async function assertUnderCap(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<void> {
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
-  if (spent >= cap) throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  if (spent >= cap) {
+    throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  }
 }
 
 export type SpendDelta = { tokenFactoryCalls?: number; tavilyCredits?: number };
 
 function requireAmount(amount: number): void {
-  if (!Number.isFinite(amount) || amount < 0) throw new ConvexError({ code: "invalid_spend" });
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new ConvexError({ code: "invalid_spend" });
+  }
 }
 
 async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Promise<void> {
@@ -75,16 +83,14 @@ export async function recordSpend(ctx: MutationCtx, delta: SpendDelta): Promise<
  * callers cannot collectively overshoot. Returns the UTC day to pass to `reconcileSpend` exactly
  * once when usage is known; retain the reservation after an ambiguous timeout.
  */
-export async function reserveSpend(
-  ctx: MutationCtx,
-  kind: SpendKind,
-  amount: number,
-): Promise<string> {
+export async function reserveSpend(ctx: MutationCtx, kind: SpendKind, amount: number): Promise<string> {
   requireAmount(amount);
   const day = utcDay();
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
-  if (spent + amount > cap) throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  if (spent + amount > cap) {
+    throw new ConvexError({ code: "spend_cap", kind, spent, cap });
+  }
   await adjustSpend(ctx, day, { [kinds[kind].field]: amount });
   return day;
 }
@@ -100,5 +106,7 @@ export async function reconcileSpend(
   if (!row || row[kinds[kind].field] < usage.reserved) {
     throw new ConvexError({ code: "invalid_spend" });
   }
-  await adjustSpend(ctx, usage.day, { [kinds[kind].field]: usage.actual - usage.reserved });
+  await adjustSpend(ctx, usage.day, {
+    [kinds[kind].field]: usage.actual - usage.reserved,
+  });
 }

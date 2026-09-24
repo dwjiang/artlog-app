@@ -26,12 +26,7 @@ export async function recordResult(
   owner = getLocalOwner(),
 ): Promise<void> {
   if (response.status === "unsupported_version") {
-    await pending.markFailed(
-      localId,
-      response.error ?? "Update the app to identify.",
-      response.scanId,
-      owner,
-    );
+    await pending.markFailed(localId, response.error ?? "Update the app to identify.", response.scanId, owner);
   } else {
     await pending.markIdentified(localId, response.scanId, owner);
   }
@@ -40,7 +35,9 @@ export async function recordResult(
 export const captureStore: CaptureStore = {
   async enqueue(payload, status) {
     const current = captureOwner();
-    if (payload.owner !== current.owner) throw new Error("Journal owner changed");
+    if (payload.owner !== current.owner) {
+      throw new Error("Journal owner changed");
+    }
     const files = await persistCapture({
       localId: payload.localId,
       photoUri: payload.photoUri,
@@ -88,11 +85,12 @@ function makeFlusher() {
     isLabelCapture,
     listFlushable: (version) => pending.listFlushable(version, owner),
     listPendingLabels: () => pending.listPendingLabels(owner),
-    recordLabelFailure: (id, error, options) =>
-      pending.recordLabelFailure(id, error, options, owner),
+    recordLabelFailure: (id, error, options) => pending.recordLabelFailure(id, error, options, owner),
     clearPendingLabel: async (localId, label) => {
       await pending.clearPendingLabel(localId, label, owner);
-      if (label.labelPhotoPath) removeFile(captureFileUri(label.labelPhotoPath));
+      if (label.labelPhotoPath) {
+        removeFile(captureFileUri(label.labelPhotoPath));
+      }
     },
     markIdentifying: (id) => pending.markIdentifying(id, owner),
     recordResult: (id, response) => recordResult(id, response, owner),
@@ -101,8 +99,13 @@ function makeFlusher() {
     updateFeatures: (id, features) => pending.updateFeatures(id, features, owner),
     resolveVisitId: resolveScanVisit,
     identify: (args) => {
-      if (!current.isCurrent() || !current.scope) throw new Error("Journal owner changed");
-      return convex.action(api.identify.identify, { ...args, scope: current.scope });
+      if (!current.isCurrent() || !current.scope) {
+        throw new Error("Journal owner changed");
+      }
+      return convex.action(api.identify.identify, {
+        ...args,
+        scope: current.scope,
+      });
     },
     runLabelFlow: async (scanId, label) => {
       try {
@@ -117,9 +120,7 @@ function makeFlusher() {
     },
     reembed: (cropPath) => extractFeatures(captureFileUri(cropPath), { embedder, orb }),
     isOnline: async () =>
-      current.isCurrent() &&
-      !!current.scope &&
-      (await getNetworkStateAsync()).isInternetReachable !== false,
+      current.isCurrent() && !!current.scope && (await getNetworkStateAsync()).isInternetReachable !== false,
     modelVersion: model.modelVersion,
   });
 }

@@ -8,10 +8,7 @@ export function recognitionPartition(modelVersion: string, venueId?: Id<"museums
   return JSON.stringify([modelVersion, venueId ?? "established"]);
 }
 
-type RightsRow = Pick<
-  Doc<"contributions">,
-  "venueId" | "fields" | "sourceUrl" | "identityImageUrl" | "wikidataId"
->;
+type RightsRow = Pick<Doc<"contributions">, "venueId" | "fields" | "sourceUrl" | "identityImageUrl" | "wikidataId">;
 
 // The same rights predicate gates a contribution when it is shared and whenever it is read afterwards,
 // so a later opt-out or takedown hides every entry the label would have been refused for.
@@ -54,47 +51,44 @@ export async function contributionRightsIssue(
         .query("takedowns")
         .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))
         .first()
-    )
+    ) {
       return "artwork_taken_down";
+    }
     if (
       await ctx.db
         .query("takedowns")
-        .withIndex("by_identity_artwork_venue", (q) =>
-          q.eq("identityArtworkId", artworkId).eq("venueId", row.venueId),
-        )
+        .withIndex("by_identity_artwork_venue", (q) => q.eq("identityArtworkId", artworkId).eq("venueId", row.venueId))
         .first()
-    )
+    ) {
       return "artwork_taken_down";
+    }
   }
   return null;
 }
 
-export async function eligibleContribution(
-  ctx: QueryCtx,
-  row: Doc<"contributions"> | null,
-): Promise<boolean> {
-  if (!row || row.status !== "tentative" || !row.cropStorageId || !row.orbStorageId) return false;
+export async function eligibleContribution(ctx: QueryCtx, row: Doc<"contributions"> | null): Promise<boolean> {
+  if (!row || row.status !== "tentative" || !row.cropStorageId || !row.orbStorageId) {
+    return false;
+  }
   const device = await ctx.db.get(row.deviceId);
   return !!device && !device.banned && (await contributionRightsIssue(ctx, row)) === null;
 }
 
 // The object row on its own: reverts, merges, takedowns, and reviewed proposal provenance.
-export async function eligibleObjectRecord(
-  ctx: QueryCtx,
-  object: Doc<"objects">,
-): Promise<boolean> {
+export async function eligibleObjectRecord(ctx: QueryCtx, object: Doc<"objects">): Promise<boolean> {
   if (object.reverted || object.mergedInto) return false;
   if (
     (await ctx.db
       .query("takedowns")
       .withIndex("by_artworkId", (q) => q.eq("artworkId", object.artworkId))
-      .first()) ||
-    (await ctx.db
+      .first())
+    || (await ctx.db
       .query("takedowns")
       .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
       .first())
-  )
+  ) {
     return false;
+  }
   if (object.sourceProposalId) {
     const proposal = await ctx.db.get(object.sourceProposalId);
     if (!proposal || proposal.revertedAt !== undefined) return false;
@@ -106,25 +100,21 @@ export async function eligibleObjectRecord(
   return true;
 }
 
-export async function eligibleObject(
-  ctx: QueryCtx,
-  object: Doc<"objects">,
-  venueId?: Id<"museums">,
-): Promise<boolean> {
+export async function eligibleObject(ctx: QueryCtx, object: Doc<"objects">, venueId?: Id<"museums">): Promise<boolean> {
   if (!(await eligibleObjectRecord(ctx, object))) return false;
   if (object.identityStatus === "established") return true;
-  if (!venueId || object.ownerId !== venueId || !object.sourceContributionId) return false;
+  if (!venueId || object.ownerId !== venueId || !object.sourceContributionId) {
+    return false;
+  }
   return eligibleContribution(ctx, await ctx.db.get(object.sourceContributionId));
 }
 
 export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Promise<boolean> {
   if (vector.source === "user" && !vector.contributionId) return false;
   if (vector.source === "user_scan" && !vector.scanId) return false;
-  if (
-    vector.contributionId &&
-    !(await eligibleContribution(ctx, await ctx.db.get(vector.contributionId)))
-  )
+  if (vector.contributionId && !(await eligibleContribution(ctx, await ctx.db.get(vector.contributionId)))) {
     return false;
+  }
   if (vector.scanId) {
     const scan = await ctx.db.get(vector.scanId);
     const device = scan ? await ctx.db.get(scan.deviceId) : null;
@@ -132,11 +122,10 @@ export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Pro
   }
   if (vector.feedbackId) {
     const feedback = await ctx.db.get(vector.feedbackId);
-    if (!feedback?.multiViewAgreement || feedback.resolution.kind !== "runner_up") return false;
-    for (const id of [
-      feedback.multiViewAgreement.firstDeviceId,
-      feedback.multiViewAgreement.secondDeviceId,
-    ]) {
+    if (!feedback?.multiViewAgreement || feedback.resolution.kind !== "runner_up") {
+      return false;
+    }
+    for (const id of [feedback.multiViewAgreement.firstDeviceId, feedback.multiViewAgreement.secondDeviceId]) {
       const device = await ctx.db.get(id);
       if (!device || device.banned) return false;
     }

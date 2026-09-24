@@ -8,11 +8,7 @@ import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { settings as settingsTable } from "@/db/schema";
 import { getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
-import {
-  widgetCollection,
-  type PreparedWidgetArtwork,
-  type WidgetArtwork,
-} from "./widget-collection";
+import { widgetCollection, type PreparedWidgetArtwork, type WidgetArtwork } from "./widget-collection";
 import { createWidgetPublisher } from "./widget-publisher";
 import { readWidgetSettings, widgetSettingsKey, type WidgetSettings } from "./widget-settings";
 import {
@@ -61,27 +57,15 @@ function useWidgetState(owner: string) {
     [owner, works.data, visits.data, encounters.data, photos.data],
   );
   const artworks = useMemo(
-    () =>
-      widgetCollection(
-        owner,
-        works.data,
-        visits.data,
-        encounters.data,
-        photos.data,
-        preferences.source,
-      ),
+    () => widgetCollection(owner, works.data, visits.data, encounters.data, photos.data, preferences.source),
     [owner, works.data, visits.data, encounters.data, photos.data, preferences.source],
   );
   const queryError = works.error ?? visits.error ?? encounters.error ?? photos.error;
-  const loading =
-    !queryError &&
-    (!works.updatedAt || !visits.updatedAt || !encounters.updatedAt || !photos.updatedAt);
+  const loading = !queryError && (!works.updatedAt || !visits.updatedAt || !encounters.updatedAt || !photos.updatedAt);
   const syncing =
-    !loading &&
-    !queryError &&
-    (settled?.artworks !== artworks ||
-      settled.preferences !== preferences ||
-      settled.revision !== revision);
+    !loading
+    && !queryError
+    && (settled?.artworks !== artworks || settled.preferences !== preferences || settled.revision !== revision);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") refresh((value) => value + 1);
@@ -118,7 +102,10 @@ function useWidgetState(owner: string) {
     try {
       db.insert(settingsTable)
         .values({ key: widgetSettingsKey(owner), value: JSON.stringify(next) })
-        .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(next) } })
+        .onConflictDoUpdate({
+          target: settingsTable.key,
+          set: { value: JSON.stringify(next) },
+        })
         .run();
       setPreferences(next);
       setError(undefined);

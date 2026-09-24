@@ -36,7 +36,10 @@ const request = {
 describe("Token Factory chatJson", () => {
   it("sends a strict json_schema request with thinking disabled and parses the JSON content", async () => {
     fetchMock.mockResolvedValueOnce(completion({ ok: true }));
-    await expect(chatJson(request)).resolves.toEqual({ value: { ok: true }, calls: 1 });
+    await expect(chatJson(request)).resolves.toEqual({
+      value: { ok: true },
+      calls: 1,
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.tokenfactory.nebius.com/v1/chat/completions");
     expect(init).toMatchObject({
@@ -44,8 +47,7 @@ describe("Token Factory chatJson", () => {
       headers: {
         Authorization: "Bearer test-key",
         "Content-Type": "application/json",
-        "User-Agent":
-          "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
+        "User-Agent": "artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app; mailto:ops@example.org)",
       },
     });
     expect(JSON.parse(String(init?.body))).toEqual({
@@ -76,9 +78,7 @@ describe("Token Factory chatJson", () => {
   it("retries once on 429 honoring Retry-After capped at five seconds, then counts both calls", async () => {
     vi.useFakeTimers();
     fetchMock
-      .mockResolvedValueOnce(
-        new Response("busy", { status: 429, headers: { "retry-after": "30" } }),
-      )
+      .mockResolvedValueOnce(new Response("busy", { status: 429, headers: { "retry-after": "30" } }))
       .mockResolvedValueOnce(completion({ ok: true }));
     const pending = chatJson(request);
     await vi.advanceTimersByTimeAsync(4999);
@@ -87,9 +87,7 @@ describe("Token Factory chatJson", () => {
     await expect(pending).resolves.toEqual({ value: { ok: true }, calls: 2 });
     expect(retryDelayMs(null)).toBe(1000);
     expect(retryDelayMs("2")).toBe(2000);
-    expect(retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now())).toBeLessThanOrEqual(
-      3000,
-    );
+    expect(retryDelayMs(new Date(Date.now() + 3000).toUTCString(), Date.now())).toBeLessThanOrEqual(3000);
   });
 
   it("gives up after the second 5xx with the call count attached", async () => {
@@ -105,7 +103,9 @@ describe("Token Factory chatJson", () => {
   it.each([
     [
       "bad_json",
-      jsonResponse({ choices: [{ message: { content: "{not json" }, finish_reason: "stop" }] }),
+      jsonResponse({
+        choices: [{ message: { content: "{not json" }, finish_reason: "stop" }],
+      }),
     ],
     ["schema", completion({ nope: 1 })],
     ["truncated", completion({ ok: true }, "length")],
@@ -120,7 +120,9 @@ describe("Token Factory chatJson", () => {
 
   it("fails fast without a key and on network errors", async () => {
     vi.stubEnv("NEBIUS_API_KEY", "");
-    await expect(chatJson(request)).rejects.toMatchObject({ data: { code: "model_unconfigured" } });
+    await expect(chatJson(request)).rejects.toMatchObject({
+      data: { code: "model_unconfigured" },
+    });
     expect(fetchMock).not.toHaveBeenCalled();
     vi.stubEnv("NEBIUS_API_KEY", "k");
     fetchMock.mockRejectedValueOnce(new Error("aborted"));

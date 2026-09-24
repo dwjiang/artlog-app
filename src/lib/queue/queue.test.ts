@@ -91,8 +91,7 @@ jest.mock("./flush", () => ({
 // Loaded after the mocks above exist: the factories hand back objects declared in this file.
 const { captureStore, discardPendingLabel, flushQueue, retryPendingScan, startQueueFlusher } =
   jest.requireActual<typeof import("./queue")>("./queue");
-const { runCapture } =
-  jest.requireActual<typeof import("../capture/pipeline")>("../capture/pipeline");
+const { runCapture } = jest.requireActual<typeof import("../capture/pipeline")>("../capture/pipeline");
 
 const scanId = "scan-1" as Id<"scans">;
 const payload: CapturePayload = {
@@ -115,7 +114,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const fn of Object.values(mockRepo)) fn.mockResolvedValue(undefined);
   mockDocumentsUri = "file:///documents";
-  mockPersist.mockResolvedValue({ photoPath: "photos/cap-1.jpg", cropPath: "crops/cap-1.jpg" });
+  mockPersist.mockResolvedValue({
+    photoPath: "photos/cap-1.jpg",
+    cropPath: "crops/cap-1.jpg",
+  });
   mockFlush.mockResolvedValue(undefined);
   mockNetworkListener.mockReturnValue({ remove: jest.fn() });
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -154,36 +156,27 @@ it("persists both files before inserting the row with the requested status", asy
     },
     payload.owner,
   );
-  expect(mockPersist.mock.invocationCallOrder[0]).toBeLessThan(
-    mockRepo.enqueuePendingScan.mock.invocationCallOrder[0],
-  );
+  expect(mockPersist.mock.invocationCallOrder[0]).toBeLessThan(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]);
   expect(mockFlush).not.toHaveBeenCalled();
 });
 
 it("records identified scans, keeps unsupported versions as failed, and requeues without counting", async () => {
-  await captureStore.recordResult("cap-1", { scanId, status: "identified" } as IdentifyResponse);
+  await captureStore.recordResult("cap-1", {
+    scanId,
+    status: "identified",
+  } as IdentifyResponse);
   expect(mockRepo.markIdentified).toHaveBeenCalledWith("cap-1", scanId, payload.owner);
   await captureStore.recordResult("cap-1", {
     scanId,
     status: "unsupported_version",
     error: "Update the app to identify.",
   } as IdentifyResponse);
-  expect(mockRepo.markFailed).toHaveBeenCalledWith(
-    "cap-1",
-    "Update the app to identify.",
-    scanId,
-    payload.owner,
-  );
+  expect(mockRepo.markFailed).toHaveBeenCalledWith("cap-1", "Update the app to identify.", scanId, payload.owner);
   await captureStore.recordResult("cap-1", {
     scanId,
     status: "unsupported_version",
   } as IdentifyResponse);
-  expect(mockRepo.markFailed).toHaveBeenLastCalledWith(
-    "cap-1",
-    "Update the app to identify.",
-    scanId,
-    payload.owner,
-  );
+  expect(mockRepo.markFailed).toHaveBeenLastCalledWith("cap-1", "Update the app to identify.", scanId, payload.owner);
   await captureStore.requeue("cap-1", "Network request failed");
   expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith(
     "cap-1",
@@ -200,7 +193,12 @@ it.each(["device_not_registered", "rate_limited"])(
     const failure = new ConvexError({ code: error });
     await expect(
       runCapture(
-        { photoUri: payload.photoUri, capturedAt: 1, quad: null, source: "camera" },
+        {
+          photoUri: payload.photoUri,
+          capturedAt: 1,
+          quad: null,
+          source: "camera",
+        },
         {
           warper: {
             warpAndLetterbox: async () => ({
@@ -217,7 +215,10 @@ it.each(["device_not_registered", "rate_limited"])(
             }),
           },
           triage: { check: async () => ({ ok: true }) },
-          embedder: { modelVersion: "v1", embed: async () => new Float32Array([1]) },
+          embedder: {
+            modelVersion: "v1",
+            embed: async () => new Float32Array([1]),
+          },
           orb: {
             extract: async () => ({
               descriptors: payload.descriptors,
@@ -234,12 +235,7 @@ it.each(["device_not_registered", "rate_limited"])(
         { modelVersion: "v1", inputSize: 512 },
       ),
     ).rejects.toBe(failure);
-    expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith(
-      "cap-1",
-      error,
-      { countAttempt: false },
-      payload.owner,
-    );
+    expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith("cap-1", error, { countAttempt: false }, payload.owner);
     expect(mockFlush).toHaveBeenCalledTimes(1);
     expect(mockRepo.recordAttemptFailure.mock.invocationCallOrder[0]).toBeLessThan(
       mockFlush.mock.invocationCallOrder[0],
@@ -251,9 +247,7 @@ it("wakes the worker once an offline capture is stored, without relying on a mou
   await startWorker();
   await captureStore.enqueue(payload, "queued");
   expect(mockFlush).toHaveBeenCalledTimes(1);
-  expect(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]).toBeLessThan(
-    mockFlush.mock.invocationCallOrder[0],
-  );
+  expect(mockRepo.enqueuePendingScan.mock.invocationCallOrder[0]).toBeLessThan(mockFlush.mock.invocationCallOrder[0]);
 });
 
 it("flushes at start, on reconnect and on foreground, and stops cleanly", async () => {
@@ -315,9 +309,7 @@ it("resets a failed row and flushes on manual retry", async () => {
 it("wires identify, reachability and re-embedding into the flusher", async () => {
   await startWorker();
   mockResolveVisit.mockResolvedValue("remote-visit");
-  expect(await flushDeps.resolveVisitId("local-visit", "museum-1" as Id<"museums">)).toBe(
-    "remote-visit",
-  );
+  expect(await flushDeps.resolveVisitId("local-visit", "museum-1" as Id<"museums">)).toBe("remote-visit");
   expect(mockResolveVisit).toHaveBeenCalledWith("local-visit", "museum-1");
   mockAction.mockResolvedValue("response");
   const args = {
@@ -329,7 +321,10 @@ it("wires identify, reachability and re-embedding into the flusher", async () =>
     capturedAt: 1,
   };
   expect(await flushDeps.identify(args)).toBe("response");
-  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, { ...args, scope: "test-scope" });
+  expect(mockAction).toHaveBeenCalledWith(api.identify.identify, {
+    ...args,
+    scope: "test-scope",
+  });
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: false });
   expect(await flushDeps.isOnline()).toBe(false);
   mockNetworkState.mockResolvedValueOnce({ isInternetReachable: undefined });
@@ -343,12 +338,7 @@ it("wires identify, reachability and re-embedding into the flusher", async () =>
   });
   expect(flushDeps.modelVersion).toBe(model.modelVersion);
   await flushDeps.recordFailure("cap-1", "failed", { countAttempt: false });
-  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith(
-    "cap-1",
-    "failed",
-    { countAttempt: false },
-    payload.owner,
-  );
+  expect(mockRepo.recordAttemptFailure).toHaveBeenCalledWith("cap-1", "failed", { countAttempt: false }, payload.owner);
   mockRunLabelFlow.mockResolvedValue({ stage: "verified" });
   await expect(
     flushDeps.runLabelFlow(scanId, {
@@ -360,9 +350,7 @@ it("wires identify, reachability and re-embedding into the flusher", async () =>
     labelPhotoUri: "file:///new-container/documents/labels/a.jpg",
     qrUrl: "https://museum.example/qr",
   });
-  await expect(
-    flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" }),
-  ).resolves.toBeUndefined();
+  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" })).resolves.toBeUndefined();
   expect(mockRunLabelFlow).toHaveBeenLastCalledWith(scanId, {
     labelPhotoUri: undefined,
     qrUrl: "https://museum.example/qr",
@@ -373,13 +361,14 @@ it("preserves transport errors from the label reader for queue backoff", async (
   await startWorker();
   const cause = new Error("Network request failed");
   mockRunLabelFlow.mockRejectedValue(new LabelFlowError("network", { cause }));
-  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" })).rejects.toBe(
-    cause,
-  );
+  await expect(flushDeps.runLabelFlow(scanId, { qrUrl: "https://museum.example/qr" })).rejects.toBe(cause);
 });
 
 it("discards only the pending label and its file when the user chooses a retake", async () => {
-  mockRepo.getPendingScan.mockResolvedValue({ labelPhotoPath: "labels/failed.jpg", qrUrl: null });
+  mockRepo.getPendingScan.mockResolvedValue({
+    labelPhotoPath: "labels/failed.jpg",
+    qrUrl: null,
+  });
   await discardPendingLabel("cap-1");
   expect(mockRepo.clearPendingLabel).toHaveBeenCalledWith(
     "cap-1",

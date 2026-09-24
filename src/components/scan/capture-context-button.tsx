@@ -24,20 +24,20 @@ function dayLabel(visitedOn: string, today: boolean): string {
 
 type VisitSummary = { name: string; day: string } | "none" | "unavailable";
 
-function visitSummary(
-  visit: Pick<Visit, "venueName" | "visitedOn" | "timeZone">,
-  now = Date.now(),
-): VisitSummary {
-  return { name: visit.venueName, day: dayLabel(visit.visitedOn, isVisitToday(visit, now)) };
+function visitSummary(visit: Pick<Visit, "venueName" | "visitedOn" | "timeZone">, now = Date.now()): VisitSummary {
+  return {
+    name: visit.venueName,
+    day: dayLabel(visit.visitedOn, isVisitToday(visit, now)),
+  };
 }
 
 // The row leads with the day so a long museum name truncates before the date does.
 function formatVisit(summary: VisitSummary, variant: "chip" | "row"): string {
   if (summary === "none") return variant === "chip" ? "No visit" : "None";
-  if (summary === "unavailable") return variant === "chip" ? "Visit unavailable" : "Unavailable";
-  return variant === "chip"
-    ? `${summary.name} · ${summary.day}`
-    : `${summary.day} · ${summary.name}`;
+  if (summary === "unavailable") {
+    return variant === "chip" ? "Visit unavailable" : "Unavailable";
+  }
+  return variant === "chip" ? `${summary.name} · ${summary.day}` : `${summary.day} · ${summary.name}`;
 }
 
 /** The museum a save starts or joins a visit at, with the visit's day taken from the capture in the museum's time zone. */
@@ -51,7 +51,12 @@ export async function venueVisitLabel(
   const timeZone = tzLookup(venue.lat, venue.lng);
   const visitedOn = calendarDate(capturedAt, timeZone);
   const today = isVisitToday({ visitedOn, timeZone }, now);
-  return { name: venue.name, visitedOn, today, day: dayLabel(visitedOn, today) };
+  return {
+    name: venue.name,
+    visitedOn,
+    today,
+    day: dayLabel(visitedOn, today),
+  };
 }
 
 export type CaptureContextCapture = {
@@ -78,10 +83,7 @@ export function CaptureContextButton({
     useCallback(() => {
       let active = true;
       async function load() {
-        const choice = captureVisitChoice(
-          { visitLocalId, venueId, capturedAt },
-          readPhotoSession(owner, draftId),
-        );
+        const choice = captureVisitChoice({ visitLocalId, venueId, capturedAt }, readPhotoSession(owner, draftId));
         let next: VisitSummary = "none";
         if (choice.kind === "visit") {
           const visit = await getVisit(choice.localId, owner);
@@ -121,11 +123,7 @@ export function CaptureContextButton({
           },
         })
       }
-      style={({ pressed }) => [
-        row ? styles.row : styles.chip,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}
+      style={({ pressed }) => [row ? styles.row : styles.chip, pressed && styles.pressed, disabled && styles.disabled]}
     >
       {row && (
         <ThemedText variant="secondary" themeColor="textSecondary">
@@ -161,7 +159,12 @@ const styles = StyleSheet.create({
     borderColor: Gallery.ink,
     backgroundColor: Gallery.surface,
   },
-  row: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: Spacing.two },
+  row: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
   pressed: { opacity: 0.6 },
   disabled: { opacity: 0.5 },
   icon: { width: 16, height: 16 },

@@ -60,9 +60,7 @@ it("allows choosing units after a failed read without claiming a saved selection
       <GeneralPreference />
     </GroupedList>,
   );
-  expect(
-    await screen.findByText("The preference could not load. Choose your units to try again."),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("The preference could not load. Choose your units to try again.")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { selected: true })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
   expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen();

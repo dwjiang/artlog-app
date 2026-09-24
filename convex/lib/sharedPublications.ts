@@ -21,7 +21,11 @@ export const publicationHeader = v.object({
   audience: visitAudience,
   postId: v.string(),
   author: publicProfile,
-  venue: v.object({ venueId: v.id("museums"), name: v.string(), city: v.optional(v.string()) }),
+  venue: v.object({
+    venueId: v.id("museums"),
+    name: v.string(),
+    city: v.optional(v.string()),
+  }),
   artworkCount: v.optional(v.number()),
   visitedOn: v.string(),
   reflection: v.string(),
@@ -33,7 +37,10 @@ export const artworkPage = v.object({
   cursor: v.union(v.string(), v.null()),
   isDone: v.boolean(),
 });
-export const publicationView = v.object({ ...publicationHeader.fields, artworks: artworkPage });
+export const publicationView = v.object({
+  ...publicationHeader.fields,
+  artworks: artworkPage,
+});
 export const publicationState = v.object({
   audience: visitAudience,
   postId: v.union(v.string(), v.null()),
@@ -54,16 +61,10 @@ export async function readHeadroom(ctx: QueryCtx, reserve = 6 * 1024 * 1024) {
   const metrics = await ctx.meta.getTransactionMetrics();
   return metrics.bytesRead.remaining > reserve && metrics.databaseQueries.remaining > 100;
 }
-export function publicationForVisit(
-  ctx: QueryCtx,
-  profileId: Id<"profiles">,
-  visitLocalId: string,
-) {
+export function publicationForVisit(ctx: QueryCtx, profileId: Id<"profiles">, visitLocalId: string) {
   return ctx.db
     .query("sharedVisits")
-    .withIndex("by_profile_visit", (q) =>
-      q.eq("profileId", profileId).eq("visitLocalId", visitLocalId),
-    )
+    .withIndex("by_profile_visit", (q) => q.eq("profileId", profileId).eq("visitLocalId", visitLocalId))
     .unique();
 }
 export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: string) {
@@ -80,18 +81,22 @@ export async function selectedSaves(
 ) {
   validateSelection(input);
   const visit = await ownedVisit(ctx, owner, input.visitLocalId);
-  if (visit.visibility === "private" && !allowPrivate)
+  if (visit.visibility === "private" && !allowPrivate) {
     throw new ConvexError({ code: "visit_private" });
-  if (input.reflection !== (visit.reflection ?? "")) throw new ConvexError({ code: "conflict" });
+  }
+  if (input.reflection !== (visit.reflection ?? "")) {
+    throw new ConvexError({ code: "conflict" });
+  }
   const saves = [];
   for (const localId of input.saveLocalIds) {
-    if (!(await readHeadroom(ctx, SAVE_READ_RESERVE)))
+    if (!(await readHeadroom(ctx, SAVE_READ_RESERVE))) {
       throw new ConvexError({ code: "invalid_post" });
+    }
     const save = await requireOwnedSave(ctx, owner, localId);
     await requireMembership(ctx, save, visit);
-    for (const id of input.photoSelections?.find((row) => row.saveLocalId === localId)
-      ?.photoLocalIds ?? [])
+    for (const id of input.photoSelections?.find((row) => row.saveLocalId === localId)?.photoLocalIds ?? []) {
       await ownedAlbumPhoto(ctx, save, id);
+    }
     saves.push(save);
   }
   return { visit, saves };
@@ -135,7 +140,10 @@ export async function stateForPublication(
     audience: publication?.audience ?? "public",
     photoSelections: items
       .filter((item) => item.photoLocalIds?.length)
-      .map((item) => ({ saveLocalId: item.saveLocalId, photoLocalIds: item.photoLocalIds! })),
+      .map((item) => ({
+        saveLocalId: item.saveLocalId,
+        photoLocalIds: item.photoLocalIds!,
+      })),
     highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId),
     postId: publication?.postId ?? null,
     status: publication?.status ?? "private",
@@ -163,16 +171,18 @@ function artworkPosition(publication: Doc<"sharedVisits">, cursor?: string | nul
   try {
     const value = JSON.parse(cursor);
     if (
-      Object.keys(value).sort().join(",") !== "kind,position,postId,revision" ||
-      value.kind !== "artworks" ||
-      value.postId !== publication.postId ||
-      !isRevision(value.revision) ||
-      !isRevision(value.position) ||
-      value.position >= LIMITS.selectedSaves
-    )
+      Object.keys(value).sort().join(",") !== "kind,position,postId,revision"
+      || value.kind !== "artworks"
+      || value.postId !== publication.postId
+      || !isRevision(value.revision)
+      || !isRevision(value.position)
+      || value.position >= LIMITS.selectedSaves
+    ) {
       throw Error();
-    if (value.revision !== publication.publicationRevision)
+    }
+    if (value.revision !== publication.publicationRevision) {
       throw new ConvexError({ code: "conflict" });
+    }
     return value.position;
   } catch (error) {
     if (error instanceof ConvexError) throw error;
@@ -189,9 +199,7 @@ export async function projectArtworkPage(
   const start = artworkPosition(publication, input.cursor);
   const items = await ctx.db
     .query("sharedVisitItems")
-    .withIndex("by_publication_position", (q) =>
-      q.eq("publicationId", publication._id).gt("position", start),
-    )
+    .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id).gt("position", start))
     .take(LIMITS.selectedSaves + 1);
   const page: Infer<typeof sharedVisitCard>[] = [];
   let position = start,
@@ -201,10 +209,10 @@ export async function projectArtworkPage(
     if (page.length >= numItems || !(await readHeadroom(ctx))) break;
     const save = await ctx.db.get(item.saveId);
     if (
-      save &&
-      save.deletedAt === undefined &&
-      item.saveLocalId === save.localId &&
-      (!input.highlightsOnly || item.highlighted)
+      save
+      && save.deletedAt === undefined
+      && item.saveLocalId === save.localId
+      && (!input.highlightsOnly || item.highlighted)
     ) {
       await requireMembership(ctx, save, visit);
       const card = await projectVisitAlbum(ctx, item, save, publication.postId);
@@ -217,7 +225,11 @@ export async function projectArtworkPage(
     consumed++;
   }
   const isDone = consumed === items.length;
-  return { page, isDone, cursor: isDone ? null : artworkCursor(publication, position) };
+  return {
+    page,
+    isDone,
+    cursor: isDone ? null : artworkCursor(publication, position),
+  };
 }
 
 export type HistoryKey = { visitedOn: string; postId: string };
@@ -232,22 +244,28 @@ export const compareHistory = (a: HistoryKey, b: HistoryKey) =>
       ? -1
       : 1;
 export function historyCursor(scope: string, key: HistoryKey) {
-  return JSON.stringify({ kind: "history", scope, visitedOn: key.visitedOn, postId: key.postId });
+  return JSON.stringify({
+    kind: "history",
+    scope,
+    visitedOn: key.visitedOn,
+    postId: key.postId,
+  });
 }
 export function parseHistoryCursor(scope: string, cursor?: string | null): HistoryKey | null {
   if (cursor == null) return null;
   try {
     const value = JSON.parse(cursor);
     if (
-      Object.keys(value).sort().join(",") !== "kind,postId,scope,visitedOn" ||
-      value.kind !== "history" ||
-      value.scope !== scope ||
-      typeof value.visitedOn !== "string" ||
-      !isCalendarDate(value.visitedOn) ||
-      typeof value.postId !== "string" ||
-      !isUuid(value.postId)
-    )
+      Object.keys(value).sort().join(",") !== "kind,postId,scope,visitedOn"
+      || value.kind !== "history"
+      || value.scope !== scope
+      || typeof value.visitedOn !== "string"
+      || !isCalendarDate(value.visitedOn)
+      || typeof value.postId !== "string"
+      || !isUuid(value.postId)
+    ) {
       throw Error();
+    }
     return { visitedOn: value.visitedOn, postId: value.postId };
   } catch {
     throw new ConvexError({ code: "invalid_pagination" });
@@ -266,30 +284,25 @@ export const profileHistory =
   (bound) =>
     ctx.db
       .query("sharedVisits")
-      .withIndex("by_profile_status_history", (q) =>
-        bound(q.eq("profileId", profileId).eq("status", "active")),
-      );
+      .withIndex("by_profile_status_history", (q) => bound(q.eq("profileId", profileId).eq("status", "active")));
 export const publicHistory =
   (ctx: QueryCtx): HistoryStream =>
   (bound) =>
     ctx.db
       .query("sharedVisits")
-      .withIndex("by_audience_status_history", (q) =>
-        bound(q.eq("audience", "public").eq("status", "active")),
-      );
+      .withIndex("by_audience_status_history", (q) => bound(q.eq("audience", "public").eq("status", "active")));
 export async function historyHead(stream: HistoryStream, before: HistoryKey | null) {
-  if (!before)
+  if (!before) {
     return stream((tail) => tail)
       .order("desc")
       .first();
-  const sameDate = await stream((tail) =>
-    tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId),
-  )
+  }
+  const sameDate = await stream((tail) => tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId))
     .order("desc")
     .first();
   return (
-    sameDate ??
-    stream((tail) => tail.lt("visitedOn", before.visitedOn))
+    sameDate
+    ?? stream((tail) => tail.lt("visitedOn", before.visitedOn))
       .order("desc")
       .first()
   );
@@ -313,7 +326,9 @@ export async function projectVisitAlbum(
         }),
       );
     } catch (error) {
-      if (!(error instanceof ConvexError && error.data.code === "not_found")) throw error;
+      if (!(error instanceof ConvexError && error.data.code === "not_found")) {
+        throw error;
+      }
     }
   }
   return photos.length ? { ...card, artwork: { ...card.artwork, media: photos[0] }, photos } : card;

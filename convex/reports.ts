@@ -50,9 +50,7 @@ export const submit = mutation({
     }
     const existing = await ctx.db
       .query("reports")
-      .withIndex("by_reporter_target_status", (q) =>
-        q.eq("reporter", owner).eq("target", target).eq("status", "open"),
-      )
+      .withIndex("by_reporter_target_status", (q) => q.eq("reporter", owner).eq("target", target).eq("status", "open"))
       .unique();
     if (existing) return existing._id;
     await limitKey(ctx, "report", ownerKey(owner));

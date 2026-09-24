@@ -3,21 +3,9 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-  type MutationCtx,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
-import {
-  findDeviceForUser,
-  requireAuthUserId,
-  requireDevice,
-  requireDeviceFromAction,
-} from "./lib/auth";
+import { findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { limitKey } from "./lib/rateLimits";
 import { challengePurpose, devicePlatform } from "./lib/validators";
 import schema from "./schema";
@@ -36,7 +24,9 @@ function attestRequired(): boolean {
 }
 
 function isAttested(device: Doc<"devices">, keyId?: string): boolean {
-  if (device.attestedAt === undefined || device.attestPublicKey === undefined) return false;
+  if (device.attestedAt === undefined || device.attestPublicKey === undefined) {
+    return false;
+  }
   return keyId === undefined || keyId === device.appAttestKeyId;
 }
 
@@ -83,7 +73,11 @@ export const getForCaller = internalQuery({
 export const me = query({
   args: {},
   returns: v.union(
-    v.object({ deviceId: v.id("devices"), attested: v.boolean(), trustWeight: v.number() }),
+    v.object({
+      deviceId: v.id("devices"),
+      attested: v.boolean(),
+      trustWeight: v.number(),
+    }),
     v.null(),
   ),
   handler: async (ctx) => {
@@ -91,7 +85,11 @@ export const me = query({
     const device = await findDeviceForUser(ctx, userId);
     if (!device) return null;
     if (device.banned) throw new ConvexError({ code: "device_banned" });
-    return { deviceId: device._id, attested: isAttested(device), trustWeight: device.trustWeight };
+    return {
+      deviceId: device._id,
+      attested: isAttested(device),
+      trustWeight: device.trustWeight,
+    };
   },
 });
 
@@ -125,13 +123,13 @@ export async function consumeChallenge(
     .withIndex("by_nonce", (q) => q.eq("nonce", nonce))
     .unique();
   const valid =
-    challenge !== null &&
-    challenge.deviceId === device._id &&
-    challenge.authUserId === device.authUserId &&
-    challenge.purpose === purpose &&
-    challenge.usedAt === undefined &&
-    now >= challenge.createdAt &&
-    now - challenge.createdAt < CHALLENGE_TTL_MS;
+    challenge !== null
+    && challenge.deviceId === device._id
+    && challenge.authUserId === device.authUserId
+    && challenge.purpose === purpose
+    && challenge.usedAt === undefined
+    && now >= challenge.createdAt
+    && now - challenge.createdAt < CHALLENGE_TTL_MS;
   if (!valid) throw new ConvexError({ code: "challenge_invalid" });
   await ctx.db.patch(challenge._id, { usedAt: now });
 }
@@ -156,8 +154,12 @@ export const markAttested = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
-    if (device._id !== args.deviceId) throw new ConvexError({ code: "device_not_registered" });
-    if (isAttested(device)) throw new ConvexError({ code: "device_already_attested" });
+    if (device._id !== args.deviceId) {
+      throw new ConvexError({ code: "device_not_registered" });
+    }
+    if (isAttested(device)) {
+      throw new ConvexError({ code: "device_already_attested" });
+    }
     const keyOwner = await ctx.db
       .query("devices")
       .withIndex("by_keyId", (q) => q.eq("appAttestKeyId", args.keyId))
@@ -179,8 +181,12 @@ export const attestDevice = action({
   handler: async (ctx, args) =>
     withErrorReporting("devices.attestDevice", async () => {
       const device = await requireDeviceFromAction(ctx);
-      if (isAttested(device)) throw new ConvexError({ code: "device_already_attested" });
-      if (!process.env.APP_ATTEST_APP_ID) throw new ConvexError({ code: "attest_unconfigured" });
+      if (isAttested(device)) {
+        throw new ConvexError({ code: "device_already_attested" });
+      }
+      if (!process.env.APP_ATTEST_APP_ID) {
+        throw new ConvexError({ code: "attest_unconfigured" });
+      }
       // The challenge is spent before verification so a failed attempt cannot be retried with the same nonce.
       await ctx.runMutation(internal.devices.takeChallenge, {
         nonce: args.nonce,
@@ -192,8 +198,7 @@ export const attestDevice = action({
         challenge: args.nonce,
       });
       if (!result.ok || result.publicKeySpkiBase64 === undefined) {
-        const code =
-          result.reason === "keyId does not match" ? "key_mismatch" : "invalid_attestation";
+        const code = result.reason === "keyId does not match" ? "key_mismatch" : "invalid_attestation";
         throw new ConvexError({ code, reason: result.reason });
       }
       await ctx.runMutation(internal.devices.markAttested, {
@@ -206,21 +211,24 @@ export const attestDevice = action({
     }),
 });
 
-export type AttestedWriteArgs = { nonce: string; assertionBase64: string; payload: string };
+export type AttestedWriteArgs = {
+  nonce: string;
+  assertionBase64: string;
+  payload: string;
+};
 
 /**
  * Shared-state mutations call this first. The phone signs `nonce + "." + payload`; a
  * verified assertion consumes the challenge and advances the device counter. Simulator builds skip
  * the signature check while APP_ATTEST_REQUIRED is not "true".
  */
-export async function requireAttestedWrite(
-  ctx: MutationCtx,
-  args: AttestedWriteArgs,
-): Promise<Doc<"devices">> {
+export async function requireAttestedWrite(ctx: MutationCtx, args: AttestedWriteArgs): Promise<Doc<"devices">> {
   const device = await requireDevice(ctx);
   await consumeChallenge(ctx, device, args.nonce, "assert");
   if (!attestRequired() && device.platform === "simulator") return device;
-  if (device.attestPublicKey === undefined) throw new ConvexError({ code: "device_not_attested" });
+  if (device.attestPublicKey === undefined) {
+    throw new ConvexError({ code: "device_not_attested" });
+  }
   const appId = process.env.APP_ATTEST_APP_ID;
   if (!appId) throw new ConvexError({ code: "attest_unconfigured" });
   const result = await verifyAssertion({
@@ -230,14 +238,20 @@ export async function requireAttestedWrite(
     expectedRpIdHash: await appIdHash(appId),
     previousCounter: device.attestCounter,
   });
-  if (!result.ok) throw new ConvexError({ code: "invalid_assertion", reason: result.reason });
+  if (!result.ok) {
+    throw new ConvexError({ code: "invalid_assertion", reason: result.reason });
+  }
   await ctx.db.patch(device._id, { attestCounter: result.counter });
   return { ...device, attestCounter: result.counter };
 }
 
 // Verification-only endpoint for the phone smoke check; remove before release.
 export const assertSmoke = mutation({
-  args: { nonce: v.string(), assertionBase64: v.string(), payloadJson: v.string() },
+  args: {
+    nonce: v.string(),
+    assertionBase64: v.string(),
+    payloadJson: v.string(),
+  },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
@@ -247,8 +261,8 @@ export const assertSmoke = mutation({
       return { ok: true };
     } catch (error) {
       if (
-        error instanceof ConvexError &&
-        (error.data.code === "challenge_invalid" || error.data.code === "invalid_assertion")
+        error instanceof ConvexError
+        && (error.data.code === "challenge_invalid" || error.data.code === "invalid_assertion")
       ) {
         return { ok: false };
       }

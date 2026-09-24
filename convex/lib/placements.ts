@@ -25,7 +25,9 @@ export function currentPlacement<T extends PlacementLike>(placements: T[], now: 
   let best: T | null = null;
   for (const placement of placements) {
     if (!isActive(placement, now)) continue;
-    if (best === null || comparePlacements(placement, best) > 0) best = placement;
+    if (best === null || comparePlacements(placement, best) > 0) {
+      best = placement;
+    }
   }
   return best;
 }
@@ -36,9 +38,7 @@ export async function loadCurrentPlacement(
   now: number,
 ): Promise<Doc<"placements"> | null> {
   let placement: Doc<"placements"> | null = null;
-  for await (const row of ctx.db
-    .query("placements")
-    .withIndex("by_objectId", (q) => q.eq("objectId", objectId))) {
+  for await (const row of ctx.db.query("placements").withIndex("by_objectId", (q) => q.eq("objectId", objectId))) {
     if (row.proposalId) {
       const proposal = await ctx.db.get(row.proposalId);
       if (!proposal || proposal.revertedAt !== undefined) continue;
@@ -56,11 +56,7 @@ function isActive(placement: PlacementLike, now: number): boolean {
 }
 
 function comparePlacements(a: PlacementLike, b: PlacementLike): number {
-  return (
-    placementRank(a) - placementRank(b) ||
-    a.confidence - b.confidence ||
-    compareFrom(a.from, b.from)
-  );
+  return placementRank(a) - placementRank(b) || a.confidence - b.confidence || compareFrom(a.from, b.from);
 }
 
 function placementRank(placement: PlacementLike): number {

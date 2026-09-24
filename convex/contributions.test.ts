@@ -63,10 +63,7 @@ function verifiedFlow(overrides: Partial<LabelFlow> = {}): LabelFlow {
   };
 }
 
-async function storeCrop(
-  t: Harness,
-  { size = 1000, type = "image/jpeg" } = {},
-): Promise<Id<"_storage">> {
+async function storeCrop(t: Harness, { size = 1000, type = "image/jpeg" } = {}): Promise<Id<"_storage">> {
   return t.run(async (ctx) => {
     const id = await ctx.storage.store(new Blob([new Uint8Array(size)], { type }));
     // convex-test keeps no content type for stored blobs; the real backend records the upload's header.
@@ -95,44 +92,61 @@ async function fixture(flow: LabelFlow | null = verifiedFlow(), withVenue = true
   });
   const args = { scanId, ...features, fields, cropStorageId };
   const contribute = async (overrides: Partial<typeof args> = {}) =>
-    user.as.action(api.contributions.contribute, { ...args, ...overrides, ...(await sign()) });
+    user.as.action(api.contributions.contribute, {
+      ...args,
+      ...overrides,
+      ...(await sign()),
+    });
   const rows = () => t.run((ctx) => ctx.db.query("contributions").collect());
-  return { t, user, venueId, scanId, cropStorageId, args, sign, contribute, rows };
+  return {
+    t,
+    user,
+    venueId,
+    scanId,
+    cropStorageId,
+    args,
+    sign,
+    contribute,
+    rows,
+  };
 }
 
 describe("contribute", () => {
-  it.each([
-    "challenge_invalid",
-    "device_not_attested",
-    "rate_limited",
-    "label_unverified",
-  ] as const)("does no duplicate search when authorization fails with %s", async (code) => {
-    vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
-    const { t, user, scanId, args, sign } = await fixture();
-    const signed = await sign();
-    if (code === "challenge_invalid") signed.nonce = "not-a-challenge";
-    if (code === "device_not_attested") vi.stubEnv("APP_ATTEST_REQUIRED", "true");
-    if (code === "label_unverified")
-      await t.run((ctx) => ctx.db.patch(scanId, { labelFlow: undefined }));
-    if (code === "rate_limited") {
-      for (let i = 0; i < 20; i++) await user.as.mutation(api.contributions.requestCropUpload, {});
-    }
-    const work: string[] = [];
-    await expect(
-      user.as.action(async (ctx) => {
-        const search = vi.spyOn(ctx, "vectorSearch");
-        const queries = vi.spyOn(ctx, "runQuery");
-        try {
-          return await runContribute(ctx, { ...args, ...signed });
-        } finally {
-          work.push(...queries.mock.calls.map(([fn]) => getFunctionName(fn)));
-          if (search.mock.calls.length) work.push("vectorSearch");
+  it.each(["challenge_invalid", "device_not_attested", "rate_limited", "label_unverified"] as const)(
+    "does no duplicate search when authorization fails with %s",
+    async (code) => {
+      vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
+      const { t, user, scanId, args, sign } = await fixture();
+      const signed = await sign();
+      if (code === "challenge_invalid") signed.nonce = "not-a-challenge";
+      if (code === "device_not_attested") {
+        vi.stubEnv("APP_ATTEST_REQUIRED", "true");
+      }
+      if (code === "label_unverified") {
+        await t.run((ctx) => ctx.db.patch(scanId, { labelFlow: undefined }));
+      }
+      if (code === "rate_limited") {
+        for (let i = 0; i < 20; i++) {
+          await user.as.mutation(api.contributions.requestCropUpload, {});
         }
-      }),
-    ).rejects.toMatchObject({ data: { code } });
-    expect(work).not.toContain("vectorSearch");
-    expect(work).not.toContain("contributions:checkDuplicatePage");
-  });
+      }
+      const work: string[] = [];
+      await expect(
+        user.as.action(async (ctx) => {
+          const search = vi.spyOn(ctx, "vectorSearch");
+          const queries = vi.spyOn(ctx, "runQuery");
+          try {
+            return await runContribute(ctx, { ...args, ...signed });
+          } finally {
+            work.push(...queries.mock.calls.map(([fn]) => getFunctionName(fn)));
+            if (search.mock.calls.length) work.push("vectorSearch");
+          }
+        }),
+      ).rejects.toMatchObject({ data: { code } });
+      expect(work).not.toContain("vectorSearch");
+      expect(work).not.toContain("contributions:checkDuplicatePage");
+    },
+  );
 
   it("charges failed searches before they run and refuses them after the budget is spent", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
@@ -148,7 +162,11 @@ describe("contribute", () => {
         return runContribute(ctx, { ...args, ...signed });
       });
       if (i < 20) await expect(call).rejects.toThrow("search unavailable");
-      else await expect(call).rejects.toMatchObject({ data: { code: "rate_limited" } });
+      else {
+        await expect(call).rejects.toMatchObject({
+          data: { code: "rate_limited" },
+        });
+      }
     }
     expect(searches).toBe(20);
   });
@@ -156,7 +174,10 @@ describe("contribute", () => {
   it("publishes a tentative contribution with the scan vector, the verified evidence and the consented crop", async () => {
     const { t, user, venueId, scanId, cropStorageId, contribute, rows } = await fixture();
     const result = await contribute();
-    expect(result).toEqual({ contributionId: expect.any(String), status: "tentative" });
+    expect(result).toEqual({
+      contributionId: expect.any(String),
+      status: "tentative",
+    });
     const [row] = await rows();
     expect(row).toMatchObject({
       _id: result.contributionId,
@@ -178,9 +199,7 @@ describe("contribute", () => {
     });
     expect(row).not.toHaveProperty("descriptors");
     expect(row).not.toHaveProperty("keypoints");
-    expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(
-      features,
-    );
+    expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
     expect(row.rejectedReason).toBeUndefined();
     const mine = await user.as.query(api.contributions.mine, {});
     expect(mine).toMatchObject([
@@ -198,20 +217,24 @@ describe("contribute", () => {
 
   it("keeps the verified museum page identity after the scan label flow changes", async () => {
     const sourceUrl = "https://museum.example/works/water-lilies";
-    const { t, scanId, contribute, rows } = await fixture(
-      verifiedFlow({ sourceUrl, wikidataId: undefined }),
-    );
+    const { t, scanId, contribute, rows } = await fixture(verifiedFlow({ sourceUrl, wikidataId: undefined }));
     await contribute();
     await t.run((ctx) =>
       ctx.db.patch(scanId, {
-        labelFlow: verifiedFlow({ sourceUrl: "https://museum.example/works/haystacks" }),
+        labelFlow: verifiedFlow({
+          sourceUrl: "https://museum.example/works/haystacks",
+        }),
       }),
     );
     expect((await rows())[0].sourceUrl).toBe(sourceUrl);
   });
 
   it.each([
-    { name: "date", edited: { date: { value: "1916", edited: true } }, wikidataId: "Q3374376" },
+    {
+      name: "date",
+      edited: { date: { value: "1916", edited: true } },
+      wikidataId: "Q3374376",
+    },
     {
       name: "title",
       edited: { title: { value: "Water Lilies", edited: true } },
@@ -238,14 +261,8 @@ describe("contribute", () => {
   );
 
   it.each([
-    [
-      "a value that differs from the verified one",
-      { title: { value: "Water Lily Pond", edited: false } },
-    ],
-    [
-      "an edited value the label flow never verified",
-      { title: { value: "Water Lily Pond", edited: true } },
-    ],
+    ["a value that differs from the verified one", { title: { value: "Water Lily Pond", edited: false } }],
+    ["an edited value the label flow never verified", { title: { value: "Water Lily Pond", edited: true } }],
     ["a field the label flow does not hold", { medium: { value: "Oil on canvas", edited: false } }],
   ])("rejects %s", async (_name, override) => {
     const { contribute, rows } = await fixture();
@@ -261,17 +278,24 @@ describe("contribute", () => {
     ["no label flow", null],
   ])("refuses %s", async (_name, flow) => {
     const { contribute, rows } = await fixture(flow);
-    await expect(contribute()).rejects.toMatchObject({ data: { code: "label_unverified" } });
+    await expect(contribute()).rejects.toMatchObject({
+      data: { code: "label_unverified" },
+    });
     expect(await rows()).toEqual([]);
   });
 
   it("requires the device’s own venue-resolved scan", async () => {
     const unresolved = await fixture(verifiedFlow(), false);
-    await expect(unresolved.contribute()).rejects.toMatchObject({ data: { code: "invalid_scan" } });
+    await expect(unresolved.contribute()).rejects.toMatchObject({
+      data: { code: "invalid_scan" },
+    });
     const { t, args, sign, rows } = await fixture();
     const stranger = await seedDevice(t);
     await expect(
-      stranger.as.action(api.contributions.contribute, { ...args, ...(await sign(stranger.as)) }),
+      stranger.as.action(api.contributions.contribute, {
+        ...args,
+        ...(await sign(stranger.as)),
+      }),
     ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
     expect(await unresolved.rows()).toEqual([]);
     expect(await rows()).toEqual([]);
@@ -298,7 +322,10 @@ describe("contribute", () => {
     const { t, contribute } = await fixture();
     await t.run(async (ctx) => {
       await seedArtworkWithObject(ctx, { vector: testVector(0.99) });
-      await seedArtworkWithObject(ctx, { vector: testVector(), modelVersion: "other-model" });
+      await seedArtworkWithObject(ctx, {
+        vector: testVector(),
+        modelVersion: "other-model",
+      });
     });
     expect(await contribute()).toMatchObject({ status: "tentative" });
   });
@@ -354,9 +381,16 @@ describe("contribute", () => {
     const { t, user, venueId, cropStorageId, contribute } = await fixture();
     const accepted = await contribute();
     const scanId = await t.run((ctx) =>
-      seedScan(ctx, { deviceId: user.deviceId, venueId, labelFlow: verifiedFlow() }),
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        venueId,
+        labelFlow: verifiedFlow(),
+      }),
     );
-    expect(await contribute({ scanId })).toMatchObject({ status: "rejected", reason: "duplicate" });
+    expect(await contribute({ scanId })).toMatchObject({
+      status: "rejected",
+      reason: "duplicate",
+    });
     expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
     expect(await t.run((ctx) => ctx.db.get(accepted.contributionId))).toMatchObject({
       cropStorageId,
@@ -376,7 +410,7 @@ describe("contribute", () => {
       };
       for (let batch = 0; batch < 12; batch++) {
         await t.run(async (ctx) => {
-          for (let index = 1; index <= 50; index++)
+          for (let index = 1; index <= 50; index++) {
             await seedContribution(ctx, {
               deviceId: user.deviceId,
               venueId: historyVenue,
@@ -393,6 +427,7 @@ describe("contribute", () => {
               status: "tentative",
               createdAt: Date.now(),
             });
+          }
         });
       }
       expect(await contribute()).toMatchObject({ status: "tentative" });
@@ -413,7 +448,11 @@ describe("contribute", () => {
   it("accepts only one of two concurrent duplicate scans", async () => {
     const { t, user, venueId, args, sign, rows } = await fixture();
     const scanId = await t.run((ctx) =>
-      seedScan(ctx, { deviceId: user.deviceId, venueId, labelFlow: verifiedFlow() }),
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        venueId,
+        labelFlow: verifiedFlow(),
+      }),
     );
     const cropStorageId = await storeCrop(t);
     const contribute = async (overrides: Partial<typeof args>) => {
@@ -441,7 +480,11 @@ describe("contribute", () => {
   it("refuses a stale duplicate check and retries the commit without another authorization", async () => {
     const { t, user, venueId, args, sign, contribute, rows } = await fixture();
     const scanId = await t.run((ctx) =>
-      seedScan(ctx, { deviceId: user.deviceId, venueId, labelFlow: verifiedFlow() }),
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        venueId,
+        labelFlow: verifiedFlow(),
+      }),
     );
     const cropStorageId = await storeCrop(t);
     const signed = await sign();
@@ -454,7 +497,11 @@ describe("contribute", () => {
     const first = await contribute();
     const { descriptors, keypoints, ...submission } = args;
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
-    const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
+    const rest = {
+      ...submission,
+      orbStorageId: orb.storageId,
+      orbSha256: orb.sha256,
+    };
     await expect(
       user.as.mutation(internal.contributions.commit, {
         ...rest,
@@ -481,7 +528,12 @@ describe("contribute", () => {
       }),
     ).toMatchObject({ status: "rejected", reason: "duplicate" });
     await expect(
-      user.as.action(api.contributions.contribute, { ...args, ...signed, scanId, cropStorageId }),
+      user.as.action(api.contributions.contribute, {
+        ...args,
+        ...signed,
+        scanId,
+        cropStorageId,
+      }),
     ).rejects.toMatchObject({ data: { code: "challenge_invalid" } });
   });
 
@@ -489,7 +541,11 @@ describe("contribute", () => {
     const { t, user, venueId, contribute, rows } = await fixture();
     expect(await contribute()).toMatchObject({ status: "tentative" });
     const repeat = await t.run((ctx) =>
-      seedScan(ctx, { deviceId: user.deviceId, venueId, labelFlow: verifiedFlow() }),
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        venueId,
+        labelFlow: verifiedFlow(),
+      }),
     );
     expect(await contribute({ scanId: repeat, cropStorageId: await storeCrop(t) })).toMatchObject({
       status: "rejected",
@@ -504,7 +560,10 @@ describe("contribute", () => {
       }),
     );
     expect(
-      await contribute({ scanId: different, cropStorageId: await storeCrop(t) }),
+      await contribute({
+        scanId: different,
+        cropStorageId: await storeCrop(t),
+      }),
     ).toMatchObject({ status: "tentative" });
     const other = await seedDevice(t);
     const otherScan = await t.run((ctx) =>
@@ -515,7 +574,9 @@ describe("contribute", () => {
         labelFlow: verifiedFlow(),
       }),
     );
-    const { nonce } = await other.as.mutation(api.devices.createChallenge, { purpose: "assert" });
+    const { nonce } = await other.as.mutation(api.devices.createChallenge, {
+      purpose: "assert",
+    });
     expect(
       await other.as.action(api.contributions.contribute, {
         scanId: otherScan,
@@ -526,12 +587,7 @@ describe("contribute", () => {
         assertionBase64: "AAAA",
       }),
     ).toMatchObject({ status: "tentative" });
-    expect((await rows()).map((row) => row.status)).toEqual([
-      "tentative",
-      "rejected",
-      "tentative",
-      "tentative",
-    ]);
+    expect((await rows()).map((row) => row.status)).toEqual(["tentative", "rejected", "tentative", "tentative"]);
   });
 
   it.each([
@@ -548,7 +604,9 @@ describe("contribute", () => {
   it("rejects a crop that is no longer in storage", async () => {
     const { t, cropStorageId, contribute, rows } = await fixture();
     await t.run((ctx) => ctx.storage.delete(cropStorageId));
-    await expect(contribute()).rejects.toMatchObject({ data: { code: "bad_crop" } });
+    await expect(contribute()).rejects.toMatchObject({
+      data: { code: "bad_crop" },
+    });
     expect(await rows()).toEqual([]);
   });
 
@@ -563,11 +621,14 @@ describe("contribute", () => {
       }),
     ).rejects.toMatchObject({ data: { code: "bad_features" } });
     expect(
-      await user.as.action(api.contributions.contribute, { ...args, ...signed }),
+      await user.as.action(api.contributions.contribute, {
+        ...args,
+        ...signed,
+      }),
     ).toMatchObject({ status: "tentative" });
-    await expect(
-      user.as.action(api.contributions.contribute, { ...args, ...signed }),
-    ).rejects.toMatchObject({ data: { code: "challenge_invalid" } });
+    await expect(user.as.action(api.contributions.contribute, { ...args, ...signed })).rejects.toMatchObject({
+      data: { code: "challenge_invalid" },
+    });
   });
 
   it("ignores a contribution whose scan was restarted meanwhile", async () => {
@@ -580,7 +641,11 @@ describe("contribute", () => {
     });
     const { descriptors, keypoints, ...submission } = args;
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
-    const rest = { ...submission, orbStorageId: orb.storageId, orbSha256: orb.sha256 };
+    const rest = {
+      ...submission,
+      orbStorageId: orb.storageId,
+      orbSha256: orb.sha256,
+    };
     await expect(
       user.as.mutation(internal.contributions.commit, {
         ...rest,
@@ -598,12 +663,14 @@ describe("contribute", () => {
     vi.stubEnv("APP_ATTEST_REQUIRED", "true");
     const t = harness();
     const user = await signIn(t);
-    const { deviceId } = await user.as.mutation(api.devices.registerDevice, { platform: "ios" });
+    const { deviceId } = await user.as.mutation(api.devices.registerDevice, {
+      platform: "ios",
+    });
     const venueId = await t.run((ctx) => seedMuseum(ctx));
-    const scanId = await t.run((ctx) =>
-      seedScan(ctx, { deviceId, venueId, labelFlow: verifiedFlow() }),
-    );
-    const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: "assert" });
+    const scanId = await t.run((ctx) => seedScan(ctx, { deviceId, venueId, labelFlow: verifiedFlow() }));
+    const { nonce } = await user.as.mutation(api.devices.createChallenge, {
+      purpose: "assert",
+    });
     await expect(
       user.as.action(api.contributions.contribute, {
         scanId,
@@ -621,9 +688,7 @@ describe("contribute", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     const { user, contribute } = await fixture();
     for (let i = 0; i < 20; i++) {
-      expect((await user.as.mutation(api.contributions.requestCropUpload, {})).uploadUrl).toMatch(
-        /^https:/,
-      );
+      expect((await user.as.mutation(api.contributions.requestCropUpload, {})).uploadUrl).toMatch(/^https:/);
     }
     await expect(contribute()).rejects.toMatchObject({
       data: { code: "rate_limited", name: "contribute" },
@@ -675,12 +740,11 @@ async function shareAs(
     }),
   );
   const cropStorageId = await storeCrop(t);
-  const { nonce } = await user.as.mutation(api.devices.createChallenge, { purpose: "assert" });
+  const { nonce } = await user.as.mutation(api.devices.createChallenge, {
+    purpose: "assert",
+  });
   const submitted = Object.fromEntries(
-    Object.entries(flow.fields).map(([name, field]) => [
-      name,
-      { value: field!.value, edited: false },
-    ]),
+    Object.entries(flow.fields).map(([name, field]) => [name, { value: field!.value, edited: false }]),
   ) as typeof fields;
   const result = await user.as.action(api.contributions.contribute, {
     scanId,
@@ -716,7 +780,9 @@ describe("immediate tentative recognition", () => {
         source: "user",
         sourceContributionId: shared.contributionId,
       });
-      expect(await t.run((ctx) => ctx.db.get(user.deviceId))).toMatchObject({ trustWeight: 0.5 });
+      expect(await t.run((ctx) => ctx.db.get(user.deviceId))).toMatchObject({
+        trustWeight: 0.5,
+      });
       const visitor = await seedDevice(t);
       const identify = (museum?: Id<"museums">) =>
         visitor.as.action(api.identify.identify, {
@@ -735,10 +801,18 @@ describe("immediate tentative recognition", () => {
       expect((await identify()).best).toBeUndefined();
       const elsewhere = await t.run((ctx) => seedMuseum(ctx));
       expect((await identify(elsewhere)).best).toBeUndefined();
-      expect(await t.mutation(internal.docent.claim, { artworkId: object.artworkId })).toBeNull();
+      expect(
+        await t.mutation(internal.docent.claim, {
+          artworkId: object.artworkId,
+        }),
+      ).toBeNull();
       expect(await t.query(internal.docent.load, { artworkId: object.artworkId })).toBeNull();
       expect(
-        (await t.query(internal.ingest.exportVectors, { modelVersion: model.modelVersion })).page,
+        (
+          await t.query(internal.ingest.exportVectors, {
+            modelVersion: model.modelVersion,
+          })
+        ).page,
       ).toEqual([]);
       expect((await t.query(internal.ingest.exportDescriptorReferences, {})).page).toEqual([]);
       expect((await t.query(internal.enrich.previewBatch, { limit: 100 })).artworks).toEqual([]);
@@ -765,8 +839,14 @@ describe("immediate tentative recognition", () => {
       date: "1916",
       identityStatus: "tentative",
     });
-    const duplicate = await shareAs(t, venueId, { user, vector: testVector(0.91) });
-    expect(duplicate).toMatchObject({ status: "rejected", reason: "duplicate" });
+    const duplicate = await shareAs(t, venueId, {
+      user,
+      vector: testVector(0.91),
+    });
+    expect(duplicate).toMatchObject({
+      status: "rejected",
+      reason: "duplicate",
+    });
     // Another device replaying the second backer’s photo is the same view, not a third one.
     const replay = await shareAs(t, venueId, { vector: second.row.vector });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
@@ -784,7 +864,10 @@ describe("immediate tentative recognition", () => {
           accession: labelField(accession, "qr"),
         },
       });
-    const first = await shareAs(t, venueId, { vector: testVector(), flow: accessionFlow("123") });
+    const first = await shareAs(t, venueId, {
+      vector: testVector(),
+      flow: accessionFlow("123"),
+    });
     const conflict = await shareAs(t, venueId, { flow: accessionFlow("456") });
     const renamed = await shareAs(t, venueId, {
       flow: verifiedFlow({
@@ -798,11 +881,11 @@ describe("immediate tentative recognition", () => {
       modelVersion: "other-model",
       flow: accessionFlow("123"),
     });
-    expect(
-      new Set([first, conflict, renamed, otherModel].map((result) => result.row.indexedObjectId))
-        .size,
-    ).toBe(4);
-    const replay = await shareAs(t, venueId, { vector: testVector(), flow: accessionFlow("123") });
+    expect(new Set([first, conflict, renamed, otherModel].map((result) => result.row.indexedObjectId)).size).toBe(4);
+    const replay = await shareAs(t, venueId, {
+      vector: testVector(),
+      flow: accessionFlow("123"),
+    });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
     expect(replay.row.indexedObjectId).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.query("objects").collect())).toHaveLength(4);
@@ -831,10 +914,15 @@ describe("immediate tentative recognition", () => {
   it("rechecks venue and artwork rights at the commit boundary", async () => {
     const { t, venueId, contribute } = await fixture();
     await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
-    await expect(contribute()).rejects.toMatchObject({ data: { code: "invalid_venue" } });
+    await expect(contribute()).rejects.toMatchObject({
+      data: { code: "invalid_venue" },
+    });
     await t.run((ctx) => ctx.db.patch(venueId, { optOut: false }));
     const corpus = await t.run((ctx) =>
-      seedArtworkWithObject(ctx, { vector: testVector(0), artwork: { wikidataId: "Q3374376" } }),
+      seedArtworkWithObject(ctx, {
+        vector: testVector(0),
+        artwork: { wikidataId: "Q3374376" },
+      }),
     );
     await t.run((ctx) =>
       ctx.db.insert("takedowns", {
@@ -843,7 +931,9 @@ describe("immediate tentative recognition", () => {
         receivedAt: Date.now(),
       }),
     );
-    await expect(contribute()).rejects.toMatchObject({ data: { code: "artwork_taken_down" } });
+    await expect(contribute()).rejects.toMatchObject({
+      data: { code: "artwork_taken_down" },
+    });
     expect(await t.run((ctx) => ctx.db.query("contributions").collect())).toEqual([]);
   });
 
@@ -908,7 +998,10 @@ describe("immediate tentative recognition", () => {
     vi.useFakeTimers();
     const { t, venueId } = await fixture();
     const corpus = await t.run((ctx) =>
-      seedArtworkWithObject(ctx, { vector: testVector(0), artwork: { wikidataId: "Q3374376" } }),
+      seedArtworkWithObject(ctx, {
+        vector: testVector(0),
+        artwork: { wikidataId: "Q3374376" },
+      }),
     );
     const shared = await shareAs(t, venueId);
     const objectId = shared.row.indexedObjectId!;
@@ -932,7 +1025,9 @@ describe("immediate tentative recognition", () => {
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(await candidates()).toEqual([]);
-    expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({ reverted: false });
+    expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+      reverted: false,
+    });
   });
 });
 
@@ -956,19 +1051,23 @@ describe("precise contribution removal", () => {
       });
       await t.run((ctx) => ctx.db.patch(bob.scanId, { gallery: "Bob gallery" }));
       const corpus = await t.run((ctx) =>
-        seedArtworkWithObject(ctx, { vector: testVector(0), descriptors: pair.ref }),
+        seedArtworkWithObject(ctx, {
+          vector: testVector(0),
+          descriptors: pair.ref,
+        }),
       );
       const objectId = own.indexedObjectId!;
       const before = await t.run((ctx) => ctx.db.get(objectId));
-      if (kind === "withdraw")
+      if (kind === "withdraw") {
         await alice.as.mutation(api.contributions.withdraw, {
           contributionId: first.contributionId,
         });
-      else
+      } else {
         await t.mutation(internal.revert.revertDevice, {
           deviceId: alice.deviceId,
           reason: "abuse",
         });
+      }
       const vectors = await t.run((ctx) => ctx.db.query("vectors").collect());
       const during = await t.query(internal.identify.loadCandidates, {
         vectorIds: vectors.map((row) => row._id),
@@ -1003,7 +1102,10 @@ describe("precise contribution removal", () => {
             .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
             .unique(),
         ),
-      ).toMatchObject({ contributionId: bob.contributionId, storageId: bob.row.orbStorageId });
+      ).toMatchObject({
+        contributionId: bob.contributionId,
+        storageId: bob.row.orbStorageId,
+      });
       expect(await t.run((ctx) => ctx.storage.get(cropStorageId))).toBeNull();
       expect(await t.run((ctx) => ctx.storage.get(own.orbStorageId!))).toBeNull();
       expect(await t.run((ctx) => ctx.db.get(corpus.objectId))).toMatchObject({
@@ -1014,10 +1116,13 @@ describe("precise contribution removal", () => {
       expect(await t.run((ctx) => ctx.db.get(bob.contributionId))).toMatchObject({
         status: "tentative",
       });
-      if (kind === "ban")
+      if (kind === "ban") {
         expect(
-          await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }),
+          await t.query(internal.revert.removalProgress, {
+            deviceId: alice.deviceId,
+          }),
         ).toMatchObject({ phase: "complete" });
+      }
       await bob.user.as.mutation(api.contributions.withdraw, {
         contributionId: bob.contributionId,
       });
@@ -1025,7 +1130,9 @@ describe("precise contribution removal", () => {
         contributionId: bob.contributionId,
       });
       await t.finishAllScheduledFunctions(vi.runAllTimers);
-      expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({ reverted: true });
+      expect(await t.run((ctx) => ctx.db.get(objectId))).toMatchObject({
+        reverted: true,
+      });
       expect(await t.run((ctx) => ctx.db.get(before!.artworkId))).toHaveProperty("retiredAt");
       expect(
         await t.run((ctx) =>
@@ -1046,15 +1153,16 @@ describe("precise contribution removal", () => {
       const first = await contribute();
       const objectId = (await t.run((ctx) => ctx.db.get(first.contributionId)))!.indexedObjectId!;
       const bob = await shareAs(t, venueId);
-      if (kind === "withdraw")
+      if (kind === "withdraw") {
         await alice.as.mutation(api.contributions.withdraw, {
           contributionId: first.contributionId,
         });
-      else
+      } else {
         await t.mutation(internal.revert.revertDevice, {
           deviceId: alice.deviceId,
           reason: "abuse",
         });
+      }
       // Nothing scheduled has run yet: the recorded reference is still Alice’s ineligible contribution.
       const carol = await shareAs(t, venueId, { vector: testVector(0.91) });
       expect(carol.row.indexedObjectId).toBe(objectId);
@@ -1062,11 +1170,11 @@ describe("precise contribution removal", () => {
         sourceContributionId: bob.contributionId,
       });
       await t.finishAllScheduledFunctions(vi.runAllTimers);
-      const live = (await t.run((ctx) => ctx.db.query("objects").collect())).filter(
-        (object) => !object.reverted,
-      );
+      const live = (await t.run((ctx) => ctx.db.query("objects").collect())).filter((object) => !object.reverted);
       expect(live.map((object) => object._id)).toEqual([objectId]);
-      expect(live[0]).toMatchObject({ sourceContributionId: bob.contributionId });
+      expect(live[0]).toMatchObject({
+        sourceContributionId: bob.contributionId,
+      });
       expect(
         await t.run((ctx) =>
           ctx.db
@@ -1075,10 +1183,13 @@ describe("precise contribution removal", () => {
             .collect(),
         ),
       ).toHaveLength(2);
-      if (kind === "ban")
+      if (kind === "ban") {
         expect(
-          await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }),
+          await t.query(internal.revert.removalProgress, {
+            deviceId: alice.deviceId,
+          }),
         ).toMatchObject({ phase: "complete" });
+      }
     },
   );
 
@@ -1087,7 +1198,9 @@ describe("precise contribution removal", () => {
     const result = await contribute();
     const stranger = await seedDevice(t);
     await expect(
-      stranger.as.mutation(api.contributions.withdraw, { contributionId: result.contributionId }),
+      stranger.as.mutation(api.contributions.withdraw, {
+        contributionId: result.contributionId,
+      }),
     ).rejects.toMatchObject({ data: { code: "contribution_not_found" } });
   });
 });
@@ -1124,14 +1237,21 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
     reason: "abuse",
   });
   await t.mutation(internal.revert.cleanupDevicePage, { jobId });
-  const partial = await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId });
+  const partial = await t.query(internal.revert.removalProgress, {
+    deviceId: alice.deviceId,
+  });
   expect(partial).toMatchObject({ phase: "contributions", processed: 25 });
   expect(
-    await t.mutation(internal.revert.revertDevice, { deviceId: alice.deviceId, reason: "abuse" }),
+    await t.mutation(internal.revert.revertDevice, {
+      deviceId: alice.deviceId,
+      reason: "abuse",
+    }),
   ).toBe(jobId);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   expect(
-    await t.query(internal.revert.removalProgress, { deviceId: alice.deviceId }),
+    await t.query(internal.revert.removalProgress, {
+      deviceId: alice.deviceId,
+    }),
   ).toMatchObject({
     phase: "complete",
     processed: 30,
@@ -1140,7 +1260,10 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
   });
   for (const id of own) {
     const row = await t.run((ctx) => ctx.db.get(id));
-    expect(row).toMatchObject({ status: "rejected", rejectedReason: "device_reverted" });
+    expect(row).toMatchObject({
+      status: "rejected",
+      rejectedReason: "device_reverted",
+    });
     expect(row?.cropStorageId).toBeUndefined();
     expect(row?.orbStorageId).toBeUndefined();
     expect(await t.run((ctx) => ctx.db.get(row!.indexedObjectId!))).toMatchObject({

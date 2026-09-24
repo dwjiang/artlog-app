@@ -26,15 +26,14 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
           accessibilityLabel={`${label}: image unavailable`}
           style={[
             StyleSheet.absoluteFill,
-            { alignItems: "center", justifyContent: "center", backgroundColor: Gallery.fill },
+            {
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: Gallery.fill,
+            },
           ]}
         >
-          <Image
-            source="sf:photo"
-            accessible={false}
-            tintColor={Gallery.muted}
-            style={{ width: 24, height: 24 }}
-          />
+          <Image source="sf:photo" accessible={false} tintColor={Gallery.muted} style={{ width: 24, height: 24 }} />
         </View>
       ) : (
         <Image
@@ -56,9 +55,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
           }}
         />
       )}
-      {state === "loading" && (
-        <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />
-      )}
+      {state === "loading" && <ImageSkeleton label={`Loading image: ${label}`} style={StyleSheet.absoluteFill} />}
     </View>
   );
 }

@@ -33,25 +33,12 @@ export function WallDisplayScreen({ savedId }: { savedId: string }) {
   );
 }
 
-function WallDisplayQuery({
-  owner,
-  savedId,
-  onRetry,
-}: {
-  owner: string;
-  savedId: string;
-  onRetry: () => void;
-}) {
-  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [
-    savedId,
-    owner,
-  ]);
+function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId: string; onRetry: () => void }) {
+  const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
   useEffect(() => {
     if (error) reportError(error, "collection.artwork.load");
   }, [error]);
-  const work = data.find(
-    (row) => row.owner === owner && row.localId === savedId && row.deletedAt === null,
-  );
+  const work = data.find((row) => row.owner === owner && row.localId === savedId && row.deletedAt === null);
   return work ? (
     <WallDisplay work={work} />
   ) : (
@@ -68,7 +55,9 @@ function WallDisplay({ work }: { work: SavedWork }) {
   const piece = wall.pieces.find((item) => item.localId === hung?.placementId);
   // The hook owns the first read; a later sync can change note eligibility, so it re-reads the loaded wall.
   useEffect(() => {
-    if (wall.signedIn && work.syncedAt && wall.acknowledged) void wall.refresh();
+    if (wall.signedIn && work.syncedAt && wall.acknowledged) {
+      void wall.refresh();
+    }
   }, [wall.repository, work.syncedAt, wall.signedIn]); // oxlint-disable-line react-hooks/exhaustive-deps
   async function saveLayout() {
     wall.setError(undefined);
@@ -104,9 +93,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
       await wall.repository.publishNotes();
     } catch (cause) {
       reportError(cause, "wall.notes.publish");
-      wall.setError(
-        "This note could not be shared. Refresh to review the latest synced note and try again.",
-      );
+      wall.setError("This note could not be shared. Refresh to review the latest synced note and try again.");
     }
   }
   return (
@@ -172,9 +159,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
               />
             </View>
             <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
-            {hung.photoLocalId && (
-              <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />
-            )}
+            {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}
           </View>
           <View style={styles.section}>
             <NoteVisibility
@@ -206,9 +191,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
         </View>
       )}
       {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
-      {hung && !wall.pending && !wall.error && (
-        <Text style={styles.caption}>Changes save automatically.</Text>
-      )}
+      {hung && !wall.pending && !wall.error && <Text style={styles.caption}>Changes save automatically.</Text>}
     </ScrollView>
   );
 }

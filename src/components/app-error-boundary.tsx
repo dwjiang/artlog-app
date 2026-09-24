@@ -12,11 +12,7 @@ export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     reportError(error, "app.render");
   }, [error]);
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.screen} contentContainerStyle={styles.content}>
       <ThemedText type="subtitle" accessibilityRole="alert">
         Artlog could not open this screen
       </ThemedText>
@@ -34,5 +30,10 @@ export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, justifyContent: "center", padding: Spacing.four, gap: Spacing.two },
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
 });

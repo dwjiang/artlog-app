@@ -54,7 +54,10 @@ export async function fetchVenuePage(value: string, hosts: string[]): Promise<Ve
         url.href,
         {
           redirect: "manual",
-          headers: { "User-Agent": userAgent(), Accept: "text/html, application/xhtml+xml;q=0.9" },
+          headers: {
+            "User-Agent": userAgent(),
+            Accept: "text/html, application/xhtml+xml;q=0.9",
+          },
         },
         { timeoutMs: TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES },
       );
@@ -73,7 +76,9 @@ export async function fetchVenuePage(value: string, hosts: string[]): Promise<Ve
       url = next;
       continue;
     }
-    if (page.status < 200 || page.status >= 300) throw unavailable(`http_${page.status}`);
+    if (page.status < 200 || page.status >= 300) {
+      throw unavailable(`http_${page.status}`);
+    }
     return { url: url.href, html: page.body };
   }
   throw unavailable("too_many_redirects");

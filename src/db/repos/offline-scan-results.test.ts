@@ -4,7 +4,9 @@ import { cacheOfflineResult, offlineResultQuery } from "./offline-scan-results";
 import { deletePendingScan, enqueuePendingScan, updateFeatures } from "./pending-scans";
 import { claimLocalJournal } from "./journal-claim";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
 const capture: NewPendingScan = {
   localId: "offline",
   photoPath: "photos/offline.jpg",
@@ -24,9 +26,7 @@ it("keeps cached results scoped to their owner and follows a claimed journal", a
   expect(await offlineResultQuery(capture.localId, "account:someone-else")).toEqual([]);
   await claimLocalJournal("device:offline", "account:offline", "claim");
   expect(await offlineResultQuery(capture.localId, "device:offline")).toEqual([]);
-  expect((await offlineResultQuery(capture.localId, "account:offline"))[0].result).toEqual(
-    confidentScan,
-  );
+  expect((await offlineResultQuery(capture.localId, "account:offline"))[0].result).toEqual(confidentScan);
   await deletePendingScan(capture.localId, "account:offline");
   expect(await offlineResultQuery(capture.localId, "account:offline")).toEqual([]);
 });

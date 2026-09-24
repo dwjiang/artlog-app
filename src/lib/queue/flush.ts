@@ -35,7 +35,11 @@ export type FlushDependencies = {
   modelVersion: string;
 };
 
-export type Flusher = { start(): Promise<void>; flush(): Promise<void>; stop(): void };
+export type Flusher = {
+  start(): Promise<void>;
+  flush(): Promise<void>;
+  stop(): void;
+};
 
 export function backoffMs(attempts: number): number {
   return Math.min(2 ** attempts, 60) * 1000;
@@ -80,19 +84,26 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       modelVersion: row.modelVersion,
     };
     if (row.modelVersion !== deps.modelVersion) {
-      features = { ...(await deps.reembed(row.cropPath)), modelVersion: deps.modelVersion };
+      features = {
+        ...(await deps.reembed(row.cropPath)),
+        modelVersion: deps.modelVersion,
+      };
       if (!isCurrent()) return;
       await deps.updateFeatures(row.localId, features);
     }
     let visitId = row.visitId ?? undefined;
     if (row.visitLocalId) {
-      if (!row.venueId) throw new Error("The capture visit is missing its venue");
+      if (!row.venueId) {
+        throw new Error("The capture visit is missing its venue");
+      }
       visitId = await deps.resolveVisitId(row.visitLocalId, row.venueId);
     }
     if (!isCurrent()) return;
     await deps.markIdentifying(row.localId);
     if (!isCurrent()) {
-      await deps.recordFailure(row.localId, "Identification interrupted", { countAttempt: false });
+      await deps.recordFailure(row.localId, "Identification interrupted", {
+        countAttempt: false,
+      });
       return;
     }
     const response = await deps.identify({
@@ -109,11 +120,11 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       qrUrl: row.qrUrl ?? undefined,
     };
     if (
-      response.status === "identified" &&
-      response.outcome === "confident" &&
-      !deps.isLabelCapture?.(row) &&
-      isCurrent() &&
-      (label.labelPhotoPath || label.qrUrl)
+      response.status === "identified"
+      && response.outcome === "confident"
+      && !deps.isLabelCapture?.(row)
+      && isCurrent()
+      && (label.labelPhotoPath || label.qrUrl)
     ) {
       await deps.clearPendingLabel(row.localId, label);
     }
@@ -164,15 +175,16 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           const { status, attempts } = await recordFailure(row.localId, errorMessage(error), {
             countAttempt: !transient,
           });
-          if (!transient) reportError(error, `queue.${task}`, { data: { attempts, status } });
+          if (!transient) {
+            reportError(error, `queue.${task}`, { data: { attempts, status } });
+          }
           if (transient) {
-            addBreadcrumb("queue.paused", { task, reason: "transient_failure" });
+            addBreadcrumb("queue.paused", {
+              task,
+              reason: "transient_failure",
+            });
             taskBackoff.pauseUntil =
-              Date.now() +
-              Math.max(
-                backoffMs(++taskBackoff.transientFailures),
-                rateLimitRetryAfterMs(error) ?? 0,
-              );
+              Date.now() + Math.max(backoffMs(++taskBackoff.transientFailures), rateLimitRetryAfterMs(error) ?? 0);
             nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
             return;
           }
@@ -192,7 +204,9 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       await runRows(await deps.listPendingLabels(), "label");
       for (const id of retryAt.keys()) if (!ids.has(id)) retryAt.delete(id);
     }
-    if (isCurrent() && nextRetryAt !== Infinity) scheduleRetry(nextRetryAt - Date.now());
+    if (isCurrent() && nextRetryAt !== Infinity) {
+      scheduleRetry(nextRetryAt - Date.now());
+    }
   }
 
   function flush(): Promise<void> {

@@ -39,7 +39,10 @@ export const listFlaggedObjects = internalQuery({
 });
 
 export const listContributions = internalQuery({
-  args: { status: v.optional(contributionFields.status), cursor: v.optional(cursorArg) },
+  args: {
+    status: v.optional(contributionFields.status),
+    cursor: v.optional(cursorArg),
+  },
   returns: v.object({ rows: v.array(contributionReview), cursor: cursorArg }),
   handler: async (ctx, { status, cursor }) => {
     const page = await ctx.db
@@ -76,16 +79,16 @@ export const listProposalsReady = internalQuery({
   handler: (ctx) =>
     ctx.db
       .query("placementProposals")
-      .withIndex("by_status_readyForReview", (q) =>
-        q.eq("status", "pending").eq("readyForReview", true),
-      )
+      .withIndex("by_status_readyForReview", (q) => q.eq("status", "pending").eq("readyForReview", true))
       .order("desc")
       .take(MAX_ROWS),
 });
 
 // Dashboard query: `npx convex run review:listCorrections`.
 export const listCorrections = internalQuery({
-  args: { status: v.optional(v.union(v.literal("open"), v.literal("resolved"))) },
+  args: {
+    status: v.optional(v.union(v.literal("open"), v.literal("resolved"))),
+  },
   returns: v.array(schema.doc("factCorrections")),
   handler: (ctx, { status }) =>
     ctx.db
@@ -104,13 +107,16 @@ export const replaceFactSheet = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { artworkId, factSheet, correctionIds }) => {
-    if (correctionIds.length > MAX_ROWS) throw new ConvexError({ code: "too_many_corrections" });
+    if (correctionIds.length > MAX_ROWS) {
+      throw new ConvexError({ code: "too_many_corrections" });
+    }
     const artwork = await ctx.db.get(artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     for (const correctionId of new Set(correctionIds)) {
       const correction = await ctx.db.get(correctionId);
-      if (!correction || correction.artworkId !== artworkId)
+      if (!correction || correction.artworkId !== artworkId) {
         throw new ConvexError({ code: "invalid_correction" });
+      }
       await ctx.db.patch(correctionId, { status: "resolved" });
     }
     const outstanding = await ctx.db
@@ -137,10 +143,15 @@ const reportSummary = v.object({
   review: reportFields.review,
 });
 export const listReports = internalQuery({
-  args: { status: v.optional(reportFields.status), cursor: v.optional(cursorArg) },
+  args: {
+    status: v.optional(reportFields.status),
+    cursor: v.optional(cursorArg),
+  },
   returns: v.object({ rows: v.array(reportSummary), cursor: cursorArg }),
   handler: async (ctx, { status, cursor }) => {
-    if (cursor && cursor.length > 8192) throw new ConvexError({ code: "invalid_pagination" });
+    if (cursor && cursor.length > 8192) {
+      throw new ConvexError({ code: "invalid_pagination" });
+    }
     const result = await ctx.db
       .query("reports")
       .withIndex("by_status_createdAt", (q) => q.eq("status", status ?? "open"))
@@ -177,17 +188,19 @@ export const decideReport = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { reportId, operator, decision, reason }) => {
-    if (!operator.trim() || operator.length > 120 || !reason.trim() || reason.length > 2000)
+    if (!operator.trim() || operator.length > 120 || !reason.trim() || reason.length > 2000) {
       throw new ConvexError({ code: "invalid_report" });
+    }
     const report = await ctx.db.get(reportId);
     if (!report) throw new ConvexError({ code: "not_found" });
     if (report.status === "resolved") {
       if (
-        report.review?.operator === operator &&
-        report.review.decision === decision &&
-        report.review.reason === reason
-      )
+        report.review?.operator === operator
+        && report.review.decision === decision
+        && report.review.reason === reason
+      ) {
         return null;
+      }
       throw new ConvexError({ code: "conflict" });
     }
     const now = Date.now(),
@@ -207,7 +220,11 @@ export const decideReport = internalMutation({
             .query("walls")
             .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
             .unique();
-          if (wall) await ctx.db.patch(wall._id, { layoutRevision: wall.layoutRevision + 1 });
+          if (wall) {
+            await ctx.db.patch(wall._id, {
+              layoutRevision: wall.layoutRevision + 1,
+            });
+          }
         }
       } else if (target.kind === "wallItem") {
         const item = await ctx.db.get(target.itemId);
@@ -220,24 +237,30 @@ export const decideReport = internalMutation({
           });
           const wall = await ctx.db.get(item.wallId),
             profile = await ctx.db.get(item.profileId);
-          if (wall) await ctx.db.patch(wall._id, { layoutRevision: wall.layoutRevision + 1 });
-          if (profile && item.active)
+          if (wall) {
+            await ctx.db.patch(wall._id, {
+              layoutRevision: wall.layoutRevision + 1,
+            });
+          }
+          if (profile && item.active) {
             await ctx.db.patch(profile._id, {
               publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
             });
+          }
         }
       } else {
         const publication = await ctx.db
           .query("sharedVisits")
           .withIndex("by_postId", (q) => q.eq("postId", target.postId))
           .unique();
-        if (publication && !publication.removal)
+        if (publication && !publication.removal) {
           await ctx.db.patch(publication._id, {
             status: "private",
             removal,
             publicationRevision: publication.publicationRevision + 1,
             updatedAt: now,
           });
+        }
       }
     }
     await ctx.db.patch(reportId, {

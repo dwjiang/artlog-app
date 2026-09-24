@@ -22,27 +22,26 @@ export function runMuseumSearchForScan(input: {
   // Navigating away and back while the server searches must not dispatch a second paid request.
   const task = (async () => {
     // The public subscription can lag an action finishing during navigation.
-    const latest = input.stored
-      ? undefined
-      : await convex.query(api.scans.get, { scanId: input.scanId });
+    const latest = input.stored ? undefined : await convex.query(api.scans.get, { scanId: input.scanId });
     if (latest?.museumSearch?.stage === "none") {
       return { stage: "none" as const, reason: latest.museumSearch.reason };
     }
     if (latest?.museumSearch?.stage === "confirmed") {
       const flow = await restoreConfirmedMuseumFlow(latest);
       return flow
-        ? { stage: "done" as const, flow, confirmedAt: latest.museumSearch.updatedAt }
+        ? {
+            stage: "done" as const,
+            flow,
+            confirmedAt: latest.museumSearch.updatedAt,
+          }
         : { stage: "none" as const, reason: "model_error" };
     }
     return runMuseumSearch({
       ...input,
-      stored:
-        input.stored ??
-        (latest?.museumSearch?.stage === "exhibitions" ? latest.museumSearch : undefined),
+      stored: input.stored ?? (latest?.museumSearch?.stage === "exhibitions" ? latest.museumSearch : undefined),
       api: {
         searchExhibitions: (args) => convex.action(api.museumSearch.searchExhibitions, args),
-        confirmSearchCandidate: (args) =>
-          convex.action(api.museumSearch.confirmSearchCandidate, args),
+        confirmSearchCandidate: (args) => convex.action(api.museumSearch.confirmSearchCandidate, args),
       },
       images: imageCheckDeps,
       inputSize: model.inputSize,

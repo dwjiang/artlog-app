@@ -1,11 +1,15 @@
 import { createVisitSharingTransport } from "./visit-sharing-transport";
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 it("uses the captured token and abort signal for all four sharing operations", async () => {
-  const fetcher = jest
-    .fn()
-    .mockResolvedValue({ ok: true, json: async () => ({ status: "success", value: null }) });
+  const fetcher = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: "success", value: null }),
+  });
   const transport = createVisitSharingTransport("https://example.convex.cloud", fetcher);
-  const context = { token: "captured-token", signal: new AbortController().signal };
+  const context = {
+    token: "captured-token",
+    signal: new AbortController().signal,
+  };
   const args = {
     audience: "public" as const,
     visitLocalId: "visit",
@@ -23,9 +27,10 @@ it("uses the captured token and abort signal for all four sharing operations", a
     "sharedVisits:publish",
     "sharedVisits:get",
   ]);
-  for (const [, options] of fetcher.mock.calls)
+  for (const [, options] of fetcher.mock.calls) {
     expect(options).toMatchObject({
       signal: context.signal,
       headers: { Authorization: "Bearer captured-token" },
     });
+  }
 });

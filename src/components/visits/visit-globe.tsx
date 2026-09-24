@@ -1,11 +1,5 @@
 import { Button, Host, Icon } from "@expo/ui";
-import {
-  accessibilityLabel,
-  contentShape,
-  frame,
-  shapes,
-  strokeBorder,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 import { useRef, useState, type ComponentProps } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -16,12 +10,7 @@ import { WallSheet } from "../collection/wall-sheet";
 import { GalleryButton } from "../collection/gallery-button";
 import { Gallery, Radius } from "@/constants/theme";
 import { countryName, placeIdentity } from "@/lib/journal/history";
-import {
-  mappedMuseums,
-  visitCounts,
-  visitsAtPlace,
-  type VisitSummary,
-} from "@/lib/journal/visit-summaries";
+import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from "@/lib/journal/visit-summaries";
 import { GlobeCanvas, type GlobeCanvasHandle } from "./globe-canvas";
 import { ArtworkPreviews, VisitMessage, VisitSymbol } from "./visit-ui";
 
@@ -44,12 +33,13 @@ export function VisitGlobe({
   const selected = museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
   const globe = useRef<GlobeCanvasHandle>(null);
   const { width } = useWindowDimensions();
-  if (!selected)
+  if (!selected) {
     return (
       <VisitMessage action="Show List" onAction={onList}>
         Globe locations are unavailable. Your visits are still in List.
       </VisitMessage>
     );
+  }
   const pins = museums.map((visit) => ({
     id: visit.venueId,
     latitude: visit.coordinates!.latitude,
@@ -88,7 +78,10 @@ export function VisitGlobe({
               icon="arrow.up.left.and.arrow.down.right"
               onPress={() => {
                 globe.current?.settle();
-                router.push({ pathname: "/visit-globe", params: { venueId: selected.venueId } });
+                router.push({
+                  pathname: "/visit-globe",
+                  params: { venueId: selected.venueId },
+                });
               }}
             />
           </View>
@@ -102,7 +95,11 @@ export function VisitGlobe({
           onPress={() => {
             const destination = {
               pathname: "/visit-place" as const,
-              params: { placeKey: place.key, name: selected.venueName, venueId: selected.venueId },
+              params: {
+                placeKey: place.key,
+                name: selected.venueName,
+                venueId: selected.venueId,
+              },
             };
             if (expanded) router.dismissTo(destination);
             else router.push(destination);

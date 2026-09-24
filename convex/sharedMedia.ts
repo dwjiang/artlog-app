@@ -1,19 +1,10 @@
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { ConvexError, type Infer, v } from "convex/values";
 import { reportBackendError } from "./lib/observability";
-import {
-  previewMediaContext,
-  sharedVisitMediaContext,
-  validateMediaContext,
-} from "../shared/social/contracts";
+import { previewMediaContext, sharedVisitMediaContext, validateMediaContext } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import { internalQuery, type ActionCtx } from "./_generated/server";
-import {
-  requireMembership,
-  requireOwnedSave,
-  requireProfile,
-  optionalProfile,
-} from "./lib/ownership";
+import { requireMembership, requireOwnedSave, requireProfile, optionalProfile } from "./lib/ownership";
 import { requireSharedVisitItem } from "./lib/publicationAccess";
 import { ownedVisit } from "./lib/sharedPublications";
 import { resolveDisplayAsset } from "./lib/displayMedia";
@@ -28,15 +19,11 @@ export const authorize = internalQuery({
     let save;
     if (context.kind === "sharedVisit") {
       const profile = await optionalProfile(ctx);
-      const result = await requireSharedVisitItem(
-        ctx,
-        context.postId,
-        context.itemId,
-        profile?._id,
-      );
+      const result = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile?._id);
       save = result.save;
-      if (context.photoLocalId && !result.item.photoLocalIds?.includes(context.photoLocalId))
+      if (context.photoLocalId && !result.item.photoLocalIds?.includes(context.photoLocalId)) {
         throw new ConvexError({ code: "not_found" });
+      }
     } else {
       const { owner } = await requireProfile(ctx);
       const visit = await ownedVisit(ctx, owner, context.visitLocalId);
@@ -49,8 +36,9 @@ export const authorize = internalQuery({
       return photo.storageId;
     }
     const asset = await resolveDisplayAsset(ctx, save);
-    if (!asset?.storageId || projectArtwork(save, asset, context).media.kind !== "derivative")
+    if (!asset?.storageId || projectArtwork(save, asset, context).media.kind !== "derivative") {
       throw new ConvexError({ code: "not_found" });
+    }
     // A media row must never turn a reusable owner photo into a social derivative.
     const crop = await ctx.db
       .query("collections")
@@ -67,19 +55,30 @@ export const authorize = internalQuery({
 
 // The wall transport supplies the validated context and forwards the caller's auth.
 export async function serveSharedMedia(
-  ctx: Pick<ActionCtx, "runQuery"> & { storage: Pick<ActionCtx["storage"], "get"> },
+  ctx: Pick<ActionCtx, "runQuery"> & {
+    storage: Pick<ActionCtx["storage"], "get">;
+  },
   context: Infer<typeof sharedMediaContext>,
 ): Promise<Response> {
-  const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
+  const headers = {
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+  };
   try {
-    const storageId = await ctx.runQuery(internal.sharedMedia.authorize, { context });
+    const storageId = await ctx.runQuery(internal.sharedMedia.authorize, {
+      context,
+    });
     const blob = await ctx.storage.get(storageId);
     if (!blob) throw new ConvexError({ code: "not_found" });
     // Recheck after fetching the bytes so a revocation during storage IO is honored.
-    if ((await ctx.runQuery(internal.sharedMedia.authorize, { context })) !== storageId)
+    if ((await ctx.runQuery(internal.sharedMedia.authorize, { context })) !== storageId) {
       throw new ConvexError({ code: "not_found" });
+    }
     return new Response(blob, {
-      headers: { ...headers, "Content-Type": blob.type || "application/octet-stream" },
+      headers: {
+        ...headers,
+        "Content-Type": blob.type || "application/octet-stream",
+      },
     });
   } catch (error) {
     if (!(error instanceof ConvexError)) throw error;

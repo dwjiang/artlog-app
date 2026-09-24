@@ -87,10 +87,7 @@ export function ResultCard({
           tintColor={Gallery.ink}
           hidesSharedBackground
         >
-          <Stack.Toolbar.MenuAction
-            disabled={!editable}
-            onPress={() => setEditingDetails((value) => !value)}
-          >
+          <Stack.Toolbar.MenuAction disabled={!editable} onPress={() => setEditingDetails((value) => !value)}>
             {editingDetails ? "Done editing" : "Edit details"}
           </Stack.Toolbar.MenuAction>
           {view.kind === "confident" && (
@@ -112,9 +109,7 @@ export function ResultCard({
         {header}
         <View style={styles.identity}>
           <ThemedText type="title" style={{ fontSize: 36, lineHeight: 42 }}>
-            {view.kind === "soft"
-              ? `Could this be ${draft.title}?`
-              : draft.title || "Unidentified artwork"}
+            {view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
           </ThemedText>
           {!editingDetails && (
             <>
@@ -140,9 +135,7 @@ export function ResultCard({
             scanId={captureInput?.scanId}
             savedId={savedId}
             imageUri={
-              captureInput?.capture
-                ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath))
-                : undefined
+              captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
             }
           />
         )}
@@ -154,8 +147,7 @@ export function ResultCard({
         {view.kind === "soft" && (
           <>
             <ThemedText themeColor="textSecondary">
-              The image looks similar, but we’re not sure. Scan the museum label to confirm the
-              details.
+              The image looks similar, but we’re not sure. Scan the museum label to confirm the details.
             </ThemedText>
             <ThemedText variant="metadata" themeColor="textSecondary">
               Possible artist · {draft.artist || "Unknown"}
@@ -246,7 +238,12 @@ export function ResultCard({
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16, gap: Spacing.two },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 16,
+    gap: Spacing.two,
+  },
   identity: { gap: 2 },
   workTitle: { fontSize: 20, lineHeight: 24, fontWeight: "600" },
   section: { gap: 4 },

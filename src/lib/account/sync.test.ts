@@ -115,12 +115,21 @@ it("pushes scoped snapshots, applies parents before saves, acknowledges and chec
   expect(checkpoint).toBe("20");
 });
 it("leaves edits pending and checkpoints unchanged on network or local-write failures", async () => {
-  await saves.insertSavedWork({ localId: "local", title: "Local", artist: "", savedAt: 1 });
+  await saves.insertSavedWork({
+    localId: "local",
+    title: "Local",
+    artist: "",
+    savedAt: 1,
+  });
   api.mockRejectedValueOnce(new Error("offline"));
   await expect(syncJournal(deps, context)).rejects.toThrow("offline");
   expect(await saves.listUnsynced()).toHaveLength(1);
   expect(checkpoint).toBeUndefined();
-  api.mockResolvedValueOnce({ ...empty, visits: [remoteVisit], saves: [remote] });
+  api.mockResolvedValueOnce({
+    ...empty,
+    visits: [remoteVisit],
+    saves: [remote],
+  });
   deps.upsertVisitsFromRemote = async () => {
     throw new Error("SQLITE_BUSY");
   };
@@ -129,7 +138,12 @@ it("leaves edits pending and checkpoints unchanged on network or local-write fai
 });
 it("resumes at the last applied change after an interrupted pull", async () => {
   api
-    .mockResolvedValueOnce({ ...empty, visits: [remoteVisit], checkpoint: 1, hasMore: true })
+    .mockResolvedValueOnce({
+      ...empty,
+      visits: [remoteVisit],
+      checkpoint: 1,
+      hasMore: true,
+    })
     .mockRejectedValueOnce(new Error("offline"));
   await expect(syncJournal(deps, context)).rejects.toThrow("offline");
   expect(checkpoint).toBe("1");
@@ -165,10 +179,7 @@ it("sends empty visits before save batches and leaves hidden account work suspen
       savedAt: i,
     })),
   );
-  await saves.insertSavedWork(
-    { localId: "hidden", title: "Hidden", artist: "", savedAt: 0 },
-    "account:hidden",
-  );
+  await saves.insertSavedWork({ localId: "hidden", title: "Hidden", artist: "", savedAt: 0 }, "account:hidden");
   await syncJournal(deps, context);
   expect(api.mock.calls.map(([args]) => args.visits.length + args.saves.length)).toEqual([50, 21]);
   expect(api.mock.calls[0][0].visits).toHaveLength(1);
@@ -205,7 +216,12 @@ it("applies canonical venue metadata before advancing the checkpoint", async () 
 it("rejects remote rows belonging to a different owner before applying data", async () => {
   api.mockResolvedValueOnce({
     ...empty,
-    visits: [{ ...remoteVisit, owner: { kind: "account", accountId: "foreign" as never } }],
+    visits: [
+      {
+        ...remoteVisit,
+        owner: { kind: "account", accountId: "foreign" as never },
+      },
+    ],
   });
   await expect(syncJournal(deps, context)).rejects.toThrow("not_found");
   expect(await visits.listVisits()).toEqual([]);

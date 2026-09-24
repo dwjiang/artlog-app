@@ -45,7 +45,9 @@ export function sentences(text: string): string[] {
     parts.push(normalized.slice(start, boundary.index + boundary[0].length).trim());
     start = boundary.index + boundary[0].length;
   }
-  if (normalized.slice(start).trim()) parts.push(normalized.slice(start).trim());
+  if (normalized.slice(start).trim()) {
+    parts.push(normalized.slice(start).trim());
+  }
   return parts;
 }
 
@@ -64,11 +66,7 @@ export function isListingUrl(value: string): boolean {
   } catch {
     return true;
   }
-  return (
-    LISTING_HOST.test(url.hostname) ||
-    LISTING_PATH.test(url.pathname) ||
-    url.searchParams.has("page")
-  );
+  return LISTING_HOST.test(url.hostname) || LISTING_PATH.test(url.pathname) || url.searchParams.has("page");
 }
 
 export function publishedAt(value: string | undefined): number | null {
@@ -99,9 +97,7 @@ function normalizedSentence(text: string): string {
 // conservatively suppress surrounding qualification signals, even when they may be unrelated.
 function hasOmittedQualification(claim: string, context: string[]): boolean {
   const normalized = normalizedSentence(claim);
-  return context.some(
-    (sentence) => normalizedSentence(sentence) !== normalized && QUALIFICATION.test(sentence),
-  );
+  return context.some((sentence) => normalizedSentence(sentence) !== normalized && QUALIFICATION.test(sentence));
 }
 
 function hasCurrentEventDate(sentence: string, now: number): boolean {
@@ -109,31 +105,32 @@ function hasCurrentEventDate(sentence: string, now: number): boolean {
   return EVENT_DATE_PATTERNS.some((pattern) =>
     [...sentence.matchAll(pattern)].some((match) => {
       const { year, month, monthNumber, day } = match.groups!;
-      const monthIndex = month
-        ? MONTHS.indexOf(month.slice(0, 3).toLowerCase())
-        : Number(monthNumber) - 1;
+      const monthIndex = month ? MONTHS.indexOf(month.slice(0, 3).toLowerCase()) : Number(monthNumber) - 1;
       const at = Date.UTC(Number(year), monthIndex, Number(day));
       const date = new Date(at);
       if (
-        date.getUTCFullYear() !== Number(year) ||
-        date.getUTCMonth() !== monthIndex ||
-        date.getUTCDate() !== Number(day)
-      )
+        date.getUTCFullYear() !== Number(year)
+        || date.getUTCMonth() !== monthIndex
+        || date.getUTCDate() !== Number(day)
+      ) {
         return false;
+      }
       return at >= now - WINDOW_MS && at <= now + WINDOW_MS;
     }),
   );
 }
 
 function claimSupported(claim: string, artist: string, source: TavilyResult, now: number): boolean {
-  if (claim.length > MAX_CHARS || !/[.!?]["”’]?$/.test(claim) || !artistMentioned(claim, artist))
+  if (claim.length > MAX_CHARS || !/[.!?]["”’]?$/.test(claim) || !artistMentioned(claim, artist)) {
     return false;
-  if (source.content.trim().length < MIN_CONTENT_CHARS || !hasCurrentEventDate(claim, now))
+  }
+  if (source.content.trim().length < MIN_CONTENT_CHARS || !hasCurrentEventDate(claim, now)) {
     return false;
+  }
   const context = sourceSentences(source.content);
   return (
-    !hasOmittedQualification(claim, [source.title, ...context]) &&
-    context.some((sentence) => normalizedSentence(sentence) === normalizedSentence(claim))
+    !hasOmittedQualification(claim, [source.title, ...context])
+    && context.some((sentence) => normalizedSentence(sentence) === normalizedSentence(claim))
   );
 }
 
@@ -153,31 +150,28 @@ export function eligibleResults(
       }
       const at = publishedAt(result.publishedDate);
       if (
-        result.score < MIN_SCORE ||
-        url.protocol !== "https:" ||
-        !hostAllowed(url, options.domains) ||
-        isListingUrl(result.url)
-      )
+        result.score < MIN_SCORE
+        || url.protocol !== "https:"
+        || !hostAllowed(url, options.domains)
+        || isListingUrl(result.url)
+      ) {
         return [];
-      if (at === null || at > options.now || at < options.now - WINDOW_MS) return [];
+      }
+      if (at === null || at > options.now || at < options.now - WINDOW_MS) {
+        return [];
+      }
       return [{ ...result, publishedAt: at }];
     })
     .sort((a, b) => b.score - a.score);
 }
 
-export function acceptRightNow(
-  response: TavilySearchResponse,
-  options: AcceptOptions,
-): RightNowCard | null {
+export function acceptRightNow(response: TavilySearchResponse, options: AcceptOptions): RightNowCard | null {
   const answer = response.answer?.trim();
   if (!answer || isAbstention(answer)) return null;
   const claim = firstSentence(answer);
-  if (
-    !claim ||
-    !artistMentioned(claim, options.artist) ||
-    hasOmittedQualification(claim, sentences(answer))
-  )
+  if (!claim || !artistMentioned(claim, options.artist) || hasOmittedQualification(claim, sentences(answer))) {
     return null;
+  }
   for (const result of eligibleResults(response.results, options)) {
     if (!claimSupported(claim, options.artist, result, options.now)) continue;
     return {

@@ -29,9 +29,7 @@ export function RemovalToast() {
                   },
                 ]
               : []),
-            ...(item.status !== "saving"
-              ? [{ label: "Undo", onPress: () => undoRemoval(item) }]
-              : []),
+            ...(item.status !== "saving" ? [{ label: "Undo", onPress: () => undoRemoval(item) }] : []),
           ]}
         />
       ))}

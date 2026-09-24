@@ -87,10 +87,7 @@
         "work_date": ["2001"],
         "medium": ["Oil and acrylic on canvas"],
         "accession": ["2002.7"],
-        "credit_line": [
-          "Museum purchase, American Art Trust Fund",
-          "Museum purchase. American Art Trust Fund"
-        ]
+        "credit_line": ["Museum purchase, American Art Trust Fund", "Museum purchase. American Art Trust Fund"]
       }
     },
     {
@@ -219,10 +216,7 @@
         "work_date": ["1830–1837"],
         "medium": ["Woodblock print"],
         "accession": ["1971.131.19"],
-        "credit_line": [
-          "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
-          "Gift of Mrs. James W. Lyon"
-        ]
+        "credit_line": ["Tacoma Art Museum, Gift of Mrs. James W. Lyon", "Gift of Mrs. James W. Lyon"]
       }
     },
     {
@@ -243,10 +237,7 @@
         "work_date": ["1831"],
         "medium": ["Woodblock print"],
         "accession": ["1971.143.4"],
-        "credit_line": [
-          "Tacoma Art Museum, Gift of Mrs. James W. Lyon",
-          "Gift of Mrs. James W. Lyon"
-        ]
+        "credit_line": ["Tacoma Art Museum, Gift of Mrs. James W. Lyon", "Gift of Mrs. James W. Lyon"]
       }
     },
     {
@@ -262,22 +253,12 @@
       "sha256": "14faf5e698f173d8a0b5e7045117b26ff3817f23fa29d72781a98bf35f35ebc8",
       "expected": {
         "title": ["Cinderella Table"],
-        "artist": [
-          "Demakersvan; Jeroen Verhoeven",
-          "Jeroen Verhoeven (Demakersvan)",
-          "Jeroen Verhoeven"
-        ],
-        "artist_dates": [
-          "born 1976",
-          "1976",
-          "Demakersvan: est. 2004; Jeroen Verhoeven: born 1976"
-        ],
+        "artist": ["Demakersvan; Jeroen Verhoeven", "Jeroen Verhoeven (Demakersvan)", "Jeroen Verhoeven"],
+        "artist_dates": ["born 1976", "1976", "Demakersvan: est. 2004; Jeroen Verhoeven: born 1976"],
         "work_date": ["2004"],
         "medium": ["Birch"],
         "accession": [null],
-        "credit_line": [
-          "Gift of Marie-Josée and Henry R. Kravis in honor of Patricia Phelps de Cisneros, 2006"
-        ]
+        "credit_line": ["Gift of Marie-Josée and Henry R. Kravis in honor of Patricia Phelps de Cisneros, 2006"]
       }
     },
     {
@@ -329,9 +310,7 @@
         "work_date": ["1940–48", "1940–1948"],
         "medium": ["Copper"],
         "accession": [null],
-        "credit_line": [
-          "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"
-        ]
+        "credit_line": ["The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"]
       }
     },
     {
@@ -375,9 +354,7 @@
         "work_date": ["1976"],
         "medium": ["Cor-Ten steel"],
         "accession": [null],
-        "credit_line": [
-          "The San Diego Museum of Art; Museum purchase through the Earle W. Grant Endowment Fund, 1976"
-        ]
+        "credit_line": ["The San Diego Museum of Art; Museum purchase through the Earle W. Grant Endowment Fund, 1976"]
       }
     },
     {
@@ -398,9 +375,7 @@
         "work_date": ["1993"],
         "medium": ["Stainless steel"],
         "accession": [null],
-        "credit_line": [
-          "The San Diego Museum of Art; Museum purchase with matching sculpture fund, 1994"
-        ]
+        "credit_line": ["The San Diego Museum of Art; Museum purchase with matching sculpture fund, 1994"]
       }
     },
     {
@@ -421,9 +396,7 @@
         "work_date": ["1963–64", "1963–1964"],
         "medium": ["Stainless steel"],
         "accession": [null],
-        "credit_line": [
-          "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"
-        ]
+        "credit_line": ["The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1968"]
       }
     },
     {
@@ -465,9 +438,7 @@
         "work_date": ["1969"],
         "medium": ["Bronze"],
         "accession": [null],
-        "credit_line": [
-          "The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1971"
-        ]
+        "credit_line": ["The San Diego Museum of Art; Gift of Mr. and Mrs. Norton S. Walbridge, 1971"]
       }
     },
     {
@@ -528,9 +499,7 @@
       "image_sha1_original": null,
       "sha256": "31422ae574a0e8a183018b9d77bfb6efaf0404fcec9ec7c5606caa975e566084",
       "expected": {
-        "title": [
-          "Presentación de Colón a los Reyes Católicos en el Salón del Tinell de Barcelona"
-        ],
+        "title": ["Presentación de Colón a los Reyes Católicos en el Salón del Tinell de Barcelona"],
         "artist": ["Antonio Susillo"],
         "artist_dates": ["1857 - 1896", "1857–1896", "Sevilla 1857 - 1896"],
         "work_date": ["1893"],

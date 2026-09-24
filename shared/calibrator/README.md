@@ -31,7 +31,11 @@ One JSON document shaped exactly like `CalibratorConfig`:
   "thresholds": { "confident": 0.85, "soft": 0.45 },
   "lowTextureKeypoints": 80,
   "textured": { "minInliers": 15 },
-  "lowTexture": { "minSimilarity": 0.93, "minMargin": 0.04, "requireVenueAgreement": true }
+  "lowTexture": {
+    "minSimilarity": 0.93,
+    "minMargin": 0.04,
+    "requireVenueAgreement": true
+  }
 }
 ```
 

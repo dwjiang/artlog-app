@@ -17,15 +17,9 @@ export const MAX_IDENTIFY_ATTEMPTS = 5;
 export const MAX_LABEL_ATTEMPTS = 5;
 export type PendingLabel = { labelPhotoPath?: string; qrUrl?: string };
 
-export type ScanFeatureUpdate = Pick<
-  PendingScan,
-  "vector" | "descriptors" | "keypoints" | "modelVersion"
->;
+export type ScanFeatureUpdate = Pick<PendingScan, "vector" | "descriptors" | "keypoints" | "modelVersion">;
 
-export async function enqueuePendingScan(
-  row: NewPendingScan,
-  owner = getLocalOwner(),
-): Promise<void> {
+export async function enqueuePendingScan(row: NewPendingScan, owner = getLocalOwner()): Promise<void> {
   requireVisitMembership(owner, row);
   db.insert(pendingScans)
     .values({ ...row, owner })
@@ -40,10 +34,7 @@ export function selectPendingScan(localId: string, owner = getLocalOwner()) {
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
-export async function getPendingScan(
-  localId: string,
-  owner = getLocalOwner(),
-): Promise<PendingScan | undefined> {
+export async function getPendingScan(localId: string, owner = getLocalOwner()): Promise<PendingScan | undefined> {
   return selectPendingScan(localId, owner).get();
 }
 
@@ -95,18 +86,12 @@ export async function listPendingLabels(owner = getLocalOwner()): Promise<Pendin
 function matchingLabel(localId: string, label: PendingLabel, owner: string) {
   return and(
     and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
-    label.labelPhotoPath
-      ? eq(pendingScans.labelPhotoPath, label.labelPhotoPath)
-      : isNull(pendingScans.labelPhotoPath),
+    label.labelPhotoPath ? eq(pendingScans.labelPhotoPath, label.labelPhotoPath) : isNull(pendingScans.labelPhotoPath),
     label.qrUrl ? eq(pendingScans.qrUrl, label.qrUrl) : isNull(pendingScans.qrUrl),
   );
 }
 
-export async function clearPendingLabel(
-  localId: string,
-  label: PendingLabel,
-  owner = getLocalOwner(),
-): Promise<void> {
+export async function clearPendingLabel(localId: string, label: PendingLabel, owner = getLocalOwner()): Promise<void> {
   await db
     .update(pendingScans)
     .set({ labelPhotoPath: null, qrUrl: null, attempts: 0, lastError: null })
@@ -148,20 +133,14 @@ export function pendingScansQuery(owner = getLocalOwner()) {
     .from(pendingScans)
     .leftJoin(
       artworkPhotos,
-      and(
-        eq(artworkPhotos.owner, pendingScans.owner),
-        eq(artworkPhotos.localId, pendingScans.localId),
-      ),
+      and(eq(artworkPhotos.owner, pendingScans.owner), eq(artworkPhotos.localId, pendingScans.localId)),
     )
     .where(and(eq(pendingScans.owner, owner), isNull(artworkPhotos.localId)))
     .orderBy(desc(pendingScans.capturedAt), desc(pendingScans.localId));
 }
 
 /** Rows the flusher should send, oldest first; a model update gives failed rows another run. */
-export async function listFlushable(
-  modelVersion: string,
-  owner = getLocalOwner(),
-): Promise<PendingScan[]> {
+export async function listFlushable(modelVersion: string, owner = getLocalOwner()): Promise<PendingScan[]> {
   return db
     .select()
     .from(pendingScans)
@@ -170,10 +149,7 @@ export async function listFlushable(
         eq(pendingScans.owner, owner),
         or(
           eq(pendingScans.status, "queued"),
-          and(
-            eq(pendingScans.status, "failed"),
-            ne(pendingScans.attemptModelVersion, modelVersion),
-          ),
+          and(eq(pendingScans.status, "failed"), ne(pendingScans.attemptModelVersion, modelVersion)),
         ),
       ),
     )
@@ -187,11 +163,7 @@ export async function markIdentifying(localId: string, owner = getLocalOwner()):
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
-export async function markIdentified(
-  localId: string,
-  scanId: Id<"scans">,
-  owner = getLocalOwner(),
-): Promise<void> {
+export async function markIdentified(localId: string, scanId: Id<"scans">, owner = getLocalOwner()): Promise<void> {
   await db
     .update(pendingScans)
     .set({ status: "identified", scanId, attempts: 0, lastError: null })
@@ -241,10 +213,7 @@ export async function retryPendingScan(localId: string, owner = getLocalOwner())
     .update(pendingScans)
     .set({ status: "queued", attempts: 0, lastError: null })
     .where(
-      and(
-        and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)),
-        eq(pendingScans.status, "failed"),
-      ),
+      and(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)), eq(pendingScans.status, "failed")),
     );
 }
 
@@ -255,7 +224,12 @@ export async function resetAttemptsForModel(
 ): Promise<void> {
   await db
     .update(pendingScans)
-    .set({ attemptModelVersion, status: "queued", attempts: 0, lastError: null })
+    .set({
+      attemptModelVersion,
+      status: "queued",
+      attempts: 0,
+      lastError: null,
+    })
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
@@ -279,22 +253,14 @@ export async function updateFeatures(
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
-export async function setLabelPhoto(
-  localId: string,
-  labelPhotoPath: string,
-  owner = getLocalOwner(),
-): Promise<void> {
+export async function setLabelPhoto(localId: string, labelPhotoPath: string, owner = getLocalOwner()): Promise<void> {
   await db
     .update(pendingScans)
     .set({ labelPhotoPath, qrUrl: null, attempts: 0, lastError: null })
     .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }
 
-export async function setQrUrl(
-  localId: string,
-  qrUrl: string,
-  owner = getLocalOwner(),
-): Promise<void> {
+export async function setQrUrl(localId: string, qrUrl: string, owner = getLocalOwner()): Promise<void> {
   await db
     .update(pendingScans)
     .set({ qrUrl, labelPhotoPath: null, attempts: 0, lastError: null })
@@ -302,7 +268,5 @@ export async function setQrUrl(
 }
 
 export async function deletePendingScan(localId: string, owner = getLocalOwner()): Promise<void> {
-  await db
-    .delete(pendingScans)
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+  await db.delete(pendingScans).where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
 }

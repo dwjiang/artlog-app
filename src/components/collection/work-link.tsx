@@ -14,7 +14,10 @@ type WorkLinkProps = {
 export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
   return (
     <Link
-      href={{ pathname: "/saved/[savedId]", params: { savedId: work.localId, visitId } }}
+      href={{
+        pathname: "/saved/[savedId]",
+        params: { savedId: work.localId, visitId },
+      }}
       asChild
     >
       <Pressable

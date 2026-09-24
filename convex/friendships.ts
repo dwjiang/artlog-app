@@ -4,19 +4,16 @@ import { relationship as state } from "../shared/social/contracts";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { activeProfile, requireProfile } from "./lib/ownership";
-import {
-  acceptedRelationships,
-  canonicalPair,
-  checkRevision,
-  relationshipSnapshot,
-} from "./lib/friendships";
+import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from "./lib/friendships";
 import { limitKey } from "./lib/rateLimits";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
 // Revocations stay available after the counterpart is removed so a stale edge cannot hold a friend slot.
 async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation = false) {
   const actor = await requireProfile(ctx);
-  if (actor.profile._id === profileId) throw new ConvexError({ code: "invalid_relationship" });
+  if (actor.profile._id === profileId) {
+    throw new ConvexError({ code: "invalid_relationship" });
+  }
   const other = revocation ? await ctx.db.get(profileId) : await activeProfile(ctx, profileId);
   if (!other) throw new ConvexError({ code: "not_found" });
   return actor;
@@ -42,40 +39,45 @@ function transition(operation: "request" | "accept" | "decline" | "cancel" | "re
       );
       const snapshot = await relationshipSnapshot(ctx, profile._id, profileId);
       const { edge, block, reverseBlock } = snapshot;
-      if (!isRevision(revision)) throw new ConvexError({ code: "invalid_relationship" });
+      if (!isRevision(revision)) {
+        throw new ConvexError({ code: "invalid_relationship" });
+      }
       // Repeating a completed revocation cannot restore access or consume a quota.
-      if (["decline", "cancel", "remove"].includes(operation) && edge?.state === "none")
+      if (["decline", "cancel", "remove"].includes(operation) && edge?.state === "none") {
         return snapshot.state;
+      }
       checkRevision(revision, edge?.revision ?? 0);
-      if (block?.active || reverseBlock?.active) throw new ConvexError({ code: "not_found" });
+      if (block?.active || reverseBlock?.active) {
+        throw new ConvexError({ code: "not_found" });
+      }
       let next: "pending" | "accepted" | "none";
       if (operation === "request") {
-        if (edge?.state === "pending" && edge.requesterId === profile._id) return snapshot.state;
-        if (edge && edge.state !== "none") throw new ConvexError({ code: "invalid_relationship" });
+        if (edge?.state === "pending" && edge.requesterId === profile._id) {
+          return snapshot.state;
+        }
+        if (edge && edge.state !== "none") {
+          throw new ConvexError({ code: "invalid_relationship" });
+        }
         next = "pending";
       } else if (operation === "remove") {
-        if (edge?.state !== "accepted") throw new ConvexError({ code: "invalid_relationship" });
+        if (edge?.state !== "accepted") {
+          throw new ConvexError({ code: "invalid_relationship" });
+        }
         next = "none";
       } else {
-        if (
-          edge?.state !== "pending" ||
-          (operation === "cancel") !== (edge.requesterId === profile._id)
-        ) {
+        if (edge?.state !== "pending" || (operation === "cancel") !== (edge.requesterId === profile._id)) {
           throw new ConvexError({ code: "invalid_relationship" });
         }
         next = operation === "accept" ? "accepted" : "none";
       }
       if (next === "accepted") {
         for (const id of [profile._id, profileId]) {
-          if ((await acceptedRelationships(ctx, id)).length >= LIMITS.friends)
+          if ((await acceptedRelationships(ctx, id)).length >= LIMITS.friends) {
             throw new ConvexError({ code: "friend_limit" });
+          }
         }
       }
-      await limitKey(
-        ctx,
-        operation === "request" ? "friendRequest" : "relationshipChange",
-        accountId,
-      );
+      await limitKey(ctx, operation === "request" ? "friendRequest" : "relationshipChange", accountId);
       const [firstProfileId, secondProfileId] = canonicalPair(profile._id, profileId);
       const fields = {
         firstProfileId,
@@ -135,11 +137,16 @@ export const unblock = mutation({
   handler: async (ctx, { profileId, blockRevision }) => {
     const { profile, accountId } = await participants(ctx, profileId, true);
     const snapshot = await relationshipSnapshot(ctx, profile._id, profileId);
-    if (!isRevision(blockRevision)) throw new ConvexError({ code: "invalid_relationship" });
+    if (!isRevision(blockRevision)) {
+      throw new ConvexError({ code: "invalid_relationship" });
+    }
     if (!snapshot.block?.active) return snapshot.state;
     checkRevision(blockRevision, snapshot.block.revision);
     await limitKey(ctx, "relationshipChange", accountId);
-    await ctx.db.patch(snapshot.block._id, { active: false, revision: blockRevision + 1 });
+    await ctx.db.patch(snapshot.block._id, {
+      active: false,
+      revision: blockRevision + 1,
+    });
     return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
   },
 });

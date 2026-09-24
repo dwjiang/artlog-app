@@ -11,15 +11,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -80,7 +72,7 @@ function PhotoSession({
   const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
-    if (savedId)
+    if (savedId) {
       void (async () => {
         try {
           const work = await getSavedWork(savedId, owner);
@@ -89,6 +81,7 @@ function PhotoSession({
           reportError(error, "capture.load_album");
         }
       })();
+    }
     return () => {
       current = false;
     };
@@ -142,7 +135,10 @@ function PhotoSession({
       const sources: { uri: string; capturedAt: number }[] = [];
       if (source === "camera") {
         const photo = await output.capturePhotoToFile({}, {});
-        sources.push({ uri: `file://${photo.filePath}`, capturedAt: Date.now() });
+        sources.push({
+          uri: `file://${photo.filePath}`,
+          capturedAt: Date.now(),
+        });
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"],
@@ -152,13 +148,14 @@ function PhotoSession({
           exif: true,
           quality: 1,
         });
-        if (!result.canceled)
+        if (!result.canceled) {
           sources.push(
             ...result.assets.map((photo) => ({
               uri: photo.uri,
               capturedAt: extractCaptureMeta(photo.exif).capturedAt,
             })),
           );
+        }
       }
       const next = [...photos];
       let checks = 0;
@@ -204,11 +201,16 @@ function PhotoSession({
   async function sessionVisitId(): Promise<string | undefined> {
     const session = readPhotoSession(owner, draftId);
     const choice = captureVisitChoice(
-      { visitLocalId: visitId, venueId: saveCapture?.venueId, capturedAt: contextCapturedAt },
+      {
+        visitLocalId: visitId,
+        venueId: saveCapture?.venueId,
+        capturedAt: contextCapturedAt,
+      },
       session,
     );
-    if (choice.kind === "venue")
+    if (choice.kind === "venue") {
       return (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId;
+    }
     return choice.kind === "visit" ? choice.localId : undefined;
   }
   async function done() {
@@ -245,15 +247,15 @@ function PhotoSession({
           title: title || "Unidentified artwork",
           wasExisting: true,
           photoPaths: photos.map((photo) => photo.path),
-          visitLabel: visit
-            ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}`
-            : "No visit · Collection only",
+          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : "No visit · Collection only",
         });
       } else {
         const input = readPhotoSession(owner, draftId).saveInput;
         if (!input) throw new Error("Capture unavailable");
         const capture = await getPendingScan(input.capture.localId, owner);
-        if (!capture || !session.isOwnerCurrent()) throw new Error("Capture unavailable");
+        if (!capture || !session.isOwnerCurrent()) {
+          throw new Error("Capture unavailable");
+        }
         await newArtwork.save({
           ...input,
           capture,
@@ -323,18 +325,14 @@ function PhotoSession({
       setOperation(undefined);
     }
   }
-  if (completion)
+  if (completion) {
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: Gallery.paper }}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
       >
-        <CaptureCompletion
-          completion={completion}
-          inline
-          sharedToIndex={newArtwork.shared?.status === "tentative"}
-        />
+        <CaptureCompletion completion={completion} inline sharedToIndex={newArtwork.shared?.status === "tentative"} />
         <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}>
           <ContributionStatus
             sharing={newArtwork.sharing}
@@ -347,9 +345,9 @@ function PhotoSession({
         </View>
       </ScrollView>
     );
+  }
   const photoCount = photos.length + (savedId ? 0 : 1);
-  const shares =
-    !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
+  const shares = !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return (
     <ScrollView
       style={styles.screen}
@@ -371,9 +369,7 @@ function PhotoSession({
             {target?.title || title || "Unidentified artwork"}
           </ThemedText>
           <ThemedText type="small" style={styles.hint}>
-            {target?.artist ||
-              input?.draft.artist ||
-              "Full views, details, and labels stay together."}
+            {target?.artist || input?.draft.artist || "Full views, details, and labels stay together."}
           </ThemedText>
         </View>
       </View>
@@ -399,9 +395,7 @@ function PhotoSession({
           currentPhoto
             ? update(
                 photos.map((photo) =>
-                  photo.localId === currentPhoto.localId
-                    ? { ...photo, kind: value as PhotoKind }
-                    : photo,
+                  photo.localId === currentPhoto.localId ? { ...photo, kind: value as PhotoKind } : photo,
                 ),
               )
             : setKind(value as PhotoKind)
@@ -429,7 +423,9 @@ function PhotoSession({
               onStarted={() => setReady(true)}
               onStopped={() => setReady(false)}
               onError={(error) => {
-                reportError(error, "camera.start", { data: { screen: "add_photos" } });
+                reportError(error, "camera.start", {
+                  data: { screen: "add_photos" },
+                });
                 setError("Camera unavailable. Add photos from your library.");
               }}
             />
@@ -463,9 +459,7 @@ function PhotoSession({
                 onPress={() =>
                   update(
                     photos.map((photo) =>
-                      photo.localId === currentPhoto.localId
-                        ? { ...photo, review: undefined }
-                        : photo,
+                      photo.localId === currentPhoto.localId ? { ...photo, review: undefined } : photo,
                     ),
                   )
                 }
@@ -494,19 +488,11 @@ function PhotoSession({
             maxLength={2000}
             style={styles.caption}
             onChangeText={(caption) =>
-              update(
-                photos.map((photo) =>
-                  photo.localId === currentPhoto.localId ? { ...photo, caption } : photo,
-                ),
-              )
+              update(photos.map((photo) => (photo.localId === currentPhoto.localId ? { ...photo, caption } : photo)))
             }
           />
           <View style={[styles.row, fontScale >= 1.5 && styles.stacked]}>
-            <GalleryButton
-              label="Back to camera"
-              disabled={busy}
-              onPress={() => setSelected(undefined)}
-            />
+            <GalleryButton label="Back to camera" disabled={busy} onPress={() => setSelected(undefined)} />
             <GalleryButton
               label="Remove photo"
               disabled={busy}
@@ -555,7 +541,10 @@ function PhotoSession({
             key={photo.localId}
             accessibilityRole="button"
             accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`}
-            accessibilityState={{ selected: selected === photo.localId, disabled: busy }}
+            accessibilityState={{
+              selected: selected === photo.localId,
+              disabled: busy,
+            }}
             disabled={busy}
             onPress={() => setSelected(photo.localId)}
             style={[
@@ -581,16 +570,12 @@ function PhotoSession({
       {operation === "adding" && currentPhoto?.review !== "checking" && (
         <LoadingRing
           accessibilityLabel={
-            photos.some((photo) => photo.review === "checking")
-              ? "Checking added photos…"
-              : "Adding photos…"
+            photos.some((photo) => photo.review === "checking") ? "Checking added photos…" : "Adding photos…"
           }
         />
       )}
       {photos.length >= 99 && (
-        <ThemedText themeColor="warning">
-          Photo limit reached. Remove a photo to add another.
-        </ThemedText>
+        <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>
       )}
       {removed && (
         <GalleryButton
@@ -636,10 +621,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   hint: { color: Gallery.muted },
-  camera: { width: "100%", aspectRatio: 1, overflow: "hidden", backgroundColor: Gallery.fill },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  camera: {
+    width: "100%",
+    aspectRatio: 1,
+    overflow: "hidden",
+    backgroundColor: Gallery.fill,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   stacked: { flexDirection: "column", alignItems: "stretch" },
-  thumb: { borderWidth: 2, borderColor: "transparent", borderRadius: 2, overflow: "hidden" },
+  thumb: {
+    borderWidth: 2,
+    borderColor: "transparent",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
   thumbLabel: { textAlign: "center", color: Gallery.ink, paddingVertical: 4 },
   caption: {
     minHeight: 44,

@@ -39,10 +39,9 @@ function flick(controls: Controls, event = panEvent()) {
   controls.pan.handlers.onFinalize?.(event, true);
 }
 async function renderCamera(initialCamera: GlobeCamera, onChange = jest.fn()) {
-  return renderHook<Controls, { camera: GlobeCamera }>(
-    ({ camera }) => useGlobeCamera(camera, onChange),
-    { initialProps: { camera: initialCamera } },
-  );
+  return renderHook<Controls, { camera: GlobeCamera }>(({ camera }) => useGlobeCamera(camera, onChange), {
+    initialProps: { camera: initialCamera },
+  });
 }
 
 it("continues rotating after release, slows down, and saves the settled camera", async () => {
@@ -98,9 +97,7 @@ it("scales drag and release speed with the zoom level", async () => {
     flick(zoomed.result.current);
   });
   await act(() => jest.advanceTimersByTime(100));
-  expect(zoomed.result.current.camera.get().yaw).toBeCloseTo(
-    normal.result.current.camera.get().yaw / 2,
-  );
+  expect(zoomed.result.current.camera.get().yaw).toBeCloseTo(normal.result.current.camera.get().yaw / 2);
 });
 
 it("lets a pinch take over without resuming rotation or saving an unfinished camera", async () => {

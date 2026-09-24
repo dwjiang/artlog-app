@@ -8,12 +8,7 @@ describe("docent validator (shared fixture)", () => {
     expect(fixture.cases.length).toBeGreaterThanOrEqual(8);
   });
 
-  it.each(fixture.cases.map((testCase) => [testCase.name, testCase] as const))(
-    "%s",
-    (_name, testCase) => {
-      expect(validateDocent(testCase.sentences, new Set(testCase.factIds))).toEqual(
-        testCase.expectedKept,
-      );
-    },
-  );
+  it.each(fixture.cases.map((testCase) => [testCase.name, testCase] as const))("%s", (_name, testCase) => {
+    expect(validateDocent(testCase.sentences, new Set(testCase.factIds))).toEqual(testCase.expectedKept);
+  });
 });

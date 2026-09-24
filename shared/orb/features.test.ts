@@ -28,9 +28,7 @@ describe("ORB feature wire format", () => {
 
     expect(encoded.descriptors.byteLength).toBe(64);
     expect(encoded.keypoints.byteLength).toBe(32);
-    expect(Array.from(new Uint8Array(encoded.descriptors))).toEqual(
-      Array.from(whole.descriptors.subarray(32, 96)),
-    );
+    expect(Array.from(new Uint8Array(encoded.descriptors))).toEqual(Array.from(whole.descriptors.subarray(32, 96)));
   });
 
   it("reads keypoints as little-endian float32 [x, y, size, angle] tuples", () => {
@@ -55,35 +53,24 @@ describe("ORB feature wire format", () => {
   });
 
   it("accepts exactly the maximum keypoint count", () => {
-    const decoded = decodeOrbFeatures(
-      new ArrayBuffer(MAX_KEYPOINTS * 32),
-      new ArrayBuffer(MAX_KEYPOINTS * 16),
-    );
+    const decoded = decodeOrbFeatures(new ArrayBuffer(MAX_KEYPOINTS * 32), new ArrayBuffer(MAX_KEYPOINTS * 16));
 
     expect(decoded.count).toBe(MAX_KEYPOINTS);
   });
 
   it("rejects a descriptor buffer that is not a multiple of 32 bytes", () => {
-    expect(() => decodeOrbFeatures(new ArrayBuffer(33), new ArrayBuffer(16))).toThrow(
-      OrbFormatError,
-    );
+    expect(() => decodeOrbFeatures(new ArrayBuffer(33), new ArrayBuffer(16))).toThrow(OrbFormatError);
   });
 
   it("rejects keypoints whose length disagrees with the descriptor count", () => {
-    expect(() => decodeOrbFeatures(new ArrayBuffer(64), new ArrayBuffer(16))).toThrow(
-      OrbFormatError,
-    );
-    expect(() => decodeOrbFeatures(new ArrayBuffer(64), new ArrayBuffer(48))).toThrow(
-      OrbFormatError,
-    );
+    expect(() => decodeOrbFeatures(new ArrayBuffer(64), new ArrayBuffer(16))).toThrow(OrbFormatError);
+    expect(() => decodeOrbFeatures(new ArrayBuffer(64), new ArrayBuffer(48))).toThrow(OrbFormatError);
   });
 
   it("rejects more than the maximum keypoint count", () => {
     const count = MAX_KEYPOINTS + 1;
 
-    expect(() =>
-      decodeOrbFeatures(new ArrayBuffer(count * 32), new ArrayBuffer(count * 16)),
-    ).toThrow(OrbFormatError);
+    expect(() => decodeOrbFeatures(new ArrayBuffer(count * 32), new ArrayBuffer(count * 16))).toThrow(OrbFormatError);
   });
 
   it("rejects non-finite keypoint values", () => {

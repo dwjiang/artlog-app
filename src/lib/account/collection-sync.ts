@@ -47,9 +47,7 @@ function schedule(queue: Queue, delay: number): void {
 }
 
 function ready(): { context: SyncContext; token: string } | null {
-  return !paused && context && authToken && AppState.currentState === "active"
-    ? { context, token: authToken }
-    : null;
+  return !paused && context && authToken && AppState.currentState === "active" ? { context, token: authToken } : null;
 }
 
 /** Scheduled runs retry on their own; the resolved failure lets a direct caller rethrow it instead. */
@@ -93,10 +91,8 @@ const transfers: Queue = {
           savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
         listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
         clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
-        upload: (localId, kind, path) =>
-          uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
-        download: (localId, kind, storageId) =>
-          downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
+        upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+        download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
         removeFile: removePhotoFile,
       },
       isCurrent,
@@ -134,11 +130,15 @@ export async function completeJournalClaim(
   if (!account.accountId) return;
   let claim;
   do {
-    claim = await convex.mutation(api.journalClaims.resume, { scope: account.scope });
+    claim = await convex.mutation(api.journalClaims.resume, {
+      scope: account.scope,
+    });
     if (!isCurrent()) return;
   } while (!claim.complete);
   const owner = `account:${account.accountId}`;
-  if (claim.claimId) await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  if (claim.claimId) {
+    await claimLocalJournal(anonymousOwner(), owner, claim.claimId);
+  }
   if (!isCurrent()) return;
   switchOwner(owner, account.scope);
   await setSetting("activeJournalOwner", owner);
@@ -171,10 +171,7 @@ export async function flushJournal(): Promise<void> {
 }
 
 async function journalPending(owner: string): Promise<boolean> {
-  return (
-    (await savedWorks.listUnsynced(owner)).length > 0 ||
-    (await listUnsyncedVisits(owner)).length > 0
-  );
+  return (await savedWorks.listUnsynced(owner)).length > 0 || (await listUnsyncedVisits(owner)).length > 0;
 }
 
 /**
@@ -182,24 +179,27 @@ async function journalPending(owner: string): Promise<boolean> {
  * fails the caller only while something it depends on is still missing; an unrelated stuck photo keeps retrying alone.
  * Each sync round trip spends a shared rate-limit token, so a caller with nothing pending makes no request at all.
  */
-export async function flushCollectionMedia(
-  dependsOn: Parameters<typeof albumMediaPending>[1] = {},
-): Promise<void> {
+export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMediaPending>[1] = {}): Promise<void> {
   const session = ready();
   if (!session) throw new SyncUnavailableError();
   const { owner } = session.context;
-  if (!albumMediaPending(owner, dependsOn) && !(await journalPending(owner))) return;
+  if (!albumMediaPending(owner, dependsOn) && !(await journalPending(owner))) {
+    return;
+  }
   await flushJournal();
   while (transfers.running) await transfers.running;
   if (!ready()) throw new SyncUnavailableError();
   const failure = await flush(transfers);
-  if (failure !== undefined && albumMediaPending(owner, dependsOn)) throw failure;
+  if (failure !== undefined && albumMediaPending(owner, dependsOn)) {
+    throw failure;
+  }
 }
 
 export function resumeCollectionSync(): void {
   paused = false;
-  if (context && !context.accountId && context.owner === getLocalOwner())
+  if (context && !context.accountId && context.owner === getLocalOwner()) {
     switchOwner(context.owner, context.scope);
+  }
   scheduleSync();
 }
 
@@ -227,8 +227,9 @@ export function CollectionSync(): null {
       if (context.accountId) {
         // The account scope is usable only once its claim finished; a token refresh alone leaves it valid.
         const current = captureOwner();
-        if (current.owner !== context.owner || current.scope !== scope)
+        if (current.owner !== context.owner || current.scope !== scope) {
           switchOwner(getLocalOwner());
+        }
       } else {
         switchOwner(context.owner, paused ? undefined : scope);
         void setSetting("activeJournalOwner", context.owner).catch((error: unknown) =>

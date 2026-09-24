@@ -14,7 +14,11 @@ import {
 } from "@/components/scan/result/__fixtures__/scan";
 
 it("is loading until the subscription answers or while the server is still identifying", () => {
-  expect(toResultViewState(undefined)).toEqual({ kind: "loading", runnerUps: [], editable: false });
+  expect(toResultViewState(undefined)).toEqual({
+    kind: "loading",
+    runnerUps: [],
+    editable: false,
+  });
   expect(toResultViewState(pendingScan).kind).toBe("loading");
 });
 
@@ -47,10 +51,7 @@ it("leaves a miss unidentified with every candidate offered as a suggestion", ()
   const view = toResultViewState(missScan);
   expect(view.kind).toBe("unidentified");
   expect(view.primary).toBeUndefined();
-  expect(view.runnerUps.map((candidate) => candidate.objectId)).toEqual([
-    haystacks.objectId,
-    bridge.objectId,
-  ]);
+  expect(view.runnerUps.map((candidate) => candidate.objectId)).toEqual([haystacks.objectId, bridge.objectId]);
   expect(view.editable).toBe(true);
 });
 
@@ -59,7 +60,11 @@ it("promotes a chosen runner-up to a maybe and drops rejected works from the sug
     chosenObjectId: bridge.objectId,
     rejectedObjectIds: [lilies.objectId],
   });
-  expect(view).toMatchObject({ kind: "soft", primary: bridge, runnerUps: [haystacks] });
+  expect(view).toMatchObject({
+    kind: "soft",
+    primary: bridge,
+    runnerUps: [haystacks],
+  });
   expect(view.docent).toBeUndefined();
 });
 
@@ -91,7 +96,10 @@ it("passes unsupported and failed scans through with their errors", () => {
     editable: false,
     error: "bad_features",
   });
-  expect(toResultViewState(null)).toMatchObject({ kind: "failed", error: "scan_not_found" });
+  expect(toResultViewState(null)).toMatchObject({
+    kind: "failed",
+    error: "scan_not_found",
+  });
   expect(toResultViewState(new ConvexError({ code: "invalid_scan" }))).toMatchObject({
     kind: "failed",
     error: "invalid_scan",

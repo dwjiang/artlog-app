@@ -7,9 +7,7 @@ it("keeps action identity while showing progress and blocking duplicate activati
   const view = await render(<ActionRow label="Export collection" busy onPress={onPress} />);
   const button = screen.getByRole("button", { name: "Export collection" });
   expect(button).toBeDisabled();
-  expect(
-    screen.getByRole("progressbar", { name: "Export collection in progress" }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Export collection in progress" })).toBeOnTheScreen();
   await fireEvent.press(button);
   expect(onPress).not.toHaveBeenCalled();
   await view.rerender(<ActionRow label="Export collection" onPress={onPress} />);
@@ -31,9 +29,7 @@ it("reserves pending values for a visual indicator rather than default or loadin
 });
 
 it("shows progress inside a busy icon button while preserving its action name", async () => {
-  await render(
-    <GalleryIconButton label="Share" icon="square.and.arrow.up" busy onPress={jest.fn()} />,
-  );
+  await render(<GalleryIconButton label="Share" icon="square.and.arrow.up" busy onPress={jest.fn()} />);
   expect(screen.getByRole("button", { name: "Share" })).toBeDisabled();
   expect(screen.getByRole("progressbar", { name: "Share in progress" })).toBeOnTheScreen();
 });

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { LocalVisitGalleryArtwork } from "./visit-gallery";
-jest.mock("@/lib/files/photos", () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock("@/lib/files/photos", () => ({
+  captureFileUri: (path: string) => `file:///${path}`,
+}));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
     const { View } = jest.requireActual("react-native");
@@ -20,15 +22,7 @@ it.each([
   expect(image.props.contentFit).toBe("contain");
   expect(StyleSheet.flatten(image.parent!.props.style).aspectRatio).toBe(width / height);
   await view.rerender(
-    <LocalVisitGalleryArtwork
-      title="Garden"
-      artist="Artist"
-      photoCount={1}
-      path="replacement.jpg"
-    />,
+    <LocalVisitGalleryArtwork title="Garden" artist="Artist" photoCount={1} path="replacement.jpg" />,
   );
-  expect(
-    StyleSheet.flatten(screen.getByLabelText("Your photo of Garden").parent!.props.style)
-      .aspectRatio,
-  ).toBe(1);
+  expect(StyleSheet.flatten(screen.getByLabelText("Your photo of Garden").parent!.props.style).aspectRatio).toBe(1);
 });

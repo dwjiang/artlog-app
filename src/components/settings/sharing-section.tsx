@@ -39,8 +39,8 @@ export function ContributionsScreen({
         contributions?.length ? (
           <View style={{ gap: Spacing.three }}>
             <ThemedText themeColor="textSecondary">
-              Saving a confirmed work shares its label details and a small artwork crop with the
-              index. Your full photos stay private. No account needed.
+              Saving a confirmed work shares its label details and a small artwork crop with the index. Your full photos
+              stay private. No account needed.
             </ThemedText>
             {!!contributions?.length && (
               <ThemedText type="small" themeColor="textSecondary">

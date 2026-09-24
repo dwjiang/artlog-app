@@ -8,11 +8,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { Gallery } from "@/constants/theme";
-import {
-  linkArtworkVisits,
-  linkArtworksVisit,
-  selectArtworkEncounters,
-} from "@/db/repos/artwork-album";
+import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -28,7 +24,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListSkeleton } from "@/components/loading-skeleton";
 
 export function LinkArtworkScreen() {
-  const { savedId, visitId } = useLocalSearchParams<{ savedId?: string; visitId?: string }>();
+  const { savedId, visitId } = useLocalSearchParams<{
+    savedId?: string;
+    visitId?: string;
+  }>();
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -64,9 +63,7 @@ function LinkPicker({
     [search, setSearch] = useState("");
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
-  const destination = visits.data.find(
-    (visit) => visit.localId === visitId && visit.owner === owner,
-  );
+  const destination = visits.data.find((visit) => visit.localId === visitId && visit.owner === owner);
   const clearSearch = () => setSearch("");
   const rows = savedId
     ? visits.data
@@ -91,14 +88,8 @@ function LinkPicker({
     normalizeSearch(`${row.title} ${row.subtitle}`).includes(normalizeSearch(search)),
   );
   const query = savedId ? visits : works;
-  const noun = savedId
-    ? selected.length === 1
-      ? "visit"
-      : "visits"
-    : selected.length === 1
-      ? "artwork"
-      : "artworks";
-  if (!!savedId === !!visitId)
+  const noun = savedId ? (selected.length === 1 ? "visit" : "visits") : selected.length === 1 ? "artwork" : "artworks";
+  if (!!savedId === !!visitId) {
     return (
       <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
         <SocialState
@@ -109,6 +100,7 @@ function LinkPicker({
         />
       </View>
     );
+  }
   return (
     <>
       <Stack.Screen options={{ title: savedId ? "Link a visit" : "Link artworks" }} />
@@ -141,15 +133,19 @@ function LinkPicker({
             )}
             {rows.length > 0 && (
               <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>
-                Keep the artwork and its photos together across visits. Linking doesn’t copy or
-                share photos.
+                Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.
               </Text>
             )}
             {savedId && rows.length > 0 && (
               <GalleryButton
                 label="Add a new visit"
                 icon="plus"
-                onPress={() => router.push({ pathname: "/visit-create", params: { savedId } })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/visit-create",
+                    params: { savedId },
+                  })
+                }
               />
             )}
             {error && (
@@ -163,8 +159,7 @@ function LinkPicker({
           const work = savedId ?? row.id,
             visit = visitId ?? row.id;
           const linked = encounters.data.some(
-            (entry) =>
-              entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
+            (entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
           );
           return (
             <Pressable
@@ -176,9 +171,7 @@ function LinkPicker({
               accessibilityLabel={`${linked ? "Linked: " : "Select "}${row.title}`}
               disabled={linked}
               onPress={() => {
-                setSelected((ids) =>
-                  ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id],
-                );
+                setSelected((ids) => (ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id]));
               }}
               style={{
                 flexDirection: "row",
@@ -199,27 +192,19 @@ function LinkPicker({
                 />
               )}
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>
-                  {row.title}
-                </Text>
+                <Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>{row.title}</Text>
                 <Text style={{ fontSize: 13, color: Gallery.muted }}>
                   {row.subtitle}
                   {linked ? " · Linked" : ""}
                 </Text>
               </View>
-              <Text style={{ color: Gallery.muted }}>
-                {linked || selected.includes(row.id) ? "✓" : "○"}
-              </Text>
+              <Text style={{ color: Gallery.muted }}>{linked || selected.includes(row.id) ? "✓" : "○"}</Text>
             </Pressable>
           );
         }}
         ListEmptyComponent={
           query.error || encounters.error ? (
-            <SocialState
-              title="Couldn’t load your collection."
-              action="Try again"
-              onAction={onRetry}
-            />
+            <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
           ) : !query.updatedAt && !rows.length ? (
             <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} />
           ) : search.trim() ? (
@@ -244,8 +229,12 @@ function LinkPicker({
                 variant="filled"
                 fullWidth
                 onPress={() => {
-                  if (savedId) router.push({ pathname: "/visit-create", params: { savedId } });
-                  else {
+                  if (savedId) {
+                    router.push({
+                      pathname: "/visit-create",
+                      params: { savedId },
+                    });
+                  } else {
                     router.dismissAll();
                     router.navigate({ pathname: "/scan", params: { visitId } });
                   }
@@ -274,10 +263,17 @@ function LinkPicker({
                 if (visitId) linkArtworksVisit(selected, visitId, owner);
                 else linkArtworkVisits(savedId!, selected, owner);
                 showToast(`${selected.length} ${noun} linked.`);
-                if (visitId)
-                  router.dismissTo({ pathname: "/journal/[visitId]", params: { visitId } });
-                else
-                  router.dismissTo({ pathname: "/saved/[savedId]", params: { savedId: savedId! } });
+                if (visitId) {
+                  router.dismissTo({
+                    pathname: "/journal/[visitId]",
+                    params: { visitId },
+                  });
+                } else {
+                  router.dismissTo({
+                    pathname: "/saved/[savedId]",
+                    params: { savedId: savedId! },
+                  });
+                }
               } catch (cause) {
                 reportError(cause, "collection.visit.link");
                 setError("Could not link your selection. Try again.");

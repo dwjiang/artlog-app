@@ -3,8 +3,12 @@ import { AppState, type AppStateStatus } from "react-native";
 import { MuseumDownloadLifecycle } from "./use-museum-downloads";
 
 const mockPauseAll = jest.fn(async () => {});
-jest.mock("./storage", () => ({ museumDownloads: { pauseAll: () => mockPauseAll() } }));
-jest.mock("expo-network", () => ({ addNetworkStateListener: () => ({ remove: jest.fn() }) }));
+jest.mock("./storage", () => ({
+  museumDownloads: { pauseAll: () => mockPauseAll() },
+}));
+jest.mock("expo-network", () => ({
+  addNetworkStateListener: () => ({ remove: jest.fn() }),
+}));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => false }));
 
 it("keeps transfers running through Control Center and similar interruptions, and pauses them in the background", async () => {

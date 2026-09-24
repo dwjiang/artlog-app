@@ -22,10 +22,7 @@ const resolution = v.union(
 );
 
 function candidateIds(scan: Doc<"scans">): Id<"objects">[] {
-  return [
-    ...(scan.best ? [scan.best.objectId] : []),
-    ...(scan.runnerUps ?? []).map((match) => match.objectId),
-  ];
+  return [...(scan.best ? [scan.best.objectId] : []), ...(scan.runnerUps ?? []).map((match) => match.objectId)];
 }
 
 export const rejectMatch = mutation({
@@ -43,23 +40,19 @@ export const rejectMatch = mutation({
       payload: rejectionPayload(scanId, objectId),
     });
     const scan = await ctx.db.get(scanId);
-    if (
-      !scan ||
-      scan.deviceId !== device._id ||
-      scan.status !== "identified" ||
-      scan.calibratorVersion === undefined
-    ) {
+    if (!scan || scan.deviceId !== device._id || scan.status !== "identified" || scan.calibratorVersion === undefined) {
       throw new ConvexError({ code: "invalid_scan" });
     }
     const signals = scan.candidateSignals?.find((candidate) => candidate.objectId === objectId);
     const object = await ctx.db.get(objectId);
     if (
-      !candidateIds(scan).includes(objectId) ||
-      !signals ||
-      !object ||
-      !(await eligibleObject(ctx, object, scan.venueId))
-    )
+      !candidateIds(scan).includes(objectId)
+      || !signals
+      || !object
+      || !(await eligibleObject(ctx, object, scan.venueId))
+    ) {
       throw new ConvexError({ code: "invalid_object" });
+    }
     const existing = await ctx.db
       .query("feedback")
       .withIndex("by_scanId", (q) => q.eq("scanId", scanId))
@@ -71,8 +64,7 @@ export const rejectMatch = mutation({
     const placement = await loadCurrentPlacement(ctx, objectId, now);
     const rejectCount = object.rejectCount + 1;
     const flagged =
-      rejectCount >= FLAG_MIN_REJECTIONS &&
-      rejectCount / (object.confirmCount + rejectCount) >= FLAG_REJECT_RATIO;
+      rejectCount >= FLAG_MIN_REJECTIONS && rejectCount / (object.confirmCount + rejectCount) >= FLAG_REJECT_RATIO;
     const penaltyAdded = flagged ? PENALTY_STEP : 0;
     const feedbackId = await ctx.db.insert("feedback", {
       scanId,
@@ -86,8 +78,7 @@ export const rejectMatch = mutation({
       orbInliers: signals.orbInliers,
       probability: signals.probability,
       calibratorVersion: scan.calibratorVersion,
-      venueMismatch:
-        scan.venueId !== undefined && placement !== null && placement.venueId !== scan.venueId,
+      venueMismatch: scan.venueId !== undefined && placement !== null && placement.venueId !== scan.venueId,
       penaltyAdded,
       resolution: { kind: "unresolved" },
       createdAt: now,
@@ -121,12 +112,13 @@ export const resolveRejection = mutation({
   handler: async (ctx, { feedbackId, resolution }) => {
     const device = await requireDevice(ctx);
     const feedback = await ctx.db.get(feedbackId);
-    if (!feedback || feedback.deviceId !== device._id)
+    if (!feedback || feedback.deviceId !== device._id) {
       throw new ConvexError({ code: "feedback_not_found" });
+    }
     if (feedback.resolution.kind !== "unresolved") {
       const same =
-        feedback.resolution.kind === resolution.kind &&
-        (resolution.kind === "runner_up"
+        feedback.resolution.kind === resolution.kind
+        && (resolution.kind === "runner_up"
           ? feedback.resolution.objectId === resolution.objectId
           : feedback.resolution.contributionId === resolution.contributionId);
       if (!same) throw new ConvexError({ code: "invalid_resolution" });
@@ -137,29 +129,26 @@ export const resolveRejection = mutation({
     if (resolution.kind === "runner_up") {
       const object = await ctx.db.get(resolution.objectId);
       if (
-        resolution.objectId === feedback.rejectedObjectId ||
-        !candidateIds(scan).includes(resolution.objectId) ||
-        !object ||
-        object.reverted ||
-        object.mergedInto
+        resolution.objectId === feedback.rejectedObjectId
+        || !candidateIds(scan).includes(resolution.objectId)
+        || !object
+        || object.reverted
+        || object.mergedInto
       ) {
         throw new ConvexError({ code: "invalid_resolution" });
       }
       await ctx.db.patch(feedbackId, { resolution });
-      if (scan.venueId)
+      if (scan.venueId) {
         await proposePlacementFromScan(ctx, {
           scan,
           objectId: resolution.objectId,
           proposedVenueId: scan.venueId,
           deviceId: device._id,
         });
+      }
     } else {
       const contribution = await ctx.db.get(resolution.contributionId);
-      if (
-        !contribution ||
-        contribution.deviceId !== device._id ||
-        contribution.scanId !== scan._id
-      ) {
+      if (!contribution || contribution.deviceId !== device._id || contribution.scanId !== scan._id) {
         throw new ConvexError({ code: "invalid_resolution" });
       }
       await ctx.db.patch(feedbackId, { resolution });
@@ -169,29 +158,24 @@ export const resolveRejection = mutation({
 });
 
 // A label naming the rejected work means the user misread; the rejection stops counting.
-export async function resolveFalseRejections(
-  ctx: MutationCtx,
-  scan: Doc<"scans">,
-  flow: LabelFlow,
-): Promise<void> {
+export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<"scans">, flow: LabelFlow): Promise<void> {
   const title = flow.fields.title?.value;
   const artist = flow.fields.artist?.value;
   if (flow.stage !== "verified" || !title || !artist) return;
   const normalizedTitle = normalizeText(title);
   if (!normalizedTitle) return;
-  for await (const row of ctx.db
-    .query("feedback")
-    .withIndex("by_scanId", (q) => q.eq("scanId", scan._id))) {
+  for await (const row of ctx.db.query("feedback").withIndex("by_scanId", (q) => q.eq("scanId", scan._id))) {
     if (row.resolution.kind !== "unresolved") continue;
     const object = await ctx.db.get(row.rejectedObjectId);
     const artwork = object ? await ctx.db.get(object.artworkId) : null;
     if (
-      !object ||
-      !artwork ||
-      normalizedTitle !== normalizeText(artwork.title) ||
-      !personMatches(artist, artwork.artist)
-    )
+      !object
+      || !artwork
+      || normalizedTitle !== normalizeText(artwork.title)
+      || !personMatches(artist, artwork.artist)
+    ) {
       continue;
+    }
     await ctx.db.patch(row._id, { resolution: { kind: "false_rejection" } });
     await feedbackChanged(ctx, object._id);
     await ctx.db.patch(object._id, {
@@ -209,34 +193,33 @@ export const exportForTraining = internalQuery({
     isDone: v.boolean(),
   }),
   handler: async (ctx, { paginationOpts }) => {
-    const result = await ctx.db
-      .query("feedback")
-      .withIndex("by_rejectedObjectId")
-      .paginate(paginationOpts);
+    const result = await ctx.db.query("feedback").withIndex("by_rejectedObjectId").paginate(paginationOpts);
     const page = [];
     for (const row of result.page) {
       const device = await ctx.db.get(row.deviceId);
       const object = await ctx.db.get(row.rejectedObjectId);
       if (
-        !device ||
-        device.banned ||
-        !object ||
-        object.identityStatus !== "established" ||
-        !(await eligibleObject(ctx, object))
-      )
+        !device
+        || device.banned
+        || !object
+        || object.identityStatus !== "established"
+        || !(await eligibleObject(ctx, object))
+      ) {
         continue;
+      }
       if (row.resolution.kind === "label") continue;
       if (row.resolution.kind === "runner_up") {
         const resolved = row.resolution.objectId ? await ctx.db.get(row.resolution.objectId) : null;
-        if (
-          !resolved ||
-          resolved.identityStatus !== "established" ||
-          !(await eligibleObject(ctx, resolved))
-        )
+        if (!resolved || resolved.identityStatus !== "established" || !(await eligibleObject(ctx, resolved))) {
           continue;
+        }
       }
       page.push(row);
     }
-    return { page, continueCursor: result.continueCursor, isDone: result.isDone };
+    return {
+      page,
+      continueCursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });

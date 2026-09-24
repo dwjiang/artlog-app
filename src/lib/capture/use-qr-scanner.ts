@@ -1,10 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  isScannedCode,
-  useObjectOutput,
-  type ScannedObject,
-  type ScannedObjectType,
-} from "react-native-vision-camera";
+import { isScannedCode, useObjectOutput, type ScannedObject, type ScannedObjectType } from "react-native-vision-camera";
 
 import { createQrDebouncer } from "./qr-debounce";
 
@@ -16,8 +11,9 @@ export function useQrScanner(enabled: boolean, onCode: (url: string) => void) {
     (objects: ScannedObject[]) => {
       if (!enabled) return;
       for (const object of objects) {
-        if (isScannedCode(object) && object.value && accept(object.value, performance.now()))
+        if (isScannedCode(object) && object.value && accept(object.value, performance.now())) {
           onCode(object.value);
+        }
       }
     },
     [accept, enabled, onCode],

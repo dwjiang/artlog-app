@@ -21,7 +21,12 @@ const mockSession = {
 let mockVisibility = "off";
 let mockRows = [
   {
-    profile: { profileId: "global-person", name: "Ada", username: "ada", publishedWallCount: 2 },
+    profile: {
+      profileId: "global-person",
+      name: "Ada",
+      username: "ada",
+      publishedWallCount: 2,
+    },
     rank: 1,
     score: 4,
   },
@@ -58,26 +63,21 @@ jest.mock("@expo/ui/swift-ui", () => {
         {children}
       </View>
     ),
-    Picker: ({
-      children,
-      onSelectionChange,
-    }: {
-      children: ReactNode;
-      onSelectionChange: (value: string) => void;
-    }) => (
+    Picker: ({ children, onSelectionChange }: { children: ReactNode; onSelectionChange: (value: string) => void }) => (
       <View>
         {React.Children.map(
           children,
           (child: {
-            props: { children: string; modifiers: { $type: string; tag?: string }[] };
+            props: {
+              children: string;
+              modifiers: { $type: string; tag?: string }[];
+            };
           }) => (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Choose ${child.props.children}`}
               onPress={() =>
-                onSelectionChange(
-                  child.props.modifiers.find((modifier) => modifier.$type === "tag")?.tag ?? "",
-                )
+                onSelectionChange(child.props.modifiers.find((modifier) => modifier.$type === "tag")?.tag ?? "")
               }
             >
               <Text>{child.props.children}</Text>
@@ -98,7 +98,10 @@ jest.mock("expo-router", () => ({
     dismissAll: () => mockDismissAll(),
   },
   useRouter: () => ({ push: mockPush }),
-  Stack: { Screen: () => null, Toolbar: Object.assign(() => null, { Button: () => null }) },
+  Stack: {
+    Screen: () => null,
+    Toolbar: Object.assign(() => null, { Button: () => null }),
+  },
 }));
 jest.mock("@/db/repos/settings", () => ({
   getSetting: async (key: string) => mockSettings.get(key),
@@ -106,7 +109,9 @@ jest.mock("@/db/repos/settings", () => ({
     mockSettings.set(key, value);
   },
 }));
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: unknown, args: unknown) => {
     const name = jest.requireActual("convex/server").getFunctionName(query);
@@ -124,7 +129,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
   },
 }));
 jest.mock("convex/react", () => ({ useMutation: () => mockChange }));
-jest.mock("../settings/account-section", () => ({ AccountSection: () => null }));
+jest.mock("../settings/account-section", () => ({
+  AccountSection: () => null,
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -136,7 +143,12 @@ beforeEach(() => {
   mockVisibility = "off";
   mockRows = [
     {
-      profile: { profileId: "global-person", name: "Ada", username: "ada", publishedWallCount: 2 },
+      profile: {
+        profileId: "global-person",
+        name: "Ada",
+        username: "ada",
+        publishedWallCount: 2,
+      },
       rank: 1,
       score: 4,
     },
@@ -145,16 +157,16 @@ beforeEach(() => {
 
 it("lets a guest move from the Friends prompt to Global rankings and open a public profile", async () => {
   await render(<LeaderboardScreen />);
-  expect(
-    screen.getByRole("header", { name: "Sign in to see friends’ rankings." }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "Sign in to see friends’ rankings." })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "global",
     metric: "visits",
     period: "month",
   });
-  const row = screen.getByRole("button", { name: "Rank 1, Ada, 4 visits. Open public profile." });
+  const row = screen.getByRole("button", {
+    name: "Rank 1, Ada, 4 visits. Open public profile.",
+  });
   await fireEvent.press(row);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/profile/[profileId]",
@@ -173,11 +185,11 @@ it("changes category and period independently using the dropdowns", async () => 
     metric: "artworks",
     period: "all",
   });
-  expect(mockSettings.get("leaderboard-choice")).toBe(
-    '{"audience":"friends","metric":"artworks","period":"all"}',
-  );
+  expect(mockSettings.get("leaderboard-choice")).toBe('{"audience":"friends","metric":"artworks","period":"all"}');
   expect(
-    screen.getByRole("button", { name: "Rank 1, Ada, 4 artworks. Open public profile." }),
+    screen.getByRole("button", {
+      name: "Rank 1, Ada, 4 artworks. Open public profile.",
+    }),
   ).toBeOnTheScreen();
 });
 
@@ -185,7 +197,9 @@ it("asks an authenticated person without a profile to create one before viewing 
   mockSession.status = "profile-required";
   await render(<LeaderboardScreen />);
   expect(
-    screen.getByRole("header", { name: "Create a profile to see friends’ rankings." }),
+    screen.getByRole("header", {
+      name: "Create a profile to see friends’ rankings.",
+    }),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Create your profile" }));
   expect(mockPush).toHaveBeenCalledWith("/create-profile");
@@ -196,9 +210,7 @@ it("offers friend discovery when an authenticated person has no Friends rankings
   mockSession.status = "ready";
   mockRows = [];
   await render(<LeaderboardScreen />);
-  expect(
-    screen.getByRole("header", { name: "No friends on this leaderboard yet." }),
-  ).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "No friends on this leaderboard yet." })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(mockPush).toHaveBeenCalledWith("/people");
 });
@@ -270,10 +282,7 @@ it("offers creation for the selected metric while preserving actual participatio
   mockSession.status = "ready";
   mockVisibility = "global";
   mockRows = [];
-  mockSettings.set(
-    "leaderboard-choice",
-    JSON.stringify({ audience: "global", metric: "visits", period: "month" }),
-  );
+  mockSettings.set("leaderboard-choice", JSON.stringify({ audience: "global", metric: "visits", period: "month" }));
   await render(<LeaderboardScreen />);
   expect(await screen.findByRole("button", { name: "Manage participation" })).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "No rankings this month." })).toBeOnTheScreen();

@@ -10,7 +10,9 @@ import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 jest.mock("@/lib/audio/use-listening");
 
-jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
+jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isInternetReachable: true }),
+}));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
 jest.mock("./collection-header", () => ({ CollectionHeader: () => null }));
 jest.mock("@/lib/wall/use-collection-wall", () => ({
@@ -19,7 +21,9 @@ jest.mock("@/lib/wall/use-collection-wall", () => ({
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
 }));
-jest.mock("@/lib/social/use-social-query", () => ({ useSocialQuery: () => ({}) }));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: () => ({}),
+}));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
 jest.mock("../visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
@@ -44,17 +48,8 @@ jest.mock("expo-router", () => {
       },
     },
     useLocalSearchParams: () => mockParams,
-    useFocusEffect: (callback: () => void) =>
-      jest.requireActual("react").useEffect(callback, [callback]),
-    Link: ({
-      href,
-      asChild,
-      children,
-    }: {
-      href: unknown;
-      asChild?: boolean;
-      children: ReactNode;
-    }) => {
+    useFocusEffect: (callback: () => void) => jest.requireActual("react").useEffect(callback, [callback]),
+    Link: ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
       mockHrefs.push(href);
       return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
     },
@@ -73,10 +68,7 @@ jest.mock("expo-router", () => {
         placeholder: string;
         onChangeText: (event: { nativeEvent: { text: string } }) => void;
       }) => (
-        <TextInput
-          placeholder={placeholder}
-          onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })}
-        />
+        <TextInput placeholder={placeholder} onChangeText={(text: string) => onChangeText({ nativeEvent: { text } })} />
       ),
     },
   };
@@ -145,9 +137,7 @@ it("shows the first saved artwork without a sync prompt", async () => {
     });
   });
   await render(<CollectionScreen />);
-  expect(
-    await screen.findByRole("button", { name: "First artwork, First artist" }),
-  ).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "First artwork, First artist" })).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
   expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
 });
@@ -203,12 +193,12 @@ describe("with saved works", () => {
   it("shows every work in artist order, each linking to its detail", async () => {
     await renderArchive();
     await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
-    expect(
-      await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getAllByRole("button", { name: /, / }).map((cell) => cell.props.accessibilityLabel),
-    ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
+    expect(await screen.findByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: /, / }).map((cell) => cell.props.accessibilityLabel)).toEqual([
+      "100% Cotton, Anon",
+      "Water Lilies, Claude Monet",
+      "Untitled, Unknown",
+    ]);
     expect(mockHrefs).toContainEqual({
       pathname: "/saved/[savedId]",
       params: { savedId: "lilies" },
@@ -232,9 +222,7 @@ describe("with saved works", () => {
 
   it("shows saved art directly for guests and retains artwork search across visit browsing", async () => {
     await render(<CollectionScreen />);
-    expect(
-      await screen.findByRole("button", { name: "Water Lilies, Claude Monet" }),
-    ).toBeOnTheScreen();
+    expect(await screen.findByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
     expect(screen.queryByText("Keep your collection across devices")).toBeNull();
     await fireEvent.changeText(search(), "Monet");
     expect(screen.queryByText("100% Cotton")).toBeNull();
@@ -269,7 +257,12 @@ describe("with saved works", () => {
 
 it("immediately hides account works on sign-out and restores them on sign-in", async () => {
   await insertSavedWork(
-    { localId: "account-work", savedAt: 10, title: "Private account work", artist: "Reader" },
+    {
+      localId: "account-work",
+      savedAt: 10,
+      title: "Private account work",
+      artist: "Reader",
+    },
     "account:a",
   );
   switchOwner("account:a", "scope-a");
@@ -306,9 +299,11 @@ it("shows the A–Z collection in artist order", async () => {
   await renderArchive();
   await screen.findByText("Water Lilies");
   await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
-  expect(
-    screen.getAllByRole("button", { name: /, / }).map((row) => row.props.accessibilityLabel),
-  ).toEqual(["100% Cotton, Anon", "Water Lilies, Claude Monet", "Untitled, Unknown"]);
+  expect(screen.getAllByRole("button", { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
+    "100% Cotton, Anon",
+    "Water Lilies, Claude Monet",
+    "Untitled, Unknown",
+  ]);
 });
 
 it("opens the requested collection section even after another section was selected", async () => {

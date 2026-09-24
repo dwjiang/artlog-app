@@ -8,7 +8,9 @@ jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 
-jest.mock("@/lib/capture/photo-draft", () => ({ readPhotoSession: () => ({ photos: [] }) }));
+jest.mock("@/lib/capture/photo-draft", () => ({
+  readPhotoSession: () => ({ photos: [] }),
+}));
 
 const now = new Date(2026, 8, 11, 12, 0, 0).getTime();
 const row: PendingScan = {
@@ -33,7 +35,11 @@ const row: PendingScan = {
   scanId: null,
   createdAt: now,
 };
-const handlers = { onOpen: jest.fn(), onRetry: jest.fn(), onDiscard: jest.fn() };
+const handlers = {
+  onOpen: jest.fn(),
+  onRetry: jest.fn(),
+  onDiscard: jest.fn(),
+};
 beforeEach(() => jest.clearAllMocks());
 
 it.each([
@@ -44,9 +50,7 @@ it.each([
 ] as const)("describes a %s row", async (status, text) => {
   expect(queueStatusText(status)).toBe(text);
   await render(<QueueRow item={{ ...row, status }} now={now} {...handlers} />);
-  expect(
-    status === "identifying" ? screen.getByLabelText(text) : screen.getByText(text),
-  ).toBeOnTheScreen();
+  expect(status === "identifying" ? screen.getByLabelText(text) : screen.getByText(text)).toBeOnTheScreen();
   expect(screen.getByText("5 min ago · 1 photo")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Label attached")).toBeNull();
 });
@@ -54,17 +58,25 @@ it.each([
 it("opens the card from the row and shows the crop", async () => {
   await render(<QueueRow item={row} now={now} {...handlers} />);
   await fireEvent.press(
-    screen.getByRole("button", { name: "Scan from 5 min ago, Waiting for signal" }),
+    screen.getByRole("button", {
+      name: "Scan from 5 min ago, Waiting for signal",
+    }),
   );
   expect(handlers.onOpen).toHaveBeenCalledWith(row);
   expect(handlers.onRetry).not.toHaveBeenCalled();
 });
 
 it("opens a failed row and retries only from its menu action", async () => {
-  const failed = { ...row, status: "failed" as const, lastError: "bad_features" };
+  const failed = {
+    ...row,
+    status: "failed" as const,
+    lastError: "bad_features",
+  };
   await render(<QueueRow item={failed} now={now} {...handlers} />);
   await fireEvent.press(
-    screen.getByRole("button", { name: "Scan from 5 min ago, Couldn’t identify" }),
+    screen.getByRole("button", {
+      name: "Scan from 5 min ago, Couldn’t identify",
+    }),
   );
   expect(handlers.onOpen).toHaveBeenCalledWith(failed);
   expect(handlers.onRetry).not.toHaveBeenCalled();

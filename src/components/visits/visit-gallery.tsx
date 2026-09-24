@@ -11,20 +11,10 @@ export function matchesVisitSearch(work: { title: string; artist: string | null 
   return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(normalizeSearch(query));
 }
 
-export function VisitGallerySearch({
-  value,
-  onChangeText,
-}: {
-  value: string;
-  onChangeText: (value: string) => void;
-}) {
+export function VisitGallerySearch({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
   return (
     <View style={styles.search}>
-      <Image
-        source="sf:magnifyingglass"
-        tintColor={Gallery.muted}
-        style={{ width: 15, height: 15 }}
-      />
+      <Image source="sf:magnifyingglass" tintColor={Gallery.muted} style={{ width: 15, height: 15 }} />
       <TextInput
         accessibilityLabel="Search visit artworks"
         placeholder="Search this visit"
@@ -75,15 +65,9 @@ export function VisitGalleryArtwork({
         {photoCount !== 1 && (
           <View style={styles.badge}>
             {photoCount > 1 && (
-              <Image
-                source="sf:photo.on.rectangle"
-                tintColor={Gallery.muted}
-                style={{ width: 11, height: 11 }}
-              />
+              <Image source="sf:photo.on.rectangle" tintColor={Gallery.muted} style={{ width: 11, height: 11 }} />
             )}
-            <Text style={styles.badgeText}>
-              {photoCount ? `${photoCount} photos` : "No photos"}
-            </Text>
+            <Text style={styles.badgeText}>{photoCount ? `${photoCount} photos` : "No photos"}</Text>
           </View>
         )}
       </View>
@@ -137,7 +121,13 @@ const styles = StyleSheet.create({
     borderColor: Gallery.controlBorder,
     borderRadius: 8,
   },
-  input: { flex: 1, minHeight: 44, color: Gallery.ink, fontSize: 17, paddingVertical: 10 },
+  input: {
+    flex: 1,
+    minHeight: 44,
+    color: Gallery.ink,
+    fontSize: 17,
+    paddingVertical: 10,
+  },
   stage: {
     aspectRatio: 1.04,
     width: "100%",
@@ -168,5 +158,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginHorizontal: 1,
   },
-  artist: { fontSize: 13, lineHeight: 18, color: Gallery.muted, marginTop: 2, marginHorizontal: 1 },
+  artist: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Gallery.muted,
+    marginTop: 2,
+    marginHorizontal: 1,
+  },
 });

@@ -20,19 +20,17 @@ export function useVisitWorks(visitLocalId: string | undefined, owner: string) {
     encounters.data
       .filter(
         (encounter) =>
-          encounter.owner === owner &&
-          encounter.visitLocalId === visitLocalId &&
-          encounter.deletedAt === null,
+          encounter.owner === owner && encounter.visitLocalId === visitLocalId && encounter.deletedAt === null,
       )
       .map((encounter) => encounter.savedLocalId),
   );
   const rows: SavedWork[] = works.data
     .filter(
       (work) =>
-        work.owner === owner &&
-        linked.has(work.localId) &&
-        work.deletedAt === null &&
-        !removedIds.includes(work.localId),
+        work.owner === owner
+        && linked.has(work.localId)
+        && work.deletedAt === null
+        && !removedIds.includes(work.localId),
     )
     .sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId));
   return { works: visitLocalId ? rows : [], loading, error };
@@ -40,7 +38,9 @@ export function useVisitWorks(visitLocalId: string | undefined, owner: string) {
 
 /** "2:10 PM" in the museum's time zone. */
 export function formatVisitStart(startedAt: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone }).format(
-    startedAt,
-  );
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).format(startedAt);
 }

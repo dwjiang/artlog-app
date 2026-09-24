@@ -21,18 +21,20 @@ export const save = internalMutation({
   returns: publicProfile,
   handler: async (ctx, input) => {
     const { profile } = await requireProfile(ctx);
-    if (profile._id !== input.profileId) throw new ConvexError({ code: "sync_scope_changed" });
+    if (profile._id !== input.profileId) {
+      throw new ConvexError({ code: "sync_scope_changed" });
+    }
     const fields = validateProfile(input);
-    const photoStorageId =
-      input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
+    const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
     await ctx.db.patch(profile._id, {
       ...fields,
       photoStorageId,
       searchText: normalizeSearch(`${profile.username} ${fields.name}`),
       updatedAt: Date.now(),
     });
-    if (profile.photoStorageId && profile.photoStorageId !== photoStorageId)
+    if (profile.photoStorageId && profile.photoStorageId !== photoStorageId) {
       await ctx.storage.delete(profile.photoStorageId);
+    }
     return projectProfile(ctx, { ...profile, ...fields, photoStorageId });
   },
 });

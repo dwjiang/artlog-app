@@ -15,14 +15,24 @@ let mockAccount = {
   ready: true,
   signInWithApple: mockSignIn,
 };
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => mockOwner }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => mockOwner,
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock("@/lib/account/use-account", () => ({ useAccount: () => mockAccount }));
-jest.mock("expo-router", () => ({ useRouter: () => mockRouter, Stack: { Screen: () => null } }));
+jest.mock("@/lib/account/use-account", () => ({
+  useAccount: () => mockAccount,
+}));
+jest.mock("expo-router", () => ({
+  useRouter: () => mockRouter,
+  Stack: { Screen: () => null },
+}));
 jest.mock("expo-network", () => ({
-  useNetworkState: () => ({ isConnected: mockOnline, isInternetReachable: mockOnline }),
+  useNetworkState: () => ({
+    isConnected: mockOnline,
+    isInternetReachable: mockOnline,
+  }),
 }));
 jest.mock("expo-apple-authentication", () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 },
@@ -62,7 +72,11 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   mockAccount.error = "Couldn’t update your account.";
   const view = await render(<SignInScreen />);
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t update your account.");
-  mockAccount = { ...mockAccount, busy: true, account: { linked: true, accountId: "account-a" } };
+  mockAccount = {
+    ...mockAccount,
+    busy: true,
+    account: { linked: true, accountId: "account-a" },
+  };
   await view.rerender(<SignInScreen />);
   expect(screen.getByRole("button", { name: "Not now" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "Sign in with Apple" })).toBeNull();

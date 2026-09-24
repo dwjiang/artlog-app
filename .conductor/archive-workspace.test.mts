@@ -1,15 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import process from "node:process";
 import { afterEach, beforeEach, test } from "node:test";
@@ -109,20 +101,13 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
   return {
     ...result,
     calls,
-    shutdowns: calls
-      .filter((call) => call[0] === "xcrun" && call[2] === "shutdown")
-      .map((call) => call.slice(1)),
+    shutdowns: calls.filter((call) => call[0] === "xcrun" && call[2] === "shutdown").map((call) => call.slice(1)),
     windows: calls.filter((call) => call[0] === "osascript").flatMap((call) => call.slice(3)),
   };
 }
 
 test("shuts down only this workspace’s named simulators, including purpose suffixes", () => {
-  const result = runArchive([
-    "Artlog Ndjamena",
-    "Artlog ndjamena Review",
-    "Artlog Sanaa",
-    "iPhone 17 Pro",
-  ]);
+  const result = runArchive(["Artlog Ndjamena", "Artlog ndjamena Review", "Artlog Sanaa", "iPhone 17 Pro"]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, [
     ["simctl", "shutdown", "device-0"],
@@ -143,23 +128,17 @@ test("keeps similarly named workspaces and versioned workspaces running", () => 
 });
 
 test("accepts spaces and hyphens in multiword workspace names", () => {
-  const result = runArchive(
-    ["Artlog Addis Ababa Guest Capture", "Artlog addis-ababa", "Artlog Addis Ababa-v1"],
-    {
-      CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/addis-ababa",
-    },
-  );
+  const result = runArchive(["Artlog Addis Ababa Guest Capture", "Artlog addis-ababa", "Artlog Addis Ababa-v1"], {
+    CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/addis-ababa",
+  });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.shutdowns.length, 2);
 });
 
 test("also matches the Conductor workspace name after a rename", () => {
-  const result = runArchive(
-    ["Artlog Guest Capture", "Artlog Ndjamena", "Artlog Guest Capture-v1", "Artlog Sanaa"],
-    {
-      CONDUCTOR_WORKSPACE_NAME: "guest-capture",
-    },
-  );
+  const result = runArchive(["Artlog Guest Capture", "Artlog Ndjamena", "Artlog Guest Capture-v1", "Artlog Sanaa"], {
+    CONDUCTOR_WORKSPACE_NAME: "guest-capture",
+  });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, [
     ["simctl", "shutdown", "device-0"],
@@ -207,12 +186,7 @@ test("reports shutdown failures and still attempts the workspace’s other devic
 
 test("matches numbered display names without claiming another workspace", () => {
   const result = runArchive(
-    [
-      "Artlog 03.07 Kelowna",
-      "Artlog Kelowna Review",
-      "Artlog 03.07 Kelowna-v1",
-      "Artlog 03.08 Sanaa",
-    ],
+    ["Artlog 03.07 Kelowna", "Artlog Kelowna Review", "Artlog 03.07 Kelowna-v1", "Artlog 03.08 Sanaa"],
     {
       CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/kelowna",
       CONDUCTOR_WORKSPACE_NAME: "03.07 Kelowna",
@@ -228,11 +202,7 @@ test("matches numbered display names without claiming another workspace", () => 
 test("loads cleanup from the remote default branch even when the checkout has no script", () => {
   const result = runArchive([], { CONDUCTOR_DEFAULT_BRANCH: "develop" });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.calls[0], [
-    "git",
-    "show",
-    "origin/develop:.conductor/archive-workspace.cjs",
-  ]);
+  assert.deepEqual(result.calls[0], ["git", "show", "origin/develop:.conductor/archive-workspace.cjs"]);
 });
 
 test("reports a missing default-branch script instead of silently skipping cleanup", () => {
@@ -284,15 +254,9 @@ async function startProcess(cwd: string, title: string, stubborn = false) {
 
 test("stops workspace dev servers on arbitrary ports while preserving sibling servers and tooling", async () => {
   const workspace = join(directory, "workspace");
-  const server = await startProcess(
-    workspace,
-    "node /app/node_modules/.bin/expo start --port 8199",
-  );
+  const server = await startProcess(workspace, "node /app/node_modules/.bin/expo start --port 8199");
   const runner = await startProcess(workspace, "npm start --dev-client --port 8199");
-  const backend = await startProcess(
-    join(workspace, "backend"),
-    "node /app/node_modules/.bin/convex dev",
-  );
+  const backend = await startProcess(join(workspace, "backend"), "node /app/node_modules/.bin/convex dev");
   const sibling = await startProcess(`${workspace}-v1`, "node /app/node_modules/.bin/expo start");
   const tooling = await startProcess(workspace, "node /app/node_modules/.bin/convex mcp start");
   const exits = [once(server, "exit"), once(runner, "exit"), once(backend, "exit")];

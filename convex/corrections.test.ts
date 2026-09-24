@@ -28,7 +28,9 @@ const factSheet = [
     sourceScore: 1,
   },
 ];
-const docent = { en: [{ sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] }] };
+const docent = {
+  en: [{ sentence: "Monet painted these water lilies in 1916.", factIds: ["f1"] }],
+};
 
 async function fixture() {
   const t = harness();
@@ -38,7 +40,12 @@ async function fixture() {
       artwork: { factSheet, factSheetUpdatedAt: 1, docent, docentUpdatedAt: 2 },
     }),
   );
-  return { t, user, artworkId, artwork: () => t.run((ctx) => ctx.db.get(artworkId)) };
+  return {
+    t,
+    user,
+    artworkId,
+    artwork: () => t.run((ctx) => ctx.db.get(artworkId)),
+  };
 }
 
 describe("corrections.correctFact", () => {
@@ -82,7 +89,10 @@ describe("corrections.correctFact", () => {
       factId: "f1",
       message: "Wrong year.",
     });
-    await t.action(internal.docent.ensure, { artworkId, deviceId: user.deviceId });
+    await t.action(internal.docent.ensure, {
+      artworkId,
+      deviceId: user.deviceId,
+    });
     expect(await artwork()).toMatchObject({ factSheetNeedsReview: true });
     expect(await artwork()).not.toHaveProperty("docent");
     const corrections = await t.query(internal.review.listCorrections, {});
@@ -99,10 +109,18 @@ describe("corrections.correctFact", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        completion(docent.en.map(({ sentence, factIds }) => ({ sentence, fact_ids: factIds }))),
+        completion(
+          docent.en.map(({ sentence, factIds }) => ({
+            sentence,
+            fact_ids: factIds,
+          })),
+        ),
       ),
     );
-    await t.action(internal.docent.ensure, { artworkId, deviceId: user.deviceId });
+    await t.action(internal.docent.ensure, {
+      artworkId,
+      deviceId: user.deviceId,
+    });
     expect(await artwork()).toMatchObject({ docent });
     expect(await artwork()).not.toHaveProperty("factSheetNeedsReview");
   });
@@ -111,16 +129,12 @@ describe("corrections.correctFact", () => {
     ["an unknown fact", { factId: "f9", message: "Wrong." }, "unknown_fact"],
     ["an empty message", { factId: "f1", message: "   " }, "invalid_correction"],
     ["an oversized message", { factId: "f1", message: "x".repeat(2001) }, "invalid_correction"],
-    [
-      "an oversized contact",
-      { factId: "f1", message: "Wrong.", contact: "c".repeat(201) },
-      "invalid_correction",
-    ],
+    ["an oversized contact", { factId: "f1", message: "Wrong.", contact: "c".repeat(201) }, "invalid_correction"],
   ])("rejects %s without touching the artwork", async (_label, args, code) => {
     const { t, user, artworkId, artwork } = await fixture();
-    await expect(
-      user.as.mutation(api.corrections.correctFact, { artworkId, ...args }),
-    ).rejects.toMatchObject({ data: { code } });
+    await expect(user.as.mutation(api.corrections.correctFact, { artworkId, ...args })).rejects.toMatchObject({
+      data: { code },
+    });
     expect(await artwork()).toMatchObject({ docent });
     expect(await artwork()).not.toHaveProperty("factSheetNeedsReview");
     expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toEqual([]);
@@ -130,7 +144,11 @@ describe("corrections.correctFact", () => {
     const { t, user, artworkId } = await fixture();
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     await expect(
-      t.mutation(api.corrections.correctFact, { artworkId, factId: "f1", message: "Wrong." }),
+      t.mutation(api.corrections.correctFact, {
+        artworkId,
+        factId: "f1",
+        message: "Wrong.",
+      }),
     ).rejects.toMatchObject({ data: { code: "unauthenticated" } });
     const unregistered = await signIn(t);
     await expect(
@@ -140,19 +158,22 @@ describe("corrections.correctFact", () => {
         message: "Wrong.",
       }),
     ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
-    for (let i = 0; i < 5; i++)
+    for (let i = 0; i < 5; i++) {
       await user.as.mutation(api.corrections.correctFact, {
         artworkId,
         factId: "f1",
         message: `Wrong ${i}.`,
       });
+    }
     await expect(
       user.as.mutation(api.corrections.correctFact, {
         artworkId,
         factId: "f1",
         message: "Wrong again.",
       }),
-    ).rejects.toMatchObject({ data: { code: "rate_limited", name: "correctFact" } });
+    ).rejects.toMatchObject({
+      data: { code: "rate_limited", name: "correctFact" },
+    });
     expect(await t.run((ctx) => ctx.db.query("factCorrections").collect())).toHaveLength(5);
   });
 });
@@ -237,9 +258,7 @@ it.each([false, true])(
     }
     finish();
     await generating;
-    expect((await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview).toBe(
-      reviewed ? undefined : true,
-    );
+    expect((await t.run((ctx) => ctx.db.get(work.artworkId)))?.factSheetNeedsReview).toBe(reviewed ? undefined : true);
     expect((await user.as.query(api.scans.get, { scanId }))?.docent).toBeUndefined();
   },
 );

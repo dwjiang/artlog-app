@@ -19,8 +19,12 @@ import { db } from "../client";
 import { artworkPhotos } from "../schema";
 import { eq } from "drizzle-orm";
 
-jest.mock("../client", () => ({ db: jest.requireActual("../test-db").createTestDatabase() }));
-jest.mock("../../lib/venue/venue-db", () => ({ venueMetadataForIds: async () => [] }));
+jest.mock("../client", () => ({
+  db: jest.requireActual("../test-db").createTestDatabase(),
+}));
+jest.mock("../../lib/venue/venue-db", () => ({
+  venueMetadataForIds: async () => [],
+}));
 const owner = "device:test-installation";
 beforeAll(async () => {
   await upsertVisit({
@@ -83,31 +87,20 @@ it("scopes photos to the visit they were taken on, so a repeat visit does not in
       .all()
       .map((row) => row.kind),
   ).toEqual(["detail", "label"]);
-  expect(
-    selectVisitArtworkPhotos("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", "account:other").all(),
-  ).toEqual([]);
+  expect(selectVisitArtworkPhotos("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", "account:other").all()).toEqual([]);
 });
 it("lists the same artwork on both visits without cloning it", async () => {
   const journal = createJournalRepository(owner);
-  expect(
-    (await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).page.map(
-      (row) => row.localId,
-    ),
-  ).toEqual(["work"]);
-  expect(
-    (await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).page.map(
-      (row) => row.localId,
-    ),
-  ).toEqual(["work"]);
+  expect((await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).page.map((row) => row.localId)).toEqual([
+    "work",
+  ]);
+  expect((await journal.savedWorks("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).page.map((row) => row.localId)).toEqual([
+    "work",
+  ]);
 });
 it("rejects foreign artwork and visit identifiers", async () => {
-  await insertSavedWork(
-    { localId: "foreign", title: "Private", artist: "", savedAt: 1 },
-    "account:other",
-  );
-  expect(() => linkArtworkVisit("foreign", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toThrow(
-    "Artwork is unavailable",
-  );
+  await insertSavedWork({ localId: "foreign", title: "Private", artist: "", savedAt: 1 }, "account:other");
+  expect(() => linkArtworkVisit("foreign", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toThrow("Artwork is unavailable");
   expect(() => linkArtworkVisit("work", "foreign")).toThrow("Visit is unavailable");
   expect(selectArtworkPhotos("work", "account:other").all()).toEqual([]);
 });
@@ -118,9 +111,9 @@ it("unlinking preserves photographs and the visit record", async () => {
   });
   expect(selectArtworkEncounters().all()).toHaveLength(1);
   expect(selectArtworkPhotos("work").all()).toHaveLength(3);
-  expect(
-    await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342"),
-  ).toMatchObject({ localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342" });
+  expect(await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).toMatchObject({
+    localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342",
+  });
   linkArtworkVisit("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342");
   expect(
     selectArtworkEncounters()
@@ -133,9 +126,9 @@ it("deleting the artwork tombstones its album and retains visits", async () => {
   expect(selectArtworkPhotos("work").all()).toEqual([]);
   expect(selectArtworkEncounters().all()).toEqual([]);
   expect(pendingAlbum(owner).photos.every((row) => row.deletedAt === 20)).toBe(true);
-  expect(
-    await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341"),
-  ).toMatchObject({ localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341" });
+  expect(await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3341")).toMatchObject({
+    localId: "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
+  });
 });
 it("rolls back a whole capture session when a photo belongs to another artwork", () => {
   expect(() =>
@@ -177,8 +170,13 @@ it("moves photos and their visit link atomically and reuses deleted capacity", a
     visitLocalId,
     venueId: "museum" as never,
   });
-  await insertSavedWork({ localId: "move-target", title: "Target", artist: "", savedAt: 1 });
-  for (let i = 0; i < 100; i++)
+  await insertSavedWork({
+    localId: "move-target",
+    title: "Target",
+    artist: "",
+    savedAt: 1,
+  });
+  for (let i = 0; i < 100; i++) {
     addArtworkPhoto({
       localId: `capacity-${i}`,
       savedLocalId: "move-target",
@@ -186,9 +184,8 @@ it("moves photos and their visit link atomically and reuses deleted capacity", a
       capturedAt: i,
       kind: "full",
     });
-  expect(() => editArtworkPhoto("move-source", { savedLocalId: "move-target" })).toThrow(
-    "100 photos",
-  );
+  }
+  expect(() => editArtworkPhoto("move-source", { savedLocalId: "move-target" })).toThrow("100 photos");
   expect(
     selectArtworkEncounters()
       .all()
@@ -215,10 +212,7 @@ it("reports media a publish depends on as pending until its rows and bytes reach
   expect(albumMediaPending(owner, {})).toBe(false);
   expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(true);
   expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(true);
-  db.update(artworkPhotos)
-    .set({ syncedAt: 5 })
-    .where(eq(artworkPhotos.localId, "pending-work"))
-    .run();
+  db.update(artworkPhotos).set({ syncedAt: 5 }).where(eq(artworkPhotos.localId, "pending-work")).run();
   expect(albumMediaPending(owner, { saveLocalIds: ["pending-work"] })).toBe(false);
   expect(albumMediaPending(owner, { photoLocalIds: ["pending-work"] })).toBe(true);
   db.update(artworkPhotos)
@@ -226,13 +220,26 @@ it("reports media a publish depends on as pending until its rows and bytes reach
     .where(eq(artworkPhotos.localId, "pending-work"))
     .run();
   expect(
-    albumMediaPending(owner, { photoLocalIds: ["pending-work"], saveLocalIds: ["pending-work"] }),
+    albumMediaPending(owner, {
+      photoLocalIds: ["pending-work"],
+      saveLocalIds: ["pending-work"],
+    }),
   ).toBe(false);
 });
 
 it("links a selection atomically and rolls every new link back if one artwork is unavailable", async () => {
-  await insertSavedWork({ localId: "batch-one", title: "One", artist: "", savedAt: 1 });
-  await insertSavedWork({ localId: "batch-two", title: "Two", artist: "", savedAt: 1 });
+  await insertSavedWork({
+    localId: "batch-one",
+    title: "One",
+    artist: "",
+    savedAt: 1,
+  });
+  await insertSavedWork({
+    localId: "batch-two",
+    title: "Two",
+    artist: "",
+    savedAt: 1,
+  });
   const visitId = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341";
   expect(() => linkArtworksVisit(["batch-one", "missing"], visitId)).toThrow();
   expect(
@@ -249,7 +256,12 @@ it("links a selection atomically and rolls every new link back if one artwork is
 });
 
 it("links one artwork to several visits atomically", async () => {
-  await insertSavedWork({ localId: "multi-visit", title: "Multi", artist: "", savedAt: 1 });
+  await insertSavedWork({
+    localId: "multi-visit",
+    title: "Multi",
+    artist: "",
+    savedAt: 1,
+  });
   const first = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341",
     second = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342";
   expect(() => linkArtworkVisits("multi-visit", [first, "missing-visit"])).toThrow();

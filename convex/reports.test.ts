@@ -13,12 +13,18 @@ it("accepts public reports from registered devices, deduplicates account reporte
   const target = { kind: "profile" as const, profileId: author.profileId };
   await expect(t.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toThrow();
   const unregistered = await signIn(t);
-  await expect(
-    unregistered.as.mutation(api.reports.submit, { target, reason: "Spam" }),
-  ).rejects.toMatchObject({ data: { code: "device_not_registered" } });
-  const id = await guest.as.mutation(api.reports.submit, { target, reason: "Spam" });
+  await expect(unregistered.as.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toMatchObject({
+    data: { code: "device_not_registered" },
+  });
+  const id = await guest.as.mutation(api.reports.submit, {
+    target,
+    reason: "Spam",
+  });
   expect(await guest.as.mutation(api.reports.submit, { target, reason: "Again" })).toBe(id);
-  const first = await stranger.as.mutation(api.reports.submit, { target, reason: "Spam" });
+  const first = await stranger.as.mutation(api.reports.submit, {
+    target,
+    reason: "Spam",
+  });
   const sibling = await seedDevice(t);
   await t.run((ctx) => ctx.db.patch(sibling.deviceId, { accountId: stranger.accountId }));
   expect(await sibling.as.mutation(api.reports.submit, { target, reason: "Spam" })).toBe(first);
@@ -43,11 +49,12 @@ it("accepts public reports from registered devices, deduplicates account reporte
   expect(JSON.stringify(report?.evidence)).not.toMatch(/PRIVATE|visitId|saveId|accountId|storage/);
   await setVisitVisibility(t, author, draft.visit._id, "private");
   await expect(
-    stranger.as.mutation(api.reports.submit, { target: sharedTarget, reason: "Abuse" }),
+    stranger.as.mutation(api.reports.submit, {
+      target: sharedTarget,
+      reason: "Abuse",
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual(
-    report?.evidence,
-  );
+  expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual(report?.evidence);
 });
 it("records operator decisions and permanently removes a publication without changing its private journal", async () => {
   const t = harness(),
@@ -60,9 +67,7 @@ it("records operator decisions and permanently removes a publication without cha
     target: { kind: "sharedVisit", postId: post.postId! },
     reason: "Abuse",
   });
-  expect((await t.query(internal.review.listReports, {})).rows.map((r) => r.reportId)).toEqual([
-    reportId,
-  ]);
+  expect((await t.query(internal.review.listReports, {})).rows.map((r) => r.reportId)).toEqual([reportId]);
   const decision = {
     reportId,
     operator: "operator@example.test",
@@ -81,17 +86,27 @@ it("records operator decisions and permanently removes a publication without cha
   await expect(a.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
-  const state = await a.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId });
-  expect(state).toMatchObject({ removed: true, status: "private", revision: 2 });
+  const state = await a.as.query(api.sharedVisits.getState, {
+    visitLocalId: draft.visit.localId,
+  });
+  expect(state).toMatchObject({
+    removed: true,
+    status: "private",
+    revision: 2,
+  });
   await expect(
-    a.as.mutation(api.sharedVisits.publish, { ...draft.selection, revision: state.revision }),
+    a.as.mutation(api.sharedVisits.publish, {
+      ...draft.selection,
+      revision: state.revision,
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
-  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe(
-    draft.visit.reflection,
-  );
+  expect((await t.run((ctx) => ctx.db.get(draft.visit._id)))?.reflection).toBe(draft.visit.reflection);
   expect((await t.run((ctx) => ctx.db.get(draft.saves[0].id)))?.note).toBe("PRIVATE NOTE");
   await expect(
-    t.mutation(internal.review.decideReport, { ...decision, decision: "dismiss" }),
+    t.mutation(internal.review.decideReport, {
+      ...decision,
+      decision: "dismiss",
+    }),
   ).rejects.toMatchObject({ data: { code: "conflict" } });
 });
 it("captures only published wall text and retains removal even if an active flag is later changed", async () => {
@@ -150,7 +165,10 @@ it("dismisses without removing content and prevents a disabled profile from recr
     a = await socialUser(t),
     reporter = await seedDevice(t);
   const target = { kind: "profile" as const, profileId: a.profileId };
-  const first = await reporter.as.mutation(api.reports.submit, { target, reason: "Abuse" });
+  const first = await reporter.as.mutation(api.reports.submit, {
+    target,
+    reason: "Abuse",
+  });
   await t.mutation(internal.review.decideReport, {
     reportId: first,
     operator: "op",
@@ -158,7 +176,10 @@ it("dismisses without removing content and prevents a disabled profile from recr
     reason: "Allowed",
   });
   expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).not.toBeNull();
-  const reportId = await reporter.as.mutation(api.reports.submit, { target, reason: "New abuse" });
+  const reportId = await reporter.as.mutation(api.reports.submit, {
+    target,
+    reason: "New abuse",
+  });
   expect(reportId).not.toBe(first);
   await t.mutation(internal.review.decideReport, {
     reportId,
@@ -167,12 +188,18 @@ it("dismisses without removing content and prevents a disabled profile from recr
     reason: "Confirmed",
   });
   await expect(
-    a.as.mutation(api.profiles.create, { username: "another-name", name: "New" }),
+    a.as.mutation(api.profiles.create, {
+      username: "another-name",
+      name: "New",
+    }),
   ).rejects.toMatchObject({ data: { code: "profile_required" } });
   await t.run((ctx) => ctx.db.patch(a.profileId, { active: true }));
   expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).toBeNull();
   await expect(
-    a.as.mutation(internal.profilePhotoData.save, { profileId: a.profileId, name: "New" }),
+    a.as.mutation(internal.profilePhotoData.save, {
+      profileId: a.profileId,
+      name: "New",
+    }),
   ).rejects.toMatchObject({ data: { code: "profile_required" } });
 });
 it("enforces ten daily reports per account across devices without charging duplicate open reports", async () => {

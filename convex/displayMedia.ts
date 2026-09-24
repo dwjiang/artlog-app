@@ -28,40 +28,52 @@ export const registerCatalog = internalMutation({
     const save = await ctx.db.get(saveId);
     const object = await ctx.db.get(objectId);
     if (
-      !imageRightsEvidence.trim() ||
-      imageRightsEvidence.length > 4096 ||
-      !save ||
-      save.deletedAt !== undefined ||
-      !object ||
-      object.reverted ||
-      save.objectId !== objectId
-    )
+      !imageRightsEvidence.trim()
+      || imageRightsEvidence.length > 4096
+      || !save
+      || save.deletedAt !== undefined
+      || !object
+      || object.reverted
+      || save.objectId !== objectId
+    ) {
       throw new ConvexError({ code: "invalid_media" });
-    const provenance = { kind: "catalog" as const, objectId, imageRightsEvidence };
+    }
+    const provenance = {
+      kind: "catalog" as const,
+      objectId,
+      imageRightsEvidence,
+    };
     const existing = await ctx.db
       .query("mediaAssets")
       .withIndex("by_save_kind", (q) => q.eq("saveId", saveId).eq("source.kind", "catalog"))
       .unique();
-    if (!existing)
-      return ctx.db.insert("mediaAssets", { saveId, source, provenance, createdAt: Date.now() });
+    if (!existing) {
+      return ctx.db.insert("mediaAssets", {
+        saveId,
+        source,
+        provenance,
+        createdAt: Date.now(),
+      });
+    }
     // A save keeps one catalog row, so a changed source or evidence replaces it in place.
     const current = existing.source.kind === "catalog" ? existing.source : null;
     const same =
-      current !== null &&
-      existing.revokedAt === undefined &&
-      existing.provenance.kind === "catalog" &&
-      existing.provenance.objectId === objectId &&
-      existing.provenance.imageRightsEvidence === imageRightsEvidence &&
-      (["url", "sourceUrl", "rights", "credit", "width", "height"] as const).every(
+      current !== null
+      && existing.revokedAt === undefined
+      && existing.provenance.kind === "catalog"
+      && existing.provenance.objectId === objectId
+      && existing.provenance.imageRightsEvidence === imageRightsEvidence
+      && (["url", "sourceUrl", "rights", "credit", "width", "height"] as const).every(
         (key) => current[key] === source[key],
       );
-    if (!same)
+    if (!same) {
       await ctx.db.patch(existing._id, {
         source,
         provenance,
         createdAt: Date.now(),
         revokedAt: undefined,
       });
+    }
     return existing._id;
   },
 });
@@ -71,25 +83,32 @@ export const beginPreparation = internalMutation({
   returns: v.union(schema.doc("mediaAssets"), v.null()),
   handler: async (ctx, { saveId }) => {
     const save = await ctx.db.get(saveId);
-    if (!save || save.deletedAt !== undefined || (await resolveDisplayAsset(ctx, save)))
+    if (!save || save.deletedAt !== undefined || (await resolveDisplayAsset(ctx, save))) {
       return null;
+    }
     const source = await contributionSource(ctx, save);
     if (!source) return null;
     const existing = await ctx.db
       .query("mediaAssets")
       .withIndex("by_save_kind", (q) => q.eq("saveId", saveId).eq("source.kind", "derivative"))
       .unique();
-    if (existing)
-      return existing.revokedAt !== undefined ||
-        existing.storageId ||
-        existing.provenance.kind !== "contribution" ||
-        existing.provenance.contributionId !== source.contributionId ||
-        existing.provenance.sourceStorageId !== source.sourceStorageId
+    if (existing) {
+      return existing.revokedAt !== undefined
+        || existing.storageId
+        || existing.provenance.kind !== "contribution"
+        || existing.provenance.contributionId !== source.contributionId
+        || existing.provenance.sourceStorageId !== source.sourceStorageId
         ? null
         : existing;
+    }
     const id = await ctx.db.insert("mediaAssets", {
       saveId,
-      source: { kind: "derivative", rights: "contributor_consent", width: 1, height: 1 },
+      source: {
+        kind: "derivative",
+        rights: "contributor_consent",
+        width: 1,
+        height: 1,
+      },
       provenance: { kind: "contribution", ...source },
       createdAt: Date.now(),
     });
@@ -109,17 +128,20 @@ export const attach = internalMutation({
     const save = asset ? await ctx.db.get(asset.saveId) : null;
     const source = save ? await contributionSource(ctx, save) : null;
     if (
-      !asset ||
-      asset.revokedAt !== undefined ||
-      asset.source.kind !== "derivative" ||
-      asset.provenance.kind !== "contribution" ||
-      !source ||
-      source.contributionId !== asset.provenance.contributionId ||
-      source.sourceStorageId !== asset.provenance.sourceStorageId
-    )
+      !asset
+      || asset.revokedAt !== undefined
+      || asset.source.kind !== "derivative"
+      || asset.provenance.kind !== "contribution"
+      || !source
+      || source.contributionId !== asset.provenance.contributionId
+      || source.sourceStorageId !== asset.provenance.sourceStorageId
+    ) {
       return false;
+    }
     if (asset.storageId) return asset.storageId === storageId;
-    if (storageId === source.sourceStorageId || !(await ctx.db.system.get(storageId))) return false;
+    if (storageId === source.sourceStorageId || !(await ctx.db.system.get(storageId))) {
+      return false;
+    }
     const metadata = { ...asset.source, width, height };
     validateMedia(metadata);
     await ctx.db.patch(assetId, { source: metadata, storageId });
@@ -134,7 +156,9 @@ export const discard = internalMutation({
       .query("mediaAssets")
       .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
       .first();
-    if (!reference && (await ctx.db.system.get(storageId))) await ctx.storage.delete(storageId);
+    if (!reference && (await ctx.db.system.get(storageId))) {
+      await ctx.storage.delete(storageId);
+    }
     return null;
   },
 });
@@ -160,7 +184,9 @@ export const findForWallItem = internalQuery({
   handler: async (ctx, { context }) => {
     const { item, save } = await requirePublicWallItem(ctx, context.itemId);
     if (context.photoLocalId) {
-      if (context.photoLocalId !== item.photoLocalId) throw new ConvexError({ code: "not_found" });
+      if (context.photoLocalId !== item.photoLocalId) {
+        throw new ConvexError({ code: "not_found" });
+      }
       return (await ownedAlbumPhoto(ctx, save, context.photoLocalId)).storageId ?? null;
     }
     const asset = await resolveDisplayAsset(ctx, save);
@@ -174,7 +200,10 @@ const PARAMS = {
   sharedVisit: ["itemId", "postId"],
   sharedVisitPreview: ["visitLocalId", "saveLocalId"],
 } as const;
-const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
+const headers = {
+  "Cache-Control": "private, no-store",
+  "X-Content-Type-Options": "nosniff",
+};
 export const download = httpAction(async (ctx, request) => {
   try {
     const params = new URL(request.url).searchParams;
@@ -182,13 +211,12 @@ export const download = httpAction(async (ctx, request) => {
     const keys: readonly string[] | null =
       kind && Object.hasOwn(PARAMS, kind) ? PARAMS[kind as keyof typeof PARAMS] : null;
     if (
-      !keys ||
-      [...params.keys()].some(
-        (key) => key !== "kind" && key !== "photoLocalId" && !keys.includes(key),
-      ) ||
-      keys.some((key) => !params.get(key))
-    )
+      !keys
+      || [...params.keys()].some((key) => key !== "kind" && key !== "photoLocalId" && !keys.includes(key))
+      || keys.some((key) => !params.get(key))
+    ) {
       throw new ConvexError({ code: "invalid_media" });
+    }
     // The internal queries validate table-specific IDs before any lookup.
     const context = {
       kind,
@@ -199,11 +227,16 @@ export const download = httpAction(async (ctx, request) => {
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await ctx.storage.get(storageId) : null;
     if (
-      !blob ||
-      (await ctx.runQuery(internal.displayMedia.findForWallItem, { context })) !== storageId
-    )
+      !blob
+      || (await ctx.runQuery(internal.displayMedia.findForWallItem, {
+        context,
+      })) !== storageId
+    ) {
       throw new ConvexError({ code: "not_found" });
-    return new Response(blob, { headers: { ...headers, "Content-Type": "image/jpeg" } });
+    }
+    return new Response(blob, {
+      headers: { ...headers, "Content-Type": "image/jpeg" },
+    });
   } catch (error) {
     // Malformed IDs are caller validation failures; retain the same non-disclosing response.
     if (!(error instanceof Error && error.message.includes("ArgumentValidationError"))) {

@@ -10,9 +10,7 @@ export const publicProfile = v.object({
   publishedWallCount: v.number(),
 });
 export const frame = v.union(
-  ...(["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const).map(
-    v.literal,
-  ),
+  ...(["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const).map(v.literal),
 );
 export const wallLayout = v.object({
   x: v.number(),
@@ -21,11 +19,7 @@ export const wallLayout = v.object({
   layer: v.number(),
   frame,
 });
-export const relationshipState = v.union(
-  v.literal("none"),
-  v.literal("pending"),
-  v.literal("accepted"),
-);
+export const relationshipState = v.union(v.literal("none"), v.literal("pending"), v.literal("accepted"));
 export const relationship = v.object({
   state: relationshipState,
   revision: v.number(),
@@ -82,7 +76,11 @@ export const derivativeMedia = v.object({
 });
 export const mediaSource = v.union(catalogMedia, derivativeMedia);
 export const displayMedia = v.union(
-  v.object({ kind: v.literal("placeholder"), width: v.literal(1), height: v.literal(1) }),
+  v.object({
+    kind: v.literal("placeholder"),
+    width: v.literal(1),
+    height: v.literal(1),
+  }),
   catalogMedia,
   v.object({ ...derivativeMedia.fields, reference: displayMediaContext }),
   v.object({
@@ -121,7 +119,10 @@ export const reportInput = v.object({
   reason: v.string(),
   details: v.optional(v.string()),
 });
-export const removal = v.object({ reportId: v.id("reports"), removedAt: v.number() });
+export const removal = v.object({
+  reportId: v.id("reports"),
+  removedAt: v.number(),
+});
 export const reportEvidence = v.union(
   v.object({
     kind: v.literal("profile"),
@@ -171,13 +172,13 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
   const name = input.name.trim();
   const bio = input.bio?.trim();
   if (
-    !name ||
-    name.length > LIMITS.name ||
-    (bio?.length ?? 0) > LIMITS.bio ||
-    (input.username !== undefined &&
-      (input.username.length < LIMITS.usernameMin ||
-        input.username.length > LIMITS.usernameMax ||
-        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.username)))
+    !name
+    || name.length > LIMITS.name
+    || (bio?.length ?? 0) > LIMITS.bio
+    || (input.username !== undefined
+      && (input.username.length < LIMITS.usernameMin
+        || input.username.length > LIMITS.usernameMax
+        || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.username)))
   ) {
     throw new ConvexError({ code: "invalid_profile" });
   }
@@ -186,44 +187,47 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
 export function validateSearch(query: string): string {
   const normalized = normalizeSearch(query);
   if (
-    query.length > LIMITS.searchMax ||
-    normalized.length < LIMITS.searchMin ||
-    normalized.length > LIMITS.searchMax ||
-    normalized.split(" ").length > 16
-  )
+    query.length > LIMITS.searchMax
+    || normalized.length < LIMITS.searchMin
+    || normalized.length > LIMITS.searchMax
+    || normalized.split(" ").length > 16
+  ) {
     throw new ConvexError({ code: "invalid_profile" });
+  }
   return normalized;
 }
 export function validateGeography(input: { city?: string; country?: string }): void {
   if (
-    (input.city !== undefined && (!input.city.trim() || input.city.length > LIMITS.city)) ||
-    (input.country !== undefined && !isCountry(input.country))
-  )
+    (input.city !== undefined && (!input.city.trim() || input.city.length > LIMITS.city))
+    || (input.country !== undefined && !isCountry(input.country))
+  ) {
     throw new ConvexError({ code: "invalid_venue" });
+  }
 }
 export function validateLayout(input: Infer<typeof wallLayout>): void {
   if (
-    ![input.x, input.y, input.width].every(Number.isFinite) ||
-    input.x < 0 ||
-    input.y < 0 ||
-    input.width <= 0 ||
-    input.x + input.width > 1 ||
-    input.y > 100 ||
-    !isRevision(input.layer) ||
-    input.layer >= LIMITS.wallItems
-  )
+    ![input.x, input.y, input.width].every(Number.isFinite)
+    || input.x < 0
+    || input.y < 0
+    || input.width <= 0
+    || input.x + input.width > 1
+    || input.y > 100
+    || !isRevision(input.layer)
+    || input.layer >= LIMITS.wallItems
+  ) {
     throw new ConvexError({ code: "invalid_wall" });
+  }
 }
 export function isPublicMediaUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return (
-      value.length <= 4096 &&
-      url.protocol === "https:" &&
-      !url.username &&
-      !url.password &&
-      !/(^|\.)convex\.(cloud|site)$/.test(url.hostname) &&
-      !/collection.?photos?|\/api\/storage|owner.?photos?/i.test(url.pathname)
+      value.length <= 4096
+      && url.protocol === "https:"
+      && !url.username
+      && !url.password
+      && !/(^|\.)convex\.(cloud|site)$/.test(url.hostname)
+      && !/collection.?photos?|\/api\/storage|owner.?photos?/i.test(url.pathname)
     );
   } catch {
     return false;
@@ -231,56 +235,55 @@ export function isPublicMediaUrl(value: string): boolean {
 }
 export function validateMedia(input: Infer<typeof mediaSource>): void {
   if (
-    ![input.width, input.height].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535) ||
-    (input.credit?.length ?? 0) > LIMITS.snapshot ||
-    (input.kind === "catalog" &&
-      (!isPublicMediaUrl(input.url) ||
-        !isPublicMediaUrl(input.sourceUrl) ||
-        !["public_domain", "licensed"].includes(input.rights))) ||
-    (input.kind === "derivative" &&
-      (input.rights !== "contributor_consent" || Math.max(input.width, input.height) > 256))
+    ![input.width, input.height].every((n) => Number.isSafeInteger(n) && n > 0 && n <= 65_535)
+    || (input.credit?.length ?? 0) > LIMITS.snapshot
+    || (input.kind === "catalog"
+      && (!isPublicMediaUrl(input.url)
+        || !isPublicMediaUrl(input.sourceUrl)
+        || !["public_domain", "licensed"].includes(input.rights)))
+    || (input.kind === "derivative"
+      && (input.rights !== "contributor_consent" || Math.max(input.width, input.height) > 256))
   ) {
     throw new ConvexError({ code: "invalid_media" });
   }
 }
 export function validateMediaContext(input: Infer<typeof mediaContext>): void {
   if (
-    (input.kind === "owner" && !isUuid(input.saveLocalId)) ||
-    (input.kind === "sharedVisit" && !isUuid(input.postId)) ||
-    (input.kind === "sharedVisitPreview" &&
-      (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))
+    (input.kind === "owner" && !isUuid(input.saveLocalId))
+    || (input.kind === "sharedVisit" && !isUuid(input.postId))
+    || (input.kind === "sharedVisitPreview" && (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))
   ) {
     throw new ConvexError({ code: "invalid_media" });
   }
 }
 export function validateSelection(input: Infer<typeof sharedSelection>): void {
   if (
-    input.audience !== "public" ||
-    input.saveLocalIds.length > LIMITS.selectedSaves ||
-    new Set(input.saveLocalIds).size !== input.saveLocalIds.length ||
-    input.saveLocalIds.some((id) => !isUuid(id)) ||
-    input.reflection.length > LIMITS.note ||
-    !isRevision(input.revision)
+    input.audience !== "public"
+    || input.saveLocalIds.length > LIMITS.selectedSaves
+    || new Set(input.saveLocalIds).size !== input.saveLocalIds.length
+    || input.saveLocalIds.some((id) => !isUuid(id))
+    || input.reflection.length > LIMITS.note
+    || !isRevision(input.revision)
   ) {
     throw new ConvexError({ code: "invalid_post" });
   }
   if (
-    (input.highlightLocalIds?.length ?? 0) > 3 ||
-    new Set(input.highlightLocalIds).size !== (input.highlightLocalIds?.length ?? 0) ||
-    input.highlightLocalIds?.some((id) => !input.saveLocalIds.includes(id)) ||
-    (input.photoSelections?.length ?? 0) > LIMITS.selectedSaves ||
-    new Set(input.photoSelections?.map((row) => row.saveLocalId)).size !==
-      (input.photoSelections?.length ?? 0) ||
-    input.photoSelections?.some(
+    (input.highlightLocalIds?.length ?? 0) > 3
+    || new Set(input.highlightLocalIds).size !== (input.highlightLocalIds?.length ?? 0)
+    || input.highlightLocalIds?.some((id) => !input.saveLocalIds.includes(id))
+    || (input.photoSelections?.length ?? 0) > LIMITS.selectedSaves
+    || new Set(input.photoSelections?.map((row) => row.saveLocalId)).size !== (input.photoSelections?.length ?? 0)
+    || input.photoSelections?.some(
       (row) =>
-        !input.saveLocalIds.includes(row.saveLocalId) ||
-        !row.photoLocalIds.length ||
-        row.photoLocalIds.length > 100 ||
-        new Set(row.photoLocalIds).size !== row.photoLocalIds.length ||
-        row.photoLocalIds.some((id) => !isUuid(id)),
+        !input.saveLocalIds.includes(row.saveLocalId)
+        || !row.photoLocalIds.length
+        || row.photoLocalIds.length > 100
+        || new Set(row.photoLocalIds).size !== row.photoLocalIds.length
+        || row.photoLocalIds.some((id) => !isUuid(id)),
     )
-  )
+  ) {
     throw new ConvexError({ code: "invalid_post" });
+  }
 }
 export function validateRelationship(input: {
   firstProfileId: string;
@@ -289,9 +292,9 @@ export function validateRelationship(input: {
   revision: number;
 }): void {
   if (
-    input.firstProfileId >= input.secondProfileId ||
-    ![input.firstProfileId, input.secondProfileId].includes(input.requesterId) ||
-    !isRevision(input.revision)
+    input.firstProfileId >= input.secondProfileId
+    || ![input.firstProfileId, input.secondProfileId].includes(input.requesterId)
+    || !isRevision(input.revision)
   ) {
     throw new ConvexError({ code: "invalid_relationship" });
   }
@@ -306,29 +309,30 @@ export function validateWallItems(
   revision: number,
 ): void {
   if (
-    items.length > LIMITS.wallItems ||
-    new Set(items.map((item) => item.placementId)).size !== items.length ||
-    new Set(items.map((item) => item.layout.layer)).size !== items.length ||
-    !isRevision(revision)
+    items.length > LIMITS.wallItems
+    || new Set(items.map((item) => item.placementId)).size !== items.length
+    || new Set(items.map((item) => item.layout.layer)).size !== items.length
+    || !isRevision(revision)
   ) {
     throw new ConvexError({ code: "invalid_wall" });
   }
   for (const item of items) {
     if (
-      !isUuid(item.saveLocalId) ||
-      !isUuid(item.placementId) ||
-      (item.photoLocalId !== undefined && !isUuid(item.photoLocalId))
-    )
+      !isUuid(item.saveLocalId)
+      || !isUuid(item.placementId)
+      || (item.photoLocalId !== undefined && !isUuid(item.photoLocalId))
+    ) {
       throw new ConvexError({ code: "invalid_wall" });
+    }
     validateLayout(item.layout);
   }
 }
 export function validateReport(input: Infer<typeof reportInput>): void {
   if (
-    (input.target.kind === "sharedVisit" && !isUuid(input.target.postId)) ||
-    !input.reason.trim() ||
-    input.reason.length > LIMITS.reportReason ||
-    (input.details?.length ?? 0) > LIMITS.reportDetails
+    (input.target.kind === "sharedVisit" && !isUuid(input.target.postId))
+    || !input.reason.trim()
+    || input.reason.length > LIMITS.reportReason
+    || (input.details?.length ?? 0) > LIMITS.reportDetails
   ) {
     throw new ConvexError({ code: "invalid_report" });
   }

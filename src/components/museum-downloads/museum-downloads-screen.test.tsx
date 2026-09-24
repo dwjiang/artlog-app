@@ -44,7 +44,9 @@ jest.mock("@/lib/museum-downloads/storage", () => ({
   },
 }));
 jest.mock("expo-router", () => ({ useRouter: () => ({ back: jest.fn() }) }));
-jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: true }) }));
+jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isConnected: true }),
+}));
 jest.mock("expo-location", () => ({
   getForegroundPermissionsAsync: async () => ({ granted: false }),
 }));
@@ -82,20 +84,29 @@ jest.mock("@expo/ui/community/menu", () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
-  mockState = { catalog: [other, museum], downloads: {}, loaded: true, loading: false };
-  for (const fn of [mockStart, mockPause, mockRemove, mockCancel]) fn.mockResolvedValue(undefined);
+  mockState = {
+    catalog: [other, museum],
+    downloads: {},
+    loaded: true,
+    loading: false,
+  };
+  for (const fn of [mockStart, mockPause, mockRemove, mockCancel]) {
+    fn.mockResolvedValue(undefined);
+  }
 });
 afterEach(() => jest.restoreAllMocks());
 
 it("searches museums, sorts by size, and preserves the search when returning from details", async () => {
   await render(<MuseumDownloadsScreen />);
-  expect(
-    screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel),
-  ).toEqual(["View Art Institute of Chicago", "View Boston Museum"]);
+  expect(screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel)).toEqual([
+    "View Art Institute of Chicago",
+    "View Boston Museum",
+  ]);
   await fireEvent.press(screen.getByRole("menuitem", { name: "Download size" }));
-  expect(
-    screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel),
-  ).toEqual(["View Boston Museum", "View Art Institute of Chicago"]);
+  expect(screen.getAllByRole("button", { name: /^View / }).map((item) => item.props.accessibilityLabel)).toEqual([
+    "View Boston Museum",
+    "View Art Institute of Chicago",
+  ]);
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "Chicago");
   expect(screen.queryByRole("button", { name: "View Boston Museum" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "View Art Institute of Chicago" }));
@@ -106,7 +117,11 @@ it("searches museums, sorts by size, and preserves the search when returning fro
   expect(screen.getByLabelText("Search museums").props.value).toBe("Chicago");
 });
 it("pauses and cancels directly from the list without opening a museum", async () => {
-  mockState.downloads[museum.id] = { museum, status: "downloading", completed: 0 };
+  mockState.downloads[museum.id] = {
+    museum,
+    status: "downloading",
+    completed: 0,
+  };
   await render(<MuseumDownloadsScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Pause Art Institute of Chicago" }));
   expect(mockPause).toHaveBeenCalledWith(museum.id);

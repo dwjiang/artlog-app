@@ -16,12 +16,7 @@ export type VerifiedFieldsFormProps = {
   onChange: (name: LabelFieldName, value: string) => void;
 };
 
-export function VerifiedFieldsForm({
-  state,
-  warnings,
-  editable,
-  onChange,
-}: VerifiedFieldsFormProps) {
+export function VerifiedFieldsForm({ state, warnings, editable, onChange }: VerifiedFieldsFormProps) {
   const [more, setMore] = useState(false);
   const names: LabelFieldName[] = [
     "title",
@@ -64,10 +59,7 @@ export function VerifiedFieldsForm({
           </View>
         );
       })}
-      <GalleryButton
-        label={more ? "Fewer details" : "More details"}
-        onPress={() => setMore((value) => !value)}
-      />
+      <GalleryButton label={more ? "Fewer details" : "More details"} onPress={() => setMore((value) => !value)} />
     </View>
   );
 }

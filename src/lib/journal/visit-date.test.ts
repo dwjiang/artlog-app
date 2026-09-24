@@ -2,8 +2,9 @@ import { dateFromPicker, pickerDate, validVisitDate, venueTimeZone } from "./vis
 import type { VenueRow } from "../venue/resolve";
 
 it("round trips calendar dates without UTC conversion, including leap days", () => {
-  for (const value of ["2024-02-29", "2026-03-08", "2026-11-01"])
+  for (const value of ["2024-02-29", "2026-03-08", "2026-11-01"]) {
     expect(dateFromPicker(pickerDate(value))).toBe(value);
+  }
 });
 it("rejects future dates using the museum day across the international date line", () => {
   const now = Date.parse("2026-09-15T10:30:00Z");

@@ -36,7 +36,12 @@ it("revokes immediately, purges social references in batches, and deletes files 
           storageId,
           provenance: asset.provenance,
           createdAt: i,
-          source: { kind: "derivative", rights: "contributor_consent", width: 10, height: 10 },
+          source: {
+            kind: "derivative",
+            rights: "contributor_consent",
+            width: 10,
+            height: 10,
+          },
         });
       }
       await ctx.db.insert("wallItems", {
@@ -59,7 +64,9 @@ it("revokes immediately, purges social references in batches, and deletes files 
       return storageId;
     });
     // A live account cannot be purged by accidentally invoking the internal cleanup.
-    await t.mutation(internal.accounts.purgeJournal, { accountId: a.accountId });
+    await t.mutation(internal.accounts.purgeJournal, {
+      accountId: a.accountId,
+    });
     expect(await t.run((ctx) => ctx.db.get(a.profileId))).not.toBeNull();
     await a.as.mutation(api.accounts.deleteAccount, {});
     await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({

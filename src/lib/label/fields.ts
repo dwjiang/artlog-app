@@ -1,12 +1,7 @@
 import type { FunctionArgs } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
-import type {
-  LabelEvidence,
-  LabelFieldName,
-  LabelFlowDisplay,
-  LabelWarning,
-} from "../../../convex/lib/validators";
+import type { LabelEvidence, LabelFieldName, LabelFlowDisplay, LabelWarning } from "../../../convex/lib/validators";
 import type { LabelInput } from "./flow";
 
 export const LABEL_FIELD_NAMES = [
@@ -64,21 +59,25 @@ export function formStateFromFlow(flow: LabelFlowDisplay): LabelFormState {
 
 /** Opening the lock downgrades the field's evidence even before a keystroke. */
 export function unlockField(state: LabelFormState, name: LabelFieldName): LabelFormState {
-  return { ...state, [name]: { ...state[name], locked: false, unlocked: true } };
+  return {
+    ...state,
+    [name]: { ...state[name], locked: false, unlocked: true },
+  };
 }
 
 /** A verified field's lock follows its value, so a typo that is corrected does not leave the field downgraded. */
-export function setFieldValue(
-  state: LabelFormState,
-  name: LabelFieldName,
-  value: string,
-): LabelFormState {
+export function setFieldValue(state: LabelFormState, name: LabelFieldName, value: string): LabelFormState {
   const field = state[name];
   const verified = field.locked || field.unlocked;
   const diverged = value.trim() !== field.original;
   return {
     ...state,
-    [name]: { ...field, value, locked: verified && !diverged, unlocked: verified && diverged },
+    [name]: {
+      ...field,
+      value,
+      locked: verified && !diverged,
+      unlocked: verified && diverged,
+    },
   };
 }
 
@@ -113,9 +112,7 @@ export function toSubmittedFields(state: LabelFormState): SubmittedFields | null
 
 /** True when any value differs from what the stored flow holds, so a contribution must re-verify first. */
 export function differsFromFlow(state: LabelFormState, flow: LabelFlowDisplay): boolean {
-  return LABEL_FIELD_NAMES.some(
-    (name) => state[name].value.trim() !== (flow.fields[name]?.value ?? ""),
-  );
+  return LABEL_FIELD_NAMES.some((name) => state[name].value.trim() !== (flow.fields[name]?.value ?? ""));
 }
 
 export function canSaveLabel(state: LabelFormState): boolean {

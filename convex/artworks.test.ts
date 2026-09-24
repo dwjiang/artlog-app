@@ -5,7 +5,12 @@ import { api } from "./_generated/api";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
-const docent = [{ sentence: "Monet painted this pond at Giverny in 1916.", factIds: ["f1", "f2"] }];
+const docent = [
+  {
+    sentence: "Monet painted this pond at Giverny in 1916.",
+    factIds: ["f1", "f2"],
+  },
+];
 const factSheet = [
   {
     id: "f1",
@@ -23,8 +28,16 @@ const factSheet = [
   },
 ];
 const chips = [
-  { id: "f1", sourceUrl: "https://www.wikidata.org/wiki/Q1", sourceLabel: "Wikidata" },
-  { id: "f2", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" },
+  {
+    id: "f1",
+    sourceUrl: "https://www.wikidata.org/wiki/Q1",
+    sourceLabel: "Wikidata",
+  },
+  {
+    id: "f2",
+    sourceUrl: "https://museum.example/lilies",
+    sourceLabel: "Test Museum",
+  },
 ];
 
 it("returns docent sentences, source chips and the public-domain thumbnail to a registered device, keeping fact text on the artwork", async () => {
@@ -49,10 +62,12 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
 it("omits the thumbnail for in-copyright works and reverted objects, and returns null for a missing artwork", async () => {
   const t = harness();
   const { as } = await seedDevice(t);
-  const inCopyright = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { rightsStatus: "in_copyright" } }),
-  );
-  expect(await as.query(api.artworks.enrichment, { artworkId: inCopyright.artworkId })).toEqual({
+  const inCopyright = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { rightsStatus: "in_copyright" } }));
+  expect(
+    await as.query(api.artworks.enrichment, {
+      artworkId: inCopyright.artworkId,
+    }),
+  ).toEqual({
     rightsStatus: "in_copyright",
     narrationOpening: openingFixture,
   });
@@ -89,17 +104,15 @@ it("keeps catalogue lines as source chips but out of the narration research", as
     sourceScore: 0.8,
   };
   const { artworkId } = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet: [...factSheet, catalogue] } }),
+    seedArtworkWithObject(ctx, {
+      artwork: { factSheet: [...factSheet, catalogue] },
+    }),
   );
   const enrichment = await as.query(api.artworks.enrichment, { artworkId });
   expect(enrichment?.narrationFacts).toEqual(chips);
   expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual(["f1", "f2", "f3"]);
-  const bare = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }),
-  );
-  expect(
-    (await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts,
-  ).toBeUndefined();
+  const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }));
+  expect((await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts).toBeUndefined();
 });
 
 it("withholds additional narration facts while their sources need review", async () => {
@@ -107,7 +120,11 @@ it("withholds additional narration facts while their sources need review", async
   const { as } = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: { docent: { en: docent }, factSheet, factSheetNeedsReview: true },
+      artwork: {
+        docent: { en: docent },
+        factSheet,
+        factSheetNeedsReview: true,
+      },
     }),
   );
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();

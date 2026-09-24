@@ -1,17 +1,9 @@
 import { type Infer, v } from "convex/values";
 
-export const rightsStatus = v.union(
-  v.literal("public_domain"),
-  v.literal("in_copyright"),
-  v.literal("unknown"),
-);
+export const rightsStatus = v.union(v.literal("public_domain"), v.literal("in_copyright"), v.literal("unknown"));
 export type RightsStatus = Infer<typeof rightsStatus>;
 
-export const multiplicity = v.union(
-  v.literal("unique"),
-  v.literal("multiple"),
-  v.literal("unknown"),
-);
+export const multiplicity = v.union(v.literal("unique"), v.literal("multiple"), v.literal("unknown"));
 export type Multiplicity = Infer<typeof multiplicity>;
 
 export const objectSource = v.union(v.literal("corpus"), v.literal("user"));
@@ -44,11 +36,7 @@ export const identityStatus = v.union(v.literal("established"), v.literal("tenta
 export const contributionStatus = v.union(v.literal("tentative"), v.literal("rejected"));
 export type ContributionStatus = Infer<typeof contributionStatus>;
 
-export const proposalStatus = v.union(
-  v.literal("pending"),
-  v.literal("promoted"),
-  v.literal("rejected"),
-);
+export const proposalStatus = v.union(v.literal("pending"), v.literal("promoted"), v.literal("rejected"));
 export type ProposalStatus = Infer<typeof proposalStatus>;
 
 export const proposalKind = v.union(v.literal("move"), v.literal("new_object"));
@@ -77,11 +65,7 @@ export const labelEvidence = v.union(
 export type LabelEvidence = Infer<typeof labelEvidence>;
 
 // A contribution field keeps the label evidence it was verified with; editing it downgrades to user_edited.
-export const evidenceKind = v.union(
-  ...labelEvidence.members,
-  v.literal("agreement"),
-  v.literal("user_edited"),
-);
+export const evidenceKind = v.union(...labelEvidence.members, v.literal("agreement"), v.literal("user_edited"));
 export type EvidenceKind = Infer<typeof evidenceKind>;
 
 export const contributionRejectedReason = v.union(
@@ -104,12 +88,7 @@ export const candidateSignal = v.object({
 export type CandidateSignal = Infer<typeof candidateSignal>;
 
 export const feedbackResolution = v.object({
-  kind: v.union(
-    v.literal("runner_up"),
-    v.literal("label"),
-    v.literal("unresolved"),
-    v.literal("false_rejection"),
-  ),
+  kind: v.union(v.literal("runner_up"), v.literal("label"), v.literal("unresolved"), v.literal("false_rejection")),
   objectId: v.optional(v.id("objects")),
   contributionId: v.optional(v.id("contributions")),
 });
@@ -167,11 +146,7 @@ export type Embedding = Infer<typeof embedding>;
 
 export const devicePlatform = v.union(v.literal("ios"), v.literal("simulator"));
 
-export const challengePurpose = v.union(
-  v.literal("attest"),
-  v.literal("assert"),
-  v.literal("apple"),
-);
+export const challengePurpose = v.union(v.literal("attest"), v.literal("assert"), v.literal("apple"));
 
 export const labelField = v.object({
   value: v.string(),

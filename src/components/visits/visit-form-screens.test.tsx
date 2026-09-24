@@ -38,7 +38,9 @@ jest.mock("@/lib/venue/search-venues", () => ({
   searchVenues: async (query: string) => (/^fr/i.test(query) ? [] : [mockVenue, mockIsland]),
 }));
 jest.mock("../../../modules/poi-search/src", () => ({
-  getPoiSearch: () => ({ searchByName: (...args: unknown[]) => mockSearchByName(...args) }),
+  getPoiSearch: () => ({
+    searchByName: (...args: unknown[]) => mockSearchByName(...args),
+  }),
 }));
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 } }),
@@ -51,20 +53,15 @@ jest.mock("@/lib/venue/venue-db", () => ({
 jest.mock("expo-router", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   return {
-    router: { back: () => mockBack(), dismissTo: (...args: unknown[]) => mockDismissTo(...args) },
+    router: {
+      back: () => mockBack(),
+      dismissTo: (...args: unknown[]) => mockDismissTo(...args),
+    },
     useLocalSearchParams: () => ({ savedId: mockSavedId }),
     Stack: {
       Toolbar: Object.assign(View, {
         View,
-        Button: ({
-          children,
-          onPress,
-          disabled,
-        }: {
-          children: ReactNode;
-          onPress: () => void;
-          disabled?: boolean;
-        }) => (
+        Button: ({ children, onPress, disabled }: { children: ReactNode; onPress: () => void; disabled?: boolean }) => (
           <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
             <Text>{children}</Text>
           </Pressable>
@@ -85,7 +82,9 @@ afterEach(() => jest.restoreAllMocks());
 async function fill() {
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
   await fireEvent.press(
-    await screen.findByRole("button", { name: "Museum of Art, New York, United States" }),
+    await screen.findByRole("button", {
+      name: "Museum of Art, New York, United States",
+    }),
   );
   await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-29T12:00:00");
 }
@@ -128,23 +127,27 @@ it("moves the default date back to the museum day when the device is already on 
   await render(<VisitCreateScreen />);
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "island");
   await fireEvent.press(await screen.findByRole("button", { name: "Island Museum, Niue" }));
-  expect(screen.getByLabelText("Visit date")).toHaveProp(
-    "value",
-    pickerDate("2026-09-15").toISOString(),
-  );
+  expect(screen.getByLabelText("Visit date")).toHaveProp("value", pickerDate("2026-09-15").toISOString());
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByRole("button", { name: "Add visit" })).toBeEnabled();
 });
 it("creates a linked visit and returns to that artwork in its new visit context", async () => {
   mockSavedId = "linked-work";
-  await insertSavedWork({ localId: mockSavedId, title: "Garden", artist: "Artist", savedAt: 1 });
+  await insertSavedWork({
+    localId: mockSavedId,
+    title: "Garden",
+    artist: "Artist",
+    savedAt: 1,
+  });
   await render(<VisitCreateScreen />);
   await fill();
   await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
   await waitFor(() => expect(mockDismissTo).toHaveBeenCalled());
   const { params } = mockDismissTo.mock.calls[0][0];
   expect(params.savedId).toBe(mockSavedId);
-  expect(await getVisit(params.visitId)).toMatchObject({ venueName: "Museum of Art" });
+  expect(await getVisit(params.visitId)).toMatchObject({
+    venueName: "Museum of Art",
+  });
   expect(selectArtworkEncounters().all()).toContainEqual(
     expect.objectContaining({
       savedLocalId: mockSavedId,
@@ -156,7 +159,12 @@ it("creates a linked visit and returns to that artwork in its new visit context"
 });
 it("cancels a pending linked visit without creating a visit or encounter", async () => {
   mockSavedId = "cancel-work";
-  await insertSavedWork({ localId: mockSavedId, title: "Garden", artist: "Artist", savedAt: 1 });
+  await insertSavedWork({
+    localId: mockSavedId,
+    title: "Garden",
+    artist: "Artist",
+    savedAt: 1,
+  });
   const before = (await listVisits()).length;
   await render(<VisitCreateScreen />);
   await fill();
@@ -201,7 +209,9 @@ describe("a museum our table does not know", () => {
     expect(await screen.findByRole("header", { name: "From Apple Maps" })).toBeOnTheScreen();
     expect(mockSearchByName).toHaveBeenCalledWith("fraenkel", 37.77, -122.42);
     await fireEvent.press(
-      screen.getByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }),
+      screen.getByRole("button", {
+        name: "Fraenkel Gallery, San Francisco, United States",
+      }),
     );
     await waitFor(() =>
       expect(mockConfirmPlace).toHaveBeenCalledWith(
@@ -231,7 +241,9 @@ describe("a museum our table does not know", () => {
   it("does not ask Apple Maps while our table has matches or the name is too short", async () => {
     await render(<VisitCreateScreen />);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
-    await screen.findByRole("button", { name: "Museum of Art, New York, United States" });
+    await screen.findByRole("button", {
+      name: "Museum of Art, New York, United States",
+    });
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fr");
     expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
     expect(screen.getByText("Type more of the name to search Apple Maps too.")).toBeOnTheScreen();
@@ -242,12 +254,12 @@ describe("a museum our table does not know", () => {
     mockSearchByName.mockRejectedValueOnce(new Error("offline")).mockResolvedValue([place]);
     await render(<VisitCreateScreen />);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
-    expect(
-      await screen.findByText("Apple Maps could not be reached. Try again."),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText("Apple Maps could not be reached. Try again.")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
     expect(
-      await screen.findByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }),
+      await screen.findByRole("button", {
+        name: "Fraenkel Gallery, San Francisco, United States",
+      }),
     ).toBeOnTheScreen();
   });
 
@@ -260,7 +272,9 @@ describe("a museum our table does not know", () => {
     mockConfirmPlace.mockRejectedValue(new Error("offline"));
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel gallery");
     await fireEvent.press(
-      await screen.findByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }),
+      await screen.findByRole("button", {
+        name: "Fraenkel Gallery, San Francisco, United States",
+      }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent(/This museum could not be added\./);
     expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();

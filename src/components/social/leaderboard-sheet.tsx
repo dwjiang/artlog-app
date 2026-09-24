@@ -1,9 +1,5 @@
 import { BottomSheet, Host, RNHostView, ScrollView, VStack } from "@expo/ui/swift-ui";
-import {
-  presentationBackground,
-  presentationDetents,
-  presentationDragIndicator,
-} from "@expo/ui/swift-ui/modifiers";
+import { presentationBackground, presentationDetents, presentationDragIndicator } from "@expo/ui/swift-ui/modifiers";
 import { useState, type ReactNode } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -47,10 +43,7 @@ export function LeaderboardSheet({
                 paddingTop: 8,
               }}
             >
-              <Text
-                accessibilityRole="header"
-                style={{ fontSize: 22, fontWeight: "600", color: Gallery.ink }}
-              >
+              <Text accessibilityRole="header" style={{ fontSize: 22, fontWeight: "600", color: Gallery.ink }}>
                 {title}
               </Text>
               <GalleryButton

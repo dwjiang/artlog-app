@@ -29,28 +29,15 @@ import { useSaveResult } from "@/lib/result/use-save-result";
 
 export const MISSING_TITLE = "This scan isn’t on this phone anymore";
 
-export function LocalScanScreen({
-  localId,
-  manual = false,
-}: {
-  localId: string;
-  manual?: boolean;
-}) {
+export function LocalScanScreen({ localId, manual = false }: { localId: string; manual?: boolean }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
-  const {
-    data,
-    updatedAt,
-    error: loadError,
-  } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
+  const { data, updatedAt, error: loadError } = useLiveQuery(selectPendingScan(localId, owner), [localId, owner]);
   useEffect(() => {
     if (loadError) reportError(loadError, "result.load_local_scan");
   }, [loadError]);
-  const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [
-    localId,
-    owner,
-  ]);
+  const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [localId, owner]);
   const offlineResult = offlineResults?.find((result) => result.owner === owner)?.result;
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);
@@ -66,11 +53,15 @@ export function LocalScanScreen({
 
   useEffect(() => {
     if (isActive && labelCapture) {
-      router.replace({ pathname: "/label/[scanId]", params: { scanId: `local-${localId}` } });
+      router.replace({
+        pathname: "/label/[scanId]",
+        params: { scanId: `local-${localId}` },
+      });
       return;
     }
-    if (isActive && scanId && !keepForm && !editingCrop)
+    if (isActive && scanId && !keepForm && !editingCrop) {
       router.replace({ pathname: "/result/[scanId]", params: { scanId } });
+    }
   }, [isActive, router, scanId, keepForm, labelCapture, localId, editingCrop]);
 
   function openResult() {
@@ -91,22 +82,18 @@ export function LocalScanScreen({
   }
 
   function adjustCrop() {
-    if (hasDraft)
-      Alert.alert(
-        "Adjust this crop?",
-        "Recognition will run again. Unsaved artwork details will be discarded.",
-        [
-          { text: "Keep editing", style: "cancel" },
-          {
-            text: "Adjust crop",
-            onPress: () => {
-              setHasDraft(false);
-              setEditingCrop(true);
-            },
+    if (hasDraft) {
+      Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        {
+          text: "Adjust crop",
+          onPress: () => {
+            setHasDraft(false);
+            setEditingCrop(true);
           },
-        ],
-      );
-    else setEditingCrop(true);
+        },
+      ]);
+    } else setEditingCrop(true);
   }
 
   function openLabel() {
@@ -141,24 +128,28 @@ export function LocalScanScreen({
       void save({ scanId: row?.scanId ?? undefined, capture: row, draft });
     },
     onViewSaved: () =>
-      router.push({ pathname: "/saved/[savedId]", params: { savedId: savedId ?? "" } }),
+      router.push({
+        pathname: "/saved/[savedId]",
+        params: { savedId: savedId ?? "" },
+      }),
     onDraftChange: setHasDraft,
   };
 
-  if (editingCrop && row)
+  if (editingCrop && row) {
     return <ScanCropEditor capture={row} onCancel={() => setEditingCrop(false)} />;
-  if (labelCapture)
+  }
+  if (labelCapture) {
     return (
       <ThemedView style={styles.container}>
         <LoadingRing accessibilityLabel="Opening your label…" style={{ flex: 1 }} />
       </ThemedView>
     );
-  if (completion)
-    return (
-      <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />
-    );
+  }
+  if (completion) {
+    return <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined} />;
+  }
 
-  if (row && offlineResult && !manual)
+  if (row && offlineResult && !manual) {
     return (
       <OfflineResultScreen
         key={`${owner}:${localId}`}
@@ -167,6 +158,7 @@ export function LocalScanScreen({
         onViewResult={scanId ? openResult : undefined}
       />
     );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -209,13 +201,7 @@ export function LocalScanScreen({
           keepForm && (
             <View style={styles.section}>
               <ThemedText type="subtitle">Your result is ready</ThemedText>
-              <GalleryButton
-                label="View result"
-                variant="filled"
-                fullWidth
-                disabled={saving}
-                onPress={openResult}
-              />
+              <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
             </View>
           )
         ) : row.status === "failed" ? (

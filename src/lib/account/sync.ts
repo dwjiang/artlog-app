@@ -18,22 +18,15 @@ export type SyncContext = {
   accountId: Id<"accounts"> | null;
   owner: string;
 };
-export type SyncDependencies = Pick<
-  typeof saves,
-  "listUnsynced" | "markSynced" | "upsertFromRemote"
-> &
-  Pick<typeof visits, "listUnsyncedVisits" | "markVisitsSynced" | "upsertVisitsFromRemote"> &
-  Pick<JournalRepository, "applyVenues"> & {
+export type SyncDependencies = Pick<typeof saves, "listUnsynced" | "markSynced" | "upsertFromRemote">
+  & Pick<typeof visits, "listUnsyncedVisits" | "markVisitsSynced" | "upsertVisitsFromRemote">
+  & Pick<JournalRepository, "applyVenues"> & {
     getCheckpoint: () => Promise<string | undefined>;
     setCheckpoint: (value: string) => Promise<void>;
     sync: (args: SyncArgs) => Promise<SyncResult>;
     removeUnreferencedPhotos: (paths: string[]) => Promise<void>;
   };
-export async function syncJournal(
-  deps: SyncDependencies,
-  context: SyncContext,
-  isCurrent = () => true,
-): Promise<void> {
+export async function syncJournal(deps: SyncDependencies, context: SyncContext, isCurrent = () => true): Promise<void> {
   const stored = await deps.getCheckpoint();
   let checkpoint = stored ? Number(stored) : 0;
   if (!Number.isSafeInteger(checkpoint) || checkpoint < 0) checkpoint = 0;
@@ -44,9 +37,8 @@ export async function syncJournal(
     const pushVisits: JournalVisit[] = [],
       pushSaves: JournalSave[] = [];
     const fits = (input: JournalVisit | JournalSave) =>
-      pushVisits.length + pushSaves.length < LIMITS.batchRecords &&
-      utf8Bytes({ visits: pushVisits, saves: pushSaves }) + utf8Bytes(input) <
-        LIMITS.batchBytes - 1024;
+      pushVisits.length + pushSaves.length < LIMITS.batchRecords
+      && utf8Bytes({ visits: pushVisits, saves: pushSaves }) + utf8Bytes(input) < LIMITS.batchBytes - 1024;
     for (const row of pendingVisits) {
       const input = visitInput(row);
       if (!fits(input)) break;
@@ -87,8 +79,9 @@ export async function syncJournal(
     const expectedOwner = context.accountId
       ? { kind: "account" as const, accountId: context.accountId }
       : { kind: "device" as const, deviceId: context.deviceId };
-    if ([...result.visits, ...result.saves].some((row) => !sameOwner(row.owner, expectedOwner)))
+    if ([...result.visits, ...result.saves].some((row) => !sameOwner(row.owner, expectedOwner))) {
       throw new ConvexError({ code: "not_found" });
+    }
     await deps.applyVenues(result.venues);
     if (!isCurrent()) return;
     await deps.markVisitsSynced(
@@ -114,10 +107,11 @@ export async function syncJournal(
     checkpoint = result.checkpoint;
     await deps.setCheckpoint(String(checkpoint));
     if (
-      !result.hasMore &&
-      !(await deps.listUnsyncedVisits(context.owner)).length &&
-      !(await deps.listUnsynced(context.owner)).length
-    )
+      !result.hasMore
+      && !(await deps.listUnsyncedVisits(context.owner)).length
+      && !(await deps.listUnsynced(context.owner)).length
+    ) {
       return;
+    }
   }
 }

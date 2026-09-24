@@ -13,11 +13,7 @@ import { useQueryRefresh } from "./use-query-refresh";
 
 type Query = FunctionReference<"query", "public">;
 
-export function useSocialQuery<Q extends Query>(
-  query: Q,
-  args: FunctionArgs<Q> | "skip",
-  scope: string,
-) {
+export function useSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q> | "skip", scope: string) {
   const retry = useQueryRefresh(query, args, scope);
   const name = getFunctionName(query),
     serialized = JSON.stringify(args);
@@ -26,7 +22,12 @@ export function useSocialQuery<Q extends Query>(
   const requests = useMemo(
     () =>
       enabled
-        ? { [key]: { query: makeFunctionReference<"query">(name), args: JSON.parse(serialized) } }
+        ? {
+            [key]: {
+              query: makeFunctionReference<"query">(name),
+              args: JSON.parse(serialized),
+            },
+          }
         : {},
     [enabled, key, name, serialized],
   );
@@ -55,7 +56,10 @@ export function useCursorPages<Q extends Query, T>(
   const name = getFunctionName(query),
     serialized = JSON.stringify(args);
   const key = `${scope}:${name}:${serialized}`;
-  const [state, setState] = useState({ key, cursors: [null] as (string | null)[] });
+  const [state, setState] = useState({
+    key,
+    cursors: [null] as (string | null)[],
+  });
   const current = state.key === key ? state : { key, cursors: [null] };
   if (state.key !== key) setState(current);
   const retry = useQueryRefresh(
@@ -66,13 +70,14 @@ export function useCursorPages<Q extends Query, T>(
   const enabled = args !== "skip" && !retry.refreshing;
   const queries = useMemo(() => {
     const requests: RequestForQueries = {};
-    if (enabled)
+    if (enabled) {
       current.cursors.forEach((cursor, index) => {
         requests[`${key}:${index}:${cursor}`] = {
           query: makeFunctionReference<"query">(name),
           args: { ...JSON.parse(serialized), cursor, limit: 10 },
         };
       });
+    }
     return requests;
   }, [enabled, key, name, serialized, current.cursors]);
   const results = useQueries(queries);
@@ -86,14 +91,16 @@ export function useCursorPages<Q extends Query, T>(
     identify,
   );
   if (enabled && live.validLength < current.cursors.length) {
-    setState({ ...current, cursors: current.cursors.slice(0, live.validLength) });
+    setState({
+      ...current,
+      cursors: current.cursors.slice(0, live.validLength),
+    });
   }
   // A refresh drops the live subscription so it resubscribes fresh; the pages delivered before it stay on screen
   // until the new subscription answers, so a pull-to-refresh never blanks the list.
   const [held, setHeld] = useState<{ key: string; pages: typeof live }>();
   const stale =
-    held !== undefined &&
-    (held.key !== key || args === "skip" || live.first !== undefined || live.error !== undefined);
+    held !== undefined && (held.key !== key || args === "skip" || live.first !== undefined || live.error !== undefined);
   if (stale) setHeld(undefined);
   const holding = held && !stale ? held.pages : undefined;
   const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
@@ -106,17 +113,20 @@ export function useCursorPages<Q extends Query, T>(
     refreshing,
     loading: args !== "skip" && (pages.loading || refreshing),
     refresh: () => {
-      if (!refreshing && live.first !== undefined) setHeld({ key, pages: live });
+      if (!refreshing && live.first !== undefined) {
+        setHeld({ key, pages: live });
+      }
       setState({ key, cursors: [null] });
       retry.refresh();
     },
     loadMore: () => {
-      if (enabled && pages.canLoadMore)
+      if (enabled && pages.canLoadMore) {
         setState((previous) =>
           previous.key === key && !previous.cursors.includes(pages.next!)
             ? { ...previous, cursors: [...previous.cursors, pages.next!] }
             : previous,
         );
+      }
     },
   };
 }

@@ -24,7 +24,13 @@ jest.mock("./globe-canvas", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   return {
     GlobeCanvas: React.forwardRef(function MockGlobe(
-      { pins, onSelect }: { pins: { id: string; label: string }[]; onSelect: (id: string) => void },
+      {
+        pins,
+        onSelect,
+      }: {
+        pins: { id: string; label: string }[];
+        onSelect: (id: string) => void;
+      },
       ref: unknown,
     ) {
       React.useImperativeHandle(ref, () => ({
@@ -82,24 +88,25 @@ it("renders one pin per museum and opens the selected museum’s visits", async 
 it("offers a larger globe while keeping the selected museum visible", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/visit-globe", params: { venueId: "Met" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/visit-globe",
+    params: { venueId: "Met" },
+  });
   expect(screen.getByRole("button", { name: "View visits to Met" })).toBeOnTheScreen();
 });
 it("settles the globe before opening the expanded view so it starts from the live camera", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
   expect(mockSettle).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/visit-globe", params: { venueId: "Met" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/visit-globe",
+    params: { venueId: "Met" },
+  });
   expect(mockSettle.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
 });
 it("keeps visits without coordinates available through List", async () => {
   const onList = jest.fn();
-  await render(
-    <VisitGlobe
-      visits={[{ ...visit("1", "Museum", "Paris"), coordinates: undefined }]}
-      onList={onList}
-    />,
-  );
+  await render(<VisitGlobe visits={[{ ...visit("1", "Museum", "Paris"), coordinates: undefined }]} onList={onList} />);
   await fireEvent.press(screen.getByRole("button", { name: "Show List" }));
   expect(onList).toHaveBeenCalled();
 });

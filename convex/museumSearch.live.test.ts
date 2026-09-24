@@ -20,15 +20,11 @@ function tavilySpent(): number {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key, value]) => !(key.startsWith("ey") && value === "")),
   ) as NodeJS.ProcessEnv;
-  const output = execFileSync(
-    "npx",
-    ["convex", "run", "spend:status", JSON.stringify({ kind: "tavily" })],
-    {
-      encoding: "utf8",
-      env,
-      stdio: ["ignore", "pipe", "inherit"],
-    },
-  );
+  const output = execFileSync("npx", ["convex", "run", "spend:status", JSON.stringify({ kind: "tavily" })], {
+    encoding: "utf8",
+    env,
+    stdio: ["ignore", "pipe", "inherit"],
+  });
   return (JSON.parse(output) as { spent: number }).spent;
 }
 
@@ -37,12 +33,13 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
   async () => {
     const url = process.env.CONVEX_URL ?? process.env.EXPO_PUBLIC_CONVEX_URL;
     const venueId = process.env.MUSEUM_SEARCH_LIVE_VENUE_ID as Id<"museums"> | undefined;
-    if (!url || !venueId)
+    if (!url || !venueId) {
       throw new Error("CONVEX_URL and MUSEUM_SEARCH_LIVE_VENUE_ID are required");
+    }
     const client = new ConvexHttpClient(url);
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) =>
-      b.toString(16).padStart(2, "0"),
-    ).join("");
+    const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
     const signedIn = await client.action(api.auth.signIn, {
       provider: "anonymous",
       params: { secret },
@@ -50,7 +47,9 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
     const token = signedIn.tokens?.token;
     if (!token) throw new Error("Anonymous sign-in returned no token");
     client.setAuth(token);
-    await client.mutation(api.devices.registerDevice, { platform: "simulator" });
+    await client.mutation(api.devices.registerDevice, {
+      platform: "simulator",
+    });
     const pair = makeSyntheticPair({ count: 120 });
     const scan = await client.action(api.identify.identify, {
       localId: crypto.randomUUID(),
@@ -66,10 +65,10 @@ it.skipIf(process.env.MUSEUM_SEARCH_LIVE !== "1")(
 
     const before = tavilySpent();
     const started = Date.now();
-    const result = await client.action(api.museumSearch.searchExhibitions, { scanId: scan.scanId });
-    stdout.write(
-      `searchExhibitions ${Date.now() - started} ms\n${JSON.stringify(result, null, 2)}\n`,
-    );
+    const result = await client.action(api.museumSearch.searchExhibitions, {
+      scanId: scan.scanId,
+    });
+    stdout.write(`searchExhibitions ${Date.now() - started} ms\n${JSON.stringify(result, null, 2)}\n`);
     const credits = tavilySpent() - before;
     stdout.write(`tavily credits spent: ${credits}\n`);
     expect(["exhibitions", "none"]).toContain(result.stage);

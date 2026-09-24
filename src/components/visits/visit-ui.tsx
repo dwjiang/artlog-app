@@ -23,12 +23,13 @@ export function VisitMessage({
   action?: string;
   onAction?: () => void;
 }) {
-  if (loading && skeleton)
+  if (loading && skeleton) {
     return skeleton === "visit" ? (
       <VisitSkeleton label={typeof children === "string" ? children : "Loading visit…"} />
     ) : (
       <ListSkeleton label={typeof children === "string" ? children : "Loading visits…"} rows={3} />
     );
+  }
   return (
     <View style={visitStyles.section}>
       {loading && (
@@ -69,11 +70,16 @@ export function VisitSymbol({
 }
 export function VisitPrivacyNote() {
   return (
-    <View style={{ flexDirection: "row", gap: 6, paddingHorizontal: 20, paddingVertical: 20 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        gap: 6,
+        paddingHorizontal: 20,
+        paddingVertical: 20,
+      }}
+    >
       <VisitSymbol name="lock" size={12} color={Gallery.muted} />
-      <Text style={[visitStyles.fine, { flex: 1 }]}>
-        Your visits are private until you choose to share one.
-      </Text>
+      <Text style={[visitStyles.fine, { flex: 1 }]}>Your visits are private until you choose to share one.</Text>
     </View>
   );
 }
@@ -88,17 +94,12 @@ export function ArtworkPreviews({
   limit?: number;
   overflow?: boolean;
 }) {
-  const unique = [
-    ...new Map(works.map((work) => [`${work.owner}:${work.localId}`, work])).values(),
-  ];
+  const unique = [...new Map(works.map((work) => [`${work.owner}:${work.localId}`, work])).values()];
   const hidden = unique.length - limit;
   return (
     <View style={visitStyles.previews}>
       {unique.slice(0, limit).map((work) => (
-        <View
-          key={`${work.owner}:${work.localId}`}
-          style={[visitStyles.thumbnail, { width: size, height: size }]}
-        >
+        <View key={`${work.owner}:${work.localId}`} style={[visitStyles.thumbnail, { width: size, height: size }]}>
           <SavedWorkImage
             path={work.cropPath}
             syncing={cropSyncing(work)}
@@ -124,7 +125,12 @@ export const visitStyles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 32, gap: 12 },
   section: { padding: 20, gap: 12 },
   title: { ...Typography.display, color: Gallery.ink },
-  heading: { fontSize: 20, lineHeight: 26, fontWeight: "600", color: Gallery.ink },
+  heading: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "600",
+    color: Gallery.ink,
+  },
   body: { fontSize: 17, lineHeight: 25, color: Gallery.ink },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   card: {

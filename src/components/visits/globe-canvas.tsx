@@ -31,7 +31,11 @@ import { globeShader } from "./globe-shader";
 import { useGlobeCamera } from "./use-globe-camera";
 
 const shader = Skia.RuntimeEffect.Make(globeShader);
-const font = matchFont({ fontFamily: "Helvetica Neue", fontSize: 13, fontWeight: "500" });
+const font = matchFont({
+  fontFamily: "Helvetica Neue",
+  fontSize: 13,
+  fontWeight: "500",
+});
 export type GlobeCanvasHandle = {
   reset: () => void;
   focus: (pin: GlobePin) => void;
@@ -61,9 +65,7 @@ export function GlobeCanvas({
   const [width, setWidth] = useState(0);
   // Rasterized from the GSHHG coastline polygons supplied in the design mock.
   const [imageFailed, setImageFailed] = useState(false);
-  const image = useImage(require("../../../assets/images/visit-globe-land.png"), () =>
-    setImageFailed(true),
-  );
+  const image = useImage(require("../../../assets/images/visit-globe-land.png"), () => setImageFailed(true));
   const { camera, pan, pinch, setCamera, settle, stop, save } = useGlobeCamera(
     initialCamera ?? globeCamera(initialPin.latitude, initialPin.longitude),
     onCameraChange,
@@ -105,11 +107,12 @@ export function GlobeCanvas({
           if (onCluster) scheduleOnRN(onCluster, cluster.ids);
         } else {
           const pin = pins.find((pin) => pin.id === id);
-          if (pin)
+          if (pin) {
             setCamera({
               ...globeCamera(pin.latitude, pin.longitude),
               zoom: Math.min(2.25, camera.get().zoom * 1.6),
             });
+          }
         }
       } else scheduleOnRN(onSelect, id);
     });
@@ -117,13 +120,16 @@ export function GlobeCanvas({
     .numberOfTaps(2)
     .onBegin(stop)
     .onEnd((_event, success) => {
-      if (success) setCamera({ ...camera.get(), zoom: Math.min(2.25, camera.get().zoom * 1.25) });
+      if (success) {
+        setCamera({
+          ...camera.get(),
+          zoom: Math.min(2.25, camera.get().zoom * 1.25),
+        });
+      }
     });
   return (
     <GestureHandlerRootView style={{ height }}>
-      <GestureDetector
-        gesture={Gesture.Race(Gesture.Simultaneous(pan, pinch), Gesture.Exclusive(doubleTap, tap))}
-      >
+      <GestureDetector gesture={Gesture.Race(Gesture.Simultaneous(pan, pinch), Gesture.Exclusive(doubleTap, tap))}>
         <View
           collapsable={false}
           onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
@@ -142,11 +148,7 @@ export function GlobeCanvas({
               <>
                 <Fill>
                   <Shader source={shader} uniforms={uniforms}>
-                    <ImageShader
-                      image={image}
-                      fit="fill"
-                      rect={{ x: 0, y: 0, width: 2048, height: 1024 }}
-                    />
+                    <ImageShader image={image} fit="fill" rect={{ x: 0, y: 0, width: 2048, height: 1024 }} />
                   </Shader>
                 </Fill>
                 {pins.map((pin, index) => (
@@ -163,11 +165,7 @@ export function GlobeCanvas({
             </View>
           ) : (
             (!image || width === 0) && (
-              <LoadingRing
-                accessibilityLabel="Loading globe…"
-                size={28}
-                style={StyleSheet.absoluteFill}
-              />
+              <LoadingRing accessibilityLabel="Loading globe…" size={28} style={StyleSheet.absoluteFill} />
             )
           )}
         </View>
@@ -175,13 +173,7 @@ export function GlobeCanvas({
     </GestureHandlerRootView>
   );
 }
-function GlobeMarker({
-  index,
-  clusters,
-}: {
-  index: number;
-  clusters: SharedValue<GlobeCluster[]>;
-}) {
+function GlobeMarker({ index, clusters }: { index: number; clusters: SharedValue<GlobeCluster[]> }) {
   const cluster = useDerivedValue(() => clusters.get()[index]);
   const opacity = useDerivedValue(() => (cluster.get() ? 1 : 0));
   const transform = useDerivedValue(() => [

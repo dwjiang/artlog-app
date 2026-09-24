@@ -21,42 +21,39 @@ export function NowPlayingScreen() {
   const audio = useListening();
   const { bottom } = useSafeAreaInsets();
   const { width, height, fontScale } = useWindowDimensions();
-  if (!audio.current)
+  if (!audio.current) {
     return (
       <View style={styles.empty}>
         <Text>No artwork is playing.</Text>
         <AudioIconButton name="chevron.down" label="Close player" onPress={() => router.back()} />
       </View>
     );
+  }
   const { work } = audio.current;
   function openArtwork() {
     router.back();
-    if (work.savedId)
-      router.push({ pathname: "/saved/[savedId]", params: { savedId: work.savedId } });
-    else if (work.scanId)
-      router.push({ pathname: "/result/[scanId]", params: { scanId: work.scanId } });
+    if (work.savedId) {
+      router.push({
+        pathname: "/saved/[savedId]",
+        params: { savedId: work.savedId },
+      });
+    } else if (work.scanId) {
+      router.push({
+        pathname: "/result/[scanId]",
+        params: { scanId: work.scanId },
+      });
+    }
   }
   const options = (
     <Host matchContents colorScheme="light">
       <Menu
         modifiers={[buttonStyle("plain"), accessibilityLabel("Listening options")]}
-        label={
-          <Icon
-            name="ellipsis"
-            size={22}
-            color={Gallery.ink}
-            modifiers={[frame({ width: 44, height: 44 })]}
-          />
-        }
+        label={<Icon name="ellipsis" size={22} color={Gallery.ink} modifiers={[frame({ width: 44, height: 44 })]} />}
       >
         {(work.savedId || work.scanId) && (
           <Button label="View this artwork" systemImage="photo" onPress={openArtwork} />
         )}
-        <Button
-          label="Restart narration"
-          systemImage="arrow.counterclockwise"
-          onPress={audio.controller.restart}
-        />
+        <Button label="Restart narration" systemImage="arrow.counterclockwise" onPress={audio.controller.restart} />
         <Button
           label="Stop listening & close player"
           systemImage="stop"
@@ -91,11 +88,7 @@ export function NowPlayingScreen() {
     </View>
   );
   const compact = height < 720;
-  const artworkSize = Math.min(
-    width - Spacing.content * 2,
-    height * (compact || fontScale > 1.4 ? 0.24 : 0.35),
-    360,
-  );
+  const artworkSize = Math.min(width - Spacing.content * 2, height * (compact || fontScale > 1.4 ? 0.24 : 0.35), 360);
   const artwork = (
     <View style={[styles.artwork, { width: artworkSize, height: artworkSize }]}>
       {work.imageUri ? (
@@ -124,11 +117,7 @@ export function NowPlayingScreen() {
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(8, bottom) }]}>
       <View style={styles.header}>
-        <AudioIconButton
-          name="chevron.down"
-          label="Minimize player"
-          onPress={() => router.back()}
-        />
+        <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
         <Text variant="secondary" style={{ fontWeight: "600" }}>
           {view === "player" ? "Now playing" : view === "transcript" ? "Transcript" : "Audio guide"}
         </Text>
@@ -145,9 +134,7 @@ export function NowPlayingScreen() {
       </View>
       {view === "player" && (
         <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never">
-          <View style={[styles.artworkSpace, compact && { paddingVertical: Spacing.three }]}>
-            {artwork}
-          </View>
+          <View style={[styles.artworkSpace, compact && { paddingVertical: Spacing.three }]}>{artwork}</View>
           <View style={styles.details}>
             {metadata}
             {status}
@@ -165,7 +152,10 @@ export function NowPlayingScreen() {
       {view === "transcript" && (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ padding: Spacing.content, gap: Spacing.three }}
+          contentContainerStyle={{
+            padding: Spacing.content,
+            gap: Spacing.three,
+          }}
         >
           <Text variant="display">{work.title}</Text>
           <Text themeColor="textSecondary">Audio guide · Transcript & sources</Text>
@@ -201,12 +191,25 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   scroll: { flex: 1, overflow: "hidden" },
-  artworkSpace: { alignItems: "center", justifyContent: "center", paddingVertical: Spacing.four },
-  artwork: { alignItems: "center", justifyContent: "center", backgroundColor: Gallery.fill },
+  artworkSpace: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.four,
+  },
+  artwork: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Gallery.fill,
+  },
   details: { paddingHorizontal: Spacing.content, gap: Spacing.two },
   metadata: { gap: Spacing.two, paddingBottom: Spacing.two },
   title: { fontSize: 30, lineHeight: 36 },
-  guideLabel: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: Spacing.two },
+  guideLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+  },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -215,7 +218,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     backgroundColor: Gallery.highlight,
   },
-  badgeText: { fontSize: 10, lineHeight: 14, fontWeight: "700", letterSpacing: 0.8 },
+  badgeText: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
   footer: {
     backgroundColor: Gallery.paper,
     borderTopWidth: StyleSheet.hairlineWidth,

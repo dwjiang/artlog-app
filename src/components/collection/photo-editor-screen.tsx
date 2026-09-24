@@ -21,7 +21,10 @@ import { PhotoVisibility } from "./photo-visibility";
 import { ArtworkQueryState } from "./artwork-query-state";
 
 export function PhotoEditorScreen() {
-  const { savedId, photoId } = useLocalSearchParams<{ savedId: string; photoId: string }>();
+  const { savedId, photoId } = useLocalSearchParams<{
+    savedId: string;
+    photoId: string;
+  }>();
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -50,21 +53,12 @@ function PhotoQuery({
     if (photos.error) reportError(photos.error, "collection.photo.load");
   }, [photos.error]);
   const photo = photos.data.find(
-    (row) =>
-      row.owner === owner &&
-      row.savedLocalId === savedId &&
-      row.localId === photoId &&
-      row.deletedAt === null,
+    (row) => row.owner === owner && row.savedLocalId === savedId && row.localId === photoId && row.deletedAt === null,
   );
   return photo ? (
     <PhotoEditor key={`${owner}:${photoId}`} photo={photo} />
   ) : (
-    <ArtworkQueryState
-      item="Photo"
-      loading={!photos.updatedAt}
-      error={photos.error}
-      onRetry={onRetry}
-    />
+    <ArtworkQueryState item="Photo" loading={!photos.updatedAt} error={photos.error} onRetry={onRetry} />
   );
 }
 function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
@@ -76,11 +70,12 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   const [imageFailed, setImageFailed] = useState(false);
   const works = useLiveQuery(listSavedWorks(photo.owner), [photo.owner]);
   useEffect(() => {
-    if (works.error) reportError(works.error, "collection.photo-destinations.load");
+    if (works.error) {
+      reportError(works.error, "collection.photo-destinations.load");
+    }
   }, [works.error]);
   const destinations = works.data.filter(
-    (work) =>
-      work.owner === photo.owner && work.localId !== photo.savedLocalId && work.deletedAt === null,
+    (work) => work.owner === photo.owner && work.localId !== photo.savedLocalId && work.deletedAt === null,
   );
   const execute = (patch: Parameters<typeof editArtworkPhoto>[1]) => {
     try {
@@ -173,12 +168,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
         />
       </View>
       <PhotoVisibility savedId={photo.savedLocalId} photoId={photo.localId} />
-      <GalleryButton
-        label="Save photo details"
-        variant="filled"
-        fullWidth
-        onPress={() => execute({ kind, caption })}
-      />
+      <GalleryButton label="Save photo details" variant="filled" fullWidth onPress={() => execute({ kind, caption })} />
       <View
         style={{
           borderWidth: 1,
@@ -197,9 +187,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
         {moving && (
           <WallSheet title="Move photo" tall onDismiss={() => setMoving(false)}>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-              <Text style={{ color: Gallery.muted }}>
-                Choose the artwork this photo belongs to.
-              </Text>
+              <Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
               {works.error ? (
                 <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                   Couldn’t load your artworks. Close and reopen this photo to try again.
@@ -230,12 +218,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                     paddingVertical: 12,
                   }}
                 >
-                  <SavedWorkImage
-                    path={work.cropPath}
-                    title={work.title}
-                    contain
-                    style={{ width: 60, height: 60 }}
-                  />
+                  <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: 60, height: 60 }} />
                   <View style={{ flex: 1, gap: 4 }}>
                     <Text>{work.title}</Text>
                     <Text style={{ color: Gallery.muted, fontSize: 13 }}>{work.artist}</Text>
@@ -248,9 +231,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   {error}
                 </Text>
               )}
-              <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-                The photo’s type and caption move with it.
-              </Text>
+              <Text style={{ color: Gallery.muted, fontSize: 13 }}>The photo’s type and caption move with it.</Text>
             </ScrollView>
           </WallSheet>
         )}

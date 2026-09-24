@@ -1,14 +1,7 @@
 import { LoadingRing } from "@/components/loading-ring";
 import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
-import {
-  accessibilityLabel,
-  buttonStyle,
-  contentShape,
-  disabled,
-  frame,
-  shapes,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, buttonStyle, contentShape, disabled, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -69,11 +62,7 @@ export function QueueRow({
         accessibilityState={{ disabled: discarding, busy: discarding }}
         style={({ pressed }) => [styles.capture, pressed && styles.pressed]}
       >
-        <Image
-          source={captureFileUri(scanPreviewPath(item.cropPath))}
-          contentFit="cover"
-          style={styles.thumbnail}
-        />
+        <Image source={captureFileUri(scanPreviewPath(item.cropPath))} contentFit="cover" style={styles.thumbnail} />
         <View style={styles.text}>
           <ThemedText type="smallBold" numberOfLines={2}>
             {title}
@@ -95,13 +84,7 @@ export function QueueRow({
                 paddingVertical: 3,
                 backgroundColor: item.status === "identified" ? Gallery.highlight : Gallery.fill,
               }}
-              themeColor={
-                item.status === "failed"
-                  ? "error"
-                  : item.status === "identified"
-                    ? "success"
-                    : "warning"
-              }
+              themeColor={item.status === "failed" ? "error" : item.status === "identified" ? "success" : "warning"}
             >
               {status}
             </ThemedText>
@@ -141,12 +124,7 @@ export function QueueRow({
               onPress={() => onRetry(item)}
             />
           )}
-          <Button
-            label="Discard scan"
-            systemImage="trash"
-            role="destructive"
-            onPress={() => onDiscard(item)}
-          />
+          <Button label="Discard scan" systemImage="trash" role="destructive" onPress={() => onDiscard(item)} />
         </Menu>
       </Host>
     </View>
@@ -162,7 +140,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Gallery.separator,
   },
-  capture: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.three },
+  capture: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
   pressed: { opacity: 0.6 },
   thumbnail: {
     width: 64,

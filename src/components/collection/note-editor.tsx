@@ -169,10 +169,7 @@ function WorkNoteEditor({
             setEditing(false);
           }}
         >
-          <ScrollView
-            automaticallyAdjustKeyboardInsets
-            contentContainerStyle={{ padding: 24, gap: 16 }}
-          >
+          <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
             <View
               style={{
                 flexDirection: "row",
@@ -219,9 +216,7 @@ function WorkNoteEditor({
               style={styles.input}
             />
             <View style={{ padding: 12, backgroundColor: "#EEF2FF" }}>
-              <ThemedText variant="metadata">
-                Private note. You can choose to show it on your wall later.
-              </ThemedText>
+              <ThemedText variant="metadata">Private note. You can choose to show it on your wall later.</ThemedText>
             </View>
             {draft?.length === MAX_NOTE_LENGTH && (
               <ThemedText themeColor="textSecondary" style={styles.body}>
@@ -235,9 +230,7 @@ function WorkNoteEditor({
                   ? "Saved on this iPhone"
                   : "Saves when you close"}
             </ThemedText>
-            {saveFailed && (
-              <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />
-            )}
+            {saveFailed && <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />}
           </ScrollView>
         </WallSheet>
       )}
@@ -271,9 +264,7 @@ function WorkNoteEditor({
       </View>
       {saveFailed && !editing ? (
         <View>
-          <ThemedText themeColor="textSecondary">
-            Your note couldn’t be saved. Try again.
-          </ThemedText>
+          <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
           <Host matchContents colorScheme="light">
             <Button label="Retry save" onPress={() => persist(latest.current)} />
           </Host>
@@ -285,8 +276,19 @@ function WorkNoteEditor({
 
 const styles = StyleSheet.create({
   section: { gap: Spacing.two },
-  heading: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
-  title: { flex: 1, fontFamily: Fonts.display, fontSize: 20, lineHeight: 24, color: Gallery.ink },
+  heading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+  },
+  title: {
+    flex: 1,
+    fontFamily: Fonts.display,
+    fontSize: 20,
+    lineHeight: 24,
+    color: Gallery.ink,
+  },
   body: { fontSize: 15, lineHeight: 21 },
   input: {
     minHeight: 110,

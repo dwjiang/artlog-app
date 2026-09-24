@@ -17,11 +17,19 @@ jest.mock("@/db/repos/settings", () => ({
     mockSettings.set(key, value);
   },
 }));
-jest.mock("@/lib/convex-client", () => ({ convex: { query: () => mockQuery() } }));
-jest.mock("../../../convex/_generated/api", () => ({ api: { venueTable: { latest: "latest" } } }));
+jest.mock("@/lib/convex-client", () => ({
+  convex: { query: () => mockQuery() },
+}));
+jest.mock("../../../convex/_generated/api", () => ({
+  api: { venueTable: { latest: "latest" } },
+}));
 jest.mock("expo-asset", () => ({
   Asset: {
-    fromModule: () => ({ hash: "bundle", localUri: mockBundled, downloadAsync: async () => {} }),
+    fromModule: () => ({
+      hash: "bundle",
+      localUri: mockBundled,
+      downloadAsync: async () => {},
+    }),
   },
 }));
 jest.mock("expo-file-system", () => {
@@ -109,7 +117,11 @@ beforeEach(() => {
   table(mockBundled, 1);
   table(mockLatest, 2);
   mockSettings.clear();
-  mockQuery.mockResolvedValue({ version: 2, rowCount: 1, url: "https://example.test/venues.db" });
+  mockQuery.mockResolvedValue({
+    version: 2,
+    rowCount: 1,
+    url: "https://example.test/venues.db",
+  });
   loadModules();
 });
 afterEach(() => {
@@ -132,16 +144,15 @@ it("keeps the live table writable after a refresh and carries later confirmation
     },
   ]);
   expect(await venueDb.readVenueTableMeta(live)).toMatchObject({ version: 1 });
-  expect((await venueDb.nearest(live, { lat: 40, lng: -73 }, 400)).map((row) => row.id)).toContain(
-    "new-gallery",
-  );
+  expect((await venueDb.nearest(live, { lat: 40, lng: -73 }, 400)).map((row) => row.id)).toContain("new-gallery");
   await live.closeAsync();
   loadModules();
   const next = await venueDb.openVenueDb();
   expect(await venueDb.readVenueTableMeta(next)).toMatchObject({ version: 2 });
-  expect(
-    (await venueDb.nearest(next, { lat: 40, lng: -73 }, 400)).map((row) => row.id).sort(),
-  ).toEqual(["museum-2", "new-gallery"]);
+  expect((await venueDb.nearest(next, { lat: 40, lng: -73 }, 400)).map((row) => row.id).sort()).toEqual([
+    "museum-2",
+    "new-gallery",
+  ]);
 });
 
 it("names a venue from the local table for a saved work", async () => {
@@ -159,7 +170,12 @@ it.each(["city", "country", "cityKey"])(
 
     const reopened = await venueDb.openVenueDb();
     expect(await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).toEqual([
-      expect.objectContaining({ id: "museum-1", city: null, country: null, cityKey: null }),
+      expect.objectContaining({
+        id: "museum-1",
+        city: null,
+        country: null,
+        cityKey: null,
+      }),
     ]);
   },
 );
@@ -193,10 +209,12 @@ it("rejects an invalid bundle without marking it installed and retries after it 
 
 it("keeps the live table when a download fails validation", async () => {
   const live = await venueDb.openVenueDb();
-  mockQuery.mockResolvedValue({ version: 3, rowCount: 1, url: "https://example.test/venues.db" });
-  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow(
-    "expected 3",
-  );
+  mockQuery.mockResolvedValue({
+    version: 3,
+    rowCount: 1,
+    url: "https://example.test/venues.db",
+  });
+  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow("expected 3");
   await live.closeAsync();
   loadModules();
   expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({
@@ -214,10 +232,10 @@ it("rolls back a failed staged installation without losing the live table", asyn
   const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
   loadModules();
   const reopened = await venueDb.openVenueDb();
-  expect(await venueDb.readVenueTableMeta(reopened)).toMatchObject({ version: 1 });
-  expect(
-    (await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).map((row) => row.id),
-  ).toEqual(["museum-1"]);
+  expect(await venueDb.readVenueTableMeta(reopened)).toMatchObject({
+    version: 1,
+  });
+  expect((await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).map((row) => row.id)).toEqual(["museum-1"]);
   warn.mockRestore();
 });
 
@@ -241,9 +259,7 @@ it("round-trips canonical geography and clears missing metadata", async () => {
     city: "New York",
     country: "US",
   });
-  await venueDb.applyVenueMetadata(db, [
-    { ...venue, city: undefined, country: undefined, cityKey: undefined },
-  ]);
+  await venueDb.applyVenueMetadata(db, [{ ...venue, city: undefined, country: undefined, cityKey: undefined }]);
   expect((await venueDb.venueMetadataForIds([venue.id]))[0]).toMatchObject({
     city: null,
     country: null,
@@ -289,7 +305,12 @@ it("carries journal venues across a new bundled asset and lets published rows su
   loadModules();
   await venueDb.openVenueDb();
   expect(await venueDb.venueMetadataForIds(["poi-1", "museum-1"])).toEqual([
-    expect.objectContaining({ id: "museum-1", name: "Museum", city: null, cityKey: null }),
+    expect.objectContaining({
+      id: "museum-1",
+      name: "Museum",
+      city: null,
+      cityKey: null,
+    }),
     expect.objectContaining({
       id: "poi-1",
       name: "Gallery",

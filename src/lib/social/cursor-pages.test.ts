@@ -16,19 +16,13 @@ const page = (ids: string[], cursor: string | null, isDone = false) => ({
 });
 
 it("keeps server ordering and deduplicates overlapping pages", () => {
-  const state = read(
-    [null, "next"],
-    [page(["new", "same"], "next"), page(["same", "old"], null, true)],
-  );
+  const state = read([null, "next"], [page(["new", "same"], "next"), page(["same", "old"], null, true)]);
   expect(state.items.map((item) => item.id)).toEqual(["new", "same", "old"]);
   expect(state.done).toBe(true);
 });
 
 it("drops dependent pages immediately when an earlier cursor changes", () => {
-  const state = read(
-    [null, "old-cursor"],
-    [page(["new"], "new-cursor"), page(["stale"], null, true)],
-  );
+  const state = read([null, "old-cursor"], [page(["new"], "new-cursor"), page(["stale"], null, true)]);
   expect(state.items.map((item) => item.id)).toEqual(["new"]);
   expect(state.validLength).toBe(1);
   expect(state.done).toBe(false);
@@ -41,13 +35,14 @@ it("distinguishes an empty page from completion and permits another page", () =>
     done: false,
     canLoadMore: true,
   });
-  expect(read([null, "next"], [page([], "next"), page(["found"], null, true)]).items).toEqual([
-    { id: "found" },
-  ]);
+  expect(read([null, "next"], [page([], "next"), page(["found"], null, true)]).items).toEqual([{ id: "found" }]);
 });
 
 it("does not loop or claim completion when the server cannot advance a cursor", () => {
-  expect(read([null], [page([], null)])).toMatchObject({ done: false, canLoadMore: false });
+  expect(read([null], [page([], null)])).toMatchObject({
+    done: false,
+    canLoadMore: false,
+  });
   expect(read([null, "next"], [page(["a"], "next"), page([], "next")])).toMatchObject({
     done: false,
     canLoadMore: false,
@@ -84,7 +79,9 @@ it("keeps already loaded rows when a later page fails because of the network", (
 });
 
 it("hides loaded rows when a later page is refused by the server", () => {
-  expect(
-    read([null, "next"], [page(["loaded"], "next"), new ConvexError({ code: "not_found" })]),
-  ).toMatchObject({ items: [], first: undefined, error: expect.any(Error) });
+  expect(read([null, "next"], [page(["loaded"], "next"), new ConvexError({ code: "not_found" })])).toMatchObject({
+    items: [],
+    first: undefined,
+    error: expect.any(Error),
+  });
 });

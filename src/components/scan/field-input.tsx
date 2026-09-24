@@ -1,12 +1,5 @@
 import { Host, TextInput } from "@expo/ui";
-import {
-  accessibilityLabel,
-  background,
-  clipShape,
-  font,
-  padding,
-  strokeBorder,
-} from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, background, clipShape, font, padding, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import { useState } from "react";
 import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 
@@ -22,14 +15,7 @@ export type FieldInputProps = {
 };
 
 /** A multiline native text field in a bordered box that highlights while focused. */
-export function FieldInput({
-  label,
-  defaultValue,
-  editable,
-  autoCapitalize,
-  onChangeText,
-  style,
-}: FieldInputProps) {
+export function FieldInput({ label, defaultValue, editable, autoCapitalize, onChangeText, style }: FieldInputProps) {
   const [focused, setFocused] = useState(false);
   return (
     <Host matchContents={{ vertical: true }} colorScheme="light" style={[styles.host, style]}>

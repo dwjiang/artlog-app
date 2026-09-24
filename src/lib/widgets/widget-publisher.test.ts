@@ -1,8 +1,4 @@
-import {
-  createWidgetPublisher,
-  currentWidgetIndex,
-  widgetRotationSeconds,
-} from "./widget-publisher";
+import { createWidgetPublisher, currentWidgetIndex, widgetRotationSeconds } from "./widget-publisher";
 import { defaultWidgetSettings } from "./widget-settings";
 import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
 
@@ -12,7 +8,11 @@ const art: WidgetArtwork = {
   artist: "Monet",
   paths: ["photo.jpg"],
 };
-const ready: PreparedWidgetArtwork = { ...art, uri: "file:///shared/photo.jpg", aspect: 1 };
+const ready: PreparedWidgetArtwork = {
+  ...art,
+  uri: "file:///shared/photo.jpg",
+  aspect: 1,
+};
 const deferred = () => {
   let resolve!: (value: PreparedWidgetArtwork) => void;
   const promise = new Promise<PreparedWidgetArtwork>((done) => {
@@ -76,8 +76,6 @@ it("replaces deleted or unavailable art with a settings link and clears old imag
 
 it("cycles all artworks and keeps a single selected painting fixed", () => {
   const interval = widgetRotationSeconds * 1000;
-  expect([0, 1, 2, 3, 4, 5].map((time) => currentWidgetIndex(3, time * interval))).toEqual([
-    0, 1, 2, 0, 1, 2,
-  ]);
+  expect([0, 1, 2, 3, 4, 5].map((time) => currentWidgetIndex(3, time * interval))).toEqual([0, 1, 2, 0, 1, 2]);
   expect(currentWidgetIndex(1, 500 * interval)).toBe(0);
 });

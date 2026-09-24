@@ -25,11 +25,7 @@ it("walks the photo path: reading first, the three checks together, images last"
   ]);
   expect(status(STEP_LABELS.images)).toBe("pending");
   await view.rerender(<ProgressSteps stage="image-check" qr={false} />);
-  expect([STEP_LABELS.read, STEP_LABELS.records, STEP_LABELS.web].map(status)).toEqual([
-    "done",
-    "done",
-    "done",
-  ]);
+  expect([STEP_LABELS.read, STEP_LABELS.records, STEP_LABELS.web].map(status)).toEqual(["done", "done", "done"]);
   expect(status(STEP_LABELS.images)).toBe("active");
 });
 

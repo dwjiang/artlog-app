@@ -53,27 +53,31 @@ it.each([
   { startedAt: NaN },
 ])("validates visit input %j", async (invalid) => {
   const { upsert } = await fixture();
-  await expect(upsert(invalid)).rejects.toMatchObject({ data: { code: "invalid_visit" } });
+  await expect(upsert(invalid)).rejects.toMatchObject({
+    data: { code: "invalid_visit" },
+  });
 });
 it("isolates owners and prevents changing the venue of an existing visit", async () => {
   const { t, user, visit, upsert } = await fixture();
   const first = await upsert();
   const other = await seedDevice(t);
-  const second = await other.as.mutation(api.visits.upsertJournal, { scope: other.scope, visit });
+  const second = await other.as.mutation(api.visits.upsertJournal, {
+    scope: other.scope,
+    visit,
+  });
   expect(second._id).not.toBe(first._id);
-  await expect(
-    other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit }),
-  ).rejects.toMatchObject({ data: { code: "sync_scope_changed" } });
+  await expect(other.as.mutation(api.visits.upsertJournal, { scope: user.scope, visit })).rejects.toMatchObject({
+    data: { code: "sync_scope_changed" },
+  });
   const venueId = await t.run(seedMuseum);
-  await expect(upsert({ venueId })).rejects.toMatchObject({ data: { code: "invalid_visit" } });
+  await expect(upsert({ venueId })).rejects.toMatchObject({
+    data: { code: "invalid_visit" },
+  });
 });
 it("pages history by calendar date and UUID, including empty repeats and museum filters", async () => {
   const { t, user, visit } = await fixture();
   const secondVenue = await t.run(seedMuseum);
-  const ids = Array.from(
-    { length: 23 },
-    (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
-  );
+  const ids = Array.from({ length: 23 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`);
   await user.as.mutation(api.sync.syncJournal, {
     scope: user.scope,
     since: 0,
@@ -102,21 +106,21 @@ it("pages history by calendar date and UUID, including empty repeats and museum 
   });
   expect(last.page.map((row) => row.localId)).toEqual(ids.toReversed().slice(20));
   expect(last).toMatchObject({ cursor: null, isDone: true });
-  await expect(
-    user.as.query(api.visits.history, { scope: user.scope, limit: 51 }),
-  ).rejects.toMatchObject({ data: { code: "invalid_pagination" } });
+  await expect(user.as.query(api.visits.history, { scope: user.scope, limit: 51 })).rejects.toMatchObject({
+    data: { code: "invalid_pagination" },
+  });
 });
 it("hides foreign detail and membership and keeps a visit after its last save is removed", async () => {
   const { t, user, visit, upsert } = await fixture();
   await upsert();
   const other = await seedDevice(t);
   for (const localId of [visit.localId, crypto.randomUUID()]) {
-    await expect(
-      other.as.query(api.visits.detail, { scope: other.scope, localId }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
-    await expect(
-      other.as.query(api.visits.savedWorks, { scope: other.scope, localId }),
-    ).rejects.toMatchObject({ data: { code: "not_found" } });
+    await expect(other.as.query(api.visits.detail, { scope: other.scope, localId })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    await expect(other.as.query(api.visits.savedWorks, { scope: other.scope, localId })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
   }
   const saves = Array.from({ length: 3 }, () => ({
     localId: crypto.randomUUID(),
@@ -125,7 +129,12 @@ it("hides foreign detail and membership and keeps a visit after its last save is
     savedAt: 1,
     snapshot: { title: "Painting", artist: "Artist" },
   }));
-  await user.as.mutation(api.sync.syncJournal, { scope: user.scope, since: 0, visits: [], saves });
+  await user.as.mutation(api.sync.syncJournal, {
+    scope: user.scope,
+    since: 0,
+    visits: [],
+    saves,
+  });
   const page = await user.as.query(api.visits.savedWorks, {
     scope: user.scope,
     localId: visit.localId,
@@ -137,16 +146,25 @@ it("hides foreign detail and membership and keeps a visit after its last save is
     limit: 2,
     cursor: page.cursor,
   });
-  expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(
-    saves.map((row) => row.localId).sort(),
-  );
-  for (const save of saves)
-    await user.as.mutation(api.collections.remove, { scope: user.scope, localId: save.localId });
+  expect([...page.page, ...last.page].map((row) => row.localId).sort()).toEqual(saves.map((row) => row.localId).sort());
+  for (const save of saves) {
+    await user.as.mutation(api.collections.remove, {
+      scope: user.scope,
+      localId: save.localId,
+    });
+  }
   expect(
-    (await user.as.query(api.visits.savedWorks, { scope: user.scope, localId: visit.localId }))
-      .page,
+    (
+      await user.as.query(api.visits.savedWorks, {
+        scope: user.scope,
+        localId: visit.localId,
+      })
+    ).page,
   ).toEqual([]);
   expect(
-    await user.as.query(api.visits.detail, { scope: user.scope, localId: visit.localId }),
+    await user.as.query(api.visits.detail, {
+      scope: user.scope,
+      localId: visit.localId,
+    }),
   ).toMatchObject({ localId: visit.localId });
 });

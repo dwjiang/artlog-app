@@ -24,7 +24,9 @@ async function fixture() {
       descriptors: pair.ref,
       placement: { venueId, onView: true, source: "feed", confidence: 1 },
       artwork: {
-        docent: { en: [{ sentence: "Painted as part of a series.", factIds: ["series"] }] },
+        docent: {
+          en: [{ sentence: "Painted as part of a series.", factIds: ["series"] }],
+        },
         factSheet: [
           {
             id: "series",
@@ -46,7 +48,10 @@ it("publishes an authenticated museum download only when all chunks are complete
   expect((await user.as.query(api.museumDownloads.catalog, { paginationOpts })).page).toEqual([]);
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   const manifest = await user.as.query(api.museumDownloads.get, { venueId });
-  expect(manifest).toMatchObject({ count: 1, modelVersion: model.modelVersion });
+  expect(manifest).toMatchObject({
+    count: 1,
+    modelVersion: model.modelVersion,
+  });
   const entries = await t.run(async (ctx) => {
     const row = (await ctx.db
       .query("museumDownloads")
@@ -70,11 +75,21 @@ it("publishes an authenticated museum download only when all chunks are complete
     date: "1916",
     rightsStatus: "public_domain",
     docent: [{ sentence: "Painted as part of a series.", factIds: ["series"] }],
-    factSheet: [{ id: "series", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" }],
+    factSheet: [
+      {
+        id: "series",
+        sourceUrl: "https://museum.example/work",
+        sourceLabel: "Museum",
+      },
+    ],
   });
   const ranked = rankEntries(testVector(), entries);
   const result = recognizeEntries(
-    { modelVersion: model.modelVersion, venueId, ...encodeOrbFeatures(pair.query) },
+    {
+      modelVersion: model.modelVersion,
+      venueId,
+      ...encodeOrbFeatures(pair.query),
+    },
     ranked,
   );
   expect(result).toMatchObject({
@@ -83,10 +98,7 @@ it("publishes an authenticated museum download only when all chunks are complete
     docent: [{ sentence: "Painted as part of a series." }],
   });
   expect(
-    recognizeEntries(
-      { modelVersion: "old-model", venueId, ...encodeOrbFeatures(pair.query) },
-      ranked,
-    ),
+    recognizeEntries({ modelVersion: "old-model", venueId, ...encodeOrbFeatures(pair.query) }, ranked),
   ).toBeUndefined();
   expect(
     recognizeEntries(
@@ -114,9 +126,7 @@ it("excludes withdrawn works and museums from newly published downloads", async 
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(await user.as.query(api.museumDownloads.get, { venueId })).toBeNull();
   await t.run((ctx) => ctx.db.patch(venueId, { optOut: true }));
-  await expect(t.mutation(internal.museumDownloads.build, { venueId })).rejects.toThrow(
-    "Museum unavailable",
-  );
+  await expect(t.mutation(internal.museumDownloads.build, { venueId })).rejects.toThrow("Museum unavailable");
 });
 it("can restart an interrupted build without publishing stale batches", async () => {
   const { t, user, venueId } = await fixture();
@@ -165,7 +175,9 @@ it("publishes the rest of a museum when one reference has an unreadable ORB file
       .query("descriptors")
       .withIndex("by_objectId", (q) => q.eq("objectId", damaged.objectId))
       .unique())!;
-    await ctx.db.patch(reference._id, { keypointCount: reference.keypointCount + 1 });
+    await ctx.db.patch(reference._id, {
+      keypointCount: reference.keypointCount + 1,
+    });
   });
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   await t.mutation(internal.museumDownloads.build, { venueId });

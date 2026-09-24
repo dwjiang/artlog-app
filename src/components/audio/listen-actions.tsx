@@ -32,13 +32,18 @@ export function ListenActions({
   const ready = useDeviceReady();
   const queries = useMemo(
     (): RequestForQueries =>
-      ready ? { enrichment: { query: api.artworks.enrichment, args: { artworkId } } } : {},
+      ready
+        ? {
+            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
+          }
+        : {},
     [ready, artworkId],
   );
   const {
     enrichment,
-  }: { enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error } =
-    useQueries(queries);
+  }: {
+    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
+  } = useQueries(queries);
   const data = enrichment instanceof Error ? undefined : enrichment;
   const audio = useListening();
   const facts = data?.narrationFacts ?? [];
@@ -58,9 +63,7 @@ export function ListenActions({
   };
   const track = { work };
   const same =
-    !!audio.current &&
-    trackKey(audio.current) === trackKey(track) &&
-    researchKey(audio.current) === researchKey(track);
+    !!audio.current && trackKey(audio.current) === trackKey(track) && researchKey(audio.current) === researchKey(track);
   const another = !!scanId && !!audio.current && audio.current.work.artworkId !== artworkId;
   const queued = audio.queue.some((item) => item.work.artworkId === artworkId);
   const savedProgress = audio.controller.progressFor(track);
@@ -70,17 +73,10 @@ export function ListenActions({
       : savedProgress
         ? Math.max(0, savedProgress.duration - savedProgress.position)
         : undefined;
-  const resume =
-    remaining !== undefined &&
-    remaining > 0 &&
-    (same ? audio.position > 0 : !!savedProgress?.position);
+  const resume = remaining !== undefined && remaining > 0 && (same ? audio.position > 0 : !!savedProgress?.position);
   const preparing = same && audio.phase === "loading";
   const duration = durationLabel(
-    resume
-      ? remaining
-      : same && audio.duration
-        ? audio.duration
-        : savedProgress?.duration || cachedDuration,
+    resume ? remaining : same && audio.duration ? audio.duration : savedProgress?.duration || cachedDuration,
   );
   const actionLabel = preparing
     ? "Preparing narration…"
@@ -108,10 +104,11 @@ export function ListenActions({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        accessibilityHint={
-          another ? "Keeps the current audio guide playing." : "Opens the audio guide player."
-        }
-        accessibilityState={{ busy: preparing, disabled: preparing || (another && queued) }}
+        accessibilityHint={another ? "Keeps the current audio guide playing." : "Opens the audio guide player."}
+        accessibilityState={{
+          busy: preparing,
+          disabled: preparing || (another && queued),
+        }}
         disabled={preparing || (another && queued)}
         onPress={another ? enqueue : listen}
         style={({ pressed }) => [styles.listen, pressed && { opacity: 0.65 }]}
@@ -142,21 +139,14 @@ export function ListenActions({
             {label}
           </ThemedText>
           <ThemedText variant="metadata" themeColor="textSecondary">
-            {duration ? `${duration}${resume ? " left" : ""} · ` : ""}AI-generated voice
+            {duration ? `${duration}${resume ? " left" : ""} · ` : ""}
+            AI-generated voice
           </ThemedText>
         </View>
       </Pressable>
       <AudioIconButton
         name={another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"}
-        label={
-          another
-            ? "Listen now"
-            : inPlayer
-              ? "Already in player"
-              : queued
-                ? "Added to queue"
-                : "Add to queue"
-        }
+        label={another ? "Listen now" : inPlayer ? "Already in player" : queued ? "Added to queue" : "Add to queue"}
         color={Gallery.accent}
         size={20}
         disabled={!another && queuedHere}

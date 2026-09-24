@@ -7,9 +7,7 @@ it("explains a server code in plain words and offers a retry for a scan still on
   const onRetry = jest.fn();
   await render(<FailedCard error="bad_features" onRetry={onRetry} />);
   expect(screen.getByText(FAILED_TITLE)).toBeOnTheScreen();
-  expect(
-    screen.getByText("The photo couldn’t be read. Try scanning the painting again."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("The photo couldn’t be read. Try scanning the painting again.")).toBeOnTheScreen();
   expect(screen.queryByText("bad_features")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: RETRY_BUTTON }));
   expect(onRetry).toHaveBeenCalledTimes(1);

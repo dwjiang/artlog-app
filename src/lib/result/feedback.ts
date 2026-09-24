@@ -8,10 +8,7 @@ import { signPayload } from "@/lib/attested-write";
 
 const labelRejections = new Map<Id<"scans">, Promise<Id<"feedback"> | null>>();
 
-export function handOffLabelRejection(
-  scanId: Id<"scans">,
-  rejection: Promise<Id<"feedback"> | null>,
-): void {
+export function handOffLabelRejection(scanId: Id<"scans">, rejection: Promise<Id<"feedback"> | null>): void {
   labelRejections.set(scanId, rejection);
 }
 
@@ -26,8 +23,8 @@ export function resolveWithLabel(
   void rejection
     ?.then(
       (feedbackId) =>
-        feedbackId &&
-        client.mutation(api.feedback.resolveRejection, {
+        feedbackId
+        && client.mutation(api.feedback.resolveRejection, {
           feedbackId,
           resolution: { kind: "label", contributionId },
         }),

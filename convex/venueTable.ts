@@ -9,7 +9,11 @@ export const requestUpload = internalMutation({
 });
 
 export const publish = internalMutation({
-  args: { storageId: v.id("_storage"), rowCount: v.number(), version: v.number() },
+  args: {
+    storageId: v.id("_storage"),
+    rowCount: v.number(),
+    version: v.number(),
+  },
   returns: v.id("venueTables"),
   handler: async (ctx, { storageId, rowCount, version }) => {
     if (!Number.isSafeInteger(version) || version <= 0) {
@@ -32,16 +36,18 @@ export const publish = internalMutation({
       }
       return existing._id;
     }
-    return ctx.db.insert("venueTables", { storageId, rowCount, version, createdAt: Date.now() });
+    return ctx.db.insert("venueTables", {
+      storageId,
+      rowCount,
+      version,
+      createdAt: Date.now(),
+    });
   },
 });
 
 export const latest = query({
   args: {},
-  returns: v.union(
-    v.null(),
-    v.object({ version: v.number(), rowCount: v.number(), url: v.string() }),
-  ),
+  returns: v.union(v.null(), v.object({ version: v.number(), rowCount: v.number(), url: v.string() })),
   handler: async (ctx) => {
     const table = await ctx.db.query("venueTables").withIndex("by_version").order("desc").first();
     if (table === null) return null;

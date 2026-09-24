@@ -6,10 +6,7 @@ export function venueTimeZone(venue: Pick<VenueRow, "lat" | "lng">): string {
   return tzLookup(venue.lat, venue.lng);
 }
 /** The museum's calendar day at `at`: visits resume for the rest of it, and a museum picked by hand stands for it. */
-export function museumDay(
-  venue: Pick<VenueRow, "lat" | "lng">,
-  at: number,
-): { timeZone: string; visitedOn: string } {
+export function museumDay(venue: Pick<VenueRow, "lat" | "lng">, at: number): { timeZone: string; visitedOn: string } {
   const timeZone = venueTimeZone(venue);
   return { timeZone, visitedOn: calendarDate(at, timeZone) };
 }

@@ -3,7 +3,9 @@ import { db } from "@/db/client";
 import { settings } from "@/db/schema";
 import { isVisitNew, markVisitSeen, useSeenVisits } from "./visit-seen";
 
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 
 beforeEach(() => {
   db.delete(settings).run();
@@ -15,9 +17,7 @@ it("shows a closed visit as new until it is opened, never an open or manual one"
   expect(isVisitNew({ localId: "open", endedAt: null }, seen)).toBe(false);
   markVisitSeen("closed", "device:a");
   markVisitSeen("closed", "device:a");
-  expect(db.select().from(settings).all()).toEqual([
-    { key: "seenVisits:device:a", value: '["closed"]' },
-  ]);
+  expect(db.select().from(settings).all()).toEqual([{ key: "seenVisits:device:a", value: '["closed"]' }]);
   expect(isVisitNew({ localId: "closed", endedAt: 5 }, new Set(["closed"]))).toBe(false);
 });
 

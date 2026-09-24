@@ -32,10 +32,7 @@ export const isTimestamp = (value: number) =>
   Number.isSafeInteger(value) && value >= 0 && value <= 8_640_000_000_000_000;
 export function isTimeZone(value: string): boolean {
   try {
-    return (
-      value.length <= 100 &&
-      !!new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions().timeZone
-    );
+    return value.length <= 100 && !!new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions().timeZone;
   } catch {
     return false;
   }
@@ -51,7 +48,9 @@ export function calendarDate(timestamp: number, timeZone: string): string {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 export function isCalendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000")) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000")) {
+    return false;
+  }
   const time = Date.parse(`${value}T00:00:00Z`);
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }

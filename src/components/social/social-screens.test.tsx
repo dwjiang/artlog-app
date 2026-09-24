@@ -22,7 +22,12 @@ jest.mock("convex/react", () => ({
   useMutation: () => jest.fn(),
 }));
 jest.mock("@/lib/account/use-account", () => ({
-  useAccount: () => ({ ready: true, available: true, busy: false, signInWithApple: mockSignIn }),
+  useAccount: () => ({
+    ready: true,
+    available: true,
+    busy: false,
+    signInWithApple: mockSignIn,
+  }),
 }));
 jest.mock("expo-apple-authentication", () => ({
   AppleAuthenticationButtonType: { SIGN_IN: 0 },
@@ -37,7 +42,9 @@ jest.mock("expo-apple-authentication", () => ({
   },
 }));
 let mockSession: SocialSession;
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => mockSession,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
@@ -76,11 +83,7 @@ jest.mock("expo-router", () => {
     accessibilityLabel: string;
   }) {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        onPress={onPress}
-      >
+      <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
         <Text>{children}</Text>
       </Pressable>
     );
@@ -174,7 +177,9 @@ it("opens visits, authors, and people from Home", async () => {
     params: { postId: visit.postId },
   });
   await fireEvent.press(
-    screen.getByRole("button", { name: "View Alex Chen’s visit to Museum of Modern Art" }),
+    screen.getByRole("button", {
+      name: "View Alex Chen’s visit to Museum of Modern Art",
+    }),
   );
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/visit/[postId]",
@@ -189,7 +194,10 @@ it("opens visits, authors, and people from Home", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(mockPush).toHaveBeenLastCalledWith("/people");
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/people", params: { filter: "friends" } });
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/people",
+    params: { filter: "friends" },
+  });
   await fireEvent.press(screen.getByRole("button", { name: "Leaderboards" }));
   expect(mockPush).toHaveBeenLastCalledWith("/leaderboards");
   expect(screen.queryByRole("button", { name: "Your profile and settings" })).toBeNull();
@@ -222,9 +230,7 @@ it("replaces first-load ghosts with a retry action after failure", async () => {
 });
 
 it("retains existing visits and shows only the refresh indicator while refreshing", async () => {
-  mockPages.mockReturnValue(
-    pages({ items: [visit], loading: true, refreshing: true, done: false }),
-  );
+  mockPages.mockReturnValue(pages({ items: [visit], loading: true, refreshing: true, done: false }));
   await render(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   expect(screen.getByRole("progressbar", { name: "Refreshing visits" })).toBeOnTheScreen();
@@ -240,9 +246,7 @@ it.each([
   mockSession = { ...mockSession, status };
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
-  expect(
-    status === "loading" ? screen.getByLabelText(expected) : screen.getByText(expected),
-  ).toBeOnTheScreen();
+  expect(status === "loading" ? screen.getByLabelText(expected) : screen.getByText(expected)).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
   expect(mockPages.mock.calls[0][1]).toBe("skip");
 });
@@ -267,22 +271,16 @@ it("debounces people search for 300 ms and skips invalid searches", async () => 
   jest.useFakeTimers();
   await render(<PeopleScreen />);
   await fireEvent.changeText(screen.getByLabelText("Name or username"), "alex");
-  expect(
-    mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   await act(() => jest.advanceTimersByTime(299));
-  expect(
-    mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   await act(() => jest.advanceTimersByTime(1));
-  expect(
-    mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1],
-  ).toEqual({ query: "alex" });
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toEqual({
+    query: "alex",
+  });
   await fireEvent.changeText(screen.getByLabelText("Name or username"), "a".repeat(101));
   await act(() => jest.advanceTimersByTime(300));
-  expect(
-    mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1],
-  ).toBe("skip");
+  expect(mockPages.mock.calls.filter((call) => getFunctionName(call[0]) === "profiles:search").at(-1)[1]).toBe("skip");
   jest.useRealTimers();
 });
 
@@ -331,7 +329,11 @@ it.each([false, true])(
           rights: "contributor_consent" as const,
           width: 128,
           height: 256,
-          reference: { kind: "sharedVisit" as const, postId: "post-a", itemId: "art-a" as never },
+          reference: {
+            kind: "sharedVisit" as const,
+            postId: "post-a",
+            itemId: "art-a" as never,
+          },
         },
       },
     };
@@ -343,11 +345,11 @@ it.each([false, true])(
     expect(image.props.style.height / image.props.style.width).toBe(2);
     expect(image.props.contentFit).toBe("contain");
     expect(image.props.cachePolicy).toBe("none");
-    expect(image.props.source.headers).toEqual({ Authorization: "Bearer private-token" });
+    expect(image.props.source.headers).toEqual({
+      Authorization: "Bearer private-token",
+    });
     await fireEvent(image, "error");
-    expect(
-      screen.getByRole("image", { name: "Blue afternoon: image unavailable" }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole("image", { name: "Blue afternoon: image unavailable" })).toBeOnTheScreen();
   },
 );
 
@@ -363,7 +365,11 @@ it("shows fewer previews rather than letting landscape photos overflow the card"
         rights: "contributor_consent" as const,
         width: 400,
         height: 300,
-        reference: { kind: "sharedVisit" as const, postId: "post-a", itemId: itemId as never },
+        reference: {
+          kind: "sharedVisit" as const,
+          postId: "post-a",
+          itemId: itemId as never,
+        },
       },
     },
   });
@@ -396,7 +402,12 @@ it("gives all selected photos in a visit the same height, including an unavailab
           ...item,
           photos: [
             photo,
-            { ...photo, url: "https://example.com/detail.jpg", width: 500, height: 300 },
+            {
+              ...photo,
+              url: "https://example.com/detail.jpg",
+              width: 500,
+              height: 300,
+            },
           ],
         },
       ]}
@@ -407,11 +418,15 @@ it("gives all selected photos in a visit the same height, including an unavailab
     nativeEvent: { layout: { width: 350 } },
   });
   const full = screen.getByRole("image", { name: item.artwork.title });
-  const detail = screen.getByRole("image", { name: `${item.artwork.title}, photo 2` });
+  const detail = screen.getByRole("image", {
+    name: `${item.artwork.title}, photo 2`,
+  });
   expect(full.props.style.height).toBe(detail.props.style.height);
   await fireEvent(detail, "error");
   expect(
-    screen.getByRole("image", { name: `${item.artwork.title}, photo 2: image unavailable` }),
+    screen.getByRole("image", {
+      name: `${item.artwork.title}, photo 2: image unavailable`,
+    }),
   ).toHaveStyle({ height: full.props.style.height });
 });
 
@@ -434,8 +449,16 @@ const highlightArtworks = () => {
         { ...photo, url: "https://example.com/third.jpg" },
       ],
     },
-    { ...item, itemId: "art-b" as never, artwork: { ...item.artwork, title: "Second highlight" } },
-    { ...item, itemId: "art-c" as never, artwork: { ...item.artwork, title: "Third highlight" } },
+    {
+      ...item,
+      itemId: "art-b" as never,
+      artwork: { ...item.artwork, title: "Second highlight" },
+    },
+    {
+      ...item,
+      itemId: "art-c" as never,
+      artwork: { ...item.artwork, title: "Third highlight" },
+    },
   ];
 };
 
@@ -444,8 +467,9 @@ it("keeps a feed slot for every leading artwork even when the first one has seve
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350 } },
   });
-  for (const title of ["Blue afternoon", "Second highlight", "Third highlight"])
+  for (const title of ["Blue afternoon", "Second highlight", "Third highlight"]) {
     expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
+  }
   expect(screen.queryByRole("image", { name: "Blue afternoon, photo 2" })).toBeNull();
 });
 
@@ -454,8 +478,9 @@ it("fills spare feed slots with extra photos when fewer than three artworks lead
   await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
     nativeEvent: { layout: { width: 350 } },
   });
-  for (const title of ["Blue afternoon", "Blue afternoon, photo 2", "Second highlight"])
+  for (const title of ["Blue afternoon", "Blue afternoon, photo 2", "Second highlight"]) {
     expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
+  }
   expect(screen.queryByRole("image", { name: "Blue afternoon, photo 3" })).toBeNull();
 });
 
@@ -515,7 +540,13 @@ it("keeps the date and reflection without count metadata, including reflection-o
   });
   mockPages.mockReturnValue(
     pages({
-      items: [{ ...visit, artworkCount: 0, artworks: { page: [], cursor: null, isDone: true } }],
+      items: [
+        {
+          ...visit,
+          artworkCount: 0,
+          artworks: { page: [], cursor: null, isDone: true },
+        },
+      ],
     }),
   );
   await view.rerender(<HomeScreen />);
@@ -532,7 +563,11 @@ it.each(["wall", "visit"])("renders sourced artwork stories in %s details", asyn
       enrichment: {
         docent: [{ sentence: "Painted beside the garden.", factIds: ["museum"] }],
         factSheet: [
-          { id: "museum", sourceUrl: "https://museum.example/work", sourceLabel: "Museum source" },
+          {
+            id: "museum",
+            sourceUrl: "https://museum.example/work",
+            sourceLabel: "Museum source",
+          },
         ],
       },
     },
@@ -599,9 +634,7 @@ it("renders Explore rows from the relationship embedded in each page instead of 
   expect(screen.getByRole("button", { name: "Add" })).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: /^(Add|Requested|Accept)$/ })).toHaveLength(2);
   expect(
-    mockQuery.mock.calls
-      .filter((call) => getFunctionName(call[0]) === "friendships:getState")
-      .map((call) => call[1]),
+    mockQuery.mock.calls.filter((call) => getFunctionName(call[0]) === "friendships:getState").map((call) => call[1]),
   ).toEqual(["skip", "skip"]);
 });
 

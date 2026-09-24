@@ -13,7 +13,9 @@ export async function checkCandidates(
       if (!(await options.canContinue())) return null;
       // A single URL makes the label flow's shared cosine + homography check stop at the first passing image.
       const imageCheck = await checkImages([url], scan, deps, options);
-      if (imageCheck?.homographyValid) return { sourceUrl: candidate.sourceUrl, imageCheck };
+      if (imageCheck?.homographyValid) {
+        return { sourceUrl: candidate.sourceUrl, imageCheck };
+      }
     }
   }
   return null;

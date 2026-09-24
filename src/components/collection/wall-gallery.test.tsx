@@ -37,7 +37,9 @@ jest.mock("react-native-gesture-handler", () => {
     GestureDetector: ({ children }: { children: React.ReactNode }) => children,
   };
 });
-jest.mock("@/lib/files/photos", () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock("@/lib/files/photos", () => ({
+  captureFileUri: (path: string) => `file:///${path}`,
+}));
 
 const piece: WallPiece = {
   localId: "art",

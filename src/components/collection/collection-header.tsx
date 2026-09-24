@@ -31,11 +31,7 @@ export function CollectionHeader({
   );
   const edit = () =>
     router.push(
-      profile
-        ? "/edit-profile"
-        : session.status === "profile-required"
-          ? "/create-profile"
-          : signInRoute("wall"),
+      profile ? "/edit-profile" : session.status === "profile-required" ? "/create-profile" : signInRoute("wall"),
     );
   const status = profile
     ? `@${profile.username}`
@@ -47,9 +43,16 @@ export function CollectionHeader({
           ? "Profile unavailable"
           : undefined;
   const counts = `${artworkCount} ${artworkCount === 1 ? "artwork" : "artworks"} · ${visitCount} ${visitCount === 1 ? "visit" : "visits"}`;
-  if (guest)
+  if (guest) {
     return (
-      <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, gap: 4 }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 10,
+          paddingBottom: 14,
+          gap: 4,
+        }}
+      >
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
           <Text
             variant="display"
@@ -63,14 +66,8 @@ export function CollectionHeader({
           >
             Your{"\n"}collection
           </Text>
-          {artworkCount > 0 && (
-            <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />
-          )}
-          <GalleryIconButton
-            label="Settings"
-            icon="gearshape"
-            onPress={() => router.push("/settings")}
-          />
+          {artworkCount > 0 && <GalleryIconButton label="Share your wall" icon="square.and.arrow.up" onPress={edit} />}
+          <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />
         </View>
         <Text variant="metadata" themeColor="textSecondary">
           Saved on this iPhone
@@ -88,6 +85,7 @@ export function CollectionHeader({
         )}
       </View>
     );
+  }
   const identity =
     status === undefined ? (
       <LoadingSkeleton label="Opening your profile…" style={{ flex: 1 }}>
@@ -101,12 +99,14 @@ export function CollectionHeader({
       </LoadingSkeleton>
     ) : (
       <>
-        <ProfileAvatar
-          name={profile?.name ?? "Your collection"}
-          photoUrl={profile?.photoUrl}
-          size={64}
-        />
-        <View style={{ flex: accessibilityLayout ? undefined : 1, minWidth: 0, gap: 2 }}>
+        <ProfileAvatar name={profile?.name ?? "Your collection"} photoUrl={profile?.photoUrl} size={64} />
+        <View
+          style={{
+            flex: accessibilityLayout ? undefined : 1,
+            minWidth: 0,
+            gap: 2,
+          }}
+        >
           <Text
             variant={accessibilityLayout ? "section" : "display"}
             accessibilityRole="header"
@@ -147,11 +147,7 @@ export function CollectionHeader({
         >
           {identity}
         </Pressable>
-        <GalleryIconButton
-          label="Settings"
-          icon="gearshape"
-          onPress={() => router.push("/settings")}
-        />
+        <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />
       </View>
       <View
         style={{

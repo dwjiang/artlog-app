@@ -35,13 +35,7 @@ export function CaptureFeedback({
   );
 }
 
-export function CaptureOutline({
-  controller,
-  preview,
-}: {
-  controller: CaptureController;
-  preview: FrameSize;
-}) {
+export function CaptureOutline({ controller, preview }: { controller: CaptureController; preview: FrameSize }) {
   const feedback = useSyncExternalStore(controller.subscribeFeedback, controller.getFeedback);
   if (!feedback || !preview.width || !preview.height) return null;
   const corners = feedback.quad.map(([x, y]) => [x * preview.width, y * preview.height]);
@@ -66,15 +60,7 @@ export function CaptureOutline({
       style={StyleSheet.absoluteFill}
     >
       <Canvas style={StyleSheet.absoluteFill}>
-        {holding && (
-          <Path
-            path={outline}
-            color={Gallery.highlight}
-            style="stroke"
-            strokeWidth={1}
-            opacity={0.45}
-          />
-        )}
+        {holding && <Path path={outline} color={Gallery.highlight} style="stroke" strokeWidth={1} opacity={0.45} />}
         <Path
           path={brackets}
           color={holding ? Gallery.highlight : Colors.light.overlayText}
@@ -104,16 +90,16 @@ export function CaptureShutter({
   detecting: boolean;
   onPress: () => void;
 }) {
-  const progressed = useSyncExternalStore(
-    controller.subscribeFeedback,
-    () => controller.getFeedback()?.progress ?? 0,
-  );
+  const progressed = useSyncExternalStore(controller.subscribeFeedback, () => controller.getFeedback()?.progress ?? 0);
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   const value = captured ? 1 : detecting ? progressed : 0;
   useEffect(() => {
     progress.set(
-      withTiming(value, { duration: reduced || value === 0 ? 0 : 80, easing: Easing.linear }),
+      withTiming(value, {
+        duration: reduced || value === 0 ? 0 : 80,
+        easing: Easing.linear,
+      }),
     );
     return () => cancelAnimation(progress);
   }, [value, progress, reduced]);
@@ -126,14 +112,7 @@ export function CaptureShutter({
         style={styles.ring}
       >
         <Canvas style={StyleSheet.absoluteFill}>
-          <Path
-            path={ring}
-            color={Gallery.highlight}
-            style="stroke"
-            strokeWidth={3}
-            strokeCap="round"
-            end={progress}
-          />
+          <Path path={ring} color={Gallery.highlight} style="stroke" strokeWidth={3} strokeCap="round" end={progress} />
         </Canvas>
       </View>
       <Pressable
@@ -154,7 +133,13 @@ export function CaptureShutter({
 const styles = StyleSheet.create({
   feedback: { minHeight: 44, justifyContent: "center" },
   shutterContainer: { width: SHUTTER_SIZE, height: SHUTTER_SIZE },
-  ring: { position: "absolute", width: RING_SIZE, height: RING_SIZE, left: -7, top: -7 },
+  ring: {
+    position: "absolute",
+    width: RING_SIZE,
+    height: RING_SIZE,
+    left: -7,
+    top: -7,
+  },
   shutter: {
     width: SHUTTER_SIZE,
     height: SHUTTER_SIZE,

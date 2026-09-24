@@ -9,13 +9,33 @@ jest.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
 }));
 jest.mock("@/lib/wall/use-collection-wall", () => ({
-  useCollectionWall: () => ({ signedIn: false, draft: { items: [] }, pieces: [] }),
+  useCollectionWall: () => ({
+    signedIn: false,
+    draft: { items: [] },
+    pieces: [],
+  }),
 }));
-jest.mock("@/lib/files/photos", () => ({ captureFileUri: (path: string) => `file:///${path}` }));
+jest.mock("@/lib/files/photos", () => ({
+  captureFileUri: (path: string) => `file:///${path}`,
+}));
 
 const works = [
-  { localId: "older", artist: "Alice", title: "Garden", savedAt: 1, photoCount: 3, visitCount: 2 },
-  { localId: "newer", artist: "Zora", title: "Coast", savedAt: 2, photoCount: 1, visitCount: 1 },
+  {
+    localId: "older",
+    artist: "Alice",
+    title: "Garden",
+    savedAt: 1,
+    photoCount: 3,
+    visitCount: 2,
+  },
+  {
+    localId: "newer",
+    artist: "Zora",
+    title: "Coast",
+    savedAt: 2,
+    photoCount: 1,
+    visitCount: 1,
+  },
 ] as ComponentProps<typeof CollectionArtworks>["works"];
 
 it("sorts by recent save and preserves artist grouping as an option", async () => {
@@ -60,36 +80,20 @@ it("shows the matching count and clears an empty search", async () => {
 
 it("keeps the collection shell while loading and distinguishes a loaded empty collection", async () => {
   const view = await render(
-    <CollectionArtworks
-      works={[]}
-      loading
-      error={undefined}
-      search=""
-      header={<Text>Your collection</Text>}
-    />,
+    <CollectionArtworks works={[]} loading error={undefined} search="" header={<Text>Your collection</Text>} />,
   );
   expect(screen.getByText("Your collection")).toBeOnTheScreen();
   expect(screen.getByRole("progressbar", { name: "Opening collection…" })).toBeOnTheScreen();
   expect(screen.queryByText("0 artworks")).toBeNull();
   expect(screen.queryByText("No saved artworks yet.")).toBeNull();
-  await view.rerender(
-    <CollectionArtworks works={[]} loading={false} error={undefined} search="" />,
-  );
+  await view.rerender(<CollectionArtworks works={[]} loading={false} error={undefined} search="" />);
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByText("No saved artworks yet.")).toBeOnTheScreen();
 });
 
 it("replaces ghosts with retry even when a failed query still reports loading", async () => {
   const retry = jest.fn();
-  await render(
-    <CollectionArtworks
-      works={[]}
-      loading
-      error={new Error("Read failed")}
-      search=""
-      onRetry={retry}
-    />,
-  );
+  await render(<CollectionArtworks works={[]} loading error={new Error("Read failed")} search="" onRetry={retry} />);
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByText("Couldn’t load your collection.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));

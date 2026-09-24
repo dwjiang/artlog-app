@@ -1,12 +1,7 @@
 import { db } from "@/db/client";
 import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
-import {
-  enqueuePendingScan,
-  getPendingScan,
-  markIdentified,
-  recordAttemptFailure,
-} from "@/db/repos/pending-scans";
+import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from "@/db/repos/pending-scans";
 import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from "./edit-crop";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 import { readPhotoSession, updatePhotoSession } from "./photo-draft";
@@ -15,7 +10,9 @@ import type { Id } from "../../../convex/_generated/dataModel";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("../../db/test-db").createTestDatabase(),
 }));
-jest.mock("../../../modules/vision-rect/src", () => ({ getVisionRect: jest.fn() }));
+jest.mock("../../../modules/vision-rect/src", () => ({
+  getVisionRect: jest.fn(),
+}));
 jest.mock("@/lib/embed/embedder", () => ({ embedder: {} }));
 jest.mock("@/lib/museum-downloads/recognize-capture", () => ({
   recognizeOfflineCapture: jest.fn(async () => {}),
@@ -42,17 +39,26 @@ jest.mock("expo-file-system", () => {
       return mockFiles.has(this.uri);
     }
     copy(target: Node) {
-      if (mockFailCopy || !mockFiles.has(this.uri)) throw new Error("copy failed");
+      if (mockFailCopy || !mockFiles.has(this.uri)) {
+        throw new Error("copy failed");
+      }
       mockFiles.add(target.uri);
     }
     delete() {
       mockFiles.delete(this.uri);
     }
   }
-  return { File: Node, Directory: Node, Paths: { document: "file:///documents" } };
+  return {
+    File: Node,
+    Directory: Node,
+    Paths: { document: "file:///documents" },
+  };
 });
 jest.mock("expo-crypto", () => ({ randomUUID: () => "new-crop-id" }));
-jest.mock("expo-image-manipulator", () => ({ ImageManipulator: {}, SaveFormat: {} }));
+jest.mock("expo-image-manipulator", () => ({
+  ImageManipulator: {},
+  SaveFormat: {},
+}));
 const owner = "device:test-installation";
 const crop: EditedCrop = {
   modelUri: "file:///tmp/model.jpg",
@@ -60,9 +66,15 @@ const crop: EditedCrop = {
   width: 512,
   height: 400,
 };
-const features = { vector: [0.5], descriptors: new ArrayBuffer(4), keypoints: new ArrayBuffer(4) };
+const features = {
+  vector: [0.5],
+  descriptors: new ArrayBuffer(4),
+  keypoints: new ArrayBuffer(4),
+};
 beforeEach(() => {
-  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) db.delete(table).run();
+  for (const table of [artworkPhotos, savedWorks, pendingScans, settings]) {
+    db.delete(table).run();
+  }
   mockFiles.clear();
   mockFailCopy = false;
   mockReachable = true;
@@ -73,8 +85,9 @@ beforeEach(() => {
     "file:///documents/full.jpg",
     "file:///documents/old.jpg",
     "file:///documents/old.preview.jpg",
-  ])
+  ]) {
     mockFiles.add(path);
+  }
   mockFeatures.mockReset().mockResolvedValue(features);
 });
 async function seedScan() {
@@ -164,9 +177,10 @@ it("recomputes scan features, preserves draft photos and context, and isolates l
   expect(await getPendingScan("scan")).toBeUndefined();
   await markIdentified("scan", "late-old-result" as Id<"scans">);
   expect((await getPendingScan(nextId))?.scanId).toBeNull();
-  await expect(
-    recordAttemptFailure("scan", "late network error", { countAttempt: true }),
-  ).resolves.toEqual({ status: "failed", attempts: 0 });
+  await expect(recordAttemptFailure("scan", "late network error", { countAttempt: true })).resolves.toEqual({
+    status: "failed",
+    attempts: 0,
+  });
 });
 
 it("matches the new crop against downloaded museums only when the queue cannot send it", async () => {

@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  jsonResponse,
-  wikidataEntities,
-  wikidataEntitiesResponse,
-  wikidataSearchWaterLilies,
-} from "./labelFixtures";
+import { jsonResponse, wikidataEntities, wikidataEntitiesResponse, wikidataSearchWaterLilies } from "./labelFixtures";
 import {
   collections,
   countries,
@@ -42,7 +37,9 @@ describe("Wikidata client", () => {
     await expect(searchEntities("Claude Monet")).rejects.toMatchObject({
       data: { code: "wikidata_error" },
     });
-    await expect(getEntities(["Q296"])).rejects.toMatchObject({ data: { code: "wikidata_error" } });
+    await expect(getEntities(["Q296"])).rejects.toMatchObject({
+      data: { code: "wikidata_error" },
+    });
   });
 
   it("searches items in English with an identified User-Agent", async () => {
@@ -90,7 +87,10 @@ describe("Wikidata client", () => {
     expect(isArtist(entity("Q296"))).toBe(true);
     expect(isArtist(entity("Q160236"))).toBe(false);
     expect(lifespan(entity("Q296"))).toEqual({ birth: 1840, death: 1926 });
-    expect(lifespan(entity("Q160236"))).toEqual({ birth: undefined, death: undefined });
+    expect(lifespan(entity("Q160236"))).toEqual({
+      birth: undefined,
+      death: undefined,
+    });
     expect(collections(entity("Q296"))).toEqual(["Q160236", "Q679527"]);
     expect(countries(entity("Q679527"))).toEqual(["Q55"]);
     expect(
@@ -102,7 +102,10 @@ describe("Wikidata client", () => {
               {
                 mainsnak: {
                   snaktype: "value",
-                  datavalue: { type: "time", value: { time: "-0500-01-01T00:00:00Z" } },
+                  datavalue: {
+                    type: "time",
+                    value: { time: "-0500-01-01T00:00:00Z" },
+                  },
                 },
               },
             ],
@@ -118,13 +121,17 @@ describe("Wikidata client", () => {
     fetchMock.mockImplementation(async (input) => {
       const requested = new URL(String(input)).searchParams.get("ids")!.split("|");
       expect(requested.length).toBeLessThanOrEqual(50);
-      return jsonResponse({ entities: Object.fromEntries(requested.map((id) => [id, { id }])) });
+      return jsonResponse({
+        entities: Object.fromEntries(requested.map((id) => [id, { id }])),
+      });
     });
     expect(Object.keys(await getEntities([...ids, ids[0]]))).toEqual(ids);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     fetchMock.mockResolvedValueOnce(jsonResponse({ entities: { Q1000: { id: "Q1000" } } }));
     fetchMock.mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
-    await expect(getEntities(ids)).rejects.toMatchObject({ data: { code: "wikidata_error" } });
+    await expect(getEntities(ids)).rejects.toMatchObject({
+      data: { code: "wikidata_error" },
+    });
   });
 
   it("surfaces HTTP and parse failures as wikidata_error", async () => {

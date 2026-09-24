@@ -29,9 +29,7 @@ export function EmptyPodium() {
 export function EmptyPaper({ kind }: { kind: "label" | "note" }) {
   return (
     <View accessibilityElementsHidden style={styles.paperArea}>
-      <View
-        style={[styles.paper, { transform: [{ rotate: kind === "label" ? "-5deg" : "4deg" }] }]}
-      >
+      <View style={[styles.paper, { transform: [{ rotate: kind === "label" ? "-5deg" : "4deg" }] }]}>
         <Image
           source={kind === "label" ? "sf:building.columns" : "sf:quote.opening"}
           tintColor={Gallery.accent}
@@ -96,7 +94,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignSelf: "center",
   },
-  road: { position: "absolute", width: 12, height: 170, top: -15, backgroundColor: Gallery.paper },
+  road: {
+    position: "absolute",
+    width: 12,
+    height: 170,
+    top: -15,
+    backgroundColor: Gallery.paper,
+  },
   park: {
     position: "absolute",
     width: 54,

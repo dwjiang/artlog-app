@@ -22,10 +22,7 @@ const keypoints = [
   { x: 100, y: 200, size: 31, angle: 180 },
   { x: 300, y: 400, size: 62, angle: 359 },
 ];
-const descriptors = Uint8Array.from(
-  { length: keypoints.length * DESCRIPTOR_BYTES },
-  (_, i) => i % 251,
-);
+const descriptors = Uint8Array.from({ length: keypoints.length * DESCRIPTOR_BYTES }, (_, i) => i % 251);
 
 beforeEach(() => {
   mockBase64.mockReset();
@@ -34,35 +31,29 @@ beforeEach(() => {
 
 describe("toOrbFeatures", () => {
   it("encodes descriptors and packed keypoints in output order", () => {
-    const features = toOrbFeatures(
-      { keypoints, descriptors, descriptorBytes: DESCRIPTOR_BYTES },
-      500,
-    );
+    const features = toOrbFeatures({ keypoints, descriptors, descriptorBytes: DESCRIPTOR_BYTES }, 500);
     expect(features.count).toBe(3);
     const decoded = decodeOrbFeatures(features.descriptors, features.keypoints);
     expect(Array.from(decoded.descriptors)).toEqual(Array.from(descriptors));
-    expect(Array.from(decoded.keypoints)).toEqual([
-      10, 20, 31, 45.5, 100, 200, 31, 180, 300, 400, 62, 359,
-    ]);
+    expect(Array.from(decoded.keypoints)).toEqual([10, 20, 31, 45.5, 100, 200, 31, 180, 300, 400, 62, 359]);
   });
 
   it("truncates ties past the cap in output order, like orb.py", () => {
-    const features = toOrbFeatures(
-      { keypoints, descriptors, descriptorBytes: DESCRIPTOR_BYTES },
-      2,
-    );
+    const features = toOrbFeatures({ keypoints, descriptors, descriptorBytes: DESCRIPTOR_BYTES }, 2);
     expect(features.count).toBe(2);
     expect(features.descriptors.byteLength).toBe(2 * DESCRIPTOR_BYTES);
     expect(features.keypoints.byteLength).toBe(2 * KEYPOINT_BYTES);
-    expect(Array.from(new Uint8Array(features.descriptors))).toEqual(
-      Array.from(descriptors.subarray(0, 64)),
-    );
+    expect(Array.from(new Uint8Array(features.descriptors))).toEqual(Array.from(descriptors.subarray(0, 64)));
   });
 
   it("returns empty buffers when nothing was detected", () => {
     expect(
       toOrbFeatures(
-        { keypoints: [], descriptors: new Uint8Array(0), descriptorBytes: DESCRIPTOR_BYTES },
+        {
+          keypoints: [],
+          descriptors: new Uint8Array(0),
+          descriptorBytes: DESCRIPTOR_BYTES,
+        },
         500,
       ),
     ).toEqual({
@@ -78,7 +69,11 @@ describe("toOrbFeatures", () => {
     );
     expect(() =>
       toOrbFeatures(
-        { keypoints, descriptors: descriptors.subarray(0, 95), descriptorBytes: DESCRIPTOR_BYTES },
+        {
+          keypoints,
+          descriptors: descriptors.subarray(0, 95),
+          descriptorBytes: DESCRIPTOR_BYTES,
+        },
         500,
       ),
     ).toThrow("95 descriptor bytes for 3 keypoints");
@@ -99,7 +94,10 @@ describe("extractOrb", () => {
     const fake = crop();
     const features = await extractOrb("file:///crop.jpg", undefined, fake.cv);
     expect(mockBase64).toHaveBeenCalledWith("file:///crop.jpg");
-    expect(fake.calls).toContainEqual({ name: "ORB_create", args: [model.orbMaxKeypoints] });
+    expect(fake.calls).toContainEqual({
+      name: "ORB_create",
+      args: [model.orbMaxKeypoints],
+    });
     expect(features.count).toBe(3);
     expect(decodeOrbFeatures(features.descriptors, features.keypoints).count).toBe(3);
     expect(fake.leaked()).toEqual([]);
@@ -109,17 +107,16 @@ describe("extractOrb", () => {
     const fake = fakeOpenCV({
       images: { "b64:file:///wide.jpg": { rows: 480, cols: 640, channels: 3 } },
     });
-    await expect(extractOrb("file:///wide.jpg", 500, fake.cv)).rejects.toThrow(
-      "letterboxed square crop, got 640×480",
-    );
+    await expect(extractOrb("file:///wide.jpg", 500, fake.cv)).rejects.toThrow("letterboxed square crop, got 640×480");
     expect(fake.leaked()).toEqual([]);
   });
 
   it("releases native objects when the descriptor shape is wrong", async () => {
-    const fake = crop({ descriptorCols: 16, descriptors: new Uint8Array(keypoints.length * 16) });
-    await expect(extractOrb("file:///crop.jpg", 500, fake.cv)).rejects.toThrow(
-      "16-byte descriptors",
-    );
+    const fake = crop({
+      descriptorCols: 16,
+      descriptors: new Uint8Array(keypoints.length * 16),
+    });
+    await expect(extractOrb("file:///crop.jpg", 500, fake.cv)).rejects.toThrow("16-byte descriptors");
     expect(fake.leaked()).toEqual([]);
   });
 });

@@ -36,7 +36,11 @@ function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
       if (!fact) continue;
       let source = sources.find(({ url }) => url === fact.sourceUrl);
       if (!source) {
-        source = { number: sources.length + 1, label: fact.sourceLabel, url: fact.sourceUrl };
+        source = {
+          number: sources.length + 1,
+          label: fact.sourceLabel,
+          url: fact.sourceUrl,
+        };
         sources.push(source);
       }
       numbers.add(source.number);
@@ -67,9 +71,7 @@ export function DocentSection({ docent, factSheet, title, pending = false }: Doc
       {waiting ? (
         <ParagraphSkeleton />
       ) : !docent?.length ? (
-        <ThemedText themeColor="textSecondary">
-          Background information isn’t available for this work yet.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText>
       ) : (
         <CitedParagraph {...citeDocent(docent, factSheet)} />
       )}
@@ -145,8 +147,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: Gallery.fill,
   },
-  numberText: { fontSize: 11, lineHeight: 13, fontWeight: "600", color: Gallery.muted },
-  sources: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Gallery.separator },
+  numberText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "600",
+    color: Gallery.muted,
+  },
+  sources: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Gallery.separator,
+  },
   source: {
     flexDirection: "row",
     alignItems: "center",

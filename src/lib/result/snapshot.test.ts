@@ -1,12 +1,6 @@
 import { buildSnapshot, canSave, draftFromCandidate } from "./snapshot";
 import { toResultViewState } from "./state";
-import {
-  bridge,
-  confidentScan,
-  lilies,
-  missScan,
-  softScan,
-} from "@/components/scan/result/__fixtures__/scan";
+import { bridge, confidentScan, lilies, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
 
 it("pre-fills the draft from the candidate and leaves an unidentified card blank", () => {
   expect(draftFromCandidate(lilies)).toEqual({
@@ -39,22 +33,20 @@ it("suggests the server fields only for a confident card, even when the user edi
   });
   const edited = buildSnapshot({ ...draftFromCandidate(lilies), title: "Nymphéas" }, view);
   expect(edited.snapshot.title).toBe("Nymphéas");
-  expect(edited.suggested).toEqual({ title: "Water Lilies", artist: "Claude Monet" });
+  expect(edited.suggested).toEqual({
+    title: "Water Lilies",
+    artist: "Claude Monet",
+  });
 });
 
 it("never suggests on soft, chosen or unidentified cards", () => {
+  expect(buildSnapshot(draftFromCandidate(softScan.best), toResultViewState(softScan)).suggested).toBeNull();
   expect(
-    buildSnapshot(draftFromCandidate(softScan.best), toResultViewState(softScan)).suggested,
-  ).toBeNull();
-  expect(
-    buildSnapshot(
-      draftFromCandidate(bridge),
-      toResultViewState(confidentScan, { chosenObjectId: bridge.objectId }),
-    ).suggested,
-  ).toBeNull();
-  expect(
-    buildSnapshot({ ...draftFromCandidate(undefined), title: "Typed" }, toResultViewState(missScan))
+    buildSnapshot(draftFromCandidate(bridge), toResultViewState(confidentScan, { chosenObjectId: bridge.objectId }))
       .suggested,
+  ).toBeNull();
+  expect(
+    buildSnapshot({ ...draftFromCandidate(undefined), title: "Typed" }, toResultViewState(missScan)).suggested,
   ).toBeNull();
 });
 

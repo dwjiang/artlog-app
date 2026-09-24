@@ -155,8 +155,7 @@ export const monetLondon: RightNowFixture = {
       },
       {
         url: "https://www.nationalgallery.org.uk/paintings/picture-of-the-month/picture-of-the-month-september-2026",
-        title:
-          "Picture of the month: September 2026 | Picture of the month | National Gallery, London",
+        title: "Picture of the month: September 2026 | Picture of the month | National Gallery, London",
         content:
           "## More like this\n\nClaude Monet’s ‘The Beach at Trouville’\n\n### Claude Monet’s ‘The Beach at Trouville’\n\n#### Picture of the month August 2026\n\nEscape to the Normandy coast with Lily Le Brun as she reflects on this seaside scene by Claude Monet.\n\nArticle\n\nClaude Monet’s ‘The Beach at Trouville’: Read more\n\nPintoricchio’s ‘Penelope with the Suitors’\n\n### Pintoricchio’s ‘Penelope with the Suitors’\n\n#### Picture of the month July 2026 [...] Article\n\nCaravaggio’s ‘Boy bitten by a Lizard’: Read more\n\nSavoldo's 'Mary Magdalene'\n\n### Savoldo's 'Mary Magdalene'\n\n#### Picture of the month April 2025\n\nLook beyond the dazzling silver shawl to discover the identity of this enigmatic woman\n\nVideo\n\nSavoldo's 'Mary Magdalene': Read more\n\nMonet's 'Bathers at La Grenouillère'\n\n### Monet's 'Bathers at La Grenouillère'\n\n#### Picture of the month February 2025 [...] What do schoolchildren think of Monet’s ‘Bathers at La Grenouillère’, and what do they want to know?\n\nVideo\n\nMonet's 'Bathers at La Grenouillère': Read more\n\nPieter Bruegel the Elder's 'The Adoration of the Kings'\n\n### Pieter Bruegel the Elder's 'The Adoration of the Kings'\n\n#### Picture of the month January 2025\n\nDelve into this sacred moment, filled with curious characters\n\nArticle\n\nPieter Bruegel the Elder's 'The Adoration of the Kings': Read more",
         score: 0.37127393,
@@ -247,8 +246,7 @@ export const hockneyNy: RightNowFixture = {
       {
         url: "https://www.nytimes.com/2026/08/15/style/electric-kool-aid-acid-blue-aqua.html",
         title: "Is Electric Kool-Aid Acid Blue for You?",
-        content:
-          "It's nostalgic, optimistic and, some argue, easier to pull off than you may think.",
+        content: "It's nostalgic, optimistic and, some argue, easier to pull off than you may think.",
         score: 0.021518527,
         publishedDate: "Tue, 18 Aug 2026 11:00:00 GMT",
         images: [],
@@ -256,8 +254,7 @@ export const hockneyNy: RightNowFixture = {
       {
         url: "https://www.nytimes.com/spotlight/what-to-watch?page=7",
         title: "What to Watch - Page 7",
-        content:
-          "Overwhelmed by Netflix, Hulu and other TV and movie streaming services? We are here to help!",
+        content: "Overwhelmed by Netflix, Hulu and other TV and movie streaming services? We are here to help!",
         score: 0.01879171,
         publishedDate: "Sat, 05 Sep 2026 11:00:00 GMT",
         images: [],
@@ -366,8 +363,7 @@ export const banksyNy: RightNowFixture = {
       },
       {
         url: "https://gothamist.com/arts-entertainment/some-untold-911-stories-are-the-strangest-ones-they-come-to-light-in-a-new-documentary",
-        title:
-          "Some untold 9/11 stories are the strangest ones. They come to light in a new documentary. - Gothamist",
+        title: "Some untold 9/11 stories are the strangest ones. They come to light in a new documentary. - Gothamist",
         content:
           "MORE arts-entertainment\n\nThe feminist icon, who died at 92, was a longtime resident of the neighborhood.\n\nPublished Sep 3, 2026\n\nA shoebox in Chelsea, a luxe apartment in Riverdale and five (!) bedrooms on Staten Island.\n\nA shoebox in Chelsea, a luxe apartment in Riverdale and five (!) bedrooms on Staten Island.\n\nCatch up on the most important headlines with a roundup of essential NYC stories, delivered to your inbox daily. [...] Gothamist is a website about New York City news, arts, events and food, brought to you by New York Public Radio. [...] WNYC\n\n# Some untold 9/11 stories are the strangest ones. They come to light in a new documentary.\n\nPublished Sep 6, 2026 at 3:45 p.m. ET\n\nShare\n\nFlowers on the ledge of one of the pools of the 9/11 Memorial\n\nPublished Sep 6, 2026 at 3:45 p.m. ET\n\nShare\n\nMake your contribution now and help Gothamist thrive in 2026.  Donate today\n\nGothamist is funded by sponsors and member donations",
         score: 0.033911232,
@@ -391,8 +387,7 @@ export const emptyFilter: RightNowFixture = {
     results: [
       {
         url: "https://www.sfchronicle.com/sports/article/another-player-involved-in-college-eligibility-22410312.php",
-        title:
-          "Another player involved in college eligibility suit gets cut by an NFL team - San Francisco Chronicle",
+        title: "Another player involved in college eligibility suit gets cut by an NFL team - San Francisco Chronicle",
         content:
           "Defensive lineman Jack Pyburn was waived by the Tampa Bay Buccaneers on Sunday and could be the latest player who tries to go back to college after spending time in an NFL camp. He'll become a free agent if he's not picked up and is among the players granted a temporary restraining order by a Louisiana court earlier this month that would make them eligible to return to college athletics. Four other players who spent time on NFL rosters this offseason before being cut were also part of the case: former LSU running back TJ Harden, former Mississippi tight end Dae'Quan Wright, former Ole Miss defensive lineman Zxavian Harris and former Oregon State running back Anthony Hankerson. Here's a look at some of the players who spent time in NFL camps this summer and now might return to college:. Pyburn originally signed as an undrafted free agent with Tampa Bay in May. He played in two exhibition games and led the NFL with four sacks in the preseason.",
         score: 0.03649728,
@@ -411,8 +406,7 @@ export const emptyFilter: RightNowFixture = {
       },
       {
         url: "https://www.sfchronicle.com/entertainment/arts-exhibits/article/objects-usa-museum-craft-design-sf-22401184.php",
-        title:
-          "What counts as art? This S.F. exhibition offers more than 70 answers - San Francisco Chronicle",
+        title: "What counts as art? This S.F. exhibition offers more than 70 answers - San Francisco Chronicle",
         content:
           "His historic exhibition at the Smithsonian that year — “Objects: USA,” featuring more than 500 works by ceramicists, weavers, quilters, woodworkers and artists specializing in metal, glass, enamel, mosaic and more — helped shift that line of thinking. Almost six decades years later, the Museum of Craft and Design is revisiting the concept, with a new “Objects: USA” with more than 70 pieces that break down the silos of art, craft and design. Now he takes center stage in S.F. Some works, such as Wendell Castle’s “Tongue,” a shiny end table with an angled base resembling a children’s slide, come from the original “Objects: USA.” Others, like a lamp made by Jolie Ngo, as fuzzy and colorful and wacky as a Dr. Seuss illustration, hail from our era. A Michigan native whose childhood also took her to Tennessee and Texas, she holds a BA in theater studies from Yale and an MA in drama from San Francisco State.",
         score: 0.027735045,
@@ -421,8 +415,7 @@ export const emptyFilter: RightNowFixture = {
       },
       {
         url: "https://www.sfchronicle.com/entertainment/arts-exhibits/article/yayoi-kusama-death-sfmoma-controversy-22406208.php",
-        title:
-          "How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning - San Francisco Chronicle",
+        title: "How Yayoi Kusama’s San Francisco triumph became an SFMOMA reckoning - San Francisco Chronicle",
         content:
           "For many Bay Area museumgoers, Yayoi Kusama’s first solo Northern California exhibition at the San Francisco Museum of Modern Art in 2023 became the backdrop for selfies and Instagram reels. Now, with news of Kusama’s death in Tokyo at 97 on Aug. 14, confirmed by the Yayoi Kusama Studio this week, the controversy that shadowed that SFMOMA show is inseparable from her local legacy. But the show also ignited questions over racist language in Kusama’s writings spanning several decades, placing the Japanese artist at the center of a predicament many arts institutions across the country were grappling with over how to present the work of acclaimed artists with problematic pasts. But for all her success, she could not tamp down the simmering controversy that came to a boil in San Francisco on the cusp of “Yayoi Kusama: Infinite Love” at SFMOMA in October 2023. Tony Bravo is the Chronicle’s arts and culture columnist.",
         score: 0.02315567,
@@ -431,8 +424,7 @@ export const emptyFilter: RightNowFixture = {
       },
       {
         url: "https://www.sfchronicle.com/entertainment/arts-exhibits/article/sf-yerba-buena-illuminated-22401524.php",
-        title:
-          "A 95-foot artwork is about to transform this historic San Francisco building - San Francisco Chronicle",
+        title: "A 95-foot artwork is about to transform this historic San Francisco building - San Francisco Chronicle",
         content:
           "A 95-foot animated artwork is about to transform a historic Market Street building into one of downtown San Francisco’s largest canvases, launching a new public art partnership among three museums. The Yerba Buena Illuminated initiative will debut on Tuesday, Aug. 25, with Los Angeles artist Jennifer Steinkamp’s “It’s a nice day for a white wedding” at 785 Market St. The digital art work’s title is inspired by Billy Idol’s 1982 hit song “White Wedding” and will project a cascade of animated red, white and yellow wedding flowers on the Beaux-Arts–style Humboldt Bank Building. It comes from the collection of the San Francisco Museum of Modern Art, one of the three cultural institutions collaborating with Yerba Buena Partnership, a neighborhood community benefit district. “This installation will be a powerful symbol of the vibrancy and creativity that defines San Francisco and yet another reason for San Franciscans and visitors to enjoy the public spaces, cultural institutions, and all the Yerba Buena area has to offer.”.",
         score: 0.022271343,

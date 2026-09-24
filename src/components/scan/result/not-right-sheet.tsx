@@ -41,25 +41,16 @@ export function NotRightSheet({
     >
       <RNHostView>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <ThemedText type="subtitle">
-            {hasRunnerUps ? "Other possible matches" : "No other matches found"}
-          </ThemedText>
+          <ThemedText type="subtitle">{hasRunnerUps ? "Other possible matches" : "No other matches found"}</ThemedText>
           {notice && (
             <ThemedText type="small" themeColor="error" accessibilityRole="alert">
               {notice}
             </ThemedText>
           )}
           {hasRunnerUps && <RunnerUps candidates={runnerUps} onPick={onPick} />}
-          <GalleryButton
-            label="Scan the museum label"
-            variant="filled"
-            fullWidth
-            onPress={onLabel}
-          />
+          <GalleryButton label="Scan the museum label" variant="filled" fullWidth onPress={onLabel} />
           {onManual && <GalleryButton label="Enter details myself" fullWidth onPress={onManual} />}
-          {onSavePhoto && (
-            <GalleryButton label="Save just the photo" fullWidth onPress={onSavePhoto} />
-          )}
+          {onSavePhoto && <GalleryButton label="Save just the photo" fullWidth onPress={onSavePhoto} />}
           <GalleryButton label="Back to result" fullWidth onPress={onDismiss} />
         </ScrollView>
       </RNHostView>
@@ -69,5 +60,9 @@ export function NotRightSheet({
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { gap: Spacing.three, padding: Spacing.content, paddingBottom: Spacing.six },
+  content: {
+    gap: Spacing.three,
+    padding: Spacing.content,
+    paddingBottom: Spacing.six,
+  },
 });

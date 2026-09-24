@@ -26,18 +26,16 @@ export function SharePhotoPicker({
   onDone: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
-  const { data, updatedAt, error } = useLiveQuery(
-    selectVisitArtworkPhotos(work.localId, visitId, work.owner),
-    [work.localId, visitId, work.owner],
-  );
+  const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [
+    work.localId,
+    visitId,
+    work.owner,
+  ]);
   useEffect(() => {
     if (error) reportError(error, "visit.share-photos.load");
   }, [error]);
   return (
-    <ScrollView
-      contentContainerStyle={{ padding: 20, gap: 16 }}
-      style={{ backgroundColor: Gallery.paper }}
-    >
+    <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
       <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
       <Text
         style={{
@@ -101,24 +99,16 @@ export function SharePhotoPicker({
               )}
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={{ flex: 1, fontSize: 13, color: Gallery.ink }}>
-                  {photo.kind === "full"
-                    ? "Full artwork"
-                    : photo.kind === "detail"
-                      ? "Detail"
-                      : "Museum label"}
+                  {photo.kind === "full" ? "Full artwork" : photo.kind === "detail" ? "Detail" : "Museum label"}
                 </Text>
                 <Image
-                  source={
-                    selected.includes(photo.localId) ? "sf:checkmark.circle.fill" : "sf:circle"
-                  }
+                  source={selected.includes(photo.localId) ? "sf:checkmark.circle.fill" : "sf:circle"}
                   accessible={false}
                   tintColor={selected.includes(photo.localId) ? Gallery.accent : Gallery.muted}
                   style={{ width: 18, height: 18 }}
                 />
               </View>
-              {!!photo.caption && (
-                <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>
-              )}
+              {!!photo.caption && <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>}
             </Pressable>
           ))}
       </View>

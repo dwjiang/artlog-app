@@ -38,8 +38,9 @@ type NoteDraft = {
 function persist(note: NoteDraft, sync = true) {
   clearTimeout(note.timer);
   const text = note.text;
-  if (!note.pending && text === note.savedText && !(sync && note.unsynced))
+  if (!note.pending && text === note.savedText && !(sync && note.unsynced)) {
     return Promise.resolve(true);
+  }
   note.pending++;
   // A slower earlier save must not overwrite the latest draft.
   note.writes = note.writes.then(async () => {
@@ -119,7 +120,13 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
 
   return (
     <View>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Text variant="section" accessibilityRole="header">
           Notes
         </Text>
@@ -150,10 +157,11 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
             note.text = text;
             setDraft(text);
             clearTimeout(note.timer);
-            if (autoSave)
+            if (autoSave) {
               note.timer = setTimeout(() => {
                 void persist(note, false);
               }, 500);
+            }
           }}
           onBlur={() => {
             latest.current.focused = false;
@@ -168,7 +176,11 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
         <NotePaper>
           <Text
             selectable
-            style={{ color: draft ? Gallery.ink : Gallery.muted, fontSize: 16, lineHeight: 24 }}
+            style={{
+              color: draft ? Gallery.ink : Gallery.muted,
+              fontSize: 16,
+              lineHeight: 24,
+            }}
           >
             {draft || "No notes yet."}
           </Text>

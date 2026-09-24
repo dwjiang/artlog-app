@@ -40,18 +40,17 @@ export function ChoiceMenu<T extends string>({
     >
       <Host matchContents={{ vertical: true }} colorScheme="light" style={{ width: "100%" }}>
         <Menu
-          modifiers={[
-            accessibilityLabel(`${label}: ${selected}`),
-            buttonStyle("plain"),
-            frame({ maxWidth: Infinity }),
-          ]}
+          modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain"), frame({ maxWidth: Infinity })]}
           label={
             <Row
               spacing={8}
               alignment="center"
               style={{ paddingHorizontal: 11 }}
               modifiers={[
-                frame({ maxWidth: Infinity, minHeight: 44 * Math.max(1, fontScale) }),
+                frame({
+                  maxWidth: Infinity,
+                  minHeight: 44 * Math.max(1, fontScale),
+                }),
                 contentShape(shapes.rectangle()),
               ]}
             >
@@ -69,12 +68,7 @@ export function ChoiceMenu<T extends string>({
             </Row>
           }
         >
-          <Picker
-            label={label}
-            selection={value}
-            onSelectionChange={onChange}
-            modifiers={[pickerStyle("inline")]}
-          >
+          <Picker label={label} selection={value} onSelectionChange={onChange} modifiers={[pickerStyle("inline")]}>
             {options.map((option) => (
               <PickerText key={option.value} modifiers={[tag(option.value)]}>
                 {option.label}

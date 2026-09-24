@@ -12,7 +12,9 @@ it("lists title, artist and institution per row and reports the tapped candidate
   expect(screen.getByText("31% confidence")).toBeOnTheScreen();
   expect(screen.getByText("12% confidence")).toBeOnTheScreen();
   await fireEvent.press(
-    screen.getByRole("button", { name: "Haystacks, Claude Monet, 12% confidence" }),
+    screen.getByRole("button", {
+      name: "Haystacks, Claude Monet, 12% confidence",
+    }),
   );
   expect(onPick).toHaveBeenCalledWith(haystacks);
 });

@@ -28,9 +28,7 @@ export function useAccount() {
       .then((value) => {
         if (active) setAvailable(value);
       })
-      .catch((cause: unknown) =>
-        reportError(cause, "auth.apple_availability", { level: "warning" }),
-      );
+      .catch((cause: unknown) => reportError(cause, "auth.apple_availability", { level: "warning" }));
     return () => {
       active = false;
     };
@@ -50,19 +48,9 @@ export function useAccount() {
       await operation();
       addBreadcrumb(`${name}.success`);
     } catch (cause) {
-      if (
-        !(
-          cause &&
-          typeof cause === "object" &&
-          "code" in cause &&
-          cause.code === "ERR_REQUEST_CANCELED"
-        )
-      ) {
+      if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED")) {
         reportError(cause, name);
-        setError(
-          socialErrorMessage(cause) ??
-            "Couldn’t update your account. Check your connection and try again.",
-        );
+        setError(socialErrorMessage(cause) ?? "Couldn’t update your account. Check your connection and try again.");
       }
     } finally {
       inFlight.current = false;
@@ -73,7 +61,9 @@ export function useAccount() {
 
   const signInWithApple = () =>
     perform("auth.apple_sign_in", async () => {
-      const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: "apple" });
+      const { nonce } = await convex.mutation(api.devices.createChallenge, {
+        purpose: "apple",
+      });
       const credential = await AppleAuthentication.signInAsync({
         nonce,
         requestedScopes: [
@@ -81,9 +71,17 @@ export function useAccount() {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      if (!credential.identityToken) throw new Error("Apple did not return an identity token");
-      await signIn("apple-native", { identityToken: credential.identityToken, nonce });
-      const signed = await signPayload({ action: "linkAccount", appleUserId: credential.user });
+      if (!credential.identityToken) {
+        throw new Error("Apple did not return an identity token");
+      }
+      await signIn("apple-native", {
+        identityToken: credential.identityToken,
+        nonce,
+      });
+      const signed = await signPayload({
+        action: "linkAccount",
+        appleUserId: credential.user,
+      });
       if (!signed) throw new Error("Device attestation is not ready");
       await convex.mutation(api.accounts.linkAccount, {
         appleUserId: credential.user,

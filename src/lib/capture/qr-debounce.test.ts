@@ -2,14 +2,7 @@ import { createQrDebouncer } from "./qr-debounce";
 
 it("accepts only complete HTTP(S) URLs", () => {
   const accept = createQrDebouncer();
-  for (const value of [
-    "",
-    "painting",
-    "javascript:alert(1)",
-    "file:///image.jpg",
-    "https://",
-    "//example.com",
-  ]) {
+  for (const value of ["", "painting", "javascript:alert(1)", "file:///image.jpg", "https://", "//example.com"]) {
     expect(accept(value, 0)).toBe(false);
   }
   expect(accept("https://museum.org/work/1", 0)).toBe(true);

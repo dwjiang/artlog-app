@@ -1,20 +1,13 @@
 import { mulberry32 } from "./homography";
 import { matchDescriptors } from "./match";
-import {
-  featuresFromDescriptors,
-  makeRandomFeatures,
-  makeSyntheticPair,
-  withFlippedBits,
-} from "./test-fixtures";
+import { featuresFromDescriptors, makeRandomFeatures, makeSyntheticPair, withFlippedBits } from "./test-fixtures";
 
 const bits = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
 
 describe("matchDescriptors", () => {
   it("recovers most true correspondences on a synthetic pair with few false matches", () => {
     const { ref, query, truth } = makeSyntheticPair({ seed: 3 });
-    const truthByQuery = new Map(
-      truth.correspondences.map(([refIdx, queryIdx]) => [queryIdx, refIdx]),
-    );
+    const truthByQuery = new Map(truth.correspondences.map(([refIdx, queryIdx]) => [queryIdx, refIdx]));
 
     const matches = matchDescriptors(query, ref);
 
@@ -35,16 +28,11 @@ describe("matchDescriptors", () => {
   it("rejects a match whose second-best candidate is nearly as close", () => {
     const rand = mulberry32(5);
     const q = makeRandomFeatures(rand, 1, 512).descriptors;
-    const ref = featuresFromDescriptors([
-      withFlippedBits(q, bits(0, 8)),
-      withFlippedBits(q, bits(100, 9)),
-    ]);
+    const ref = featuresFromDescriptors([withFlippedBits(q, bits(0, 8)), withFlippedBits(q, bits(100, 9))]);
     const query = featuresFromDescriptors([q]);
 
     expect(matchDescriptors(query, ref)).toEqual([]);
-    expect(matchDescriptors(query, ref, { ratio: 0.95 })).toEqual([
-      { queryIdx: 0, refIdx: 0, distance: 8 },
-    ]);
+    expect(matchDescriptors(query, ref, { ratio: 0.95 })).toEqual([{ queryIdx: 0, refIdx: 0, distance: 8 }]);
   });
 
   it("accepts a lone reference descriptor and drops matches beyond maxDistance", () => {
@@ -62,10 +50,7 @@ describe("matchDescriptors", () => {
     const rand = mulberry32(7);
     const r = makeRandomFeatures(rand, 3, 512);
     const r0 = r.descriptors.subarray(0, 32);
-    const query = featuresFromDescriptors([
-      withFlippedBits(r0, bits(0, 5)),
-      withFlippedBits(r0, bits(10, 3)),
-    ]);
+    const query = featuresFromDescriptors([withFlippedBits(r0, bits(0, 5)), withFlippedBits(r0, bits(10, 3))]);
 
     const plain = matchDescriptors(query, r);
     const mutual = matchDescriptors(query, r, { crossCheck: true });

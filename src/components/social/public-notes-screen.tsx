@@ -58,12 +58,7 @@ export function PublicNotesScreen() {
       visual={<EmptyPaper kind="note" />}
       footnote="Your existing notes stay private."
     >
-      <GalleryButton
-        label="Sign in"
-        variant="filled"
-        fullWidth
-        onPress={() => router.push(signInRoute("wall"))}
-      />
+      <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute("wall"))} />
     </EmptyState>
   ) : wall.profileRequired ? (
     <SocialState
@@ -75,7 +70,7 @@ export function PublicNotesScreen() {
   ) : wall.loading || (!wall.acknowledged && !wall.error) ? (
     <SocialState title="Opening your notes…" loading />
   ) : null;
-  if (gate)
+  if (gate) {
     return (
       <ScrollView
         style={socialStyles.root}
@@ -85,6 +80,7 @@ export function PublicNotesScreen() {
         {gate}
       </ScrollView>
     );
+  }
   // Toolbar items must be direct children so the native header can extract them.
   const toolbar = (
     <Stack.Toolbar placement="right">
@@ -97,13 +93,10 @@ export function PublicNotesScreen() {
           Preview
         </Stack.Toolbar.Button>
       )}
-      {!preview &&
-        (wall.pending ? (
+      {!preview
+        && (wall.pending ? (
           <Stack.Toolbar.View>
-            <LoadingRing
-              accessibilityLabel="Saving note choices…"
-              style={{ width: 44, height: 44 }}
-            />
+            <LoadingRing accessibilityLabel="Saving note choices…" style={{ width: 44, height: 44 }} />
           </Stack.Toolbar.View>
         ) : (
           <Stack.Toolbar.Button
@@ -119,7 +112,7 @@ export function PublicNotesScreen() {
         ))}
     </Stack.Toolbar>
   );
-  if (preview && wall.acknowledged)
+  if (preview && wall.acknowledged) {
     return (
       <>
         {toolbar}
@@ -144,8 +137,9 @@ export function PublicNotesScreen() {
         </ScrollView>
       </>
     );
+  }
   const eligible = items.filter((item) => item.noteEligible || item.noteVisible);
-  if (!eligible.length && !wall.error)
+  if (!eligible.length && !wall.error) {
     return (
       <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
         <EmptyState
@@ -160,12 +154,16 @@ export function PublicNotesScreen() {
             fullWidth
             onPress={() => {
               router.dismissAll();
-              router.navigate({ pathname: "/collection", params: { view: "wall" } });
+              router.navigate({
+                pathname: "/collection",
+                params: { view: "wall" },
+              });
             }}
           />
         </EmptyState>
       </ScrollView>
     );
+  }
   return (
     <>
       {toolbar}
@@ -199,12 +197,7 @@ export function PublicNotesScreen() {
             }}
           >
             <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-              <DisplayMedia
-                media={item.artwork.media}
-                label={item.artwork.title}
-                width={48}
-                height={56}
-              />
+              <DisplayMedia media={item.artwork.media} label={item.artwork.title} width={48} height={56} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.artwork.title}</Text>
                 <Text type="small" themeColor="textSecondary">

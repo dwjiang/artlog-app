@@ -14,17 +14,11 @@ export type PreparedPainting = {
 };
 
 export interface Warper {
-  warpAndLetterbox(
-    photoUri: string,
-    quad: Quad | null,
-    size: number,
-  ): Promise<PreparedPainting | null>;
+  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<PreparedPainting | null>;
 }
 
 export interface Triage {
-  check(
-    cropUri: string,
-  ): Promise<{ ok: true } | { ok: false; reason: "blur" | "glare"; message: string }>;
+  check(cropUri: string): Promise<{ ok: true } | { ok: false; reason: "blur" | "glare"; message: string }>;
 }
 
 export interface Embedder {
@@ -33,9 +27,11 @@ export interface Embedder {
 }
 
 export interface OrbExtractor {
-  extract(
-    cropUri: string,
-  ): Promise<{ descriptors: ArrayBuffer; keypoints: ArrayBuffer; count: number }>;
+  extract(cropUri: string): Promise<{
+    descriptors: ArrayBuffer;
+    keypoints: ArrayBuffer;
+    count: number;
+  }>;
 }
 
 export type IdentifyResponse = FunctionReturnType<typeof api.identify.identify>;
@@ -47,22 +43,21 @@ export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, "s
   contentBounds: CropContentBounds;
   visitLocalId?: string;
 };
-export type CaptureInput = Pick<
-  CapturePayload,
-  "capturedAt" | "venueId" | "visitId" | "visitLocalId"
-> & {
+export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visitId" | "visitLocalId"> & {
   photoUri: string;
   quad: Quad | null;
   source: "camera" | "library";
 };
-export type CaptureTimings = Partial<
-  Record<"warp" | "triage" | "embed" | "orb" | "identify" | "enqueue", number>
-> & {
+export type CaptureTimings = Partial<Record<"warp" | "triage" | "embed" | "orb" | "identify" | "enqueue", number>> & {
   total: number;
 };
 export type CaptureResult = (
   | { kind: "retake"; reason: "boundary" | "blur" | "glare"; message: string }
-  | { kind: "sent"; scanId: IdentifyResponse["scanId"]; response: IdentifyResponse }
+  | {
+      kind: "sent";
+      scanId: IdentifyResponse["scanId"];
+      response: IdentifyResponse;
+    }
   | { kind: "queued"; localId: string }
 ) & { timings: CaptureTimings };
 

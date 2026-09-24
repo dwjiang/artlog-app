@@ -26,7 +26,9 @@ export function AddSavedWorks() {
     setPending(work.localId);
     setError(undefined);
     try {
-      const enriched = await client.query(api.artworks.enrichment, { artworkId: work.artworkId });
+      const enriched = await client.query(api.artworks.enrichment, {
+        artworkId: work.artworkId,
+      });
       if (!scope.isOwnerCurrent()) return;
       if (!enriched?.narrationFacts?.length) {
         setError(`Narration isn’t available for ${work.title} yet.`);
@@ -46,8 +48,9 @@ export function AddSavedWorks() {
         },
       });
     } catch {
-      if (scope.isOwnerCurrent())
+      if (scope.isOwnerCurrent()) {
         setError("Couldn’t load narration. Check your connection and try again.");
+      }
     } finally {
       if (scope.isOwnerCurrent()) setPending(undefined);
     }

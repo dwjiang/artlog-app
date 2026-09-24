@@ -7,14 +7,7 @@ export type VisitPayload = FunctionArgs<typeof api.visits.upsertJournal>["visit"
 export function visitInput(
   visit: Pick<
     NewVisit,
-    | "localId"
-    | "venueId"
-    | "visitedOn"
-    | "timeZone"
-    | "reflection"
-    | "startedAt"
-    | "endedAt"
-    | "visibility"
+    "localId" | "venueId" | "visitedOn" | "timeZone" | "reflection" | "startedAt" | "endedAt" | "visibility"
   >,
 ): VisitPayload {
   return {

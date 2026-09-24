@@ -2,7 +2,9 @@ import { getStateFromPath } from "expo-router/build/fork/getStateFromPath";
 import { getMockConfig } from "expo-router/testing-library";
 import type { PropsWithChildren } from "react";
 
-jest.mock("./visits/visit-share-flow", () => ({ VisitShareLayout: () => null }));
+jest.mock("./visits/visit-share-flow", () => ({
+  VisitShareLayout: () => null,
+}));
 jest.mock("@/lib/widgets/widget-provider", () => ({
   WidgetProvider: ({ children }: PropsWithChildren) => children,
 }));
@@ -63,7 +65,10 @@ describe("App navigation", () => {
   it("opens a widget artwork at its visit with Home underneath for Back", () => {
     const root = getRootState("/saved/painting?visitId=museum-visit");
     expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "saved/[savedId]"]);
-    expect(root?.routes[1].params).toMatchObject({ savedId: "painting", visitId: "museum-visit" });
+    expect(root?.routes[1].params).toMatchObject({
+      savedId: "painting",
+      visitId: "museum-visit",
+    });
   });
 
   // Artwork and visit details open above whichever tab is active, so a scan never switches to Collection.
@@ -75,9 +80,7 @@ describe("App navigation", () => {
     expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", name]);
     expect(root?.index).toBe(1);
     expect(root?.routes[1].params).toMatchObject(params);
-    expect(
-      getTabsState(`/${path}`)?.routes.find((route) => route.name === "(collection)")?.state,
-    ).toBeUndefined();
+    expect(getTabsState(`/${path}`)?.routes.find((route) => route.name === "(collection)")?.state).toBeUndefined();
   });
 
   it.each(["result", "label"])("opens %s above the tabs with the capture identifier", (screen) => {
@@ -95,8 +98,6 @@ describe("App navigation", () => {
   it.each(["visit/post-id", "profile/profile-id"])("opens %s above the tabs", (path) => {
     const root = getRootState(`/${path}`);
     expect(root?.routes[0].name).toBe("(tabs)");
-    expect(root?.routes[1].name).toBe(
-      path.startsWith("visit") ? "visit/[postId]" : "profile/[profileId]",
-    );
+    expect(root?.routes[1].name).toBe(path.startsWith("visit") ? "visit/[postId]" : "profile/[profileId]");
   });
 });

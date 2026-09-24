@@ -56,16 +56,26 @@ it("syncing Private withdraws the entire publication and Public does not restore
   const hidden = await owner.as.query(api.sharedVisits.getState, {
     visitLocalId: draft.visit.localId,
   });
-  expect(hidden).toMatchObject({ status: "private", revision: published.revision + 1 });
+  expect(hidden).toMatchObject({
+    status: "private",
+    revision: published.revision + 1,
+  });
   await expect(t.query(api.sharedVisits.get, { postId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   await expect(
-    t.query(api.sharedVisits.getArtwork, { postId, itemId: visible.artworks.page[0].itemId }),
+    t.query(api.sharedVisits.getArtwork, {
+      postId,
+      itemId: visible.artworks.page[0].itemId,
+    }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   expect(
-    (await t.query(api.sharedVisits.listByProfile, { profileId: owner.profileId })).page,
+    (
+      await t.query(api.sharedVisits.listByProfile, {
+        profileId: owner.profileId,
+      })
+    ).page,
   ).toEqual([]);
   expect(await owner.as.query(api.sharedVisits.listShared, {})).toEqual([]);
   await owner.as.mutation(api.visits.upsertJournal, {

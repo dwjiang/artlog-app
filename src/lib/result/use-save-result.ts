@@ -4,14 +4,12 @@ import type { CaptureCompletion } from "../capture/completion";
 import { useRef, useState } from "react";
 
 import { saveErrorMessage, saveResult, type SaveResultInput } from "./save";
-import {
-  contributionErrorMessage,
-  type ContributionOutcome,
-  type ContributeInput,
-} from "../label/contribute";
+import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from "../label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "../label/share-saved-label";
 
-export type SaveInput = Omit<SaveResultInput, "capture"> & { capture?: SaveResultInput["capture"] };
+export type SaveInput = Omit<SaveResultInput, "capture"> & {
+  capture?: SaveResultInput["capture"];
+};
 
 /** A card's save state; a capture missing from this phone or a failed write leaves the draft editable with a message. */
 export function useSaveResult() {
@@ -59,7 +57,10 @@ export function useSaveResult() {
     setSaving(true);
     setError(undefined);
     try {
-      const { localId, completion, contribution } = await saveResult({ ...input, capture });
+      const { localId, completion, contribution } = await saveResult({
+        ...input,
+        capture,
+      });
       addBreadcrumb("result.saved", { hasContribution: !!contribution });
       setSavedId(localId);
       setCompletion(completion);
@@ -78,5 +79,15 @@ export function useSaveResult() {
     }
   }
 
-  return { saving, savedId, completion, error, save, sharing, shared, shareError, retrySharing };
+  return {
+    saving,
+    savedId,
+    completion,
+    error,
+    save,
+    sharing,
+    shared,
+    shareError,
+    retrySharing,
+  };
 }

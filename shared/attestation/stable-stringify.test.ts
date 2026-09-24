@@ -12,10 +12,12 @@ describe("canonical payloads", () => {
 
   it("keeps JSON semantics for optional fields, dates, and special property names", () => {
     expect(
-      stableStringify({ z: undefined, a: [undefined], date: new Date("2026-09-09T00:00:00Z") }),
+      stableStringify({
+        z: undefined,
+        a: [undefined],
+        date: new Date("2026-09-09T00:00:00Z"),
+      }),
     ).toBe('{"a":[null],"date":"2026-09-09T00:00:00.000Z"}');
-    expect(stableStringify(JSON.parse('{"z":1,"__proto__":{"b":2,"a":1}}'))).toBe(
-      '{"__proto__":{"a":1,"b":2},"z":1}',
-    );
+    expect(stableStringify(JSON.parse('{"z":1,"__proto__":{"b":2,"a":1}}'))).toBe('{"__proto__":{"a":1,"b":2},"z":1}');
   });
 });

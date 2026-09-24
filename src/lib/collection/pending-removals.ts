@@ -43,7 +43,9 @@ export function undoRemoval(item: Pick<Removal, "owner" | "localId">) {
 export async function commitRemoval(item: Removal) {
   clearTimeout(timers.get(key(item)));
   timers.delete(key(item));
-  addBreadcrumb("collection.remove.commit", { retry: item.status === "failed" });
+  addBreadcrumb("collection.remove.commit", {
+    retry: item.status === "failed",
+  });
   update(item, "saving");
   try {
     await softDeleteSavedWork(item.localId, Date.now(), item.owner);
@@ -59,7 +61,9 @@ export async function commitRemoval(item: Removal) {
 // The toast already reports the removal, so leaving the foreground commits it instead of losing the timer with the process.
 let appState: { remove: () => void } | undefined;
 function commitUndoable() {
-  for (const row of pending) if (row.status === "undoable") void commitRemoval(row);
+  for (const row of pending) {
+    if (row.status === "undoable") void commitRemoval(row);
+  }
 }
 export function scheduleRemoval(item: Omit<Removal, "status">) {
   if (pending.some((row) => key(row) === key(item))) return;

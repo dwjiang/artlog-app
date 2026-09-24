@@ -22,27 +22,16 @@ import { ListSkeleton } from "@/components/loading-skeleton";
 import { FriendsInvitation } from "./friends-invitation";
 
 type BrowsedProfile = PublicProfile & { relationship?: Relationship };
-const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) =>
-  result;
+const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
 
 export function PeopleScreen() {
   const session = useSocialSession();
   const params = useLocalSearchParams<{ filter?: string }>();
-  const [filter, setFilter] = useState<"all" | "friends">(
-    params.filter === "friends" ? "friends" : "all",
-  );
+  const [filter, setFilter] = useState<"all" | "friends">(params.filter === "friends" ? "friends" : "all");
   const guestFriends = filter === "friends" && session.status === "signed-out";
-  const friends = useSocialQuery(
-    api.profiles.friends,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
-  const requests = useSocialQuery(
-    api.profiles.requests,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const friends = useSocialQuery(api.profiles.friends, session.status === "ready" ? {} : "skip", session.key);
+  const requests = useSocialQuery(api.profiles.requests, session.status === "ready" ? {} : "skip", session.key);
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => {
@@ -66,12 +55,12 @@ export function PeopleScreen() {
     profileId,
   );
   const emptyFriends =
-    filter === "friends" &&
-    session.status === "ready" &&
-    !friends.loading &&
-    !friends.error &&
-    friends.data?.length === 0 &&
-    !text.trim();
+    filter === "friends"
+    && session.status === "ready"
+    && !friends.loading
+    && !friends.error
+    && friends.data?.length === 0
+    && !text.trim();
   const explore = () => {
     setText("");
     setFilter("all");
@@ -99,10 +88,8 @@ export function PeopleScreen() {
             : filter === "friends"
               ? (friends.data ?? []).filter(
                   (person) =>
-                    !text.trim() ||
-                    `${person.name} ${person.username}`
-                      .toLowerCase()
-                      .includes(text.trim().toLowerCase()),
+                    !text.trim()
+                    || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase()),
                 )
               : searching
                 ? results.items
@@ -130,15 +117,22 @@ export function PeopleScreen() {
               session={session}
               relationship={relationship(item, people.refresh)}
               friend={
-                filter === "friends" ||
-                item.relationship?.state === "accepted" ||
-                friends.data?.some((friend) => friend.profileId === item.profileId)
+                filter === "friends"
+                || item.relationship?.state === "accepted"
+                || friends.data?.some((friend) => friend.profileId === item.profileId)
               }
             />
           </View>
         )}
         ListHeaderComponent={
-          <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, gap: 12 }}>
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 4,
+              paddingBottom: 12,
+              gap: 12,
+            }}
+          >
             <Text variant="pageTitle" accessibilityRole="header">
               Friends
             </Text>
@@ -169,13 +163,16 @@ export function PeopleScreen() {
             {filter === "friends" && !!requests.data?.length && (
               <View style={{ gap: 10 }}>
                 <Text variant="section">
-                  Requests{" "}
-                  <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text>
+                  Requests <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text>
                 </Text>
                 {requests.data.map((person) => (
                   <View
                     key={person.profileId}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
                   >
                     <View style={{ flex: 1 }}>
                       <ProfileIdentity profile={person} />
@@ -201,7 +198,13 @@ export function PeopleScreen() {
           </View>
         }
         ItemSeparatorComponent={() => (
-          <View style={{ height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator }} />
+          <View
+            style={{
+              height: 0.5,
+              marginHorizontal: 24,
+              backgroundColor: Gallery.separator,
+            }}
+          />
         )}
         ListEmptyComponent={
           guestFriends ? (
@@ -212,11 +215,7 @@ export function PeopleScreen() {
             ) : friends.loading && !friends.error ? (
               <ListSkeleton label="Opening friends…" avatar />
             ) : friends.error ? (
-              <SocialState
-                title="Couldn’t load your friends."
-                action="Try again"
-                onAction={friends.refresh}
-              />
+              <SocialState title="Couldn’t load your friends." action="Try again" onAction={friends.refresh} />
             ) : emptyFriends ? (
               <SocialInvitation
                 title={"No friends added yet."}
@@ -232,11 +231,7 @@ export function PeopleScreen() {
               />
             ) : null
           ) : session.offline ? (
-            <SocialState
-              title="You’re offline."
-              detail="Connect to find friends."
-              icon="wifi.slash"
-            />
+            <SocialState title="You’re offline." detail="Connect to find friends." icon="wifi.slash" />
           ) : !text.trim() ? (
             discovery.done && !discovery.loading && !discovery.error ? (
               <SocialInvitation
@@ -277,9 +272,7 @@ export function PeopleScreen() {
             ) : !text.trim() ? (
               discovery.done && !discovery.error ? (
                 discovery.items.length > 0 ? (
-                  <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>
-                    Search by name or username.
-                  </Text>
+                  <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text>
                 ) : null
               ) : (
                 <PageFooter {...discovery} count={discovery.items.length} noun="friends" />
@@ -288,13 +281,7 @@ export function PeopleScreen() {
           ) : null
         }
         onEndReached={
-          filter === "all"
-            ? searching
-              ? results.loadMore
-              : !text.trim()
-                ? discovery.loadMore
-                : undefined
-            : undefined
+          filter === "all" ? (searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined) : undefined
         }
         onEndReachedThreshold={0.4}
       />

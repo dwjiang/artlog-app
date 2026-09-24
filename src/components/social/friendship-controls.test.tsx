@@ -6,7 +6,9 @@ import { CompactFriendshipControls, FriendshipControls } from "./friendship-cont
 const mockPush = jest.fn(),
   mockAct = jest.fn(),
   mockUseFriendship = jest.fn();
-jest.mock("expo-router", () => ({ router: { push: (...args: unknown[]) => mockPush(...args) } }));
+jest.mock("expo-router", () => ({
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+}));
 let mockState: object | undefined;
 jest.mock("@/lib/social/use-friendship", () => ({
   useFriendship: (...args: unknown[]) => {
@@ -35,17 +37,15 @@ it("lets guests request sign-in from the friend action without sending a request
   await render(<FriendshipControls profileId={"friend" as never} session={guest} />);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "friends" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "friends" },
+  });
   expect(mockAct).not.toHaveBeenCalled();
 });
 
 it("continues to profile setup after sign-in without sending a request automatically", async () => {
-  await render(
-    <FriendshipControls
-      profileId={"friend" as never}
-      session={{ ...guest, status: "profile-required" }}
-    />,
-  );
+  await render(<FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "profile-required" }} />);
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
   expect(mockPush).toHaveBeenCalledWith("/create-profile");
   expect(mockAct).not.toHaveBeenCalled();
@@ -53,10 +53,7 @@ it("continues to profile setup after sign-in without sending a request automatic
 
 it("keeps friendship actions unavailable while offline", async () => {
   await render(
-    <FriendshipControls
-      profileId={"friend" as never}
-      session={{ ...guest, status: "offline", offline: true }}
-    />,
+    <FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "offline", offline: true }} />,
   );
   expect(screen.queryByRole("button", { name: "Add friend" })).toBeNull();
 });
@@ -81,7 +78,11 @@ it("requires confirmation before removing an existing friend", async () => {
 
 it("renders a known friend row without a relationship query and lets a stranger be added", async () => {
   mockState = { state: "none", blocked: false, revision: 0 };
-  const ready = { ...guest, status: "ready" as const, profileId: "me" as never };
+  const ready = {
+    ...guest,
+    status: "ready" as const,
+    profileId: "me" as never,
+  };
   await render(
     <>
       <CompactFriendshipControls profileId={"friend" as never} session={ready} friend />
@@ -96,7 +97,11 @@ it("renders a known friend row without a relationship query and lets a stranger 
 });
 
 it("hands a relationship the list already holds to the friendship hook", async () => {
-  const ready = { ...guest, status: "ready" as const, profileId: "me" as never };
+  const ready = {
+    ...guest,
+    status: "ready" as const,
+    profileId: "me" as never,
+  };
   const relationship = {
     data: {
       state: "pending" as const,
@@ -108,20 +113,19 @@ it("hands a relationship the list already holds to the friendship hook", async (
     refresh: jest.fn(),
   };
   mockState = relationship.data;
-  await render(
-    <CompactFriendshipControls
-      profileId={"asked" as never}
-      session={ready}
-      relationship={relationship}
-    />,
-  );
+  await render(<CompactFriendshipControls profileId={"asked" as never} session={ready} relationship={relationship} />);
   expect(mockUseFriendship).toHaveBeenCalledWith("asked", ready, relationship);
   expect(screen.getByRole("button", { name: "Requested" })).toBeOnTheScreen();
 });
 
 it("refreshes friend lists only after accepting a request succeeds", async () => {
   const changed = jest.fn();
-  mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 0 };
+  mockState = {
+    state: "pending",
+    requesterId: "friend",
+    blocked: false,
+    revision: 0,
+  };
   mockAct.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
   await render(
     <CompactFriendshipControls

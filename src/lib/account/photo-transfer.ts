@@ -11,12 +11,7 @@ import { captureFileUri } from "../files/photos";
 
 export type PhotoUpload = { storageId: Id<"_storage">; photoUpdatedAt: number };
 
-function endpoint(
-  scope: string,
-  localId: string,
-  kind: CollectionPhotoKind,
-  photoId?: string,
-): string {
+function endpoint(scope: string, localId: string, kind: CollectionPhotoKind, photoId?: string): string {
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
   if (!site) throw new Error("EXPO_PUBLIC_CONVEX_SITE_URL is not configured");
   const url = new URL("/collection-photo", site);
@@ -49,9 +44,14 @@ export async function uploadCollectionPhoto(
         .renderAsync();
     }
     // Re-encoding the rendered image omits the original camera and location metadata.
-    const encoded = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
+    const encoded = await rendered.saveAsync({
+      format: SaveFormat.JPEG,
+      compress: 0.85,
+    });
     file = new File(encoded.uri);
-    if (file.size > MAX_COLLECTION_PHOTO_BYTES) throw new Error("Photo exceeds the upload limit");
+    if (file.size > MAX_COLLECTION_PHOTO_BYTES) {
+      throw new Error("Photo exceeds the upload limit");
+    }
     if (!isCurrent()) throw new Error("Photo upload cancelled");
     const response = await file.upload(endpoint(scope, localId, kind, photoId), {
       httpMethod: "POST",
@@ -63,11 +63,13 @@ export async function uploadCollectionPhoto(
         "X-Photo-Height": String(rendered.height),
       },
     });
-    if (response.status !== 200)
+    if (response.status !== 200) {
       throw new Error(`Photo upload failed with HTTP ${response.status}`);
+    }
     const result = JSON.parse(response.body) as PhotoUpload;
-    if (!result.storageId || !Number.isFinite(result.photoUpdatedAt))
+    if (!result.storageId || !Number.isFinite(result.photoUpdatedAt)) {
       throw new Error("Photo upload did not return a storage reference");
+    }
     return result;
   } finally {
     if (file?.exists) file.delete();
@@ -89,14 +91,10 @@ export async function downloadCollectionPhoto(
   const directory = new Directory(Paths.document, "collection-photos");
   directory.create({ intermediates: true, idempotent: true });
   const path = `collection-photos/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${photoId ?? kind}-${storageId}.jpg`;
-  await File.downloadFileAsync(
-    endpoint(scope, localId, kind, photoId),
-    new File(captureFileUri(path)),
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      idempotent: true,
-    },
-  );
+  await File.downloadFileAsync(endpoint(scope, localId, kind, photoId), new File(captureFileUri(path)), {
+    headers: { Authorization: `Bearer ${token}` },
+    idempotent: true,
+  });
   return path;
 }
 

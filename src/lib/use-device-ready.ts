@@ -9,12 +9,10 @@ import { api } from "../../convex/_generated/api";
 export function useDeviceReady(): boolean {
   const { isAuthenticated } = useConvexAuth();
   const deviceQuery = useMemo(
-    (): RequestForQueries =>
-      isAuthenticated ? { device: { query: api.devices.me, args: {} } } : {},
+    (): RequestForQueries => (isAuthenticated ? { device: { query: api.devices.me, args: {} } } : {}),
     [isAuthenticated],
   );
-  const { device }: { device?: FunctionReturnType<typeof api.devices.me> | Error } =
-    useQueries(deviceQuery);
+  const { device }: { device?: FunctionReturnType<typeof api.devices.me> | Error } = useQueries(deviceQuery);
   useEffect(() => {
     if (device instanceof Error) reportError(device, "auth.device_status");
   }, [device]);

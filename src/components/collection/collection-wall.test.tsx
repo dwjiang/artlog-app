@@ -15,8 +15,12 @@ import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-rem
 jest.mock("expo-crypto", () => ({
   randomUUID: () => jest.requireActual("node:crypto").randomUUID(),
 }));
-jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
-jest.mock("@/lib/account/collection-sync", () => ({ flushCollectionMedia: async () => {} }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
+jest.mock("@/lib/account/collection-sync", () => ({
+  flushCollectionMedia: async () => {},
+}));
 const mockPush = jest.fn();
 let mockToken: string | null = "token";
 const mockTransport = {
@@ -30,9 +34,14 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
 }));
 jest.mock("expo-network", () => ({
-  getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
+  getNetworkStateAsync: async () => ({
+    isConnected: true,
+    isInternetReachable: true,
+  }),
 }));
-jest.mock("@/lib/wall/wall-transport", () => ({ createWallTransport: () => mockTransport }));
+jest.mock("@/lib/wall/wall-transport", () => ({
+  createWallTransport: () => mockTransport,
+}));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
@@ -69,19 +78,14 @@ jest.mock("@expo/ui/swift-ui", () => {
   const { View } = jest.requireActual("react-native");
   return {
     ...jest.requireActual("@/__mocks__/@expo/ui/swift-ui"),
-    Slider: ({
-      modifiers,
-      ...props
-    }: ComponentProps<typeof import("@expo/ui/swift-ui").Slider>) => (
+    Slider: ({ modifiers, ...props }: ComponentProps<typeof import("@expo/ui/swift-ui").Slider>) => (
       <View
         {...props}
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel="Artwork size"
         accessibilityState={{
-          disabled: modifiers?.some(
-            (modifier) => modifier.$type === "disabled" && modifier.disabled,
-          ),
+          disabled: modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled),
         }}
       />
     ),
@@ -153,25 +157,32 @@ beforeEach(() => {
   switchOwner("account:a", "scope-a");
   mockTransport.getMine.mockResolvedValue(published);
   mockTransport.listMine.mockResolvedValue({
-    page: [{ localId: "save-b", snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" } }],
+    page: [
+      {
+        localId: "save-b",
+        snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" },
+      },
+    ],
     cursor: null,
     isDone: true,
   });
-  mockTransport.setLayout.mockImplementation(
-    async (input: Parameters<WallTransport["setLayout"]>[0]) => ({
-      ...published,
-      ...input,
-      revision: input.revision + 1,
-      items: input.items.map((item) => ({
-        ...published.items[0],
-        ...item,
-        artwork:
-          item.saveLocalId === "save-b"
-            ? { ...published.items[0].artwork, title: "Sunflowers", artist: "Vincent van Gogh" }
-            : published.items[0].artwork,
-      })),
-    }),
-  );
+  mockTransport.setLayout.mockImplementation(async (input: Parameters<WallTransport["setLayout"]>[0]) => ({
+    ...published,
+    ...input,
+    revision: input.revision + 1,
+    items: input.items.map((item) => ({
+      ...published.items[0],
+      ...item,
+      artwork:
+        item.saveLocalId === "save-b"
+          ? {
+              ...published.items[0].artwork,
+              title: "Sunflowers",
+              artist: "Vincent van Gogh",
+            }
+          : published.items[0].artwork,
+    })),
+  }));
 });
 
 async function openWall() {
@@ -189,7 +200,10 @@ it("gives guests a sign-in action without requesting or publishing a wall", asyn
   const onEditingChange = jest.fn();
   await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "wall" } });
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "wall" },
+  });
   await fireEvent.press(screen.getByRole("button", { name: "All artworks" }));
   expect(mockPush).toHaveBeenCalledWith("/all-artworks");
   expect(mockTransport.getMine).not.toHaveBeenCalled();
@@ -197,19 +211,31 @@ it("gives guests a sign-in action without requesting or publishing a wall", asyn
 });
 
 it("chooses the photo before adding a second public placement and publishes on confirmation", async () => {
-  const imageSize = jest
-    .spyOn(Image, "getSize")
-    .mockImplementation(async () => ({ width: 640, height: 480 }));
+  const imageSize = jest.spyOn(Image, "getSize").mockImplementation(async () => ({ width: 640, height: 480 }));
   mockTransport.getMine.mockResolvedValue({
     ...published,
-    items: published.items.map((item) => ({ ...item, layout: { ...item.layout, frame: "black" } })),
+    items: published.items.map((item) => ({
+      ...item,
+      layout: { ...item.layout, frame: "black" },
+    })),
   });
   await insertSavedWork(
-    { localId: "save-a", savedAt: 1, title: "The Milkmaid", artist: "Johannes Vermeer" },
+    {
+      localId: "save-a",
+      savedAt: 1,
+      title: "The Milkmaid",
+      artist: "Johannes Vermeer",
+    },
     "account:a",
   );
   addArtworkPhoto(
-    { localId: "wall-full", savedLocalId: "save-a", capturedAt: 1, kind: "full", path: "full.jpg" },
+    {
+      localId: "wall-full",
+      savedLocalId: "save-a",
+      capturedAt: 1,
+      kind: "full",
+      path: "full.jpg",
+    },
     "account:a",
   );
   addArtworkPhoto(
@@ -227,9 +253,7 @@ it("chooses the photo before adding a second public placement and publishes on c
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
   await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
   await fireEvent.press(screen.getByRole("button", { name: "Hang another photo" }));
-  expect(
-    screen.getByText(/This selected image will be visible on your public wall/),
-  ).toBeOnTheScreen();
+  expect(screen.getByText(/This selected image will be visible on your public wall/)).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Hang selected photo" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "Use detail photo 2 on wall" }));
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
@@ -304,7 +328,11 @@ it("keeps the wall mounted and the artwork hidden when its Undo window expires",
   jest.useFakeTimers();
   try {
     await act(() =>
-      scheduleRemoval({ owner: "account:a", localId: saveLocalId, title: "The Milkmaid" }),
+      scheduleRemoval({
+        owner: "account:a",
+        localId: saveLocalId,
+        title: "The Milkmaid",
+      }),
     );
     expect(screen.queryByRole("button", { name: "The Milkmaid" })).toBeNull();
     await act(() => jest.advanceTimersByTime(6000));
@@ -323,10 +351,7 @@ it("does not republish deleted artworks from an older wall response", async () =
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "Burgundy wall" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
-  expect(mockTransport.setLayout).toHaveBeenCalledWith(
-    expect.objectContaining({ items: [] }),
-    expect.anything(),
-  );
+  expect(mockTransport.setLayout).toHaveBeenCalledWith(expect.objectContaining({ items: [] }), expect.anything());
 });
 
 it("normalizes placement layers while saving with an artwork hidden for deletion", async () => {
@@ -346,7 +371,12 @@ it("reloads the synced collection each time editing begins", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
   mockTransport.listMine.mockResolvedValue({
-    page: [{ localId: "save-c", snapshot: { title: "Irises", artist: "Vincent van Gogh" } }],
+    page: [
+      {
+        localId: "save-c",
+        snapshot: { title: "Irises", artist: "Vincent van Gogh" },
+      },
+    ],
     cursor: null,
     isDone: true,
   });
@@ -401,9 +431,7 @@ it("retains a failed edit until an explicit retry saves it", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Retry saving" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(2);
-  expect(mockTransport.setLayout.mock.calls[1][0]).toEqual(
-    mockTransport.setLayout.mock.calls[0][0],
-  );
+  expect(mockTransport.setLayout.mock.calls[1][0]).toEqual(mockTransport.setLayout.mock.calls[0][0]);
   expect(screen.queryByRole("alert")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(await screen.findByRole("button", { name: "Edit wall" })).toBeOnTheScreen();
@@ -465,7 +493,10 @@ it("keeps editor controls visible and locked during a save", async () => {
     resolveSave({
       ...published,
       revision: 4,
-      items: published.items.map((item) => ({ ...item, layout: { ...item.layout, x: 0.125 } })),
+      items: published.items.map((item) => ({
+        ...item,
+        layout: { ...item.layout, x: 0.125 },
+      })),
     }),
   );
   expect(screen.getByRole("button", { name: "Right" })).toBeEnabled();
@@ -512,7 +543,11 @@ it("saves the final size only after a slider drag ends", async () => {
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(mockTransport.setLayout).toHaveBeenCalledWith(
     expect.objectContaining({
-      items: [expect.objectContaining({ layout: expect.objectContaining({ width: 0.6 }) })],
+      items: [
+        expect.objectContaining({
+          layout: expect.objectContaining({ width: 0.6 }),
+        }),
+      ],
     }),
     expect.anything(),
   );
@@ -527,7 +562,11 @@ it("saves an accessible slider adjustment without requiring a drag gesture", asy
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(mockTransport.setLayout).toHaveBeenCalledWith(
     expect.objectContaining({
-      items: [expect.objectContaining({ layout: expect.objectContaining({ width: 0.41 }) })],
+      items: [
+        expect.objectContaining({
+          layout: expect.objectContaining({ width: 0.41 }),
+        }),
+      ],
     }),
     expect.anything(),
   );
@@ -588,41 +627,42 @@ it("clears a rendered wall immediately when its owner changes", async () => {
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
 });
 
-it.each([false, true])(
-  "loads local draft artwork proportions, tolerating a missing photo (%s)",
-  async (missing) => {
-    const getSize = jest.spyOn(Image, "getSize").mockImplementation(async () => {
-      if (missing) throw new Error("File missing");
-      return { width: 600, height: 900 };
-    });
-    try {
-      const works = [
-        {
-          localId: "save-b",
-          cropPath: "crops/sunflowers.jpg",
-          title: "Sunflowers",
-          artist: "Vincent van Gogh",
-        },
-      ] as SavedWork[];
-      const { result } = await renderHook(() => useCollectionWall(works));
-      await waitFor(() => expect(result.current.loading).toBe(false));
-      await act(() => result.current.loadSelections());
-      await act(() =>
-        result.current.repository.setLayoutDraft({
-          color: "#CDD0CA",
-          items: [
-            { placementId: "save-b", saveLocalId: "save-b", layout: published.items[0].layout },
-          ],
-        }),
-      );
-      expect(result.current.pieces[0].artwork.title).toBe("Sunflowers");
-      expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900);
-      expect(mockTransport.setLayout).not.toHaveBeenCalled();
-    } finally {
-      getSize.mockRestore();
-    }
-  },
-);
+it.each([false, true])("loads local draft artwork proportions, tolerating a missing photo (%s)", async (missing) => {
+  const getSize = jest.spyOn(Image, "getSize").mockImplementation(async () => {
+    if (missing) throw new Error("File missing");
+    return { width: 600, height: 900 };
+  });
+  try {
+    const works = [
+      {
+        localId: "save-b",
+        cropPath: "crops/sunflowers.jpg",
+        title: "Sunflowers",
+        artist: "Vincent van Gogh",
+      },
+    ] as SavedWork[];
+    const { result } = await renderHook(() => useCollectionWall(works));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.loadSelections());
+    await act(() =>
+      result.current.repository.setLayoutDraft({
+        color: "#CDD0CA",
+        items: [
+          {
+            placementId: "save-b",
+            saveLocalId: "save-b",
+            layout: published.items[0].layout,
+          },
+        ],
+      }),
+    );
+    expect(result.current.pieces[0].artwork.title).toBe("Sunflowers");
+    expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900);
+    expect(mockTransport.setLayout).not.toHaveBeenCalled();
+  } finally {
+    getSize.mockRestore();
+  }
+});
 
 it("opens the selected wall photo in the private artwork album", async () => {
   mockTransport.getMine.mockResolvedValue({
@@ -647,13 +687,9 @@ it("scrolls a newly hung artwork into view", async () => {
     await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
     await fireEvent.press(await screen.findByRole("button", { name: "Hang Sunflowers" }));
     await waitFor(() =>
-      expect(scrollTo).toHaveBeenCalledWith(
-        expect.objectContaining({ animated: false, y: expect.any(Number) }),
-      ),
+      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ animated: false, y: expect.any(Number) })),
     );
-    const call = scrollTo.mock.calls.find(
-      ([options]) => typeof options === "object" && options && "y" in options,
-    );
+    const call = scrollTo.mock.calls.find(([options]) => typeof options === "object" && options && "y" in options);
     expect((call?.[0] as { y: number } | undefined)?.y).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Sunflowers" })).toBeOnTheScreen();
   } finally {
@@ -664,8 +700,14 @@ it("scrolls a newly hung artwork into view", async () => {
 it("keeps the horizontal artwork selector available after selecting and hanging art", async () => {
   mockTransport.listMine.mockResolvedValue({
     page: [
-      { localId: "save-a", snapshot: { title: "The Milkmaid", artist: "Johannes Vermeer" } },
-      { localId: "save-b", snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" } },
+      {
+        localId: "save-a",
+        snapshot: { title: "The Milkmaid", artist: "Johannes Vermeer" },
+      },
+      {
+        localId: "save-b",
+        snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" },
+      },
     ],
     cursor: null,
     isDone: true,
@@ -716,7 +758,9 @@ it("opens the editor from an empty wall when saved art is available", async () =
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
   expect(screen.getByRole("header", { name: "Edit wall" })).toBeOnTheScreen();
   expect(mockTransport.setLayout).toHaveBeenCalledWith(
-    expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: "save-b" })] }),
+    expect.objectContaining({
+      items: [expect.objectContaining({ saveLocalId: "save-b" })],
+    }),
     expect.anything(),
   );
 });

@@ -10,7 +10,9 @@ let mockWorks: { localId: string }[] = [];
 
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
-jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => "device:test",
+}));
 jest.mock("@/lib/journal/use-visit-works", () => ({
   useVisitWorks: (visitLocalId?: string) => ({
     works: visitLocalId ? mockWorks : [],
@@ -33,11 +35,7 @@ const visit = {
   timeZone: "America/Los_Angeles",
 };
 
-function view(
-  status: VenueView["status"],
-  venue?: VenueView["venue"],
-  current?: VenueView["visit"],
-): VenueView {
+function view(status: VenueView["status"], venue?: VenueView["venue"], current?: VenueView["visit"]): VenueView {
   return {
     status,
     venue,
@@ -80,17 +78,15 @@ it("shows the open visit with its artwork count", async () => {
   mockWorks = [{ localId: "a" }, { localId: "b" }, { localId: "c" }];
   await render(<VenuePill />);
   expect(
-    screen.getByRole("button", { name: "Legion of Honor, visiting now, 3 artworks" }),
+    screen.getByRole("button", {
+      name: "Legion of Honor, visiting now, 3 artworks",
+    }),
   ).toBeOnTheScreen();
   expect(screen.getByText("· 3")).toBeOnTheScreen();
 });
 
 it("does not count a visit paused away from the resolved venue", async () => {
-  mockView = view(
-    "resolved",
-    { ...legion, venueId: "id-other" as never, name: "de Young Museum" },
-    visit,
-  );
+  mockView = view("resolved", { ...legion, venueId: "id-other" as never, name: "de Young Museum" }, visit);
   mockWorks = [{ localId: "a" }];
   await render(<VenuePill />);
   expect(screen.getByRole("button", { name: "de Young Museum" })).toBeOnTheScreen();
@@ -117,12 +113,9 @@ it.each([
   ["none", "No museum nearby"],
   ["denied", "Location is off"],
   ["choose", "Which museum?"],
-] as [VenueView["status"], string][])(
-  "offers the picker when the status is %s",
-  async (status, label) => {
-    mockView = view(status);
-    await render(<VenuePill />);
-    await fireEvent.press(screen.getByRole("button", { name: label }));
-    expect(mockPush).toHaveBeenCalledWith("/venue-picker");
-  },
-);
+] as [VenueView["status"], string][])("offers the picker when the status is %s", async (status, label) => {
+  mockView = view(status);
+  await render(<VenuePill />);
+  await fireEvent.press(screen.getByRole("button", { name: label }));
+  expect(mockPush).toHaveBeenCalledWith("/venue-picker");
+});

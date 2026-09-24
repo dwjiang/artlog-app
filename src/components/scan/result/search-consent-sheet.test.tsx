@@ -3,7 +3,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 import { SearchConsentSheet } from "./search-consent-sheet";
 import { setMuseumSearchConsent } from "@/lib/settings/museum-search";
 
-jest.mock("@/lib/settings/museum-search", () => ({ setMuseumSearchConsent: jest.fn() }));
+jest.mock("@/lib/settings/museum-search", () => ({
+  setMuseumSearchConsent: jest.fn(),
+}));
 
 beforeEach(() => jest.resetAllMocks());
 
@@ -46,8 +48,6 @@ it("keeps the sheet open without uploading when persistence fails", async () => 
   const onGranted = jest.fn();
   await render(<SearchConsentSheet open onGranted={onGranted} onDismiss={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Search this museum" }));
-  await waitFor(() =>
-    expect(screen.getByText("Couldn't save your choice. Try again.")).toBeOnTheScreen(),
-  );
+  await waitFor(() => expect(screen.getByText("Couldn't save your choice. Try again.")).toBeOnTheScreen());
   expect(onGranted).not.toHaveBeenCalled();
 });

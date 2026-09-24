@@ -2,15 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { harness } from "../test.helpers";
 import { internal } from "../_generated/api";
-import {
-  assertUnderCap,
-  dailyCap,
-  reconcileSpend,
-  recordSpend,
-  reserveSpend,
-  spentToday,
-  utcDay,
-} from "./spend";
+import { assertUnderCap, dailyCap, reconcileSpend, recordSpend, reserveSpend, spentToday, utcDay } from "./spend";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -35,7 +27,11 @@ describe("daily spend", () => {
 
     const rows = await t.run((ctx) => ctx.db.query("dailySpend").collect());
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ day: utcDay(), tokenFactoryCalls: 5, tavilyCredits: 1 });
+    expect(rows[0]).toMatchObject({
+      day: utcDay(),
+      tokenFactoryCalls: 5,
+      tavilyCredits: 1,
+    });
     expect(await t.run((ctx) => spentToday(ctx, "tokenFactory"))).toBe(5);
   });
 
@@ -91,9 +87,7 @@ describe("daily spend", () => {
     vi.stubEnv("DAILY_TAVILY_CREDIT_CAP", "20");
     const t = harness();
     const results = await Promise.allSettled(
-      Array.from({ length: 5 }, () =>
-        t.mutation(internal.spend.reserve, { kind: "tavily", amount: 6 }),
-      ),
+      Array.from({ length: 5 }, () => t.mutation(internal.spend.reserve, { kind: "tavily", amount: 6 })),
     );
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
     expect(await t.run((ctx) => spentToday(ctx, "tavily"))).toBe(18);

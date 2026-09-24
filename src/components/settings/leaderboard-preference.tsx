@@ -8,15 +8,10 @@ import { PARTICIPATION_LABELS } from "../social/leaderboard-participation";
 
 export function LeaderboardPreference({ onManage }: { onManage: () => void }) {
   const session = useSocialSession();
-  const preference = useSocialQuery(
-    api.leaderboards.preference,
-    session.status === "ready" ? {} : "skip",
-    session.key,
-  );
+  const preference = useSocialQuery(api.leaderboards.preference, session.status === "ready" ? {} : "skip", session.key);
   const unavailable = session.offline || session.status === "error" || !!preference.error;
   const loading =
-    !unavailable &&
-    (session.status === "loading" || (session.status === "ready" && preference.data === undefined));
+    !unavailable && (session.status === "loading" || (session.status === "ready" && preference.data === undefined));
   const value =
     session.status === "signed-out"
       ? "Sign in"
@@ -31,8 +26,7 @@ export function LeaderboardPreference({ onManage }: { onManage: () => void }) {
     <GroupedSection
       footer={
         <GroupedFooter>
-          Rankings show your identity and activity totals only. Museum names, visit dates, and notes
-          stay private.
+          Rankings show your identity and activity totals only. Museum names, visit dates, and notes stay private.
         </GroupedFooter>
       }
     >
@@ -40,9 +34,7 @@ export function LeaderboardPreference({ onManage }: { onManage: () => void }) {
         label="Participation"
         value={value}
         loading={loading}
-        onPress={() =>
-          session.status === "signed-out" ? router.push(signInRoute("leaderboards")) : onManage()
-        }
+        onPress={() => (session.status === "signed-out" ? router.push(signInRoute("leaderboards")) : onManage())}
       />
     </GroupedSection>
   );

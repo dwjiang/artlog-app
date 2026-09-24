@@ -26,8 +26,7 @@ export function visitSummaries(
   for (const encounter of encounters) {
     if (encounter.owner !== owner || encounter.deletedAt !== null) continue;
     const work = works.find(
-      (row) =>
-        row.owner === owner && row.localId === encounter.savedLocalId && row.deletedAt === null,
+      (row) => row.owner === owner && row.localId === encounter.savedLocalId && row.deletedAt === null,
     );
     if (!work) continue;
     const group = byVisit.get(encounter.visitLocalId) ?? [];
@@ -40,11 +39,11 @@ export function visitSummaries(
       const venue = metadata.get(visit.venueId);
       const place = venue ? venueLocation(venue) : { location: "" };
       const coordinates =
-        venue &&
-        Number.isFinite(venue.lat) &&
-        Number.isFinite(venue.lng) &&
-        Math.abs(venue.lat) <= 90 &&
-        Math.abs(venue.lng) <= 180
+        venue
+        && Number.isFinite(venue.lat)
+        && Number.isFinite(venue.lng)
+        && Math.abs(venue.lat) <= 90
+        && Math.abs(venue.lng) <= 180
           ? { latitude: venue.lat, longitude: venue.lng }
           : undefined;
       return {
@@ -62,13 +61,14 @@ export function visitSummaries(
 
 export function searchVisitSummaries(visits: VisitSummary[], search: string): VisitSummary[] {
   const matches = new Set(filterVisits(visits, search).map((visit) => visit.localId));
-  return visits.filter(
-    (visit) => matches.has(visit.localId) || filterWorks(visit.works, search).length > 0,
-  );
+  return visits.filter((visit) => matches.has(visit.localId) || filterWorks(visit.works, search).length > 0);
 }
 
 export function visitCounts(visits: VisitSummary[]) {
-  return { museums: new Set(visits.map((visit) => visit.venueId)).size, visits: visits.length };
+  return {
+    museums: new Set(visits.map((visit) => visit.venueId)).size,
+    visits: visits.length,
+  };
 }
 
 export function mappedMuseums(visits: VisitSummary[]) {

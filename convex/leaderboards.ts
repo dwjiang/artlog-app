@@ -16,7 +16,10 @@ export const setPreference = mutation({
   returns: v.null(),
   handler: async (ctx, { visibility }) => {
     const { profile } = await requireProfile(ctx);
-    await ctx.db.patch(profile._id, { leaderboardVisibility: visibility, updatedAt: Date.now() });
+    await ctx.db.patch(profile._id, {
+      leaderboardVisibility: visibility,
+      updatedAt: Date.now(),
+    });
     return null;
   },
 });
@@ -31,14 +34,10 @@ export const list = query({
     rows: v.array(v.object({ profile: publicProfile, score: v.number(), rank: v.number() })),
   }),
   handler: async (ctx, args) => {
-    const viewer =
-      args.audience === "friends"
-        ? (await requireProfile(ctx)).profile
-        : await optionalProfile(ctx);
+    const viewer = args.audience === "friends" ? (await requireProfile(ctx)).profile : await optionalProfile(ctx);
     const visibility = viewer?.leaderboardVisibility ?? "off";
     const period = args.period === "all" ? "all" : new Date().toISOString().slice(0, 7);
-    const edges =
-      args.audience === "friends" && viewer ? await acceptedRelationships(ctx, viewer._id) : [];
+    const edges = args.audience === "friends" && viewer ? await acceptedRelationships(ctx, viewer._id) : [];
     // The global board reads at most the first 1000 opted-in profiles so it keeps answering as participation grows.
     const candidates =
       args.audience === "global"
@@ -61,18 +60,20 @@ export const list = query({
     const rows = [];
     for (const person of candidates) {
       if (
-        !person.active ||
-        person.removal ||
-        person.leaderboardVisibility === "off" ||
-        !(await ctx.db.get(person.accountId))
-      )
+        !person.active
+        || person.removal
+        || person.leaderboardVisibility === "off"
+        || !(await ctx.db.get(person.accountId))
+      ) {
         continue;
+      }
       if (
-        viewer &&
-        ((await findBlock(ctx, viewer._id, person._id))?.active ||
-          (await findBlock(ctx, person._id, viewer._id))?.active)
-      )
+        viewer
+        && ((await findBlock(ctx, viewer._id, person._id))?.active
+          || (await findBlock(ctx, person._id, viewer._id))?.active)
+      ) {
         continue;
+      }
       const score = await ctx.db
         .query("leaderboardScores")
         .withIndex("by_account_metric_period", (q) =>
@@ -88,7 +89,11 @@ export const list = query({
     }
     return {
       visibility,
-      rows: rankScores(rows).map(({ profile, score, rank }) => ({ profile, score, rank })),
+      rows: rankScores(rows).map(({ profile, score, rank }) => ({
+        profile,
+        score,
+        rank,
+      })),
     };
   },
 });

@@ -14,10 +14,7 @@ export function ListeningQueue() {
   const [editing, setEditing] = useState(false);
   if (!audio.current) return null;
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 12 }}
-    >
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 12 }}>
       <Text variant="metadata" style={{ color: Gallery.muted, marginVertical: 12 }}>
         {audio.playing ? "NOW PLAYING" : audio.waiting ? "READY WHEN YOU ARE" : "PAUSED"}
       </Text>
@@ -64,14 +61,23 @@ export function ListeningQueue() {
       {audio.queue.map((track, index) => (
         <View
           key={trackKey(track)}
-          style={{ paddingVertical: 12, borderBottomWidth: 0.5, borderColor: Gallery.softBorder }}
+          style={{
+            paddingVertical: 12,
+            borderBottomWidth: 0.5,
+            borderColor: Gallery.softBorder,
+          }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Play ${track.work.title}`}
               onPress={() => void audio.controller.play(track)}
-              style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              }}
             >
               <ArtworkThumbnail uri={track.work.imageUri} size={46} />
               <View style={{ flex: 1, gap: 3 }}>
@@ -125,7 +131,7 @@ export function ListeningQueue() {
 export function QueueOptions({ onAdd }: { onAdd: () => void }) {
   const audio = useListening();
   const { height, fontScale } = useWindowDimensions();
-  if (height < 720 && fontScale <= 1.4)
+  if (height < 720 && fontScale <= 1.4) {
     return (
       <View
         style={{
@@ -159,24 +165,24 @@ export function QueueOptions({ onAdd }: { onAdd: () => void }) {
             modifiers={[
               font({ textStyle: "caption" }),
               accessibilityHint(
-                audio.pauseBetween
-                  ? "Tap Play when you reach the next work."
-                  : "Play the next work automatically.",
+                audio.pauseBetween ? "Tap Play when you reach the next work." : "Play the next work automatically.",
               ),
             ]}
           />
         </Host>
       </View>
     );
+  }
   return (
-    <View style={{ paddingHorizontal: 24, borderTopWidth: 0.5, borderColor: Gallery.softBorder }}>
+    <View
+      style={{
+        paddingHorizontal: 24,
+        borderTopWidth: 0.5,
+        borderColor: Gallery.softBorder,
+      }}
+    >
       <GalleryButton label="Add saved works" icon="plus" onPress={onAdd} />
-      <Host
-        matchContents={{ vertical: true }}
-        colorScheme="light"
-        seedColor={Gallery.accent}
-        ignoreSafeArea="all"
-      >
+      <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent} ignoreSafeArea="all">
         <Switch
           label="Pause between artworks"
           value={audio.pauseBetween}
@@ -184,9 +190,7 @@ export function QueueOptions({ onAdd }: { onAdd: () => void }) {
         />
       </Host>
       <Text variant="metadata" themeColor="textSecondary" style={{ paddingBottom: 8 }}>
-        {audio.pauseBetween
-          ? "Tap Play when you reach the next work."
-          : "Play the next work automatically."}
+        {audio.pauseBetween ? "Tap Play when you reach the next work." : "Play the next work automatically."}
       </Text>
     </View>
   );

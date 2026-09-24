@@ -40,11 +40,7 @@ export function SaveAnywayForm({
   const editable = !saving && !savedId;
   const saveBar = (
     <SaveBar
-      saveLabel={
-        Object.values(draft).some((value) => value.trim())
-          ? "Save to collection"
-          : "Save photo for later"
-      }
+      saveLabel={Object.values(draft).some((value) => value.trim()) ? "Save to collection" : "Save photo for later"}
       canSave={canSave(draft)}
       saving={saving}
       savedId={savedId}
@@ -58,10 +54,7 @@ export function SaveAnywayForm({
       {!editing && saveBar}
       {editable && compact && (
         <Host matchContents colorScheme="light">
-          <Menu
-            label="More options"
-            modifiers={[accessibilityLabel("More scan options"), buttonStyle("plain")]}
-          >
+          <Menu label="More options" modifiers={[accessibilityLabel("More scan options"), buttonStyle("plain")]}>
             <Button
               label={editing ? "Hide details" : "Add details (optional)"}
               modifiers={[disabled(!editable)]}

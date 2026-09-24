@@ -66,18 +66,11 @@ export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {
 // Similarity alone never selects a work; the homography must hold as well.
 export function imageCheckPasses(check: ImageCheck): boolean {
   return (
-    Number.isFinite(check.cosine) &&
-    check.cosine >= IMAGE_MATCH_COSINE &&
-    check.cosine <= 1 &&
-    check.homographyValid
+    Number.isFinite(check.cosine) && check.cosine >= IMAGE_MATCH_COSINE && check.cosine <= 1 && check.homographyValid
   );
 }
 
-export function labelField(
-  value: string,
-  evidence: LabelEvidence,
-  confidence?: number,
-): LabelField {
+export function labelField(value: string, evidence: LabelEvidence, confidence?: number): LabelField {
   return {
     value,
     evidence,
@@ -115,8 +108,9 @@ export async function verifyAccession(
   hosts: string[],
   input: LabelInput,
 ): Promise<AccessionEvidence | null> {
-  if (!venue.accessionUrlPattern || !input.accession || (!input.title && !input.artist))
+  if (!venue.accessionUrlPattern || !input.accession || (!input.title && !input.artist)) {
     return null;
+  }
   let page;
   try {
     page = await fetchVenuePage(
@@ -129,38 +123,31 @@ export async function verifyAccession(
     return null;
   }
   const extracted = extractPage(page.html);
-  if (
-    extracted.fields.accession &&
-    normalizeText(extracted.fields.accession) !== normalizeText(input.accession)
-  )
+  if (extracted.fields.accession && normalizeText(extracted.fields.accession) !== normalizeText(input.accession)) {
     return null;
+  }
   const title = input.title;
   const titleOk =
-    title !== undefined &&
-    titleQualifiersMatch(title, extracted.fields.title ?? "") &&
-    jaccard(title, extracted.fields.title ?? "") >= TITLE_MATCH_THRESHOLD;
+    title !== undefined
+    && titleQualifiersMatch(title, extracted.fields.title ?? "")
+    && jaccard(title, extracted.fields.title ?? "") >= TITLE_MATCH_THRESHOLD;
   const artistOk =
-    input.artist !== undefined &&
-    extracted.fields.artist !== undefined &&
-    personMatches(input.artist, extracted.fields.artist);
+    input.artist !== undefined
+    && extracted.fields.artist !== undefined
+    && personMatches(input.artist, extracted.fields.artist);
   if (!(titleOk || (title === undefined && artistOk))) return null;
   return { sourceUrl: page.url, fields: extracted.fields };
 }
 
 export type WikidataPair = { paintingId: string; artist: WikidataEntity };
 
-export async function findWikidataPainting(
-  title: string,
-  artist: string,
-): Promise<WikidataPair | null> {
+export async function findWikidataPainting(title: string, artist: string): Promise<WikidataPair | null> {
   const hits = await searchEntities(title);
   if (!hits.length) return null;
   const entities = await getEntities(hits.map((hit) => hit.id));
   const paintings = hits.flatMap((hit) => {
     const entity = entities[hit.id];
-    return entity && isPainting(entity) && titleMatches(title, entityLabel(entity) ?? "")
-      ? [entity]
-      : [];
+    return entity && isPainting(entity) && titleMatches(title, entityLabel(entity) ?? "") ? [entity] : [];
   });
   const creatorIds = paintings.flatMap(creators);
   if (!creatorIds.length) return null;
@@ -169,8 +156,9 @@ export async function findWikidataPainting(
     for (const id of creators(painting)) {
       const creator = creatorEntities[id];
       const name = creator ? entityLabel(creator) : undefined;
-      if (creator && name && isArtist(creator) && personMatches(artist, name))
+      if (creator && name && isArtist(creator) && personMatches(artist, name)) {
         return { paintingId: painting.id, artist: creator };
+      }
     }
   }
   return null;
@@ -182,7 +170,9 @@ export async function findArtist(name: string): Promise<WikidataEntity | null> {
   const entities = await getEntities(hits.map((hit) => hit.id));
   for (const hit of hits) {
     const entity = entities[hit.id];
-    if (entity && isArtist(entity) && personMatches(name, entityLabel(entity) ?? "")) return entity;
+    if (entity && isArtist(entity) && personMatches(name, entityLabel(entity) ?? "")) {
+      return entity;
+    }
   }
   return null;
 }
@@ -226,9 +216,7 @@ function artworkImageUrls(images: string[], pageUrl: string, hosts: string[]): s
     } catch {
       return [];
     }
-    return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname)
-      ? [url.href]
-      : [];
+    return url && !TRACKING.test(url.pathname + url.search) && !/\.svg$/i.test(url.pathname) ? [url.href] : [];
   });
   return [...new Set(urls)].slice(0, MAX_IMAGE_URLS);
 }
@@ -249,16 +237,13 @@ export async function selectTavilyEvidence(
         return [];
       }
       if (url.protocol !== "https:" || !hostAllowed(url, hosts)) return [];
-      const content = result.content.split(
-        /\b(?:related|more)\s+(?:artworks?|works?|objects?)\b/i,
-      )[0];
+      const content = result.content.split(/\b(?:related|more)\s+(?:artworks?|works?|objects?)\b/i)[0];
       const haystack = `${result.title}\n${content}`;
       const titleInTitle = titleMatches(pair.title, result.title);
       if (!titleInTitle && !mentions(content, pair.title)) return [];
       if (!artistMentioned(haystack, pair.artist)) return [];
       if (!titleQualifiersMatch(pair.title, result.title)) return [];
-      const accessionHit =
-        pair.accession !== undefined && mentions(`${result.url} ${haystack}`, pair.accession);
+      const accessionHit = pair.accession !== undefined && mentions(`${result.url} ${haystack}`, pair.accession);
       const canonical = OBJECT_PATH.test(url.pathname) && !NON_OBJECT.test(url.host + url.pathname);
       const key = [
         Number(accessionHit),
@@ -278,16 +263,15 @@ export async function selectTavilyEvidence(
       const extracted = extractPage(page.html);
       const { title, artist, accession } = extracted.fields;
       if (
-        (title &&
-          (!titleQualifiersMatch(pair.title, title) ||
-            jaccard(pair.title, title) < TITLE_MATCH_THRESHOLD)) ||
-        (artist && !personMatches(pair.artist, artist)) ||
-        (pair.accession && accession && normalizeText(pair.accession) !== normalizeText(accession))
+        (title && (!titleQualifiersMatch(pair.title, title) || jaccard(pair.title, title) < TITLE_MATCH_THRESHOLD))
+        || (artist && !personMatches(pair.artist, artist))
+        || (pair.accession && accession && normalizeText(pair.accession) !== normalizeText(accession))
       ) {
         continue;
       }
-      if (hasArtworkMetadata(extracted))
+      if (hasArtworkMetadata(extracted)) {
         evidence.imageUrls = artworkImageUrls(extracted.imageUrls, page.url, hosts);
+      }
     } catch (error) {
       await reportBackendError(error, "label.imageMetadata");
       console.warn("Artwork image metadata unavailable; keeping text evidence only", error);

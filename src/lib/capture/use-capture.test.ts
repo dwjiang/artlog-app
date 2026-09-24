@@ -14,8 +14,13 @@ import type {
 } from "./stages";
 
 const mockVisit = jest.fn();
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
-jest.mock("@/db/repos/visits", () => ({ getVisit: (...args: unknown[]) => mockVisit(...args) }));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
+jest.mock("@/db/repos/visits", () => ({
+  getVisit: (...args: unknown[]) => mockVisit(...args),
+}));
 const mockIdentify = jest.fn();
 const mockPush = jest.fn();
 const mockPipeline = jest.fn();
@@ -48,7 +53,9 @@ jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(),
   launchImageLibraryAsync: (...args: unknown[]) => mockPicker(...args),
 }));
-jest.mock("./pipeline", () => ({ runCapture: (...args: unknown[]) => mockPipeline(...args) }));
+jest.mock("./pipeline", () => ({
+  runCapture: (...args: unknown[]) => mockPipeline(...args),
+}));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueIdAt: (...args: unknown[]) => mockVenueIdAt(...args),
 }));
@@ -80,8 +87,16 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockReachable = true;
   mockWarning.mockResolvedValue(undefined);
-  mockPermission.mockResolvedValue({ granted: false, status: "denied", canAskAgain: false });
-  mockImageLoad.mockResolvedValue({ width: 512, height: 512, release: mockRelease });
+  mockPermission.mockResolvedValue({
+    granted: false,
+    status: "denied",
+    canAskAgain: false,
+  });
+  mockImageLoad.mockResolvedValue({
+    width: 512,
+    height: 512,
+    release: mockRelease,
+  });
   mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
     await deps.onPrepared?.(painting);
     return { kind: "sent", scanId: "scan-id", timings: { total: 12 } };
@@ -118,7 +133,10 @@ it.each([
     visitLocalId: "local-visit",
   } as CapturePayload;
   await deps.identify(payload);
-  expect(mockIdentify).toHaveBeenCalledWith({ localId: "capture-uuid", scope: "test-scope" });
+  expect(mockIdentify).toHaveBeenCalledWith({
+    localId: "capture-uuid",
+    scope: "test-scope",
+  });
 });
 
 it("shows retake guidance without navigating", async () => {
@@ -142,7 +160,12 @@ it("shows retake guidance without navigating", async () => {
 it("imports despite denied library access without requesting permission and preserves EXIF capture time", async () => {
   mockPicker.mockResolvedValue({
     canceled: false,
-    assets: [{ uri: "file:///library.jpg", exif: { DateTimeOriginal: "2020:01:02 03:04:05" } }],
+    assets: [
+      {
+        uri: "file:///library.jpg",
+        exif: { DateTimeOriginal: "2020:01:02 03:04:05" },
+      },
+    ],
   });
   const hook = await renderHook(useCapture);
   expect(mockPermission).not.toHaveBeenCalled();
@@ -150,7 +173,11 @@ it("imports despite denied library access without requesting permission and pres
     await hook.result.current.importPhoto();
   });
   expect(mockPermission).not.toHaveBeenCalled();
-  expect(mockPicker).toHaveBeenCalledWith({ mediaTypes: ["images"], exif: true, quality: 1 });
+  expect(mockPicker).toHaveBeenCalledWith({
+    mediaTypes: ["images"],
+    exif: true,
+    quality: 1,
+  });
   expect(mockPipeline.mock.calls[0][0]).toEqual({
     photoUri: "file:///library.jpg",
     quad: null,
@@ -210,7 +237,10 @@ it("names the venue of an imported photo from its EXIF position without starting
     await hook.result.current.importPhoto();
   });
   expect(mockVenueIdAt).toHaveBeenCalledWith({ lat: 40.7794, lng: -73.9633 });
-  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ source: "library", venueId: "museum-met" });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+    source: "library",
+    venueId: "museum-met",
+  });
   expect(mockPipeline.mock.calls[0][0]).not.toHaveProperty("visitId");
 });
 
@@ -225,7 +255,10 @@ it("imports without a venue when the local table cannot be read", async () => {
   await act(async () => {
     await hook.result.current.importPhoto();
   });
-  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ source: "library", venueId: undefined });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+    source: "library",
+    venueId: undefined,
+  });
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
@@ -257,7 +290,10 @@ it("shows picker errors and releases the capture for another import", async () =
   });
   expect(mockPipeline).not.toHaveBeenCalled();
   expect(mockPush).not.toHaveBeenCalled();
-  mockPicker.mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///library.jpg" }] });
+  mockPicker.mockResolvedValueOnce({
+    canceled: false,
+    assets: [{ uri: "file:///library.jpg" }],
+  });
   await act(async () => {
     await hook.result.current.importPhoto();
   });
@@ -354,7 +390,9 @@ it("publishes the captured photo before venue lookup finishes", async () => {
   const hook = await renderHook(useCapture);
   let pending!: Promise<void>;
   await act(async () => {
-    pending = hook.result.current.captureManually(async () => ({ filePath: "/photo.jpg" }));
+    pending = hook.result.current.captureManually(async () => ({
+      filePath: "/photo.jpg",
+    }));
   });
   expect(hook.result.current.presentation?.photoUri).toBe("file:///photo.jpg");
   expect(mockPipeline).not.toHaveBeenCalled();
@@ -415,7 +453,10 @@ it("retains a failed import when choosing another photo is canceled, and support
     timings: { total: 1 },
   });
   mockPicker
-    .mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///selected.jpg" }] })
+    .mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: "file:///selected.jpg" }],
+    })
     .mockResolvedValueOnce({ canceled: true });
   const hook = await renderHook(useCapture);
   await act(async () => {
@@ -438,10 +479,9 @@ it("retains a failed import when choosing another photo is canceled, and support
 });
 
 it("defers navigation while backgrounded and resumes exactly once on return", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
@@ -454,10 +494,9 @@ it("defers navigation while backgrounded and resumes exactly once on return", as
 });
 
 it("drops presentation and old completion callbacks when a different screen takes focus", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
@@ -488,7 +527,12 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
   let resolve!: (venueId: string) => void;
   mockPicker.mockResolvedValue({
     canceled: false,
-    assets: [{ uri: "file:///selected.jpg", exif: { GPSLatitude: 1, GPSLongitude: 2 } }],
+    assets: [
+      {
+        uri: "file:///selected.jpg",
+        exif: { GPSLatitude: 1, GPSLongitude: 2 },
+      },
+    ],
   });
   mockVenueIdAt.mockReturnValue(
     new Promise((done) => {
@@ -509,10 +553,9 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
 });
 
 it("keeps the artwork visible through the native result fade and releases it at transition end", async () => {
-  const hook = await renderHook(
-    (props: { active: boolean; focused: boolean }) => useCapture(props),
-    { initialProps: { active: true, focused: true } },
-  );
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
@@ -528,9 +571,7 @@ it("keeps the artwork visible through the native result fade and releases it at 
 });
 
 it("captures automatically with the detected corners and announces it", async () => {
-  const announce = jest
-    .spyOn(AccessibilityInfo, "announceForAccessibility")
-    .mockImplementation(() => {});
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   const quad: Quad = [
     [0.1, 0.2],
     [0.9, 0.2],
@@ -589,11 +630,18 @@ it.each(["camera", "library"] as const)(
       visitLocalId: "another-visit",
       venueId: "another-museum",
     });
-    mockPicker.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///library.jpg" }] });
+    mockPicker.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///library.jpg" }],
+    });
     const hook = await renderHook(() => useCapture({ visitLocalId: "chosen-visit" }));
     await act(async () => {
       if (source === "library") await hook.result.current.importPhoto();
-      else await hook.result.current.captureManually(async () => ({ filePath: "/photo.jpg" }));
+      else {
+        await hook.result.current.captureManually(async () => ({
+          filePath: "/photo.jpg",
+        }));
+      }
     });
     expect(mockPipeline.mock.calls[0][0]).toMatchObject({
       visitLocalId: "chosen-visit",
@@ -609,9 +657,7 @@ it("reports an unavailable visit before taking the photo instead of assigning th
   mockVisit.mockResolvedValue(undefined);
   const onVisitUnavailable = jest.fn(),
     takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
-  const hook = await renderHook(() =>
-    useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }),
-  );
+  const hook = await renderHook(() => useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }));
   await act(async () => {
     await hook.result.current.captureManually(takePhoto);
   });

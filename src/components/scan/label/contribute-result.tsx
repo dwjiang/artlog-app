@@ -11,8 +11,9 @@ export const CONTRIBUTION_MESSAGES = {
 } as const;
 
 export function contributionMessage(result: ContributionOutcome): string {
-  if (result.status === "rejected")
+  if (result.status === "rejected") {
     return CONTRIBUTION_MESSAGES[result.reason === "duplicate" ? "duplicate" : "rejected"];
+  }
   return CONTRIBUTION_MESSAGES[result.status];
 }
 
@@ -20,11 +21,7 @@ export function ContributeResult({ result }: { result: ContributionOutcome }) {
   const rejected = result.status === "rejected" && result.reason !== "duplicate";
   const color = rejected ? Gallery.destructive : Colors.light.warning;
   return (
-    <View
-      style={[styles.note, { borderLeftColor: color }]}
-      accessibilityRole="text"
-      accessibilityLiveRegion="polite"
-    >
+    <View style={[styles.note, { borderLeftColor: color }]} accessibilityRole="text" accessibilityLiveRegion="polite">
       <ThemedText type="smallBold" style={{ color }}>
         {rejected
           ? "Contribution not accepted"
