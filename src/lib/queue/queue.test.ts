@@ -108,6 +108,12 @@ const payload: CapturePayload = {
   capturedAt: 123,
   photoUri: "file:///tmp/photo.jpg",
   cropUri: "file:///caches/crops/x.jpg",
+  cropCorners: [
+    [0.1, 0.2],
+    [0.9, 0.2],
+    [0.9, 0.8],
+    [0.1, 0.8],
+  ],
 };
 
 beforeEach(() => {
@@ -129,7 +135,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it("persists both files before inserting the row with the requested status", async () => {
+it("persists both files before inserting the row with its crop corners and the requested status", async () => {
   await captureStore.enqueue(payload, "identifying");
   expect(mockPersist).toHaveBeenCalledWith({
     localId: "cap-1",
@@ -142,6 +148,7 @@ it("persists both files before inserting the row with the requested status", asy
       localId: "cap-1",
       photoPath: "photos/cap-1.jpg",
       cropPath: "crops/cap-1.jpg",
+      cropCorners: payload.cropCorners,
       vector: [0.5],
       descriptors: payload.descriptors,
       keypoints: payload.keypoints,

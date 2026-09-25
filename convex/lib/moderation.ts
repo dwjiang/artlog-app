@@ -20,25 +20,11 @@ const PII_PATTERNS = [
   /\b\d{3}-\d{2}-\d{4}\b/,
 ];
 
-const BASELINE_BLOCKLIST = [
-  "nigger",
-  "niggers",
-  "nigga",
-  "niggas",
-  "faggot",
-  "faggots",
-  "wetback",
-  "wetbacks",
-  "raghead",
-  "ragheads",
-];
-
 export function blocklistTerms(): string[] {
-  const extra = (env.MODERATION_BLOCKLIST ?? "")
+  return (env.MODERATION_BLOCKLIST ?? "")
     .split(",")
     .map((term) => term.trim())
     .filter(Boolean);
-  return [...BASELINE_BLOCKLIST, ...extra];
 }
 
 export function blocklistFlags(text: string): boolean {

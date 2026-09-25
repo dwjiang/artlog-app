@@ -100,11 +100,7 @@ export function VisitPlaceScreen() {
                   path={visit.works[0].cropPath}
                   title={visit.works[0].title}
                   contain
-                  style={{
-                    width: "100%",
-                    height: 220,
-                    backgroundColor: Gallery.fill,
-                  }}
+                  style={{ width: "100%", height: 220 }}
                 />
               )}
             </Pressable>
@@ -134,7 +130,6 @@ export function VisitGlobeScreen() {
 }
 function ExpandedGlobe() {
   const [mode, setMode] = useState<"globe" | "list">("globe");
-  const { venueId } = useLocalSearchParams<{ venueId?: string }>();
   const { visits, loading, error } = useVisits();
   const counts = visitCounts(visits);
   const citiesKnown = visits.every((visit) => !!visit.city);
@@ -168,7 +163,7 @@ function ExpandedGlobe() {
               />
             </View>
             {mode === "globe" ? (
-              <VisitGlobe visits={visits} expanded initialVenueId={venueId} onList={() => setMode("list")} />
+              <VisitGlobe visits={visits} expanded onList={() => setMode("list")} />
             ) : (
               visits.map((visit) => <VisitRow key={visit.localId} visit={visit} />)
             )}

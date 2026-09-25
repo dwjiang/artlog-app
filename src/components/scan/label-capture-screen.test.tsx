@@ -170,6 +170,7 @@ const capture = {
   localId: "cap-1",
   photoPath: "photos/c1.jpg",
   cropPath: "crops/c1.jpg",
+  cropCorners: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(4),
   keypoints: new ArrayBuffer(4),
@@ -725,27 +726,15 @@ it("waits for persisted edits and offers a retry if they cannot be loaded", asyn
   expect(await screen.findByRole("button", { name: "Confirm & save" })).toBeEnabled();
 });
 
-it("opens the camera for an explicit capture intent despite a stored museum confirmation", async () => {
-  mockScan = { labelFlow: verified };
-  await start({ intent: "capture" });
-  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Read label" })).toBeEnabled();
-  expect(screen.queryByText("Review artwork details")).toBeNull();
-  const flow = deferFlow();
-  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  await flow.finish(verified);
-  expect(screen.getByText("Review artwork details")).toBeOnTheScreen();
-});
-
 it("resumes a pending label before starting another capture", async () => {
   mockScan = { labelFlow: verified };
   mockCapture = { ...capture, labelPhotoPath: "labels/pending.jpg" };
-  const view = await start({ intent: "capture" });
+  const view = await start();
   expect(screen.getByText(QUEUED_ONLINE_MESSAGE)).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Import a label photo" })).toBeNull();
   mockCapture = capture;
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
-  await view.rerender(<LabelCaptureScreen scanId={scanId} intent="capture" />);
+  await view.rerender(<LabelCaptureScreen scanId={scanId} />);
   expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
 });
 

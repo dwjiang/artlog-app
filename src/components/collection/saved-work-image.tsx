@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Gallery.fill,
     borderRadius: 2,
   },
   placeholder: {
@@ -134,5 +133,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: Spacing.two,
     padding: Spacing.two,
+    backgroundColor: Gallery.fill,
   },
 });

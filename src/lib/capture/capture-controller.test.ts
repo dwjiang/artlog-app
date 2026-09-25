@@ -9,6 +9,12 @@ const painting: Quad = [
   [0.85, 0.75],
   [0.15, 0.75],
 ];
+const small: Quad = [
+  [0.35, 0.35],
+  [0.65, 0.35],
+  [0.65, 0.65],
+  [0.35, 0.65],
+];
 const shifted = (dx: number, dy = 0) => painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
 function observe(controller: CaptureController, now: number, quads: Quad[] = [painting], preview: FrameSize = frame) {
   return controller.observe(
@@ -77,29 +83,64 @@ it("publishes preview-aligned corners and hold progress without rerendering the 
   expect(controller.getFeedback()).toEqual({
     quad: previewQuad(painting, frame, preview),
     progress: 0.5,
+    guidance: "hold-still",
   });
   expect(feedbackChanged).toHaveBeenCalled();
   expect(stateChanged).not.toHaveBeenCalled();
   observe(controller, 500, []);
-  expect(controller.getFeedback()).toBeNull();
+  expect(controller.getFeedback()?.progress).toBe(0.5);
   observe(controller, 600);
+  expect(controller.getFeedback()?.progress).toBe(0.75);
+  observe(controller, 1000, []);
+  expect(controller.getFeedback()).toBeNull();
+  observe(controller, 1100);
   expect(controller.getFeedback()?.progress).toBe(0);
   controller.resetDetection();
   expect(controller.getFeedback()).toBeNull();
 });
 
-it("shows a visible but small painting without advancing capture progress", () => {
+it("rides through a dropped or misplaced detection shorter than the grace period", () => {
+  const dropped = new CaptureController();
+  for (let now = 0; now < 800; now += 100) {
+    expect(observe(dropped, now, now === 400 ? [] : [painting])).toBeUndefined();
+  }
+  expect(observe(dropped, 800)).toMatchObject({ quad: painting });
+  const misplaced = new CaptureController();
+  for (let now = 0; now < 800; now += 100) {
+    expect(observe(misplaced, now, now === 400 ? [shifted(0.14)] : [painting])).toBeUndefined();
+  }
+  expect(observe(misplaced, 800)).toMatchObject({ quad: painting });
+});
+
+it("shows a visible but small painting with the framing hint and no capture progress", () => {
   const controller = new CaptureController();
-  const small: Quad = [
-    [0.3, 0.3],
-    [0.7, 0.3],
-    [0.7, 0.7],
-    [0.3, 0.7],
-  ];
   expect(hold(controller, 0, [small])).toBeUndefined();
   expect(controller.getFeedback()).toEqual({
     quad: previewQuad(small, frame, frame),
     progress: 0,
+    guidance: "move-closer",
+  });
+});
+
+it("keeps the framing hint through a dropped detection shorter than the grace period", () => {
+  const controller = new CaptureController();
+  observe(controller, 0, [small]);
+  for (let now = 100; now <= 300; now += 100) {
+    observe(controller, now, []);
+    expect(controller.getFeedback()?.guidance).toBe("move-closer");
+  }
+  observe(controller, 400, []);
+  expect(controller.getFeedback()).toBeNull();
+});
+
+it("asks to fit a painting that runs past the sides of the cover-fitted preview", () => {
+  const controller = new CaptureController();
+  const phone = { width: 390, height: 844 };
+  expect(hold(controller, 0, [painting], phone)).toBeUndefined();
+  expect(controller.getFeedback()).toEqual({
+    quad: previewQuad(painting, frame, phone),
+    progress: 0,
+    guidance: "fit-whole-painting",
   });
 });
 
@@ -142,10 +183,10 @@ it.each([
   ],
   [
     [
-      [0.3, 0.3],
-      [0.7, 0.3],
-      [0.7, 0.7],
-      [0.3, 0.7],
+      [0.35, 0.35],
+      [0.65, 0.35],
+      [0.65, 0.65],
+      [0.35, 0.65],
     ],
     frame,
   ],
@@ -172,11 +213,12 @@ it("selects the largest eligible candidate from several rectangles", () => {
   expect(hold(new CaptureController(), 0, [detail, painting])?.quad).toEqual(painting);
 });
 
-it("requires a new full window after the candidate leaves the visible preview", () => {
+it("requires a new full window after the candidate leaves the visible preview for longer than the grace period", () => {
   const controller = new CaptureController();
   for (let now = 0; now < 800; now += 100) observe(controller, now);
   observe(controller, 800, [], frame);
-  expect(hold(controller, 900)).toBeDefined();
+  observe(controller, 1200, [], frame);
+  expect(hold(controller, 1300)).toBeDefined();
 });
 
 it("does not recapture an unchanged failure, even with another candidate present", () => {

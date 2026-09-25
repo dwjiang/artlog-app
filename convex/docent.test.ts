@@ -5,7 +5,7 @@ import { guideBodyFixture } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { completion, jsonResponse } from "./lib/labelFixtures";
-import { seedArtworkWithObject, seedDevice, seedMuseum } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 const TOKEN_FACTORY = "https://api.tokenfactory.nebius.com/v1/chat/completions";
@@ -421,13 +421,15 @@ describe("docent.ensure", () => {
     vi.stubEnv("DOCENT_MODEL", "");
     await ensure();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect((await artwork())?.enrichClaimedAt).toBeUndefined();
+    expect(await artwork()).not.toHaveProperty("enrichClaimedAt");
+    expect(await artwork()).toHaveProperty("docentFailedAt");
     vi.stubEnv("DOCENT_MODEL", DOCENT_MODEL);
     vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "0");
     await ensure();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await spend()).toBeUndefined();
-    expect((await artwork())?.enrichClaimedAt).toBeUndefined();
+    expect(await artwork()).not.toHaveProperty("enrichClaimedAt");
+    expect(await artwork()).toHaveProperty("docentFailedAt");
   });
 
   it("fetches the owner page only on the venue host and never for an opted-out venue", async () => {
@@ -464,6 +466,7 @@ describe("docent.ensure", () => {
       docent: { en: [] },
     });
     expect(await bare.artwork()).not.toHaveProperty("enrichClaimedAt");
+    expect(await bare.artwork()).not.toHaveProperty("docentFailedAt");
     expect(calls(TOKEN_FACTORY)).toEqual([]);
     expect(await bare.spend()).toMatchObject({
       tokenFactoryCalls: 0,
@@ -482,7 +485,14 @@ describe("docent.ensure", () => {
     expect(stored?.factSheet).toBeUndefined();
     expect(stored?.docent).toBeUndefined();
     expect(stored?.enrichClaimedAt).toBeUndefined();
+    expect(stored?.docentFailedAt).toEqual(expect.any(Number));
     expect(calls(TOKEN_FACTORY)).toEqual([]);
+
+    routes = [];
+    everything();
+    await failing.ensure();
+    expect(await failing.artwork()).not.toHaveProperty("docentFailedAt");
+    expect((await failing.artwork())?.docent?.en).toHaveLength(2);
   });
 
   it("releases the claim, settles spend, and writes nothing when the model fails", async () => {
@@ -499,6 +509,7 @@ describe("docent.ensure", () => {
     const stored = await artwork();
     expect(stored?.factSheet).toBeUndefined();
     expect(stored?.enrichClaimedAt).toBeUndefined();
+    expect(stored?.docentFailedAt).toEqual(expect.any(Number));
     expect(await spend()).toMatchObject({
       tokenFactoryCalls: 2,
       tavilyCredits: 1,
@@ -552,6 +563,51 @@ describe("docent.ensure", () => {
     expect(last?.enrichClaimedAt).toBeUndefined();
     expect(calls(TAVILY)).toHaveLength(60);
     expect((await t.run((ctx) => ctx.db.get("artworks", artworkIds[59])))?.docent?.en).toHaveLength(1);
+  });
+});
+
+describe("docent.retry", () => {
+  async function confidentScan() {
+    const setup = await fixture();
+    const user = await seedDevice(setup.t);
+    const scanId = await setup.t.run((ctx) =>
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        outcome: "confident",
+        best: {
+          identityStatus: "established",
+          objectId: setup.work.objectId,
+          artworkId: setup.work.artworkId,
+          probability: 0.99,
+        },
+      }),
+    );
+    await setup.t.run((ctx) => ctx.db.patch("artworks", setup.work.artworkId, { docentFailedAt: 1 }));
+    return { ...setup, user, scanId };
+  }
+
+  it("clears the failure and runs generation again for the scan's own device", async () => {
+    vi.useFakeTimers();
+    const { t, user, scanId, artwork } = await confidentScan();
+    everything();
+    await user.as.mutation(api.docent.retry, { scanId });
+    expect(await artwork()).not.toHaveProperty("docentFailedAt");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+    expect((await artwork())?.docent?.en).toHaveLength(2);
+  });
+
+  it("rejects another device and a scan without a confident work", async () => {
+    const { t, user, scanId, artwork } = await confidentScan();
+    const other = await seedDevice(t);
+    await expect(other.as.mutation(api.docent.retry, { scanId })).rejects.toMatchObject({
+      data: { code: "invalid_scan" },
+    });
+    const soft = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, outcome: "soft" }));
+    await expect(user.as.mutation(api.docent.retry, { scanId: soft })).rejects.toMatchObject({
+      data: { code: "invalid_scan" },
+    });
+    expect((await artwork())?.docentFailedAt).toBe(1);
   });
 });
 

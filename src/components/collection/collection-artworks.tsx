@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useState, type ReactElement } from "react";
 import { FlatList, View, useWindowDimensions } from "react-native";
 
 import { ChoiceMenu } from "@/components/choice-menu";
@@ -32,15 +32,11 @@ export function CollectionArtworks({
   error,
   search,
   header,
-  controls,
   onClearSearch,
   onRetry,
-  showCount = true,
 }: Pick<ReturnType<typeof useCollectionData>, "works" | "loading" | "error"> & {
-  showCount?: boolean;
   search: string;
   header?: ReactElement;
-  controls?: ReactElement;
   onClearSearch?: () => void;
   onRetry?: () => void;
 }) {
@@ -48,15 +44,11 @@ export function CollectionArtworks({
   const { fontScale, width } = useWindowDimensions();
   const [sort, setSort] = useState<"recent" | "artist">("recent");
   // The hook owns the first read; returning from a detail screen, which edits the wall through its own repository, re-reads it.
-  const loaded = useRef(false);
-  useEffect(() => {
-    loaded.current = !!wall.acknowledged;
-  }, [wall.acknowledged]);
   useFocusEffect(
     useCallback(() => {
-      if (wall.signedIn && loaded.current) void wall.refresh();
+      if (wall.repository.getSnapshot().acknowledged) void wall.refresh();
       // oxlint-disable-next-line react-hooks/exhaustive-deps
-    }, [wall.repository, wall.signedIn]),
+    }, [wall.repository]),
   );
   const filtered = filterWorks(works, search);
   const columns = fontScale > 1.4 ? 1 : 2;
@@ -72,32 +64,13 @@ export function CollectionArtworks({
       });
     }
   }
-  if (controls) {
-    rows.push({ key: "controls", kind: "element", element: controls });
-  }
   const initialLoading = loading && !error && works.length === 0;
   if (!initialLoading && works.length > 0) {
     rows.push({
-      key: "count",
+      key: "sort",
       kind: "element",
       element: (
-        <View
-          style={{
-            paddingHorizontal: 20,
-            paddingVertical: 6,
-            flexDirection: "row",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 16,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            {showCount && (
-              <Text variant="metadata" themeColor="textSecondary">
-                {filtered.length} {filtered.length === 1 ? "artwork" : "artworks"}
-              </Text>
-            )}
-          </View>
+        <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: "row", justifyContent: "flex-end" }}>
           <ChoiceMenu
             label="Sort by"
             icon="arrow.up.arrow.down"
@@ -173,7 +146,6 @@ export function CollectionArtworks({
           )}
         </>
       }
-      stickyHeaderIndices={controls && fontScale < 1.6 ? [header ? 1 : 0] : undefined}
       renderItem={({ item }) => {
         if (item.kind === "element") return item.element;
         if (item.kind === "artist") {
@@ -200,41 +172,53 @@ export function CollectionArtworks({
               paddingBottom: 22,
             }}
           >
-            {item.works.map((work) => {
-              const hung = wall.draft?.items.some((piece) => piece.saveLocalId === work.localId);
-              return (
-                <WorkLink key={work.localId} work={work} style={{ width: tileWidth, gap: 8 }}>
-                  <View style={{ padding: 12, backgroundColor: Gallery.fill }}>
-                    <SavedWorkImage
-                      contain
-                      path={work.cropPath}
-                      syncing={cropSyncing(work)}
-                      title={work.title}
-                      style={{
-                        width: tileWidth - 24,
-                        height: tileWidth * 1.18 - 24,
-                      }}
-                    />
-                  </View>
-                  <View style={{ gap: 2 }}>
-                    <Text variant="secondary" style={{ fontWeight: "600" }}>
-                      {work.title}
-                    </Text>
-                    <Text variant="metadata" themeColor="textSecondary">
-                      {work.artist || "Artist unknown"}
-                    </Text>
-                    {hung && (
-                      <Text variant="metadata" themeColor="textSecondary">
-                        On your wall
-                      </Text>
-                    )}
-                  </View>
-                </WorkLink>
-              );
-            })}
+            {item.works.map((work) => (
+              <ArtworkTile
+                key={work.localId}
+                work={work}
+                width={tileWidth}
+                hung={!!wall.draft?.items.some((piece) => piece.saveLocalId === work.localId)}
+              />
+            ))}
           </View>
         );
       }}
     />
+  );
+}
+
+// Tall photos stop at this height-to-width ratio so one portrait doesn't stretch its row.
+const MAX_TILE_RATIO = 1.18;
+
+function ArtworkTile({ work, width, hung }: { work: Work; width: number; hung: boolean }) {
+  const [photo, setPhoto] = useState<{ path: string; aspect: number }>();
+  const aspect = photo && photo.path === work.cropPath ? photo.aspect : 1;
+  const height = Math.min(width / aspect, width * MAX_TILE_RATIO);
+  return (
+    <WorkLink work={work} style={{ width, gap: 8 }}>
+      <SavedWorkImage
+        contain
+        path={work.cropPath}
+        syncing={cropSyncing(work)}
+        title={work.title}
+        style={{ width: height * aspect, height }}
+        onLoad={(size) => {
+          if (work.cropPath) setPhoto({ path: work.cropPath, aspect: size.width / size.height });
+        }}
+      />
+      <View style={{ gap: 2 }}>
+        <Text variant="secondary" style={{ fontWeight: "600" }}>
+          {work.title}
+        </Text>
+        <Text variant="metadata" themeColor="textSecondary">
+          {work.artist || "Artist unknown"}
+        </Text>
+        {hung && (
+          <Text variant="metadata" themeColor="textSecondary">
+            On your wall
+          </Text>
+        )}
+      </View>
+    </WorkLink>
   );
 }

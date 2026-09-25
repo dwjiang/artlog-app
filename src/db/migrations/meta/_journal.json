@@ -43,6 +43,13 @@
       "when": 1790070275457,
       "tag": "0005_offline-scan-results",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790300813486,
+      "tag": "0006_crop-corners",
+      "breakpoints": true
     }
   ]
 }

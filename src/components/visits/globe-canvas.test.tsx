@@ -92,3 +92,22 @@ it("replaces a failed image load with the existing list recovery guidance", asyn
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByText("Globe rendering is unavailable. Use the museum chooser or List.")).toBeOnTheScreen();
 });
+
+it("lets VoiceOver open any museum through the globe's actions", async () => {
+  mockImage = {};
+  const onSelect = jest.fn();
+  const pins = [
+    { id: "met", latitude: 40, longitude: -73, label: "The Met" },
+    { id: "louvre", latitude: 48, longitude: 2, label: "Louvre" },
+  ];
+  await render(<GlobeCanvas {...props} pins={pins} initialPin={pins[0]} onSelect={onSelect} />);
+  const globe = screen.getByLabelText("Interactive globe of your museum visits");
+  await fireEvent(globe, "layout", { nativeEvent: { layout: { width: 350 } } });
+  expect(
+    screen
+      .getByRole("image", { name: "Interactive globe of your museum visits" })
+      .props.accessibilityActions.map((action: { label: string }) => action.label),
+  ).toEqual(["Open visits to The Met", "Open visits to Louvre"]);
+  await fireEvent(globe, "accessibilityAction", { nativeEvent: { actionName: "louvre" } });
+  expect(onSelect).toHaveBeenCalledWith("louvre");
+});

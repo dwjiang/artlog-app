@@ -230,6 +230,28 @@ it("hangs an available album photo after the original photo was removed", async 
   expect(publishLayout).toHaveBeenCalledTimes(1);
 });
 
+it("lets a signed-out owner hang an artwork before it syncs", async () => {
+  await insertSavedWork({ localId: "unsynced-work", title: "Sketch", artist: "", savedAt: 1 });
+  const setLayoutDraft = jest.fn();
+  const publishLayout = jest.fn().mockResolvedValue(undefined);
+  mockWall = {
+    signedIn: false,
+    pieces: [],
+    draft: { color: "#45524B", items: [] },
+    repository: { setLayoutDraft, publishLayout } as never,
+    setError: jest.fn(),
+  };
+  await render(detail("unsynced-work"));
+  const toggle = await screen.findByRole("switch", { name: "On your wall" });
+  expect(toggle).toBeEnabled();
+  expect(screen.queryByText(/Waiting to sync/)).toBeNull();
+  await fireEvent.press(toggle);
+  expect(setLayoutDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: "unsynced-work" })] }),
+  );
+  expect(publishLayout).toHaveBeenCalledTimes(1);
+});
+
 it("shows the photo on this device for a hung work rather than its published media", async () => {
   mockWall = {
     signedIn: true,
@@ -280,6 +302,23 @@ it("renders the artwork enrichment when the backend has it", async () => {
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Wikidata" })).toBeOnTheScreen();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { artworkId: "artwork-1" }, {});
+  expect(screen.queryByText("Audio guide transcript")).toBeNull();
+});
+
+it("shows the audio guide transcript and its sources once the narration exists", async () => {
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    narrationFacts: [{ id: "f2", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" }],
+    narration: [
+      { sentence: "Step back and let the pond fill your view.", factIds: [] },
+      { sentence: "Monet grew these lilies in his garden at Giverny.", factIds: ["f2"] },
+    ],
+  });
+  await render(detail("lilies"));
+  expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
+  expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
+  expect(screen.queryByText("About this work")).toBeNull();
 });
 
 it("skips the enrichment query for a work saved without an artwork", async () => {

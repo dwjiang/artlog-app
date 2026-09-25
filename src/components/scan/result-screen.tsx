@@ -14,7 +14,6 @@ import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
-import { useMuseumSearch } from "@/lib/museum-search/use-museum-search";
 import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from "@/lib/result/feedback";
@@ -28,16 +27,14 @@ import {
 import { useSaveResult } from "@/lib/result/use-save-result";
 import { useScan } from "@/lib/result/use-scan";
 
+import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
 import { LocalScanScreen } from "./local-scan-screen";
 import { CardHeader } from "./result/card-header";
-import { MuseumSearchSection } from "./result/museum-search-section";
 import { NotRightSheet } from "./result/not-right-sheet";
 import { ResultCard } from "./result/result-card";
-import { LABEL_BUTTON } from "./result/save-bar";
-import { SearchConsentSheet } from "./result/search-consent-sheet";
 import { ScanCropEditor } from "./scan-crop-editor";
 import { FailedCard } from "./states/failed-card";
 import { SaveAnywayForm } from "./states/save-anyway-form";
@@ -85,7 +82,6 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   const labelCapture = !startManual && !!capture && isLabelCapture(capture);
   const [selection, setSelection] = useState<ResultSelection>({});
   const [manual, setManual] = useState(startManual);
-  const [searchConsent, setSearchConsent] = useState(false);
   const [retryError, setRetryError] = useState<string>();
   const [retrying, setRetrying] = useState(false);
   const [editingCrop, setEditingCrop] = useState(false);
@@ -97,11 +93,6 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   const view: ResultViewState = manual
     ? { kind: "unidentified", editable: true, runnerUps: [] }
     : toResultViewState(scan, selection);
-  const showMuseumSearch = !manual && !hasEdits && !selection.chosenObjectId && !saving && !savedId && !saveError;
-  const museumSearch = useMuseumSearch(
-    scan instanceof Error ? undefined : scan,
-    isActive && showMuseumSearch && !editingCrop,
-  );
 
   useEffect(() => {
     if (isActive && labelCapture) {
@@ -129,8 +120,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   function openLabel() {
     setSheet({ open: false });
     if (rejection.current) handOffLabelRejection(scanId, rejection.current);
-    const intent = museumSearch.flow || museumSearch.restoring || museumSearch.restoreError ? "capture" : "review";
-    router.push({ pathname: "/label/[scanId]", params: { scanId, intent } });
+    router.push({ pathname: "/label/[scanId]", params: { scanId } });
   }
 
   function notRight() {
@@ -210,9 +200,6 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   }
   if (completion) return <CaptureCompletion completion={completion} />;
 
-  const showCard =
-    view.editable
-    && (!showMuseumSearch || (!museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError));
   const header = (
     <CardHeader
       cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined}
@@ -220,7 +207,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
       probability={view.primary?.probability}
-      onNotRight={showCard && view.primary && !saving && !savedId ? notRight : undefined}
+      onNotRight={view.editable && view.primary && !saving && !savedId ? notRight : undefined}
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
@@ -229,31 +216,17 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       Couldn’t load the photo saved on this phone.
     </ThemedText>
   );
-  const search =
-    view.editable && showMuseumSearch ? (
-      <MuseumSearchSection search={museumSearch} scanId={scanId} capture={capture} />
-    ) : undefined;
-  const searchIdle =
-    !museumSearch.running && !museumSearch.flow && !museumSearch.restoring && !museumSearch.restoreError;
   return (
     <ThemedView style={styles.container}>
-      {showCard ? (
+      {view.editable ? (
         <ResultCard
           key={`${view.kind}:${view.primary?.objectId ?? "none"}:${manual}`}
           manual={manual}
           view={view}
           header={header}
           context={photoError}
-          search={search}
           visit={capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />}
-          onSearchMuseum={
-            showMuseumSearch && museumSearch.available && searchIdle
-              ? () => {
-                  if (museumSearch.consented) void museumSearch.search();
-                  else setSearchConsent(true);
-                }
-              : undefined
-          }
+          onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
           onPick={pickRunnerUp}
           onEdit={() => setHasEdits(true)}
           onLabel={openLabel}
@@ -323,20 +296,8 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
               />
             </>
           )}
-          {search}
-          {view.editable && view.kind !== "confident" && (
-            <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={openLabel} />
-          )}
         </ScrollView>
       )}
-      <SearchConsentSheet
-        open={searchConsent}
-        onDismiss={() => setSearchConsent(false)}
-        onGranted={() => {
-          setSearchConsent(false);
-          void museumSearch.search();
-        }}
-      />
       <NotRightSheet
         open={sheet.open}
         notice={sheet.notice}

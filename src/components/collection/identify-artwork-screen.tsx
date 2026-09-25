@@ -113,12 +113,7 @@ function Editor({ work }: { work: SavedWork }) {
       automaticallyAdjustKeyboardInsets
       contentContainerStyle={{ padding: 20, gap: 18 }}
     >
-      <SavedWorkImage
-        path={work.cropPath}
-        title={work.title}
-        contain
-        style={{ width: "100%", height: 160, backgroundColor: Gallery.fill }}
-      />
+      <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: "100%", height: 160 }} />
       <SavedRecognition work={work} disabled={merging} onBusyChange={setRecognizing} onAccepted={() => router.back()} />
       <Text variant="section" accessibilityRole="header">
         Artwork details

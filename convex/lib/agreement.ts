@@ -36,12 +36,7 @@ export function contributionGroup(row: Pick<Doc<"contributions">, "venueId" | "f
 
 export function verifiedAccession(contribution: Pick<AgreementContribution, "fields">): string | undefined {
   const { accession } = contribution.fields;
-  // Museum search confirms the page image on title/artist; its other page fields retain `tavily`.
-  const confirmedPage =
-    accession?.evidence === "tavily"
-    && contribution.fields.title.evidence === "tavily+image"
-    && contribution.fields.artist.evidence === "tavily+image";
-  return accession && !accession.edited && (STRONG_EVIDENCE.has(accession.evidence) || confirmedPage)
+  return accession && !accession.edited && STRONG_EVIDENCE.has(accession.evidence)
     ? normalizeAccession(accession.value) || undefined
     : undefined;
 }

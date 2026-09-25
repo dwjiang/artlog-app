@@ -71,36 +71,16 @@ jest.mock("expo-image", () => ({
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isConnected: true, isInternetReachable: true }),
 }));
-jest.mock("expo-router", () => {
-  const { Pressable, Text } = jest.requireActual("react-native");
-  const Toolbar = ({ children }: { children: React.ReactNode }) => children;
-  Toolbar.View = ({ children }: { children: React.ReactNode }) => children;
-  Toolbar.Button = function ToolbarButton({
-    children,
-    onPress,
-    accessibilityLabel,
-  }: {
-    children: string;
-    onPress: () => void;
-    accessibilityLabel: string;
-  }) {
-    return (
-      <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}>
-        <Text>{children}</Text>
-      </Pressable>
-    );
-  };
-  return {
-    useLocalSearchParams: () => ({}),
-    useRouter: () => ({ push: mockPush, navigate: mockPush }),
-    router: {
-      push: (...args: unknown[]) => mockPush(...args),
-      navigate: (...args: unknown[]) => mockPush(...args),
-      dismissAll: () => mockDismissAll(),
-    },
-    Stack: { Toolbar, Screen: () => null },
-  };
-});
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({}),
+  useRouter: () => ({ push: mockPush, navigate: mockPush }),
+  router: {
+    push: (...args: unknown[]) => mockPush(...args),
+    navigate: (...args: unknown[]) => mockPush(...args),
+    dismissAll: () => mockDismissAll(),
+  },
+  Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
+}));
 
 const visit: SharedVisit = {
   audience: "public",

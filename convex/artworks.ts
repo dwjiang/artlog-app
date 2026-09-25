@@ -24,6 +24,7 @@ export const enrichment = query({
       narrationResearchUpdatedAt: v.optional(v.number()),
       narrationOpening: v.string(),
       narrationRenderId: v.optional(v.string()),
+      narration: v.optional(v.array(docentSentence)),
       rightsStatus,
       thumbnailUrl: v.optional(v.string()),
     }),
@@ -51,12 +52,14 @@ export const enrichment = query({
       && artwork.identityStatus === "established"
         ? guideResearch(artwork.factSheet)
         : [];
+    const narration = narrationFacts.length > 0 ? await renderedNarration(ctx, artwork) : null;
     return {
       docent: artwork.docent?.en,
       factSheet: artwork.factSheet?.map(chip),
       narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(chip) : undefined,
       narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
-      narrationRenderId: narrationFacts.length > 0 ? (await renderedNarration(ctx, artwork))?.renderId : undefined,
+      narrationRenderId: narration?.renderId,
+      narration: narration?.sentences,
       narrationOpening: guideOpening(artwork),
       rightsStatus: artwork.rightsStatus,
       thumbnailUrl,

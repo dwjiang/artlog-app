@@ -367,7 +367,7 @@ function PhotoSession({
           path={target?.cropPath ?? input?.capture.cropPath ?? null}
           title={target?.title ?? title ?? "Artwork"}
           contain
-          style={{ width: 48, height: 56, backgroundColor: Gallery.fill }}
+          style={{ width: 48, height: 56 }}
         />
         <View style={{ flex: 1, gap: 3 }}>
           <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
@@ -407,14 +407,12 @@ function PhotoSession({
         }
       />
       {currentPhoto ? (
-        <View style={styles.camera}>
-          <LoadingImage
-            uri={captureFileUri(currentPhoto.path)}
-            label="Selected artwork photo"
-            style={StyleSheet.absoluteFill}
-            contentFit="contain"
-          />
-        </View>
+        <LoadingImage
+          uri={captureFileUri(currentPhoto.path)}
+          label="Selected artwork photo"
+          style={styles.preview}
+          contentFit="contain"
+        />
       ) : (
         <CameraPermission compact loading={active && !ready && !error && !busy}>
           <View style={styles.camera}>
@@ -626,6 +624,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   hint: { color: Gallery.muted },
+  preview: { width: "100%", aspectRatio: 1 },
   camera: {
     width: "100%",
     aspectRatio: 1,

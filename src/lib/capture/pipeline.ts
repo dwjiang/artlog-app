@@ -93,6 +93,7 @@ export async function runCapture(
       capturedAt: input.capturedAt,
       photoUri: input.photoUri,
       cropUri,
+      cropCorners: prepared.corners,
       contentBounds: prepared.contentBounds,
     };
     if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");

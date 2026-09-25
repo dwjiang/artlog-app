@@ -44,10 +44,11 @@ describe("RectTracker guidance", () => {
     });
   });
 
-  it("asks to move closer when the quad covers less than a quarter of the frame", () => {
-    const result = new RectTracker().push(observe(box(0.3, 0.3, 0.7, 0.6)), frame, 0);
+  it("asks to move closer when the quad covers less than a tenth of the frame", () => {
+    const result = new RectTracker().push(observe(box(0.3, 0.3, 0.6, 0.6)), frame, 0);
     expect(result.guidance).toBe("move-closer");
-    expect(result.quad).toEqual(toQuad(box(0.3, 0.3, 0.7, 0.6)));
+    expect(result.quad).toEqual(toQuad(box(0.3, 0.3, 0.6, 0.6)));
+    expect(new RectTracker().push(observe(box(0.3, 0.3, 0.7, 0.6)), frame, 0).guidance).toBe("hold-still");
   });
 
   it("asks to fit the whole painting when a corner touches the frame edge", () => {

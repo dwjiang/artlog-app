@@ -6,6 +6,7 @@ export const ERROR_MESSAGES = {
   username_taken: "That username is already taken.",
   conflict: "This changed on another device. Refresh and try again.",
   invalid_profile: "Check your name, username, and bio.",
+  profile_not_allowed: "That name, username, or bio isn’t allowed. Try different words.",
   invalid_visit: "Check the visit date and museum.",
   invalid_save: "Check the artwork details and note.",
   invalid_venue: "Choose a valid museum.",

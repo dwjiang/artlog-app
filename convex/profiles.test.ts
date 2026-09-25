@@ -64,7 +64,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
   const requests = await Promise.allSettled(
     [a, b].map((user) =>
       user.as.mutation(api.profiles.create, {
-        username: "same-reader",
+        username: "same_reader",
         name: " Reader ",
       }),
     ),
@@ -75,11 +75,11 @@ it("has one winner for simultaneous username requests and never replaces an exis
   });
   const winner = requests[0].status === "fulfilled" ? a : b;
   const again = await winner.as.mutation(api.profiles.create, {
-    username: "new-name",
+    username: "new_name",
     name: "Other",
   });
   expect(again).toMatchObject({
-    username: "same-reader",
+    username: "same_reader",
     name: "Reader",
     publishedWallCount: 0,
   });
@@ -90,7 +90,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
       bio: " Short bio ",
     }),
   ).toMatchObject({
-    username: "same-reader",
+    username: "same_reader",
     name: "New display",
     bio: "Short bio",
   });
@@ -100,7 +100,7 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
   const { t, account } = await fixture();
   const a = await account("a");
   const profile = await a.as.mutation(api.profiles.create, {
-    username: "elodie-art",
+    username: "elodie_art",
     name: " Élodie  Martin ",
     bio: "Art",
   });
@@ -121,16 +121,32 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
   }
 });
 
-it.each(["ab", "-abc", "abc-", "ab--cd", "Abcd", "élodie", "a".repeat(31)])(
-  "rejects invalid username %s",
-  async (username) => {
-    const { account } = await fixture();
-    const user = await account("a");
-    await expect(user.as.mutation(api.profiles.create, { username, name: "Reader" })).rejects.toMatchObject({
-      data: { code: "invalid_profile" },
-    });
-  },
-);
+it.each(["ab", "abc-d", "Abcd", "a.bcd", "élodie", "a".repeat(31)])("rejects invalid username %s", async (username) => {
+  const { account } = await fixture();
+  const user = await account("a");
+  await expect(user.as.mutation(api.profiles.create, { username, name: "Reader" })).rejects.toMatchObject({
+    data: { code: "invalid_profile" },
+  });
+});
+
+it.each([
+  { username: "fuck_you", name: "Reader" },
+  { username: "artlog_support", name: "Reader" },
+  { username: "reader", name: "N1gger" },
+  { username: "reader", name: "Artlog Team" },
+  { username: "reader", name: "Reader", bio: "shit art only" },
+])("refuses a profile that is offensive or poses as staff: %o", async (input) => {
+  const { account } = await fixture();
+  const user = await account("a");
+  await expect(user.as.mutation(api.profiles.create, input)).rejects.toMatchObject({
+    data: { code: "profile_not_allowed" },
+  });
+  const profile = await user.as.mutation(api.profiles.create, { username: "dick_van_dyke", name: "Dick Van Dyke" });
+  expect(profile).toMatchObject({ username: "dick_van_dyke" });
+  await expect(
+    user.as.mutation(internal.profilePhotoData.save, { profileId: profile.profileId, ...input }),
+  ).rejects.toMatchObject({ data: { code: "profile_not_allowed" } });
+});
 
 it("deletion revokes profile and publication access immediately", async () => {
   const { t, account } = await fixture();
@@ -432,22 +448,22 @@ it("checks username availability for an account without reserving it", async () 
   const b = await account("availability-b");
   expect(
     await a.as.query(api.profiles.usernameAvailable, {
-      username: "available-name",
+      username: "available_name",
     }),
   ).toBe(true);
   await b.as.mutation(api.profiles.create, {
-    username: "available-name",
+    username: "available_name",
     name: "B",
   });
   expect(
     await a.as.query(api.profiles.usernameAvailable, {
-      username: "available-name",
+      username: "available_name",
     }),
   ).toBe(false);
   await expect(a.as.query(api.profiles.usernameAvailable, { username: "Invalid_Name" })).rejects.toThrow(
     "invalid_profile",
   );
-  await expect(t.query(api.profiles.usernameAvailable, { username: "available-name" })).rejects.toThrow(
+  await expect(t.query(api.profiles.usernameAvailable, { username: "available_name" })).rejects.toThrow(
     "unauthenticated",
   );
 });
@@ -456,9 +472,9 @@ it("suggests the first free username for a display name without reserving it", a
   const { t, account } = await fixture();
   const a = await account("suggest-a");
   const b = await account("suggest-b");
-  expect(await a.as.query(api.profiles.suggestUsername, { name: " Élodie Martin " })).toBe("elodie-martin");
-  await b.as.mutation(api.profiles.create, { username: "elodie-martin", name: "B" });
-  expect(await a.as.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).toBe("elodie-martin-2");
+  expect(await a.as.query(api.profiles.suggestUsername, { name: " Élodie Martin " })).toBe("elodie_martin");
+  await b.as.mutation(api.profiles.create, { username: "elodie_martin", name: "B" });
+  expect(await a.as.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).toBe("elodie_martin_2");
   expect(await a.as.query(api.profiles.suggestUsername, { name: "张伟" })).toBeNull();
   expect(await a.as.query(api.profiles.suggestUsername, { name: "x".repeat(61) })).toBeNull();
   await expect(t.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).rejects.toThrow("unauthenticated");
@@ -471,15 +487,15 @@ it("lists incoming requests only, removing accepted and blocked connections", as
   const c = await account("requests-c");
   const pa = await a.as.mutation(api.profiles.create, {
     name: "A",
-    username: "requests-a",
+    username: "requests_a",
   });
   const pb = await b.as.mutation(api.profiles.create, {
     name: "B",
-    username: "requests-b",
+    username: "requests_b",
   });
   const pc = await c.as.mutation(api.profiles.create, {
     name: "C",
-    username: "requests-c",
+    username: "requests_c",
   });
   await b.as.mutation(api.friendships.request, {
     profileId: pa.profileId,
@@ -522,11 +538,11 @@ it("embeds the viewer’s relationship in browse lists and leaves guests without
   const b = await account("browse-b");
   const pa = await a.as.mutation(api.profiles.create, {
     name: "A",
-    username: "browse-a",
+    username: "browse_a",
   });
   const pb = await b.as.mutation(api.profiles.create, {
     name: "B",
-    username: "browse-b",
+    username: "browse_b",
   });
   await b.as.mutation(api.friendships.request, {
     profileId: pa.profileId,

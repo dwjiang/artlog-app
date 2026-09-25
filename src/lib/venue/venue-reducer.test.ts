@@ -271,14 +271,27 @@ describe("resolving a fix", () => {
     expect(reduce([{ type: "failed", error: "x" }]).status).toBe("none");
   });
 
-  it("drops the venue, visit and fix when location access is denied", () => {
-    const state = reduce([{ type: "hydrated", visit: visitAt("Met", fix.at) }, { type: "denied" }]);
+  it("drops the venue, visit and fix when location access is declined", () => {
+    const state = reduce([
+      { type: "hydrated", visit: visitAt("Met", fix.at) },
+      { type: "denied", declined: true },
+    ]);
     expect(state).toMatchObject({
       status: "denied",
       venue: undefined,
       visit: undefined,
       fix: undefined,
     });
+  });
+
+  it("pauses the visit while location access is unanswered", () => {
+    const visit = visitAt("Met", fix.at);
+    const state = reduce([
+      { type: "hydrated", visit },
+      { type: "denied", declined: false },
+    ]);
+    expect(state).toMatchObject({ status: "denied", venue: undefined, visit, fix: undefined });
+    expect(venueContext(state)).toEqual({});
   });
 });
 

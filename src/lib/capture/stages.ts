@@ -40,6 +40,7 @@ export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, "s
   scope?: string;
   photoUri: string;
   cropUri: string;
+  cropCorners: Quad;
   contentBounds: CropContentBounds;
   visitLocalId?: string;
 };

@@ -6,7 +6,7 @@ import { cancelAnimation, Easing, useSharedValue, withTiming } from "react-nativ
 import { Colors, Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { CaptureController } from "@/lib/capture/capture-controller";
-import type { FrameSize } from "@/lib/capture/rectangle";
+import type { FrameSize, Guidance } from "@/lib/capture/rectangle";
 
 import { OverlayCaption } from "./overlay-caption";
 
@@ -14,6 +14,14 @@ const SHUTTER_SIZE = 72;
 const RING_SIZE = SHUTTER_SIZE + 14;
 const RING_RADIUS = RING_SIZE / 2 - 2;
 const ring = `M ${RING_SIZE / 2} 2 a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${RING_RADIUS * 2} a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${-RING_RADIUS * 2}`;
+const GUIDANCE_LABELS: Record<Guidance, string | undefined> = {
+  searching: undefined,
+  "move-closer": "Move closer",
+  "fit-whole-painting": "Fit the whole artwork in view",
+  straighten: "Face the artwork straight on",
+  "hold-still": "Hold steady",
+  ready: "Hold steady",
+};
 
 export function CaptureFeedback({
   controller,
@@ -24,11 +32,10 @@ export function CaptureFeedback({
   detecting: boolean;
   busy: boolean;
 }) {
-  const holding = useSyncExternalStore(
-    controller.subscribeFeedback,
-    () => detecting && (controller.getFeedback()?.progress ?? 0) > 0,
+  const guidance = useSyncExternalStore(controller.subscribeFeedback, () =>
+    detecting ? controller.getFeedback()?.guidance : undefined,
   );
-  const label = busy ? "Identifying artwork" : holding ? "Hold steady" : undefined;
+  const label = busy ? "Identifying artwork" : guidance && GUIDANCE_LABELS[guidance];
   return (
     <View style={styles.feedback} accessibilityLiveRegion="polite">
       {label && <OverlayCaption>{label}</OverlayCaption>}

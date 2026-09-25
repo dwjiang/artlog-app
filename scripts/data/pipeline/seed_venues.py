@@ -6,20 +6,20 @@ import os
 import sqlite3
 import tempfile
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import closing
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 
 from .checkpoint import Checkpoint
-from .config import DATA_DIR, get_settings, setup_logging
+from .config import DATA_DIR, Settings, get_settings, setup_logging
 from .convex_writer import ConvexWriter
 from .model_version import REPO_ROOT
 from .regions import Region, load_regions, region_for
-from .wikidata import MAX_VENUES, IncompleteCountry, VenueRow, iter_museums
+from .wikidata import MAX_VENUES, IncompleteCountry, VenueRow, iter_museums, resolve_cities
 
 log = logging.getLogger(__name__)
 MAX_ASSET_BYTES = 10_000_000
@@ -77,10 +77,17 @@ def seed_countries(
                         known_qids=seen,
                     )
                 )
-            except IncompleteCountry as error:
-                log.error("%s; continuing with the remaining countries", error)
+                cities = resolve_cities([venue.qid for venue in venues], user_agent=user_agent)
+            except (IncompleteCountry, httpx.HTTPError) as error:
+                log.error("%s: %s; continuing with the remaining countries", iso, error)
                 failed.append(iso)
                 continue
+            venues = [
+                replace(venue, city=city.name, city_key=f"wikidata:{city.qid}")
+                if (city := cities.get(venue.qid))
+                else venue
+                for venue in venues
+            ]
             temporary = cache.with_suffix(".tmp")
             temporary.write_text(json.dumps([asdict(row) for row in venues], ensure_ascii=False))
             temporary.replace(cache)
@@ -121,6 +128,56 @@ def seed_countries(
     return len(seen)
 
 
+def _exported_venues(writer: ConvexWriter) -> Iterator[dict]:
+    cursor = None
+    count = 0
+    while True:
+        result = writer.query("ingest:exportVenues", {"cursor": cursor} if cursor else {})
+        yield from result["page"]
+        count += len(result["page"])
+        if count > MAX_VENUES:
+            raise RuntimeError(f"STOP: export exceeds {MAX_VENUES:,} venues")
+        if result["isDone"]:
+            return
+        next_cursor = result["continueCursor"]
+        if not next_cursor or next_cursor == cursor:
+            raise RuntimeError("Venue export pagination did not advance")
+        cursor = next_cursor
+
+
+def fill_cities(writer: ConvexWriter, regions: Mapping[str, Region], *, user_agent: str) -> int:
+    venues = [row for row in _exported_venues(writer) if row["key"].startswith("wikidata:")]
+    cities = resolve_cities(
+        [row["key"].removeprefix("wikidata:") for row in venues], user_agent=user_agent
+    )
+    rows = []
+    for venue in venues:
+        qid, region = venue["key"].removeprefix("wikidata:"), venue["region"]
+        country = (
+            region.removeprefix("country:")
+            if region.startswith("country:")
+            else regions.get(region, {}).get("country")
+        )
+        city = cities.get(qid)
+        row = {
+            "key": venue["key"],
+            "wikidataId": qid,
+            "name": venue["name"],
+            "lat": venue["lat"],
+            "lng": venue["lng"],
+            **({"website": venue["website"]} if venue.get("website") is not None else {}),
+            **({"city": city.name, "cityKey": f"wikidata:{city.qid}"} if city else {}),
+            **({"country": country} if country in COUNTRY_CODES else {}),
+            "seedSource": "wikidata",
+            "region": region,
+        }
+        if any(row.get(field) != venue.get(field) for field in ("city", "cityKey", "country")):
+            rows.append(row)
+    writer.upsert("ingest:upsertMuseums", rows, batch_size=500)
+    log.info("%d of %d venues have a city; %d rows changed", len(cities), len(venues), len(rows))
+    return len(cities)
+
+
 def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset:
     out.mkdir(parents=True, exist_ok=True)
     descriptor, filename = tempfile.mkstemp(prefix="venues-", suffix=".db", dir=out)
@@ -134,35 +191,24 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
               lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT, cityKey TEXT
             )""")
             db.execute("CREATE TABLE meta (version INTEGER, generatedAt TEXT, rowCount INTEGER)")
-            cursor = None
             row_count = 0
-            while True:
-                result = writer.query("ingest:exportVenues", {"cursor": cursor} if cursor else {})
-                for row in result["page"]:
-                    db.execute(
-                        "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (
-                            row["_id"],
-                            row["key"],
-                            row["name"],
-                            row["lat"],
-                            row["lng"],
-                            row.get("website"),
-                            row["region"],
-                            row.get("city"),
-                            row.get("country"),
-                            row.get("cityKey"),
-                        ),
-                    )
-                    row_count += 1
-                if row_count > MAX_VENUES:
-                    raise RuntimeError(f"STOP: export exceeds {MAX_VENUES:,} venues")
-                if result["isDone"]:
-                    break
-                next_cursor = result["continueCursor"]
-                if not next_cursor or next_cursor == cursor:
-                    raise RuntimeError("Venue export pagination did not advance")
-                cursor = next_cursor
+            for row in _exported_venues(writer):
+                db.execute(
+                    "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        row["_id"],
+                        row["key"],
+                        row["name"],
+                        row["lat"],
+                        row["lng"],
+                        row.get("website"),
+                        row["region"],
+                        row.get("city"),
+                        row.get("country"),
+                        row.get("cityKey"),
+                    ),
+                )
+                row_count += 1
             if not row_count:
                 raise RuntimeError("Refusing to export an empty venue table")
             db.execute(
@@ -221,27 +267,13 @@ def publish_asset(writer: ConvexWriter, asset: VenueAsset) -> str:
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Seed Wikidata museums and galleries and export SQLite"
-    )
-    selection = parser.add_mutually_exclusive_group(required=True)
-    selection.add_argument("--countries", help="Comma-separated ISO codes, e.g. US,GB,FR")
-    selection.add_argument(
-        "--all", action="store_true", help="All country slices, including unknown country"
-    )
-    parser.add_argument("--out", type=Path, default=Path("out"))
-    parser.add_argument(
-        "--publish", action="store_true", help="Upload and publish the exported asset"
-    )
-    parser.add_argument(
-        "--refresh", action="store_true", help="Start a fresh Wikidata census; omit when resuming"
-    )
-    args = parser.parse_args()
-    settings = get_settings()
-    setup_logging(settings)
-    # Upload URLs grant write access; do not include them in HTTPX request logs.
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+def _census(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    settings: Settings,
+    regions: Mapping[str, Region],
+    writer: ConvexWriter,
+) -> int:
     country_config = json.loads((DATA_DIR / "config/countries.json").read_text())
     if args.all:
         countries = {**country_config, "unknown": []}
@@ -250,7 +282,6 @@ def main() -> None:
         if not selected or any(iso not in country_config for iso in selected):
             parser.error("--countries must contain ISO codes from config/countries.json")
         countries = {iso: country_config[iso] for iso in selected}
-    regions = load_regions()
     # Different deployments/configurations must never share completed-write checkpoints.
     scope = hashlib.sha256(
         json.dumps([settings.convex_url, country_config, regions], sort_keys=True).encode()
@@ -260,15 +291,52 @@ def main() -> None:
         checkpoint.clear("seed")
         for iso in countries:
             (checkpoint.path.parent / "countries" / f"{iso}.json").unlink(missing_ok=True)
-    writer = ConvexWriter(settings)
     log.info("Seeding %s (%d country slices)", settings.convex_url, len(countries))
     total = seed_countries(writer, countries, regions, checkpoint, user_agent=settings.user_agent)
     if args.all and abs(total - BASELINE_VENUES) / BASELINE_VENUES > 0.05:
         raise RuntimeError(
             f"Full census {total:,} differs from baseline {BASELINE_VENUES:,} by >5%; investigate before publication"
         )
+    return total
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Seed Wikidata museums and galleries and export SQLite"
+    )
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--countries", help="Comma-separated ISO codes, e.g. US,GB,FR")
+    selection.add_argument(
+        "--all", action="store_true", help="All country slices, including unknown country"
+    )
+    selection.add_argument(
+        "--cities-only",
+        action="store_true",
+        help="Resolve cities for venues already in Convex instead of running the census",
+    )
+    parser.add_argument("--out", type=Path, default=Path("out"))
+    parser.add_argument(
+        "--publish", action="store_true", help="Upload and publish the exported asset"
+    )
+    parser.add_argument(
+        "--refresh", action="store_true", help="Start a fresh Wikidata census; omit when resuming"
+    )
+    args = parser.parse_args()
+    if args.cities_only and args.refresh:
+        parser.error("--refresh starts a fresh census; --cities-only runs none")
+    settings = get_settings()
+    setup_logging(settings)
+    # Upload URLs grant write access; do not include them in HTTPX request logs.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    regions = load_regions()
+    writer = ConvexWriter(settings)
+    if args.cities_only:
+        log.info("Resolving cities for venues in %s", settings.convex_url)
+        summary = {"city_venues": fill_cities(writer, regions, user_agent=settings.user_agent)}
+    else:
+        summary = {"seeded_venues": _census(parser, args, settings, regions, writer)}
     asset = export_asset(writer, args.out, version=int(time.time()))
-    print(json.dumps({**asdict(asset), "path": str(asset.path), "seeded_venues": total}))
+    print(json.dumps({**asdict(asset), "path": str(asset.path), **summary}))
     if args.publish:
         print(json.dumps({"published_id": publish_asset(writer, asset), "version": asset.version}))
 

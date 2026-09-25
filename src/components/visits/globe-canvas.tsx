@@ -40,7 +40,6 @@ const font = matchFont({
 });
 export type GlobeCanvasHandle = {
   reset: () => void;
-  focus: (pin: GlobePin) => void;
   zoom: (factor: number) => void;
   settle: () => void;
 };
@@ -85,7 +84,6 @@ export function GlobeCanvas({
   });
   useImperativeHandle(ref, () => ({
     reset: () => scheduleOnUI(setCamera, globeCamera(initialPin.latitude, initialPin.longitude)),
-    focus: (pin) => scheduleOnUI(setCamera, globeCamera(pin.latitude, pin.longitude)),
     zoom: (factor) =>
       scheduleOnUI(() => {
         "worklet";
@@ -141,7 +139,9 @@ export function GlobeCanvas({
           accessible={!!image && !!shader && width > 0}
           accessibilityRole="image"
           accessibilityLabel="Interactive globe of your museum visits"
-          accessibilityHint="Drag to rotate and pinch to zoom. Select a museum pin to select a place without gestures."
+          accessibilityHint="Drag to rotate and pinch to zoom. Select a museum pin to open its visits."
+          accessibilityActions={pins.map((pin) => ({ name: pin.id, label: `Open visits to ${pin.label}` }))}
+          onAccessibilityAction={(event) => onSelect(event.nativeEvent.actionName)}
         >
           <View
             pointerEvents="none"

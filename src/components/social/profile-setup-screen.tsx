@@ -17,6 +17,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
+import { isAllowedIdentity } from "@/shared/social/profile-text";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
@@ -78,7 +79,8 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   async function claimUsername() {
     if (busy || session.status !== "profile-required" || (check !== "available" && check !== "unchecked")) return;
     const owner = captureOwner();
-    const initialName = appleName || chosenUsername;
+    // This step can't edit the name, so a disallowed Apple name is left for the name step to refuse.
+    const initialName = appleName && isAllowedIdentity(appleName) ? appleName : chosenUsername;
     setOperation("username");
     setError(undefined);
     try {

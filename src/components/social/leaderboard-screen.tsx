@@ -1,7 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { type CSSAnimationProperties } from "react-native-reanimated";
 
 import { AppleSignInAction } from "@/components/account/apple-sign-in-action";
 import { ChoiceMenu } from "@/components/choice-menu";
@@ -26,11 +26,13 @@ import { SocialGate, SocialState } from "./social-state";
 // FlatList never unmounts its first `initialNumToRender` rows, so only a newly loaded board fades in, not rows
 // that mount later while scrolling.
 const REVEALED_ROWS = 15;
+// `satisfies` keeps the literal type: the widened CSSAnimationProperties passes or fails Animated.View's style check
+// depending on the order TypeScript happens to evaluate the program in.
 const reveal = {
   animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
   animationDuration: 250,
   animationTimingFunction: "ease-out",
-};
+} satisfies CSSAnimationProperties;
 
 export function LeaderboardScreen() {
   const session = useSocialSession();

@@ -94,14 +94,14 @@ it("shows grouped settings and opens the matching detail", async () => {
   await render(<SettingsScreen />);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   expect(screen.queryByText("YA", { includeHiddenElements: true })).toBeNull();
-  for (const title of ["Settings", "Your journal", "Artlog", "Developer"]) {
+  for (const title of ["Settings", "Your journal", "Artlog", "Support", "Developer"]) {
     expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
   }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Contributions" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Visits" })).toBeNull();
   for (const [label, section] of [
     ["General", "general"],
-    ["Visits", "visits"],
     ["Privacy", "privacy"],
     ["About", "about"],
   ]) {
@@ -113,6 +113,8 @@ it("shows grouped settings and opens the matching detail", async () => {
   }
   await fireEvent.press(screen.getByRole("button", { name: "Widgets" }));
   expect(mockPush).toHaveBeenLastCalledWith("/widgets");
+  await fireEvent.press(screen.getByRole("button", { name: "Send feedback" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/send-feedback");
 });
 
 it("opens measurement units in General", async () => {

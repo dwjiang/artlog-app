@@ -3,7 +3,6 @@ import { router, Stack } from "expo-router";
 import { useState } from "react";
 
 import { ActionRow, GroupedFooter, GroupedList, GroupedSection, ValueRow } from "@/components/grouped-list";
-import { SearchConsentSheet } from "@/components/scan/result/search-consent-sheet";
 import { LeaderboardParticipation } from "@/components/social/leaderboard-participation";
 import model from "@/shared/model/model-version.json";
 
@@ -15,12 +14,10 @@ import { GeneralPreference } from "./general-preference";
 import { LeaderboardPreference } from "./leaderboard-preference";
 import { PhotoLibraryPreference } from "./photo-library-preference";
 import { PrivacySection } from "./privacy-section";
-import { VisitPreference } from "./visit-preference";
 
 const titles = {
   account: "Account",
   general: "General",
-  visits: "Visits",
   leaderboards: "Leaderboards",
   privacy: "Privacy",
   about: "About",
@@ -29,18 +26,16 @@ const titles = {
 
 export function SettingsDetailScreen({ section }: { section: string }) {
   // Sheets are React Native views, so they mount beside the SwiftUI list rather than inside a section.
-  const [sheet, setSheet] = useState<"consent" | "participation">();
+  const [participation, setParticipation] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.devices.me, section === "developer" && isAuthenticated ? {} : "skip");
   const health = useQuery(api.health.ping, section === "developer" ? {} : "skip");
   const title = titles[section as keyof typeof titles] ?? "Settings";
-  const close = () => setSheet(undefined);
   if (section === "privacy") {
     return (
       <>
         <Stack.Screen options={{ title }} />
-        <PrivacySection onRequestConsent={() => setSheet("consent")} />
-        <SearchConsentSheet open={sheet === "consent"} onGranted={close} onDismiss={close} />
+        <PrivacySection />
       </>
     );
   }
@@ -71,8 +66,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
             <PhotoLibraryPreference />
           </>
         )}
-        {section === "visits" && <VisitPreference />}
-        {section === "leaderboards" && <LeaderboardPreference onManage={() => setSheet("participation")} />}
+        {section === "leaderboards" && <LeaderboardPreference onManage={() => setParticipation(true)} />}
         {section === "developer" && __DEV__ && (
           <>
             <GroupedSection title="Device">
@@ -88,7 +82,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
           </>
         )}
       </GroupedList>
-      {sheet === "participation" && <LeaderboardParticipation onDismiss={close} />}
+      {participation && <LeaderboardParticipation onDismiss={() => setParticipation(false)} />}
     </>
   );
 }

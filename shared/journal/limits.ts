@@ -20,6 +20,7 @@ export const LIMITS = {
   city: 120,
   reportReason: 120,
   reportDetails: 2000,
+  feedbackMessage: 2000,
 } as const;
 
 export function utf8Bytes(value: unknown): number {

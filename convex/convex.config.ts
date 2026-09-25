@@ -17,7 +17,6 @@ const app = defineApp({
     DOCENT_MODEL: optional,
     FACT_SHEET_MODEL: optional,
     FLAG_LABEL_FLOW: optional,
-    FLAG_MUSEUM_SEARCH: optional,
     FLAG_RIGHT_NOW: optional,
     LABEL_MODEL: optional,
     MODERATION_BLOCKLIST: optional,

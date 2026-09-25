@@ -27,12 +27,12 @@ it("creates a profile only after submission and normalizes the name and username
   await render(<WallProfileSheet onCreated={onCreated} onDismiss={jest.fn()} />);
   expect(screen.getByRole("button", { name: "Create public profile" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), "  Alex Chen  ");
-  await fireEvent.changeText(screen.getByLabelText("Username"), " Alex-Chen ");
+  await fireEvent.changeText(screen.getByLabelText("Username"), " Alex_Chen ");
   expect(mockCreate).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
   expect(mockCreate).toHaveBeenCalledWith({
     name: "Alex Chen",
-    username: "alex-chen",
+    username: "alex_chen",
     bio: "",
   });
   expect(onCreated).toHaveBeenCalledTimes(1);

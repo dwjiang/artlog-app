@@ -99,7 +99,6 @@ export function OfflineResultScreen({
       <ResultCard
         key={`${manual}:${view.primary?.objectId}`}
         manual={manual}
-        prosePending={false}
         view={view}
         saving={saved.saving}
         savedId={saved.savedId}

@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Gallery.fill,
   },
   edge: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: Radius.thumbnail },
   edgeOn: { borderWidth: 2, borderColor: Gallery.ink },

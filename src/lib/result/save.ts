@@ -30,7 +30,15 @@ export type SaveResultInput = {
   scanId?: Id<"scans">;
   capture: Pick<
     PendingScan,
-    "localId" | "photoPath" | "cropPath" | "venueId" | "visitId" | "visitLocalId" | "capturedAt" | "owner"
+    | "localId"
+    | "photoPath"
+    | "cropPath"
+    | "cropCorners"
+    | "venueId"
+    | "visitId"
+    | "visitLocalId"
+    | "capturedAt"
+    | "owner"
   >;
   /** Absent when the card names no work (queued or unsupported); the snapshot is then whatever the user typed. */
   view?: ResultViewState;
@@ -163,6 +171,7 @@ export async function saveResult({
           scanId,
           photoPath: capture.photoPath,
           cropPath: scanPreviewPath(capture.cropPath),
+          cropCorners: capture.cropCorners,
         },
     additional,
     visit?.localId,

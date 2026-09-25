@@ -60,6 +60,29 @@ it("preserves an existing wall color, frame, photo choice and geometry on reads"
   });
 });
 
+it("saves a wallpaper pattern with the color, shares it publicly and clears it back to plain", async () => {
+  const t = harness();
+  const a = await wallFixture(t, "pattern");
+  const striped = await a.as.mutation(api.walls.setLayout, { ...a.input, pattern: "stripe" });
+  expect(striped).toMatchObject({ revision: 1, color: "#45524B", pattern: "stripe" });
+  expect(await a.as.mutation(api.walls.setLayout, { ...a.input, pattern: "stripe" })).toEqual(striped);
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({
+    color: "#45524B",
+    pattern: "stripe",
+  });
+  await expect(a.as.mutation(api.walls.setLayout, { ...a.input, pattern: "dots" })).rejects.toMatchObject({
+    data: { code: "conflict" },
+  });
+  await expect(
+    a.as.mutation(api.walls.setLayout, { ...a.input, revision: 1, pattern: "plaid" as "stripe" }),
+  ).rejects.toThrow("Validator error");
+
+  const plain = await a.as.mutation(api.walls.setLayout, { ...a.input, revision: 1 });
+  expect(plain.revision).toBe(2);
+  expect(plain).not.toHaveProperty("pattern");
+  expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).not.toHaveProperty("pattern");
+});
+
 it("requires a linked profile, completed claim and current owner scope", async () => {
   const t = harness();
   const a = await wallFixture(t, "a");

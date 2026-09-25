@@ -7,6 +7,7 @@ import { journalOwner, journalVisit, journalSave } from "../shared/journal/contr
 import model from "../shared/model/model-version.json";
 import {
   wallLayout,
+  wallPattern,
   relationshipState,
   publicationStatus,
   visitAudience,
@@ -35,7 +36,6 @@ import {
   labelFlow,
   matchOutcome,
   multiplicity,
-  museumSearchDisplay,
   objectSource,
   placementSource,
   proposalKind,
@@ -99,6 +99,8 @@ export default defineSchema({
     // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
     enrichClaimedAt: v.optional(v.number()),
     enrichGeneration: v.optional(v.number()),
+    // Set when the latest docent run ended without writing, so the card can offer a retry.
+    docentFailedAt: v.optional(v.number()),
     factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index("by_key", ["key"])
@@ -321,6 +323,14 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_artworkId_status", ["artworkId", "status"]),
 
+  appFeedback: defineTable({
+    owner: v.optional(journalOwner),
+    message: v.string(),
+    appVersion: v.string(),
+    osVersion: v.string(),
+    createdAt: v.number(),
+  }).index("by_owner", ["owner"]),
+
   contributions: defineTable({
     deviceId: v.id("devices"),
     venueId: v.id("museums"),
@@ -334,7 +344,6 @@ export default defineSchema({
     displayMediaRevokedAt: v.optional(v.number()),
     rawOcr: v.optional(v.any()),
     sourceUrl: v.optional(v.string()),
-    identityImageUrl: v.optional(v.string()),
     fields: v.object({
       title: contributionField,
       artist: contributionField,
@@ -513,8 +522,6 @@ export default defineSchema({
     candidateSignals: v.optional(v.array(candidateSignal)),
     rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
-    museumSearch: v.optional(museumSearchDisplay),
-    museumSearchRevision: v.optional(v.number()),
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -678,6 +685,7 @@ export default defineSchema({
   walls: defineTable({
     profileId: v.id("profiles"),
     color: v.string(),
+    pattern: v.optional(wallPattern),
     layoutRevision: v.number(),
   }).index("by_profileId", ["profileId"]),
   wallItems: defineTable({

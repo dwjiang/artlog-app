@@ -1,44 +1,46 @@
-import { useQueries, type RequestForQueries } from "convex/react";
-import type { FunctionReturnType } from "convex/server";
-import { useMemo } from "react";
+import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import { useDeviceReady } from "@/lib/use-device-ready";
+import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 
-import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) {
-  const ready = useDeviceReady();
-  const enrichmentQuery = useMemo(
-    (): RequestForQueries =>
-      ready
-        ? {
-            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
-          }
-        : {},
-    [artworkId, ready],
-  );
-  const {
-    enrichment,
-  }: {
-    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
-  } = useQueries(enrichmentQuery);
-  if (!enrichment || (!(enrichment instanceof Error) && !enrichment.docent?.length)) {
-    return null;
+  const enrichment = useArtworkEnrichment(artworkId);
+  if (!enrichment) return null;
+  if (enrichment instanceof Error) {
+    return (
+      <Section title="About this work">
+        <ThemedText themeColor="textSecondary">Details about this work are unavailable right now.</ThemedText>
+      </Section>
+    );
   }
 
+  const { docent, factSheet, narration, narrationFacts } = enrichment;
+  return (
+    <>
+      {!!docent?.length && (
+        <Section title="About this work">
+          <DocentSection docent={docent} factSheet={factSheet} />
+        </Section>
+      )}
+      {!!narration?.length && (
+        <Section title="Audio guide transcript">
+          <DocentSection docent={narration} factSheet={narrationFacts} />
+        </Section>
+      )}
+    </>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
-      <ThemedText variant="section">About this work</ThemedText>
-      {enrichment instanceof Error ? (
-        <ThemedText themeColor="textSecondary">Details about this work are unavailable right now.</ThemedText>
-      ) : (
-        <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} />
-      )}
+      <ThemedText variant="section">{title}</ThemedText>
+      {children}
     </View>
   );
 }

@@ -17,7 +17,6 @@ function AllArtworks({ onRetry }: { onRetry: () => void }) {
   const [search, setSearch] = useState("");
   return (
     <CollectionArtworks
-      showCount={false}
       {...data}
       search={search}
       onClearSearch={() => setSearch("")}

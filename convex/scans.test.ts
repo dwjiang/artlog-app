@@ -148,8 +148,36 @@ it.each(["confident", "soft"] as const)(
     expect(result?.factSheet).toEqual(
       confident ? [{ id: "f1", sourceUrl: "https://www.metmuseum.org/art/1", sourceLabel: "The Met" }] : undefined,
     );
+    expect(result?.docentStatus).toBe(confident ? "ready" : undefined);
   },
 );
+
+it("reports whether a confident card's background is being written, failed, or has nothing to say", async () => {
+  const { t, user, work, scanId, best } = await fixture();
+  await t.mutation(internal.scans.setResult, {
+    scanId,
+    generation: 0,
+    status: "identified",
+    outcome: "confident",
+    best,
+    calibratorVersion: "lr-v1",
+  });
+  const status = async () => (await user.as.query(api.scans.get, { scanId }))?.docentStatus;
+  expect(await status()).toBe("writing");
+  await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docentFailedAt: 1 }));
+  expect(await status()).toBe("failed");
+  await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { factSheetNeedsReview: true }));
+  expect(await status()).toBe("unavailable");
+  await t.run((ctx) =>
+    ctx.db.patch("artworks", work.artworkId, {
+      factSheetNeedsReview: undefined,
+      docentFailedAt: undefined,
+      docent: { en: [] },
+      docentUpdatedAt: 2,
+    }),
+  );
+  expect(await status()).toBe("unavailable");
+});
 
 it("updates gallery history only for a confident result and never rolls it backwards", async () => {
   const { t, user, venueId, args, best } = await fixture();
@@ -277,7 +305,7 @@ it("ignores results from an older payload after an unsupported capture is restar
   });
 });
 
-it("exposes the museum-site search state and the label flow without raw OCR to the owner only", async () => {
+it("exposes the label flow without raw OCR to the owner only", async () => {
   const { t, user, scanId } = await fixture();
   await t.mutation(internal.scans.setResult, {
     scanId,
@@ -286,98 +314,43 @@ it("exposes the museum-site search state and the label flow without raw OCR to t
     outcome: "miss",
     calibratorVersion: "lr-v1",
   });
-  const before = await user.as.query(api.scans.get, { scanId });
-  expect(before?.labelFlow).toBeUndefined();
-  expect(before?.museumSearch).toBeUndefined();
-  const candidate = {
-    sourceUrl: "https://www.metmuseum.org/exhibitions/water",
-    exhibition: { title: "Water", content: "One painting." },
-    imageUrls: ["https://images.metmuseum.org/work.jpg"],
-  };
-  const write = async (
-    museumSearch: Parameters<typeof t.mutation<typeof internal.museumSearch.write>>[1]["museumSearch"],
-  ) => {
-    const revision = await t.mutation(internal.museumSearch.beginSearch, {
-      scanId,
-      deviceId: user.deviceId,
-      generation: 0,
-    });
-    return t.mutation(internal.museumSearch.write, {
-      scanId,
-      deviceId: user.deviceId,
-      generation: 0,
-      revision,
-      museumSearch,
-    });
-  };
-  await write({ stage: "exhibitions", candidates: [candidate], updatedAt: 1 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
-    stage: "exhibitions",
-    candidates: [candidate],
-    updatedAt: 1,
-  });
-  await write({ stage: "none", reason: "cap", updatedAt: 2 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toEqual({
-    stage: "none",
-    reason: "cap",
-    updatedAt: 2,
-  });
-  await write({ stage: "none", reason: "identity_unresolved", updatedAt: 3 });
-  expect((await user.as.query(api.scans.get, { scanId }))?.museumSearch).toMatchObject({
-    reason: "identity_unresolved",
-  });
+  expect((await user.as.query(api.scans.get, { scanId }))?.labelFlow).toBeUndefined();
 
+  const sourceUrl = "https://www.metmuseum.org/art/collection/search/437127";
+  const imageUrls = ["https://images.metmuseum.org/work.jpg"];
   const fields = {
     title: labelField("Water Lilies", "tavily+image"),
     artist: labelField("Claude Monet", "tavily+image"),
-    accession: labelField("1998.325.2", "tavily"),
-  };
-  const selected = {
-    sourceUrl: candidate.sourceUrl,
-    imageUrl: candidate.imageUrls[0],
   };
   await t.run((ctx) =>
     ctx.db.patch("scans", scanId, {
       labelFlow: {
         stage: "verified",
         fields,
-        evidence: ["tavily+image", "tavily"],
+        evidence: ["tavily+image"],
         warnings: [],
         moderation: "clear",
         rawOcr: { title: "Water Lilies" },
-        sourceUrl: candidate.sourceUrl,
-        imageUrls: candidate.imageUrls,
-        updatedAt: 4,
-      },
-      museumSearch: {
-        stage: "confirmed",
-        candidates: [candidate],
-        selected,
+        sourceUrl,
+        imageUrls,
         updatedAt: 4,
       },
     }),
   );
   const confirmed = await user.as.query(api.scans.get, { scanId });
-  expect(confirmed?.museumSearch).toEqual({
-    stage: "confirmed",
-    candidates: [candidate],
-    selected,
-    updatedAt: 4,
-  });
   expect(confirmed?.labelFlow).toEqual({
     stage: "verified",
     fields,
-    evidence: ["tavily+image", "tavily"],
+    evidence: ["tavily+image"],
     warnings: [],
     moderation: "clear",
-    sourceUrl: candidate.sourceUrl,
-    imageUrls: candidate.imageUrls,
+    sourceUrl,
+    imageUrls,
     updatedAt: 4,
   });
   expect(confirmed?.labelFlow).not.toHaveProperty("rawOcr");
   expect(confirmed).not.toHaveProperty("vector");
   expect(confirmed).not.toHaveProperty("deviceId");
-  expect(confirmed).not.toHaveProperty("museumSearchRevision");
   const other = await seedDevice(t);
   expect(await other.as.query(api.scans.get, { scanId })).toBeNull();
   expect(

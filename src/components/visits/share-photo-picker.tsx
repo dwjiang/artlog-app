@@ -113,9 +113,9 @@ export function SharePhotoPicker({
                     contentFit="cover"
                   />
                 ) : (
-                  <Text style={[visitStyles.fine, { padding: 12, textAlign: "center" }]}>
-                    Photo unavailable on this iPhone.
-                  </Text>
+                  <View style={[styles.unavailable, { width: size, height: size }]}>
+                    <Text style={[visitStyles.fine, { textAlign: "center" }]}>Photo unavailable on this iPhone.</Text>
+                  </View>
                 )}
               </ShareTileImage>
             </Pressable>
@@ -131,4 +131,5 @@ const GAP = 12;
 const styles = StyleSheet.create({
   content: { paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 32, gap: 18 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
+  unavailable: { alignItems: "center", justifyContent: "center", padding: 12, backgroundColor: Gallery.fill },
 });

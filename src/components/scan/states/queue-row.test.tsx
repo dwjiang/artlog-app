@@ -19,6 +19,7 @@ const row: PendingScan = {
   localId: "cap-1",
   photoPath: "photos/cap-1.jpg",
   cropPath: "crops/cap-1.jpg",
+  cropCorners: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(0),
   keypoints: new ArrayBuffer(0),

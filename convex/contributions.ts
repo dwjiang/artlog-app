@@ -378,7 +378,6 @@ export const commit = internalMutation({
       fields,
       evidence: evidenceOf(fields),
       sourceUrl: flow.sourceUrl,
-      identityImageUrl: flow.identityImageUrl,
       // A Wikidata match identifies the title/artist pair; an edit to either breaks that binding.
       wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
       status: duplicate ? "rejected" : "tentative",

@@ -119,6 +119,15 @@ it("carries queued index shares to the account with their captures", async () =>
   expect(await getSetting(`pendingShare:${source}:scan-1`)).toBeUndefined();
 });
 
+it("carries the private wall to the account, replacing one an earlier claim left unpublished", async () => {
+  const source = anonymousOwner();
+  await setSetting("wall:account:a", '{"color":"#111111","items":[]}');
+  await setSetting(`wall:${source}`, '{"color":"#6C2F2B","items":[]}');
+  await claimLocalJournal(source, "account:a", "claim");
+  expect(await getSetting("wall:account:a")).toBe('{"color":"#6C2F2B","items":[]}');
+  expect(await getSetting(`wall:${source}`)).toBeUndefined();
+});
+
 it("hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them", async () => {
   await saves.insertSavedWork({ localId: "save", title: "A", artist: "", savedAt: 1 }, "account:a");
   switchOwner("account:a");

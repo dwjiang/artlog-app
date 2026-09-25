@@ -1,12 +1,12 @@
 import { Stack, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
-import { ProfileSkeleton } from "@/components/loading-skeleton";
 import { Gallery } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
@@ -15,8 +15,9 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { FriendshipControls, ProfileActionRow } from "./friendship-controls";
-import { PublicProfileHeader, PublicWallView } from "./public-wall-view";
+import { FriendshipControls } from "./friendship-controls";
+import { OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
+import { PublicWallView } from "./public-wall-view";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
@@ -27,6 +28,9 @@ const visitId = (visit: SharedVisit) => visit.postId;
 export function ProfileScreen({ profileId }: { profileId: string }) {
   const session = useSocialSession();
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
+  const { top } = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const [tab, setTab] = useState<"wall" | "visits">("wall");
   const scroll = useRef<ScrollView>(null);
   const offsets = useRef({ wall: 0, visits: 0 });
@@ -74,32 +78,28 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       />
     );
   }
+  // The transparent bar lets the photo rise level with the back button. Past about 115% text, the longest back
+  // label ("Leaderboards") reaches the photo, so the header stays below the bar.
+  const bar = (
+    <Stack.Screen options={{ title: "", headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }} />
+  );
+  const pulledToSafeArea = { marginTop: fontScale < 1.15 ? top - headerHeight : 0 };
   if (!profile.data) {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
-        <ProfileSkeleton />
-      </ScrollView>
+      <>
+        {bar}
+        <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+          <View style={pulledToSafeArea}>
+            <ProfileHeader stats={[{ noun: "artwork" }, { noun: "visit" }]} />
+          </View>
+        </ScrollView>
+      </>
     );
   }
   const person = profile.data;
-  const share = (
-    <GalleryButton
-      label="Share profile"
-      icon="square.and.arrow.up"
-      iconOnly
-      variant="outlined"
-      tone="ink"
-      onPress={() =>
-        router.push({
-          pathname: "/share-profile",
-          params: { profileId: person.profileId },
-        })
-      }
-    />
-  );
   return (
     <GestureHandlerRootView style={socialStyles.root}>
-      <Stack.Screen options={{ title: "" }} />
+      {bar}
       <ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
@@ -110,54 +110,48 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         }}
         contentContainerStyle={{ paddingBottom: 30 }}
       >
-        <View>
-          <PublicProfileHeader
-            person={person}
-            visitCount={visits.done ? visits.items.length : undefined}
-            actions={
-              session.profileId !== profileId ? (
-                <FriendshipControls
-                  key={`${session.key}:${profileId}`}
-                  profileId={person.profileId}
-                  session={session}
-                  trailing={share}
-                />
-              ) : undefined
-            }
+        <View style={pulledToSafeArea}>
+          <ProfileHeader
+            identity={{ name: person.name, subtitle: `@${person.username}`, profile: person }}
+            stats={[
+              { noun: "artwork", count: person.publishedWallCount },
+              ...(visits.done ? [{ noun: "visit", count: visits.items.length }] : []),
+            ]}
           >
-            {session.profileId === profileId && (
-              <ProfileActionRow
-                actions={[
-                  <GalleryButton
-                    key="edit"
-                    label="Edit profile"
-                    variant="outlined"
-                    fullWidth
-                    onPress={() => router.push("/edit-profile")}
-                  />,
-                ]}
-                trailing={share}
+            {session.profileId === profileId ? (
+              <OwnProfileActions profileId={person.profileId} />
+            ) : (
+              <FriendshipControls
+                key={`${session.key}:${profileId}`}
+                profileId={person.profileId}
+                session={session}
+                trailing={<ShareProfileButton profileId={person.profileId} />}
               />
             )}
-          </PublicProfileHeader>
+          </ProfileHeader>
         </View>
-        <View
-          style={{
-            backgroundColor: Gallery.paper,
-            paddingHorizontal: 20,
-            paddingBottom: 12,
-            paddingTop: 4,
-          }}
-        >
-          <NativeSegmentedPicker
-            label="Profile section"
-            value={tab}
-            onChange={changeTab}
-            options={[
-              { value: "wall", label: "Wall" },
-              { value: "visits", label: "Visits" },
-            ]}
-          />
+        {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
+            spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
+            tappable, and must be a style: the sticky wrapper takes this View's style but not its props. */}
+        <View style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}>
+          <View
+            style={{
+              backgroundColor: Gallery.paper,
+              paddingHorizontal: 20,
+              paddingBottom: 12,
+              paddingTop: 4,
+            }}
+          >
+            <NativeSegmentedPicker
+              label="Profile section"
+              value={tab}
+              onChange={changeTab}
+              options={[
+                { value: "wall", label: "Wall" },
+                { value: "visits", label: "Visits" },
+              ]}
+            />
+          </View>
         </View>
         {tab === "wall" ? (
           wall.error ? (

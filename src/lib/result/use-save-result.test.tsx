@@ -28,6 +28,7 @@ const capture = {
   owner: "device:test",
   photoPath: "capture.jpg",
   cropPath: "crop.jpg",
+  cropCorners: null,
   capturedAt: 1,
   venueId: "museum-met" as Id<"museums">,
   visitId: null,

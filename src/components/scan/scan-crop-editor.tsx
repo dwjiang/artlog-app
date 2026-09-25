@@ -18,6 +18,7 @@ export function ScanCropEditor({ capture, onCancel }: { capture: PendingScan; on
     <>
       <CropEditor
         photoPath={capture.photoPath}
+        initialCorners={capture.cropCorners}
         saveLabel="Use crop and identify"
         onCancel={onCancel}
         onSave={async (crop, isCurrent) => {

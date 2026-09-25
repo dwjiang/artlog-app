@@ -1,10 +1,10 @@
 import { useSegments } from "expo-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BottomTabInset, Spacing } from "@/constants/theme";
-import { dismissToast, useToast } from "@/lib/ui/toast";
+import { dismissToast, useToast, useToastLift, type ToastLift } from "@/lib/ui/toast";
 
 import { ToastPill } from "./toast-pill";
 
@@ -15,9 +15,22 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
   const toast = useToast();
   const { bottom } = useSafeAreaInsets();
   const [root] = useSegments();
+  const lift = useToastLift();
+  const [measured, setMeasured] = useState<{ id?: number; height: number }>();
   const inset = offset ?? (root === "(tabs)" ? BottomTabInset : 0);
+  const resting = bottom + inset + Spacing.content;
+  const position =
+    offset === undefined
+      ? toastLayerBottom(resting, lift, measured?.id === toast?.id ? measured?.height : undefined)
+      : resting;
   return (
-    <View pointerEvents="box-none" style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}>
+    // Keyed by toast so each new one is measured before the room under a raised bar is trusted with it.
+    <View
+      key={toast?.id}
+      pointerEvents="box-none"
+      onLayout={({ nativeEvent: { layout } }) => setMeasured({ id: toast?.id, height: layout.height })}
+      style={[styles.layer, position === undefined ? { bottom: resting, opacity: 0 } : { bottom: position }]}
+    >
       {children}
       {toast && (
         <ToastPill
@@ -40,6 +53,18 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
       )}
     </View>
   );
+}
+
+/**
+ * The layer's offset from the screen bottom: in the room under a raised bar once the measured layer fits there, and
+ * undefined until it is measured; otherwise above the bar, which already pads for the home indicator.
+ */
+export function toastLayerBottom(resting: number, lift: ToastLift | undefined, layerHeight: number | undefined) {
+  if (!lift) return resting;
+  const lifted = lift.height + Spacing.two;
+  if (!lift.room) return lifted;
+  if (layerHeight === undefined) return undefined;
+  return resting + layerHeight + Spacing.two <= lift.room ? resting : lifted;
 }
 
 const styles = StyleSheet.create({

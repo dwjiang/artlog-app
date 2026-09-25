@@ -21,6 +21,7 @@ import { WallArtwork } from "./wall-artwork";
 import { wallFrames } from "./wall-frame";
 import { WallFramePicker } from "./wall-options";
 import { WallPhotoPicker } from "./wall-photo-picker";
+import { wallpaperStyle } from "./wallpaper";
 
 export function WallDisplayScreen({ savedId }: { savedId: string }) {
   const owner = useLocalOwner();
@@ -48,7 +49,7 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
   );
 }
 
-/** Everything about how one hung artwork appears on the public wall: frame, the photo shown, and the note. */
+/** Everything about how one hung artwork appears on the wall: frame, the photo shown, and a public wall's note. */
 function WallDisplay({ work }: { work: SavedWork }) {
   const { width } = useWindowDimensions();
   const wall = useCollectionWall([work]);
@@ -126,7 +127,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
               accessible
               accessibilityRole="image"
               accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
-              style={[styles.preview, { backgroundColor: wall.draft.color }]}
+              style={[styles.preview, wallpaperStyle(wall.draft)]}
             >
               <WallArtwork piece={piece} width={Math.min(width - 88, 188 * wallAspect(piece))} />
             </View>
@@ -163,18 +164,20 @@ function WallDisplay({ work }: { work: SavedWork }) {
             <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
             {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}
           </View>
-          <View style={styles.section}>
-            <NoteVisibility
-              visible={published?.noteVisible ?? false}
-              disabled={wall.pending || !published?.noteEligible}
-              onChange={(value) => {
-                void shareNote(value);
-              }}
-            />
-            {!published?.noteEligible && (
-              <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
-            )}
-          </View>
+          {wall.signedIn && (
+            <View style={styles.section}>
+              <NoteVisibility
+                visible={published?.noteVisible ?? false}
+                disabled={wall.pending || !published?.noteEligible}
+                onChange={(value) => {
+                  void shareNote(value);
+                }}
+              />
+              {!published?.noteEligible && (
+                <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
+              )}
+            </View>
+          )}
         </>
       )}
       {wall.error && (

@@ -38,7 +38,8 @@ this document explains how to apply them. Dimensions are logical points.
   step chips, and completion marks. Always with black text.
 - **Neutral (ink `#111111` on paper `#FCFCF9`)**: ink for text, header icons, and
   structural symbols; muted ink for metadata; white for inputs and cards; fill
-  for placeholders; separators and soft borders for structure.
+  for placeholders, never behind a shown photo; separators and soft borders for
+  structure.
 - **Status**: success, warning, and destructive tones always pair with a word or
   symbol. Uncertain, queued, and rejected identification stays distinct from
   verified.
@@ -104,7 +105,8 @@ Interface writing:
 - Do use natural contractions; warmth comes from clear, helpful wording.
 - Do let lettering within an illustration remain part of its visual design.
 - Don't imply a save or share succeeded before it has completed.
-- Don't keep a sentence that adds no information.
+- Don't keep a sentence that adds no information. Caption a field or button only
+  when the person needs the caption to act.
 - Don't repeat a navigation title with a decorative heading.
 
 Behavior and privacy:

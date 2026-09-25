@@ -7,6 +7,7 @@ import { getSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
 import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
+import type { Quad } from "@/lib/capture/stages";
 import { contributeLabel } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
 
@@ -55,6 +56,12 @@ const capture = {
   capturedAt: 1234,
   photoPath: "photos/c1.jpg",
   cropPath: "crops/c1.jpg",
+  cropCorners: [
+    [0.1, 0.2],
+    [0.9, 0.2],
+    [0.9, 0.8],
+    [0.1, 0.8],
+  ] as Quad,
   venueId: "museum-met" as never,
   visitId: null,
   visitLocalId: "aea0b816-f46f-5312-a657-f92d1af2cb76",
@@ -201,6 +208,7 @@ it("saves an untouched confident card locally and passes the suggestion to the s
     scanId: SCAN_ID,
     photoPath: "photos/c1.jpg",
     cropPath: "crops/c1.preview.jpg",
+    cropCorners: capture.cropCorners,
   });
   await synced;
   expect(getFunctionName).toBeDefined();

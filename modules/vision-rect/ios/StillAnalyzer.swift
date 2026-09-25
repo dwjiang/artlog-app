@@ -21,7 +21,7 @@ enum StillAnalyzer {
     let properties = try ImageFile.properties(of: fileURL)
     let image = try ImageFile.thumbnail(fileURL, maxPixelSize: SubjectDetectorTuning.analysisMaxPixelSize)
     let handler = VNImageRequestHandler(cgImage: image, orientation: .up, options: [:])
-    let rectangles = try RectangleDetector.detect(handler: handler)
+    let rectangles = try RectangleDetector.detect(cgImage: image)
     let imageSize = CGSize(width: image.width, height: image.height)
     var subjects: [DetectedSubject] = []
     var subjectNote: String?

@@ -16,7 +16,12 @@ export const TRACK_MAX_JUMP = 0.2;
  * the tracked area is the canvas inside the frame, and one above its inverse is an enclosing frame.
  */
 export const NESTED_AREA_RATIO = 0.8;
-export const MIN_AREA_FRACTION = 0.25;
+/**
+ * Share of the camera frame a painting must cover before it is captured automatically. The preview
+ * cover-fits the 4:3 frame, so a tenth of the frame is about a sixth of the screen; a 12 MP still
+ * crops that to well above the 512 px model input.
+ */
+export const MIN_AREA_FRACTION = 0.1;
 /** Normalized distance from a frame edge at which a corner counts as cut off. */
 export const EDGE_MARGIN = 0.02;
 export const MAX_OPPOSITE_EDGE_RATIO = 1.3;
@@ -150,14 +155,16 @@ export function previewQuad(quad: Quad, frame: FrameSize, preview: FrameSize): Q
   ]) as Quad;
 }
 
+/** With a `preview`, corners the cover-fitted preview crops off screen also count as cut off. */
 export function framingGuidance(
   quad: Quad,
   size: FrameSize,
+  preview?: FrameSize,
 ): "move-closer" | "fit-whole-painting" | "straighten" | null {
   if (quadArea(quad, size) < MIN_AREA_FRACTION * size.width * size.height) {
     return "move-closer";
   }
-  if (isCutOff(quad)) return "fit-whole-painting";
+  if (isCutOff(quad) || (preview && !isUsableQuad(previewQuad(quad, size, preview)))) return "fit-whole-painting";
   const [topLeft, topRight, bottomRight, bottomLeft] = quad;
   const ratio = (a: number, b: number) => Math.max(a, b) / Math.max(Math.min(a, b), Number.EPSILON);
   const horizontal = ratio(distance(topLeft, topRight, size), distance(bottomLeft, bottomRight, size));

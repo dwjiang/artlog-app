@@ -40,7 +40,6 @@ type Env = {
   readonly DOCENT_MODEL: string | undefined;
   readonly FACT_SHEET_MODEL: string | undefined;
   readonly FLAG_LABEL_FLOW: string | undefined;
-  readonly FLAG_MUSEUM_SEARCH: string | undefined;
   readonly FLAG_RIGHT_NOW: string | undefined;
   readonly LABEL_MODEL: string | undefined;
   readonly MODERATION_BLOCKLIST: string | undefined;

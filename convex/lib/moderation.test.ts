@@ -82,31 +82,4 @@ describe("text moderation", () => {
     expect(blocklistFlags("Worse phrase here")).toBe(true);
     expect(blocklistFlags("badwords are not matched")).toBe(false);
   });
-
-  it.each(["", "custom phrase"])('retains baseline slur checks with optional terms "%s"', async (terms) => {
-    vi.stubEnv("MODERATION_MODEL", "");
-    vi.stubEnv("MODERATION_BLOCKLIST", terms);
-    await expect(checkText(["FAGGOT"])).resolves.toEqual({
-      flagged: true,
-      method: "blocklist",
-      calls: 0,
-    });
-    await expect(checkText(["wetbacks"])).resolves.toMatchObject({
-      flagged: true,
-    });
-    await expect(checkText(["Portrait of Dick", "Scunthorpe"])).resolves.toMatchObject({
-      flagged: false,
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("uses the baseline slur checks when the model fails without an operator blocklist", async () => {
-    vi.stubEnv("MODERATION_BLOCKLIST", "");
-    fetchMock.mockRejectedValueOnce(new Error("offline"));
-    await expect(checkText(["faggot"])).resolves.toEqual({
-      flagged: true,
-      method: "blocklist",
-      calls: 1,
-    });
-  });
 });

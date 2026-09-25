@@ -16,7 +16,7 @@ import { searchVisitSummaries, type VisitSummary } from "@/lib/journal/visit-sum
 
 import { VisitGlobe } from "./visit-globe";
 import { VisitTimeline } from "./visit-timeline";
-import { VisitMessage, visitStyles as styles } from "./visit-ui";
+import { VisitMessage, VisitPrivacyNote, visitStyles as styles } from "./visit-ui";
 
 export function CollectionVisits({
   owner,
@@ -131,8 +131,15 @@ export function CollectionVisits({
       header={header}
       controls={controls}
       scrollResetKey={mode}
-      empty={
-        message ?? (mode === "globe" ? <VisitGlobe visits={visits} onList={() => changeMode("list")} /> : undefined)
+      footer={
+        mode === "globe" ? (
+          (message ?? <VisitGlobe visits={visits} onList={() => changeMode("list")} />)
+        ) : (
+          <>
+            {message}
+            <VisitPrivacyNote />
+          </>
+        )
       }
     />
   );

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import type { GlobeCamera } from "./globe-geometry";
 
-type GlobeSession = { selectedId?: string; camera?: GlobeCamera };
+type GlobeSession = { camera?: GlobeCamera };
 const empty: GlobeSession = {};
 const sessions = new Map<string, GlobeSession>();
 const listeners = new Set<() => void>();

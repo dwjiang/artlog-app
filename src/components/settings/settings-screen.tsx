@@ -56,27 +56,7 @@ export function SettingsScreen() {
               borderColor: Gallery.separator,
             }}
           >
-            {profile ? (
-              <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={64} />
-            ) : (
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: Gallery.avatar,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Image
-                  source="sf:person.fill"
-                  tintColor={Gallery.ink}
-                  style={{ width: 28, height: 28 }}
-                  accessible={false}
-                />
-              </View>
-            )}
+            <ProfileAvatar name={profile?.name} photoUrl={profile?.photoUrl} size={64} />
             <View style={{ flex: 1, gap: 4 }}>
               <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>
                 {accountName}
@@ -109,7 +89,7 @@ export function SettingsScreen() {
               borderColor: Gallery.softBorder,
             }}
           >
-            <ProfileAvatar name="Your collection" size={44} />
+            <ProfileAvatar size={44} />
             <View style={{ flex: 1 }}>
               <ThemedText variant="button">Your collection</ThemedText>
               <ThemedText variant="metadata" themeColor="textSecondary">
@@ -139,12 +119,14 @@ export function SettingsScreen() {
           onPress={() => router.push("/museum-downloads")}
         />
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
-        <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
         <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
+      </SettingsGroup>
+      <SettingsGroup title="Support">
+        <SettingsRow label="Send feedback" icon="envelope" onPress={() => router.push("/send-feedback")} />
       </SettingsGroup>
       <ThemedText variant="metadata" themeColor="textSecondary">
         Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
