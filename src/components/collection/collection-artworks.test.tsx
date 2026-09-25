@@ -53,7 +53,7 @@ it("sorts by recent save and preserves artist grouping as an option", async () =
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
 });
 
-it("shows the matching count and clears an empty search", async () => {
+it("shows only matching artworks and clears an empty search", async () => {
   const onClearSearch = jest.fn();
   const view = await render(
     <CollectionArtworks
@@ -64,7 +64,7 @@ it("shows the matching count and clears an empty search", async () => {
       onClearSearch={onClearSearch}
     />,
   );
-  expect(screen.getByText("1 artwork")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Garden, Alice" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Coast, Zora" })).toBeNull();
   await view.rerender(
     <CollectionArtworks
@@ -75,7 +75,7 @@ it("shows the matching count and clears an empty search", async () => {
       onClearSearch={onClearSearch}
     />,
   );
-  expect(screen.getByText("0 artworks")).toBeOnTheScreen();
+  expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
   expect(onClearSearch).toHaveBeenCalledTimes(1);
 });
@@ -86,7 +86,6 @@ it("keeps the collection shell while loading and distinguishes a loaded empty co
   );
   expect(screen.getByText("Your collection")).toBeOnTheScreen();
   expect(screen.getByRole("progressbar", { name: "Opening collection…" })).toBeOnTheScreen();
-  expect(screen.queryByText("0 artworks")).toBeNull();
   expect(screen.queryByText("No saved artworks yet.")).toBeNull();
   await view.rerender(<CollectionArtworks works={[]} loading={false} error={undefined} search="" />);
   expect(screen.queryByRole("progressbar")).toBeNull();

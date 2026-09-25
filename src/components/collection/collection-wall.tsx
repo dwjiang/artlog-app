@@ -16,7 +16,6 @@ import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
-import { signInRoute } from "@/lib/account/sign-in-context";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
@@ -116,18 +115,19 @@ export function CollectionWallContent({
     return () => cancelAnimationFrame(frame);
   }, [pieces, width]);
   // Detail screens edit the wall through their own repository, so each return to this screen re-reads it. The memoized
-  // callback reads through a ref so the first load (owned by the hook) and edits in progress are skipped without re-running.
-  const focus = useRef({ loaded: false, editing: false });
+  // callback reads the repository and a ref so the first load (owned by the hook) and edits in progress are skipped
+  // without re-running.
+  const editingRef = useRef(false);
   useEffect(() => {
-    focus.current = { loaded: !!wall.acknowledged, editing };
-  }, [wall.acknowledged, editing]);
+    editingRef.current = editing;
+  }, [editing]);
   useFocusEffect(
     useCallback(() => {
-      if (wall.signedIn && focus.current.loaded && !focus.current.editing) {
+      if (wall.repository.getSnapshot().acknowledged && !editingRef.current) {
         void wall.refresh();
       }
       // oxlint-disable-next-line react-hooks/exhaustive-deps
-    }, [wall.repository, wall.signedIn]),
+    }, [wall.repository]),
   );
 
   function changeEditing(value: boolean) {
@@ -420,25 +420,22 @@ export function CollectionWallContent({
           >
             <EmptyState
               title="Add artworks to your wall."
-              detail={`You have ${works.length} ${works.length === 1 ? "artwork" : "artworks"} saved. Pick the ones you’d like to hang on your public wall.`}
-              footnote="Only the pieces you choose appear here."
+              detail={`You have ${works.length} ${works.length === 1 ? "artwork" : "artworks"} saved. Pick the ones you’d like to hang on your ${wall.signedIn ? "public wall" : "wall"}.`}
+              footnote={
+                wall.signedIn
+                  ? "Only the pieces you choose appear here."
+                  : "Your wall stays private on this iPhone until you sign in."
+              }
               visual={<ArtworkCollage />}
             >
               <GalleryButton
                 label={
-                  !wall.signedIn
-                    ? "Sign in"
-                    : !wall.draft && !wall.profileRequired
-                      ? "Load wall"
-                      : hasSavedArt
-                        ? "Choose artworks"
-                        : "Scan artwork"
+                  !wall.draft && !wall.profileRequired ? "Load wall" : hasSavedArt ? "Choose artworks" : "Scan artwork"
                 }
                 variant="filled"
                 fullWidth
                 onPress={() => {
-                  if (!wall.signedIn) router.push(signInRoute("wall"));
-                  else if (!wall.draft && !wall.profileRequired) void wall.refresh();
+                  if (!wall.draft && !wall.profileRequired) void wall.refresh();
                   else if (!hasSavedArt) router.navigate("/scan");
                   // The wall is public, so its profile is created only once there is art to hang.
                   else if (wall.profileRequired) setProfile(true);
@@ -561,7 +558,11 @@ export function CollectionWallContent({
                       setSelectedId(placement.localId);
                       revealId.current = placement.localId;
                     } else if (add(item.localId)) {
-                      showToast("Selected image added to your wall. Other photos stay private.");
+                      showToast(
+                        wall.signedIn
+                          ? "Selected image added to your wall. Other photos stay private."
+                          : "Added to your wall.",
+                      );
                     }
                   }}
                   style={[
@@ -651,7 +652,9 @@ export function CollectionWallContent({
           }
         >
           <View style={{ padding: 20, gap: 12 }}>
-            <Text style={styles.caption}>{count + picker.length} selected · Your wall is public</Text>
+            <Text style={styles.caption}>
+              {count + picker.length} selected · Your wall is {wall.signedIn ? "public" : "private"}
+            </Text>
             {available.map((item) => {
               const hung = pieces.some((piece) => piece.saveLocalId === item.localId);
               const checked = hung || picker.includes(item.localId);
@@ -723,7 +726,9 @@ export function CollectionWallContent({
           onConfirm={(photoLocalId) => {
             if (photoPicker.kind === "duplicate") {
               if (add(selected.saveLocalId!, photoLocalId)) {
-                showToast("Second placement added. Only this photo is public.");
+                showToast(
+                  wall.signedIn ? "Second placement added. Only this photo is public." : "Second placement added.",
+                );
               }
             } else if (wall.draft && !blocked) {
               commit({
@@ -732,7 +737,7 @@ export function CollectionWallContent({
                   item.placementId === selected.localId ? { ...item, photoLocalId } : item,
                 ),
               });
-              showToast("Wall photo updated. Other photos remain private.");
+              showToast(wall.signedIn ? "Wall photo updated. Other photos remain private." : "Wall photo updated.");
             }
             setPhotoPicker(undefined);
           }}
@@ -859,7 +864,6 @@ const styles = StyleSheet.create({
   },
   artworkMat: {
     height: 68,
-    backgroundColor: Gallery.fill,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 3,

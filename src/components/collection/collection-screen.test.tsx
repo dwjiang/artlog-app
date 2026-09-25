@@ -18,7 +18,11 @@ jest.mock("expo-network", () => ({
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
 jest.mock("./collection-header", () => ({ CollectionHeader: () => null }));
 jest.mock("@/lib/wall/use-collection-wall", () => ({
-  useCollectionWall: () => ({ signedIn: false, draft: null }),
+  useCollectionWall: () => ({
+    signedIn: false,
+    draft: null,
+    repository: { getSnapshot: () => ({ acknowledged: null }) },
+  }),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ status: "signed-out", key: "guest" }),
@@ -91,12 +95,11 @@ async function renderArchive() {
   await render(<AllArtworksScreen />);
 }
 
-it("opens the local artwork collection for guests without a sign-in gate", async () => {
+it("opens the wall for guests without a sign-in gate", async () => {
   await render(<CollectionScreen />);
-  expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Artworks" })).toBeOnTheScreen();
+  expect(screen.getByText("Collection wall")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Wall" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Visits" })).toBeOnTheScreen();
-  expect(screen.queryByText("Collection wall")).toBeNull();
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
 });
@@ -146,7 +149,7 @@ it("invites the first scan while the collection is empty", async () => {
 
 it("shows the first saved artwork without a sync prompt", async () => {
   switchOwner("device:first-save", "scope-first-save");
-  const empty = await render(<CollectionScreen />);
+  const empty = await render(<AllArtworksScreen />);
   expect(await screen.findByText("No saved artworks yet.")).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
   await empty.unmount();
@@ -158,7 +161,7 @@ it("shows the first saved artwork without a sync prompt", async () => {
       artist: "First artist",
     });
   });
-  await render(<CollectionScreen />);
+  await renderArchive();
   expect(await screen.findByRole("button", { name: "First artwork, First artist" })).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
   expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
@@ -240,24 +243,6 @@ describe("with saved works", () => {
     expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
     await fireEvent.changeText(search(), "");
     expect(screen.getAllByRole("button", { name: /, / })).toHaveLength(3);
-  });
-
-  it("shows saved art directly for guests and retains artwork search across visit browsing", async () => {
-    await render(<CollectionScreen />);
-    expect(await screen.findByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
-    expect(screen.queryByText("Keep your collection across devices")).toBeNull();
-    await fireEvent.changeText(search(), "Monet");
-    expect(screen.queryByText("100% Cotton")).toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
-    await fireEvent.press(screen.getByRole("button", { name: "List" }));
-    expect(screen.getByText("de Young")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole("button", { name: "Artworks" }));
-    expect(search()).toHaveDisplayValue("Monet");
-    expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
-    expect(screen.queryByText("100% Cotton")).toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
-    expect(search()).toHaveDisplayValue("");
-    expect(screen.getByText("100% Cotton")).toBeOnTheScreen();
   });
 
   it("opens a visit timeline with whole visits and keeps imports in All artworks", async () => {

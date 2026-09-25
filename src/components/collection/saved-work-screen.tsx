@@ -200,7 +200,7 @@ function SavedArtwork({
                 label="On your wall"
                 value={!!hung}
                 onValueChange={toggleWall}
-                disabled={wall.pending || !work.syncedAt || wallFull}
+                disabled={wall.pending || (wall.signedIn && !work.syncedAt) || wallFull}
               />
             </Host>
             {wallFull && (

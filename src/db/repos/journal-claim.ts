@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
 import { parseSeenVisits, seenVisitsKey } from "@/lib/journal/visit-seen";
+import { privateWallKey } from "@/lib/wall/local-wall-repository";
 
 export async function claimLocalJournal(source: string, accountOwner: string, claimId: string): Promise<void> {
   if (!source.startsWith("device:") || !accountOwner.startsWith("account:")) {
@@ -79,6 +80,19 @@ export async function claimLocalJournal(source: string, accountOwner: string, cl
         .onConflictDoUpdate({ target: settings.key, set: { value } })
         .run();
       tx.delete(settings).where(eq(settings.key, seen.key)).run();
+    }
+    // The private wall follows the journal; the account publishes it once its own wall reads empty.
+    const wall = tx
+      .select()
+      .from(settings)
+      .where(eq(settings.key, privateWallKey(source)))
+      .get();
+    if (wall) {
+      tx.insert(settings)
+        .values({ key: privateWallKey(accountOwner), value: wall.value })
+        .onConflictDoUpdate({ target: settings.key, set: { value: wall.value } })
+        .run();
+      tx.delete(settings).where(eq(settings.key, wall.key)).run();
     }
     tx.insert(settings)
       .values({ key, value: accountOwner })

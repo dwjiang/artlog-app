@@ -210,7 +210,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 180,
     margin: 24,
-    backgroundColor: Gallery.fill,
   },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   controls: { paddingHorizontal: 24, gap: 4 },

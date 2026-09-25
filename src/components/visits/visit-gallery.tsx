@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Gallery.fill,
   },
   badge: {
     position: "absolute",

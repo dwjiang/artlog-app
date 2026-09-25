@@ -41,10 +41,10 @@ export function CardHeader({
   const [failedUri, setFailedUri] = useState<string>();
   const [loaded, setLoaded] = useState<{ uri?: string; aspect: number }>();
   const available = cropUri && failedUri !== cropUri;
-  const aspectRatio = available && loaded?.uri === cropUri ? loaded.aspect : FALLBACK_ASPECT;
+  const loadedAspect = available && loaded?.uri === cropUri ? loaded.aspect : undefined;
   return (
     <View style={styles.header}>
-      <View style={[styles.frame, { aspectRatio }]}>
+      <View style={[styles.frame, loadedAspect ? { aspectRatio: loadedAspect } : styles.empty]}>
         {available ? (
           <Image
             cachePolicy="memory"
@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: Colors.light.backgroundElement,
   },
+  empty: { aspectRatio: FALLBACK_ASPECT, backgroundColor: Colors.light.backgroundElement },
   photo: { width: "100%", height: "100%" },
   crop: {
     position: "absolute",

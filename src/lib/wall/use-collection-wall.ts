@@ -9,23 +9,30 @@ import { captureOwner, useLocalOwner, useOwnerGeneration, useServerScope } from 
 import { captureFileUri } from "@/lib/files/photos";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+import type { JournalSave } from "@/shared/journal/contracts";
 import { socialErrorMessage } from "@/shared/social/errors";
 
+import { publishClaimedWall } from "./claimed-wall";
 import { useWallRepository } from "./use-wall-repository";
-import { type WallPiece } from "./wall-layout";
-import type { WallTransport } from "./wall-transport";
+import type { WallDraft, WallPiece } from "./wall-layout";
+import type { OwnerWall } from "./wall-transport";
 
-type Selection = Awaited<ReturnType<WallTransport["listMine"]>>["page"][number] & {
-  cropAspectRatio?: number;
-};
+type Selection = Pick<JournalSave, "localId" | "snapshot"> & { cropAspectRatio?: number };
 
-const LOAD_ERROR = "Your wall could not load. Check your connection and try again.";
+// Only an account's wall is published; a signed-out wall stays on this iPhone.
+function isPublished(wall: OwnerWall | WallDraft | null): wall is OwnerWall {
+  return !!wall && "profileId" in wall;
+}
 
-function loadFailure(cause: unknown) {
+function loadFailure(cause: unknown, signedIn: boolean) {
   const profileRequired = convexErrorCode(cause) === "profile_required";
   return {
     profileRequired,
-    error: profileRequired ? undefined : (socialErrorMessage(cause) ?? LOAD_ERROR),
+    error: profileRequired
+      ? undefined
+      : signedIn
+        ? (socialErrorMessage(cause) ?? "Your wall could not load. Check your connection and try again.")
+        : "Your wall could not load. Try again.",
   };
 }
 
@@ -36,9 +43,10 @@ export function useCollectionWall(works: SavedWork[]) {
   const token = useAuthToken();
   const state = useWallRepository();
   const signedIn = owner.startsWith("account:");
-  // Identifies the wall read the effect owes for the current account session; unset until the account can be read.
+  // Identifies the wall read the effect owes for the current owner session; an account's is unset until it can be read.
   // A token rotation alone keeps the session valid, so it must not trigger another read.
-  const loadKey = signedIn && token && serverScope ? generation : undefined;
+  const loadKey = !signedIn || (token && serverScope) ? generation : undefined;
+  const published = isPublished(state.acknowledged) ? state.acknowledged : null;
   const [photoAspects, setPhotoAspects] = useState<Record<string, number>>({});
   const [loadedKey, setLoadedKey] = useState<number>();
   const [refreshing, setRefreshing] = useState(false);
@@ -57,12 +65,13 @@ export function useCollectionWall(works: SavedWork[]) {
         if (active) {
           setError(undefined);
           setProfileRequired(false);
+          void publishClaimedWall(state.repository);
         }
       })
       .catch((cause: unknown) => {
         if (!active) return;
         reportError(cause, "wall.load");
-        const failure = loadFailure(cause);
+        const failure = loadFailure(cause, signedIn);
         setProfileRequired(failure.profileRequired);
         setError(failure.error);
       })
@@ -72,7 +81,7 @@ export function useCollectionWall(works: SavedWork[]) {
     return () => {
       active = false;
     };
-  }, [loadKey, state.repository]);
+  }, [loadKey, signedIn, state.repository]);
 
   async function refresh() {
     const session = captureOwner();
@@ -80,11 +89,14 @@ export function useCollectionWall(works: SavedWork[]) {
     setRefreshing(true);
     try {
       await state.repository.refresh();
-      if (session.isCurrent()) setProfileRequired(false);
+      if (session.isCurrent()) {
+        setProfileRequired(false);
+        void publishClaimedWall(state.repository);
+      }
     } catch (cause) {
       if (!session.isCurrent()) return;
       reportError(cause, "wall.load");
-      const failure = loadFailure(cause);
+      const failure = loadFailure(cause, signedIn);
       setProfileRequired(failure.profileRequired);
       setError(failure.error);
     } finally {
@@ -184,11 +196,11 @@ export function useCollectionWall(works: SavedWork[]) {
   }, [photoPaths]);
 
   const pieces: WallPiece[] = (draft?.items ?? []).flatMap(({ placementId, photoLocalId, saveLocalId, layout }) => {
-    const published = state.acknowledged?.items.find((item) => item.placementId === placementId);
+    const publishedItem = published?.items.find((item) => item.placementId === placementId);
     const selection = selections.find((item) => item.localId === saveLocalId);
     const work = works.find((item) => item.localId === saveLocalId);
     const snapshot = selection?.snapshot ?? work;
-    if (!published && !snapshot) return [];
+    if (!publishedItem && !snapshot) return [];
     const photo = albumPhoto(saveLocalId, photoLocalId);
     return [
       {
@@ -196,7 +208,7 @@ export function useCollectionWall(works: SavedWork[]) {
         saveLocalId,
         photoLocalId,
         layout,
-        artwork: published?.artwork ?? {
+        artwork: publishedItem?.artwork ?? {
           title: snapshot!.title,
           artist: snapshot!.artist,
           date: snapshot!.date ?? undefined,
@@ -207,16 +219,17 @@ export function useCollectionWall(works: SavedWork[]) {
             height: 1 as const,
           },
         },
-        cropPath: photo?.path ?? (!published ? work?.cropPath : undefined),
-        cropAspectRatio: photo ? photoAspects[photo.localId] : !published ? selection?.cropAspectRatio : undefined,
+        cropPath: photo?.path ?? (!publishedItem ? work?.cropPath : undefined),
+        cropAspectRatio: photo ? photoAspects[photo.localId] : !publishedItem ? selection?.cropAspectRatio : undefined,
       },
     ];
   });
 
   return {
     ...state,
+    acknowledged: published,
     signedIn,
-    loading: signedIn && (refreshing || (loadKey !== undefined && loadedKey !== loadKey)),
+    loading: refreshing || (loadKey !== undefined && loadedKey !== loadKey),
     error,
     setError,
     profileRequired,

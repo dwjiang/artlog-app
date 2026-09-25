@@ -3,8 +3,9 @@ import { getNetworkStateAsync } from "expo-network";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
-import { captureOwner, subscribeOwner } from "@/lib/account/owner-store";
+import { captureOwner, subscribeOwner, useLocalOwner } from "@/lib/account/owner-store";
 
+import { createLocalWallRepository } from "./local-wall-repository";
 import { createWallRepository } from "./wall-repository";
 import { createWallTransport } from "./wall-transport";
 
@@ -40,8 +41,10 @@ function createSession() {
 
 export function useWallRepository() {
   const token = useAuthToken();
+  const signedIn = useLocalOwner().startsWith("account:");
   const [session] = useState(createSession);
-  const { repository } = session;
+  const [local] = useState(createLocalWallRepository);
+  const repository = signedIn ? session.repository : local;
   useEffect(() => {
     session.setToken(token);
   }, [session, token]);

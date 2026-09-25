@@ -4,12 +4,13 @@ import type { LayoutInput, OwnerWall, VisibilityInput, WallTransport } from "./w
 
 type LayoutDraft = Omit<LayoutInput, "scope" | "revision">;
 type NoteDraft = VisibilityInput["changes"];
-type State = {
-  acknowledged: OwnerWall | null;
+export type WallState<Wall> = {
+  acknowledged: Wall | null;
   layoutDraft: LayoutDraft | null;
   noteDraft: NoteDraft;
   pending: boolean;
 };
+type State = WallState<OwnerWall>;
 type Session = {
   owner: string;
   scope?: string;

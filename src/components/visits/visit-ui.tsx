@@ -100,15 +100,14 @@ export function ArtworkPreviews({
   return (
     <View style={visitStyles.previews}>
       {unique.slice(0, limit).map((work) => (
-        <View key={`${work.owner}:${work.localId}`} style={[visitStyles.thumbnail, { width: size, height: size }]}>
-          <SavedWorkImage
-            path={work.cropPath}
-            syncing={cropSyncing(work)}
-            title={work.title}
-            contain
-            style={{ width: "100%", height: "100%" }}
-          />
-        </View>
+        <SavedWorkImage
+          key={`${work.owner}:${work.localId}`}
+          path={work.cropPath}
+          syncing={cropSyncing(work)}
+          title={work.title}
+          contain
+          style={{ width: size, height: size }}
+        />
       ))}
       {overflow && hidden > 0 && (
         <View
@@ -144,7 +143,6 @@ export const visitStyles = StyleSheet.create({
   },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   previews: { flexDirection: "row", gap: 5, flexWrap: "wrap" },
-  thumbnail: { backgroundColor: Gallery.fill, borderRadius: 2 },
   more: {
     minWidth: 32,
     paddingHorizontal: 6,

@@ -48,7 +48,7 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
   );
 }
 
-/** Everything about how one hung artwork appears on the public wall: frame, the photo shown, and the note. */
+/** Everything about how one hung artwork appears on the wall: frame, the photo shown, and a public wall's note. */
 function WallDisplay({ work }: { work: SavedWork }) {
   const { width } = useWindowDimensions();
   const wall = useCollectionWall([work]);
@@ -163,18 +163,20 @@ function WallDisplay({ work }: { work: SavedWork }) {
             <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
             {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}
           </View>
-          <View style={styles.section}>
-            <NoteVisibility
-              visible={published?.noteVisible ?? false}
-              disabled={wall.pending || !published?.noteEligible}
-              onChange={(value) => {
-                void shareNote(value);
-              }}
-            />
-            {!published?.noteEligible && (
-              <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
-            )}
-          </View>
+          {wall.signedIn && (
+            <View style={styles.section}>
+              <NoteVisibility
+                visible={published?.noteVisible ?? false}
+                disabled={wall.pending || !published?.noteEligible}
+                onChange={(value) => {
+                  void shareNote(value);
+                }}
+              />
+              {!published?.noteEligible && (
+                <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
+              )}
+            </View>
+          )}
         </>
       )}
       {wall.error && (

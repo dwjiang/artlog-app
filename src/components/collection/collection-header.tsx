@@ -53,6 +53,7 @@ export function CollectionHeader({
           paddingTop: 10,
           paddingBottom: 14,
           gap: 4,
+          backgroundColor: Gallery.paper,
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>

@@ -99,7 +99,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
         <LoadingImage
           uri={captureFileUri(photo.path)}
           onError={() => setImageFailed(true)}
-          style={{ width: "100%", height: 220, backgroundColor: Gallery.fill }}
+          style={{ width: "100%", height: 220 }}
           contentFit="contain"
           label="Your artwork photo"
         />

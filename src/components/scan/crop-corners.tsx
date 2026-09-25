@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 180,
     margin: 24,
-    backgroundColor: Gallery.fill,
   },
   handle: {
     position: "absolute",

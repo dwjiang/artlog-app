@@ -698,7 +698,7 @@ const share = StyleSheet.create({
     gap: 12,
     minHeight: 44,
   },
-  thumb: { width: 56, height: 60, backgroundColor: Gallery.fill },
+  thumb: { width: 56, height: 60 },
   itemTitle: {
     fontSize: 16,
     lineHeight: 22,
