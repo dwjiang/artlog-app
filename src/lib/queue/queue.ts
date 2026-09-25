@@ -54,6 +54,7 @@ export const captureStore: CaptureStore = {
       {
         localId: payload.localId,
         ...files,
+        cropCorners: payload.cropCorners,
         vector: payload.vector,
         descriptors: payload.descriptors,
         keypoints: payload.keypoints,

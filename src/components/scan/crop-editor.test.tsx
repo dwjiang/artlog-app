@@ -1,17 +1,29 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
+import { wholePhoto } from "@/lib/capture/crop-geometry";
+import type { Quad } from "@/lib/capture/stages";
+
 import { CropEditor } from "./crop-editor";
 
 jest.mock("./crop-corners", () => ({ CropCorners: () => null }));
+const mockHeaderRender = jest.fn();
+jest.mock("expo-router", () => ({
+  Stack: {
+    ...jest.requireActual("@/components/stack-toolbar-mock").mockStack,
+    Screen: () => {
+      mockHeaderRender();
+      return null;
+    },
+  },
+}));
+jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+const mockToast = jest.fn();
+jest.mock("@/lib/ui/toast", () => ({
+  showErrorToast: (...args: unknown[]) => mockToast(...args),
+  useLiftToasts: () => {},
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
-}));
-jest.mock("../../../modules/vision-rect/src", () => ({
-  getVisionRect: () => ({
-    detectStill: async () => {
-      throw new Error("No detection");
-    },
-  }),
 }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
@@ -41,35 +53,61 @@ beforeEach(() => {
   mockPrepare.mockResolvedValue(crop);
 });
 
-it("requires a preview before saving and keeps a failed save available for retry", async () => {
-  const onSave = jest.fn().mockRejectedValueOnce(new Error("disk failed")).mockResolvedValue(undefined);
+it("saves the whole photo when the corners are left alone and removes the temporary crop", async () => {
+  const onSave = jest.fn().mockResolvedValue(undefined);
   await render(<CropEditor photoPath="full.jpg" onSave={onSave} onCancel={jest.fn()} />);
-  expect(screen.queryByRole("button", { name: "Save crop" })).toBeNull();
-  await fireEvent.press(await screen.findByRole("button", { name: "Preview crop" }));
-  expect(await screen.findByLabelText("Corrected painting preview")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Save crop" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn’t save this crop/);
-  await fireEvent.press(screen.getByRole("button", { name: "Save crop" }));
-  expect(onSave).toHaveBeenCalledTimes(2);
+  await fireEvent.press(await screen.findByRole("button", { name: "Save crop" }));
+  await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(crop));
+  expect(mockPrepare).toHaveBeenCalledWith("full.jpg", wholePhoto);
+  expect(onSave).toHaveBeenCalledWith(crop, expect.any(Function));
 });
 
-it("cancels without saving and removes the temporary preview on unmount", async () => {
+it("starts from the stored crop, and from the whole photo when the stored corners are unusable", async () => {
+  const stored: Quad = [
+    [0.1, 0.2],
+    [0.9, 0.2],
+    [0.9, 0.8],
+    [0.1, 0.8],
+  ];
+  const onSave = jest.fn().mockResolvedValue(undefined);
+  const view = await render(
+    <CropEditor photoPath="full.jpg" initialCorners={stored} onSave={onSave} onCancel={jest.fn()} />,
+  );
+  await fireEvent.press(await screen.findByRole("button", { name: "Save crop" }));
+  await waitFor(() => expect(mockPrepare).toHaveBeenCalledWith("full.jpg", stored));
+  await view.unmount();
+  const outOfFrame: Quad = [
+    [-0.2, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  await render(<CropEditor photoPath="full.jpg" initialCorners={outOfFrame} onSave={onSave} onCancel={jest.fn()} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Save crop" }));
+  await waitFor(() => expect(mockPrepare).toHaveBeenLastCalledWith("full.jpg", wholePhoto));
+});
+
+it("explains a failed save in a toast and saves again from the button", async () => {
+  const onSave = jest.fn().mockRejectedValueOnce(new Error("disk failed")).mockResolvedValue(undefined);
+  await render(<CropEditor photoPath="full.jpg" onSave={onSave} onCancel={jest.fn()} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Save crop" }));
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.stringMatching(/^Couldn’t save this crop\./)));
+  expect(mockDiscard).toHaveBeenCalledWith(crop);
+  await fireEvent.press(screen.getByRole("button", { name: "Save crop" }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+});
+
+it("keeps the header out of the editor's own re-renders", async () => {
+  await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
+  await screen.findByRole("button", { name: "Save crop" });
+  expect(mockHeaderRender).toHaveBeenCalledTimes(1);
+});
+
+it("cancels without saving", async () => {
   const onSave = jest.fn();
   const onCancel = jest.fn();
-  const view = await render(<CropEditor photoPath="full.jpg" onSave={onSave} onCancel={onCancel} />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Preview crop" }));
+  await render(<CropEditor photoPath="full.jpg" onSave={onSave} onCancel={onCancel} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Cancel" }));
   expect(onCancel).toHaveBeenCalled();
   expect(onSave).not.toHaveBeenCalled();
-  await view.unmount();
-  expect(mockDiscard).toHaveBeenCalledWith(crop);
-});
-
-it("discards the previous preview when returning to the corner controls", async () => {
-  await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Preview crop" }));
-  await fireEvent.press(await screen.findByRole("button", { name: "Adjust corners" }));
-  expect(mockDiscard).toHaveBeenCalledWith(crop);
-  expect(screen.queryByRole("button", { name: "Save crop" })).toBeNull();
-  await waitFor(() => expect(screen.getByRole("button", { name: "Preview crop" })).toBeOnTheScreen());
 });

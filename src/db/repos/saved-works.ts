@@ -154,7 +154,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
             .set({
               cropStorageId: row.cropStorageId,
               photoUpdatedAt: row.photoUpdatedAt ?? 0,
-              ...(replaced ? { cropPath: null } : {}),
+              ...(replaced ? { cropPath: null, cropCorners: null } : {}),
             })
             .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId)))
             .run();
@@ -269,11 +269,16 @@ export async function updatePhotoTransfer(
   return updated.length > 0;
 }
 
-export function replaceSavedCrop(localId: string, cropPath: string, owner = getLocalOwner()) {
+export function replaceSavedCrop(
+  localId: string,
+  cropPath: string,
+  cropCorners: SavedWork["cropCorners"],
+  owner = getLocalOwner(),
+) {
   const work = selectSavedWork(localId, owner).get();
   if (!work || work.deletedAt !== null) throw new Error("Artwork unavailable");
   db.update(savedWorks)
-    .set({ cropPath, cropStorageId: null })
+    .set({ cropPath, cropCorners, cropStorageId: null })
     .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)))
     .run();
   requestCollectionSync();

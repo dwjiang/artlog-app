@@ -66,6 +66,13 @@ const crop: EditedCrop = {
   previewUri: "file:///tmp/preview.jpg",
   width: 512,
   height: 400,
+  photoPath: "full.jpg",
+  corners: [
+    [0.1, 0.2],
+    [0.9, 0.2],
+    [0.9, 0.8],
+    [0.1, 0.8],
+  ],
 };
 const features = {
   vector: [0.5],
@@ -106,7 +113,7 @@ async function seedScan() {
   });
 }
 
-it("updates only the collection crop, preserves the original album photo, and queues an upload", async () => {
+it("updates only the collection crop and its corners, preserves the original album photo, and queues an upload", async () => {
   await insertSavedWork({
     localId: "work",
     title: "Painting",
@@ -118,11 +125,25 @@ it("updates only the collection crop, preserves the original album photo, and qu
   });
   await saveEditedArtworkCrop("work", crop, owner);
   const work = await getSavedWork("work");
-  expect(work).toMatchObject({ photoPath: "full.jpg", cropStorageId: null });
+  expect(work).toMatchObject({ photoPath: "full.jpg", cropCorners: crop.corners, cropStorageId: null });
   expect(work?.cropPath).not.toBe("old.preview.jpg");
   expect(mockFiles.has(`file:///documents/${work?.cropPath}`)).toBe(true);
   expect(mockFiles.has("file:///documents/full.jpg")).toBe(true);
   expect(db.select().from(artworkPhotos).all()[0].path).toBe("full.jpg");
+});
+
+it("keeps no corners for a crop cut from another album photo", async () => {
+  await insertSavedWork({
+    localId: "work",
+    title: "Painting",
+    artist: "",
+    savedAt: 1,
+    photoPath: "full.jpg",
+    cropPath: "old.preview.jpg",
+    cropCorners: crop.corners,
+  });
+  await saveEditedArtworkCrop("work", { ...crop, photoPath: "detail.jpg" }, owner);
+  expect((await getSavedWork("work"))?.cropCorners).toBeNull();
 });
 
 it("keeps the previous saved crop if writing the new file fails, and can retry the same preview", async () => {
@@ -164,6 +185,7 @@ it("recomputes scan features, preserves draft photos and context, and isolates l
   const next = await getPendingScan(nextId);
   expect(next).toMatchObject({
     ...features,
+    cropCorners: crop.corners,
     status: "queued",
     scanId: null,
     attempts: 0,
