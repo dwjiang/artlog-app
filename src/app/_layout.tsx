@@ -160,6 +160,15 @@ function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="send-feedback"
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
                       name="queue"
                       dangerouslySingular
                       options={{

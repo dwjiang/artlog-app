@@ -13,14 +13,24 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     for (const row of scores) await ctx.db.delete("leaderboardScores", row._id);
     return true;
   }
-  const reporter = { kind: "account" as const, accountId };
+  const owner = { kind: "account" as const, accountId };
   const reports = await ctx.db
     .query("reports")
-    .withIndex("by_reporter_createdAt", (q) => q.eq("reporter", reporter))
+    .withIndex("by_reporter_createdAt", (q) => q.eq("reporter", owner))
     .take(BATCH);
   if (reports.length > 0) {
     for (const report of reports) {
       await ctx.db.patch("reports", report._id, { reporter: undefined });
+    }
+    return true;
+  }
+  const feedback = await ctx.db
+    .query("appFeedback")
+    .withIndex("by_owner", (q) => q.eq("owner", owner))
+    .take(BATCH);
+  if (feedback.length > 0) {
+    for (const row of feedback) {
+      await ctx.db.patch("appFeedback", row._id, { owner: undefined });
     }
     return true;
   }
