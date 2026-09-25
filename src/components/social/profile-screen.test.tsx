@@ -93,6 +93,12 @@ it("requests only the selected friend’s shared visits and stops after a block"
   expect(mockPages.mock.calls.at(-1)[1]).toBe("skip");
 });
 
+it("shows an empty wall without sending the viewer back to friends", async () => {
+  await render(<ProfileScreen profileId="friend" />);
+  expect(screen.getByText("No artworks on this wall yet.")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Back to friends" })).not.toBeOnTheScreen();
+});
+
 it("keeps the full header when switching between Wall and Visits", async () => {
   await render(<ProfileScreen profileId="friend" />);
   const header = () => [
