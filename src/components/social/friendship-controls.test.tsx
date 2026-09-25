@@ -48,7 +48,13 @@ it("lets guests request sign-in from the friend action without sending a request
 });
 
 it("continues to profile setup after sign-in without sending a request automatically", async () => {
-  await render(<FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "profile-required" }} />);
+  await render(
+    <FriendshipControls
+      profileId={"friend" as never}
+
+      session={{ ...guest, status: "profile-required" }}
+    />,
+  );
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
   expect(mockPush).toHaveBeenCalledWith("/create-profile");
   expect(mockAct).not.toHaveBeenCalled();
@@ -56,7 +62,11 @@ it("continues to profile setup after sign-in without sending a request automatic
 
 it("keeps friendship actions unavailable while offline", async () => {
   await render(
-    <FriendshipControls profileId={"friend" as never} session={{ ...guest, status: "offline", offline: true }} />,
+    <FriendshipControls
+      profileId={"friend" as never}
+
+      session={{ ...guest, status: "offline", offline: true }}
+    />,
   );
   expect(screen.queryByRole("button", { name: "Add friend" })).toBeNull();
 });
@@ -67,6 +77,7 @@ it("requires confirmation before removing an existing friend", async () => {
   await render(
     <FriendshipControls
       profileId={"friend" as never}
+
       session={{ ...guest, status: "ready", profileId: "me" as never }}
     />,
   );
@@ -84,12 +95,28 @@ it("unsends a sent friend request from the sent button", async () => {
   await render(
     <FriendshipControls
       profileId={"friend" as never}
+
       session={{ ...guest, status: "ready", profileId: "me" as never }}
     />,
   );
   expect(screen.getAllByRole("button")).toHaveLength(1);
   await fireEvent.press(screen.getByRole("button", { name: "Friend request sent" }));
   expect(mockAct).toHaveBeenCalledWith("cancel");
+});
+
+it("labels the answers to a received request as accepting or ignoring a friend", async () => {
+  mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 1 };
+  await render(
+    <FriendshipControls
+      profileId={"friend" as never}
+
+      session={{ ...guest, status: "ready", profileId: "me" as never }}
+    />,
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Ignore" }));
+  expect(mockAct).toHaveBeenCalledWith("decline");
+  await fireEvent.press(screen.getByRole("button", { name: "Accept friend" }));
+  expect(mockAct).toHaveBeenCalledWith("accept");
 });
 
 it("keeps the trailing action beside every friendship state", async () => {
@@ -101,6 +128,13 @@ it("keeps the trailing action beside every friendship state", async () => {
   await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
   expect(screen.getByLabelText("Loading friendship…")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 1 };
+  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  expect(screen.getAllByRole("button").map((button) => button.props.accessibilityLabel)).toEqual([
+    "Accept friend",
+    "Ignore",
+    "Share profile",
+  ]);
   mockState = { state: "accepted", blocked: false };
   await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
   expect(screen.getByRole("button", { name: "Remove friend" })).toBeOnTheScreen();

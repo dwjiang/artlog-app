@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -6,9 +7,9 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { initials } from "@/lib/social/presentation";
 
-export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; photoUrl?: string; size?: number }) {
+/** Without a `name`, draws the placeholder for a collection that has no public profile. */
+export function ProfileAvatar({ name, photoUrl, size = 40 }: { name?: string; photoUrl?: string; size?: number }) {
   const [failed, setFailed] = useState<string>();
-  const letters = initials(name);
   return (
     <View
       accessibilityElementsHidden
@@ -25,12 +26,12 @@ export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; pho
       {photoUrl && failed !== photoUrl ? (
         <LoadingImage
           uri={photoUrl}
-          label={`${name} profile photo`}
+          label={name ? `${name} profile photo` : "Profile photo"}
           contentFit="cover"
           onError={() => setFailed(photoUrl)}
           style={{ width: size, height: size }}
         />
-      ) : (
+      ) : name ? (
         <Text
           allowFontScaling={false}
           style={{
@@ -40,8 +41,15 @@ export function ProfileAvatar({ name, photoUrl, size = 40 }: { name: string; pho
             color: Gallery.ink,
           }}
         >
-          {letters}
+          {initials(name)}
         </Text>
+      ) : (
+        <Image
+          source="sf:person.fill"
+          tintColor={Gallery.ink}
+          style={{ width: size * 0.44, height: size * 0.44 }}
+          accessible={false}
+        />
       )}
     </View>
   );
