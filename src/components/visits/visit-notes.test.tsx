@@ -62,7 +62,7 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
   const input = await screen.findByLabelText("Notes");
   expect(input).toHaveProp("value", "");
   expect(input).toHaveProp("autoFocus", true);
-  expect(screen.getByRole("button", { name: "Done editing note" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Save note" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /Public|Private/ })).toBeNull();
   await fireEvent.changeText(input, "  Remember the light  ");
   await fireEvent(input, "blur");

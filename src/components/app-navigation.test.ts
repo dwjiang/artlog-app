@@ -53,12 +53,12 @@ describe("App navigation", () => {
     expect(root?.index).toBe(1);
   });
 
-  it("opens sharing as a sheet with its nested preview route", () => {
-    const root = getRootState("/visit-share/demo/preview");
+  it("opens sharing with its nested photo choice route", () => {
+    const root = getRootState("/visit-share/demo/photos?saveId=painting");
     expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "visit-share/[visitId]"]);
     expect(root?.routes[1]).toMatchObject({
       params: { visitId: "demo" },
-      state: { routes: [{ name: "preview" }] },
+      state: { routes: [{ name: "photos", params: { saveId: "painting" } }] },
     });
   });
 

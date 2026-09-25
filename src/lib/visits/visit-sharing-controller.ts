@@ -6,13 +6,7 @@ import type { RequestContext } from "@/lib/wall/wall-transport";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
-import type {
-  SharePreview,
-  ShareSelection,
-  ShareState,
-  SharedVisit,
-  VisitSharingTransport,
-} from "./visit-sharing-transport";
+import type { ShareSelection, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
 
 type Session = {
   owner: string;
@@ -23,8 +17,6 @@ type Session = {
 type State = {
   acknowledged: ShareState | null;
   draft: ShareSelection | null;
-  preview: SharePreview | null;
-  shared: SharedVisit | null;
   busy: boolean;
   error?: string;
   profileRequired: boolean;
@@ -33,8 +25,6 @@ type State = {
 const empty = (): State => ({
   acknowledged: null,
   draft: null,
-  preview: null,
-  shared: null,
   busy: false,
   profileRequired: false,
   conflict: false,
@@ -73,7 +63,7 @@ export function createVisitSharingController({
     listeners.forEach((listener) => listener());
   }
   async function run(
-    operation: "load" | "preview" | "publish" | "view",
+    operation: "load" | "publish",
     work: (context: RequestContext, current: () => boolean) => Promise<void>,
   ): Promise<boolean> {
     if (state.busy || disposed) return false;
@@ -113,10 +103,10 @@ export function createVisitSharingController({
         emit({
           profileRequired: convexErrorCode(cause) === "profile_required",
           error: conflict
-            ? "This share changed on another device. Your draft is kept. Refresh the preview before sharing again."
+            ? "This share changed on another device. Your selection is kept. Post again to replace it."
             : (socialErrorMessage(cause)
               ?? "The request did not finish. Your draft is kept. Check your connection and try again."),
-          ...(conflict ? { conflict: true, preview: null, shared: null } : {}),
+          ...(conflict ? { conflict: true } : {}),
         });
       }
       return false;
@@ -128,10 +118,6 @@ export function createVisitSharingController({
     }
   }
   function accept(acknowledged: ShareState, preserveDraft = true) {
-    const preview =
-      state.draft?.reflection !== acknowledged.reflection || state.draft?.revision !== acknowledged.revision
-        ? null
-        : state.preview;
     const available = new Set(saveLocalIds());
     const previous = preserveDraft ? state.draft : null;
     const draft = previous
@@ -153,15 +139,13 @@ export function createVisitSharingController({
             : photoSelections().filter((row) =>
                 [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId),
               ),
-          highlightLocalIds: acknowledged.postId ? (acknowledged.highlightLocalIds ?? []) : [...available].slice(0, 3),
         };
     draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
-    draft.highlightLocalIds = draft.highlightLocalIds?.filter((id) => draft.saveLocalIds.includes(id));
     emit({
       acknowledged,
       draft: { ...draft, reflection: acknowledged.reflection },
-      preview,
       profileRequired: false,
+      conflict: false,
     });
   }
   return {
@@ -188,7 +172,7 @@ export function createVisitSharingController({
         const result = await transport.getState({ visitLocalId }, context);
         if (current()) accept(result);
       }),
-    edit(patch: Partial<Pick<ShareSelection, "saveLocalIds" | "photoSelections" | "highlightLocalIds">>) {
+    edit(patch: Partial<Pick<ShareSelection, "audience" | "saveLocalIds" | "photoSelections">>) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;
@@ -212,59 +196,19 @@ export function createVisitSharingController({
         }
       }
       draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
-      draft.highlightLocalIds = draft.highlightLocalIds?.filter((id) => draft.saveLocalIds.includes(id)).slice(0, 3);
-      emit({ draft, preview: null });
+      emit({ draft });
     },
-    preview: () =>
-      run("preview", async (context, current) => {
+    publish: () => {
+      if (!state.draft || state.acknowledged?.removed) return Promise.resolve(false);
+      return run("publish", async (context, current) => {
+        // Posting reads the saved visit first, so notes edited on the share screen are published as they synced.
         const fresh = await transport.getState({ visitLocalId }, context);
         if (!current()) return;
         accept(fresh);
-        emit({ preview: null });
         if (fresh.removed) throw new ConvexError({ code: "not_found" });
-        const result = await transport.preview(state.draft!, context);
-        if (current()) emit({ preview: result, conflict: false });
-      }),
-    publish: () => {
-      if (!state.preview || !state.draft || state.conflict || state.acknowledged?.removed) {
-        return Promise.resolve(false);
-      }
-      const { draft } = state;
-      return run("publish", async (context, current) => {
-        const result = await transport.publish(draft, context);
-        if (current()) {
-          accept(result, false);
-          emit({ preview: null });
-        }
+        const result = await transport.publish(state.draft!, context);
+        if (current()) accept(result, false);
       });
     },
-    view: () =>
-      run("view", async (context, current) => {
-        const fresh = await transport.getState({ visitLocalId }, context);
-        if (!current()) return;
-        accept(fresh);
-        if (!fresh.postId || fresh.status !== "active" || fresh.removed) {
-          emit({ shared: null, error: "This visit is not currently shared." });
-          return;
-        }
-        let result = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage }, context);
-        const pages = new Set<string>();
-        while (current() && !result.artworks.isDone && result.artworks.cursor) {
-          const { cursor } = result.artworks;
-          if (pages.has(cursor)) {
-            throw new Error("The artwork page did not advance");
-          }
-          pages.add(cursor);
-          const next = await transport.get({ postId: fresh.postId, limit: LIMITS.maxPage, cursor }, context);
-          result = {
-            ...next,
-            artworks: {
-              ...next.artworks,
-              page: [...result.artworks.page, ...next.artworks.page],
-            },
-          };
-        }
-        if (current()) emit({ shared: result });
-      }),
   };
 }

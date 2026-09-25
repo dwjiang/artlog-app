@@ -1,7 +1,6 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Image } from "expo-image";
 import { useEffect } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingImage } from "@/components/loading-image";
@@ -13,20 +12,41 @@ import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 
+import { ShareTileImage } from "./share-artwork-tile";
+import { VisitSymbol, visitStyles } from "./visit-ui";
+
+const KIND_LABELS = { full: "full artwork", detail: "detail", label: "museum label" } as const;
+
+function SelectAllButton({
+  allSelected,
+  disabled,
+  onChange,
+}: {
+  allSelected: boolean;
+  disabled?: boolean;
+  onChange: (all: boolean) => void;
+}) {
+  return (
+    <GalleryButton
+      label={allSelected ? "Deselect all" : "Select all"}
+      disabled={disabled}
+      onPress={() => onChange(!allSelected)}
+    />
+  );
+}
+
 export function SharePhotoPicker({
   work,
   visitId,
   selected,
   onChange,
-  onDone,
 }: {
   work: SavedWork;
   visitId: string;
   selected: string[];
   onChange: (ids: string[]) => void;
-  onDone: () => void;
 }) {
-  const { fontScale } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [
     work.localId,
     visitId,
@@ -35,87 +55,81 @@ export function SharePhotoPicker({
   useEffect(() => {
     if (error) reportError(error, "visit.share-photos.load");
   }, [error]);
+  const photos = data.filter((row) => row.owner === work.owner);
+  const columns = fontScale > 1.4 ? 1 : 2;
+  const size = (width - 2 * GUTTER - (columns - 1) * GAP) / columns;
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} style={{ backgroundColor: Gallery.paper }}>
-      <GalleryButton label="Done" icon="chevron.left" onPress={onDone} />
-      <Text
-        style={{
-          color: Gallery.ink,
-          fontSize: 28,
-          lineHeight: 33,
-          fontWeight: "600",
-          letterSpacing: -0.8,
-        }}
-      >
-        Choose photos
-      </Text>
-      <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 19 }}>
-        {work.title}
-        {"\n"}
-        {selected.length} of {data.length} photos selected
-      </Text>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ backgroundColor: Gallery.paper }}
+      contentContainerStyle={styles.content}
+    >
+      <View style={visitStyles.sectionLabel}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text accessibilityRole="header" variant="section">
+            {work.title}
+          </Text>
+          <Text style={visitStyles.fine}>
+            {`${selected.length} of ${photos.length} ${photos.length === 1 ? "photo" : "photos"} shared`}
+          </Text>
+        </View>
+        {photos.length > 0 && (
+          <SelectAllButton
+            allSelected={photos.every((photo) => selected.includes(photo.localId))}
+            onChange={(all) => onChange(all ? photos.map((photo) => photo.localId) : [])}
+          />
+        )}
+      </View>
       {error ? (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          Photos could not load. Reopen the photo picker to try again.
+          Photos could not load. Go back and open this artwork again.
         </Text>
       ) : !updatedAt && data.length === 0 ? (
         <PhotoStripSkeleton />
       ) : null}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        {data
-          .filter((row) => row.owner === work.owner)
-          .map((photo) => (
+      <View style={styles.grid}>
+        {photos.map((photo) => {
+          const on = selected.includes(photo.localId);
+          return (
             <Pressable
               key={photo.localId}
               accessibilityRole="checkbox"
-              accessibilityLabel={`Share ${photo.kind} photo${photo.caption ? `: ${photo.caption}` : ""}`}
-              accessibilityState={{ checked: selected.includes(photo.localId) }}
+              accessibilityLabel={`Share ${KIND_LABELS[photo.kind]} photo`}
+              accessibilityState={{ checked: on }}
               onPress={() =>
-                onChange(
-                  selected.includes(photo.localId)
-                    ? selected.filter((id) => id !== photo.localId)
-                    : [...selected, photo.localId],
-                )
+                onChange(on ? selected.filter((id) => id !== photo.localId) : [...selected, photo.localId])
               }
-              style={{
-                width: fontScale > 1.4 ? "100%" : "47%",
-                borderRadius: 2,
-                overflow: "hidden",
-                borderWidth: 2,
-                borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.softBorder,
-                backgroundColor: Gallery.surface,
-                padding: 8,
-                gap: 8,
-              }}
             >
-              {photo.path ? (
-                <LoadingImage
-                  uri={captureFileUri(photo.path)}
-                  label={`${photo.kind} photo`}
-                  style={{ width: "100%", height: 155 }}
-                  contentFit="contain"
-                />
-              ) : (
-                <Text style={{ color: Gallery.muted }}>Photo unavailable on this iPhone.</Text>
-              )}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={{ flex: 1, fontSize: 13, color: Gallery.ink }}>
-                  {photo.kind === "full" ? "Full artwork" : photo.kind === "detail" ? "Detail" : "Museum label"}
-                </Text>
-                <Image
-                  source={selected.includes(photo.localId) ? "sf:checkmark.circle.fill" : "sf:circle"}
-                  accessible={false}
-                  tintColor={selected.includes(photo.localId) ? Gallery.accent : Gallery.muted}
-                  style={{ width: 18, height: 18 }}
-                />
-              </View>
-              {!!photo.caption && <Text style={{ color: Gallery.muted, fontSize: 13 }}>{photo.caption}</Text>}
+              <ShareTileImage
+                size={size}
+                selected={on}
+                badge={<VisitSymbol name="checkmark" size={12} color={Gallery.ink} />}
+              >
+                {photo.path ? (
+                  <LoadingImage
+                    uri={captureFileUri(photo.path)}
+                    label={`${KIND_LABELS[photo.kind]} photo`}
+                    style={{ width: size, height: size }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={[styles.unavailable, { width: size, height: size }]}>
+                    <Text style={[visitStyles.fine, { textAlign: "center" }]}>Photo unavailable on this iPhone.</Text>
+                  </View>
+                )}
+              </ShareTileImage>
             </Pressable>
-          ))}
+          );
+        })}
       </View>
-      <Text style={{ color: Gallery.muted, fontSize: 13 }}>
-        {selected.length} selected · Captions and private notes stay private.
-      </Text>
     </ScrollView>
   );
 }
+
+const GUTTER = 20;
+const GAP = 12;
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 32, gap: 18 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
+  unavailable: { alignItems: "center", justifyContent: "center", padding: 12, backgroundColor: Gallery.fill },
+});

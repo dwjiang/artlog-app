@@ -104,6 +104,13 @@ it("shows the shared status, owner, place, reflection, and full artwork count", 
   });
 });
 
+it("marks a Friends visit as shared with friends", async () => {
+  mockPages.mockReturnValue(pages({ first: { ...visit, audience: "friends" } }));
+  await render(<VisitScreen postId="post-a" />);
+  expect(screen.getByText("Friends")).toBeOnTheScreen();
+  expect(screen.queryByText("Public")).toBeNull();
+});
+
 it("offers search at five artworks and matches titles or artists without case or accent sensitivity", async () => {
   const view = await render(<VisitScreen postId="post-a" />);
   const search = screen.getByLabelText("Search visit artworks");

@@ -175,11 +175,8 @@ it("opens visits, authors, and people from Home", async () => {
   });
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(mockPush).toHaveBeenLastCalledWith("/people");
-  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(mockPush).toHaveBeenLastCalledWith({
-    pathname: "/people",
-    params: { filter: "friends" },
-  });
+  await fireEvent.press(screen.getByRole("button", { name: "Friends", selected: true }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people");
   await fireEvent.press(screen.getByRole("button", { name: "Leaderboards" }));
   expect(mockPush).toHaveBeenLastCalledWith("/leaderboards");
   expect(screen.queryByRole("button", { name: "Your profile and settings" })).toBeNull();
@@ -221,7 +218,6 @@ it("retains existing visits and shows only the refresh indicator while refreshin
 });
 
 it.each([
-  ["profile-required", "Create a public profile."],
   ["offline", "You’re offline."],
   ["loading", "Loading your account…"],
 ] as const)("gates private Home content while %s", async (status, expected) => {
@@ -472,7 +468,7 @@ it("loads public visits for guests and opens their details without signing in", 
   await render(<HomeScreen />);
   expect(getFunctionName(mockPages.mock.calls[0][0])).toBe("sharedVisits:listPublic");
   expect(mockPages.mock.calls[0][1]).toEqual({});
-  expect(screen.getByText("Public visits")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "View visit" }));
   expect(mockPush).toHaveBeenCalledWith({
@@ -482,6 +478,36 @@ it("loads public visits for guests and opens their details without signing in", 
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+});
+
+it("switches a signed-in Home between friends’ visits and Global public visits", async () => {
+  await render(<HomeScreen />);
+  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listFeed");
+  expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listPublic");
+  expect(mockPages.mock.lastCall[1]).toEqual({});
+  expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listFeed");
+});
+
+it.each([
+  ["signed-out", "Sign in to add friends."],
+  ["profile-required", "Create a public profile."],
+] as const)("opens Global while %s and gates the Friends tab", async (status, gate) => {
+  mockSession = { ...mockSession, status, token: null };
+  mockPages.mockReturnValue(pages({ items: [visit] }));
+  await render(<HomeScreen />);
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.getByRole("header", { name: gate })).toBeOnTheScreen();
+  expect(screen.queryByText(visit.reflection)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Dismiss sign-in invitation" })).toBeNull();
+  expect(mockPages.mock.lastCall[1]).toBe("skip");
+  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
 });
 
 it("offers public walls while the public visit feed is empty", async () => {

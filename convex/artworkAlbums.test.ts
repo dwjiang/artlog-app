@@ -126,7 +126,6 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
         photoLocalIds: [photos[0].localId],
       },
     ],
-    highlightLocalIds: [photos[0].savedLocalId],
   });
   const post = await owner.as.query(api.sharedVisits.get, {
     postId: published.postId!,

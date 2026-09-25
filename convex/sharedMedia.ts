@@ -1,35 +1,24 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
-import { previewMediaContext, sharedVisitMediaContext, validateMediaContext } from "../shared/social/contracts";
+import { sharedVisitMediaContext, validateMediaContext } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import { internalQuery, type ActionCtx } from "./_generated/server";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { resolveDisplayAsset } from "./lib/displayMedia";
 import { reportBackendError } from "./lib/observability";
-import { requireMembership, requireOwnedSave, requireProfile, optionalProfile } from "./lib/ownership";
+import { optionalProfile } from "./lib/ownership";
 import { projectArtwork } from "./lib/projections";
 import { requireSharedVisitItem } from "./lib/publicationAccess";
-import { ownedVisit } from "./lib/sharedPublications";
 
-export const sharedMediaContext = v.union(sharedVisitMediaContext, previewMediaContext);
 export const authorize = internalQuery({
-  args: { context: sharedMediaContext },
+  args: { context: sharedVisitMediaContext },
   returns: v.id("_storage"),
   handler: async (ctx, { context }) => {
     validateMediaContext(context);
-    let save;
-    if (context.kind === "sharedVisit") {
-      const profile = await optionalProfile(ctx);
-      const result = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile?._id);
-      save = result.save;
-      if (context.photoLocalId && !result.item.photoLocalIds?.includes(context.photoLocalId)) {
-        throw new ConvexError({ code: "not_found" });
-      }
-    } else {
-      const { owner } = await requireProfile(ctx);
-      const visit = await ownedVisit(ctx, owner, context.visitLocalId);
-      save = await requireOwnedSave(ctx, owner, context.saveLocalId);
-      await requireMembership(ctx, save, visit);
+    const profile = await optionalProfile(ctx);
+    const { item, save } = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile?._id);
+    if (context.photoLocalId && !item.photoLocalIds?.includes(context.photoLocalId)) {
+      throw new ConvexError({ code: "not_found" });
     }
     if (context.photoLocalId) {
       const photo = await ownedAlbumPhoto(ctx, save, context.photoLocalId);
@@ -59,7 +48,7 @@ export async function serveSharedMedia(
   ctx: Pick<ActionCtx, "runQuery"> & {
     storage: Pick<ActionCtx["storage"], "get">;
   },
-  context: Infer<typeof sharedMediaContext>,
+  context: Infer<typeof sharedVisitMediaContext>,
 ): Promise<Response> {
   const headers = {
     "Cache-Control": "private, no-store",

@@ -199,7 +199,6 @@ export const findForWallItem = internalQuery({
 const PARAMS = {
   wallItem: ["itemId"],
   sharedVisit: ["itemId", "postId"],
-  sharedVisitPreview: ["visitLocalId", "saveLocalId"],
 } as const;
 const headers = {
   "Cache-Control": "private, no-store",

@@ -33,6 +33,12 @@ const commentId = (value: Comment) => value.commentId;
 const likesPage = (value: FunctionReturnType<typeof api.visitReactions.listLikes>) => value;
 const profileId = (value: PublicProfile) => value.profileId;
 
+const COMMENT_AUDIENCE = {
+  private: "Only you can see this visit and its comments.",
+  friends: "Only friends can see comments, like this visit.",
+  public: "Comments are public, like this visit.",
+} as const;
+
 export function VisitReactionsSheet({
   kind,
   visit,
@@ -334,7 +340,7 @@ function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: S
                 </Pressable>
               </View>
             </View>
-            <Text style={styles.audience}>Comments are public, like this visit.</Text>
+            <Text style={styles.audience}>{COMMENT_AUDIENCE[visit.audience]}</Text>
           </>
         ) : (
           <View style={styles.join}>

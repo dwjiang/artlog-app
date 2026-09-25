@@ -10,7 +10,6 @@ export const ERROR_MESSAGES = {
   invalid_visit: "Check the visit date and museum.",
   invalid_save: "Check the artwork details and note.",
   invalid_venue: "Choose a valid museum.",
-  visit_private: "Make this visit Public before publishing.",
   invalid_wall: "Check the wall layout.",
   invalid_post: "Check the selected artworks and notes.",
   invalid_comment: "Write a comment between 1 and 1,000 characters.",
