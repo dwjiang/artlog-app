@@ -2,7 +2,9 @@ import { api } from "../_generated/api";
 import type { Harness } from "../test.helpers";
 import { seedDevice } from "./testFactories";
 
-export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().slice(0, 8)) {
+let readers = 0;
+// Sequential defaults keep random hex out of usernames, where the profanity filter reads it as leetspeak.
+export async function wallFixture(t: Harness, sub = String(++readers)) {
   const device = await seedDevice(t);
   await t.run((ctx) =>
     ctx.db.patch("devices", device.deviceId, {
@@ -23,7 +25,7 @@ export async function wallFixture(t: Harness, sub: string = crypto.randomUUID().
     /* Finish the fixture's claim. */
   }
   const profile = await device.as.mutation(api.profiles.create, {
-    username: `reader-${sub}`,
+    username: `reader_${sub}`,
     name: "Reader",
   });
   const saveLocalId = crypto.randomUUID();

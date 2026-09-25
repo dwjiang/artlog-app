@@ -4,7 +4,7 @@ import { StyleSheet, TextInput, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
-import { usernameMessages, type UsernameCheck } from "@/lib/social/use-username-check";
+import { isUsernameProblem, usernameMessages, type UsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 
 type InputProps = Omit<ComponentProps<typeof TextInput>, "style">;
@@ -39,7 +39,7 @@ export function UsernameField({
   /** Shown instead of the availability status, which then carries no error or success styling. */
   hint?: string;
 }) {
-  const problem = hint === undefined && (check === "invalid" || check === "taken");
+  const problem = hint === undefined && isUsernameProblem(check);
   const available = hint === undefined && check === "available";
   return (
     <View style={styles.field}>

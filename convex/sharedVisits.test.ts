@@ -428,7 +428,7 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
       });
       const profileId = await ctx.db.insert("profiles", {
         accountId,
-        username: `stress-${i}`,
+        username: `stress_${i}`,
         name: "Friend",
         searchText: "friend",
         active: true,

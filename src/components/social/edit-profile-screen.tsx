@@ -12,7 +12,7 @@ import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { useUsernameCheck } from "@/lib/social/use-username-check";
+import { isUsernameProblem, useUsernameCheck } from "@/lib/social/use-username-check";
 import { showToast } from "@/lib/ui/toast";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -61,7 +61,7 @@ export function EditProfileForm({ profile, scope }: { profile: PublicProfile; sc
   const busy = operation !== undefined;
   const usernameChanged = username !== initialUsername;
   const check = useUsernameCheck(username, scope);
-  const usernameBlocked = usernameChanged && (check === "invalid" || check === "taken" || check === "empty");
+  const usernameBlocked = usernameChanged && (check === "empty" || isUsernameProblem(check));
   const draftFile = useRef<string>(undefined);
   const mounted = useRef(true);
   useEffect(() => {

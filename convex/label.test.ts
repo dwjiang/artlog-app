@@ -430,12 +430,12 @@ describe("readLabel", () => {
     expect(await spend()).toMatchObject({ tokenFactoryCalls: 2 });
   });
 
-  it("clears slur-bearing OCR when the moderation model fails without optional blocklist configuration", async () => {
+  it("clears OCR carrying personal information when the moderation model fails without optional blocklist configuration", async () => {
     const { user, scanId, stored, spend } = await fixture();
     vi.stubEnv("MODERATION_BLOCKLIST", "");
     tokenFactory((body) =>
       body.model === LABEL_MODEL
-        ? completion({ ...labelReading, title: "faggot" })
+        ? completion({ ...labelReading, title: "Call me at 415-555-0123" })
         : new Response("down", {
             status: 503,
             headers: { "retry-after": "0" },
