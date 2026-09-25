@@ -1,4 +1,5 @@
 import json
+from itertools import pairwise
 from pathlib import Path
 
 import httpx
@@ -185,21 +186,158 @@ def test_rejects_invalid_country_ids_before_network():
         list(wikidata.iter_museums({"IS": ["Q189 } UNION { ?x ?y ?z"]}, user_agent="test"))
 
 
-def test_city_is_optional_and_comes_only_from_city_labels():
-    rows = wikidata.parse_venues([binding(cityLabel="Reykjavík")], "IS")
-    assert rows[0].city == "Reykjavík"
-    assert wikidata.parse_venues([binding()], "IS")[0].city is None
+def places(*chain):
+    """Build a P131 chain from (qid, kinds) pairs, nearest first."""
+    parents = {qid: [parent] for (qid, _), (parent, _) in pairwise(chain)}
+    kinds = {qid: frozenset(kinds.split()) for qid, kinds in chain}
+    return parents, kinds
 
 
-def test_city_identity_requires_one_unambiguous_qid():
-    one = wikidata.parse_venues([
-        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
-        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
-    ], "FR")
-    assert one[0].city_key == "wikidata:Q90"
-    ambiguous = wikidata.parse_venues([
-        binding(city="http://www.wikidata.org/entity/Q90", cityLabel="Paris"),
-        binding(city="http://www.wikidata.org/entity/Q123", cityLabel="Another city"),
-    ], "FR")
-    assert ambiguous[0].city_key is None
-    assert wikidata.parse_venues([binding(cityLabel="Paris")], "FR")[0].city_key is None
+def test_city_is_the_nearest_locality_below_larger_areas():
+    village = places(("Q1", "settlement"), ("Q2", ""), ("Q3", "municipality settlement"))
+    assert wikidata.pick_city(["Q1"], *village) == "Q1"
+    comune = places(("Q10", "municipality"), ("Q11", "settlement"), ("Q12", ""))
+    assert wikidata.pick_city(["Q10"], *comune) == "Q10"
+
+
+def test_places_inside_a_city_resolve_to_the_city():
+    arrondissement = places(("Q1", "settlement neighborhood"), ("Q2", ""), ("Q90", "city"))
+    assert wikidata.pick_city(["Q1"], *arrondissement) == "Q90"
+    marseille = places(("Q1", "settlement neighborhood"), ("Q23482", "municipality"))
+    assert wikidata.pick_city(["Q1"], *marseille) == "Q23482"
+    manhattan = places(("Q11299", "city"), ("Q60", "city"), ("Q1384", ""))
+    assert wikidata.pick_city(["Q11299"], *manhattan) == "Q60"
+
+
+def test_venues_outside_any_locality_have_no_city():
+    assert wikidata.pick_city(["Q99"], *places(("Q99", ""), ("Q30", ""))) is None
+    greater_london = places(("Q1", ""), ("Q23306", "settlement region"), ("Q21", ""))
+    assert wikidata.pick_city(["Q1"], *greater_london) is None
+    county = places(("Q108403", "municipality region"), ("Q1223", ""))
+    assert wikidata.pick_city(["Q108403"], *county) is None
+
+
+def test_a_city_listed_beside_its_county_wins():
+    parents = {"Q23556": ["Q1428"], "Q1000": ["Q1428"]}
+    kinds = {
+        "Q23556": frozenset({"city"}),
+        "Q1000": frozenset({"municipality", "settlement"}),
+        "Q1428": frozenset(),
+    }
+    assert wikidata.pick_city(["Q1000", "Q23556"], parents, kinds) == "Q23556"
+    assert wikidata.pick_city([], {}, {}) is None
+
+
+ENTITY = "http://www.wikidata.org/entity/{}".format
+
+
+def stub_wikidata(*, admins=(), venues=(), labels=(), places=None, classes=None):
+    """Answer resolve_cities' queries from small tables, filtered by the IDs each query names."""
+
+    def named(query, qid):
+        return f"wd:{qid} " in f"{query} "
+
+    def fetch(query, **kwargs):
+        if "?m wdt:P131 ?admin" in query:
+            return [
+                {"m": {"value": ENTITY(m)}, "admin": {"value": a if "/" in a else ENTITY(a)}}
+                for m, a in admins
+                if named(query, m)
+            ]
+        if "?m wdt:P625 ?coord" in query:
+            return [
+                {"m": {"value": ENTITY(m)}, "coord": {"value": f"Point({lng} {lat})"}}
+                | ({"address": {"value": address, "xml:lang": "de"}} if address else {})
+                | ({"location": {"value": ENTITY(location)}} if location else {})
+                for m, lat, lng, address, location in venues
+                if named(query, m)
+            ]
+        if "?place rdfs:label ?label" in query:
+            return [
+                {
+                    "label": {"value": name, "xml:lang": lang},
+                    "place": {"value": ENTITY(place)},
+                    "coord": {"value": f"Point({lng} {lat})"},
+                }
+                for name, lang, place, lat, lng in labels
+                if f'"{name}"@{lang}' in query
+            ]
+        if "wdt:P279* ?class" in query:
+            return [
+                {"type": {"value": ENTITY(t)}, "class": {"value": ENTITY(c)}}
+                for t, c in (classes or {}).items()
+                if named(query, t)
+            ]
+        return [
+            {"a": {"value": ENTITY(qid)}}
+            | {key: {"value": ENTITY(node[key])} for key in ("type", "parent") if key in node}
+            | {lang: {"value": node[lang]} for lang in ("en", "mul") if lang in node}
+            for qid, node in (places or {}).items()
+            if named(query, qid)
+        ]
+
+    return fetch
+
+
+def test_resolve_cities_prefers_english_labels_and_names_municipalities_plainly():
+    fetch = stub_wikidata(
+        admins=[
+            ("Q1", "Q10"),
+            ("Q2", "Q20"),
+            ("Q3", "http://www.wikidata.org/.well-known/genid/unknown"),
+        ],
+        places={
+            "Q10": {"type": "Q408804", "parent": "Q60", "en": "Manhattan"},
+            "Q60": {"type": "Q1549591", "en": "New York City"},
+            "Q20": {"type": "Q755707", "mul": "Bergen Municipality"},
+        },
+        classes={"Q408804": "Q515", "Q1549591": "Q1549591", "Q755707": "Q15284"},
+    )
+    cities = wikidata.resolve_cities(["Q1", "Q2", "Q3"], user_agent="test", fetch=fetch)
+    assert cities == {
+        "Q1": wikidata.City("Q60", "New York City"),
+        "Q2": wikidata.City("Q20", "Bergen"),
+    }
+
+
+def test_venues_without_admin_areas_use_their_location_or_a_nearby_town_in_their_address():
+    fetch = stub_wikidata(
+        venues=[
+            ("Q1", 47.98, 8.80, "Donaustraße 50, 78532 Tuttlingen", None),
+            ("Q2", 40.78, -73.96, None, "Q30"),
+            ("Q3", 52.52, 13.40, "Unter den Linden 1", None),
+            ("Q4", 51.54, -0.10, "39A Canonbury Square, London N1 2AN", None),
+        ],
+        labels=[
+            ("Tuttlingen", "de", "Q100", 47.98, 8.82),
+            ("Tuttlingen", "de", "Q200", 40.0, -100.0),
+            ("Unter", "de", "Q300", 52.52, 13.40),
+            ("Canonbury", "en", "Q400", 51.54, -0.10),
+            ("London", "en", "Q84", 51.51, -0.13),
+        ],
+        places={
+            "Q100": {"type": "Q3957", "en": "Tuttlingen"},
+            "Q200": {"type": "Q3957", "en": "Far Tuttlingen"},
+            "Q30": {"type": "Q33506", "parent": "Q60"},
+            "Q60": {"type": "Q515", "en": "New York City"},
+            "Q300": {"type": "Q4022", "en": "Unter"},
+            "Q400": {"type": "Q3957", "en": "Canonbury"},
+            "Q84": {"type": "Q515", "en": "London"},
+        },
+        classes={"Q3957": "Q486972", "Q515": "Q515"},
+    )
+    cities = wikidata.resolve_cities(["Q1", "Q2", "Q3", "Q4"], user_agent="test", fetch=fetch)
+    assert cities == {
+        "Q1": wikidata.City("Q100", "Tuttlingen"),
+        "Q2": wikidata.City("Q60", "New York City"),
+        "Q4": wikidata.City("Q84", "London"),
+    }
+
+
+def test_address_names_skip_numbers_postcodes_and_lowercase_street_words():
+    assert "Suisun City" in wikidata.address_names("5848 State Highway 12 Suisun City, CA 94585")
+    freiburg = wikidata.address_names("Hauptstr. 5, 79100 Freiburg im Breisgau")
+    assert "Freiburg im Breisgau" in freiburg
+    montreal = wikidata.address_names("5826, rue St-Hubert, Montréal (Québec), Canada, H2S 2L7")
+    assert {"Montréal", "Québec", "Canada"} <= montreal
+    assert not {name for name in montreal if name[0].islower() or any(c.isdigit() for c in name)}

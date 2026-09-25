@@ -11,7 +11,7 @@ from . import seed_venues
 from .checkpoint import Checkpoint
 from .config import Settings
 from .regions import load_regions
-from .wikidata import IncompleteCountry, VenueRow
+from .wikidata import City, IncompleteCountry, VenueRow
 
 VENUE = VenueRow("Q1", "Musée", 37.78, -122.4, "https://museum.example", "US")
 EXPORT_ROW = {
@@ -23,6 +23,11 @@ EXPORT_ROW = {
     "website": "https://museum.example",
     "region": "sf-bay-area",
 }
+
+
+@pytest.fixture(autouse=True)
+def no_city_lookups(monkeypatch):
+    monkeypatch.setattr(seed_venues, "resolve_cities", lambda qids, **kwargs: {})
 
 
 def test_resume_does_not_repeat_completed_writes_or_downloads(tmp_path):
@@ -283,3 +288,67 @@ def test_seeds_only_country_codes_the_server_accepts(tmp_path):
     seed_venues.seed_countries(writer, {"XK": ["Q1246"], "YU": ["Q36704"]}, load_regions(), checkpoint, user_agent="test", fetch_venues=fetch)
     rows = [row for call in writer.upsert.call_args_list for row in call.args[1]]
     assert [row.get("country") for row in rows] == ["XK", None]
+
+
+def test_census_rows_carry_resolved_cities(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        seed_venues, "resolve_cities", lambda qids, **kwargs: {"Q1": City("Q62", "San Francisco")}
+    )
+    writer = Mock()
+    seed_venues.seed_countries(
+        writer,
+        {"US": ["Q30"]},
+        load_regions(),
+        Checkpoint(tmp_path / "checkpoint.json"),
+        user_agent="test",
+        fetch_venues=Mock(return_value=[VENUE]),
+    )
+    [row] = writer.upsert.call_args.args[1]
+    assert (row["city"], row["cityKey"]) == ("San Francisco", "wikidata:Q62")
+
+
+def test_cities_only_fills_existing_venues_without_a_census(tmp_path, monkeypatch):
+    stored = {
+        "wikidata:Q1": {**EXPORT_ROW, "wikidataId": "Q1"},
+        "wikidata:Q2": {**EXPORT_ROW, "_id": "museum-2", "key": "wikidata:Q2"}
+        | {"region": "country:IS"},
+        "poi:1": {**EXPORT_ROW, "_id": "museum-3", "key": "poi:1", "city": "Oakland"},
+    }
+    writer = Mock()
+    writer.query.side_effect = lambda *args: {"page": list(stored.values()), "isDone": True}
+    writer.upsert.side_effect = lambda _fn, rows, **kwargs: stored.update(
+        (row["key"], {**stored[row["key"]], **row}) for row in rows
+    )
+    resolved = Mock(return_value={"Q1": City("Q62", "San Francisco")})
+    monkeypatch.setattr(seed_venues, "resolve_cities", resolved)
+    monkeypatch.setattr(seed_venues, "seed_countries", Mock(side_effect=AssertionError("census")))
+    monkeypatch.setattr(seed_venues, "ConvexWriter", lambda _settings: writer)
+    settings = Settings(
+        _env_file=None, convex_url="https://test.convex.cloud", scratch_dir=tmp_path
+    )
+    monkeypatch.setattr(seed_venues, "get_settings", lambda: settings)
+
+    def run():
+        out = tmp_path / "out"
+        monkeypatch.setattr(sys, "argv", ["seed_venues", "--cities-only", "--out", str(out)])
+        seed_venues.main()
+
+    run()
+    assert sorted(resolved.call_args.args[0]) == ["Q1", "Q2"]
+    with sqlite3.connect(tmp_path / "out/venues.db") as db:
+        exported = db.execute("SELECT key, region, city, cityKey, country FROM venues ORDER BY id")
+        assert exported.fetchall() == [
+            ("wikidata:Q1", "sf-bay-area", "San Francisco", "wikidata:Q62", "US"),
+            ("wikidata:Q2", "country:IS", None, None, "IS"),
+            ("poi:1", "sf-bay-area", "Oakland", None, None),
+        ]
+    writes = writer.upsert.call_args_list[0].args[1]
+    assert all(row["seedSource"] == "wikidata" and row["website"] for row in writes)
+    run()
+    assert writer.upsert.call_args_list[1].args[1] == []
+
+
+def test_cities_only_refuses_refresh(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["seed_venues", "--cities-only", "--refresh"])
+    with pytest.raises(SystemExit):
+        seed_venues.main()
