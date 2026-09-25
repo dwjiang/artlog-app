@@ -104,7 +104,8 @@ Interface writing:
 - Do use natural contractions; warmth comes from clear, helpful wording.
 - Do let lettering within an illustration remain part of its visual design.
 - Don't imply a save or share succeeded before it has completed.
-- Don't keep a sentence that adds no information.
+- Don't keep a sentence that adds no information. Caption a field or button only
+  when the person needs the caption to act.
 - Don't repeat a navigation title with a decorative heading.
 
 Behavior and privacy:

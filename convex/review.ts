@@ -84,6 +84,13 @@ export const listProposalsReady = internalQuery({
       .take(MAX_ROWS),
 });
 
+// Dashboard query: `npx convex run review:listFeedback`.
+export const listFeedback = internalQuery({
+  args: {},
+  returns: v.array(schema.doc("appFeedback")),
+  handler: (ctx) => ctx.db.query("appFeedback").order("desc").take(MAX_ROWS),
+});
+
 // Dashboard query: `npx convex run review:listCorrections`.
 export const listCorrections = internalQuery({
   args: {

@@ -10,6 +10,7 @@
 
 import type * as accounts from "../accounts.js";
 import type * as appAttestNode from "../appAttestNode.js";
+import type * as appFeedback from "../appFeedback.js";
 import type * as appleLogin from "../appleLogin.js";
 import type * as artworkAlbums from "../artworkAlbums.js";
 import type * as artworks from "../artworks.js";
@@ -135,6 +136,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
   appAttestNode: typeof appAttestNode;
+  appFeedback: typeof appFeedback;
   appleLogin: typeof appleLogin;
   artworkAlbums: typeof artworkAlbums;
   artworks: typeof artworks;

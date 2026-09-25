@@ -322,6 +322,14 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_artworkId_status", ["artworkId", "status"]),
 
+  appFeedback: defineTable({
+    owner: v.optional(journalOwner),
+    message: v.string(),
+    appVersion: v.string(),
+    osVersion: v.string(),
+    createdAt: v.number(),
+  }).index("by_owner", ["owner"]),
+
   contributions: defineTable({
     deviceId: v.id("devices"),
     venueId: v.id("museums"),

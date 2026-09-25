@@ -145,6 +145,9 @@ export function SettingsScreen() {
         <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
         <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
       </SettingsGroup>
+      <SettingsGroup title="Support">
+        <SettingsRow label="Send feedback" icon="envelope" onPress={() => router.push("/send-feedback")} />
+      </SettingsGroup>
       <ThemedText variant="metadata" themeColor="textSecondary">
         Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}
       </ThemedText>
