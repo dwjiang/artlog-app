@@ -139,7 +139,6 @@ export function SettingsScreen() {
           onPress={() => router.push("/museum-downloads")}
         />
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
-        <SettingsRow label="Visits" icon="chart.bar" onPress={detail("visits")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
