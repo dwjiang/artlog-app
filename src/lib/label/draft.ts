@@ -6,27 +6,20 @@ import type { LabelFormState } from "./fields";
 
 const key = (scanId: Id<"scans">, owner: string) => `labelDraft:${owner}:${scanId}`;
 
-type LabelDraft = { state: LabelFormState; museumSearchUpdatedAt?: number };
+type LabelDraft = { state: LabelFormState };
 
 export async function loadLabelDraft(
   scanId: Id<"scans">,
-  museumSearchUpdatedAt?: number,
   owner = getLocalOwner(),
 ): Promise<LabelFormState | undefined> {
   const stored = await getSetting(key(scanId, owner));
   if (stored === undefined) return;
-  const draft = JSON.parse(stored) as LabelDraft;
-  return draft.museumSearchUpdatedAt === museumSearchUpdatedAt ? draft.state : undefined;
+  return (JSON.parse(stored) as LabelDraft).state;
 }
 
 // Keep the original values and unlocks before verification can replace the server's fields.
-export function saveLabelDraft(
-  scanId: Id<"scans">,
-  state: LabelFormState,
-  museumSearchUpdatedAt?: number,
-  owner = getLocalOwner(),
-): Promise<void> {
-  return setSetting(key(scanId, owner), JSON.stringify({ state, museumSearchUpdatedAt } satisfies LabelDraft));
+export function saveLabelDraft(scanId: Id<"scans">, state: LabelFormState, owner = getLocalOwner()): Promise<void> {
+  return setSetting(key(scanId, owner), JSON.stringify({ state } satisfies LabelDraft));
 }
 
 export function clearLabelDraft(scanId: Id<"scans">, owner = getLocalOwner()): Promise<void> {

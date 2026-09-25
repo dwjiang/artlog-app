@@ -38,9 +38,8 @@ export const scanDisplay = v.object({
   docent: v.optional(v.array(docentSentence)),
   factSheet: v.optional(v.array(factChip)),
   rightNow: scanFields.rightNow,
-  // The label flow and museum-site search are the owner's own state; the raw OCR reading stays server-side.
+  // The label flow is the owner's own state; the raw OCR reading stays server-side.
   labelFlow: v.optional(labelFlowDisplay),
-  museumSearch: scanFields.museumSearch,
   error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
@@ -244,7 +243,6 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     })),
     rightNow: scan.rightNow,
     labelFlow: scan.labelFlow && displayLabelFlow(scan.labelFlow),
-    museumSearch: scan.museumSearch,
     error: scan.error,
   };
 }

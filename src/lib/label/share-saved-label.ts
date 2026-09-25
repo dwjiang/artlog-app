@@ -24,7 +24,6 @@ type PendingShare = {
   captureLocalId: string;
   savedLocalId: string;
   state: ContributeInput["state"];
-  museumSearchUpdatedAt?: number;
 };
 const key = (owner: string, scanId: string) => `pendingShare:${owner}:${scanId}`;
 const inFlight = new Map<string, Promise<ContributionAttempt>>();
@@ -40,7 +39,6 @@ export function shareSavedLabel(input: ContributeInput, savedLocalId: string): P
       captureLocalId: input.capture.localId,
       savedLocalId,
       state: input.state,
-      museumSearchUpdatedAt: input.museumSearchUpdatedAt,
     };
     await setSetting(id, JSON.stringify(queued));
     try {
@@ -74,15 +72,7 @@ export function flushPendingShares(): Promise<void> {
         await removeSetting(id);
         continue;
       }
-      await shareSavedLabel(
-        {
-          scanId: share.scanId,
-          capture,
-          state: share.state,
-          museumSearchUpdatedAt: share.museumSearchUpdatedAt,
-        },
-        share.savedLocalId,
-      );
+      await shareSavedLabel({ scanId: share.scanId, capture, state: share.state }, share.savedLocalId);
     }
   })()
     .catch((error: unknown) => {

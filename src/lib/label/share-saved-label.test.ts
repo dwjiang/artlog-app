@@ -50,7 +50,7 @@ const capture = {
   descriptors,
   keypoints,
 };
-const input = { scanId, capture, state, museumSearchUpdatedAt: 7 };
+const input = { scanId, capture, state };
 const outcome = {
   contributionId: "contribution-1" as Id<"contributions">,
   status: "tentative" as const,
@@ -125,7 +125,6 @@ it("keeps a share queued after a transport failure and drops it after a failure 
       captureLocalId: "capture",
       savedLocalId: "saved-1",
       state,
-      museumSearchUpdatedAt: 7,
     },
   ]);
   jest.mocked(contributeLabel).mockRejectedValueOnce(new Error("label_unverified"));
@@ -176,7 +175,6 @@ it("flushes queued shares with the capture bytes reloaded from the phone and dro
       keypoints,
     }),
     state,
-    museumSearchUpdatedAt: 7,
   });
   expect(await queued()).toEqual([]);
 });

@@ -48,17 +48,3 @@ it.each(["qr", "accession", "tavily+image"] as const)(
     ).toBeUndefined();
   },
 );
-
-it("uses a museum-search accession only when both title and artist were image-verified", () => {
-  const confirmed = {
-    title: field("Water Lilies", "tavily+image"),
-    artist: field("Claude Monet", "tavily+image"),
-    accession: field("123", "tavily"),
-  };
-  expect(verifiedAccession({ fields: confirmed })).toBe("123");
-  expect(
-    verifiedAccession({
-      fields: { ...confirmed, artist: field("Claude Monet", "user_edited") },
-    }),
-  ).toBeUndefined();
-});

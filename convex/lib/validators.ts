@@ -183,7 +183,6 @@ export const labelFlow = v.object({
   promptVersion: v.optional(v.string()),
   rawOcr: v.optional(v.any()),
   sourceUrl: v.optional(v.string()),
-  identityImageUrl: v.optional(v.string()),
   wikidataId: v.optional(v.string()),
   imageUrls: v.optional(v.array(v.string())),
   updatedAt: v.number(),
@@ -201,32 +200,3 @@ export const imageCheck = v.object({
   homographyValid: v.boolean(),
 });
 export type ImageCheck = Infer<typeof imageCheck>;
-
-// An exhibition page from the venue's site whose images the phone checks; the page names the work at confirmation.
-export const searchCandidate = v.object({
-  sourceUrl: v.string(),
-  exhibition: v.object({ title: v.string(), content: v.string() }),
-  imageUrls: v.array(v.string()),
-});
-export type SearchCandidate = Infer<typeof searchCandidate>;
-
-// Museum-site search state on a scan.
-export const museumSearchDisplay = v.union(
-  v.object({
-    stage: v.literal("exhibitions"),
-    candidates: v.array(searchCandidate),
-    updatedAt: v.number(),
-  }),
-  v.object({
-    stage: v.literal("none"),
-    reason: v.union(v.literal("cap"), v.literal("identity_unresolved")),
-    updatedAt: v.number(),
-  }),
-  v.object({
-    stage: v.literal("confirmed"),
-    candidates: v.array(searchCandidate),
-    selected: v.object({ sourceUrl: v.string(), imageUrl: v.string() }),
-    updatedAt: v.number(),
-  }),
-);
-export type MuseumSearchDisplay = Infer<typeof museumSearchDisplay>;

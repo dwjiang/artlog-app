@@ -8,7 +8,7 @@ export function recognitionPartition(modelVersion: string, venueId?: Id<"museums
   return JSON.stringify([modelVersion, venueId ?? "established"]);
 }
 
-type RightsRow = Pick<Doc<"contributions">, "venueId" | "fields" | "sourceUrl" | "identityImageUrl" | "wikidataId">;
+type RightsRow = Pick<Doc<"contributions">, "venueId" | "fields" | "sourceUrl" | "wikidataId">;
 
 // The same rights predicate gates a contribution when it is shared and whenever it is read afterwards,
 // so a later opt-out or takedown hides every entry the label would have been refused for.
@@ -21,7 +21,6 @@ export async function contributionRightsIssue(
   const keys = await museumIdentityKeys({
     accession: verifiedAccession(row),
     pageUrl: row.sourceUrl,
-    imageUrl: row.identityImageUrl,
     names: workKey(row.fields),
   });
   const artworkIds = new Set<Id<"artworks">>();

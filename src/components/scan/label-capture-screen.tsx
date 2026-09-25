@@ -55,7 +55,6 @@ const LABEL_VIEW: ResultViewState = {
 };
 export type LabelCaptureScreenProps = {
   scanId: string;
-  intent?: "capture" | "review";
 };
 
 type Phase =
@@ -65,13 +64,13 @@ type Phase =
   | { kind: "queued" }
   | { kind: "error"; message: string };
 
-export function LabelCaptureScreen({ scanId, intent = "review" }: LabelCaptureScreenProps) {
+export function LabelCaptureScreen({ scanId }: LabelCaptureScreenProps) {
   const owner = useLocalOwner();
   // The router reuses this screen for a new scan id; the key drops the previous label's phase and form.
-  return <LabelCapture key={`${owner}:${scanId}:${intent}`} scanId={scanId} intent={intent} />;
+  return <LabelCapture key={`${owner}:${scanId}`} scanId={scanId} />;
 }
 
-function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
+function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const router = useRouter();
   const isFocused = useIsFocused();
   const network = useNetworkState();
@@ -79,10 +78,7 @@ function LabelCapture({ scanId, intent }: LabelCaptureScreenProps) {
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
-  const [phase, setPhase] = useState<Phase>({
-    kind: "capture",
-    restore: intent !== "capture",
-  });
+  const [phase, setPhase] = useState<Phase>({ kind: "capture" });
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
   const labelOnly = !!capture && isLabelCapture(capture);

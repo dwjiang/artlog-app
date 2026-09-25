@@ -58,8 +58,8 @@ item disqualifies the submission.
 9. **Original work.** The submission must be the team's own work, solely owned, and
    built on any open source it includes rather than repackaging it.
 10. **Tavily bonus.** A live runtime Tavily call must remain reachable in the shipped
-    build and be shown in the video. Museum-site search and label verification are the
-    current runtime paths (`convex/museumSearch.ts`, `convex/label.ts`).
+    build and be shown in the video. Label verification and fact-sheet research are the
+    current runtime paths (`convex/label.ts`, `convex/lib/docentSources.ts`).
 
 ## Judging criteria
 

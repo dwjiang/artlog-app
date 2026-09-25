@@ -23,7 +23,6 @@ export type ContributeInput = {
   scanId: Id<"scans">;
   capture: Pick<PendingScan, "localId" | "owner" | "photoPath" | "cropPath" | "descriptors" | "keypoints">;
   state: LabelFormState;
-  museumSearchUpdatedAt?: number;
 };
 
 export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<"_storage">> {
@@ -42,18 +41,13 @@ export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<"_s
 }
 
 // The shared index receives the fingerprint, label fields, and a small crop, never the full photo.
-export async function contributeLabel({
-  scanId,
-  capture,
-  state,
-  museumSearchUpdatedAt,
-}: ContributeInput): Promise<ContributionOutcome> {
+export async function contributeLabel({ scanId, capture, state }: ContributeInput): Promise<ContributionOutcome> {
   if (isLabelCapture(capture)) {
     throw new Error("An artwork photo is required to contribute to the shared index");
   }
   const fields = toSubmittedFields(state);
   if (!fields) throw new Error("A title and an artist are required to share");
-  await saveLabelDraft(scanId, state, museumSearchUpdatedAt);
+  await saveLabelDraft(scanId, state);
   // A previous attempt may have verified edits before its upload failed.
   const scan = await convex.query(api.scans.get, { scanId });
   if (scan?.labelFlow?.stage !== "verified" || differsFromFlow(state, scan.labelFlow)) {
