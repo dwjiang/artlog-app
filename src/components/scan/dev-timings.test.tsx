@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
 
-import { DevTimings, formatCaptureTimings } from "./dev-timings";
+import { toCorners } from "@/lib/capture/rectangle";
+import type { Quad } from "@/lib/capture/stages";
+
+import { DetectionLog, DevTimings, formatCaptureTimings } from "./dev-timings";
 
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/db/client", () => ({
@@ -25,4 +28,28 @@ it("lists the total and each recorded stage in milliseconds", async () => {
 it("renders nothing before the first capture", async () => {
   const empty = await render(<DevTimings />);
   expect(empty.toJSON()).toBeNull();
+});
+
+it("shows the detector's hit rate over the last second and what the controller made of it", async () => {
+  const now = jest.spyOn(performance, "now");
+  const log = new DetectionLog();
+  const frame = { width: 1080, height: 1440 };
+  const quad: Quad = [
+    [0.2, 0.2],
+    [0.8, 0.2],
+    [0.8, 0.8],
+    [0.2, 0.8],
+  ];
+  const painting = { confidence: 1, corners: toCorners(quad) };
+  const view = await render(<DevTimings detection={log} />);
+  expect(view.toJSON()).toBeNull();
+  now.mockReturnValue(0);
+  await act(() => log.record({ ...frame, observations: [painting] }, { quad, progress: 0.5, guidance: "hold-still" }));
+  expect(screen.getByText("Detect 1/1 frames · best 1.00 · hold-still 50%")).toBeOnTheScreen();
+  now.mockReturnValue(500);
+  await act(() => log.record({ ...frame, observations: [] }, null));
+  expect(screen.getByText("Detect 1/2 frames · best 1.00 · no candidate")).toBeOnTheScreen();
+  now.mockReturnValue(1200);
+  await act(() => log.record({ ...frame, observations: [] }, null));
+  expect(screen.getByText("Detect 0/2 frames · best 0.00 · no candidate")).toBeOnTheScreen();
 });

@@ -22,7 +22,7 @@ import { CameraPermission } from "./camera-permission";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
 import { CaptureReveal } from "./capture-reveal";
 import { CaptureVisitPill } from "./capture-visit-pill";
-import { DevTimings } from "./dev-timings";
+import { DetectionLog, DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
 import { VenuePill } from "./venue-pill";
@@ -78,8 +78,10 @@ export function ScanScreen() {
   useEffect(() => {
     if (!detecting) resetDetection();
   }, [detecting, resetDetection]);
+  const [detectionLog] = useState(() => new DetectionLog());
   const frameOutput = useRectDetector(detecting, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
+    detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {
       void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
     }
@@ -156,7 +158,7 @@ export function ScanScreen() {
             style={styles.bottom}
             onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
           >
-            <DevTimings timings={busy ? undefined : capture.timings} />
+            <DevTimings timings={busy ? undefined : capture.timings} detection={detecting ? detectionLog : undefined} />
             {message ? (
               <View accessible accessibilityRole="alert">
                 <OverlayCaption hint={retryHint}>{message}</OverlayCaption>

@@ -10,6 +10,7 @@ import {
   RectTracker,
   toQuad,
   type FrameSize,
+  type Guidance,
 } from "./rectangle";
 import type { CaptureInput, Quad } from "./stages";
 
@@ -33,7 +34,7 @@ export type CaptureState = {
   message?: string;
   rearm?: Rearm;
 };
-export type CaptureFeedback = { quad: Quad; progress: number } | null;
+export type CaptureFeedback = { quad: Quad; progress: number; guidance: Guidance } | null;
 
 export class CaptureController {
   private tracker = new RectTracker();
@@ -41,6 +42,8 @@ export class CaptureController {
   private attempt?: CaptureAttempt;
   private nextId = 0;
   private lastDetectionAt = -Infinity;
+  private lastCandidateAt = -Infinity;
+  private lastFramedAt = -Infinity;
   private failedQuad: Quad | null = null;
   private absentSince?: number;
   private state: CaptureState = { phase: "searching", occupied: false };
@@ -72,6 +75,8 @@ export class CaptureController {
   readonly resetDetection = () => {
     this.tracker.reset();
     this.lastDetectionAt = -Infinity;
+    this.lastCandidateAt = -Infinity;
+    this.lastFramedAt = -Infinity;
     this.showFeedback(null);
   };
 
@@ -195,32 +200,35 @@ export class CaptureController {
       this.tracker.reset();
       this.update({ phase: "searching", message: undefined, rearm: undefined });
     }
-    const visibleObservations = observations.filter((o) => {
-      const quad = toQuad(o.corners);
-      const visible = previewQuad(quad, detection, preview);
-      return containsPoint(quad, [0.5, 0.5]) && isUsableQuad(visible);
-    });
-    const candidates = visibleObservations.filter((o) => framingGuidance(toQuad(o.corners), detection) === null);
-    // Invalid framing must not contribute time to a future stable window.
+    const centered = observations.filter((o) => containsPoint(toQuad(o.corners), [0.5, 0.5]));
+    const candidates = centered.filter((o) => framingGuidance(toQuad(o.corners), detection, preview) === null);
     if (candidates.length === 0) {
+      // Vision drops or misplaces a rectangle on single frames. A miss within the grace period keeps the
+      // hold or the framing hint; a longer one restarts the hold, so sustained invalid framing never counts
+      // toward a stable window.
+      if (now - this.lastCandidateAt <= MISS_GRACE_MS) return;
       this.tracker.reset();
-      const visible = largestObservation(visibleObservations);
-      this.showFeedback(
-        visible
-          ? {
-              quad: previewQuad(toQuad(visible.corners), detection, preview),
-              progress: 0,
-            }
-          : null,
-      );
+      const framed = largestObservation(centered);
+      if (framed) {
+        this.lastFramedAt = now;
+        this.showFeedback({
+          quad: previewQuad(toQuad(framed.corners), detection, preview),
+          progress: 0,
+          guidance: framingGuidance(toQuad(framed.corners), detection, preview) ?? "hold-still",
+        });
+      } else if (now - this.lastFramedAt > MISS_GRACE_MS) {
+        this.showFeedback(null);
+      }
       return;
     }
+    this.lastCandidateAt = now;
     const tracked = this.tracker.push(candidates, detection, now);
     this.showFeedback(
       tracked.quad
         ? {
             quad: previewQuad(tracked.quad, detection, preview),
             progress: tracked.progress,
+            guidance: tracked.guidance,
           }
         : null,
     );
