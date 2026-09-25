@@ -574,6 +574,7 @@ describe("enrichment after identification", () => {
         factIds: ["f1"],
       },
     ]);
+    expect(display?.docentStatus).toBe("ready");
     expect(display?.factSheet).toEqual([{ id: "f1", sourceUrl: SOURCE, sourceLabel: "metmuseum.org" }]);
     expect(display?.rightNow).toEqual({
       text: "Claude Monet’s “Water Lilies” returns to view at SFMOMA on 12 September 2026 with 40 companion works.",

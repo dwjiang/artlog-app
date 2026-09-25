@@ -4,7 +4,7 @@ import { errorMessage } from "@/lib/network-error";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { DocentSentence, FactChip, RightNowCard } from "../../../convex/lib/validators";
+import type { DocentSentence, DocentStatus, FactChip, RightNowCard } from "../../../convex/lib/validators";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;
@@ -16,6 +16,7 @@ export type ResultViewState = {
   primary?: ResultCandidate;
   runnerUps: ResultCandidate[];
   docent?: DocentSentence[];
+  docentStatus?: DocentStatus;
   factSheet?: FactChip[];
   rightNow?: RightNowCard;
   editable: boolean;
@@ -99,6 +100,7 @@ export function toResultViewState(
     ...(kind === "confident"
       ? {
           docent: scan.docent,
+          docentStatus: scan.docentStatus,
           factSheet: scan.factSheet,
           rightNow: scan.rightNow,
         }

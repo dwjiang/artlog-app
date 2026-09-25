@@ -33,6 +33,7 @@ import {
   softScan,
   unsupportedScan,
 } from "./result/__fixtures__/scan";
+import { DOCENT_RETRY } from "./result/docent-section";
 import { LABEL_BUTTON } from "./result/save-bar";
 import { SEARCH_CONSENT_TITLE } from "./result/search-consent-sheet";
 
@@ -370,6 +371,16 @@ it("shows a confident match with its fields, chip, prose, sources and news", asy
   );
   expect(screen.getByRole("button", { name: "Adjust crop" })).toBeEnabled();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
+});
+
+it("asks the server to write the background again after a failed run", async () => {
+  results.set("scans:get", { ...confidentScanWithoutProse, docentStatus: "failed" });
+  await render(result());
+  expect(await screen.findByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
+  expect(getFunctionName(jest.mocked(client.mutation).mock.calls[0][0])).toBe("docent:retry");
+  expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID });
 });
 
 it("keeps the card usable while the prose is still being written, then fills it in", async () => {

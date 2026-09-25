@@ -30,7 +30,7 @@ import {
 } from "@/lib/museum-downloads/model";
 import { museumDownloads, previewUri } from "@/lib/museum-downloads/storage";
 import { useMuseumDownloads } from "@/lib/museum-downloads/use-museum-downloads";
-import { showToast } from "@/lib/ui/toast";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
 import type { Coordinate } from "@/lib/venue/resolve";
 import type { MuseumSummary } from "@/shared/offline/types";
 
@@ -86,14 +86,14 @@ export function MuseumDownloadsScreen() {
     try {
       await action();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Couldn’t finish. Try again.");
+      showErrorToast(error instanceof Error ? error.message : "Couldn’t finish. Try again.");
     }
   }
   function start(museum: MuseumSummary) {
     void perform(async () => {
       await museumDownloads.start(museum);
       const row = museumDownloads.getSnapshot().downloads[museum.id];
-      if (row && errorText(row)) showToast(errorText(row)!);
+      if (row && errorText(row)) showErrorToast(errorText(row)!);
     });
   }
   function remove(museum: MuseumSummary) {
@@ -127,7 +127,7 @@ export function MuseumDownloadsScreen() {
           showToast("This museum is up to date.");
         }
         const row = museumDownloads.getSnapshot().downloads[museum.id];
-        if (row && errorText(row)) showToast(errorText(row)!);
+        if (row && errorText(row)) showErrorToast(errorText(row)!);
       });
     }
   }

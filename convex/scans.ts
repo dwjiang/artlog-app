@@ -3,12 +3,21 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { sameOwner } from "../shared/journal/contracts";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { docentStatusOf } from "./docent";
 import { requireDevice } from "./lib/auth";
 import { displayLabelFlow } from "./lib/labelVerify";
 import { isSupported } from "./lib/modelVersion";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
-import { embedding, docentSentence, factChip, labelFlowDisplay, rightsStatus, snapshotFields } from "./lib/validators";
+import {
+  embedding,
+  docentSentence,
+  docentStatus,
+  factChip,
+  labelFlowDisplay,
+  rightsStatus,
+  snapshotFields,
+} from "./lib/validators";
 import { deleteEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
@@ -36,6 +45,7 @@ export const scanDisplay = v.object({
   runnerUps: v.optional(v.array(displayCandidate)),
   // Docent prose and its source chips come from the artwork; only a confident card shows them.
   docent: v.optional(v.array(docentSentence)),
+  docentStatus: v.optional(docentStatus),
   factSheet: v.optional(v.array(factChip)),
   rightNow: scanFields.rightNow,
   // The label flow and museum-site search are the owner's own state; the raw OCR reading stays server-side.
@@ -237,6 +247,7 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     best: best?.candidate,
     runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
     docent: prose?.docent?.en,
+    docentStatus: prose && docentStatusOf(prose),
     factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
       id,
       sourceUrl,

@@ -1,11 +1,21 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 
-import { DocentSection } from "./docent-section";
+import { DOCENT_FAILED, DOCENT_RETRY, DOCENT_WAIT_MS, DocentSection } from "./docent-section";
 
 const mockOpenBrowser = jest.fn();
+const mockReportError = jest.fn();
+const mockToast = jest.fn();
+let mockActive = true;
 
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
+}));
+jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => mockActive }));
+jest.mock("@/lib/ui/toast", () => ({
+  showErrorToast: (...args: unknown[]) => mockToast(...args),
+}));
+jest.mock("@/lib/observability", () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
 }));
 
 const docent = [
@@ -36,6 +46,9 @@ const factSheet = [
 beforeEach(() => {
   mockOpenBrowser.mockReset();
   mockOpenBrowser.mockResolvedValue(undefined);
+  mockReportError.mockReset();
+  mockToast.mockReset();
+  mockActive = true;
 });
 
 it("lists each cited page once, in citation order, and opens it on tap", async () => {
@@ -85,27 +98,98 @@ describe("while the backend is still writing", () => {
   afterEach(() => jest.useRealTimers());
 
   it("shows the writing line under the title until the sentences arrive", async () => {
-    const view = await render(<DocentSection title="About this work" pending />);
+    const view = await render(<DocentSection title="About this work" status="writing" />);
     expect(screen.getByText("About this work")).toBeOnTheScreen();
     expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
-    await view.rerender(
-      <DocentSection title="About this work" pending={false} docent={docent} factSheet={factSheet} />,
-    );
+    await view.rerender(<DocentSection title="About this work" status="ready" docent={docent} factSheet={factSheet} />);
     expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
     expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+    expect(mockToast).not.toHaveBeenCalled();
   });
 
-  it("explains unavailable background information after ten seconds", async () => {
-    await render(<DocentSection title="About this work" pending />);
+  it("offers a retry once a run has stalled for a minute, then waits again", async () => {
+    const onRetry = jest.fn(async () => {});
+    await render(<DocentSection title="About this work" status="writing" onRetry={onRetry} />);
     await act(() => {
-      jest.advanceTimersByTime(9_999);
+      jest.advanceTimersByTime(DOCENT_WAIT_MS - 1);
     });
     expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
     await act(() => {
       jest.advanceTimersByTime(1);
     });
-    expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
+    expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
+  });
+
+  it("keeps one toast when a stalled run then fails on the server", async () => {
+    const onRetry = jest.fn(async () => {});
+    const view = await render(<DocentSection title="About this work" status="writing" onRetry={onRetry} />);
+    await act(() => {
+      jest.advanceTimersByTime(DOCENT_WAIT_MS);
+    });
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    await view.rerender(<DocentSection title="About this work" status="failed" onRetry={onRetry} />);
+    expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+    expect(mockToast).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("after a failed run", () => {
+  it("explains the failure in place and in one toast, and retries from either", async () => {
+    let finish = () => {};
+    const onRetry = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const view = await render(<DocentSection title="About this work" status="failed" onRetry={onRetry} />);
+    expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    const [message, retryFromToast] = mockToast.mock.calls[0];
+    expect(message).toBe(DOCENT_FAILED);
+
+    await act(() => retryFromToast());
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: DOCENT_RETRY })).toBeDisabled();
+    await view.rerender(<DocentSection title="About this work" status="writing" onRetry={onRetry} />);
+    await act(async () => finish());
+    expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
+
+    await view.rerender(<DocentSection title="About this work" status="failed" onRetry={onRetry} />);
+    expect(mockToast).toHaveBeenCalledTimes(2);
+    await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+    expect(onRetry).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the retry available when the request cannot reach the server", async () => {
+    const onRetry = jest.fn().mockRejectedValueOnce(new Error("Network request failed"));
+    await render(<DocentSection title="About this work" status="failed" onRetry={onRetry} />);
+    await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn’t reach Artlog. Check your connection and try again.",
+    );
+    expect(screen.getByRole("button", { name: DOCENT_RETRY })).toBeEnabled();
+    expect(mockReportError).not.toHaveBeenCalled();
+  });
+
+  it("waits to show the toast until the card is on screen", async () => {
+    mockActive = false;
+    const view = await render(<DocentSection title="About this work" status="failed" onRetry={jest.fn()} />);
+    expect(mockToast).not.toHaveBeenCalled();
+    mockActive = true;
+    await view.rerender(<DocentSection title="About this work" status="failed" onRetry={jest.fn()} />);
+    expect(mockToast).toHaveBeenCalledTimes(1);
+  });
+
+  it("says plainly when a work has no background information, without a toast", async () => {
+    await render(<DocentSection title="About this work" status="unavailable" docent={[]} />);
     expect(screen.getByText("Background information isn’t available for this work yet.")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
+    expect(mockToast).not.toHaveBeenCalled();
   });
 });
 

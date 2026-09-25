@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { Stack } from "expo-router";
+import { useIsFocused } from "expo-router/react-navigation";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +16,7 @@ import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
+import { useLiftToasts } from "@/lib/ui/toast";
 
 import { DocentSection } from "./docent-section";
 import { FieldsForm } from "./fields-form";
@@ -25,7 +27,6 @@ import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
   manual?: boolean;
-  prosePending?: boolean;
   captureInput?: Omit<SaveResultInput, "draft">;
   view: ResultViewState;
   saving: boolean;
@@ -37,6 +38,7 @@ type ResultCardProps = {
   visit?: ReactNode;
   onLabel: () => void;
   onSearchMuseum?: () => void;
+  onRetryDocent?: () => Promise<unknown>;
   onPick: (candidate: ResultCandidate) => void;
   onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
@@ -48,7 +50,6 @@ type ResultCardProps = {
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
 export function ResultCard({
   manual = false,
-  prosePending = true,
   captureInput,
   view,
   saving,
@@ -60,6 +61,7 @@ export function ResultCard({
   visit,
   onLabel,
   onSearchMuseum,
+  onRetryDocent,
   onPick,
   onEdit,
   onSave,
@@ -70,6 +72,8 @@ export function ResultCard({
   const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
   const [editingDetails, setEditingDetails] = useState(manual);
   const { bottom } = useSafeAreaInsets();
+  const [saveBarHeight, setSaveBarHeight] = useState<number>();
+  useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   const photos = useCapturePhotos(
@@ -222,7 +226,8 @@ export function ResultCard({
               title="About this work"
               docent={view.docent}
               factSheet={view.factSheet}
-              pending={prosePending && !view.docent?.length}
+              status={view.docentStatus}
+              onRetry={onRetryDocent}
             />
             {view.primary && <GuideTranscript artworkId={view.primary.artworkId} />}
             <RightNowSection rightNow={view.rightNow} />
@@ -232,6 +237,7 @@ export function ResultCard({
         {search}
       </ScrollView>
       <View
+        onLayout={(event) => setSaveBarHeight(event.nativeEvent.layout.height)}
         style={[styles.save, { paddingTop: visit && !savedId ? 0 : Spacing.two, paddingBottom: Math.max(12, bottom) }]}
       >
         <SaveBar
