@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View } from "react-native";
@@ -115,7 +116,10 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
-  const { status, options, error, confirm, dismiss, declinePrompt } = view;
+  const { status, options, error, confirm, dismiss, declinePrompt, resolve } = view;
+  // Settings lists location only once iOS has asked, so a permission never answered is asked for here instead.
+  const [location, requestLocation] = Location.useForegroundPermissions();
+  const askable = location?.canAskAgain !== false;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{
     query: string;
@@ -181,6 +185,16 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       if (!request.signal.aborted) setBusy(undefined);
       if (pending.current === request) pending.current = undefined;
     }
+  }
+
+  function allowLocation() {
+    setFailure(undefined);
+    void requestLocation()
+      .then((answer) => (answer.granted ? resolve() : undefined))
+      .catch((cause: unknown) => {
+        reportError(cause, "venue.request-location", { level: "warning" });
+        setFailure("Could not ask for location.");
+      });
   }
 
   function notHere() {
@@ -265,7 +279,9 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           inset={false}
           title={status === "denied" ? "Location access is off." : "No nearby museums found."}
           detail={
-            status === "denied" ? `Allow location in Settings to find nearby museums. ${emptyDetail}` : emptyDetail
+            status !== "denied"
+              ? emptyDetail
+              : `Allow location${askable ? "" : " in Settings"} to find nearby museums. ${emptyDetail}`
           }
           visual={<EmptyMap />}
         >
@@ -275,7 +291,8 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
             fullWidth
             onPress={() => searchInput.current?.focus()}
           />
-          {status === "denied" && (
+          {status === "denied" && askable && <GalleryButton label="Allow location" fullWidth onPress={allowLocation} />}
+          {status === "denied" && !askable && (
             <GalleryButton
               label="Open Settings"
               fullWidth

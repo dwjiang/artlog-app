@@ -83,7 +83,8 @@ export type VenueEvent =
       notHere?: VenueState["notHere"];
     }
   | { type: "locating" }
-  | { type: "denied" }
+  /** `declined` once iOS will not ask again; otherwise the permission is unanswered, as an expired Allow Once leaves it. */
+  | { type: "denied"; declined: boolean }
   | { type: "failed"; error: string }
   | { type: "resolved"; fix: Fix; resolution: VenueResolution; quiet?: boolean }
   | { type: "poiOptions"; options: PoiOption[]; quiet?: boolean }
@@ -189,11 +190,12 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (state.venue?.manual && state.visit) {
         return { ...state, status: "resolved", fix: undefined };
       }
+      // An unanswered permission pauses the visit like leaving the museum, so the next scan's prompt can resume it.
       return {
         ...state,
         status: "denied",
         venue: undefined,
-        visit: undefined,
+        visit: event.declined ? undefined : state.visit,
         options: [],
         fix: undefined,
       };
