@@ -34,7 +34,7 @@ export function SaveBar({
   visit,
 }: SaveBarProps) {
   return (
-    <View style={styles.bar}>
+    <View>
       {savedId ? (
         <View style={{ gap: 12 }}>
           <ThemedText type="title">Saved to collection</ThemedText>
@@ -53,32 +53,35 @@ export function SaveBar({
         </View>
       ) : (
         <>
+          {/* The visit row's 44-point target already spaces it from the actions. */}
           {visit}
-          {onLabel && labelFirst && (
-            <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={onLabel} />
-          )}
-          <GalleryButton
-            label={saveLabel}
-            variant={labelFirst ? "outlined" : "filled"}
-            fullWidth
-            busy={saving}
-            busyLabel="Saving…"
-            disabled={!canSave || saving}
-            onPress={onSave}
-          />
-          {!canSave && (
-            <ThemedText type="small" themeColor="textSecondary">
-              Shorten these details to save this work.
-            </ThemedText>
-          )}
-          {error && (
-            <ThemedText type="small" themeColor="error" accessibilityRole="alert">
-              {error}
-            </ThemedText>
-          )}
-          {onLabel && !labelFirst && (
-            <GalleryButton label={LABEL_BUTTON} fullWidth disabled={saving} onPress={onLabel} />
-          )}
+          <View style={styles.actions}>
+            {onLabel && labelFirst && (
+              <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={onLabel} />
+            )}
+            <GalleryButton
+              label={saveLabel}
+              variant={labelFirst ? "outlined" : "filled"}
+              fullWidth
+              busy={saving}
+              busyLabel="Saving…"
+              disabled={!canSave || saving}
+              onPress={onSave}
+            />
+            {!canSave && (
+              <ThemedText type="small" themeColor="textSecondary">
+                Shorten these details to save this work.
+              </ThemedText>
+            )}
+            {error && (
+              <ThemedText type="small" themeColor="error" accessibilityRole="alert">
+                {error}
+              </ThemedText>
+            )}
+            {onLabel && !labelFirst && (
+              <GalleryButton label={LABEL_BUTTON} fullWidth disabled={saving} onPress={onLabel} />
+            )}
+          </View>
         </>
       )}
     </View>
@@ -86,7 +89,7 @@ export function SaveBar({
 }
 
 const styles = StyleSheet.create({
-  bar: { gap: Spacing.two },
+  actions: { gap: Spacing.two },
   saved: {
     minHeight: 44,
     justifyContent: "center",

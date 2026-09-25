@@ -98,6 +98,8 @@ export default defineSchema({
     // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
     enrichClaimedAt: v.optional(v.number()),
     enrichGeneration: v.optional(v.number()),
+    // Set when the latest docent run ended without writing, so the card can offer a retry.
+    docentFailedAt: v.optional(v.number()),
     factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index("by_key", ["key"])

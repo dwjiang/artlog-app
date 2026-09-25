@@ -1,8 +1,6 @@
-import { router } from "expo-router";
 import { type ReactNode, useState } from "react";
 import { View } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { WallGallery } from "@/components/collection/wall-gallery";
 import { EmptyState } from "@/components/empty-state";
 import { ArtworkCollage } from "@/components/guest/artwork-preview";
@@ -77,9 +75,7 @@ export function PublicWallView({
         title="No artworks on this wall yet."
         detail={`${arrangedBy ?? "This person"} hasn’t added any artworks yet.`}
         visual={<ArtworkCollage />}
-      >
-        <GalleryButton label="Back to friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
-      </EmptyState>
+      />
     );
   }
   return (

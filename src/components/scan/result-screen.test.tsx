@@ -27,6 +27,7 @@ import {
   softScan,
   unsupportedScan,
 } from "./result/__fixtures__/scan";
+import { DOCENT_RETRY } from "./result/docent-section";
 import { LABEL_BUTTON } from "./result/save-bar";
 
 jest.mock("@/lib/audio/use-listening");
@@ -316,6 +317,22 @@ it.each([
   expect(await inRecentScans(localId)).toBe(true);
 });
 
+it("shows the audio guide transcript on a confident match once the narration exists", async () => {
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    narrationOpening: "Water Lilies, by Claude Monet.",
+    narrationFacts: [{ id: "f9", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" }],
+    narration: [
+      { sentence: "Water Lilies, by Claude Monet.", factIds: [] },
+      { sentence: "Monet grew these lilies in his garden at Giverny.", factIds: ["f9"] },
+    ],
+  });
+  await render(result());
+  expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
+  expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
+});
+
 it("shows a confident match with its fields, chip, prose, sources and news", async () => {
   await render(result());
   expect(await screen.findByText("Match")).toBeOnTheScreen();
@@ -342,6 +359,16 @@ it("shows a confident match with its fields, chip, prose, sources and news", asy
   );
   expect(screen.getByRole("button", { name: "Adjust crop" })).toBeEnabled();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
+});
+
+it("asks the server to write the background again after a failed run", async () => {
+  results.set("scans:get", { ...confidentScanWithoutProse, docentStatus: "failed" });
+  await render(result());
+  expect(await screen.findByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
+  expect(getFunctionName(jest.mocked(client.mutation).mock.calls[0][0])).toBe("docent:retry");
+  expect(jest.mocked(client.mutation).mock.calls[0][1]).toEqual({ scanId: SCAN_ID });
 });
 
 it("keeps the card usable while the prose is still being written, then fills it in", async () => {

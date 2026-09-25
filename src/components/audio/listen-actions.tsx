@@ -1,6 +1,3 @@
-import { useQueries, type RequestForQueries } from "convex/react";
-import type { FunctionReturnType } from "convex/server";
-import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
@@ -9,9 +6,8 @@ import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
 import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
 import { useListening } from "@/lib/audio/use-listening";
-import { useDeviceReady } from "@/lib/use-device-ready";
+import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 
-import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { openPlayer } from "./mini-player";
@@ -31,21 +27,7 @@ export function ListenActions({
   savedId?: string;
   scanId?: string;
 }) {
-  const ready = useDeviceReady();
-  const queries = useMemo(
-    (): RequestForQueries =>
-      ready
-        ? {
-            enrichment: { query: api.artworks.enrichment, args: { artworkId } },
-          }
-        : {},
-    [ready, artworkId],
-  );
-  const {
-    enrichment,
-  }: {
-    enrichment?: FunctionReturnType<typeof api.artworks.enrichment> | Error;
-  } = useQueries(queries);
+  const enrichment = useArtworkEnrichment(artworkId);
   const data = enrichment instanceof Error ? undefined : enrichment;
   const audio = useListening();
   const facts = data?.narrationFacts ?? [];

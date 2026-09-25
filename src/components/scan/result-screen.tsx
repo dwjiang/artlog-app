@@ -27,6 +27,7 @@ import {
 import { useSaveResult } from "@/lib/result/use-save-result";
 import { useScan } from "@/lib/result/use-scan";
 
+import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
@@ -225,6 +226,7 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           header={header}
           context={photoError}
           visit={capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />}
+          onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
           onPick={pickRunnerUp}
           onEdit={() => setHasEdits(true)}
           onLabel={openLabel}

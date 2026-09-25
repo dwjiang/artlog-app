@@ -58,6 +58,12 @@ runs still export every museum already in the deployment; use them for local
 checks, not to replace the bundled full census. Repeat a command to resume;
 use `--refresh` once for a fresh census, then omit it when resuming.
 
+To fill `city`, `cityKey` and `country` on the venues already in the deployment
+without a census, replace `--all` with `--cities-only`. It resolves each museum's
+city from its Wikidata administrative areas, falling back to its location and the
+towns its street address names, then exports (and with `--publish`, publishes) as
+above, so it is also the quick way to republish after a venue-column change.
+
 ## Build the corpus
 
 ### 1. Corpus metadata

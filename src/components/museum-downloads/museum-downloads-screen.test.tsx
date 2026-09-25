@@ -57,7 +57,7 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34 }),
 }));
 jest.mock("@/components/toast", () => ({ ToastLayer: () => null }));
-jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn() }));
+jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn(), showErrorToast: jest.fn() }));
 jest.mock("@expo/ui/community/menu", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   return {

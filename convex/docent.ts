@@ -6,10 +6,12 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  mutation,
   type ActionCtx,
   type MutationCtx,
   env,
 } from "./_generated/server";
+import { requireDevice } from "./lib/auth";
 import {
   DOCENT_MAX_TOKENS,
   DOCENT_PROMPT,
@@ -27,7 +29,13 @@ import { gatherSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
 import { limitDevice } from "./lib/rateLimits";
 import { chatJson } from "./lib/tokenFactory";
-import { docentSentence, factSheetEntry, type DocentSentence, type FactSheetEntry } from "./lib/validators";
+import {
+  docentSentence,
+  factSheetEntry,
+  type DocentSentence,
+  type DocentStatus,
+  type FactSheetEntry,
+} from "./lib/validators";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
 
@@ -46,6 +54,12 @@ export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): P
     enrichClaimedAt: undefined,
     enrichGeneration: (artwork.enrichGeneration ?? 0) + 1,
   });
+}
+
+export function docentStatusOf(artwork: Doc<"artworks">): DocentStatus {
+  if (artwork.docent?.en) return artwork.docent.en.length > 0 ? "ready" : "unavailable";
+  if (artwork.factSheetNeedsReview) return "unavailable";
+  return artwork.docentFailedAt === undefined ? "writing" : "failed";
 }
 
 export const load = internalQuery({
@@ -93,6 +107,7 @@ export const claim = internalMutation({
     await ctx.db.patch("artworks", artworkId, {
       enrichClaimedAt: now,
       enrichGeneration: generation,
+      docentFailedAt: undefined,
     });
     return generation;
   },
@@ -124,8 +139,45 @@ export const writeEnrichment = internalMutation({
       docent: { en: docentEn },
       docentUpdatedAt: now,
       enrichClaimedAt: undefined,
+      docentFailedAt: undefined,
     });
     return true;
+  },
+});
+
+// Ends a claimed run that wrote nothing. A newer claim or an invalidation keeps its own state.
+export const fail = internalMutation({
+  args: { artworkId: v.id("artworks"), generation: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { artworkId, generation }) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (artwork?.enrichGeneration === generation) {
+      await ctx.db.patch("artworks", artworkId, {
+        enrichClaimedAt: undefined,
+        docentFailedAt: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// The card's "Try again". The run's own claim and the device's hourly limit still gate the work.
+export const retry = mutation({
+  args: { scanId: v.id("scans") },
+  returns: v.null(),
+  handler: async (ctx, { scanId }) => {
+    const device = await requireDevice(ctx);
+    const scan = await ctx.db.get("scans", scanId);
+    if (!scan || scan.deviceId !== device._id || scan.outcome !== "confident" || !scan.best) {
+      throw new ConvexError({ code: "invalid_scan" });
+    }
+    const { artworkId } = scan.best;
+    await ctx.db.patch("artworks", artworkId, { docentFailedAt: undefined });
+    await ctx.scheduler.runAfter(0, internal.docent.ensure, {
+      artworkId,
+      deviceId: device._id,
+    });
+    return null;
   },
 });
 
@@ -240,23 +292,24 @@ async function generate(
   }
 }
 
-// Scheduled after a confident identification (identify.ts); the card never waits on it. Reuses a
-// current fact sheet and only rewrites the sentences when they were invalidated.
+// Scheduled after a confident identification (identify.ts) and by retry; the card never waits on it.
+// Reuses a current fact sheet and only rewrites the sentences when they were invalidated. Every
+// claimed run that writes nothing marks the artwork failed so the card can offer a retry.
 export const ensure = internalAction({
   args: { artworkId: v.id("artworks"), deviceId: v.id("devices") },
   returns: v.null(),
   handler: async (ctx, { artworkId, deviceId }) => {
-    const models = configuredModels();
-    if (!models) {
-      console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
-      return null;
-    }
     const generation = await ctx.runMutation(internal.docent.claim, {
       artworkId,
     });
     if (generation === null) return null;
     let written = false;
     try {
+      const models = configuredModels();
+      if (!models) {
+        console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
+        return null;
+      }
       const context = await ctx.runQuery(internal.docent.load, { artworkId });
       if (!context || context.artwork.enrichGeneration !== generation || context.artwork.factSheetNeedsReview) {
         return null;
@@ -277,10 +330,7 @@ export const ensure = internalAction({
       throw error;
     } finally {
       if (!written) {
-        await ctx.runMutation(internal.enrich.releaseClaim, {
-          artworkId,
-          generation,
-        });
+        await ctx.runMutation(internal.docent.fail, { artworkId, generation });
       }
     }
     return null;

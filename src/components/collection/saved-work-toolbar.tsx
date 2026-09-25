@@ -9,7 +9,7 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { scheduleRemoval } from "@/lib/collection/pending-removals";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
-import { showToast } from "@/lib/ui/toast";
+import { showErrorToast } from "@/lib/ui/toast";
 
 /** Header actions for an owned artwork: share the photo, and the overflow menu with editing and removal. */
 export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitId?: string }) {
@@ -26,7 +26,7 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       });
     } catch (cause) {
       reportError(cause, "collection.artwork.share");
-      showToast("This artwork could not be shared.");
+      showErrorToast("Couldn’t share this artwork.");
     }
   }
   return (

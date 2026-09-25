@@ -20,7 +20,7 @@ import { useVisits } from "@/lib/journal/use-visits";
 import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { reportError } from "@/lib/observability";
-import { showToast } from "@/lib/ui/toast";
+import { retryAction, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 
@@ -405,14 +405,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             <View pointerEvents="box-none" style={detail.toast}>
               <ToastPill
                 message="Couldn’t check the shared version."
-                actions={[
-                  {
-                    label: "Retry",
-                    onPress: () => {
-                      void controller.load();
-                    },
-                  },
-                ]}
+                actions={[retryAction(() => void controller.load())]}
               />
             </View>
           )}

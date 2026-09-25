@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import { openingFixture } from "../shared/audio/guide-fixtures";
 import { api } from "./_generated/api";
+import { narrationProvenance } from "./lib/narrationCache";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
@@ -128,4 +129,36 @@ it("withholds additional narration facts while their sources need review", async
     }),
   );
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();
+});
+
+it("returns the rendered audio guide script until the research behind it changes", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, { artwork: { factSheet, factSheetUpdatedAt: 5 } }),
+  );
+  const script = [
+    { sentence: openingFixture, factIds: [] },
+    { sentence: "The pond is in Monet's garden at Giverny.", factIds: ["f2"] },
+  ];
+  await t.run(async (ctx) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (!artwork) throw new Error("Seeded artwork is missing.");
+    await ctx.db.insert("narrationAudio", {
+      artworkId,
+      claim: "render-1",
+      claimedAt: 0,
+      ...narrationProvenance(artwork),
+      storageId: await ctx.storage.store(new Blob(["mp3"])),
+      sentences: script,
+    });
+  });
+  expect(await as.query(api.artworks.enrichment, { artworkId })).toMatchObject({
+    narration: script,
+    narrationRenderId: "render-1",
+  });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
+  const stale = await as.query(api.artworks.enrichment, { artworkId });
+  expect(stale?.narration).toBeUndefined();
+  expect(stale?.narrationRenderId).toBeUndefined();
 });

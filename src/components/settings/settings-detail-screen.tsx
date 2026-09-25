@@ -14,12 +14,10 @@ import { GeneralPreference } from "./general-preference";
 import { LeaderboardPreference } from "./leaderboard-preference";
 import { PhotoLibraryPreference } from "./photo-library-preference";
 import { PrivacySection } from "./privacy-section";
-import { VisitPreference } from "./visit-preference";
 
 const titles = {
   account: "Account",
   general: "General",
-  visits: "Visits",
   leaderboards: "Leaderboards",
   privacy: "Privacy",
   about: "About",
@@ -68,7 +66,6 @@ export function SettingsDetailScreen({ section }: { section: string }) {
             <PhotoLibraryPreference />
           </>
         )}
-        {section === "visits" && <VisitPreference />}
         {section === "leaderboards" && <LeaderboardPreference onManage={() => setParticipation(true)} />}
         {section === "developer" && __DEV__ && (
           <>

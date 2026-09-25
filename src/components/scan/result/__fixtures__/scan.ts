@@ -81,6 +81,7 @@ export const confidentScan: NonNullable<ScanResult> = {
   best: lilies,
   runnerUps: [bridge, haystacks],
   docent,
+  docentStatus: "ready",
   factSheet,
   rightNow,
 };
@@ -91,6 +92,7 @@ export const confidentScanWithoutProse: NonNullable<ScanResult> = {
   outcome: "confident",
   best: lilies,
   runnerUps: [bridge],
+  docentStatus: "writing",
 };
 
 export const softScan: NonNullable<ScanResult> = {

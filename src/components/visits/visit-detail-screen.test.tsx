@@ -70,6 +70,7 @@ jest.mock("@/lib/venue/use-venue", () => ({
 }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
+  ...jest.requireActual("@/lib/ui/toast"),
   showToast: (...args: unknown[]) => mockToast(...args),
 }));
 const mockLoad = jest.fn();
