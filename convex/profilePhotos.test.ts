@@ -62,9 +62,9 @@ it("renames the profile, releases the old username, and rejects a taken or inval
     await other.as.mutation(internal.profilePhotoData.save, {
       profileId: other.profileId,
       name: "Theo",
-      username: "u-mira",
+      username: "u_mira",
     }),
-  ).toMatchObject({ username: "u-mira" });
+  ).toMatchObject({ username: "u_mira" });
   expect(
     await owner.as.mutation(internal.profilePhotoData.save, {
       profileId: owner.profileId,

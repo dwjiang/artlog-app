@@ -21,6 +21,7 @@ const expectedCodes = new Set([
   "friend_limit",
   "visit_private",
   "invalid_profile",
+  "profile_not_allowed",
   "invalid_visit",
   "invalid_save",
   "invalid_venue",

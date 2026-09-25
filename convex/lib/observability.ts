@@ -45,6 +45,7 @@ const expectedCodes = new Set([
   "invalid_media",
   "invalid_profile_photo",
   "invalid_profile",
+  "profile_not_allowed",
   "profile_required",
   "sync_scope_changed",
   "claim_required",

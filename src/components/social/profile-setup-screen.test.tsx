@@ -50,7 +50,7 @@ jest.mock("@/lib/social/profile-photo", () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockSession = { key: "account:a", status: "profile-required", offline: false, refresh: mockRefresh };
-  mockSuggestion = "alex-morgan";
+  mockSuggestion = "alex_morgan";
   mockTaken = new Set();
   mockMine = undefined;
   mockCreate.mockResolvedValue({});
@@ -73,10 +73,10 @@ async function reachPhoto() {
 it("claims the suggested username on the first step, then keeps Apple’s name and adds a photo", async () => {
   await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
   expect(screen.getByText("Step 1 of 3")).toBeOnTheScreen();
-  expect(screen.getByLabelText("Username")).toHaveDisplayValue("alex-morgan");
+  expect(screen.getByLabelText("Username")).toHaveDisplayValue("alex_morgan");
   await screen.findByText("Username available");
   await continueTo("Your name");
-  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex Morgan", username: "alex-morgan" });
+  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex Morgan", username: "alex_morgan" });
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
   expect(screen.getByLabelText("Name")).toHaveDisplayValue("Alex Morgan");
   await continueTo("Add a photo");
@@ -86,7 +86,7 @@ it("claims the suggested username on the first step, then keeps Apple’s name a
   expect(mockSavePhoto).toHaveBeenCalledWith({ name: "Alex Morgan", photo: new ArrayBuffer(3) });
   expect(mockCreate).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
-  expect(screen.getByText("@alex-morgan")).toBeOnTheScreen();
+  expect(screen.getByText("@alex_morgan")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(mockDismissTo).toHaveBeenCalledWith("/people");
   expect(mockBack).not.toHaveBeenCalled();
@@ -101,15 +101,15 @@ it("keeps the person on the username step when the name is taken, then saves a t
   await fireEvent.changeText(screen.getByLabelText("Username"), "Alex");
   expect(await screen.findByText("That username is taken. Try another.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
-  await fireEvent.changeText(screen.getByLabelText("Username"), "alex-reads");
+  await fireEvent.changeText(screen.getByLabelText("Username"), "alex_reads");
   await screen.findByText("Username available");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("header", { name: "Your username" })).toBeOnTheScreen();
   expect(screen.getByRole("alert")).toHaveTextContent("That username is taken. Try another.");
-  await fireEvent.changeText(screen.getByLabelText("Username"), "alex-reads-art");
+  await fireEvent.changeText(screen.getByLabelText("Username"), "alex_reads_art");
   await screen.findByText("Username available");
   await continueTo("Your name");
-  expect(mockCreate).toHaveBeenLastCalledWith({ name: "alex-reads-art", username: "alex-reads-art" });
+  expect(mockCreate).toHaveBeenLastCalledWith({ name: "alex_reads_art", username: "alex_reads_art" });
   expect(screen.getByLabelText("Name")).toHaveDisplayValue("");
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex ");
@@ -118,6 +118,24 @@ it("keeps the person on the username step when the name is taken, then saves a t
   await fireEvent.press(screen.getByRole("button", { name: "Skip for now" }));
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
   expect(mockSavePhoto).toHaveBeenCalledTimes(1);
+});
+
+it("claims the username without Apple’s name when that name isn’t allowed, then asks about the name on its own step", async () => {
+  mockSuggestion = null;
+  mockSavePhoto.mockRejectedValueOnce(new ConvexError({ code: "profile_not_allowed" }));
+  await render(<ProfileSetupScreen suggestedName="Artlog Fan" />);
+  await fireEvent.changeText(screen.getByLabelText("Username"), "alex");
+  await screen.findByText("Username available");
+  await continueTo("Your name");
+  expect(mockCreate).toHaveBeenCalledWith({ name: "alex", username: "alex" });
+  expect(screen.getByLabelText("Name")).toHaveDisplayValue("Artlog Fan");
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "That name, username, or bio isn’t allowed. Try different words.",
+  );
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
+  await continueTo("Add a photo");
+  expect(mockSavePhoto).toHaveBeenLastCalledWith({ name: "Alex" });
 });
 
 it("keeps the profile when a photo upload fails and lets setup finish without it", async () => {

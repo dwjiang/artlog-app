@@ -1,6 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
+import { isAllowedIdentity, isOffensive } from "./profile-text";
 import { isUsername } from "./username";
 
 export const publicProfile = v.object({
@@ -180,6 +181,13 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
     || (input.username !== undefined && !isUsername(input.username))
   ) {
     throw new ConvexError({ code: "invalid_profile" });
+  }
+  if (
+    !isAllowedIdentity(name)
+    || (bio !== undefined && isOffensive(bio))
+    || (input.username !== undefined && !isAllowedIdentity(input.username))
+  ) {
+    throw new ConvexError({ code: "profile_not_allowed" });
   }
   return { name, bio };
 }

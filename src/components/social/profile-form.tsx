@@ -9,7 +9,7 @@ import { captureOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { useUsernameCheck } from "@/lib/social/use-username-check";
+import { isUsernameProblem, useUsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
@@ -40,7 +40,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   const [error, setError] = useState<string>();
   const submitting = useRef(false);
   const check = useUsernameCheck(username, session.key);
-  const usernameBlocked = check === "empty" || check === "invalid" || check === "taken";
+  const usernameBlocked = check === "empty" || isUsernameProblem(check);
   async function choose() {
     if (busy) return;
     setBusy(true);

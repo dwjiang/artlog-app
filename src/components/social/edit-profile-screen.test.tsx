@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 
 import { switchOwner } from "@/lib/account/owner-store";
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
@@ -77,7 +78,7 @@ it("saves trimmed profile text while preserving an unchanged photo and username"
 
 it("keeps a rename made elsewhere while the form is open", async () => {
   const view = await render(<EditProfileForm profile={profile} scope="account:a" />);
-  await view.rerender(<EditProfileForm profile={{ ...profile, username: "alex-elsewhere" }} scope="account:a" />);
+  await view.rerender(<EditProfileForm profile={{ ...profile, username: "alex_elsewhere" }} scope="account:a" />);
   expect(screen.getByText("Friends and your profile QR code keep working if you change it.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   expect(mockSave).toHaveBeenCalledWith({ name: "Alex Morgan", bio: "" });
@@ -97,14 +98,35 @@ it("renames the username after normalizing what was typed", async () => {
 });
 
 it("blocks saving a username someone else has", async () => {
-  mockAvailable.mockImplementation((username: string) => username !== "taken-name");
+  mockAvailable.mockImplementation((username: string) => username !== "taken_name");
   await render(<EditProfileForm profile={profile} scope="account:a" />);
-  await fireEvent.changeText(screen.getByLabelText("Username"), "taken-name");
+  await fireEvent.changeText(screen.getByLabelText("Username"), "taken_name");
   expect(await screen.findByText("That username is taken. Try another.")).toBeOnTheScreen();
   const save = screen.getByRole("button", { name: "Save changes" });
   expect(save).toBeDisabled();
   await fireEvent.press(save);
   expect(mockSave).not.toHaveBeenCalled();
+});
+
+it("blocks an offensive or staff username without asking the server", async () => {
+  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  for (const username of ["fuck_you", "artlog_support", "alex-morgan"]) {
+    await fireEvent.changeText(screen.getByLabelText("Username"), username);
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  }
+  expect(screen.getByText("Use 3–30 lowercase letters, numbers or underscores.")).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("Username"), "fuck_you");
+  expect(screen.getByText("That username isn’t allowed. Try another.")).toBeOnTheScreen();
+  expect(mockAvailable).not.toHaveBeenCalled();
+});
+
+it("shows why the server refused an offensive name", async () => {
+  mockSave.mockRejectedValue(new ConvexError({ code: "profile_not_allowed" }));
+  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Shithead");
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(await screen.findByText("That name, username, or bio isn’t allowed. Try different words.")).toBeOnTheScreen();
+  expect(mockBack).not.toHaveBeenCalled();
 });
 
 it("removes the photo explicitly and preserves the draft after a save failure", async () => {

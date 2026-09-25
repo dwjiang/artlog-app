@@ -146,7 +146,7 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
       });
       const other = await ctx.db.insert("profiles", {
         accountId,
-        username: `cap-${i}`,
+        username: `cap_${i}`,
         name: "Friend",
         searchText: "friend",
         active: true,

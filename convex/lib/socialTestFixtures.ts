@@ -7,7 +7,9 @@ export type SocialUser = Awaited<ReturnType<typeof seedDevice>> & {
   accountId: Id<"accounts">;
   profileId: Id<"profiles">;
 };
-export async function socialUser(t: Harness, name: string = crypto.randomUUID()): Promise<SocialUser> {
+let users = 0;
+// Sequential default names keep random hex out of usernames, where the profanity filter reads it as leetspeak.
+export async function socialUser(t: Harness, name = `user${++users}`): Promise<SocialUser> {
   const device = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("accounts", {
@@ -19,7 +21,10 @@ export async function socialUser(t: Harness, name: string = crypto.randomUUID())
     return id;
   });
   const profile = await device.as.mutation(api.profiles.create, {
-    username: `u-${name.toLowerCase().slice(0, 20)}`,
+    username: `u_${name
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]/g, "_")
+      .slice(0, 20)}`,
     name,
   });
   return {

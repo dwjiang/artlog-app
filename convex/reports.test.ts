@@ -193,7 +193,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
   });
   await expect(
     a.as.mutation(api.profiles.create, {
-      username: "another-name",
+      username: "another_name",
       name: "New",
     }),
   ).rejects.toMatchObject({ data: { code: "profile_required" } });
