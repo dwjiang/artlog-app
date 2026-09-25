@@ -99,9 +99,9 @@ it("shows grouped settings and opens the matching detail", async () => {
   }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Contributions" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Visits" })).toBeNull();
   for (const [label, section] of [
     ["General", "general"],
-    ["Visits", "visits"],
     ["Privacy", "privacy"],
     ["About", "about"],
   ]) {
