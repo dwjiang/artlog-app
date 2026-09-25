@@ -16,6 +16,7 @@ export const save = internalMutation({
   args: {
     profileId: v.id("profiles"),
     name: v.string(),
+    username: v.optional(v.string()),
     bio: v.optional(v.string()),
     photo: v.optional(v.union(v.id("_storage"), v.null())),
   },
@@ -26,16 +27,27 @@ export const save = internalMutation({
       throw new ConvexError({ code: "sync_scope_changed" });
     }
     const fields = validateProfile(input);
+    const username = input.username ?? profile.username;
+    if (
+      username !== profile.username
+      && (await ctx.db
+        .query("profiles")
+        .withIndex("by_username", (q) => q.eq("username", username))
+        .unique())
+    ) {
+      throw new ConvexError({ code: "username_taken" });
+    }
     const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
     await ctx.db.patch("profiles", profile._id, {
       ...fields,
+      username,
       photoStorageId,
-      searchText: normalizeSearch(`${profile.username} ${fields.name}`),
+      searchText: normalizeSearch(`${username} ${fields.name}`),
       updatedAt: Date.now(),
     });
     if (profile.photoStorageId && profile.photoStorageId !== photoStorageId) {
       await ctx.storage.delete(profile.photoStorageId);
     }
-    return projectProfile(ctx, { ...profile, ...fields, photoStorageId });
+    return projectProfile(ctx, { ...profile, ...fields, username, photoStorageId });
   },
 });

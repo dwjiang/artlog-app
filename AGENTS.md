@@ -29,7 +29,8 @@ Code, types, tests, and configuration are the source of implementation details.
   code. Add no migrations, shims, version flags, or dual paths solely for old data
   or callers unless compatibility is explicitly required.
 - Choose the simplest complete implementation; avoid speculative abstractions and
-  temporary stopgaps.
+  temporary stopgaps. When the same UI or logic appears in multiple places, extract
+  one shared component or helper and migrate every copy to it.
 - Prefer established libraries when they reduce total complexity. Check existing
   dependencies, docs, and types before adding a package or rebuilding common behavior.
 - Keep route modules thin; extract route-independent UI and behavior.

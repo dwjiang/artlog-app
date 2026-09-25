@@ -1,6 +1,6 @@
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -9,12 +9,13 @@ import { captureOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
+import { useUsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileField, UsernameField } from "./profile-fields";
 
 export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
   const create = useMutation(api.profiles.create);
@@ -38,10 +39,8 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const submitting = useRef(false);
-  const normalized = username.trim().toLowerCase();
-  const check = useUsernameCheck(normalized, session.key);
+  const check = useUsernameCheck(username, session.key);
   const usernameBlocked = check === "empty" || check === "invalid" || check === "taken";
-  const usernameMessage = profileCreated ? "Username saved" : usernameMessages[check];
   async function choose() {
     if (busy) return;
     setBusy(true);
@@ -80,7 +79,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       if (!created.current) {
         await create({
           name: name.trim(),
-          username: normalized,
+          username,
           bio: bio.trim(),
         });
         created.current = true;
@@ -127,62 +126,29 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
           }}
         />
       </View>
-      {[
-        { label: "Name", value: name, change: setName, max: LIMITS.name },
-        {
-          label: "Username",
-          value: username,
-          change: setUsername,
-          max: LIMITS.usernameMax,
-        },
-        { label: "Bio", value: bio, change: setBio, max: LIMITS.bio },
-      ].map((field) => (
-        <View key={field.label} style={{ gap: 8 }}>
-          <Text style={{ fontSize: 14, color: Gallery.ink }}>
-            {field.label}
-            {field.label === "Bio" ? " (optional)" : ""}
-          </Text>
-          <TextInput
-            accessibilityLabel={field.label}
-            value={field.value}
-            onChangeText={field.change}
-            editable={!busy && !profileCreated}
-            maxLength={field.max}
-            multiline={field.label === "Bio"}
-            autoCapitalize={field.label === "Username" ? "none" : "sentences"}
-            autoCorrect={field.label !== "Username"}
-            keyboardAppearance="light"
-            selectionColor={Gallery.accent}
-            style={{
-              padding: 14,
-              minHeight: field.label === "Bio" ? 100 : 48,
-              textAlignVertical: "top",
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor:
-                field.label === "Username" && !profileCreated && (check === "invalid" || check === "taken")
-                  ? Gallery.destructive
-                  : Gallery.controlBorder,
-              color: Gallery.ink,
-              backgroundColor: Gallery.surface,
-              fontSize: 17,
-            }}
-          />
-          {field.label === "Username" && (
-            <Text
-              accessibilityLiveRegion="polite"
-              style={{
-                fontSize: 13,
-                lineHeight: 18,
-                color:
-                  !profileCreated && (check === "invalid" || check === "taken") ? Gallery.destructive : Gallery.muted,
-              }}
-            >
-              {usernameMessage}
-            </Text>
-          )}
-        </View>
-      ))}
+      <ProfileField
+        label="Name"
+        value={name}
+        onChangeText={setName}
+        maxLength={LIMITS.name}
+        editable={!busy && !profileCreated}
+      />
+      <UsernameField
+        value={username}
+        onChangeText={setUsername}
+        check={check}
+        hint={profileCreated ? "Username saved" : undefined}
+        editable={!busy && !profileCreated}
+      />
+      <ProfileField
+        label="Bio (optional)"
+        accessibilityLabel="Bio"
+        value={bio}
+        onChangeText={setBio}
+        maxLength={LIMITS.bio}
+        multiline
+        editable={!busy && !profileCreated}
+      />
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
         Your name, photo and bio appear on your public profile. Visits and private notes are separate.
       </Text>

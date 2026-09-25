@@ -1,7 +1,7 @@
 import { useAction } from "convex/react";
 import { router, Stack } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -12,12 +12,14 @@ import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { useUsernameCheck } from "@/lib/social/use-username-check";
 import { showToast } from "@/lib/ui/toast";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileField, UsernameField } from "./profile-fields";
 import { SocialGate, SocialState } from "./social-state";
 
 export function EditProfileScreen() {
@@ -44,17 +46,22 @@ export function EditProfileScreen() {
       />
     );
   }
-  return <EditProfileForm key={session.key} profile={profile.data} />;
+  return <EditProfileForm key={session.key} profile={profile.data} scope={session.key} />;
 }
 
-export function EditProfileForm({ profile }: { profile: PublicProfile }) {
+export function EditProfileForm({ profile, scope }: { profile: PublicProfile; scope: string }) {
   const save = useAction(api.profilePhotos.save);
   const [name, setName] = useState(profile.name);
+  const [initialUsername] = useState(profile.username);
+  const [username, setUsername] = useState(initialUsername);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [photo, setPhoto] = useState<string | null>();
   const [operation, setOperation] = useState<"photo" | "save">();
   const [error, setError] = useState<string>();
   const busy = operation !== undefined;
+  const usernameChanged = username !== initialUsername;
+  const check = useUsernameCheck(username, scope);
+  const usernameBlocked = usernameChanged && (check === "invalid" || check === "taken" || check === "empty");
   const draftFile = useRef<string>(undefined);
   const mounted = useRef(true);
   useEffect(() => {
@@ -88,7 +95,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
     }
   }
   async function submit() {
-    if (busy || !name.trim()) return;
+    if (busy || !name.trim() || usernameBlocked) return;
     const owner = captureOwner();
     setOperation("save");
     setError(undefined);
@@ -98,6 +105,8 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
       await save({
         name: name.trim(),
         bio: bio.trim(),
+        // Sending an unchanged username would revert a rename made on another device since this form opened.
+        ...(usernameChanged ? { username } : {}),
         ...(bytes !== undefined ? { photo: bytes } : {}),
       });
       if (owner.isCurrent() && mounted.current) {
@@ -151,44 +160,15 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
             />
           )}
         </View>
-        {[
-          { label: "Name", value: name, change: setName, max: LIMITS.name },
-          {
-            label: "Bio",
-            value: bio,
-            change: setBio,
-            max: LIMITS.bio,
-          },
-        ].map((field) => (
-          <View key={field.label} style={{ gap: 8 }}>
-            <Text>{field.label}</Text>
-            <TextInput
-              accessibilityLabel={field.label}
-              value={field.value}
-              onChangeText={field.change}
-              maxLength={field.max}
-              multiline={field.label === "Bio"}
-              editable={!busy}
-              keyboardAppearance="light"
-              selectionColor={Gallery.accent}
-              style={{
-                minHeight: field.label === "Bio" ? 100 : 48,
-                padding: 14,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: Gallery.controlBorder,
-                color: Gallery.ink,
-                backgroundColor: Gallery.surface,
-                fontSize: 17,
-                textAlignVertical: "top",
-              }}
-            />
-          </View>
-        ))}
-        <View style={{ gap: 4 }}>
-          <Text style={{ color: Gallery.muted }}>@{profile.username}</Text>
-          <Text style={{ color: Gallery.muted, fontSize: 13 }}>Usernames can’t be changed.</Text>
-        </View>
+        <ProfileField label="Name" value={name} onChangeText={setName} maxLength={LIMITS.name} editable={!busy} />
+        <UsernameField
+          value={username}
+          onChangeText={setUsername}
+          check={check}
+          hint={usernameChanged ? undefined : "Friends and your profile QR code keep working if you change it."}
+          editable={!busy}
+        />
+        <ProfileField label="Bio" value={bio} onChangeText={setBio} maxLength={LIMITS.bio} multiline editable={!busy} />
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           Your photo, name and bio appear on your public profile.
         </Text>
@@ -202,7 +182,7 @@ export function EditProfileForm({ profile }: { profile: PublicProfile }) {
           variant="filled"
           fullWidth
           busy={operation === "save"}
-          disabled={busy || !name.trim()}
+          disabled={busy || !name.trim() || usernameBlocked}
           onPress={() => {
             void submit();
           }}

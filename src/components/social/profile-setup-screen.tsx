@@ -1,14 +1,13 @@
 import { useAction, useMutation } from "convex/react";
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
@@ -21,6 +20,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileField, UsernameField } from "./profile-fields";
 import { SocialGate } from "./social-state";
 
 const STEPS = ["username", "name", "photo"] as const;
@@ -254,55 +254,24 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   );
 
   if (STEPS[step] === "username") {
-    const problem = check === "invalid" || check === "taken";
     const waiting = session.status === "loading";
     return (
       <SetupPage bar={bar}>
-        <Heading title="Your username" detail="Friends can find you by it. You can’t change it later." />
-        <View style={styles.field}>
-          <Text style={styles.label}>Username</Text>
-          <View style={[styles.input, styles.usernameInput, problem && { borderColor: Gallery.destructive }]}>
-            <Text style={styles.at}>@</Text>
-            <TextInput
-              accessibilityLabel="Username"
-              value={chosenUsername}
-              placeholder={suggestion.loading ? "Finding a username…" : "username"}
-              placeholderTextColor={Gallery.muted}
-              onChangeText={(value) => {
-                setError(undefined);
-                setUsername(value.toLowerCase().replaceAll(/\s+/g, ""));
-              }}
-              maxLength={LIMITS.usernameMax}
-              editable={!busy}
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect={false}
-              textContentType="none"
-              autoComplete="off"
-              keyboardAppearance="light"
-              selectionColor={Gallery.accent}
-              returnKeyType="next"
-              onSubmitEditing={() => {
-                void claimUsername();
-              }}
-              style={styles.usernameText}
-            />
-          </View>
-          <View style={styles.status} accessibilityLiveRegion="polite">
-            {check === "available" && (
-              <Image source="sf:checkmark.circle.fill" tintColor={Gallery.success} style={styles.statusIcon} />
-            )}
-            <Text
-              style={[
-                styles.statusText,
-                problem && { color: Gallery.destructive },
-                check === "available" && { color: Gallery.success },
-              ]}
-            >
-              {usernameMessages[check]}
-            </Text>
-          </View>
-        </View>
+        <Heading title="Your username" detail="Friends can find you by it. You can change it later." />
+        <UsernameField
+          value={chosenUsername}
+          onChangeText={(value) => {
+            setError(undefined);
+            setUsername(value);
+          }}
+          check={check}
+          placeholder={suggestion.loading ? "Finding a username…" : "username"}
+          editable={!busy}
+          autoFocus
+          onSubmitEditing={() => {
+            void claimUsername();
+          }}
+        />
         {check !== "taken" && errorText}
         {session.offline && <Text style={styles.footnote}>Connect to the internet to choose a username.</Text>}
         <GalleryButton
@@ -324,7 +293,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
     return (
       <SetupPage bar={bar}>
         <Heading title="Your name" detail="It appears on your profile and on visits you share." />
-        <Field
+        <ProfileField
           label="Name"
           value={name}
           onChangeText={(value) => {
@@ -424,23 +393,6 @@ function Heading({ title, detail, centered = false }: { title: string; detail: s
   );
 }
 
-function Field({ label, ...input }: Omit<ComponentProps<typeof TextInput>, "style"> & { label: string }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        keyboardAppearance="light"
-        selectionColor={Gallery.accent}
-        placeholderTextColor={Gallery.muted}
-        returnKeyType="next"
-        {...input}
-        style={[styles.input, styles.inputText]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   content: {
@@ -460,22 +412,6 @@ const styles = StyleSheet.create({
   },
   chipText: { ...Typography.metadata, fontWeight: "600", color: Gallery.ink },
   heading: { gap: Spacing.compact },
-  field: { gap: Spacing.two },
-  label: { ...Typography.secondary, color: Gallery.ink },
-  input: {
-    minHeight: 48,
-    borderRadius: Radius.input,
-    borderWidth: 1,
-    borderColor: Gallery.controlBorder,
-    backgroundColor: Gallery.surface,
-  },
-  inputText: { padding: 14, color: Gallery.ink, fontSize: 17 },
-  usernameInput: { flexDirection: "row", alignItems: "center", paddingLeft: 14 },
-  at: { fontSize: 17, color: Gallery.muted },
-  usernameText: { flex: 1, paddingVertical: 14, paddingLeft: 2, paddingRight: 14, color: Gallery.ink, fontSize: 17 },
-  status: { flexDirection: "row", alignItems: "center", gap: Spacing.one },
-  statusIcon: { width: 16, height: 16 },
-  statusText: { flexShrink: 1, fontSize: 13, lineHeight: 18, color: Gallery.muted },
   photo: { alignItems: "center", gap: Spacing.two },
   footnote: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   error: { fontSize: 14, lineHeight: 20, color: Gallery.destructive },

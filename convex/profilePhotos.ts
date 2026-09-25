@@ -12,6 +12,7 @@ import { withErrorReporting } from "./lib/observability";
 export const save = action({
   args: {
     name: v.string(),
+    username: v.optional(v.string()),
     bio: v.optional(v.string()),
     photo: v.optional(v.union(v.bytes(), v.null())),
   },
@@ -44,6 +45,7 @@ export const save = action({
         return await ctx.runMutation(internal.profilePhotoData.save, {
           profileId,
           name: input.name,
+          username: input.username,
           bio: input.bio,
           photo,
         });

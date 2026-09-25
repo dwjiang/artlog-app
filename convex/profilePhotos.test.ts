@@ -37,6 +37,50 @@ it("updates only the authenticated profile and deletes replaced public photos", 
   expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).not.toHaveProperty("photoUrl");
 });
 
+it("renames the profile, releases the old username, and rejects a taken or invalid one", async () => {
+  const t = harness();
+  const owner = await socialUser(t, "Mira");
+  const other = await socialUser(t, "Theo");
+  expect(
+    await owner.as.mutation(internal.profilePhotoData.save, {
+      profileId: owner.profileId,
+      name: "Mira",
+      username: "miralooks",
+    }),
+  ).toMatchObject({ username: "miralooks", name: "Mira" });
+  expect((await t.query(api.profiles.search, { query: "miralooks" })).page.map((p) => p.profileId)).toEqual([
+    owner.profileId,
+  ]);
+  await expect(
+    other.as.mutation(internal.profilePhotoData.save, {
+      profileId: other.profileId,
+      name: "Theo",
+      username: "miralooks",
+    }),
+  ).rejects.toMatchObject({ data: { code: "username_taken" } });
+  expect(
+    await other.as.mutation(internal.profilePhotoData.save, {
+      profileId: other.profileId,
+      name: "Theo",
+      username: "u-mira",
+    }),
+  ).toMatchObject({ username: "u-mira" });
+  expect(
+    await owner.as.mutation(internal.profilePhotoData.save, {
+      profileId: owner.profileId,
+      name: "Mira M",
+      username: "miralooks",
+    }),
+  ).toMatchObject({ username: "miralooks", name: "Mira M" });
+  await expect(
+    owner.as.mutation(internal.profilePhotoData.save, {
+      profileId: owner.profileId,
+      name: "Mira",
+      username: "Mira_Looks",
+    }),
+  ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
+});
+
 it("lists only accepted, available friends of the caller", async () => {
   const t = harness();
   const owner = await socialUser(t);

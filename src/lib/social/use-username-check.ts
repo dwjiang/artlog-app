@@ -33,5 +33,5 @@ export const usernameMessages: Record<UsernameCheck, string> = {
   checking: "Checking username…",
   available: "Username available",
   taken: "That username is taken. Try another.",
-  unchecked: "Couldn’t check. You can try creating your profile.",
+  unchecked: "Couldn’t check. You can still try this username.",
 };
