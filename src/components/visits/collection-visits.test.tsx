@@ -130,3 +130,13 @@ it("opens the Scan tab from the visits failure recovery action", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Go to Scan" }));
   expect(router.push).toHaveBeenCalledWith("/scan");
 });
+
+it("shows the visit privacy note under List but not under the globe", async () => {
+  const privacy = "Your visits are private until you choose to share one.";
+  const view = await render(<CollectionVisits {...props} search="" />);
+  expect(screen.getByText(privacy)).toBeOnTheScreen();
+  mockMode = "globe";
+  await view.rerender(<CollectionVisits {...props} search="" />);
+  expect(screen.getByText("Globe canvas")).toBeOnTheScreen();
+  expect(screen.queryByText(privacy)).toBeNull();
+});

@@ -14,7 +14,7 @@ import { useVenue } from "@/lib/venue/use-venue";
 import { activeVisit } from "@/lib/venue/venue-reducer";
 
 import { api } from "../../../convex/_generated/api";
-import { VisitPrivacyNote, VisitSymbol, visitStyles } from "./visit-ui";
+import { VisitSymbol, visitStyles } from "./visit-ui";
 
 export function VisitRow({
   visit,
@@ -61,14 +61,14 @@ export function VisitTimeline({
   visits,
   header,
   controls,
-  empty,
+  footer,
   groupByMuseum = false,
   scrollResetKey,
 }: {
   visits: VisitSummary[];
   header?: ReactElement;
   controls?: ReactElement;
-  empty?: ReactElement;
+  footer?: ReactElement;
   groupByMuseum?: boolean;
   scrollResetKey?: string;
 }) {
@@ -139,12 +139,7 @@ export function VisitTimeline({
         paddingBottom: activeVisit(venue) ? 110 : 30,
         minHeight: controls ? viewportHeight + headerHeight : undefined,
       }}
-      ListFooterComponent={
-        <>
-          {empty}
-          <VisitPrivacyNote />
-        </>
-      }
+      ListFooterComponent={footer}
       renderItem={({ item }) =>
         item.kind === "element" ? (
           item.element
