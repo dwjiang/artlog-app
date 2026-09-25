@@ -229,7 +229,9 @@ export function ResultCard({
         )}
         {search}
       </ScrollView>
-      <View style={[styles.save, { paddingBottom: Math.max(12, bottom) }]}>
+      <View
+        style={[styles.save, { paddingTop: visit && !savedId ? 0 : Spacing.two, paddingBottom: Math.max(12, bottom) }]}
+      >
         <SaveBar
           canSave={savePhotoOnly || canSave(draft)}
           saving={saving}
@@ -268,7 +270,6 @@ const styles = StyleSheet.create({
   section: { gap: 4 },
   save: {
     paddingHorizontal: 20,
-    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Gallery.separator,
     backgroundColor: Gallery.paper,
