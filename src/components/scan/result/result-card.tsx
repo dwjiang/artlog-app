@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { GuideTranscript } from "@/components/audio/guide-transcript";
 import { ListenActions } from "@/components/audio/listen-actions";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
@@ -223,6 +224,7 @@ export function ResultCard({
               factSheet={view.factSheet}
               pending={prosePending && !view.docent?.length}
             />
+            {view.primary && <GuideTranscript artworkId={view.primary.artworkId} />}
             <RightNowSection rightNow={view.rightNow} />
             {context}
           </>

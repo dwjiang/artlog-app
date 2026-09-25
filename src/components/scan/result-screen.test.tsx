@@ -328,6 +328,22 @@ it.each([
   expect(await inRecentScans(localId)).toBe(true);
 });
 
+it("shows the audio guide transcript on a confident match once the narration exists", async () => {
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    narrationOpening: "Water Lilies, by Claude Monet.",
+    narrationFacts: [{ id: "f9", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" }],
+    narration: [
+      { sentence: "Water Lilies, by Claude Monet.", factIds: [] },
+      { sentence: "Monet grew these lilies in his garden at Giverny.", factIds: ["f9"] },
+    ],
+  });
+  await render(result());
+  expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
+  expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
+});
+
 it("shows a confident match with its fields, chip, prose, sources and news", async () => {
   await render(result());
   expect(await screen.findByText("Match")).toBeOnTheScreen();

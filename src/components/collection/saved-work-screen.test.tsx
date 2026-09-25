@@ -280,6 +280,23 @@ it("renders the artwork enrichment when the backend has it", async () => {
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Wikidata" })).toBeOnTheScreen();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { artworkId: "artwork-1" }, {});
+  expect(screen.queryByText("Audio guide transcript")).toBeNull();
+});
+
+it("shows the audio guide transcript and its sources once the narration exists", async () => {
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    narrationFacts: [{ id: "f2", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" }],
+    narration: [
+      { sentence: "Step back and let the pond fill your view.", factIds: [] },
+      { sentence: "Monet grew these lilies in his garden at Giverny.", factIds: ["f2"] },
+    ],
+  });
+  await render(detail("lilies"));
+  expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
+  expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
+  expect(screen.queryByText("About this work")).toBeNull();
 });
 
 it("skips the enrichment query for a work saved without an artwork", async () => {
