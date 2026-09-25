@@ -15,4 +15,3 @@
 - [Hub scoring](todos/hub-scoring/README.md) — deferred
 - [Museum-search painting description](todos/museum-search-description/README.md) — deferred; re-add the vision-model query round once an NVIDIA vision endpoint exists
 - [Deferred product work](todos/deferred-product/README.md)
-- [Venue city keys](todos/venue-city-keys/README.md) — census to fill `cityKey` for journal place grouping, plus an `--export-only` republish path for the venue table
