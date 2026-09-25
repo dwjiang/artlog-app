@@ -31,6 +31,7 @@ it("starts a signed-out wall empty and keeps saved layouts on this iPhone", asyn
 
   first.setLayoutDraft({
     color: "#6C2F2B",
+    pattern: "trellis",
     items: [{ placementId: "placement-a", saveLocalId: "save-a", layout }],
   });
   await first.publishLayout();
@@ -41,6 +42,7 @@ it("starts a signed-out wall empty and keeps saved layouts on this iPhone", asyn
   await reopened.refresh();
   expect(reopened.getSnapshot().acknowledged).toEqual({
     color: "#6C2F2B",
+    pattern: "trellis",
     items: [{ placementId: "placement-a", saveLocalId: "save-a", layout }],
   });
 });

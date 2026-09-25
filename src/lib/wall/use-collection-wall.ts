@@ -109,6 +109,7 @@ export function useCollectionWall(works: SavedWork[]) {
     ?? (state.acknowledged
       ? {
           color: state.acknowledged.color,
+          pattern: state.acknowledged.pattern,
           items: state.acknowledged.items.map(({ placementId, photoLocalId, saveLocalId, layout }) => ({
             placementId,
             photoLocalId,

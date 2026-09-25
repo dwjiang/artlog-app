@@ -14,6 +14,10 @@ export const publicProfile = v.object({
 export const frame = v.union(
   ...(["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const).map(v.literal),
 );
+/** A wall without a pattern is plain color. */
+export const wallPattern = v.union(
+  ...(["stripe", "pinstripe", "grid", "dots", "check", "trellis"] as const).map(v.literal),
+);
 export const wallLayout = v.object({
   x: v.number(),
   y: v.number(),

@@ -6,17 +6,18 @@ import { StyleSheet, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
-import { constrainLayout, wallAspect, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
+import { constrainLayout, wallAspect, type WallLayout, type WallPiece, type Wallpaper } from "@/lib/wall/wall-layout";
 
 import { GalleryButton } from "./gallery-button";
 import { WallArtwork } from "./wall-artwork";
 import { WallFramePicker } from "./wall-options";
 import { WallSheet } from "./wall-sheet";
+import { wallpaperStyle } from "./wallpaper";
 
-export function WallArtworkSummary({ piece, color }: { piece: WallPiece; color: string }) {
+export function WallArtworkSummary({ piece, wallpaper }: { piece: WallPiece; wallpaper: Wallpaper }) {
   return (
     <>
-      <View style={[styles.hero, { backgroundColor: color }]}>
+      <View style={[styles.hero, wallpaperStyle(wallpaper)]}>
         <WallArtwork piece={piece} width={Math.min(230, 180 * wallAspect(piece))} />
       </View>
       <View style={styles.section}>
@@ -80,7 +81,7 @@ export function WallArtworkSheet({
   piece,
   editing,
   disabled = false,
-  color,
+  wallpaper,
   onChange,
   onRemove,
   onDismiss,
@@ -91,7 +92,7 @@ export function WallArtworkSheet({
 }: {
   piece: WallPiece;
   editing: boolean;
-  color: string;
+  wallpaper: Wallpaper;
   onChange: (layout: WallLayout) => void;
   onRemove: () => void;
   onDismiss: () => void;
@@ -112,7 +113,7 @@ export function WallArtworkSheet({
       presented={presented}
     >
       <View style={{ paddingBottom: Spacing.five }}>
-        <WallArtworkSummary piece={piece} color={color} />
+        <WallArtworkSummary piece={piece} wallpaper={wallpaper} />
         {editing && (
           <>
             {onChoosePhoto && (

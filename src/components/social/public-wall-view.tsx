@@ -83,7 +83,7 @@ export function PublicWallView({
       {width > 0 && (
         <WallGallery
           width={width}
-          color={wall.color}
+          wallpaper={wall}
           pieces={wall.items.map((item) => ({
             localId: item.itemId,
             layout: item.layout,

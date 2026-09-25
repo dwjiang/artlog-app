@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { isRevision, LIMITS } from "../shared/journal/limits";
-import { validateWallItems, wallArtwork, wallLayout } from "../shared/social/contracts";
+import { validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -34,6 +34,7 @@ const ownerWall = v.object({
   profileId: v.id("profiles"),
   revision: v.number(),
   color: v.string(),
+  pattern: v.optional(wallPattern),
   items: v.array(ownerItem),
 });
 
@@ -98,6 +99,7 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
     profileId: profile._id,
     revision: wall?.layoutRevision ?? 0,
     color: wall?.color ?? DEFAULT_WALL_COLOR,
+    ...(wall?.pattern ? { pattern: wall.pattern } : {}),
     items: items.sort((a, b) => a.layout.layer - b.layout.layer),
   };
 }
@@ -113,6 +115,7 @@ export const getPublic = query({
     v.object({
       profileId: v.id("profiles"),
       color: v.string(),
+      pattern: v.optional(wallPattern),
       artworkCount: v.number(),
       items: v.array(wallArtwork),
     }),
@@ -136,6 +139,7 @@ export const getPublic = query({
     return {
       profileId,
       color: wall?.color ?? DEFAULT_WALL_COLOR,
+      ...(wall?.pattern ? { pattern: wall.pattern } : {}),
       artworkCount: saves.size,
       items: items.sort((a, b) => a.layout.layer - b.layout.layer),
     };
@@ -166,6 +170,7 @@ export const setLayout = mutation({
     scope: v.string(),
     revision: v.number(),
     color: v.string(),
+    pattern: v.optional(wallPattern),
     items: v.array(selection),
   },
   returns: ownerWall,
@@ -192,6 +197,7 @@ export const setLayout = mutation({
     const previous = await activeItems(ctx, wall);
     const unchanged =
       color === (wall?.color ?? DEFAULT_WALL_COLOR)
+      && input.pattern === wall?.pattern
       && previous.length === selected.length
       && selected.every((item) =>
         previous.some(
@@ -210,6 +216,7 @@ export const setLayout = mutation({
       ?? (await ctx.db.insert("walls", {
         profileId: profile._id,
         color,
+        pattern: input.pattern,
         layoutRevision: 0,
       }));
     if (unchanged) return readMine(ctx);
@@ -260,6 +267,7 @@ export const setLayout = mutation({
     }
     await ctx.db.patch("walls", wallId, {
       color,
+      pattern: input.pattern,
       layoutRevision: (wall?.layoutRevision ?? 0) + 1,
     });
     await ctx.db.patch("profiles", profile._id, { publishedWallCount: selected.length });

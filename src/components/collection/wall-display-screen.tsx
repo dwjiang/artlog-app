@@ -21,6 +21,7 @@ import { WallArtwork } from "./wall-artwork";
 import { wallFrames } from "./wall-frame";
 import { WallFramePicker } from "./wall-options";
 import { WallPhotoPicker } from "./wall-photo-picker";
+import { wallpaperStyle } from "./wallpaper";
 
 export function WallDisplayScreen({ savedId }: { savedId: string }) {
   const owner = useLocalOwner();
@@ -126,7 +127,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
               accessible
               accessibilityRole="image"
               accessibilityLabel={`${work.title}, ${wallFrames.find((frame) => frame.value === hung.layout.frame)?.name} frame preview`}
-              style={[styles.preview, { backgroundColor: wall.draft.color }]}
+              style={[styles.preview, wallpaperStyle(wall.draft)]}
             >
               <WallArtwork piece={piece} width={Math.min(width - 88, 188 * wallAspect(piece))} />
             </View>
