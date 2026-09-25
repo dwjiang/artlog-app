@@ -22,7 +22,6 @@ const limits = {
   venueConfirm: { kind: "fixed window", rate: 5, period: DAY },
   labelRead: { kind: "fixed window", rate: 30, period: HOUR },
   labelVerify: { kind: "fixed window", rate: 60, period: HOUR },
-  museumSearch: { kind: "fixed window", rate: 10, period: HOUR },
   narration: { kind: "fixed window", rate: 60, period: HOUR },
   narrationDaily: { kind: "fixed window", rate: 1000, period: DAY },
   docent: { kind: "fixed window", rate: 60, period: HOUR },

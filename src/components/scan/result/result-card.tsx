@@ -34,10 +34,8 @@ type ResultCardProps = {
   saveError?: string;
   header: ReactNode;
   context?: ReactNode;
-  search?: ReactNode;
   visit?: ReactNode;
   onLabel: () => void;
-  onSearchMuseum?: () => void;
   onRetryDocent?: () => Promise<unknown>;
   onPick: (candidate: ResultCandidate) => void;
   onEdit: () => void;
@@ -57,10 +55,8 @@ export function ResultCard({
   saveError,
   header,
   context,
-  search,
   visit,
   onLabel,
-  onSearchMuseum,
   onRetryDocent,
   onPick,
   onEdit,
@@ -185,15 +181,6 @@ export function ResultCard({
               overflow: "hidden",
             }}
           >
-            {onSearchMuseum && (
-              <GalleryButton
-                label="Search museum collection"
-                icon="magnifyingglass"
-                fullWidth
-                disabled={!editable}
-                onPress={onSearchMuseum}
-              />
-            )}
             <GalleryButton
               label="Enter details myself"
               icon="pencil"
@@ -234,7 +221,6 @@ export function ResultCard({
             {context}
           </>
         )}
-        {search}
       </ScrollView>
       <View
         onLayout={(event) => setSaveBarHeight(event.nativeEvent.layout.height)}

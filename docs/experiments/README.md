@@ -77,8 +77,7 @@ the server strips a trailing date from the title (`titleWithoutDate`), which
 Super needs on none. Super's four misses: two OCR errors (`Hiroshige II` read as
 `I|`, `Río` without its accent) and two labels naming several makers, where the
 accepted variants list a maker the model did not pick. Super is the production
-`LABEL_MODEL`. The painting-description round of museum-site search was removed
-rather than re-modelled ([todo](../todos/museum-search-description/README.md)).
+`LABEL_MODEL`.
 Evidence: `scripts/evals/token-factory/labels/ocr-lines.jsonl` and the
 `results/label-ocr-2026-09-21/` run (gitignored, rescore with `--score-only`).
 

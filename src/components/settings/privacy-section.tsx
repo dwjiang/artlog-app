@@ -3,9 +3,7 @@ import { ScrollView, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 
-import { MuseumSearchSection } from "./museum-search-section";
-
-export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => void }) {
+export function PrivacySection() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
@@ -13,12 +11,11 @@ export function PrivacySection({ onRequestConsent }: { onRequestConsent: () => v
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
       <ThemedText themeColor="textSecondary">Here’s how Artlog uses your photos and information.</ThemedText>
-      <MuseumSearchSection onRequestConsent={onRequestConsent} />
       <ThemedText variant="section">How your data is used</ThemedText>
       {[
         [
           "Identifying art",
-          "Identification sends a numeric fingerprint of your photo. Label reading happens on your phone and sends only the label’s text. Museum-site search compares the museum’s images on your phone and sends no photo.",
+          "Identification sends a numeric fingerprint of your photo. Label reading happens on your phone and sends only the label’s text.",
         ],
         [
           "Your photos",

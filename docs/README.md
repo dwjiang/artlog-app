@@ -13,5 +13,4 @@
 - [Upstash vector migration](../plans/001-upstash-vector-migration.md) — deferred; follows the Convex storage and import fixes
 - [Independent-evidence promotion](todos/independent-evidence-promotion/README.md) — deferred; tentative labels stay tentative in this release
 - [Hub scoring](todos/hub-scoring/README.md) — deferred
-- [Museum-search painting description](todos/museum-search-description/README.md) — deferred; re-add the vision-model query round once an NVIDIA vision endpoint exists
 - [Deferred product work](todos/deferred-product/README.md)

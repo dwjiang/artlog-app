@@ -396,7 +396,6 @@ export const verifyLabel = action({
       const verified = (name: LabelFieldName) =>
         fields[name] !== undefined && LOCKING_EVIDENCE.has(fields[name].evidence);
       let sourceUrl = objectUnchanged ? stored?.sourceUrl : undefined;
-      let identityImageUrl = objectUnchanged ? stored?.identityImageUrl : undefined;
       let wikidataId = pairUnchanged ? stored?.wikidataId : undefined;
       let imageUrls = objectUnchanged ? stored?.imageUrls : undefined;
 
@@ -416,14 +415,12 @@ export const verifyLabel = action({
           }
         }
         sourceUrl = accession.sourceUrl;
-        identityImageUrl = undefined;
       }
 
       let artist: WikidataEntity | null | undefined;
       let countryMatch: boolean | undefined;
       // A title/artist pair cannot bind a Wikidata ID to the specific museum object, even if its names agree.
-      const museumIdentity =
-        museum("title") || museum("artist") || museum("accession") || identityImageUrl !== undefined;
+      const museumIdentity = museum("title") || museum("artist") || museum("accession");
       if (museumIdentity) wikidataId = undefined;
       if (input.artist) {
         try {
@@ -460,7 +457,6 @@ export const verifyLabel = action({
             }
           }
           sourceUrl = evidence.sourceUrl;
-          identityImageUrl = undefined;
           imageUrls = evidence.imageUrls;
         }
       }
@@ -502,7 +498,6 @@ export const verifyLabel = action({
               promptVersion: stored?.promptVersion,
               rawOcr: stored?.rawOcr,
               sourceUrl,
-              identityImageUrl,
               wikidataId,
               imageUrls,
               updatedAt: Date.now(),

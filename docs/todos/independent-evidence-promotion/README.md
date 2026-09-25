@@ -5,7 +5,7 @@
 > and run each verification gate before proceeding. Acceptance taps and matching
 > photographs alone must never certify label text.
 >
-> Drift check: `git diff "$(git log -1 --format=%h -- docs/todos/independent-evidence-promotion/README.md)" -- convex src/components/scan src/lib/result src/lib/museum-search`.
+> Drift check: `git diff "$(git log -1 --format=%h -- docs/todos/independent-evidence-promotion/README.md)" -- convex src/components/scan src/lib/result`.
 > Baseline: the commit that last updated this handoff.
 > Compare the listed symbols and invariants before implementation. Stop if the
 > baseline has changed materially.
@@ -71,8 +71,6 @@ the decision without destroying independent support or private journal records.
   tentative identities are excluded from enrichment and training exports.
 - `src/components/scan/result/tentative-origin-notice.tsx` says:
   `Shared by a visitor. Label not independently confirmed.`
-  `src/lib/museum-search/use-museum-search.ts` requires a user action to search
-  when the primary suggestion is tentative.
 
 Exemplars: registered Convex functions use object-form `args`, `returns`, and
 `handler`; `convex/contributions.test.ts` drives real handlers with `convex-test`.
@@ -93,14 +91,14 @@ already trained external models.
 
 ## Commands
 
-| Purpose        | Command                                                                                                                          | Expected result                       |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Generate types | `npx convex codegen`                                                                                                             | Generated output included in the diff |
-| Typecheck      | `npx tsc --noEmit`                                                                                                               | Exit 0                                |
-| Backend tests  | `npm run test:convex`                                                                                                            | All non-live tests pass               |
-| App tests      | `npm run test:app -- --runInBand src/components/scan src/components/settings src/lib/result src/lib/museum-search src/lib/label` | All pass                              |
-| Lint           | `npm run lint`                                                                                                                   | Exit 0, no new warnings               |
-| iOS            | `npm run ios`                                                                                                                    | App builds and launches in light mode |
+| Purpose        | Command                                                                                                    | Expected result                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Generate types | `npx convex codegen`                                                                                       | Generated output included in the diff |
+| Typecheck      | `npx tsc --noEmit`                                                                                         | Exit 0                                |
+| Backend tests  | `npm run test:convex`                                                                                      | All non-live tests pass               |
+| App tests      | `npm run test:app -- --runInBand src/components/scan src/components/settings src/lib/result src/lib/label` | All pass                              |
+| Lint           | `npm run lint`                                                                                             | Exit 0, no new warnings               |
+| iOS            | `npm run ios`                                                                                              | App builds and launches in light mode |
 
 Use an explicitly classified development or isolated local backend for runtime
 verification. Do not weaken the schema or reset a shared corpus just to make
@@ -149,7 +147,7 @@ a verification push pass.
 5. **Update the iOS explanation and verify the complete flow.** Reuse the Maybe
    card and visitor-origin notice for tentative entries. Distinguish what the
    independent evidence confirms; do not imply that saving certifies a label.
-   Test museum search behavior, save/edit/withdraw, and alternatives after status
+   Test save/edit/withdraw and alternatives after status
    changes. Run the full commands above and two-device iOS scenarios, including
    evidence removal after certification. Record verification gaps explicitly.
    **Gate:** all commands pass and both certification routes and their reversal
