@@ -1,45 +1,68 @@
-import { Image } from "expo-image";
 import { ImageManipulator } from "expo-image-manipulator";
-import { useEffect, useRef, useState } from "react";
+import { Stack } from "expo-router";
+import { useIsFocused } from "expo-router/react-navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { wholePhoto } from "@/lib/capture/crop-geometry";
+import { fitPhoto, validCrop, wholePhoto } from "@/lib/capture/crop-geometry";
 import { discardEditedCrop, prepareEditedCrop, type EditedCrop } from "@/lib/capture/edit-crop";
-import { selectCaptureQuad } from "@/lib/capture/rectangle";
 import type { Quad } from "@/lib/capture/stages";
-import { filePath } from "@/lib/file-uri";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
+import { showErrorToast, useLiftToasts } from "@/lib/ui/toast";
 
-import { getVisionRect } from "../../../modules/vision-rect/src";
 import { CropCorners } from "./crop-corners";
+
+// Corner handles reach this far past the photo, so the photo keeps that much room at its sides and above the buttons.
+const HANDLE_REACH = 24;
+const PHOTO_TOP = 16;
 
 export function CropEditor({
   photoPath,
+  initialCorners,
   saveLabel = "Save crop",
   onSave,
   onCancel,
 }: {
   photoPath: string;
+  /** Where the current crop sits in the photo; the editor starts from the whole photo without them. */
+  initialCorners?: Quad | null;
   saveLabel?: string;
   onSave: (crop: EditedCrop, isCurrent: () => boolean) => Promise<void>;
   onCancel: () => void;
 }) {
   const [size, setSize] = useState<{ width: number; height: number }>();
-  const [corners, setCorners] = useState<Quad>(wholePhoto);
-  const [preview, setPreview] = useState<EditedCrop>();
-  const [busy, setBusy] = useState<"loading" | "preview" | "saving" | undefined>("loading");
-  const [error, setError] = useState<string>();
+  const [corners, setCorners] = useState<Quad>(() =>
+    initialCorners && validCrop(initialCorners) ? initialCorners : wholePhoto,
+  );
+  const [busy, setBusy] = useState<"loading" | "saving" | undefined>("loading");
   const [attempt, setAttempt] = useState(0);
   const active = useRef(false);
   const working = useRef(false);
-  const retained = useRef<EditedCrop | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
+  const [stage, setStage] = useState<{ width: number; height: number }>();
+  const [controls, setControls] = useState<{ y: number; height: number }>();
+  // Toasts clear the buttons, and sit in the spare height under them when they fit there.
+  const controlEdges = stage
+    && controls && {
+      top: stage.height - controls.y + bottomPadding,
+      bottom: stage.height - controls.y - controls.height + bottomPadding,
+    };
+  useLiftToasts(controlEdges?.top, useIsFocused(), controlEdges?.bottom);
   const uri = captureFileUri(photoPath);
+  // The photo hugs its own shape and the buttons follow it, so spare height collects below the buttons.
+  const photoBox =
+    size
+    && stage
+    && fitPhoto(size, {
+      width: stage.width - 2 * HANDLE_REACH,
+      height: Math.max(0, stage.height - PHOTO_TOP - HANDLE_REACH - (controls?.height ?? 0)),
+    });
   useEffect(() => {
     active.current = true;
     let cancelled = false;
@@ -48,20 +71,13 @@ export function CropEditor({
       let photo;
       try {
         photo = await context.renderAsync();
-        const detected = await getVisionRect()
-          .detectStill(filePath(uri))
-          .catch((error: unknown) => {
-            reportError(error, "capture.detect_crop", { level: "warning" });
-            return undefined;
-          });
         if (cancelled) return;
         setSize({ width: photo.width, height: photo.height });
-        setCorners(detected ? (selectCaptureQuad(null, detected) ?? wholePhoto) : wholePhoto);
         setBusy(undefined);
       } catch (error) {
-        if (!cancelled) reportError(error, "capture.open_crop");
         if (!cancelled) {
-          setError("Couldn’t open the full photo. Try again once it is on this iPhone.");
+          reportError(error, "capture.open_crop");
+          showErrorToast("Couldn’t open the full photo. Try again once it’s on this iPhone.", reopen);
           setBusy(undefined);
         }
       } finally {
@@ -72,145 +88,96 @@ export function CropEditor({
     return () => {
       cancelled = true;
       active.current = false;
-      if (retained.current) {
-        discardEditedCrop(retained.current);
-        retained.current = undefined;
-      }
     };
   }, [uri, attempt]);
 
-  async function showPreview() {
-    if (working.current) return;
-    working.current = true;
-    setBusy("preview");
-    setError(undefined);
-    try {
-      const crop = await prepareEditedCrop(photoPath, corners);
-      if (!active.current) {
-        discardEditedCrop(crop);
-        return;
-      }
-      retained.current = crop;
-      setPreview(crop);
-    } catch (error) {
-      if (active.current) reportError(error, "capture.preview_crop");
-      if (active.current) {
-        setError("Couldn’t prepare this crop. Adjust the corners and try again.");
-      }
-    } finally {
-      working.current = false;
-      if (active.current) setBusy(undefined);
-    }
-  }
-  function adjust() {
-    if (retained.current) discardEditedCrop(retained.current);
-    retained.current = undefined;
-    setPreview(undefined);
-    setError(undefined);
+  const saving = busy === "saving";
+  // Corner drags re-render this component every frame and try/finally keeps the React Compiler out of it; new header
+  // options would re-render the whole stack on each of those frames.
+  const header = useMemo(
+    () => (
+      <>
+        <Stack.Screen options={{ headerBackVisible: false }} />
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button disabled={saving} tintColor={Gallery.accent} onPress={onCancel}>
+            Cancel
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      </>
+    ),
+    [saving, onCancel],
+  );
+  function reopen() {
+    setBusy("loading");
+    setAttempt((value) => value + 1);
   }
   async function save() {
-    if (!preview || working.current) return;
+    if (working.current) return;
     working.current = true;
     setBusy("saving");
-    setError(undefined);
+    let crop: EditedCrop | undefined;
     try {
-      await onSave(preview, () => active.current);
+      crop = await prepareEditedCrop(photoPath, corners);
+      if (active.current) await onSave(crop, () => active.current);
     } catch (error) {
-      if (active.current) reportError(error, "capture.save_crop");
+      // Save is the retry, and it uses the corners as they are now.
       if (active.current) {
-        setError("Couldn’t save this crop. Your previous crop is still available. Try again.");
+        reportError(error, "capture.save_crop");
+        showErrorToast("Couldn’t save this crop. Your previous crop is still available.");
       }
     } finally {
+      // onSave copies what it keeps, so the prepared files are temporary either way.
+      if (crop) discardEditedCrop(crop);
       working.current = false;
       if (active.current) setBusy(undefined);
     }
   }
   return (
-    <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-      <Text style={styles.instructions}>
-        {preview ? "Check the painting before saving." : "Drag each corner onto the painting’s corners."}
-      </Text>
-      {preview ? (
-        <View style={styles.preview}>
-          <Image
-            cachePolicy="memory"
-            source={preview.previewUri}
-            contentFit="contain"
-            style={StyleSheet.absoluteFill}
-            accessibilityLabel="Corrected painting preview"
-          />
-        </View>
-      ) : size ? (
-        <CropCorners uri={uri} size={size} corners={corners} onChange={setCorners} />
-      ) : (
-        <View style={styles.loading}>
-          <Text>{busy === "loading" ? "Opening full photo…" : "Full photo unavailable"}</Text>
-        </View>
-      )}
-      <ScrollView style={{ flexGrow: 0, maxHeight: "45%" }} contentContainerStyle={styles.controls}>
-        {error && (
-          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-            {error}
-          </Text>
+    <View style={[styles.screen, { paddingBottom: bottomPadding }]}>
+      {header}
+      <Text style={styles.instructions}>Drag each corner onto the painting’s corners.</Text>
+      <View style={styles.stage} onLayout={({ nativeEvent: { layout } }) => setStage(layout)}>
+        {photoBox ? (
+          <View style={[styles.photo, { width: photoBox.width, height: photoBox.height }]}>
+            <CropCorners uri={uri} size={size} corners={corners} onChange={setCorners} />
+          </View>
+        ) : (
+          !size && (
+            <View style={styles.loading}>
+              <Text>{busy === "loading" ? "Opening full photo…" : "Full photo unavailable"}</Text>
+            </View>
+          )
         )}
-        {preview ? (
-          <>
+        <ScrollView
+          // ScrollView shrinks by default, which would squeeze the buttons out from under a photo sized to leave them room.
+          style={{ flexGrow: 0, flexShrink: 0, maxHeight: "45%" }}
+          contentContainerStyle={styles.controls}
+          onLayout={({ nativeEvent: { layout } }) => setControls(layout)}
+        >
+          {size ? (
             <GalleryButton
               label={saveLabel}
               variant="filled"
               fullWidth
-              busy={busy === "saving"}
+              busy={saving}
               busyLabel="Saving crop…"
               onPress={() => {
                 void save();
               }}
             />
-            <GalleryButton label="Adjust corners" disabled={!!busy} onPress={adjust} />
-          </>
-        ) : size ? (
-          <>
-            <GalleryButton
-              label="Preview crop"
-              variant="filled"
-              fullWidth
-              busy={busy === "preview"}
-              busyLabel="Preparing preview…"
-              onPress={() => {
-                void showPreview();
-              }}
-            />
-            <GalleryButton
-              label="Use whole photo"
-              disabled={!!busy}
-              onPress={() => {
-                setCorners(wholePhoto);
-                setError(undefined);
-              }}
-            />
-          </>
-        ) : !busy ? (
-          <GalleryButton
-            label="Retry"
-            onPress={() => {
-              setError(undefined);
-              setBusy("loading");
-              setAttempt((value) => value + 1);
-            }}
-          />
-        ) : null}
-        <GalleryButton label="Cancel" disabled={busy === "saving"} onPress={onCancel} />
-      </ScrollView>
+          ) : !busy ? (
+            <GalleryButton label="Retry" onPress={reopen} />
+          ) : null}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Gallery.paper },
   instructions: { paddingHorizontal: 24, paddingTop: 16, color: Gallery.muted },
-  preview: {
-    flex: 1,
-    minHeight: 180,
-    margin: 24,
-  },
+  stage: { flex: 1 },
+  photo: { alignSelf: "center", marginTop: PHOTO_TOP, marginBottom: HANDLE_REACH },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   controls: { paddingHorizontal: 24, gap: 4 },
 });

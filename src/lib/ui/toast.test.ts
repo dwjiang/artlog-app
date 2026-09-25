@@ -58,13 +58,19 @@ it("lifts toasts above a focused screen's bottom bar until the screen leaves", a
   const bar = await renderHook(({ active }: { active: boolean }) => useLiftToasts(96, active), {
     initialProps: { active: true },
   });
-  expect(lift.result.current).toBe(96);
+  expect(lift.result.current).toEqual(expect.objectContaining({ height: 96, room: 0 }));
   await bar.rerender({ active: false });
-  expect(lift.result.current).toBe(0);
+  expect(lift.result.current).toBeUndefined();
   await bar.rerender({ active: true });
-  expect(lift.result.current).toBe(96);
+  expect(lift.result.current).toEqual(expect.objectContaining({ height: 96 }));
   await bar.unmount();
-  expect(lift.result.current).toBe(0);
+  expect(lift.result.current).toBeUndefined();
+});
+
+it("passes the room under a raised bar along with its lift", async () => {
+  const lift = await renderHook(useToastLift);
+  await renderHook(() => useLiftToasts(300, true, 180));
+  expect(lift.result.current).toEqual(expect.objectContaining({ height: 300, room: 180 }));
 });
 
 it("keeps the newly focused screen's lift when the previous screen blurs afterwards", async () => {
@@ -74,7 +80,7 @@ it("keeps the newly focused screen's lift when the previous screen blurs afterwa
   });
   await renderHook(() => useLiftToasts(120, true));
   await previous.rerender({ active: false });
-  expect(lift.result.current).toBe(120);
+  expect(lift.result.current).toEqual(expect.objectContaining({ height: 120 }));
 });
 
 it("offers Retry on a failure toast only when the operation can run again", async () => {

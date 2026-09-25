@@ -268,7 +268,7 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
     cropPath: "old.jpg",
     cropStorageId: "old" as Id<"_storage">,
   });
-  repo.replaceSavedCrop("work", "edited.jpg");
+  repo.replaceSavedCrop("work", "edited.jpg", null);
   await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 100 }]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "edited.jpg",

@@ -12,32 +12,10 @@ jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useAction: () => mockSave,
 }));
-jest.mock("expo-router", () => {
-  const { Pressable, Text } = jest.requireActual("react-native");
-  const Toolbar = ({ children }: { children: React.ReactNode }) => children;
-  Toolbar.View = Toolbar;
-  Toolbar.Button = function ToolbarButton({
-    children,
-    onPress,
-    disabled,
-  }: {
-    children: string;
-    onPress: () => void;
-    disabled?: boolean;
-  }) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !!disabled }}
-        disabled={disabled}
-        onPress={onPress}
-      >
-        <Text>{children}</Text>
-      </Pressable>
-    );
-  };
-  return { router: { back: () => mockBack() }, Stack: { Toolbar } };
-});
+jest.mock("expo-router", () => ({
+  router: { back: () => mockBack() },
+  Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (_query: unknown, args: { username: string } | "skip") =>
     args === "skip" ? { loading: false } : { data: mockAvailable(args.username), loading: false },

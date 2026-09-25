@@ -21,7 +21,7 @@ import { getVisionRect } from "../../../modules/vision-rect/src";
 import { validCrop } from "./crop-geometry";
 import { extractFeatures, orb } from "./features";
 import { clearPhotoDraft, readPhotoSession, updatePhotoSession } from "./photo-draft";
-import { toCorners } from "./rectangle";
+import { toCorners, toQuad } from "./rectangle";
 import type { Quad } from "./stages";
 
 export type EditedCrop = {
@@ -29,6 +29,9 @@ export type EditedCrop = {
   previewUri: string;
   width: number;
   height: number;
+  /** The photo the crop was cut from, and where in it, normalized. */
+  photoPath: string;
+  corners: Quad;
 };
 
 export function discardEditedCrop(crop: EditedCrop) {
@@ -57,7 +60,7 @@ export async function prepareEditedCrop(photoPath: string, corners: Quad): Promi
       format: SaveFormat.JPEG,
       compress: 1,
     });
-    return { modelUri, previewUri: preview.uri, width, height };
+    return { modelUri, previewUri: preview.uri, width, height, photoPath, corners: toQuad(result.usedQuad) };
   } catch (error) {
     const file = new File(modelUri);
     if (file.exists) file.delete();
@@ -82,7 +85,8 @@ export async function saveEditedArtworkCrop(savedId: string, crop: EditedCrop, o
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }
-    replaceSavedCrop(savedId, path, owner);
+    // The editor places stored corners on `photoPath` only, so a crop cut from another album photo keeps none.
+    replaceSavedCrop(savedId, path, crop.photoPath === work.photoPath ? crop.corners : null, owner);
   } catch (error) {
     removePhotoFile(path);
     throw error;
@@ -130,6 +134,7 @@ export async function saveEditedScanCrop(
           localId: nextId,
           photoPath: photoPath!,
           cropPath: modelPath,
+          cropCorners: crop.corners,
           modelVersion: model.modelVersion,
           scanId: null,
           status: "queued",

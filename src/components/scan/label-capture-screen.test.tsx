@@ -170,6 +170,7 @@ const capture = {
   localId: "cap-1",
   photoPath: "photos/c1.jpg",
   cropPath: "crops/c1.jpg",
+  cropCorners: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(4),
   keypoints: new ArrayBuffer(4),

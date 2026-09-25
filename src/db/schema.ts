@@ -1,5 +1,6 @@
 import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+import type { Quad } from "@/lib/capture/stages";
 import type { OfflineResult } from "@/shared/offline/types";
 
 import type { Id } from "../../convex/_generated/dataModel";
@@ -64,6 +65,8 @@ export const savedWorks = sqliteTable(
     scanId: text().$type<Id<"scans">>(),
     photoPath: text(),
     cropPath: text(),
+    /** Where the crop sits in `photoPath`, normalized; null when the crop came from another photo or another device. */
+    cropCorners: text({ mode: "json" }).$type<Quad>(),
     cropStorageId: text().$type<Id<"_storage">>(),
     photoUpdatedAt: integer().notNull().default(0),
     syncedAt: integer(),
@@ -165,6 +168,8 @@ export const pendingScans = sqliteTable(
     localId: text().notNull(),
     photoPath: text().notNull(),
     cropPath: text().notNull(),
+    /** Where the crop sits in `photoPath`, normalized. */
+    cropCorners: text({ mode: "json" }).$type<Quad>(),
     vector: text({ mode: "json" }).$type<number[]>().notNull(),
     descriptors: bytes().notNull(),
     keypoints: bytes().notNull(),

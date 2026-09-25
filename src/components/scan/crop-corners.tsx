@@ -122,11 +122,7 @@ function Corner({
   );
 }
 const styles = StyleSheet.create({
-  canvas: {
-    flex: 1,
-    minHeight: 180,
-    margin: 24,
-  },
+  canvas: { flex: 1 },
   handle: {
     position: "absolute",
     width: 48,

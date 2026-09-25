@@ -47,6 +47,7 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
     <CropEditor
       key={`${owner}:${savedId}:${source}`}
       photoPath={source}
+      initialCorners={source === work.photoPath ? work.cropCorners : null}
       onCancel={() => router.back()}
       onSave={async (crop, isCurrent) => {
         await saveEditedArtworkCrop(savedId, crop, owner, isCurrent);

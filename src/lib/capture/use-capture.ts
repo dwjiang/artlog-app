@@ -206,6 +206,7 @@ export function useCapture({
           },
           identify: ({
             cropUri: _cropUri,
+            cropCorners: _cropCorners,
             photoUri: _photoUri,
             contentBounds: _contentBounds,
             visitLocalId: _visitLocalId,
