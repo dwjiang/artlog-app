@@ -7,6 +7,7 @@ import { journalOwner, journalVisit, journalSave } from "../shared/journal/contr
 import model from "../shared/model/model-version.json";
 import {
   wallLayout,
+  wallPattern,
   relationshipState,
   publicationStatus,
   visitAudience,
@@ -684,6 +685,7 @@ export default defineSchema({
   walls: defineTable({
     profileId: v.id("profiles"),
     color: v.string(),
+    pattern: v.optional(wallPattern),
     layoutRevision: v.number(),
   }).index("by_profileId", ["profileId"]),
   wallItems: defineTable({

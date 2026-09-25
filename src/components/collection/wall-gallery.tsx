@@ -7,13 +7,21 @@ import { scheduleOnRN } from "react-native-worklets";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { constrainLayout, isLightWall, wallBottom, type WallLayout, type WallPiece } from "@/lib/wall/wall-layout";
+import {
+  constrainLayout,
+  isLightWall,
+  wallBottom,
+  type WallLayout,
+  type WallPiece,
+  type Wallpaper,
+} from "@/lib/wall/wall-layout";
 
 import { WallArtwork } from "./wall-artwork";
+import { wallpaperStyle } from "./wallpaper";
 
 export function WallGallery({
   pieces,
-  color,
+  wallpaper,
   width,
   minHeight = pieces.length > 0 ? 580 : 440,
   editing = false,
@@ -24,7 +32,7 @@ export function WallGallery({
   children,
 }: {
   pieces: WallPiece[];
-  color: string;
+  wallpaper: Wallpaper;
   width: number;
   editing?: boolean;
   selectedId?: string;
@@ -34,15 +42,17 @@ export function WallGallery({
   onMove?: (id: string, layout: WallLayout) => void;
   children?: React.ReactNode;
 }) {
-  const light = isLightWall(color);
+  const light = isLightWall(wallpaper.color);
   return (
     <View
-      style={{
-        width,
-        minHeight,
-        height: Math.max(minHeight, wallBottom(pieces) * width + 85),
-        backgroundColor: color,
-      }}
+      style={[
+        wallpaperStyle(wallpaper),
+        {
+          width,
+          minHeight,
+          height: Math.max(minHeight, wallBottom(pieces) * width + 85),
+        },
+      ]}
     >
       {pieces.map((piece) => (
         <Hanging

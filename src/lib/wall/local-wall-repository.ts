@@ -26,6 +26,7 @@ export async function readPrivateWall(owner: string): Promise<WallDraft | undefi
   );
   return {
     color: wall.color,
+    pattern: wall.pattern,
     items: wall.items.filter(
       (item) =>
         saved.has(item.saveLocalId) && (!item.photoLocalId || photos.has(`${item.saveLocalId}:${item.photoLocalId}`)),
@@ -112,6 +113,7 @@ export function createLocalWallRepository() {
       update({
         layoutDraft: {
           color: draft.color,
+          pattern: draft.pattern,
           items: draft.items.map((item) => ({
             placementId: item.placementId,
             saveLocalId: item.saveLocalId,

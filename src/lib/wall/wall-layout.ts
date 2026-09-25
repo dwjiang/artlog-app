@@ -2,7 +2,9 @@ import { DEFAULT_WALL_FRAME } from "@/shared/wall/defaults";
 
 import type { LayoutInput, OwnerWall } from "./wall-transport";
 
-export type WallDraft = Pick<LayoutInput, "color" | "items">;
+export type WallDraft = Pick<LayoutInput, "color" | "pattern" | "items">;
+export type Wallpaper = Pick<WallDraft, "color" | "pattern">;
+export type WallPattern = NonNullable<Wallpaper["pattern"]>;
 export type WallLayout = LayoutInput["items"][number]["layout"];
 export type WallFrame = WallLayout["frame"];
 export type WallPiece = {

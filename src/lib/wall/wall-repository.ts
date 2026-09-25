@@ -173,6 +173,7 @@ export function createWallRepository(deps: Dependencies) {
       update({
         layoutDraft: {
           color: draft.color,
+          pattern: draft.pattern,
           items: draft.items.map((item) => ({
             placementId: item.placementId,
             saveLocalId: item.saveLocalId,

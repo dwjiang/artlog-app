@@ -56,7 +56,7 @@ const piece: WallPiece = {
 
 it("opens artwork without a numbered wall label", async () => {
   const onSelect = jest.fn();
-  await render(<WallGallery pieces={[piece]} color="#FCFCF9" width={390} onSelect={onSelect} />);
+  await render(<WallGallery pieces={[piece]} wallpaper={{ color: "#FCFCF9" }} width={390} onSelect={onSelect} />);
   expect(screen.queryByText("1")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
   expect(onSelect).toHaveBeenCalledWith(piece);
@@ -67,7 +67,7 @@ it("keeps accessible resizing on the selected wall artwork", async () => {
   await render(
     <WallGallery
       pieces={[piece]}
-      color="#FCFCF9"
+      wallpaper={{ color: "#FCFCF9" }}
       width={390}
       editing
       selectedId="art"
