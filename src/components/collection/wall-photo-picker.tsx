@@ -82,7 +82,7 @@ export function WallPhotoPicker({
                 style={{
                   width: "100%",
                   aspectRatio: compact ? 1.6 : 1,
-                  backgroundColor: Gallery.fill,
+                  backgroundColor: photo.path ? undefined : Gallery.fill,
                 }}
               >
                 {photo.path && (

@@ -82,8 +82,8 @@ export function SharePhotoPicker({
                 borderRadius: 2,
                 overflow: "hidden",
                 borderWidth: 2,
-                borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.fill,
-                backgroundColor: Gallery.fill,
+                borderColor: selected.includes(photo.localId) ? Gallery.accent : Gallery.softBorder,
+                backgroundColor: Gallery.surface,
                 padding: 8,
                 gap: 8,
               }}

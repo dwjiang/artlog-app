@@ -120,12 +120,7 @@ export function ArtworkAlbum({
                       params: { savedId: work.localId, photoId: photo.localId },
                     })
                   }
-                  style={{
-                    height: imageHeight,
-                    padding: 16,
-                    backgroundColor: Gallery.fill,
-                    justifyContent: "center",
-                  }}
+                  style={{ height: imageHeight, justifyContent: "center" }}
                 >
                   {photo.path && !failedPhotos[photo.path] ? (
                     <LoadingImage
@@ -218,7 +213,11 @@ export function ArtworkAlbum({
                 accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
                 accessibilityState={{ selected: index === page }}
                 onPress={() => goTo(index)}
-                style={[styles.thumbnail, index === page && { borderColor: Gallery.accent }]}
+                style={[
+                  styles.thumbnail,
+                  !(photo.path && !failedPhotos[photo.path]) && styles.missingThumbnail,
+                  index === page && { borderColor: Gallery.accent },
+                ]}
               >
                 {photo.path && !failedPhotos[photo.path] ? (
                   <LoadingImage
@@ -339,8 +338,8 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Gallery.fill,
   },
+  missingThumbnail: { backgroundColor: Gallery.fill },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   title: {
     fontSize: 18,

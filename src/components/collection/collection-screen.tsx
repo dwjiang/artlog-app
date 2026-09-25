@@ -11,9 +11,7 @@ import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useCollectionData } from "@/lib/collection/use-collection-data";
 
-import { CollectionArtworks } from "./collection-artworks";
 import { CollectionHeader } from "./collection-header";
-import { CollectionSearchField } from "./collection-search-field";
 import { CollectionWall } from "./collection-wall";
 import { NativeSegmentedPicker } from "./native-segmented-picker";
 
@@ -34,7 +32,6 @@ function CollectionSession() {
   );
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState("");
-  const [artworkSearch, setArtworkSearch] = useState("");
   return (
     <OwnedCollection
       key={attempt}
@@ -44,8 +41,6 @@ function CollectionSession() {
       setEditing={setEditing}
       search={search}
       setSearch={setSearch}
-      artworkSearch={artworkSearch}
-      setArtworkSearch={setArtworkSearch}
       onRetry={() => setAttempt((value) => value + 1)}
     />
   );
@@ -58,8 +53,6 @@ function OwnedCollection({
   setEditing,
   search,
   setSearch,
-  artworkSearch,
-  setArtworkSearch,
   onRetry,
 }: {
   mode: "collection" | "visits";
@@ -68,15 +61,12 @@ function OwnedCollection({
   setEditing: (editing: boolean) => void;
   search: string;
   setSearch: (search: string) => void;
-  artworkSearch: string;
-  setArtworkSearch: (search: string) => void;
   onRetry: () => void;
 }) {
   const data = useCollectionData();
   const network = useNetworkState();
   // The tab layout floats the visit bar only while the phone is at the visit's museum; pad for it on the same terms.
   const dockInset = useListeningDockInset();
-  const guest = !data.owner.startsWith("account:");
   const controls = (
     <View
       style={{
@@ -91,7 +81,7 @@ function OwnedCollection({
         onChange={setMode}
         disabled={editing}
         options={[
-          { value: "collection", label: guest ? "Artworks" : "Wall" },
+          { value: "collection", label: "Wall" },
           { value: "visits", label: "Visits" },
         ]}
       />
@@ -123,41 +113,13 @@ function OwnedCollection({
   );
   const collection = (
     <CollectionSection key="collection" shown={mode === "collection"}>
-      {guest ? (
-        <CollectionArtworks
-          {...data}
-          search={artworkSearch}
-          onClearSearch={() => setArtworkSearch("")}
-          onRetry={onRetry}
-          header={header}
-          controls={
-            <View style={{ backgroundColor: Gallery.paper }}>
-              {controls}
-              {data.works.length > 0 && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 10 }}>
-                  <CollectionSearchField
-                    filled
-                    showLabel={false}
-                    value={artworkSearch}
-                    label="Search your artworks"
-                    placeholder="Title, artist, date or place"
-                    onChange={setArtworkSearch}
-                    onClear={() => setArtworkSearch("")}
-                  />
-                </View>
-              )}
-            </View>
-          }
-        />
-      ) : (
-        <CollectionWall
-          works={data.works}
-          hiddenIds={data.hiddenIds}
-          onEditingChange={setEditing}
-          header={header}
-          controls={controls}
-        />
-      )}
+      <CollectionWall
+        works={data.works}
+        hiddenIds={data.hiddenIds}
+        onEditingChange={setEditing}
+        header={header}
+        controls={controls}
+      />
     </CollectionSection>
   );
   const visits = (

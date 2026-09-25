@@ -100,11 +100,7 @@ export function VisitPlaceScreen() {
                   path={visit.works[0].cropPath}
                   title={visit.works[0].title}
                   contain
-                  style={{
-                    width: "100%",
-                    height: 220,
-                    backgroundColor: Gallery.fill,
-                  }}
+                  style={{ width: "100%", height: 220 }}
                 />
               )}
             </Pressable>

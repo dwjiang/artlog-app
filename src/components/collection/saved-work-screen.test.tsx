@@ -230,6 +230,28 @@ it("hangs an available album photo after the original photo was removed", async 
   expect(publishLayout).toHaveBeenCalledTimes(1);
 });
 
+it("lets a signed-out owner hang an artwork before it syncs", async () => {
+  await insertSavedWork({ localId: "unsynced-work", title: "Sketch", artist: "", savedAt: 1 });
+  const setLayoutDraft = jest.fn();
+  const publishLayout = jest.fn().mockResolvedValue(undefined);
+  mockWall = {
+    signedIn: false,
+    pieces: [],
+    draft: { color: "#45524B", items: [] },
+    repository: { setLayoutDraft, publishLayout } as never,
+    setError: jest.fn(),
+  };
+  await render(detail("unsynced-work"));
+  const toggle = await screen.findByRole("switch", { name: "On your wall" });
+  expect(toggle).toBeEnabled();
+  expect(screen.queryByText(/Waiting to sync/)).toBeNull();
+  await fireEvent.press(toggle);
+  expect(setLayoutDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ items: [expect.objectContaining({ saveLocalId: "unsynced-work" })] }),
+  );
+  expect(publishLayout).toHaveBeenCalledTimes(1);
+});
+
 it("shows the photo on this device for a hung work rather than its published media", async () => {
   mockWall = {
     signedIn: true,

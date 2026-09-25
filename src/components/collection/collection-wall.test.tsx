@@ -5,9 +5,11 @@ import { Image, ScrollView } from "react-native";
 
 import { addArtworkPhoto } from "@/db/repos/artwork-album";
 import { insertSavedWork } from "@/db/repos/saved-works";
+import { getSetting, setSetting } from "@/db/repos/settings";
 import type { SavedWork } from "@/db/schema";
 import { switchOwner } from "@/lib/account/owner-store";
 import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-removals";
+import { createLocalWallRepository } from "@/lib/wall/local-wall-repository";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { wallAspect } from "@/lib/wall/wall-layout";
 import type { OwnerWall, WallTransport } from "@/lib/wall/wall-transport";
@@ -202,19 +204,26 @@ async function openWall() {
   return view;
 }
 
-it("gives guests a sign-in action without requesting or publishing a wall", async () => {
+it("gives signed-out owners a private wall on this iPhone without contacting the server", async () => {
   mockToken = null;
-  switchOwner("device:guest", "guest-scope");
-  const onEditingChange = jest.fn();
-  await render(<CollectionWall works={[]} onEditingChange={onEditingChange} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/sign-in",
-    params: { context: "wall" },
+  switchOwner("device:private-wall", "guest-scope");
+  await insertSavedWork(
+    { localId: "guest-save", savedAt: 1, title: "Water Lilies", artist: "Claude Monet" },
+    "device:private-wall",
+  );
+  await render(<CollectionWall works={[{ localId: "guest-save" } as SavedWork]} />);
+  expect(await screen.findByText("Your wall stays private on this iPhone until you sign in.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Choose artworks" }));
+  expect(await screen.findByText("0 selected · Your wall is private")).toBeOnTheScreen();
+  await fireEvent.press(await screen.findByRole("checkbox", { name: "Water Lilies" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
+  await fireEvent(await screen.findByLabelText("Collection wall"), "layout", {
+    nativeEvent: { layout: { width: 393, height: 440, y: 60 } },
   });
-  await fireEvent.press(screen.getByRole("button", { name: "All artworks" }));
-  expect(mockPush).toHaveBeenCalledWith("/all-artworks");
+  expect(await screen.findByRole("button", { name: "Water Lilies" })).toBeOnTheScreen();
+  expect(screen.getByText("Changes saved")).toBeOnTheScreen();
   expect(mockTransport.getMine).not.toHaveBeenCalled();
+  expect(mockTransport.listMine).not.toHaveBeenCalled();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
 });
 
@@ -534,7 +543,7 @@ it("cancels an in-flight save when its owner changes without retaining a stale w
   expect(screen.queryByRole("button", { name: "Retry saving" })).toBeNull();
   // The screen remounts on an owner change in the app; here the editor is closed by hand to reach the guest wall.
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
-  expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Scan artwork" })).toBeOnTheScreen();
 });
 
 it("saves the final size only after a slider drag ends", async () => {
@@ -609,6 +618,58 @@ it("re-reads the wall each time the screen regains focus after the first load", 
   expect(mockTransport.getMine).toHaveBeenCalledTimes(2);
 });
 
+it("re-reads a signed-out wall on focus after another screen changed it", async () => {
+  mockToken = null;
+  switchOwner("device:refocused-wall", "guest-scope");
+  const work = { localId: "refocus-save", savedAt: 1, title: "Water Lilies", artist: "Claude Monet" };
+  await insertSavedWork(work, "device:refocused-wall");
+  await render(<CollectionWall works={[work as SavedWork]} />);
+  expect(await screen.findByText("Your wall stays private on this iPhone until you sign in.")).toBeOnTheScreen();
+  // An artwork's detail screen hangs it through its own repository.
+  const detail = createLocalWallRepository();
+  detail.connect();
+  await detail.refresh();
+  detail.setLayoutDraft({
+    color: "#6C2F2B",
+    items: [
+      {
+        placementId: "refocus-placement",
+        saveLocalId: work.localId,
+        layout: { x: 0, y: 0, width: 0.5, layer: 0, frame: "black" },
+      },
+    ],
+  });
+  await detail.publishLayout();
+  detail.dispose();
+  await act(async () => {
+    mockFocus?.();
+  });
+  await fireEvent(await screen.findByLabelText("Collection wall"), "layout", {
+    nativeEvent: { layout: { width: 393, height: 440, y: 60 } },
+  });
+  expect(await screen.findByRole("button", { name: "Water Lilies" })).toBeOnTheScreen();
+});
+
+it("publishes the wall arranged before sign-in once the account's wall reads empty", async () => {
+  await insertSavedWork(
+    { localId: "claimed-save", savedAt: 1, title: "Water Lilies", artist: "Claude Monet" },
+    "account:a",
+  );
+  const layout = { x: 0, y: 0, width: 0.5, layer: 0, frame: "black" as const };
+  await setSetting(
+    "wall:account:a",
+    JSON.stringify({ color: "#6C2F2B", items: [{ placementId: "claimed", saveLocalId: "claimed-save", layout }] }),
+  );
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await renderHook(() => useCollectionWall([]));
+  await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
+  expect(mockTransport.setLayout.mock.calls[0][0]).toMatchObject({
+    color: "#6C2F2B",
+    items: [{ placementId: "claimed", saveLocalId: "claimed-save", layout }],
+  });
+  await waitFor(async () => expect(await getSetting("wall:account:a")).toBeUndefined());
+});
+
 it("does not reload the wall when only the auth token rotates", async () => {
   const { result, rerender } = await renderHook(() => useCollectionWall([]));
   await waitFor(() => expect(result.current.loading).toBe(false));
@@ -642,7 +703,7 @@ it("clears a rendered wall immediately when its owner changes", async () => {
     switchOwner("device:guest", "guest-scope");
   });
   expect(screen.queryByRole("button", { name: "The Milkmaid" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Scan artwork" })).toBeOnTheScreen();
 });
 
 it.each([false, true])("loads local draft artwork proportions, tolerating a missing photo (%s)", async (missing) => {

@@ -92,7 +92,7 @@ export function NowPlayingScreen() {
   const compact = height < 720;
   const artworkSize = Math.min(width - Spacing.content * 2, height * (compact || fontScale > 1.4 ? 0.24 : 0.35), 360);
   const artwork = (
-    <View style={[styles.artwork, { width: artworkSize, height: artworkSize }]}>
+    <View style={[styles.artwork, !work.imageUri && styles.noArtwork, { width: artworkSize, height: artworkSize }]}>
       {work.imageUri ? (
         <Image
           source={work.imageUri}
@@ -199,11 +199,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing.four,
   },
-  artwork: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Gallery.fill,
-  },
+  artwork: { alignItems: "center", justifyContent: "center" },
+  noArtwork: { backgroundColor: Gallery.fill },
   details: { paddingHorizontal: Spacing.content, gap: Spacing.two },
   metadata: { gap: Spacing.two, paddingBottom: Spacing.two },
   title: { fontSize: 30, lineHeight: 36 },
