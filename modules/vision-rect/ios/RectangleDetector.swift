@@ -1,16 +1,24 @@
 import CoreGraphics
+import CoreImage
 import CoreMedia
 import Foundation
 import ImageIO
 import Vision
 
 enum RectangleDetectorTuning {
-  static let minimumConfidence: Float = 0.6
+  /// Vision reported 1.0 for every rectangle it returned on 49 gallery photographs, so a floor only ever drops candidates.
+  static let minimumConfidence: Float = 0
   static let minimumAspectRatio: Float = 0.3
   static let maximumAspectRatio: Float = 1.0
-  static let minimumSize: Float = 0.2
-  static let maximumObservations = 3
-  static let quadratureTolerance: Float = 20
+  static let minimumSize: Float = 0.15
+  static let maximumObservations = 5
+  static let quadratureTolerance: Float = 30
+  /// Vision's candidates come and go with input resolution: a framed portrait found at 1440 px vanished at 960 px
+  /// and returned at 640 px. Each image is analyzed at its own size and at these fractions of it, and the union
+  /// found the painting in 13 of 14 wall photographs against 10 for the full size alone.
+  static let extraScales: [CGFloat] = [2.0 / 3.0, 4.0 / 9.0]
+  /// Normalized corner distance under which candidates from different scales are the same rectangle.
+  static let duplicateDistance: CGFloat = 0.02
 }
 
 /// Corners are normalized to the upright image with the origin at the top-left, in the order
@@ -40,6 +48,9 @@ func quadArea(_ corners: [CGPoint]) -> CGFloat {
 }
 
 enum RectangleDetector {
+  /// Without one, Vision builds its own Core Image context for every scaled handler, twice per live frame.
+  private static let ciContext = CIContext()
+
   static func makeRequest() -> VNDetectRectanglesRequest {
     let request = VNDetectRectanglesRequest()
     request.minimumConfidence = RectangleDetectorTuning.minimumConfidence
@@ -57,6 +68,37 @@ enum RectangleDetector {
     return rectangles(from: request)
   }
 
+  /// Runs every handler and merges the candidates, keeping the first of any duplicates. Largest first.
+  static func detect(handlers: [VNImageRequestHandler]) throws -> [DetectedRectangle] {
+    var merged: [DetectedRectangle] = []
+    for handler in handlers {
+      for rectangle in try detect(handler: handler) where !merged.contains(where: { isDuplicate($0, rectangle) }) {
+        merged.append(rectangle)
+      }
+    }
+    return merged.sorted { $0.area > $1.area }
+  }
+
+  private static func isDuplicate(_ a: DetectedRectangle, _ b: DetectedRectangle) -> Bool {
+    return zip(a.corners, b.corners).allSatisfy { hypot($0.x - $1.x, $0.y - $1.y) < RectangleDetectorTuning.duplicateDistance }
+  }
+
+  private static func scaledHandlers(_ image: CIImage, orientation: CGImagePropertyOrientation) -> [VNImageRequestHandler] {
+    return RectangleDetectorTuning.extraScales.map { scale in
+      VNImageRequestHandler(
+        ciImage: image.transformed(by: CGAffineTransform(scaleX: scale, y: scale)),
+        orientation: orientation,
+        options: [.ciContext: ciContext]
+      )
+    }
+  }
+
+  /// Detects at the image's own size and at each of `extraScales`.
+  static func detect(cgImage: CGImage) throws -> [DetectedRectangle] {
+    let full = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
+    return try detect(handlers: [full] + scaledHandlers(CIImage(cgImage: cgImage), orientation: .up))
+  }
+
   /// Largest first.
   static func rectangles(from request: VNDetectRectanglesRequest) -> [DetectedRectangle] {
     let rectangles = (request.results ?? []).map { observation in
@@ -70,9 +112,13 @@ enum RectangleDetector {
     return rectangles.sorted { $0.area > $1.area }
   }
 
+  /// Detects at the frame's own size and at each of `extraScales`.
   static func detect(sampleBuffer: CMSampleBuffer, orientation: CGImagePropertyOrientation) throws -> [DetectedRectangle] {
-    let handler = VNImageRequestHandler(cmSampleBuffer: sampleBuffer, orientation: orientation, options: [:])
-    return try detect(handler: handler)
+    guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+      throw VisionRectError("Frame has no image buffer")
+    }
+    let full = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation, options: [:])
+    return try detect(handlers: [full] + scaledHandlers(CIImage(cvPixelBuffer: pixelBuffer), orientation: orientation))
   }
 }
 
