@@ -20,8 +20,8 @@ import { socialStyles } from "./social-styles";
 
 const labels: Record<FriendshipAction, string> = {
   request: "Add friend",
-  accept: "Accept",
-  decline: "Decline",
+  accept: "Accept friend",
+  decline: "Ignore",
   cancel: "Friend request sent",
   remove: "Remove friend",
 };
@@ -100,8 +100,19 @@ function CompactFriendshipAction({
   );
 }
 
-/** One row of profile actions that stacks at large text sizes; `trailing` keeps its own width. */
-export function ProfileActionRow({ actions, trailing }: { actions: ReactElement[]; trailing?: ReactNode }) {
+/**
+ * One row of profile actions that stacks at large text sizes. `secondary` takes a smaller share than each action,
+ * so "Accept friend" stays on one line beside it through XXXL text; `trailing` keeps its own width.
+ */
+export function ProfileActionRow({
+  actions,
+  secondary,
+  trailing,
+}: {
+  actions: ReactElement[];
+  secondary?: ReactNode;
+  trailing?: ReactNode;
+}) {
   const stacked = useWindowDimensions().fontScale >= 1.5;
   return (
     <View style={{ flexDirection: stacked ? "column" : "row", gap: Spacing.two }}>
@@ -110,6 +121,7 @@ export function ProfileActionRow({ actions, trailing }: { actions: ReactElement[
           {action}
         </View>
       ))}
+      {secondary && <View style={stacked ? undefined : { flex: 0.6 }}>{secondary}</View>}
       {trailing}
     </View>
   );
@@ -157,6 +169,25 @@ export function FriendshipControls({
   const { state, busy, error, act, refresh } = useFriendship(profileId, session);
   if (profileId === session.profileId) return null;
   const ready = session.status === "ready";
+  const actionButton = (action: FriendshipAction) => {
+    const primary = action === "request" || action === "accept";
+    return (
+      <GalleryButton
+        key={action}
+        label={labels[action]}
+        icon={action === "cancel" ? "checkmark" : undefined}
+        fullWidth
+        minHeight={44}
+        disabled={busy}
+        variant={primary ? "filled" : "outlined"}
+        tone={primary ? "accent" : "ink"}
+        onPress={() => {
+          void act(action);
+        }}
+      />
+    );
+  };
+  const available = ready && state ? friendshipActions(state, session.profileId!) : [];
   const actions =
     session.status === "signed-out" || session.status === "profile-required"
       ? [
@@ -195,35 +226,20 @@ export function FriendshipControls({
               />,
             ]
           : state
-            ? friendshipActions(state, session.profileId!).map((action) => {
-                const primary = action === "request" || action === "accept";
-                return (
-                  <GalleryButton
-                    key={action}
-                    label={labels[action]}
-                    icon={action === "cancel" ? "checkmark" : undefined}
-                    fullWidth
-                    minHeight={44}
-                    disabled={busy}
-                    variant={primary ? "filled" : "outlined"}
-                    tone={primary ? "accent" : "ink"}
-                    onPress={() => {
-                      void act(action);
-                    }}
-                  />
-                );
-              })
+            ? available.filter((action) => action !== "decline").map(actionButton)
             : error
               ? []
               : [<TextSkeleton key="loading" label="Loading friendship…" width="100%" height={44} />];
   return (
     <View style={{ gap: Spacing.two }}>
-      {ready && state && (state.blocked || (state.state === "pending" && state.requesterId !== session.profileId)) && (
-        <Text style={socialStyles.caption}>
-          {state.blocked ? "This connection is unavailable." : "Sent you a friend request."}
-        </Text>
+      {ready && state?.blocked && (
+        <Text style={[socialStyles.caption, { textAlign: "center" }]}>This connection is unavailable.</Text>
       )}
-      <ProfileActionRow actions={actions} trailing={trailing} />
+      <ProfileActionRow
+        actions={actions}
+        secondary={available.includes("decline") && actionButton("decline")}
+        trailing={trailing}
+      />
       {busy && <LoadingRing accessibilityLabel="Updating friendship…" />}
       {error && (
         <>

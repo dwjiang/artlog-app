@@ -56,27 +56,7 @@ export function SettingsScreen() {
               borderColor: Gallery.separator,
             }}
           >
-            {profile ? (
-              <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={64} />
-            ) : (
-              <View
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: Gallery.avatar,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Image
-                  source="sf:person.fill"
-                  tintColor={Gallery.ink}
-                  style={{ width: 28, height: 28 }}
-                  accessible={false}
-                />
-              </View>
-            )}
+            <ProfileAvatar name={profile?.name} photoUrl={profile?.photoUrl} size={64} />
             <View style={{ flex: 1, gap: 4 }}>
               <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>
                 {accountName}
@@ -109,7 +89,7 @@ export function SettingsScreen() {
               borderColor: Gallery.softBorder,
             }}
           >
-            <ProfileAvatar name="Your collection" size={44} />
+            <ProfileAvatar size={44} />
             <View style={{ flex: 1 }}>
               <ThemedText variant="button">Your collection</ThemedText>
               <ThemedText variant="metadata" themeColor="textSecondary">

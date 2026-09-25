@@ -9,13 +9,16 @@ export function ProfileBio({ text }: { text?: string }) {
   const [long, setLong] = useState(false);
   if (!text) return null;
   return (
-    <View style={{ gap: 4 }}>
+    <View style={{ gap: 4, alignSelf: "stretch", alignItems: "center" }}>
       <Text
         style={{
           position: "absolute",
+          left: 0,
+          right: 0,
           opacity: 0,
           fontSize: 16,
           lineHeight: 24,
+          textAlign: "center",
         }}
         accessibilityElementsHidden
         onTextLayout={(event) => setLong(event.nativeEvent.lines.length > 2)}
@@ -25,7 +28,7 @@ export function ProfileBio({ text }: { text?: string }) {
       <Text
         selectable
         numberOfLines={expanded ? undefined : 2}
-        style={{ fontSize: 16, lineHeight: 24, color: Gallery.ink }}
+        style={{ fontSize: 16, lineHeight: 24, color: Gallery.ink, textAlign: "center" }}
       >
         {text}
       </Text>
