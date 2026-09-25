@@ -1,0 +1,71 @@
+import { View } from "react-native";
+
+import { ChoiceMenu } from "@/components/choice-menu";
+import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { ThemedText as Text } from "@/components/themed-text";
+import type { VisitVisibility } from "@/shared/journal/contracts";
+
+import { visitStyles } from "./visit-ui";
+
+export const VISIT_VISIBILITY = {
+  private: { label: "Private", icon: "lock" },
+  friends: { label: "Friends", icon: "person.2" },
+  public: { label: "Public", icon: "globe" },
+} as const;
+
+const CHOICES = ["private", "friends", "public"] as const;
+const LABEL = "Visibility";
+
+/** Chooses who can see a visit and its shared version, as a form row. */
+export function VisitVisibilityPicker({
+  value,
+  onChange,
+  disabled,
+  note,
+}: {
+  value: VisitVisibility;
+  onChange: (value: VisitVisibility) => void;
+  disabled?: boolean;
+  note?: string;
+}) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={visitStyles.eyebrow}>Visibility</Text>
+      <NativeSegmentedPicker
+        label={LABEL}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        options={CHOICES.map((choice) => ({
+          value: choice,
+          label: VISIT_VISIBILITY[choice].label,
+          icon: VISIT_VISIBILITY[choice].icon,
+        }))}
+      />
+      {note && <Text style={visitStyles.fine}>{note}</Text>}
+    </View>
+  );
+}
+
+/** Shows a visit's visibility as a status chip and changes it from a native menu. */
+export function VisitVisibilityChip({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: VisitVisibility;
+  onChange: (value: VisitVisibility) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ChoiceMenu
+      label={LABEL}
+      tone="highlight"
+      icon={VISIT_VISIBILITY[value].icon}
+      value={value}
+      disabled={disabled}
+      onChange={onChange}
+      options={CHOICES.map((choice) => ({ value: choice, label: VISIT_VISIBILITY[choice].label }))}
+    />
+  );
+}

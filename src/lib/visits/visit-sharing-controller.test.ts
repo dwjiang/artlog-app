@@ -5,7 +5,7 @@ import { captureOwner, subscribeOwner, switchOwner } from "@/lib/account/owner-s
 import { addBreadcrumb, reportError } from "@/lib/observability";
 
 import { createVisitSharingController } from "./visit-sharing-controller";
-import type { SharePreview, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
+import type { ShareState, VisitSharingTransport } from "./visit-sharing-transport";
 
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -20,19 +20,9 @@ const initial: ShareState = {
   saveLocalIds: [],
   revision: 0,
 };
-const preview: SharePreview = {
-  audience: "public",
-  author: { name: "Reader", username: "reader" } as SharePreview["author"],
-  venue: { venueId: "museum" as never, name: "Museum" },
-  visitedOn: "2024-02-29",
-  reflection: "For friends",
-  artworks: [],
-};
 const transport = {
   getState: jest.fn(),
-  preview: jest.fn(),
   publish: jest.fn(),
-  get: jest.fn(),
 } satisfies VisitSharingTransport;
 const flush = jest.fn();
 let controller: ReturnType<typeof createVisitSharingController>;
@@ -49,7 +39,6 @@ beforeEach(() => {
   switchOwner("account:a", "scope-a");
   ids = Array.from({ length: 60 }, (_, i) => `save-${i}`);
   transport.getState.mockResolvedValue(initial);
-  transport.preview.mockResolvedValue(preview);
   transport.publish.mockResolvedValue({
     ...initial,
     status: "active",
@@ -78,7 +67,6 @@ it("selects at most 50 artworks, uses the saved public notes, and allows zero", 
   expect(controller.getSnapshot().draft?.saveLocalIds).toHaveLength(50);
   expect(controller.getSnapshot().draft?.reflection).toBe("For friends");
   controller.edit({ saveLocalIds: [] });
-  await controller.preview();
   await controller.publish();
   expect(transport.publish).toHaveBeenCalledWith(
     {
@@ -88,7 +76,6 @@ it("selects at most 50 artworks, uses the saved public notes, and allows zero", 
       reflection: "For friends",
       revision: 0,
       photoSelections: [],
-      highlightLocalIds: [],
     },
     expect.anything(),
   );
@@ -120,66 +107,46 @@ it("clears a failed load's error while its retry runs and after it succeeds", as
   expect(controller.getSnapshot()).toMatchObject({ busy: false, error: undefined });
 });
 
-it("invalidates a preview when the saved note changes without a publication revision change", async () => {
+it("posts the notes as the visit last saved them", async () => {
+  transport.getState.mockResolvedValueOnce({ ...initial, reflection: "Before" });
   await controller.load();
-  await controller.preview();
-  transport.getState.mockResolvedValueOnce({
-    ...initial,
-    reflection: "Changed on another device",
-  });
-  await controller.load();
-  expect(controller.getSnapshot().preview).toBeNull();
-  expect(controller.getSnapshot().draft?.reflection).toBe("Changed on another device");
-  expect(await controller.publish()).toBe(false);
-  expect(transport.publish).not.toHaveBeenCalled();
+  transport.getState.mockResolvedValueOnce({ ...initial, reflection: "Edited on the share screen" });
+  expect(await controller.publish()).toBe(true);
+  expect(transport.publish).toHaveBeenCalledWith(
+    expect.objectContaining({ reflection: "Edited on the share screen" }),
+    expect.anything(),
+  );
 });
 
 it("preserves selection and reflection on network failure", async () => {
   transport.getState.mockResolvedValue({ ...initial, reflection: "My draft" });
   await controller.load();
   controller.edit({ saveLocalIds: ["save-2"] });
-  await controller.preview();
   transport.publish.mockRejectedValueOnce(new Error("Network request failed"));
   expect(await controller.publish()).toBe(false);
   expect(controller.getSnapshot()).toMatchObject({
     draft: { saveLocalIds: ["save-2"], reflection: "My draft" },
   });
-  expect(controller.getSnapshot().preview).not.toBeNull();
 });
 
-it("refreshes visit notes after a conflict while preserving the selected artworks", async () => {
+it("reports a conflict and posts over it with the latest notes while keeping the selected artworks", async () => {
   transport.getState.mockResolvedValue({ ...initial, reflection: "Keep this" });
   await controller.load();
   controller.edit({ saveLocalIds: [] });
-  await controller.preview();
   transport.publish.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
-  await controller.publish();
-  expect(controller.getSnapshot()).toMatchObject({
-    conflict: true,
-    preview: null,
-  });
-  await controller.publish();
-  expect(transport.publish).toHaveBeenCalledTimes(1);
-  transport.getState.mockResolvedValueOnce({
-    ...initial,
-    revision: 7,
-    reflection: "Other device",
-  });
-  await controller.preview();
-  await controller.publish();
+  expect(await controller.publish()).toBe(false);
+  expect(controller.getSnapshot().conflict).toBe(true);
+  transport.getState.mockResolvedValueOnce({ ...initial, revision: 7, reflection: "Other device" });
+  expect(await controller.publish()).toBe(true);
+  expect(controller.getSnapshot().conflict).toBe(false);
   expect(transport.publish).toHaveBeenLastCalledWith(
-    expect.objectContaining({
-      revision: 7,
-      reflection: "Other device",
-      saveLocalIds: [],
-    }),
+    expect.objectContaining({ revision: 7, reflection: "Other device", saveLocalIds: [] }),
     expect.anything(),
   );
 });
 
 it("aborts and clears private state on account changes and discards a late mutation acknowledgement", async () => {
   await controller.load();
-  await controller.preview();
   const gate = deferred<ShareState>();
   transport.publish.mockReturnValueOnce(gate.promise);
   const publish = controller.publish();
@@ -192,18 +159,13 @@ it("aborts and clears private state on account changes and discards a late mutat
   expect(controller.getSnapshot()).toMatchObject({
     acknowledged: null,
     draft: null,
-    preview: null,
     busy: false,
   });
   expect(reportError).not.toHaveBeenCalled();
 });
 
-it("blocks publishing an edited selection until another preview is ready", async () => {
+it("ignores artworks that are not part of the visit", async () => {
   await controller.load();
-  await controller.preview();
-  controller.edit({ saveLocalIds: ["save-1"] });
-  expect(await controller.publish()).toBe(false);
-  expect(transport.publish).not.toHaveBeenCalled();
   controller.edit({ saveLocalIds: ["foreign-save"] });
   expect(controller.getSnapshot().draft?.saveLocalIds).not.toContain("foreign-save");
 });
@@ -223,11 +185,10 @@ it("loads an existing share for editing and waits for an acknowledged publish", 
     reflection: "Already shared",
     revision: 3,
   });
-  await controller.preview();
   const gate = deferred<ShareState>();
   transport.publish.mockReturnValueOnce(gate.promise);
   const request = controller.publish();
-  await Promise.resolve();
+  await waitFor(() => expect(transport.publish).toHaveBeenCalled());
   expect(controller.getSnapshot().acknowledged?.revision).toBe(3);
   gate.resolve({
     ...initial,
@@ -250,39 +211,16 @@ it("surfaces profile requirements and refuses anonymous sharing", async () => {
   expect(transport.getState).toHaveBeenCalledTimes(1);
 });
 
-it("reads all artwork pages of a shared visit", async () => {
-  transport.getState.mockResolvedValue({
-    ...initial,
-    postId: "post",
-    status: "active",
-  });
-  transport.get.mockResolvedValueOnce({
-    ...preview,
-    artworks: { page: [{ itemId: "one" }], isDone: false, cursor: "next" },
-  });
-  transport.get.mockResolvedValueOnce({
-    ...preview,
-    artworks: { page: [{ itemId: "two" }], isDone: true, cursor: null },
-  });
-  await controller.view();
-  expect(controller.getSnapshot().shared?.artworks.page.map((item) => item.itemId)).toEqual(["one", "two"]);
-});
-
-it("keeps publishing public and requires a fresh preview when the selection changes", async () => {
+it("starts from the visit's audience and posts the one chosen", async () => {
   await controller.load();
   expect(controller.getSnapshot().draft?.audience).toBe("public");
-  await controller.preview();
-  controller.edit({ saveLocalIds: [] });
-  expect(controller.getSnapshot().preview).toBeNull();
-  expect(await controller.publish()).toBe(false);
-  await controller.preview();
+  controller.edit({ audience: "friends" });
   await controller.publish();
-  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "public" }), expect.anything());
+  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "friends" }), expect.anything());
 });
 
 it("reports publication failures without attaching the selected artwork or reflection", async () => {
   await controller.load();
-  await controller.preview();
   const error = new Error("Unexpected server failure");
   transport.publish.mockRejectedValueOnce(error);
   expect(await controller.publish()).toBe(false);

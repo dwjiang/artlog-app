@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { SearchEmptyState } from "@/components/empty-state";
@@ -9,10 +8,11 @@ import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from "@/components/visits/visit-gallery";
 import { VisitSymbol } from "@/components/visits/visit-ui";
+import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
 import { Fonts, Gallery, Typography } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { visitDate } from "@/lib/social/presentation";
-import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
+import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
@@ -79,6 +79,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
           <>
             {visit.refreshing && <LoadingRing accessibilityLabel="Refreshing visit" style={{ paddingVertical: 12 }} />}
             <SharedVisitHeading
+              audience={visit.first.audience}
               venue={visit.first.venue}
               visitedOn={visit.first.visitedOn}
               owner={{
@@ -148,10 +149,12 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
 }
 
 export function SharedVisitHeading({
+  audience,
   venue,
   visitedOn,
   owner,
 }: {
+  audience: SharedVisit["audience"];
   venue: { name: string; city?: string };
   visitedOn: string;
   owner: {
@@ -187,8 +190,8 @@ export function SharedVisitHeading({
           <View style={styles.owner}>{identity}</View>
         )}
         <View style={styles.status}>
-          <VisitSymbol name="globe" size={11} color={Gallery.ink} />
-          <Text style={styles.statusText}>Public</Text>
+          <VisitSymbol name={VISIT_VISIBILITY[audience].icon} size={11} color={Gallery.ink} />
+          <Text style={styles.statusText}>{VISIT_VISIBILITY[audience].label}</Text>
         </View>
       </View>
       <Text selectable accessibilityRole="header" style={styles.museum}>
@@ -287,103 +290,6 @@ export function SharedArtworkTile({
   );
 }
 
-export type ProjectedArtwork = {
-  key: string;
-  title: string;
-  artist: string | null;
-  photos: Media[];
-};
-
-/** A complete shared visit the way its audience sees it, for previews and the owner's shared version. */
-export function SharedVisitProjection({
-  postId,
-  author,
-  venue,
-  visitedOn,
-  reflection,
-  artworks,
-  token,
-  footer,
-  note,
-  reactions,
-}: {
-  postId: string;
-  author: Pick<PublicProfile, "profileId" | "name" | "photoUrl" | "username">;
-  venue: { name: string; city?: string };
-  visitedOn: string;
-  reflection: string;
-  artworks: ProjectedArtwork[];
-  token?: string | null;
-  footer?: ReactElement;
-  note?: string;
-  reactions?: ReactElement;
-}) {
-  const [search, setSearch] = useState("");
-  const { fontScale } = useWindowDimensions();
-  const { bottom } = useSafeAreaInsets();
-  const columns = fontScale > 1.4 ? 1 : 2;
-  const router = useRouter();
-  const query = artworks.length >= 5 ? search.trim() : "";
-  const items = artworks.filter((artwork) => matchesVisitSearch(artwork, query));
-  return (
-    <View style={socialStyles.root}>
-      <FlatList
-        key={columns}
-        style={socialStyles.root}
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        data={items}
-        keyExtractor={(artwork) => artwork.key}
-        numColumns={columns}
-        columnWrapperStyle={columns > 1 ? styles.row : undefined}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        ListHeaderComponent={
-          <>
-            <SharedVisitHeading
-              venue={venue}
-              visitedOn={visitedOn}
-              owner={{
-                ...author,
-                onPress: () =>
-                  router.push({
-                    pathname: "/profile/[profileId]",
-                    params: { profileId: author.profileId },
-                  }),
-              }}
-            />
-            {!!reflection && (
-              <Text selectable style={styles.reflection}>
-                {reflection}
-              </Text>
-            )}
-            {reactions && <View style={{ marginBottom: 12 }}>{reactions}</View>}
-            <SharedCountHeading label={`${artworks.length} ${artworks.length === 1 ? "artwork" : "artworks"} shared`} />
-            {artworks.length >= 5 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
-          </>
-        }
-        renderItem={({ item }) => (
-          <SharedArtworkTile
-            title={item.title}
-            artist={item.artist}
-            photos={item.photos}
-            token={token}
-            onPress={() =>
-              router.push({
-                pathname: "/artwork",
-                params: { kind: "visit", postId, itemId: item.key },
-              })
-            }
-          />
-        )}
-        ListEmptyComponent={<SharedEmpty query={query} onClear={() => setSearch("")} />}
-        ListFooterComponent={<>{note && <Text style={[styles.meta, { paddingTop: 12 }]}>{note}</Text>}</>}
-      />
-      {footer && <View style={[styles.previewFooter, { paddingBottom: Math.max(20, bottom) }]}>{footer}</View>}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
@@ -455,12 +361,6 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     backgroundColor: Gallery.highlight,
     paddingHorizontal: 5,
-  },
-  previewFooter: {
-    paddingHorizontal: 20,
-    borderTopWidth: 0.5,
-    borderColor: Gallery.separator,
-    backgroundColor: Gallery.paper,
   },
   empty: { gap: 7, paddingVertical: 24 },
   photoPlaceholder: {

@@ -97,23 +97,4 @@ it("serves shared visits with optional credentials and requires them only for pr
   expect(screen.getByRole("image").props.source.headers).toEqual({
     Authorization: "Bearer token-a",
   });
-  const preview = {
-    ...derivative,
-    reference: {
-      kind: "sharedVisitPreview" as const,
-      visitLocalId: "visit-a",
-      saveLocalId: "save-a",
-    },
-  };
-  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} />);
-  expect(screen.getByText("Image unavailable")).toBeOnTheScreen();
-  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token="token-a" />);
-  expect(screen.getByRole("image").props.source.uri).toContain(
-    "kind=sharedVisitPreview&visitLocalId=visit-a&saveLocalId=save-a",
-  );
-  expect(screen.getByRole("image").props.source.headers).toEqual({
-    Authorization: "Bearer token-a",
-  });
-  await view.rerender(<DisplayMedia media={preview} label="Saved title" width={100} token={null} />);
-  expect(screen.getByText("Image unavailable")).toBeOnTheScreen();
 });

@@ -1,9 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { AppState, TextInput, View } from "react-native";
+import { AppState, StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { NotePaper } from "@/components/note-paper";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { patchVisit } from "@/db/repos/visits";
@@ -19,6 +18,7 @@ type NotesVisit = Pick<Visit, "localId" | "owner" | "reflection">;
 export type VisitNotesHandle = { save: () => Promise<boolean> };
 type VisitNotesProps = {
   visit: NotesVisit;
+  /** Saves as the person types and on blur; off, the field stays open and saves only through the handle. */
   autoSave?: boolean;
   editable?: boolean;
   ref?: Ref<VisitNotesHandle>;
@@ -121,26 +121,22 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
   }, [visit.reflection]);
 
   return (
-    <View>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text variant="section" accessibilityRole="header">
+    <View style={{ gap: 8 }}>
+      <View style={notes.header}>
+        <Text accessibilityRole="header" style={styles.eyebrow}>
           Notes
         </Text>
-        <GalleryButton
-          label={editing ? "Done" : draft ? "Edit" : "Add"}
-          accessibilityLabel={editing ? "Done editing note" : draft ? "Edit note" : "Add a note"}
-          disabled={!editable}
-          onPress={() => {
-            if (editing && autoSave) void persist(latest.current);
-            setEditing(!editing);
-          }}
-        />
+        {autoSave && (
+          <GalleryButton
+            label={editing ? "Done" : draft ? "Edit" : "Add"}
+            accessibilityLabel={editing ? "Save note" : draft ? "Edit note" : "Add a note"}
+            disabled={!editable}
+            onPress={() => {
+              if (editing) void persist(latest.current);
+              setEditing(!editing);
+            }}
+          />
+        )}
       </View>
       {editing ? (
         <TextInput
@@ -174,19 +170,12 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
           maxLength={LIMITS.note}
           style={[styles.input, styles.reflection]}
         />
+      ) : draft ? (
+        <Text selectable style={styles.body}>
+          {draft}
+        </Text>
       ) : (
-        <NotePaper>
-          <Text
-            selectable
-            style={{
-              color: draft ? Gallery.ink : Gallery.muted,
-              fontSize: 16,
-              lineHeight: 24,
-            }}
-          >
-            {draft || "No notes yet."}
-          </Text>
-        </NotePaper>
+        <Text style={styles.caption}>No notes yet.</Text>
       )}
       {error && (
         <View>
@@ -206,3 +195,7 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
     </View>
   );
 }
+
+const notes = StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
+});

@@ -112,16 +112,17 @@ export async function requirePublicWallItem(ctx: ReadCtx, itemId: Id<"wallItems"
 }
 export async function readablePublication(ctx: ReadCtx, publication: Doc<"sharedVisits">, viewerId?: Id<"profiles">) {
   if (publication.status !== "active" || publication.removal) return null;
-  if (viewerId && viewerId !== publication.profileId) {
-    const { block, reverseBlock } = await relationshipSnapshot(ctx, publication.profileId, viewerId);
+  const visit = await ctx.db.get("visits", publication.visitId);
+  const own = viewerId === publication.profileId;
+  if (!visit || (visit.visibility === "private" && !own) || (visit.visibility === "friends" && !viewerId)) return null;
+  if (viewerId && !own) {
+    const { edge, block, reverseBlock } = await relationshipSnapshot(ctx, publication.profileId, viewerId);
     if (block?.active || reverseBlock?.active) return null;
+    if (visit.visibility === "friends" && edge?.state !== "accepted") return null;
   }
   const profile = await activeProfile(ctx, publication.profileId);
-  const visit = await ctx.db.get("visits", publication.visitId);
   if (
     !profile
-    || !visit
-    || visit.visibility !== "public"
     || visit.localId !== publication.visitLocalId
     || !sameOwner(visit.owner, {
       kind: "account",

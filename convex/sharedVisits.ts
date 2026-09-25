@@ -2,21 +2,11 @@ import { ConvexError, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
-import {
-  visitAudience,
-  displayMedia,
-  publicArtwork,
-  publicProfile,
-  sharedSelection,
-  sharedVisitCard,
-} from "../shared/social/contracts";
+import { sharedSelection, sharedVisitCard } from "../shared/social/contracts";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
-import { selectedPhotoMedia } from "./lib/albumMedia";
-import { resolveDisplayAsset } from "./lib/displayMedia";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
-import { projectArtwork, projectProfile } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
@@ -39,7 +29,6 @@ import {
   publicationView,
   publicHistory,
   readHeadroom,
-  SAVE_READ_RESERVE,
   selectedSaves,
   projectVisitAlbum,
   stateForPublication,
@@ -55,7 +44,8 @@ export const getState = query({
     return stateForPublication(ctx, await publicationForVisit(ctx, profile._id, visitLocalId), visit);
   },
 });
-// Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit.
+// Backs the "Shared" marker on every row of the owner's visit list with one subscription instead of one per visit;
+// a visit published privately is not shared.
 export const listShared = query({
   args: {},
   returns: v.array(v.string()),
@@ -65,58 +55,9 @@ export const listShared = query({
       .query("sharedVisits")
       .withIndex("by_profile_status_history", (q) => q.eq("profileId", profile._id).eq("status", "active"))
       .take(1000);
-    return publications.filter((publication) => !publication.removal).map((publication) => publication.visitLocalId);
-  },
-});
-export const preview = query({
-  args: selectionArgs,
-  returns: v.object({
-    audience: visitAudience,
-    author: publicProfile,
-    venue: v.object({ venueId: v.id("museums"), name: v.string() }),
-    visitedOn: v.string(),
-    reflection: v.string(),
-    artworks: v.array(
-      v.object({
-        saveLocalId: v.string(),
-        artwork: publicArtwork,
-        photos: v.optional(v.array(displayMedia)),
-      }),
-    ),
-  }),
-  handler: async (ctx, input) => {
-    const { profile, owner } = await requireProfile(ctx);
-    const { visit, saves } = await selectedSaves(ctx, owner, input, true);
-    const artworks = [];
-    for (const save of saves) {
-      if (!(await readHeadroom(ctx, SAVE_READ_RESERVE))) {
-        throw new ConvexError({ code: "invalid_post" });
-      }
-      const reference = {
-        kind: "sharedVisitPreview" as const,
-        visitLocalId: visit.localId,
-        saveLocalId: save.localId,
-      };
-      const photos = await Promise.all(
-        (input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds ?? []).map((id) =>
-          selectedPhotoMedia(ctx, save, id, reference),
-        ),
-      );
-      const artwork = projectArtwork(save, await resolveDisplayAsset(ctx, save), reference);
-      artworks.push({
-        saveLocalId: save.localId,
-        artwork: photos.length > 0 ? { ...artwork, media: photos[0] } : artwork,
-        ...(photos.length > 0 ? { photos } : {}),
-      });
-    }
-    return {
-      audience: input.audience,
-      author: await projectProfile(ctx, profile),
-      venue: { venueId: visit.venueId, name: visit.venueName },
-      visitedOn: visit.visitedOn,
-      reflection: visit.reflection ?? "",
-      artworks,
-    };
+    return publications
+      .filter((publication) => !publication.removal && publication.audience !== "private")
+      .map((publication) => publication.visitLocalId);
   },
 });
 export const publish = mutation({
@@ -128,6 +69,9 @@ export const publish = mutation({
     if (publication?.removal) throw new ConvexError({ code: "not_found" });
     checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
     const { visit, saves } = await selectedSaves(ctx, owner, input);
+    // The device saves the chosen audience as the visit's visibility before publishing, so a mismatch means another
+    // device changed it in between.
+    if (visit.visibility !== input.audience) throw new ConvexError({ code: "conflict" });
     await limitKey(ctx, "publishVisit", accountId);
     const fields = {
       audience: input.audience,
@@ -153,14 +97,10 @@ export const publish = mutation({
     for (const item of previous) {
       if (!selected.has(item.saveId)) await ctx.db.delete("sharedVisitItems", item._id);
     }
-    const ordered = [
-      ...(input.highlightLocalIds ?? []).flatMap((id) => saves.filter((save) => save.localId === id)),
-      ...saves.filter((save) => !input.highlightLocalIds?.includes(save.localId)),
-    ];
-    for (const [position, save] of ordered.entries()) {
+    for (const [position, save] of saves.entries()) {
       const item = previous.find((item) => item.saveId === save._id);
       const photoLocalIds = input.photoSelections?.find((row) => row.saveLocalId === save.localId)?.photoLocalIds;
-      const highlighted = input.highlightLocalIds?.includes(save.localId) ?? position < 3;
+      const highlighted = position < 3;
       if (item) {
         await ctx.db.patch("sharedVisitItems", item._id, { position, photoLocalIds, highlighted });
       } else {
@@ -280,11 +220,15 @@ export const listFeed = query({
   returns: historyResult,
   handler: async (ctx, input) => {
     const { profile } = await requireProfile(ctx);
-    // Each candidate is re-authorized in historyPage, so the edge list alone selects the streams.
+    // Each candidate is re-authorized in historyPage, so the edge list alone selects the streams. The viewer's own
+    // posts join their feed, by visit date, so a visit is in the feed they land on after posting it.
     const edges = await acceptedRelationships(ctx, profile._id);
-    const authors = edges
-      .slice(0, LIMITS.friends)
-      .map((edge) => (edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId));
+    const authors = [
+      profile._id,
+      ...edges
+        .slice(0, LIMITS.friends)
+        .map((edge) => (edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId)),
+    ];
     return historyPage(
       ctx,
       profile._id,

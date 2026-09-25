@@ -46,20 +46,18 @@ export async function upsertJournalVisit(
   };
   const id = existing?._id ?? (await ctx.db.insert("visits", fields));
   if (existing) await ctx.db.patch("visits", id, fields);
-  if (
-    existing
-    && (existing.visitedOn !== input.visitedOn
-      || (input.visibility === "private" && existing.visibility !== input.visibility))
-  ) {
+  if (existing && (existing.visitedOn !== input.visitedOn || existing.visibility !== input.visibility)) {
     const publication = await ctx.db
       .query("sharedVisits")
       .withIndex("by_visitId", (q) => q.eq("visitId", id))
       .unique();
     if (publication) {
+      // The published version's audience mirrors the visit. An audience change keeps the revision, so a share flow
+      // that just switched it can still publish its draft.
       await ctx.db.patch("sharedVisits", publication._id, {
         visitedOn: input.visitedOn,
-        ...(input.visibility === "private" ? { status: "private" as const } : {}),
-        publicationRevision: publication.publicationRevision + 1,
+        audience: input.visibility,
+        ...(existing.visitedOn !== input.visitedOn ? { publicationRevision: publication.publicationRevision + 1 } : {}),
         updatedAt: Date.now(),
       });
     }

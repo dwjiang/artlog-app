@@ -6,6 +6,7 @@ import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { VisitSymbol } from "@/components/visits/visit-ui";
+import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
 import { Gallery, Typography } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
 import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
@@ -164,6 +165,7 @@ export function VisitCard({
     );
   return (
     <VisitFeedCard
+      audience={visit.audience}
       author={visit.author}
       venue={visit.venue}
       visitedOn={visit.visitedOn}
@@ -183,6 +185,7 @@ export function VisitCard({
 }
 
 export function VisitFeedCard({
+  audience,
   author,
   venue,
   visitedOn,
@@ -197,6 +200,7 @@ export function VisitFeedCard({
   onOpenProfile,
   onOpenMenu,
 }: {
+  audience: SharedVisit["audience"];
   author: Pick<PublicProfile, "name" | "photoUrl">;
   venue: { name: string; city?: string };
   visitedOn: string;
@@ -218,10 +222,17 @@ export function VisitFeedCard({
       {visitDate(visitedOn, undefined, "short")}
     </Text>
   );
+  // Public is the default reach, so only a narrower audience is named.
+  const reach = audience !== "public" && (
+    <View style={styles.reach}>
+      <VisitSymbol name={VISIT_VISIBILITY[audience].icon} size={11} />
+      <Text style={styles.feedDate}>{audience === "private" ? "Only you" : "Friends"}</Text>
+    </View>
+  );
   const location = (
     <View style={styles.location}>
       <VisitSymbol name="mappin.and.ellipse" size={12} />
-      <Text style={styles.locationText}>
+      <Text numberOfLines={1} style={styles.locationText}>
         {venue.name}
         {venue.city ? ` · ${venue.city}` : ""}
       </Text>
@@ -237,6 +248,7 @@ export function VisitFeedCard({
             ·
           </Text>
           {date}
+          {reach}
         </View>
         {location}
       </View>
@@ -285,6 +297,7 @@ export function VisitFeedCard({
         <View style={[styles.feedHeading, { flexWrap: "wrap" }]}>
           {location}
           {date}
+          {reach}
         </View>
       )}
       {artworks.length > 0
@@ -342,6 +355,7 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     columnGap: 6,
   },
+  reach: { flexDirection: "row", alignItems: "center", gap: 3 },
   location: {
     flexDirection: "row",
     alignItems: "center",

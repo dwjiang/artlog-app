@@ -126,17 +126,3 @@ it("does not reveal private history through public profile pagination cursors", 
     }),
   ).toEqual({ page: [], cursor: null, isDone: true });
 });
-
-it("rejects Friends-only preview and publication requests", async () => {
-  const t = harness();
-  const owner = await socialUser(t);
-  const draft = await socialVisit(t, owner);
-  const input = { ...draft.selection, audience: "friends" as never };
-  await expect(owner.as.query(api.sharedVisits.preview, input)).rejects.toThrow(
-    "Validator error: Expected `public`, got `friends`",
-  );
-  await expect(owner.as.mutation(api.sharedVisits.publish, input)).rejects.toThrow(
-    "Validator error: Expected `public`, got `friends`",
-  );
-  expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
-});
