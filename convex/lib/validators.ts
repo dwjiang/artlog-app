@@ -117,6 +117,14 @@ export const docentSentence = v.object({
 });
 export type DocentSentence = Infer<typeof docentSentence>;
 
+export const docentStatus = v.union(
+  v.literal("ready"),
+  v.literal("writing"),
+  v.literal("failed"),
+  v.literal("unavailable"),
+);
+export type DocentStatus = Infer<typeof docentStatus>;
+
 export const rightNowCard = v.object({
   text: v.string(),
   sourceUrl: v.string(),

@@ -148,8 +148,36 @@ it.each(["confident", "soft"] as const)(
     expect(result?.factSheet).toEqual(
       confident ? [{ id: "f1", sourceUrl: "https://www.metmuseum.org/art/1", sourceLabel: "The Met" }] : undefined,
     );
+    expect(result?.docentStatus).toBe(confident ? "ready" : undefined);
   },
 );
+
+it("reports whether a confident card's background is being written, failed, or has nothing to say", async () => {
+  const { t, user, work, scanId, best } = await fixture();
+  await t.mutation(internal.scans.setResult, {
+    scanId,
+    generation: 0,
+    status: "identified",
+    outcome: "confident",
+    best,
+    calibratorVersion: "lr-v1",
+  });
+  const status = async () => (await user.as.query(api.scans.get, { scanId }))?.docentStatus;
+  expect(await status()).toBe("writing");
+  await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docentFailedAt: 1 }));
+  expect(await status()).toBe("failed");
+  await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { factSheetNeedsReview: true }));
+  expect(await status()).toBe("unavailable");
+  await t.run((ctx) =>
+    ctx.db.patch("artworks", work.artworkId, {
+      factSheetNeedsReview: undefined,
+      docentFailedAt: undefined,
+      docent: { en: [] },
+      docentUpdatedAt: 2,
+    }),
+  );
+  expect(await status()).toBe("unavailable");
+});
 
 it("updates gallery history only for a confident result and never rolls it backwards", async () => {
   const { t, user, venueId, args, best } = await fixture();

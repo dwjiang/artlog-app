@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BottomTabInset, Spacing } from "@/constants/theme";
-import { dismissToast, useToast } from "@/lib/ui/toast";
+import { dismissToast, useToast, useToastLift } from "@/lib/ui/toast";
 
 import { ToastPill } from "./toast-pill";
 
@@ -15,9 +15,12 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
   const toast = useToast();
   const { bottom } = useSafeAreaInsets();
   const [root] = useSegments();
+  const lift = useToastLift();
   const inset = offset ?? (root === "(tabs)" ? BottomTabInset : 0);
+  // A screen's bottom bar already pads for the home indicator.
+  const position = offset === undefined && lift > 0 ? lift + Spacing.two : bottom + inset + Spacing.content;
   return (
-    <View pointerEvents="box-none" style={[styles.layer, { bottom: bottom + inset + Spacing.content }]}>
+    <View pointerEvents="box-none" style={[styles.layer, { bottom: position }]}>
       {children}
       {toast && (
         <ToastPill

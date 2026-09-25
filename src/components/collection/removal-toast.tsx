@@ -1,6 +1,7 @@
 import { ToastPill } from "@/components/toast-pill";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { commitRemoval, undoRemoval, usePendingRemovals } from "@/lib/collection/pending-removals";
+import { retryAction } from "@/lib/ui/toast";
 
 export function RemovalToast() {
   const owner = useLocalOwner();
@@ -19,16 +20,7 @@ export function RemovalToast() {
                 : "Artwork removed. Museum visits kept."
           }
           actions={[
-            ...(item.status === "failed"
-              ? [
-                  {
-                    label: "Retry",
-                    onPress: () => {
-                      void commitRemoval(item);
-                    },
-                  },
-                ]
-              : []),
+            ...(item.status === "failed" ? [retryAction(() => void commitRemoval(item))] : []),
             ...(item.status !== "saving" ? [{ label: "Undo", onPress: () => undoRemoval(item) }] : []),
           ]}
         />
