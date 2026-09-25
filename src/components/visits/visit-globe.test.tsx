@@ -6,7 +6,6 @@ import { VisitGlobe } from "./visit-globe";
 
 const mockPush = jest.fn();
 const mockDismissTo = jest.fn();
-const mockFocus = jest.fn();
 const mockReset = jest.fn();
 const mockZoom = jest.fn();
 const mockSettle = jest.fn();
@@ -14,12 +13,6 @@ jest.mock("expo-router", () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
     dismissTo: (...args: unknown[]) => mockDismissTo(...args),
-  },
-}));
-jest.mock("@/components/collection/saved-work-image", () => ({
-  SavedWorkImage: ({ title }: { title: string }) => {
-    const { Text } = jest.requireActual("react-native");
-    return <Text accessibilityRole="image">{title}</Text>;
   },
 }));
 jest.mock("./globe-canvas", () => {
@@ -30,14 +23,15 @@ jest.mock("./globe-canvas", () => {
       {
         pins,
         onSelect,
+        onCluster,
       }: {
         pins: { id: string; label: string }[];
         onSelect: (id: string) => void;
+        onCluster: (ids: string[]) => void;
       },
       ref: unknown,
     ) {
       React.useImperativeHandle(ref, () => ({
-        focus: mockFocus,
         reset: mockReset,
         zoom: mockZoom,
         settle: mockSettle,
@@ -49,6 +43,9 @@ jest.mock("./globe-canvas", () => {
               <Text>Pin: {pin.id}</Text>
             </Pressable>
           ))}
+          <Pressable accessibilityRole="button" onPress={() => onCluster(pins.map((pin) => pin.id))}>
+            <Text>Crowded pin</Text>
+          </Pressable>
         </View>
       );
     }),
@@ -67,7 +64,7 @@ const visit = (localId: string, venueId: string, city: string): VisitSummary =>
   }) as unknown as VisitSummary;
 beforeEach(() => jest.clearAllMocks());
 
-it("renders one pin per museum and opens the selected museum’s visits", async () => {
+it("renders one pin per museum and opens a tapped museum’s visits", async () => {
   await render(
     <VisitGlobe
       visits={[
@@ -80,34 +77,18 @@ it("renders one pin per museum and opens the selected museum’s visits", async 
     />,
   );
   expect(screen.getAllByRole("button", { name: /^Pin:/ })).toHaveLength(3);
-  expect(screen.getByText("2 visits · 0 artworks")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Pin: Louvre" }));
-  expect(screen.getByText("1 visit · 0 artworks")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View visits to Louvre" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/visit-place",
     params: { placeKey: "Paris", name: "Louvre", venueId: "Louvre" },
   });
 });
 
-it("offers a larger globe while keeping the selected museum visible", async () => {
-  await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/visit-globe",
-    params: { venueId: "Met" },
-  });
-  expect(screen.getByRole("button", { name: "View visits to Met" })).toBeOnTheScreen();
-});
-
 it("settles the globe before opening the expanded view so it starts from the live camera", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} onList={jest.fn()} />);
   await fireEvent.press(screen.getByRole("button", { name: "Expand globe" }));
   expect(mockSettle).toHaveBeenCalledTimes(1);
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/visit-globe",
-    params: { venueId: "Met" },
-  });
+  expect(mockPush).toHaveBeenCalledWith("/visit-globe");
   expect(mockSettle.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
 });
 
@@ -118,11 +99,23 @@ it("keeps visits without coordinates available through List", async () => {
   expect(onList).toHaveBeenCalled();
 });
 
-it("dismisses the expanded modal into the museum visit browser", async () => {
+it("dismisses the expanded modal into the tapped museum’s visits", async () => {
   await render(<VisitGlobe visits={[visit("1", "Met", "New York")]} expanded onList={jest.fn()} />);
-  await fireEvent.press(screen.getByRole("button", { name: "View visits to Met" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Pin: Met" }));
   expect(mockDismissTo).toHaveBeenCalledWith({
     pathname: "/visit-place",
     params: { placeKey: "New York", name: "Met", venueId: "Met" },
+  });
+});
+
+it("dismisses the expanded modal into a museum chosen at a crowded pin", async () => {
+  await render(
+    <VisitGlobe visits={[visit("1", "Met", "New York"), visit("2", "MoMA", "New York")]} expanded onList={jest.fn()} />,
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Crowded pin" }));
+  await fireEvent.press(screen.getByRole("button", { name: "MoMA" }));
+  expect(mockDismissTo).toHaveBeenCalledWith({
+    pathname: "/visit-place",
+    params: { placeKey: "New York", name: "MoMA", venueId: "MoMA" },
   });
 });

@@ -2,40 +2,34 @@ import { Button, Host, Icon } from "@expo/ui";
 import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 import { useRef, useState, type ComponentProps } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { WallSheet } from "@/components/collection/wall-sheet";
-import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useGlobeSession } from "@/lib/journal/globe-session";
-import { countryName, placeIdentity } from "@/lib/journal/history";
-import { mappedMuseums, visitCounts, visitsAtPlace, type VisitSummary } from "@/lib/journal/visit-summaries";
+import { placeIdentity } from "@/lib/journal/history";
+import { mappedMuseums, type VisitSummary } from "@/lib/journal/visit-summaries";
 
 import { GlobeCanvas, type GlobeCanvasHandle } from "./globe-canvas";
-import { ArtworkPreviews, VisitMessage, VisitSymbol } from "./visit-ui";
+import { VisitMessage } from "./visit-ui";
 
 export function VisitGlobe({
   visits,
   expanded = false,
-  initialVenueId,
   onList,
 }: {
   visits: VisitSummary[];
   expanded?: boolean;
-  initialVenueId?: string;
   onList: () => void;
 }) {
   const museums = mappedMuseums(visits);
   const session = useGlobeSession(useLocalOwner());
-  const selectedId = session.selectedId ?? initialVenueId;
-  const setSelectedId = (selectedId: string) => session.update({ selectedId });
   const [clusterIds, setClusterIds] = useState<string[]>([]);
-  const selected = museums.find((visit) => visit.venueId === selectedId) ?? museums[0];
   const globe = useRef<GlobeCanvasHandle>(null);
   const { width } = useWindowDimensions();
-  if (!selected) {
+  if (museums.length === 0) {
     return (
       <VisitMessage action="Show List" onAction={onList}>
         Globe locations are unavailable. Your visits are still in List.
@@ -46,19 +40,21 @@ export function VisitGlobe({
     id: visit.venueId,
     latitude: visit.coordinates!.latitude,
     longitude: visit.coordinates!.longitude,
-    label: placeIdentity(visit).name,
+    label: visit.venueName,
   }));
-  const initialPin = pins.find((pin) => pin.id === initialVenueId) ?? pins[0];
-  const place = placeIdentity(selected);
-  const placeVisits = visitsAtPlace(visits, place.key);
-  const museumVisits = placeVisits.filter((visit) => visit.venueId === selected.venueId);
-  const counts = visitCounts(museumVisits);
-  const previews = museumVisits.flatMap((visit) => visit.works);
-  const artworkCount = new Set(previews.map((work) => work.localId)).size;
-  function select(id: string) {
-    setSelectedId(id);
-    const pin = pins.find((item) => item.id === id);
-    if (pin) globe.current?.focus(pin);
+  function openMuseum(venueId: string) {
+    const museum = museums.find((visit) => visit.venueId === venueId);
+    if (!museum) return;
+    const destination = {
+      pathname: "/visit-place" as const,
+      params: {
+        placeKey: placeIdentity(museum).key,
+        name: museum.venueName,
+        venueId,
+      },
+    };
+    if (expanded) router.dismissTo(destination);
+    else router.push(destination);
   }
   return (
     <View>
@@ -66,9 +62,9 @@ export function VisitGlobe({
         <GlobeCanvas
           ref={globe}
           pins={pins}
-          initialPin={initialPin}
+          initialPin={pins[0]}
           height={expanded ? Math.min(width, 390) : 337}
-          onSelect={setSelectedId}
+          onSelect={openMuseum}
           initialCamera={session.camera}
           onCameraChange={(camera) => session.update({ camera })}
           onCluster={setClusterIds}
@@ -80,48 +76,11 @@ export function VisitGlobe({
               icon="arrow.up.left.and.arrow.down.right"
               onPress={() => {
                 globe.current?.settle();
-                router.push({
-                  pathname: "/visit-globe",
-                  params: { venueId: selected.venueId },
-                });
+                router.push("/visit-globe");
               }}
             />
           </View>
         )}
-      </View>
-      <View style={styles.placeWrap}>
-        <Pressable
-          style={styles.placeCard}
-          accessibilityRole="button"
-          accessibilityLabel={`View visits to ${selected.venueName}`}
-          onPress={() => {
-            const destination = {
-              pathname: "/visit-place" as const,
-              params: {
-                placeKey: place.key,
-                name: selected.venueName,
-                venueId: selected.venueId,
-              },
-            };
-            if (expanded) router.dismissTo(destination);
-            else router.push(destination);
-          }}
-        >
-          <View style={styles.placeTop}>
-            <ArtworkPreviews works={previews} size={48} limit={1} />
-            <View style={{ flex: 1, gap: 3 }}>
-              <Text variant="button">{selected.venueName}</Text>
-              <Text style={styles.placeTitle}>
-                {[place.name, countryName(selected.country)].filter(Boolean).join(", ")}
-              </Text>
-              <Text style={styles.counts}>
-                {counts.visits} {counts.visits === 1 ? "visit" : "visits"} · {artworkCount}{" "}
-                {artworkCount === 1 ? "artwork" : "artworks"}
-              </Text>
-            </View>
-            <VisitSymbol name="chevron.right" size={13} color={Gallery.ink} />
-          </View>
-        </Pressable>
       </View>
       {clusterIds.length > 0 && (
         <WallSheet title="Museums here" onDismiss={() => setClusterIds([])}>
@@ -134,8 +93,8 @@ export function VisitGlobe({
                   label={museum.venueName}
                   icon="building.columns"
                   onPress={() => {
-                    select(museum.venueId);
                     setClusterIds([]);
+                    openMuseum(museum.venueId);
                   }}
                 />
               ))}
@@ -195,20 +154,4 @@ function GlobeButton({
 }
 const styles = StyleSheet.create({
   expand: { position: "absolute", top: 4, right: 18 },
-  placeWrap: { paddingHorizontal: 20, paddingBottom: 4 },
-  placeCard: {
-    padding: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.softBorder,
-    borderRadius: Radius.input,
-    backgroundColor: Gallery.surface,
-  },
-  placeTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  placeTitle: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  counts: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
 });
