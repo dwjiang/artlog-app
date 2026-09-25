@@ -549,8 +549,9 @@ async function publish(): Promise<void> {
       head: plan.branch,
       base: "main",
       draft: true,
+      // Sentry's GitHub integration reads "Fixes <short ID>" from the PR body, which survives a retitle before merge.
       body:
-        `Production Sentry issue: [${plan.issue}](${issueUrl(plan.issueId)})\n\n${plan.body}\n\n`
+        `Fixes [${plan.issue}](${issueUrl(plan.issueId)})\n\n${plan.body}\n\n`
         + "iOS simulator verification was not run on the Linux runner. Human iOS verification and manual merge are required.\n\n"
         + `Independent review of \`${reviewedHead}\`: **${state.verdict}**\n\n${plan.review.body}\n\n`
         + stateMarker(state),
