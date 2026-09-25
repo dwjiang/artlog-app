@@ -11,6 +11,7 @@ import { createVenueController, VenueResolver, type VenueController } from "./us
 import { NOT_HERE_MS } from "./venue-reducer";
 
 const mockRequestPermission = jest.fn();
+const mockGetPermission = jest.fn();
 const mockGetPosition = jest.fn();
 const mockPush = jest.fn();
 const mockMutation = jest.fn();
@@ -29,14 +30,17 @@ let mockActivity: number | undefined;
 let mockPatchRejects: string | undefined;
 let mockNow = 1_000_000;
 let mockUuid = 0;
+let mockIntroduced = true;
 
 jest.mock("expo-location", () => ({
   Accuracy: { Balanced: 3 },
   requestForegroundPermissionsAsync: () => mockRequestPermission(),
+  getForegroundPermissionsAsync: () => mockGetPermission(),
   getCurrentPositionAsync: (...args: unknown[]) => mockGetPosition(...args),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock("@/lib/account/introduction", () => ({ useIntroductionOver: () => mockIntroduced }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => mockAuth,
   useQuery: () => (mockAuth.isAuthenticated ? "registered" : null),
@@ -183,11 +187,13 @@ beforeEach(() => {
   mockActivity = undefined;
   mockPatchRejects = undefined;
   mockUuid = 0;
+  mockIntroduced = true;
   mockAuth.isAuthenticated = true;
   mockReachable = true;
   mockSettings.clear();
   mockVisits.clear();
   mockRequestPermission.mockResolvedValue({ granted: true });
+  mockGetPermission.mockResolvedValue({ granted: true });
   mockGetPosition.mockResolvedValue({
     coords: { latitude: met.lat, longitude: met.lng },
     timestamp: mockNow,
@@ -375,11 +381,68 @@ describe("resolving the museum", () => {
     expect(mockMutation).not.toHaveBeenCalled();
   });
 
+  it("asks for location and opens the picker only once a first launch's welcome is behind the person", async () => {
+    mockIntroduced = false;
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    const view = await render(<VenueResolver controller={controller} />);
+    await act(async () => {});
+    expect(mockGetPermission).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    mockIntroduced = true;
+    await act(async () => {
+      await view.rerender(<VenueResolver controller={controller} />);
+    });
+    await act(async () => {
+      await controller.resolve();
+    });
+    expect(mockGetPermission).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/venue-picker",
+      params: { mode: "choose" },
+    });
+  });
+
   it("records a denied permission without asking for a position", async () => {
-    mockRequestPermission.mockResolvedValue({ granted: false });
+    mockGetPermission.mockResolvedValue({ granted: false });
     await expect(controller.resolve()).resolves.toEqual({});
     expect(mockGetPosition).not.toHaveBeenCalled();
     expect(controller.getState().status).toBe("denied");
+  });
+
+  it("leaves the system location prompt to a scan: launch and foreground only check the answer", async () => {
+    mockGetPermission.mockResolvedValue({ granted: false });
+    await mountResolver();
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+    expect(controller.getState().status).toBe("denied");
+
+    mockNearest.mockResolvedValue([metRow]);
+    await act(async () => {
+      await controller.resolveForScan(mockNow);
+    });
+    expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+    expect(controller.getContext()).toEqual({ venueId: "id-met" });
+  });
+
+  it("pauses the visit while an expired Allow Once leaves location unanswered, and ends it only once declined", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    const visit = await controller.visitForSave(metId, mockNow);
+    controller.appStateChanged("background");
+    mockGetPermission.mockResolvedValue({ granted: false, canAskAgain: true });
+    await controller.resolve();
+    expect(controller.getState().status).toBe("denied");
+    expect(mockVisits.get(visit.localId)).toMatchObject({ endedAt: null });
+
+    await expect(controller.resolveForScan(mockNow)).resolves.toMatchObject({
+      venueId: "id-met",
+      visitLocalId: visit.localId,
+    });
+
+    controller.appStateChanged("background");
+    mockGetPermission.mockResolvedValue({ granted: false, canAskAgain: false });
+    await controller.resolve();
+    expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
   });
 
   it("keeps the last venue when the fix fails and reports the error", async () => {
@@ -1302,7 +1365,7 @@ describe("the sheet", () => {
 });
 
 it("keeps a searched museum through denied location, relaunch, and scans until the visit ends", async () => {
-  mockRequestPermission.mockResolvedValue({ granted: false });
+  mockGetPermission.mockResolvedValue({ granted: false });
   const controller = createVenueController();
   await controller.confirm({
     kind: "seeded",
@@ -1317,7 +1380,7 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
     venueId: "id-Met",
     visitLocalId: visit.localId,
   });
-  expect(mockRequestPermission).not.toHaveBeenCalled();
+  expect(mockGetPermission).not.toHaveBeenCalled();
   const restored = createVenueController();
   await restored.hydrate();
   expect(await restored.resolve()).toMatchObject({
@@ -1330,7 +1393,7 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
 });
 
 it("lets location take over the day after a museum was picked from search without a visit", async () => {
-  mockRequestPermission.mockResolvedValue({ granted: false });
+  mockGetPermission.mockResolvedValue({ granted: false });
   await controller.confirm({
     kind: "seeded",
     venueId: metId,
@@ -1338,12 +1401,12 @@ it("lets location take over the day after a museum was picked from search withou
     manual: byHand(),
   });
   expect(await controller.resolve()).toEqual({ venueId: metId });
-  expect(mockRequestPermission).not.toHaveBeenCalled();
+  expect(mockGetPermission).not.toHaveBeenCalled();
   mockNow += DAY;
-  mockRequestPermission.mockResolvedValue({ granted: true });
+  mockGetPermission.mockResolvedValue({ granted: true });
   mockNearest.mockResolvedValue([{ ...neueRow, distanceM: 40 }]);
   expect(await controller.resolve()).toEqual({ venueId: neueId });
-  expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+  expect(mockGetPermission).toHaveBeenCalledTimes(1);
   expect(controller.getState().venue?.manual).toBeUndefined();
 });
 
@@ -1375,7 +1438,7 @@ it("keeps a manually selected museum when its first save closes the previous vis
   expect(controller.getState().visit?.localId).toBe(previous.localId);
   const next = await controller.visitForSave(neueId, mockNow);
   expect(mockVisits.get(previous.localId)?.endedAt).not.toBeNull();
-  mockRequestPermission.mockResolvedValue({ granted: false });
+  mockGetPermission.mockResolvedValue({ granted: false });
   const restored = createVenueController();
   await restored.hydrate();
   expect(await restored.resolve()).toMatchObject({
@@ -1398,7 +1461,7 @@ it("keeps a searched museum across relaunch when its visit was already open", as
     manual: byHand(),
   });
   expect(mockVisits.size).toBe(1);
-  mockRequestPermission.mockResolvedValue({ granted: false });
+  mockGetPermission.mockResolvedValue({ granted: false });
   const restored = createVenueController();
   await restored.hydrate();
   expect(await restored.resolve()).toMatchObject({

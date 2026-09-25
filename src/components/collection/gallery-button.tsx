@@ -50,7 +50,8 @@ export function GalleryButton({
   inverse?: boolean;
   fullWidth?: boolean;
   destructive?: boolean;
-  tone?: "accent" | "ink";
+  /** `neutral` fills with the paper fill and ink text: a quiet secondary next to a filled primary. */
+  tone?: "accent" | "ink" | "neutral";
   size?: "regular" | "compact";
   minHeight?: number;
   /** Draws only `icon`; `label` remains the accessible name. */
@@ -64,8 +65,10 @@ export function GalleryButton({
       ? Gallery.surface
       : tone === "ink"
         ? Gallery.ink
-        : Gallery.accent;
-  const foreground = variant === "filled" ? (inverse ? Gallery.ink : Gallery.surface) : accent;
+        : tone === "neutral"
+          ? Gallery.fill
+          : Gallery.accent;
+  const foreground = variant === "filled" ? (inverse || tone === "neutral" ? Gallery.ink : Gallery.surface) : accent;
   const minHeight = minHeightOverride ?? (variant === "filled" && expand ? (size === "compact" ? 48 : 52) : 44);
   useEffect(() => {
     if (busy) {

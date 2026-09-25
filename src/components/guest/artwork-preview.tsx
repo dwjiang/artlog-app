@@ -7,76 +7,52 @@ export const introArtworks = {
   pearl: {
     source: require("../../../assets/images/onboarding/girl-with-a-pearl-earring.jpg"),
     title: "Girl with a Pearl Earring, Johannes Vermeer",
+    aspectRatio: 960 / 1137,
   },
   lilies: {
     source: require("../../../assets/images/onboarding/water-lilies.jpg"),
     title: "Water Lilies, Claude Monet",
+    aspectRatio: 843 / 809,
   },
   stars: {
     source: require("../../../assets/images/onboarding/starry-night.jpg"),
     title: "The Starry Night, Vincent van Gogh",
+    aspectRatio: 960 / 760,
   },
 } as const;
 
-export function ArtworkCollage({ welcome = false }: { welcome?: boolean }) {
+export function ArtworkCollage() {
   const { width, height, fontScale } = useWindowDimensions();
   const size = Math.min(width - Spacing.content * 2, height < 760 || fontScale > 1.3 ? 280 : 360);
-  const prints = welcome
-    ? [
-        {
-          artwork: introArtworks.lilies,
-          left: 0.02,
-          top: 0.17,
-          width: 0.43,
-          height: 0.55,
-          rotate: "-9deg",
-        },
-        {
-          artwork: introArtworks.stars,
-          left: 0.55,
-          top: 0.21,
-          width: 0.43,
-          height: 0.55,
-          rotate: "9deg",
-        },
-        {
-          artwork: introArtworks.pearl,
-          left: 0.29,
-          top: 0.06,
-          width: 0.43,
-          height: 0.7,
-          rotate: "5deg",
-        },
-      ]
-    : [
-        {
-          artwork: introArtworks.pearl,
-          left: 0.02,
-          top: 0.08,
-          width: 0.43,
-          height: 0.51,
-          rotate: "-9deg",
-        },
-        {
-          artwork: introArtworks.stars,
-          left: 0.55,
-          top: 0.06,
-          width: 0.43,
-          height: 0.51,
-          rotate: "9deg",
-        },
-        {
-          artwork: introArtworks.lilies,
-          left: 0.28,
-          top: 0.19,
-          width: 0.44,
-          height: 0.44,
-          rotate: "0deg",
-        },
-      ];
+  const prints = [
+    {
+      artwork: introArtworks.pearl,
+      left: 0.02,
+      top: 0.08,
+      width: 0.43,
+      height: 0.51,
+      rotate: "-9deg",
+    },
+    {
+      artwork: introArtworks.stars,
+      left: 0.55,
+      top: 0.06,
+      width: 0.43,
+      height: 0.51,
+      rotate: "9deg",
+    },
+    {
+      artwork: introArtworks.lilies,
+      left: 0.28,
+      top: 0.19,
+      width: 0.44,
+      height: 0.44,
+      rotate: "0deg",
+    },
+  ];
   return (
     <View style={styles.center}>
-      <View accessibilityElementsHidden style={{ width: size, height: size * (welcome ? 0.83 : 0.68) }}>
+      <View accessibilityElementsHidden style={{ width: size, height: size * 0.68 }}>
         {prints.map(({ artwork, left, top, width: printWidth, height: printHeight, rotate }) => (
           <View
             key={artwork.title}

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Linking } from "react-native";
 
 import { removeSetting } from "@/db/repos/settings";
@@ -27,6 +27,8 @@ const mockDeclinePrompt = jest.fn();
 const mockResolve = jest.fn();
 const mockEnd = jest.fn();
 let mockView: VenueView;
+let mockLocation: { granted: boolean; canAskAgain: boolean } | null = null;
+let mockRequestLocation: () => Promise<{ granted: boolean }>;
 let mockParams: { mode?: string } = {};
 let mockVisits: {
   localId: string;
@@ -48,6 +50,9 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
+jest.mock("expo-location", () => ({
+  useForegroundPermissions: () => [mockLocation, () => mockRequestLocation()],
+}));
 
 const seeded: VenueOption = {
   kind: "seeded",
@@ -86,6 +91,8 @@ beforeEach(async () => {
   mockEnd.mockResolvedValue(undefined);
   mockParams = {};
   mockVisits = [];
+  mockLocation = { granted: false, canAskAgain: false };
+  mockRequestLocation = async () => ({ granted: true });
   mockView = {
     status: "choose",
     options: [seeded, neighbour],
@@ -276,6 +283,16 @@ describe("choosing a museum", () => {
     const open = jest.spyOn(Linking, "openSettings").mockResolvedValue();
     await fireEvent.press(screen.getByRole("button", { name: "Open Settings" }));
     expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for location that was never answered, then looks for nearby museums", async () => {
+    mockLocation = { granted: false, canAskAgain: true };
+    mockView = { ...mockView, status: "denied", options: [] };
+    await render(<VenuePickerSheet />);
+    expect(screen.getByText(/^Allow location to find nearby museums\./)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Open Settings" })).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Allow location" }));
+    await waitFor(() => expect(mockResolve).toHaveBeenCalledTimes(1));
   });
 
   it("allows continuing without a museum while locating", async () => {
