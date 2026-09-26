@@ -2,7 +2,9 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
+import { patchArtworkContent } from "./lib/artworkContent";
 import { labelField } from "./lib/labelVerify";
+import { patchObjectDetails } from "./lib/objectDetails";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -105,6 +107,35 @@ it.each([
   expect(result).not.toHaveProperty("deviceId");
 });
 
+it("refreshes displayed metadata when only the linked details row changes", async () => {
+  const { t, user, work, scanId, best } = await fixture();
+  await t.mutation(internal.scans.setResult, {
+    scanId,
+    generation: 0,
+    status: "identified",
+    outcome: "confident",
+    best,
+    calibratorVersion: "lr-v1",
+  });
+  const object = await t.run((ctx) => ctx.db.get("objects", work.objectId));
+  await t.run((ctx) =>
+    patchObjectDetails(
+      ctx,
+      { _id: work.objectId },
+      {
+        medium: "Watercolor",
+        thumbnailUrl: "https://museum.example/new.jpg",
+      },
+    ),
+  );
+  expect(await user.as.query(api.scans.get, { scanId })).toMatchObject({
+    best: { medium: "Watercolor", thumbnailUrl: "https://museum.example/new.jpg" },
+  });
+  expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toEqual(object);
+  await t.run((ctx) => patchObjectDetails(ctx, { _id: work.objectId }, { thumbnailUrl: undefined }));
+  expect((await user.as.query(api.scans.get, { scanId }))?.best).not.toHaveProperty("thumbnailUrl");
+});
+
 it.each(["confident", "soft"] as const)(
   "joins docent sentences and source chips from the artwork only for a confident card (%s)",
   async (outcome) => {
@@ -126,14 +157,13 @@ it.each(["confident", "soft"] as const)(
         },
       ],
     };
-    await t.run((ctx) =>
-      ctx.db.patch("artworks", work.artworkId, {
-        factSheet,
+    await t.run(async (ctx) => {
+      await patchArtworkContent(ctx, { _id: work.artworkId }, { factSheet, docent });
+      await ctx.db.patch("artworks", work.artworkId, {
         factSheetUpdatedAt: 1,
-        docent,
         docentUpdatedAt: 2,
-      }),
-    );
+      });
+    });
     await t.mutation(internal.scans.setResult, {
       scanId,
       generation: 0,
@@ -168,14 +198,14 @@ it("reports whether a confident card's background is being written, failed, or h
   expect(await status()).toBe("failed");
   await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { factSheetNeedsReview: true }));
   expect(await status()).toBe("unavailable");
-  await t.run((ctx) =>
-    ctx.db.patch("artworks", work.artworkId, {
+  await t.run(async (ctx) => {
+    await patchArtworkContent(ctx, { _id: work.artworkId }, { docent: { en: [] } });
+    await ctx.db.patch("artworks", work.artworkId, {
       factSheetNeedsReview: undefined,
       docentFailedAt: undefined,
-      docent: { en: [] },
       docentUpdatedAt: 2,
-    }),
-  );
+    });
+  });
   expect(await status()).toBe("unavailable");
 });
 

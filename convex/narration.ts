@@ -24,6 +24,7 @@ import {
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { createSegmenter, eventPlaylist, type PackedSegment } from "./lib/hls";
@@ -74,7 +75,8 @@ export const claim = internalMutation({
     if (!artwork || artwork.retiredAt || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
       throw new ConvexError({ code: "narration_unavailable" });
     }
-    const facts = guideResearch(artwork.factSheet ?? []);
+    const content = await readArtworkContent(ctx, artwork);
+    const facts = guideResearch(content?.factSheet ?? []);
     if (facts.length === 0) throw new ConvexError({ code: "narration_unavailable" });
     const opening = guideOpening(artwork);
     const audio = await renderedNarration(ctx, artwork);

@@ -7,8 +7,10 @@ import { removeContribution } from "./contributionRemoval";
 import { clearDocent } from "./docent";
 import { feedbackChanged } from "./feedbackReplay";
 import { bumpCounter } from "./ingest";
+import { patchArtworkContent } from "./lib/artworkContent";
 import { revokeContributionMedia } from "./lib/displayMedia";
 import { fileStorage } from "./lib/fileStorage";
+import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { deleteVector } from "./lib/vectorStore";
 import { readyForReview, reassessProposal } from "./placements";
@@ -32,11 +34,14 @@ export async function beginRevert(ctx: MutationCtx, object: Doc<"objects">, reas
   await ctx.db.patch("objects", object._id, {
     reverted: true,
     revertedReason: reason,
-    thumbnailStorageId: undefined,
-    ...(object.thumbnailStorageId ? { imageRef: undefined } : {}),
   });
-  if (object.thumbnailStorageId && (await fileStorage.getMetadata(ctx, object.thumbnailStorageId))) {
-    await fileStorage.delete(ctx, object.thumbnailStorageId);
+  const details = await readObjectDetails(ctx, object);
+  await patchObjectDetails(ctx, object, {
+    thumbnailStorageId: undefined,
+    ...(details?.thumbnailStorageId ? { imageRef: undefined } : {}),
+  });
+  if (details?.thumbnailStorageId && (await fileStorage.getMetadata(ctx, details.thumbnailStorageId))) {
+    await fileStorage.delete(ctx, details.thumbnailStorageId);
   }
 }
 
@@ -740,9 +745,9 @@ export const applyTakedown = internalMutation({
       receivedAt: now,
     });
     await clearDocent(ctx, artwork);
+    await patchArtworkContent(ctx, artwork, { factSheet: undefined });
     // The hold keeps enrichment from regenerating the sheet; review.replaceFactSheet lifts it deliberately.
     await ctx.db.patch("artworks", artwork._id, {
-      factSheet: undefined,
       factSheetUpdatedAt: undefined,
       factSheetNeedsReview: true,
     });

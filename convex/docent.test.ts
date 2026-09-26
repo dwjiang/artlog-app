@@ -4,6 +4,7 @@ import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { guideBodyFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
@@ -249,6 +250,15 @@ function everything() {
 const calls = (prefix: string) => fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
 const bodies = (prefix: string) => calls(prefix).map(([, init]) => JSON.parse(String(init?.body)));
 
+async function readArtwork(t: Harness, artworkId: Id<"artworks">) {
+  return t.run(async (ctx) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (!artwork) return null;
+    const { _id, _creationTime, ...content } = (await readArtworkContent(ctx, artwork)) ?? {};
+    return { ...artwork, ...content };
+  });
+}
+
 async function fixture(
   options: {
     pageUrl?: string | null;
@@ -273,13 +283,13 @@ async function fixture(
         date: "1889",
         wikidataId: options.wikidataId === null ? undefined : (options.wikidataId ?? "Q18689458"),
       },
-      object: {
-        ownerId: museumId,
+      object: { ownerId: museumId },
+      objectDetails: {
         pageUrl: options.pageUrl === null ? undefined : (options.pageUrl ?? PAGE),
       },
     }),
   );
-  const artwork = () => t.run((ctx) => ctx.db.get("artworks", work.artworkId));
+  const artwork = () => readArtwork(t, work.artworkId);
   const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
   const ensure = () => t.action(internal.docent.ensure, { artworkId: work.artworkId, deviceId });
   return { t, deviceId, museumId, work, artwork, spend, ensure };
@@ -388,15 +398,18 @@ describe("docent.ensure", () => {
   it("makes no calls when sentences are cached, under review, or claimed by a concurrent run", async () => {
     const { t, work, artwork, ensure, spend } = await fixture();
     everything();
-    await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docent: { en: [] }, docentUpdatedAt: 1 }));
+    await t.run(async (ctx) => {
+      await patchArtworkContent(ctx, { _id: work.artworkId }, { docent: { en: [] } });
+      await ctx.db.patch("artworks", work.artworkId, { docentUpdatedAt: 1 });
+    });
     await ensure();
-    await t.run((ctx) =>
-      ctx.db.patch("artworks", work.artworkId, {
-        docent: undefined,
+    await t.run(async (ctx) => {
+      await patchArtworkContent(ctx, { _id: work.artworkId }, { docent: undefined });
+      await ctx.db.patch("artworks", work.artworkId, {
         docentUpdatedAt: undefined,
         factSheetNeedsReview: true,
-      }),
-    );
+      });
+    });
     await ensure();
     await t.run((ctx) =>
       ctx.db.patch("artworks", work.artworkId, {
@@ -529,7 +542,10 @@ describe("docent.ensure", () => {
         sourceScore: 1,
       },
     ];
-    await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { factSheet, factSheetUpdatedAt: 5 }));
+    await t.run(async (ctx) => {
+      await patchArtworkContent(ctx, { _id: work.artworkId }, { factSheet });
+      await ctx.db.patch("artworks", work.artworkId, { factSheetUpdatedAt: 5 });
+    });
     await ensure();
     expect(calls(TAVILY)).toEqual([]);
     expect(calls(PAGE)).toEqual([]);
@@ -559,11 +575,11 @@ describe("docent.ensure", () => {
     for (const artworkId of artworkIds) {
       await t.action(internal.docent.ensure, { artworkId, deviceId });
     }
-    const last = await t.run((ctx) => ctx.db.get("artworks", artworkIds[60]));
+    const last = await readArtwork(t, artworkIds[60]);
     expect(last?.factSheet).toBeUndefined();
     expect(last?.enrichClaimedAt).toBeUndefined();
     expect(calls(TAVILY)).toHaveLength(60);
-    expect((await t.run((ctx) => ctx.db.get("artworks", artworkIds[59])))?.docent?.en).toHaveLength(1);
+    expect((await readArtwork(t, artworkIds[59]))?.docent?.en).toHaveLength(1);
   });
 });
 
@@ -640,9 +656,13 @@ describe("docent write mutations", () => {
       docentEn,
     });
     const written = await t.run((ctx) => ctx.db.get("artworks", artworkId));
-    expect(written).toMatchObject({
+    expect(written).not.toHaveProperty("factSheet");
+    expect(written).not.toHaveProperty("docent");
+    expect(await t.run((ctx) => ctx.db.get("artworkContent", written!.contentId!))).toMatchObject({
       factSheet,
       docent: { en: docentEn },
+    });
+    expect(written).toMatchObject({
       factSheetUpdatedAt: expect.any(Number),
       docentUpdatedAt: expect.any(Number),
     });
@@ -650,8 +670,9 @@ describe("docent write mutations", () => {
     expect(written).not.toHaveProperty("factSheetNeedsReview");
     await t.mutation(internal.docent.invalidateDocent, { artworkId });
     const invalidated = await t.run((ctx) => ctx.db.get("artworks", artworkId));
-    expect(invalidated).toMatchObject({ factSheet });
-    expect(invalidated).not.toHaveProperty("docent");
+    const content = await t.run((ctx) => ctx.db.get("artworkContent", invalidated!.contentId!));
+    expect(content).toMatchObject({ factSheet });
+    expect(content).not.toHaveProperty("docent");
     expect(invalidated).not.toHaveProperty("docentUpdatedAt");
   });
 });
@@ -681,7 +702,7 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
       generation: next,
     }),
   ).toBe(false);
-  expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.docent).toBeUndefined();
+  expect((await readArtwork(t, artworkId))?.docent).toBeUndefined();
 });
 
 it("shares a single research search between independent docent and audio scripts", async () => {

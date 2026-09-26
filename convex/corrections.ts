@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { mutation } from "./_generated/server";
 import { clearDocent } from "./docent";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { limitDevice } from "./lib/rateLimits";
 
@@ -22,7 +23,8 @@ export const correctFact = mutation({
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get("artworks", args.artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
-    if (!artwork.factSheet?.some((fact) => fact.id === args.factId)) {
+    const content = await readArtworkContent(ctx, artwork);
+    if (!content?.factSheet?.some((fact) => fact.id === args.factId)) {
       throw new ConvexError({ code: "unknown_fact" });
     }
     const message = args.message.trim();

@@ -26,10 +26,8 @@ export type MuseumManifest = MuseumSummary & {
 export type MuseumEntry = {
   vectors: number[][];
   candidate: {
-    object: Pick<
-      Doc<"objects">,
-      "_id" | "identityStatus" | "ownerId" | "medium" | "calibratorPenalty" | "rejectionPenalty"
-    >;
+    object: Pick<Doc<"objects">, "_id" | "identityStatus" | "ownerId" | "calibratorPenalty" | "rejectionPenalty">
+      & Pick<Doc<"objectDetails">, "medium">;
     artwork: Pick<Doc<"artworks">, "_id" | "title" | "artist" | "date" | "rightsStatus"> & {
       docent?: DocentSentence[];
       factSheet?: FactChip[];

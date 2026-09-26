@@ -18,7 +18,9 @@ export type SignedIn = {
   as: ReturnType<Harness["withIdentity"]>;
 };
 
-export function harness(options: { transactionLimits?: boolean; vectorSync?: boolean } = {}): Harness {
+export function harness(
+  options: { transactionLimits?: Parameters<typeof convexTest>[0]["transactionLimits"]; vectorSync?: boolean } = {},
+): Harness {
   const { vectorSync, ...limits } = options;
   const testModules = vectorSync
     ? modules

@@ -112,8 +112,8 @@ it("decodes, orients, strips metadata and stores a separate measured derivative;
   const before = await f.t.run((ctx) =>
     ctx.db
       .query("files")
-      .withIndex("by_state", (q) => q.eq("state", "ready"))
-      .collect(),
+      .collect()
+      .then((files) => files.filter((file) => file.state === "ready")),
   );
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
@@ -122,8 +122,8 @@ it("decodes, orients, strips metadata and stores a separate measured derivative;
     await f.t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toEqual(before);
   const projected = await f.t.query(api.walls.getArtwork, { itemId: f.itemId });
@@ -184,8 +184,8 @@ it("concurrent preparations leave one asset and one derivative file", async () =
       await f.t.run((ctx) =>
         ctx.db
           .query("files")
-          .withIndex("by_state", (q) => q.eq("state", "ready"))
-          .collect(),
+          .collect()
+          .then((files) => files.filter((file) => file.state === "ready")),
       ),
     ).toHaveLength(3); // crop, ORB, derivative
   } finally {
@@ -312,8 +312,8 @@ it("withdrawing the contribution revokes its derivative and deletes the file", a
   const files = await f.t.run((ctx) =>
     ctx.db
       .query("files")
-      .withIndex("by_state", (q) => q.eq("state", "ready"))
-      .collect(),
+      .collect()
+      .then((files) => files.filter((file) => file.state === "ready")),
   );
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
@@ -322,8 +322,8 @@ it("withdrawing the contribution revokes its derivative and deletes the file", a
     await f.t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toEqual(files);
 });

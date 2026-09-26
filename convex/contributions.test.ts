@@ -11,6 +11,7 @@ import { contribute as contributeAction, DUPLICATE_COSINE } from "./contribution
 import { AGREEMENT_MIN_COSINE } from "./lib/agreement";
 import { fileStorage } from "./lib/fileStorage";
 import { labelField } from "./lib/labelVerify";
+import { readObjectDetails } from "./lib/objectDetails";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
 import { r2 } from "./lib/r2";
 import {
@@ -313,8 +314,8 @@ describe("contribute", () => {
       await t.run((ctx) =>
         ctx.db
           .query("files")
-          .withIndex("by_state", (q) => q.eq("state", "ready"))
-          .collect(),
+          .collect()
+          .then((files) => files.filter((file) => file.state === "ready")),
       ),
     ).toEqual([]);
   });
@@ -471,8 +472,8 @@ describe("contribute", () => {
       await t.run((ctx) =>
         ctx.db
           .query("files")
-          .withIndex("by_state", (q) => q.eq("state", "ready"))
-          .collect(),
+          .collect()
+          .then((files) => files.filter((file) => file.state === "ready")),
       ),
     ).toHaveLength(2);
   });
@@ -1077,6 +1078,10 @@ describe("precise contribution removal", () => {
       expect(await t.run((ctx) => ctx.db.get("objects", objectId))).toMatchObject({
         reverted: false,
         sourceContributionId: bob.contributionId,
+      });
+      expect(
+        await t.run(async (ctx) => readObjectDetails(ctx, (await ctx.db.get("objects", objectId))!)),
+      ).toMatchObject({
         thumbnailStorageId: bob.cropStorageId,
         medium: "Oil",
       });

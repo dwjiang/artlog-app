@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internalMutation, internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
+import { patchArtworkContent } from "./lib/artworkContent";
 import { factSheetEntry } from "./lib/validators";
 import { changeEngagement } from "./lib/visitReactions";
 import { deactivateWallItem } from "./lib/wallItems";
@@ -133,8 +134,8 @@ export const replaceFactSheet = internalMutation({
       .withIndex("by_artworkId_status", (q) => q.eq("artworkId", artworkId).eq("status", "open"))
       .first();
     await clearDocent(ctx, artwork);
+    await patchArtworkContent(ctx, artwork, { factSheet });
     await ctx.db.patch("artworks", artworkId, {
-      factSheet,
       factSheetUpdatedAt: Date.now(),
       factSheetNeedsReview: outstanding ? true : undefined,
     });
