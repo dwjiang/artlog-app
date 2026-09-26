@@ -19,6 +19,8 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const dragging = useRef(false);
   const [draft, setDraft] = useState(audio.position);
   const ready = audio.phase === "ready";
+  // Speech still being generated has no length yet, so there is no range to seek within.
+  const seekable = ready && audio.duration > 0;
   const position = scrubbing ? draft : audio.position;
   return (
     <View style={styles.container}>
@@ -26,21 +28,21 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         accessibilityRole="adjustable"
         accessibilityLabel="Narration position"
         accessibilityValue={{
-          text: `${audioTime(position)} of ${audioTime(audio.duration)}`,
+          text: seekable ? `${audioTime(position)} of ${audioTime(audio.duration)}` : audioTime(position),
         }}
         accessibilityActions={[
           { name: "increment", label: "Forward 15 seconds" },
           { name: "decrement", label: "Back 15 seconds" },
         ]}
         onAccessibilityAction={({ nativeEvent }) => {
-          if (ready) {
+          if (seekable) {
             void audio.controller.seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
           }
         }}
-        value={audio.position}
+        value={seekable ? audio.position : 0}
         minimumValue={0}
         maximumValue={Math.max(1, audio.duration)}
-        disabled={!ready}
+        disabled={!seekable}
         tapToSeek
         thumbSize={1}
         thumbTintColor="transparent"
@@ -64,14 +66,14 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
       />
       <View style={styles.times}>
         <Text style={styles.time}>{audioTime(position)}</Text>
-        <Text style={styles.time}>−{audioTime(audio.duration - position)}</Text>
+        {seekable && <Text style={styles.time}>−{audioTime(audio.duration - position)}</Text>}
       </View>
       <View style={styles.controls}>
         <AudioIconButton
           name="gobackward.15"
           label="Back 15 seconds"
           size={29}
-          disabled={!ready}
+          disabled={!seekable}
           onPress={() => void audio.controller.seek(audio.position - 15)}
         />
         <Pressable
@@ -107,7 +109,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           name="goforward.15"
           label="Forward 15 seconds"
           size={29}
-          disabled={!ready}
+          disabled={!seekable}
           onPress={() => void audio.controller.seek(audio.position + 15)}
         />
       </View>

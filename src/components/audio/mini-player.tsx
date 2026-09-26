@@ -23,7 +23,7 @@ export function MiniPlayer() {
         ? "Couldn’t play · Tap to retry"
         : audio.waiting
           ? "Ready when you are"
-          : `${audio.playing ? "Playing" : "Paused"} · ${audioTime(audio.duration - audio.position)} left`;
+          : `${audio.playing ? "Playing" : "Paused"}${audio.duration ? ` · ${audioTime(audio.duration - audio.position)} left` : ""}`;
   return (
     <View style={styles.container}>
       <View style={styles.row}>

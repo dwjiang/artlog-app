@@ -71,6 +71,8 @@ export default defineSchema({
     voice: v.string(),
     storageId: v.optional(v.id("_storage")),
     sentences: v.optional(v.array(docentSentence)),
+    // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
+    segments: v.optional(v.array(v.object({ storageId: v.id("_storage"), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),
   museumDownloads: defineTable({
     venueId: v.id("museums"),

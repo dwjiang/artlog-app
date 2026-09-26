@@ -62,6 +62,7 @@ const generated = {
   uri: "https://example.test/audio",
   renderId: "render-1",
   sentences: guideFixture,
+  live: false,
 };
 beforeEach(() => {
   mockFiles.clear();
@@ -103,8 +104,23 @@ it("replays a known render offline without a backend or network request", async 
     uri: "file:///cache/narration/render-1.mp3",
     sentences: generated.sentences,
     renderId: "render-1",
+    live: false,
   });
   expect([...mockFiles.keys()]).toEqual([first.uri, first.uri.replace(".mp3", ".json")]);
+});
+
+it("plays speech that is still being generated from its playlist without downloading or caching it", async () => {
+  const live = { ...generated, uri: "https://example.convex.site/narration-playlist?render=render-1", live: true };
+  const renderer = createNarrationRenderer(async () => live);
+  expect(await renderer.render(track)).toEqual(live);
+  expect(mockFetch).not.toHaveBeenCalled();
+  expect(mockFiles.size).toBe(0);
+  expect(await cachedNarrationUri("render-1")).toBeUndefined();
+});
+
+it("rejects a live transcript that omits the artwork introduction", async () => {
+  const renderer = createNarrationRenderer(async () => ({ ...generated, sentences: guideBodyFixture, live: true }));
+  await expect(renderer.render(track)).rejects.toThrow("Narration transcript is invalid.");
 });
 
 it("skips the download when the server names a render that is already on disk", async () => {

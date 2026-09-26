@@ -54,6 +54,7 @@ import type * as lib_docentSources from "../lib/docentSources.js";
 import type * as lib_docentValidator from "../lib/docentValidator.js";
 import type * as lib_flags from "../lib/flags.js";
 import type * as lib_friendships from "../lib/friendships.js";
+import type * as lib_hls from "../lib/hls.js";
 import type * as lib_identifyPipeline from "../lib/identifyPipeline.js";
 import type * as lib_journal from "../lib/journal.js";
 import type * as lib_journalVenue from "../lib/journalVenue.js";
@@ -181,6 +182,7 @@ declare const fullApi: ApiFromModules<{
   "lib/docentValidator": typeof lib_docentValidator;
   "lib/flags": typeof lib_flags;
   "lib/friendships": typeof lib_friendships;
+  "lib/hls": typeof lib_hls;
   "lib/identifyPipeline": typeof lib_identifyPipeline;
   "lib/journal": typeof lib_journal;
   "lib/journalVenue": typeof lib_journalVenue;
