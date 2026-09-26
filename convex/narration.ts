@@ -4,10 +4,9 @@ import {
   GUIDE_MAX_WORDS,
   GUIDE_MODEL,
   GUIDE_PROMPT,
-  GUIDE_REASONING,
-  GUIDE_SCHEMA,
   guideOpening,
   guideResearch,
+  guideSchema,
   guideWordFloor,
   parseGuideLines,
   unsupportedLines,
@@ -170,7 +169,9 @@ export const render = action({
         problems = [];
         const lines = parseGuideLines(value);
         if (!lines) {
-          problems.push("The response was not an array of sentence, fact_ids and support.");
+          problems.push(
+            "The response was not a thread, a quote and hook, look, story and takeaway lists of sentence, fact_ids and support.",
+          );
           return null;
         }
         problems = unsupportedLines(lines, facts).map(
@@ -195,6 +196,9 @@ export const render = action({
         }
         return guide;
       };
+      // One pass without reasoning: about 3 seconds against 15 to 35 with low-effort thinking, the same
+      // pass rate and fewer invented claims on the 2026-09-25 eval, and no runaway thinking that hits the cap.
+      const schema = guideSchema(facts.length);
       const write = (previousAttemptProblems?: string) =>
         chatJson({
           model: GUIDE_MODEL,
@@ -204,13 +208,12 @@ export const render = action({
             ...(previousAttemptProblems ? { previousAttemptProblems } : {}),
             opening,
             research: facts,
-            schema: GUIDE_SCHEMA,
+            schema,
           }),
           schemaName: "audioGuide",
-          schema: GUIDE_SCHEMA,
+          schema,
           maxTokens: 12_000,
           timeoutMs: 60_000,
-          reasoning: GUIDE_REASONING,
           parse,
         });
       try {

@@ -16,7 +16,7 @@ export const researchFixture: FactSheetEntry[] = [
     sourceScore: 1,
   },
 ];
-export const openingFixture = "This is Water Lilies, by Claude Monet, dated 1916.";
+export const openingFixture = "Claude Monet. Water Lilies. Dated 1916.";
 export const guideBodyFixture: DocentSentence[] = [
   {
     sentence:
@@ -62,3 +62,10 @@ export const guideBodyFixture: DocentSentence[] = [
   },
 ];
 export const guideFixture: DocentSentence[] = [{ sentence: openingFixture, factIds: [] }, ...guideBodyFixture];
+// The guide model answers in sections; tests write a flat script and lay it out the way the schema asks.
+export const sectionedGuide = <T>(lines: T[]) => ({
+  hook: lines.slice(0, 1),
+  look: lines.slice(1, 3),
+  story: lines.slice(3, 9),
+  takeaway: lines.slice(9),
+});

@@ -66,15 +66,6 @@ describe("Token Factory chatJson", () => {
     });
   });
 
-  it("opts longer guide generation into low-effort reasoning without changing other requests", async () => {
-    fetchMock.mockResolvedValueOnce(completion({ ok: true }));
-    await chatJson({ ...request, reasoning: "low", maxTokens: 6000 });
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
-      max_tokens: 6000,
-      chat_template_kwargs: { enable_thinking: true, low_effort: true },
-    });
-  });
-
   it("retries once on 429 honoring Retry-After capped at five seconds, then counts both calls", async () => {
     vi.useFakeTimers();
     fetchMock

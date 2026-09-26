@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { guideOpening, guideResearch } from "../shared/audio/guide";
-import { guideBodyFixture } from "../shared/audio/guide-fixtures";
+import { guideBodyFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { completion, jsonResponse } from "./lib/labelFixtures";
@@ -692,11 +692,13 @@ it("shares a single research search between independent docent and audio scripts
   routes.unshift((url) =>
     url.href === TOKEN_FACTORY
       ? completion(
-          guideBodyFixture.map(({ sentence, factIds }) => ({
-            sentence,
-            fact_ids: factIds,
-            support: researched!.factSheet!.find((fact) => fact.id === factIds[0])!.text.slice(0, 30),
-          })),
+          sectionedGuide(
+            guideBodyFixture.map(({ sentence, factIds }) => ({
+              sentence,
+              fact_ids: factIds,
+              support: researched!.factSheet!.find((fact) => fact.id === factIds[0])!.text.slice(0, 30),
+            })),
+          ),
         )
       : undefined,
   );
