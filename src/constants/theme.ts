@@ -6,6 +6,7 @@ export const Gallery = {
   ink: "#111111",
   muted: "#6A6B70",
   paper: "#FCFCF9",
+  groupedBackground: "#F2F2F7",
   surface: "#FFFFFF",
   fill: "#F0F0EC",
   avatar: "#D7DBC5",

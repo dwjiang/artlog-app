@@ -36,6 +36,7 @@ export function GalleryButton({
   size = "regular",
   minHeight: minHeightOverride,
   iconOnly = false,
+  cornerRadius = Radius.button,
 }: {
   label: string;
   accessibilityLabel?: string;
@@ -56,6 +57,7 @@ export function GalleryButton({
   minHeight?: number;
   /** Draws only `icon`; `label` remains the accessible name. */
   iconOnly?: boolean;
+  cornerRadius?: number;
 }) {
   const { fontScale } = useWindowDimensions();
   const expand = fullWidth ?? fontScale >= 1.5;
@@ -95,7 +97,7 @@ export function GalleryButton({
           seedColor={accent}
           style={{
             maxWidth: "100%",
-            borderRadius: Radius.button,
+            borderRadius: cornerRadius,
             backgroundColor: variant === "filled" ? accent : "transparent",
             borderWidth: variant === "outlined" ? 1 : 0,
             borderColor: destructive ? Gallery.destructive : Gallery.accentBorder,
@@ -168,7 +170,7 @@ export function GalleryButton({
                 justifyContent: "center",
                 gap: Spacing.two,
                 paddingHorizontal: Spacing.two,
-                borderRadius: Radius.button,
+                borderRadius: cornerRadius,
                 backgroundColor: variant === "filled" ? accent : undefined,
               },
             ]}

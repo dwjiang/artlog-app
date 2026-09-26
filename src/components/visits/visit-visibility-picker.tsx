@@ -47,29 +47,6 @@ export function VisitVisibilityPicker({
   );
 }
 
-/** Shows a visit's visibility as a status chip and changes it from a native menu. */
-export function VisitVisibilityChip({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: VisitVisibility;
-  onChange: (value: VisitVisibility) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <ChoiceMenu
-      label={LABEL}
-      tone="highlight"
-      icon={VISIT_VISIBILITY[value].icon}
-      value={value}
-      disabled={disabled}
-      onChange={onChange}
-      options={CHOICES.map((choice) => ({ value: choice, label: VISIT_VISIBILITY[choice].label }))}
-    />
-  );
-}
-
 export type VisitAudienceFilterValue = VisitVisibility | "all";
 
 /** Narrows a list of visits to one visibility, offering only the visibilities the viewer can see. */

@@ -11,7 +11,7 @@ import {
   padding,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useWindowDimensions } from "react-native";
 
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -42,47 +42,69 @@ export function ChoiceMenu<T extends string>({
   const highlight = tone === "highlight";
   return (
     <Host matchContents colorScheme="light">
-      <Menu
-        modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain"), disabledModifier(disabled)]}
-        label={
-          <Row
-            spacing={Spacing.one + Spacing.half}
-            alignment="center"
-            modifiers={[
-              padding({ horizontal: Spacing.compact + Spacing.half, vertical: Spacing.two }),
-              background(
-                highlight ? Gallery.highlight : Gallery.segmentTrack,
-                highlight ? shapes.roundedRectangle({ cornerRadius: Radius.input }) : shapes.capsule(),
-              ),
-              // The chip stays compact while the whole 44-point row answers taps.
-              frame({ minHeight: 44 }),
-              contentShape(shapes.rectangle()),
-            ]}
+      <NativeChoiceMenu label={label} value={value} options={options} onChange={onChange} disabled={disabled}>
+        <Row
+          spacing={Spacing.one + Spacing.half}
+          alignment="center"
+          modifiers={[
+            padding({ horizontal: Spacing.compact + Spacing.half, vertical: Spacing.two }),
+            background(
+              highlight ? Gallery.highlight : Gallery.segmentTrack,
+              highlight ? shapes.roundedRectangle({ cornerRadius: Radius.input }) : shapes.capsule(),
+            ),
+            // The chip stays compact while the whole 44-point row answers taps.
+            frame({ minHeight: 44 }),
+            contentShape(shapes.rectangle()),
+          ]}
+        >
+          {icon && <Icon name={icon} size={13 * fontScale} color={Gallery.ink} />}
+          <NativeText
+            textStyle={{ color: Gallery.ink }}
+            modifiers={[font({ textStyle: "subheadline", weight: highlight ? "semibold" : "medium" })]}
           >
-            {icon && <Icon name={icon} size={13 * fontScale} color={Gallery.ink} />}
-            <NativeText
-              textStyle={{ color: Gallery.ink }}
-              modifiers={[font({ textStyle: "subheadline", weight: highlight ? "semibold" : "medium" })]}
-            >
-              {selected}
-            </NativeText>
-            <Icon name="chevron.down" size={10 * fontScale} color={Gallery.ink} />
-          </Row>
-        }
-      >
-        {/* An inline Picker hides the section title inside a menu; controlled toggles keep it and still draw checkmarks. */}
-        <Section title={label}>
-          {options.map((option) => (
-            <Toggle
-              key={option.value}
-              label={option.label}
-              isOn={option.value === value}
-              modifiers={[disabledModifier(disabled)]}
-              onIsOnChange={() => onChange(option.value)}
-            />
-          ))}
-        </Section>
-      </Menu>
+            {selected}
+          </NativeText>
+          <Icon name="chevron.down" size={10 * fontScale} color={Gallery.ink} />
+        </Row>
+      </NativeChoiceMenu>
     </Host>
+  );
+}
+
+/** A native selection menu whose trigger is supplied by its enclosing SwiftUI layout. */
+export function NativeChoiceMenu<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  children,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  const selected = options.find((option) => option.value === value)?.label;
+  return (
+    <Menu
+      modifiers={[accessibilityLabel(`${label}: ${selected}`), buttonStyle("plain"), disabledModifier(disabled)]}
+      label={children}
+    >
+      {/* An inline Picker hides the section title inside a menu; controlled toggles keep it and still draw checkmarks. */}
+      <Section title={label}>
+        {options.map((option) => (
+          <Toggle
+            key={option.value}
+            label={option.label}
+            isOn={option.value === value}
+            modifiers={[disabledModifier(disabled)]}
+            onIsOnChange={() => onChange(option.value)}
+          />
+        ))}
+      </Section>
+    </Menu>
   );
 }

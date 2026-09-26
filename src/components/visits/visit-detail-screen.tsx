@@ -2,14 +2,14 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { setStringAsync } from "expo-clipboard";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { WorkLink } from "@/components/collection/work-link";
 import { EmptyState, EmptySymbol, SearchEmptyState } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastPill } from "@/components/toast-pill";
-import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
 import { flushJournal } from "@/lib/account/collection-sync";
@@ -24,14 +24,12 @@ import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import type { VisitVisibility } from "@/shared/journal/contracts";
-import { calendarDate } from "@/shared/journal/limits";
 
 import { VisitActionBar } from "./visit-action-bar";
-import { VisitDatePicker } from "./visit-date-picker";
+import { VisitDetailsFields } from "./visit-details-fields";
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
-import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from "./visit-ui";
-import { VisitVisibilityChip } from "./visit-visibility-picker";
+import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 const REACH: Record<VisitVisibility, number> = { private: 0, friends: 1, public: 2 };
 // Showing a published visit to more people asks first; narrowing who sees it does not.
@@ -57,7 +55,7 @@ export function VisitDetailScreen() {
   const visit = visits.find((row) => row.localId === visitId);
   if (!visit) {
     return (
-      <VisitPage>
+      <VisitPage style={detail.page}>
         <VisitMessage
           loading={loading && !error}
           skeleton="visit"
@@ -90,7 +88,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
   const [saveError, setSaveError] = useState<string>();
-  const { fontScale } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const [galleryWidth, setGalleryWidth] = useState(width - Spacing.content * 2);
+  const columns = fontScale > 1.4 ? 1 : fontScale > 1.15 || galleryWidth < 320 ? 2 : 3;
+  const artworkWidth = (galleryWidth - Spacing.compact * (columns - 1)) / columns;
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "visit.photos.load");
@@ -279,91 +280,28 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const count = visit.works.length;
   return (
     <>
-      <Stack.Screen options={{ title: "" }} />
-      {(!ending || postId) && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon="ellipsis"
-            accessibilityLabel="Visit options"
-            hidesSharedBackground
-            tintColor={Gallery.ink}
-          >
-            {!ending && (
-              <Stack.Toolbar.MenuAction
-                icon="square.and.arrow.up"
-                onPress={() => {
-                  void share();
-                }}
-              >
-                {published ? "Edit post" : "Share visit"}
-              </Stack.Toolbar.MenuAction>
-            )}
-            {postId && (
-              <Stack.Toolbar.MenuAction
-                icon="eye"
-                onPress={() =>
-                  router.push({
-                    pathname: "/visit/[postId]",
-                    params: { postId },
-                  })
-                }
-              >
-                View post
-              </Stack.Toolbar.MenuAction>
-            )}
-            {postId && sharing.acknowledged?.audience !== "private" && (
-              <Stack.Toolbar.MenuAction
-                icon="link"
-                onPress={() => {
-                  void copyLink(postId);
-                }}
-              >
-                Copy link
-              </Stack.Toolbar.MenuAction>
-            )}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
-      <View style={styles.page}>
-        <View style={{ flex: 1 }}>
-          <VisitPage>
+      {/* Native large-title collapse follows the first descendant; keep the scroll wrappers in the native tree. */}
+      <View collapsable={false} style={[styles.page, detail.page]}>
+        <View collapsable={false} style={{ flex: 1 }}>
+          <VisitPage style={detail.page} contentContainerStyle={detail.content}>
             {saveError && (
               <Text accessibilityRole="alert" style={styles.error}>
                 {saveError}
               </Text>
             )}
-            <View style={{ gap: 6 }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={visit.venueName}
-                accessibilityHint="Changes the museum"
+            <View style={{ gap: Spacing.two }}>
+              <VisitDetailsFields
+                visit={visit}
+                visibility={visibility}
                 disabled={saving}
-                onPress={() =>
-                  router.push({
-                    pathname: "/visit-museum",
-                    params: { visitId: visit.localId },
-                  })
-                }
-                style={({ pressed }) => [detail.museum, pressed && { opacity: 0.6 }]}
-              >
-                <Text style={[Typography.display, { color: Gallery.ink, flexShrink: 1 }]}>{visit.venueName}</Text>
-                <VisitSymbol name="chevron.down" size={16} color={Gallery.muted} />
-              </Pressable>
-              {visit.location ? (
-                <Text selectable style={styles.caption}>
-                  {visit.location}
-                </Text>
-              ) : null}
-            </View>
-            <View style={{ gap: 8 }}>
-              <View style={detail.status}>
-                <VisitVisibilityChip
-                  value={visibility}
-                  disabled={saving || changingVisibility || sharing.busy}
-                  onChange={chooseVisibility}
-                />
-                {statusNote && <Text style={styles.caption}>{statusNote}</Text>}
-              </View>
+                visibilityDisabled={saving || changingVisibility || sharing.busy}
+                onMuseum={() => router.push({ pathname: "/visit-museum", params: { visitId: visit.localId } })}
+                onDate={(value) => {
+                  void changeDate(value);
+                }}
+                onVisibility={chooseVisibility}
+              />
+              {statusNote && <Text style={styles.caption}>{statusNote}</Text>}
               {visibilityError && (
                 <View style={{ gap: 4 }}>
                   <Text accessibilityRole="alert" style={styles.error}>
@@ -378,22 +316,6 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   />
                 </View>
               )}
-            </View>
-            <View style={{ gap: 4 }}>
-              <View style={detail.date}>
-                <Text accessibilityRole="header" style={styles.eyebrow}>
-                  Date
-                </Text>
-                <VisitDatePicker
-                  value={visit.visitedOn}
-                  latest={calendarDate(Date.now(), visit.timeZone)}
-                  showLabel={false}
-                  disabled={saving}
-                  onChange={(value) => {
-                    void changeDate(value);
-                  }}
-                />
-              </View>
               {dateError && (
                 <Text accessibilityRole="alert" style={styles.error}>
                   {dateError}
@@ -401,25 +323,16 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               )}
             </View>
             {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
-            <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
+            <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} grouped />
             <View>
               <View style={detail.sectionLabel}>
-                <Text accessibilityRole="header" style={styles.eyebrow}>
+                <Text accessibilityRole="header" style={detail.sectionTitle}>
                   {count > 0 ? `${count} ${count === 1 ? "artwork" : "artworks"}` : "Artworks"}
                 </Text>
                 {count > 0 && <GalleryButton label="Link artwork" icon="plus" onPress={linkArtwork} />}
               </View>
               {count > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
-              <View
-                style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  justifyContent: "space-between",
-                  columnGap: 13,
-                  rowGap: 20,
-                  paddingTop: 4,
-                }}
-              >
+              <View onLayout={(event) => setGalleryWidth(event.nativeEvent.layout.width)} style={detail.grid}>
                 {filtered.map((work) => {
                   const album = photos.data.filter(
                     (photo) =>
@@ -437,7 +350,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                       work={work}
                       visitId={visit.localId}
                       style={{
-                        width: fontScale > 1.4 ? "100%" : "48%",
+                        width: artworkWidth,
                         flexShrink: 1,
                       }}
                     >
@@ -486,14 +399,65 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           />
         )}
       </View>
+      {(!ending || postId) && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon="ellipsis"
+            accessibilityLabel="Visit options"
+            hidesSharedBackground
+            tintColor={Gallery.ink}
+          >
+            {!ending && (
+              <Stack.Toolbar.MenuAction
+                icon="square.and.arrow.up"
+                onPress={() => {
+                  void share();
+                }}
+              >
+                {published ? "Edit post" : "Share visit"}
+              </Stack.Toolbar.MenuAction>
+            )}
+            {postId && (
+              <Stack.Toolbar.MenuAction
+                icon="eye"
+                onPress={() =>
+                  router.push({
+                    pathname: "/visit/[postId]",
+                    params: { postId },
+                  })
+                }
+              >
+                View post
+              </Stack.Toolbar.MenuAction>
+            )}
+            {postId && sharing.acknowledged?.audience !== "private" && (
+              <Stack.Toolbar.MenuAction
+                icon="link"
+                onPress={() => {
+                  void copyLink(postId);
+                }}
+              >
+                Copy link
+              </Stack.Toolbar.MenuAction>
+            )}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
     </>
   );
 }
 
 const detail = StyleSheet.create({
-  museum: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
-  date: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
-  status: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 },
+  page: { backgroundColor: Gallery.groupedBackground },
+  content: { gap: Spacing.three, paddingTop: Spacing.two },
+  sectionTitle: { fontSize: 20, lineHeight: 25, fontWeight: "600", color: Gallery.ink },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: Spacing.compact,
+    rowGap: Spacing.content,
+    paddingTop: Spacing.two,
+  },
   sectionLabel: {
     flexDirection: "row",
     justifyContent: "space-between",

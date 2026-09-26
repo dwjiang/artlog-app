@@ -129,7 +129,19 @@ function AppContent() {
                     <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
                     <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />
                     <Stack.Screen name="wall-display" options={{ title: "" }} />
-                    <Stack.Screen name="journal/[visitId]" options={{ title: "Visit" }} />
+                    <Stack.Screen
+                      name="journal/[visitId]"
+                      options={{
+                        title: "Visit details",
+                        headerLargeTitle: true,
+                        headerTransparent: true,
+                        headerStyle: { backgroundColor: Gallery.groupedBackground },
+                        // An opaque large-header background hides the re-expanded title on iOS 26.
+                        headerLargeStyle: { backgroundColor: "transparent" },
+                        headerLargeTitleShadowVisible: false,
+                        contentStyle: { backgroundColor: Gallery.groupedBackground },
+                      }}
+                    />
                     <Stack.Screen name="adjust-crop" options={{ title: "Adjust crop", gestureEnabled: false }} />
                     <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
                     <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
