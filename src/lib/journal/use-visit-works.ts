@@ -36,12 +36,3 @@ export function useVisitWorks(visitLocalId: string | undefined, owner: string) {
     .sort((a, b) => b.savedAt - a.savedAt || a.localId.localeCompare(b.localId));
   return { works: visitLocalId ? rows : [], loading, error };
 }
-
-/** "2:10 PM" in the museum's time zone. */
-export function formatVisitStart(startedAt: number, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-  }).format(startedAt);
-}

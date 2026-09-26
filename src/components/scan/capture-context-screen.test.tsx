@@ -15,7 +15,9 @@ let mockParams: {
   capturedAt?: string;
 } = {};
 let mockSession: PhotoSessionDraft = { photos: [] };
-let mockOpenVisit: { localId: string; venueId: string; visitedOn: string; timeZone: string } | undefined;
+let mockOpenVisit:
+  | { localId: string; venueId: string; visitedOn: string; timeZone: string; startedAt: number }
+  | undefined;
 const mockVisitByDefault = jest.fn();
 let mockQuery = {
   data: [] as {
@@ -180,6 +182,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
       venueId: "id-met",
       visitedOn: "2024-02-29",
       timeZone: "America/New_York",
+      startedAt: Date.UTC(2024, 1, 29, 17),
     };
     mockQuery = {
       data: [museum, other],
@@ -189,7 +192,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
     await render(<CaptureContextScreen />);
     expect(
       await screen.findByRole("button", {
-        name: "Museum · Visiting now",
+        name: "Museum · Since 29 Feb 2024",
         selected: true,
       }),
     ).toBeOnTheScreen();
@@ -235,6 +238,34 @@ describe("a capture scanned at a museum with no visit yet", () => {
     ).toBeOnTheScreen();
   });
 
+  it("marks that day's visit for a capture from before the visit open elsewhere began", async () => {
+    const today = calendarDate(Date.now(), "America/New_York");
+    mockParams.capturedAt = String(Date.now() - 60_000);
+    mockOpenVisit = {
+      localId: "other-visit",
+      venueId: "id-other",
+      visitedOn: today,
+      timeZone: "America/New_York",
+      startedAt: Date.now(),
+    };
+    mockQuery = {
+      data: [
+        { ...museum, visitedOn: today, endedAt: Date.now() - 120_000 },
+        { ...other, visitedOn: today },
+      ],
+      updatedAt: new Date(),
+      error: undefined,
+    };
+    await render(<CaptureContextScreen />);
+    expect(
+      await screen.findByRole("button", {
+        name: `Museum · ${formatVisitDate(today)}`,
+        selected: true,
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/Starts with this artwork/)).toBeNull();
+  });
+
   it("dates the museum visit by the capture, not by today", async () => {
     mockParams = {
       draftId: "capture.jpg",
@@ -257,6 +288,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
       venueId: "id-met",
       visitedOn: "2024-03-01",
       timeZone: "America/New_York",
+      startedAt: Date.UTC(2024, 2, 1, 15),
     };
     mockQuery = {
       data: [{ ...museum, visitedOn: "2024-03-01" }],
@@ -270,7 +302,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
     });
     expect(
       screen.getByRole("button", {
-        name: "Museum · Visiting now",
+        name: "Museum · Since 1 Mar 2024",
         selected: false,
       }),
     ).toBeOnTheScreen();
@@ -304,16 +336,17 @@ it("places artwork only before museum visits and creation after them", async () 
   expect(screen.getByRole("button", { name: "Create a visit" })).toBeOnTheScreen();
 });
 
-it("names the open visit as the one happening now", async () => {
+it("names the open visit by when it began", async () => {
   mockOpenVisit = {
     localId: "captured-visit",
     venueId: "id-met",
     visitedOn: "2024-02-29",
     timeZone: "America/New_York",
+    startedAt: Date.UTC(2024, 1, 29, 17),
   };
   mockQuery = { data: [museum], updatedAt: new Date(), error: undefined };
   await render(<CaptureContextScreen />);
-  expect(screen.getByRole("button", { name: "Museum · Visiting now" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Museum · Since 29 Feb 2024" })).toBeOnTheScreen();
 });
 
 it("distinguishes loading visits from an empty collection", async () => {

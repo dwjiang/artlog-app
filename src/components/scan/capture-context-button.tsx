@@ -47,7 +47,7 @@ export async function venueVisitLabel(
   venueId: Id<"museums">,
   capturedAt: number,
   now = Date.now(),
-): Promise<{ name: string; visitedOn: string; today: boolean; day: string } | undefined> {
+): Promise<{ name: string; visitedOn: string; timeZone: string; today: boolean; day: string } | undefined> {
   const [venue] = await venueMetadataForIds([venueId]);
   if (!venue) return undefined;
   const timeZone = tzLookup(venue.lat, venue.lng);
@@ -56,6 +56,7 @@ export async function venueVisitLabel(
   return {
     name: venue.name,
     visitedOn,
+    timeZone,
     today,
     day: dayLabel(visitedOn, today),
   };

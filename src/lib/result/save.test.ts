@@ -314,6 +314,39 @@ it("saves a venue-only capture with no visit but its museum after the person end
   expect(shared).toBeDefined();
 });
 
+it("keeps a museum save out of its visit when asked, still confirming the scan and sharing its label", async () => {
+  const venueOnly = { ...capture, visitLocalId: null, visitId: null };
+  updatePhotoSession(venueOnly.owner, venueOnly.photoPath, {
+    visit: { kind: "venue", venueId: "museum-met" as never },
+  });
+  const {
+    localId,
+    synced,
+    contribution: shared,
+  } = await saveResult(
+    {
+      scanId: SCAN_ID,
+      capture: venueOnly,
+      view: toResultViewState(confidentScan),
+      draft: draftFromCandidate(lilies),
+      contribution,
+    },
+    { withoutVisit: true },
+  );
+  await synced;
+  expect(mockVisitForSave).not.toHaveBeenCalled();
+  expect(await getSavedWork(localId)).toMatchObject({
+    visitLocalId: null,
+    venueId: "museum-met",
+    venueName: "The Met",
+  });
+  expect(mockMutation).toHaveBeenCalledWith(
+    "collections:saveToCollection",
+    expect.objectContaining({ scanId: SCAN_ID, venueId: "museum-met", visitLocalId: undefined }),
+  );
+  expect(shared).toBeDefined();
+});
+
 it("starts the visit when the draft chooses the museum, even after an ending there today", async () => {
   mockVisitByDefault.mockReturnValue(false);
   const venueOnly = { ...capture, visitLocalId: null, visitId: null };

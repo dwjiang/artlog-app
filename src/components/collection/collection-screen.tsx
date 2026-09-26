@@ -4,7 +4,6 @@ import { useCallback, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { ThemedText as Text } from "@/components/themed-text";
 import { CollectionVisits } from "@/components/visits/collection-visits";
 import { Gallery } from "@/constants/theme";
@@ -65,8 +64,6 @@ function OwnedCollection({
 }) {
   const data = useCollectionData();
   const network = useNetworkState();
-  // The tab layout floats the visit bar only while the phone is at the visit's museum; pad for it on the same terms.
-  const dockInset = useListeningDockInset();
   const controls = (
     <View
       style={{
@@ -135,14 +132,7 @@ function OwnedCollection({
     </CollectionSection>
   );
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={{
-        flex: 1,
-        backgroundColor: Gallery.paper,
-        paddingBottom: editing ? 0 : dockInset,
-      }}
-    >
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: Gallery.paper }}>
       {/* The shown section comes first: react-native-screens scrolls the first subview chain to the top on a tab re-tap. */}
       <View style={{ flex: 1 }}>{mode === "collection" ? [collection, visits] : [visits, collection]}</View>
     </SafeAreaView>

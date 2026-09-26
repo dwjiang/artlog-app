@@ -62,14 +62,11 @@ export function saveErrorMessage(cause: unknown): string {
 
 type LinkedVisit = Pick<Visit, "localId" | "venueId" | "venueName" | "visitedOn" | "remoteVisitId">;
 
-/** Saves locally first, then mirrors the row to the collection on the server. */
-export async function saveResult({
-  scanId,
-  capture,
-  view,
-  draft,
-  contribution,
-}: SaveResultInput): Promise<SaveResultOutcome> {
+/** Saves locally first, then mirrors the row to the collection on the server. `withoutVisit` keeps a museum save out of its visit. */
+export async function saveResult(
+  { scanId, capture, view, draft, contribution }: SaveResultInput,
+  { withoutVisit = false } = {},
+): Promise<SaveResultOutcome> {
   const current = captureOwner();
   if (capture.owner !== current.owner) throw new Error("Journal owner changed");
   const { snapshot, suggested } = buildSnapshot(draft, view);
@@ -87,7 +84,7 @@ export async function saveResult({
         session.visit ? "Choose an available visit before saving." : "The capture is linked to an invalid visit",
       );
     }
-  } else if (choice.kind === "venue") {
+  } else if (choice.kind === "venue" && !withoutVisit) {
     // The first save at a museum starts its visit, dated by the shutter; later saves join it.
     const started = await visitForSave(choice.venueId, capture.capturedAt);
     visit = { ...started, remoteVisitId: started.remoteVisitId ?? null };
@@ -101,8 +98,11 @@ export async function saveResult({
   ) {
     throw new Error("The capture is linked to an invalid visit");
   }
-  // A save with no visit by default (the visit there ended by hand today) keeps its museum; only a draft's "No visit" drops it.
-  const venueId = visit?.venueId ?? (session.visit ? undefined : (capture.venueId ?? undefined));
+  // A save with no visit (by default after "End visit" there today, or kept out of a visit open elsewhere) keeps its
+  // museum; only a draft's "No visit" drops it.
+  const venueId =
+    visit?.venueId
+    ?? (choice.kind === "venue" ? choice.venueId : session.visit ? undefined : (capture.venueId ?? undefined));
   const venueName =
     visit?.venueName
     ?? (venueId

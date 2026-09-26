@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 
 import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -10,10 +10,10 @@ import { EmptyMap } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
-import { ArtworkPreviews } from "@/components/visits/visit-ui";
+import { ArtworkPreviews, VisitSymbol } from "@/components/visits/visit-ui";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
-import { formatVisitStart } from "@/lib/journal/use-visit-works";
+import { formatVisitStart } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
@@ -58,18 +58,26 @@ export function VenuePickerSheet() {
   );
 }
 
+/** The open visit at this museum: its header opens the visit detail; the two actions change the museum or end it. */
 function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => void }) {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const { visits, loading, error } = useVisits();
   const summary = visits.find((row) => row.localId === visit.localId);
   const works = summary?.works ?? [];
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
+  const since = `Since ${formatVisitStart(visit.startedAt, visit.timeZone)}`;
   const count = `${works.length} ${works.length === 1 ? "artwork" : "artworks"} this visit`;
-  const openVisit = () =>
-    router.replace({
-      pathname: "/journal/[visitId]",
-      params: { visitId: visit.localId },
-    });
+  const details =
+    loading && !error
+      ? undefined
+      : error
+        ? "Artwork count unavailable"
+        : summary?.location
+          ? `${summary.location} · ${count}`
+          : count;
+  const meta = details ? `${since} · ${details}` : since;
+  const stacked = fontScale >= 1.5;
   return (
     <ScrollView
       style={sheetStyle}
@@ -77,36 +85,44 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
       contentContainerStyle={styles.content}
       bounces={false}
     >
-      <View style={styles.eyebrowRow}>
-        <View style={styles.dot} />
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>
-          Visiting now · since {formatVisitStart(visit.startedAt, visit.timeZone)}
-        </ThemedText>
-      </View>
-      <ThemedText type="title" accessibilityRole="header">
-        {visit.venueName}
-      </ThemedText>
-      {loading && !error ? (
-        <TextSkeleton label="Loading visit artwork count" width={180} />
-      ) : (
-        <ThemedText themeColor="textSecondary">
-          {error ? "Artwork count unavailable" : summary?.location ? `${summary.location} · ${count}` : count}
-        </ThemedText>
-      )}
-      {works.length > 0 && <ArtworkPreviews works={works} overflow />}
-      <GalleryButton
-        label="End visit"
-        variant="filled"
-        fullWidth
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${visit.venueName}, ${meta}`}
+        accessibilityHint="Opens the visit"
         onPress={() =>
           router.replace({
             pathname: "/journal/[visitId]",
-            params: { visitId: visit.localId, endVisit: "true" },
+            params: { visitId: visit.localId },
           })
         }
-      />
-      <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
-      <GalleryButton label="Open visit" icon="chevron.right" iconPosition="trailing" onPress={openVisit} />
+        style={({ pressed }) => [styles.header, pressed && styles.pressed]}
+      >
+        <View style={styles.headerText}>
+          <ThemedText type="title">{visit.venueName}</ThemedText>
+          <ThemedText themeColor="textSecondary">{meta}</ThemedText>
+          {!details && <TextSkeleton label="Loading visit artwork count" width={180} />}
+        </View>
+        <VisitSymbol name="chevron.right" size={13} />
+      </Pressable>
+      {works.length > 0 && <ArtworkPreviews works={works} overflow />}
+      <View style={stacked ? styles.stackedActions : styles.actions}>
+        <View style={stacked ? undefined : styles.action}>
+          <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
+        </View>
+        <View style={stacked ? undefined : styles.action}>
+          <GalleryButton
+            label="End visit"
+            variant="filled"
+            fullWidth
+            onPress={() =>
+              router.replace({
+                pathname: "/journal/[visitId]",
+                params: { visitId: visit.localId, endVisit: "true" },
+              })
+            }
+          />
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -339,14 +355,12 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 const styles = StyleSheet.create({
   container: { backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
-  eyebrowRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
-  eyebrow: { letterSpacing: 1.1, textTransform: "uppercase" },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Gallery.success,
-  },
+  header: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
+  headerText: { flex: 1, gap: Spacing.two },
+  pressed: { opacity: 0.6 },
+  actions: { flexDirection: "row", gap: Spacing.two },
+  stackedActions: { gap: Spacing.two },
+  action: { flex: 1 },
   option: {
     minHeight: 44,
     flexDirection: "row",

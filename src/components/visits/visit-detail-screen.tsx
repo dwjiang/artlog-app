@@ -57,12 +57,15 @@ export function VisitDetailScreen() {
   return <VisitDetail key={`${owner}:${visitId}:${endVisit}`} visit={visit} endingVisit={endVisit === "true"} />;
 }
 function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit: boolean }) {
-  // Only a closed visit counts as seen; one viewed while open is still new once it closes on its own.
+  // Only a closed visit counts as seen; one viewed while open is still new once it is ended.
   useEffect(() => {
     if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner);
   }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState("");
-  const { end } = useVenue();
+  const { end, visit: open } = useVenue();
+  // The open visit saves only by ending it, whether opened from the visit bar or reviewed from the visit sheet, and a
+  // visibility change waits for that save.
+  const ending = endingVisit || open?.localId === visit.localId;
   const notes = useRef<VisitNotesHandle>(null);
   const [draftVisibility, setDraftVisibility] = useState(visit.visibility);
   const [saving, setSaving] = useState(false);
@@ -91,14 +94,14 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     next: "public" | "private";
     message: string;
   }>();
-  const isPublic = (endingVisit ? draftVisibility : visit.visibility) === "public";
+  const isPublic = (ending ? draftVisibility : visit.visibility) === "public";
   const active = isPublic && sharing.acknowledged?.status === "active";
   // The status check only decides what this screen offers for a public visit; sharing itself reports its own errors.
   // A retry clears the error as it starts, so the pill steps aside and returns only if the retry fails too.
   const shareCheckFailed = isPublic && !sharing.profileRequired && !!sharing.error;
   // Visits start private, so an unsynced private row only means a pending change once a published version exists.
   const pendingPrivate =
-    !endingVisit && signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === "active";
+    !ending && signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === "active";
   const privacyPending = pendingPrivate || visibilityError?.next === "private" || (changingVisibility && isPublic);
   const openSharing = () =>
     router.push(
@@ -112,7 +115,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   async function changeVisibility(next: "public" | "private" = isPublic ? "private" : "public") {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;
-    if (endingVisit) {
+    if (ending) {
       setDraftVisibility(next);
       return;
     }
@@ -157,12 +160,12 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     setSaving(true);
     setSaveError(undefined);
     try {
-      if (endingVisit && draftVisibility !== visit.visibility) {
+      if (ending && draftVisibility !== visit.visibility) {
         await patchVisit(visit.localId, { visibility: draftVisibility }, visit.owner);
         if (!session.isCurrent()) return;
       }
       if (!(await notes.current?.save()) || !session.isCurrent()) return;
-      if (endingVisit) {
+      if (ending) {
         await end(visit.localId);
         if (!session.isCurrent()) return;
         router.setParams({ endVisit: undefined });
@@ -202,7 +205,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           >
             Link artwork
           </Stack.Toolbar.MenuAction>
-          {!endingVisit && (
+          {!ending && (
             <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={openSharing}>
               Prepare shared visit
             </Stack.Toolbar.MenuAction>
@@ -307,6 +310,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 </Text>
               </View>
             )}
+            {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
             <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
             <View>
               <View style={styles.sectionLabel}>
@@ -411,7 +415,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           )}
         </View>
         <VisitActionBar
-          endingVisit={endingVisit}
+          endingVisit={ending}
           isPublic={isPublic}
           pendingPrivate={pendingPrivate}
           changingVisibility={changingVisibility}

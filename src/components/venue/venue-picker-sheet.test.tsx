@@ -35,6 +35,7 @@ let mockVisits: {
 }[] = [];
 
 jest.mock("@/components/visits/visit-ui", () => ({
+  VisitSymbol: () => null,
   ArtworkPreviews: ({ works }: { works: unknown[] }) => {
     const { Text } = jest.requireActual("react-native");
     return <Text>{works.length} previews</Text>;
@@ -337,13 +338,25 @@ describe("the open visit", () => {
     ];
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
   it("shows the visit with its start time, place and artworks instead of the chooser", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 18, 22));
     await render(<VenuePickerSheet />);
-    expect(screen.getByText("Visiting now · since 5:10 PM")).toBeOnTheScreen();
-    expect(screen.getByRole("header", { name: "Metropolitan Museum of Art" })).toBeOnTheScreen();
-    expect(screen.getByText("New York, United States · 2 artworks this visit")).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", {
+        name: "Metropolitan Museum of Art, Since 5:10 PM · New York, United States · 2 artworks this visit",
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Since 5:10 PM · New York, United States · 2 artworks this visit")).toBeOnTheScreen();
     expect(screen.getByText("2 previews")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Continue without a museum" })).toBeNull();
+  });
+
+  it("names the day a visit still open from an earlier day began, not a bare time that reads as today", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 19, 15));
+    await render(<VenuePickerSheet />);
+    expect(screen.getByText(/^Since 18 Sep 2026 · /)).toBeOnTheScreen();
   });
 
   it("opens the end-visit review without ending the visit", async () => {
@@ -356,9 +369,9 @@ describe("the open visit", () => {
     });
   });
 
-  it("opens the visit detail in place of the sheet", async () => {
+  it("opens the visit detail from the museum header in place of the sheet", async () => {
     await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Open visit" }));
+    await fireEvent.press(screen.getByRole("button", { name: /^Metropolitan Museum of Art, Since / }));
     expect(mockReplace).toHaveBeenCalledWith({
       pathname: "/journal/[visitId]",
       params: { visitId: "visit-1" },
@@ -406,7 +419,7 @@ describe("the open visit", () => {
     await render(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
     expect(screen.getByText("Neue Galerie")).toBeOnTheScreen();
-    expect(screen.queryByText(/Visiting now/)).toBeNull();
+    expect(screen.queryByText(/^Since /)).toBeNull();
     expect(screen.queryByRole("button", { name: "End visit" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
     expect(mockDismiss).toHaveBeenCalledTimes(1);

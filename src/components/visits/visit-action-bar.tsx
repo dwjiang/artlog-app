@@ -58,7 +58,7 @@ export function VisitActionBar({
         />
       )}
       <GalleryButton
-        label={endingVisit || !isPublic ? "Save" : "Prepare to share"}
+        label={endingVisit ? "Save & end visit" : isPublic ? "Prepare to share" : "Save"}
         busy={saving}
         busyLabel="Saving…"
         variant="filled"

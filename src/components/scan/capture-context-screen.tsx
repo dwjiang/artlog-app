@@ -13,9 +13,10 @@ import { listVisits } from "@/db/repos/visits";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { readPhotoSession, updatePhotoSession, type CaptureVisitChoice } from "@/lib/capture/photo-draft";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
-import { formatVisitDate } from "@/lib/journal/history";
+import { formatVisitDate, formatVisitStart } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
 import { useVenue } from "@/lib/venue/use-venue";
+import { planSaveVisit } from "@/lib/venue/venue-reducer";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { venueVisitLabel } from "./capture-context-button";
@@ -82,6 +83,7 @@ function CaptureContext({
   const [venue, setVenue] = useState<{
     name: string;
     visitedOn: string;
+    timeZone: string;
     today: boolean;
     day: string;
   }>();
@@ -103,16 +105,15 @@ function CaptureContext({
       active = false;
     };
   }, [venueOption, captureTime]);
-  // A save at the museum joins the visit already on the books for the capture's day (today only while it is still open),
-  // so that visit stands in for the museum and is the marked option.
+  // A save at the museum joins the open visit there, or for a past capture the visit on the books for its day, so that
+  // visit stands in for the museum and is the marked option. Any other save starts a new visit.
+  const plan = venue && venueOption && planSaveVisit(open, venueOption, { ...venue, at: captureTime }, openedAt);
   const venueVisit =
-    venue
-    && availableVisits.find(
-      (visit) =>
-        visit.venueId === venueOption
-        && visit.visitedOn === venue.visitedOn
-        && (!venue.today || visit.endedAt === null),
-    );
+    plan === "join"
+      ? availableVisits.find((visit) => visit.localId === open?.localId)
+      : plan === "past"
+        ? availableVisits.find((visit) => visit.venueId === venueOption && visit.visitedOn === venue?.visitedOn)
+        : undefined;
   const marked = selected === VENUE_OPTION && venueVisit ? venueVisit.localId : selected;
 
   function choose(value: string, choice: CaptureVisitChoice) {
@@ -210,7 +211,9 @@ function CaptureContext({
             visit.localId,
             { kind: "visit", localId: visit.localId },
             visit.venueName,
-            open?.localId === visit.localId ? "Visiting now" : formatVisitDate(visit.visitedOn),
+            open?.localId === visit.localId
+              ? `Since ${formatVisitStart(open.startedAt, open.timeZone)}`
+              : formatVisitDate(visit.visitedOn),
           ),
         )}
       </View>

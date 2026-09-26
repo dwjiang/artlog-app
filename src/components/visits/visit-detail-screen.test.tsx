@@ -65,8 +65,9 @@ const mockVisit = {
   ],
 } as VisitSummary;
 const mockEnd = jest.fn();
+let mockOpenVisit: { localId: string } | undefined;
 jest.mock("@/lib/venue/use-venue", () => ({
-  useVenue: () => ({ end: mockEnd }),
+  useVenue: () => ({ end: mockEnd, visit: mockOpenVisit }),
 }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
@@ -131,6 +132,7 @@ beforeEach(() => {
   mockVisit.visibility = "public";
   mockVisit.syncedAt = null;
   mockEnd.mockReset().mockResolvedValue(undefined);
+  mockOpenVisit = undefined;
   mockToast.mockClear();
   mockLoad.mockClear();
   mockFlush.mockReset().mockResolvedValue(undefined);
@@ -484,6 +486,63 @@ it("keeps a pending Private sync distinct from a completed private save", async 
   expect(screen.getByRole("button", { name: "Save" })).toBeOnTheScreen();
 });
 
+it("offers only Save & end visit on the open visit, ending it in one step", async () => {
+  mockVisit.endedAt = null;
+  mockVisit.visibility = "private";
+  mockOpenVisit = { localId: "visit" };
+  const navigation = renderRouter(
+    {
+      _layout: () => <Stack />,
+      index: () => <Text>Home</Text>,
+      "journal/[visitId]": VisitDetailScreen,
+    },
+    { initialUrl: "/journal/visit" },
+  );
+  await navigation;
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "End visit" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Private visit. Make public." })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
+  await waitFor(() => expect(mockEnd).toHaveBeenCalledWith("visit"));
+  expect(mockToast).toHaveBeenCalledWith("Visit saved.");
+});
+
+it("holds a visibility change on the open visit until Save & end visit, as the end review does", async () => {
+  mockVisit.owner = "account:test-account";
+  switchOwner(mockVisit.owner);
+  mockVisit.endedAt = null;
+  mockVisit.visibility = "private";
+  mockOpenVisit = { localId: "visit" };
+  const save = jest.spyOn(visits, "patchVisit").mockResolvedValue(undefined);
+  const navigation = renderRouter(
+    {
+      _layout: () => <Stack />,
+      "journal/[visitId]": VisitDetailScreen,
+      "visit-share/[visitId]/index": () => <Text>Publish preview</Text>,
+    },
+    { initialUrl: "/journal/visit" },
+  );
+  await navigation;
+  await fireEvent.press(screen.getByRole("button", { name: "Private visit. Make public." }));
+  expect(screen.getByRole("button", { name: "Public visit. Make private." })).toBeOnTheScreen();
+  expect(save).not.toHaveBeenCalled();
+  expect(mockFlush).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
+  await waitFor(() => expect(navigation.getPathname()).toBe("/visit-share/visit"));
+  expect(save).toHaveBeenCalledWith("visit", { visibility: "public" }, "account:test-account");
+  expect(mockEnd).toHaveBeenCalledWith("visit");
+});
+
+it("keeps Save on a visit that has already ended", async () => {
+  mockVisit.visibility = "private";
+  await renderRouter(
+    { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/journal/visit" },
+  );
+  expect(screen.getByRole("button", { name: "Save" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Save & end visit" })).toBeNull();
+});
+
 async function openEndReview() {
   const navigation = renderRouter({
     _layout: () => <Stack />,
@@ -530,7 +589,7 @@ it.each(["device:test-installation", "account:test-account"])(
     await fireEvent.press(screen.getByRole("button", { name: "Public visit. Make private." }));
     expect(save).not.toHaveBeenCalled();
     expect(mockEnd).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
     await waitFor(() => expect(navigation.getPathname()).toBe("/"));
     expect(save).toHaveBeenCalledWith("visit", { reflection: "A private memory" }, owner, {
       sync: true,
@@ -552,10 +611,10 @@ it("ends a public visit on Save before opening sharing", async () => {
       finish = resolve;
     }),
   );
-  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   expect(navigation.getPathname()).toBe("/journal/visit");
-  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("button", { name: "Save & end visit" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   expect(mockEnd).toHaveBeenCalledTimes(1);
   await act(async () => finish());
   await waitFor(() => expect(navigation.getPathname()).toBe("/visit-share/visit"));
@@ -568,10 +627,10 @@ it("keeps a failed end-visit save open and allows retry", async () => {
   mockVisit.visibility = "private";
   mockEnd.mockRejectedValueOnce(new Error("Storage unavailable"));
   const { navigation } = await openEndReview();
-  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t save visit. Try again.");
   expect(navigation.getPathname()).toBe("/journal/visit");
-  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/"));
   expect(mockEnd).toHaveBeenCalledTimes(2);
 });
@@ -581,7 +640,7 @@ it("keeps the visit open when its note cannot save", async () => {
   jest.spyOn(visits, "patchVisit").mockRejectedValueOnce(new Error("Storage unavailable"));
   const { navigation } = await openEndReview();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Keep this memory");
-  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Your note could not be saved. Try again.");
   expect(mockEnd).not.toHaveBeenCalled();
   expect(navigation.getPathname()).toBe("/journal/visit");

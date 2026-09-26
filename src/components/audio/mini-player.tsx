@@ -9,7 +9,7 @@ import { useListening } from "@/lib/audio/use-listening";
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
 
-export const MINI_PLAYER_HEIGHT = 66;
+export const MINI_PLAYER_HEIGHT = 46;
 export function openPlayer(view: "player" | "queue" = "player") {
   router.push({ pathname: "/now-playing", params: { view } });
 }
@@ -33,7 +33,7 @@ export function MiniPlayer() {
           onPress={() => openPlayer()}
           style={styles.summary}
         >
-          <ArtworkThumbnail uri={audio.current.work.imageUri} size={40} />
+          <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600" }}>
               {audio.current.work.title}
@@ -66,17 +66,17 @@ export function MiniPlayer() {
   );
 }
 const styles = StyleSheet.create({
-  container: { backgroundColor: Gallery.surface, overflow: "hidden" },
+  container: { overflow: "hidden" },
   row: {
-    minHeight: 64,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 12,
-    paddingRight: 5,
+    paddingLeft: 14,
+    paddingRight: 4,
   },
   summary: {
     flex: 1,
-    minHeight: 64,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

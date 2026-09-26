@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { Alert, type AlertButton } from "react-native";
 
 import { formStateFromFlow } from "@/lib/label/fields";
 import { shareSavedLabel } from "@/lib/label/share-saved-label";
 import { reportError } from "@/lib/observability";
+import { VisitInProgressError } from "@/lib/venue/use-venue";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { saveResult } from "./save";
@@ -126,5 +128,48 @@ it("reports a failed local save while leaving the draft available to retry", asy
     saving: false,
     savedId: undefined,
     error: "Couldn’t save. Try again.",
+  });
+});
+
+describe("a save that would start a visit while another is open", () => {
+  const draft = { title: "Water Lilies", artist: "", date: "", medium: "", institution: "" };
+  const open = {
+    localId: "open-visit",
+    venueId: "museum-other" as Id<"museums">,
+    venueName: "Neue Galerie",
+    startedAt: 0,
+    visitedOn: "1970-01-01",
+    timeZone: "UTC",
+  };
+  function answer(text: string) {
+    jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => {
+      buttons?.find((button) => button.text === text)?.onPress?.();
+    });
+  }
+  afterEach(() => jest.restoreAllMocks());
+
+  it("saves the artwork alone when the person keeps that visit open", async () => {
+    answer("Save artwork only");
+    jest
+      .mocked(saveResult)
+      .mockRejectedValueOnce(new VisitInProgressError(open))
+      .mockResolvedValueOnce({ ...saved, contribution: undefined });
+    const hook = await renderHook(useSaveResult);
+    await act(() => hook.result.current.save({ capture, draft }));
+    expect(jest.mocked(saveResult).mock.calls.map(([, options]) => options)).toEqual([
+      { withoutVisit: false },
+      { withoutVisit: true },
+    ]);
+    expect(hook.result.current).toMatchObject({ saving: false, savedId: "saved-1", error: undefined });
+  });
+
+  it("leaves the draft unsaved and without an error when the person cancels", async () => {
+    answer("Cancel");
+    jest.mocked(saveResult).mockRejectedValue(new VisitInProgressError(open));
+    const hook = await renderHook(useSaveResult);
+    await act(() => hook.result.current.save({ capture, draft }));
+    expect(saveResult).toHaveBeenCalledTimes(1);
+    expect(reportError).not.toHaveBeenCalled();
+    expect(hook.result.current).toMatchObject({ saving: false, savedId: undefined, error: undefined });
   });
 });

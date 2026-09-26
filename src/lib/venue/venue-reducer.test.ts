@@ -7,6 +7,7 @@ import {
   initialVenueState,
   needsFix,
   NOT_HERE_MS,
+  planSaveVisit,
   venueContext,
   venueReducer,
   type CurrentVisit,
@@ -97,6 +98,7 @@ describe("resolving a fix", () => {
     const state = reduce([
       {
         type: "hydrated",
+        at: fix.at,
         visit: visitAt("Neue", fix.at - 60_000, "remote-neue"),
       },
       {
@@ -166,7 +168,7 @@ describe("resolving a fix", () => {
       name: "Neue",
     };
     const changed = reduce([
-      { type: "hydrated", visit: visitAt("Met", fix.at - 60_000) },
+      { type: "hydrated", at: fix.at, visit: visitAt("Met", fix.at - 60_000) },
       choose(fix.at),
       { type: "chosen", option: neue, replaces: neue, day: today },
       { type: "backgrounded" },
@@ -209,6 +211,7 @@ describe("resolving a fix", () => {
     const state = reduce([
       {
         type: "hydrated",
+        at: fix.at,
         visit: visitAt("Neue", fix.at - 60_000, undefined, "1969-12-31"),
       },
       {
@@ -226,7 +229,7 @@ describe("resolving a fix", () => {
 
   it("pauses the visit when nothing seeded is nearby: no venue for scans, but the visit stays open", () => {
     const state = reduce([
-      { type: "hydrated", visit: visitAt("Met", fix.at - 1000) },
+      { type: "hydrated", at: fix.at, visit: visitAt("Met", fix.at - 1000) },
       { type: "resolved", fix, resolution: { kind: "none" } },
     ]);
     expect(state).toMatchObject({
@@ -271,14 +274,29 @@ describe("resolving a fix", () => {
     expect(reduce([{ type: "failed", error: "x" }]).status).toBe("none");
   });
 
-  it("drops the venue, visit and fix when location access is denied", () => {
-    const state = reduce([{ type: "hydrated", visit: visitAt("Met", fix.at) }, { type: "denied" }]);
+  it("drops the venue and fix when location access is denied, pausing the visit rather than ending it", () => {
+    const state = reduce([
+      { type: "hydrated", at: fix.at, visit: visitAt("Met", fix.at) },
+      { type: "denied", at: fix.at },
+    ]);
     expect(state).toMatchObject({
       status: "denied",
       venue: undefined,
-      visit: undefined,
+      visit: { localId: "local-Met" },
       fix: undefined,
     });
+    expect(venueContext(state)).toEqual({});
+  });
+
+  it("keeps a museum picked by hand through denied location only on its visit's day", () => {
+    const picked = reduce([{ type: "hydrated", at: fix.at, visit: { ...visitAt("Met", fix.at), manual: true } }]);
+    expect(venueContext(venueReducer(picked, { type: "denied", at: fix.at }))).toEqual({
+      venueId: "id-Met",
+      visitLocalId: "local-Met",
+    });
+    const nextDay = venueReducer(picked, { type: "denied", at: fix.at + DAY });
+    expect(nextDay).toMatchObject({ status: "denied", venue: undefined, visit: { localId: "local-Met" } });
+    expect(venueContext(nextDay)).toEqual({});
   });
 });
 
@@ -353,7 +371,7 @@ describe("nearby places", () => {
 
 describe('"Not here"', () => {
   const choose = reduce([
-    { type: "hydrated", visit: visitAt("Old", fix.at - 1000) },
+    { type: "hydrated", at: fix.at, visit: visitAt("Old", fix.at - 1000) },
     {
       type: "resolved",
       fix,
@@ -425,7 +443,7 @@ describe('"Not here"', () => {
     expect(Object.keys(dismissed.notHere).sort()).toEqual(["id-Met", "id-Neue"]);
   });
 
-  it("ends the visit and drops the venue when tapped over a resolved venue, keeping the options", () => {
+  it("drops the venue when tapped over a resolved venue, keeping the options and pausing its visit", () => {
     const resolved = reduce([
       {
         type: "resolved",
@@ -442,7 +460,7 @@ describe('"Not here"', () => {
     expect(dismissed).toMatchObject({
       status: "none",
       venue: undefined,
-      visit: undefined,
+      visit: { localId: "local-Met" },
       notHere: { "id-Met": fix.at + NOT_HERE_MS },
     });
     expect(dismissed.options.map((option) => option.name)).toEqual(["Met"]);
@@ -530,8 +548,20 @@ describe("visits and the scan context", () => {
     expect(venueContext(elsewhere)).toEqual({ venueId: "id-Neue" });
   });
 
+  it("restores a visit from an earlier day paused, with no venue until a fix finds its museum", () => {
+    const restored = reduce([{ type: "hydrated", at: fix.at + DAY, visit: visitAt("Met", fix.at) }]);
+    expect(restored.visit?.localId).toBe("local-Met");
+    expect(venueContext(restored)).toEqual({});
+    const back = venueReducer(restored, {
+      type: "resolved",
+      fix: { ...fix, at: fix.at + DAY },
+      resolution: { kind: "auto", venue: candidate("Met", 40), options: [candidate("Met", 40)] },
+    });
+    expect(venueContext(back)).toEqual({ venueId: "id-Met", visitLocalId: "local-Met" });
+  });
+
   it("shows the hydrated visit as the venue before the first fix", () => {
-    const state = reduce([{ type: "hydrated", visit: visitAt("Met", fix.at, "remote-1") }]);
+    const state = reduce([{ type: "hydrated", at: fix.at, visit: visitAt("Met", fix.at, "remote-1") }]);
     expect(state.status).toBe("idle");
     expect(venueContext(state)).toEqual({
       venueId: "id-Met",
@@ -569,7 +599,7 @@ describe("a visit ended by hand", () => {
     const ended = venueReducer(resolved, {
       type: "visitEnded",
       localId: "local-Met",
-      manual: true,
+      at: fix.at,
     });
     expect(ended.visit).toBeUndefined();
     expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at + 60_000)).toBe(true);
@@ -587,7 +617,7 @@ describe("a visit ended by hand", () => {
     const ended = venueReducer(resolved, {
       type: "visitEnded",
       localId: "local-Met",
-      manual: true,
+      at: fix.at,
     });
     const met = ended.options[0];
     expect(met.kind === "seeded" && met.venueId).toBe("id-Met");
@@ -619,10 +649,16 @@ describe("a visit ended by hand", () => {
     ).toBeUndefined();
   });
 
-  it("is not remembered when the visit ended on its own, and is restored at launch", () => {
-    expect(venueReducer(resolved, { type: "visitEnded", localId: "local-Met" }).ended).toBeUndefined();
+  it("counts the day the visit was ended, not the day it started", () => {
+    const ended = venueReducer(resolved, { type: "visitEnded", localId: "local-Met", at: fix.at + DAY });
+    expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at)).toBe(false);
+    expect(endedToday(ended, "id-Met" as Id<"museums">, fix.at + DAY)).toBe(true);
+  });
+
+  it("is restored at launch and forgotten when a visit starts there", () => {
     const restored = venueReducer(initialVenueState, {
       type: "hydrated",
+      at: fix.at,
       ended: {
         venueId: "id-Met" as Id<"museums">,
         visitedOn: "1970-01-01",
@@ -633,8 +669,36 @@ describe("a visit ended by hand", () => {
     expect(
       venueReducer(restored, {
         type: "hydrated",
+        at: fix.at,
         visit: visitAt("Met", fix.at),
       }).ended,
     ).toBeUndefined();
+  });
+});
+
+describe("the visit a save links to", () => {
+  const met = "id-Met" as Id<"museums">;
+  const neue = "id-Neue" as Id<"museums">;
+  const open = visitAt("Met", fix.at);
+  const capture = (at: number) => ({ at, visitedOn: new Date(at).toISOString().slice(0, 10), timeZone: "UTC" });
+
+  it("joins the open visit at its museum from its day on, even before its start or days later", () => {
+    expect(planSaveVisit(open, met, capture(fix.at + 60_000), fix.at + 60_000)).toBe("join");
+    expect(planSaveVisit(open, met, capture(fix.at - 60_000), fix.at)).toBe("join");
+    expect(planSaveVisit(open, met, capture(fix.at + 3 * DAY), fix.at + 3 * DAY)).toBe("join");
+  });
+
+  it("never starts a second visit today while one is open; the open one has to end first", () => {
+    expect(planSaveVisit(open, neue, capture(fix.at + 60_000), fix.at + 60_000)).toBe("endFirst");
+    expect(planSaveVisit(open, neue, capture(fix.at + 3 * DAY), fix.at + 3 * DAY)).toBe("endFirst");
+    expect(planSaveVisit(undefined, neue, capture(fix.at), fix.at)).toBe("start");
+  });
+
+  it("gives a capture from an earlier day, or from before the open visit began, a visit of its own", () => {
+    const twoDaysIn = fix.at + 2 * DAY;
+    expect(planSaveVisit(open, neue, capture(fix.at + DAY), twoDaysIn)).toBe("past");
+    expect(planSaveVisit(undefined, met, capture(fix.at), twoDaysIn)).toBe("past");
+    expect(planSaveVisit(open, neue, capture(fix.at - 60_000), fix.at)).toBe("past");
+    expect(planSaveVisit({ ...open, visitedOn: "1970-01-03" }, met, capture(fix.at), twoDaysIn)).toBe("past");
   });
 });
