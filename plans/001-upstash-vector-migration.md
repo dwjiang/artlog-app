@@ -1,21 +1,11 @@
 # Plan 001: Move vector search to Upstash
 
-> **Deferred — do not execute until the user resumes this work.** Fixes 1, 2, 3,
-> and 5 from the cost review are implemented separately in this workspace.
-> This plan replaces the resulting Convex search indexes; it does not repeat
-> those fixes or authorize provisioning, spending, or a production deployment.
->
-> **Executor:** read this plan and the applicable project guides before making
-> changes. Complete each verification gate. Update `plans/README.md` when done.
->
-> **Drift check:** run `git diff --stat 9211ad92..HEAD -- convex scripts/data/pipeline shared/model plans`.
-> This plan includes the uncommitted cost fixes written on top of that commit.
-> Compare the excerpts below with the current files, including `git diff`, before
-> execution. Refresh the plan if those contracts changed.
+> **Superseded:** the user selected Pinecone instead. See [Pinecone operations](../docs/pinecone.md).
+> This historical Upstash design is not an implementation instruction.
 
 ## Status
 
-- Priority: P2; deferred by the user
+- Status: superseded by the Pinecone implementation
 - Effort: L; estimate 3–4 working days including accuracy and deletion testing
 - Risk: HIGH; changes recognition dependencies and data deletion across services
 - Category: migration / performance

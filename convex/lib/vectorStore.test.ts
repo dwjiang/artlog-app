@@ -10,7 +10,7 @@ import { recognitionPartition } from "./recognitionEligibility";
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./testFactories";
 import { deleteVector, insertVector, readVector, replaceVector } from "./vectorStore";
 
-it("routes corpus and venue payloads to separate indexes and keeps identities small", async () => {
+it("retains corpus and venue payloads for offline exports and keeps identities small", async () => {
   const t = harness();
   const { corpus, tentative } = await t.run(async (ctx) => {
     const venueId = await seedMuseum(ctx);
@@ -53,7 +53,7 @@ it("resolves candidates from identity rows without reading any embedding payload
   )._handler;
   await t.run(async (ctx) => {
     const get = vi.spyOn(ctx.db, "get");
-    const result = await handler(ctx, { embeddingIds: [work.embeddingId], scores: [0.95], now: Date.now() });
+    const result = await handler(ctx, { recordIds: [work.recordId], scores: [0.95], now: Date.now() });
     expect(result[0].object._id).toBe(work.objectId);
     expect(get.mock.calls.flat()).not.toContain(work.embeddingId);
     get.mockRestore();

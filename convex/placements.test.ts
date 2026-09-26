@@ -9,6 +9,7 @@ import { loadOrb } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { proposePlacementFromScan } from "./placements";
 import { harness } from "./test.helpers";
 
@@ -189,7 +190,7 @@ it("approving a move closes active placements elsewhere and preserves ownership,
   expect(await t.run((ctx) => ctx.db.get("collections", savedId))).toEqual(before);
   expect(
     await t.query(internal.identify.loadCandidates, {
-      embeddingIds: [(await t.run((ctx) => ctx.db.query("vectors").first()))!.embeddingId],
+      recordIds: [searchRecordId((await t.run((ctx) => ctx.db.query("vectors").first()))!)],
       scores: [1],
       now: NOW + DAY,
     }),
@@ -257,7 +258,7 @@ it.each(["multiple", "unknown"] as const)(
       },
     ]);
     const candidates = await t.query(internal.identify.loadCandidates, {
-      embeddingIds: [vectors[0].embeddingId],
+      recordIds: [searchRecordId(vectors[0])],
       scores: [0.99],
       now: NOW + DAY,
     });

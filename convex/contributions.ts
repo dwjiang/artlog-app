@@ -24,6 +24,7 @@ import {
   type LabelFieldName,
   type LabelFlow,
 } from "./lib/validators";
+import { searchVectorIndex } from "./lib/vectorSearch";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
@@ -422,14 +423,10 @@ export const contribute = action({
       if (authorization.kind === "existing") return authorization.result;
       const { scan, vector } = authorization;
       let { previousContributionId } = authorization;
-      const matches = await ctx.vectorSearch("embeddings", "by_vector", {
-        vector,
-        limit: 3,
-        filter: (q) => q.eq("partition", recognitionPartition(scan.modelVersion)),
-      });
+      const matches = await searchVectorIndex(ctx, vector, recognitionPartition(scan.modelVersion), 3);
       const established = await ctx.runQuery(internal.identify.loadCandidates, {
-        embeddingIds: matches.map((match) => match._id),
-        scores: matches.map((match) => match._score),
+        recordIds: matches.map((match) => match.id),
+        scores: matches.map((match) => match.score),
         venueId: scan.venueId,
         now: Date.now(),
       });

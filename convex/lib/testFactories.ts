@@ -6,6 +6,7 @@ import type { Harness, SignedIn } from "../test.helpers";
 import { registerMuseumObject } from "./museumWorkIdentity";
 import { storeOrb } from "./orbStorage";
 import { insertVector } from "./vectorStore";
+import { searchRecordId } from "./vectorSyncQueue";
 
 type TestCtx = MutationCtx & Pick<ActionCtx, "storage">;
 
@@ -122,8 +123,8 @@ export async function seedArtworkWithObject(
       ...options.placement,
     });
   }
-  const { embeddingId } = (await ctx.db.get("vectors", vectorId))!;
-  return { artworkId, objectId, vectorId, embeddingId };
+  const row = (await ctx.db.get("vectors", vectorId))!;
+  return { artworkId, objectId, vectorId, embeddingId: row.embeddingId, recordId: searchRecordId(row) };
 }
 
 export async function seedScan(

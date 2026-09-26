@@ -4,7 +4,6 @@ import { v } from "convex/values";
 
 import { albumPhoto, albumEncounter } from "../shared/collection/album";
 import { journalOwner, journalVisit, journalSave } from "../shared/journal/contracts";
-import model from "../shared/model/model-version.json";
 import {
   wallLayout,
   wallPattern,
@@ -202,16 +201,20 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_status_readyForReview", ["status", "readyForReview"]),
 
-  embeddings: defineTable({ vector: embedding, partition: v.string() }).vectorIndex("by_vector", {
-    vectorField: "vector",
-    dimensions: model.embeddingDim,
-    filterFields: ["partition"],
-  }),
-  tentativeEmbeddings: defineTable({ vector: embedding, partition: v.string() }).vectorIndex("by_vector", {
-    vectorField: "vector",
-    dimensions: model.embeddingDim,
-    filterFields: ["partition"],
-  }),
+  embeddings: defineTable({ vector: embedding, partition: v.string() }),
+  tentativeEmbeddings: defineTable({ vector: embedding, partition: v.string() }),
+  vectorSyncJobs: defineTable({
+    vectorId: v.id("vectors"),
+    recordId: v.string(),
+    operation: v.union(v.literal("upsert"), v.literal("delete")),
+    revision: v.number(),
+    attempts: v.number(),
+    state: v.union(v.literal("pending"), v.literal("failed")),
+    availableAt: v.number(),
+    lease: v.optional(v.string()),
+  })
+    .index("by_recordId", ["recordId"])
+    .index("by_state_availableAt", ["state", "availableAt"]),
   // Scan and rejection vectors expire; a contribution's copy lives as long as the contribution.
   scanEmbeddings: defineTable({ vector: embedding, expiresAt: v.optional(v.number()) }).index("by_expiresAt", [
     "expiresAt",

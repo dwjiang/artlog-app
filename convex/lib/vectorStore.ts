@@ -2,7 +2,9 @@ import { ConvexError } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { validateVector } from "./modelVersion";
 import { recognitionPartition } from "./recognitionEligibility";
+import { queueVectorSync, searchRecordId } from "./vectorSyncQueue";
 
 type VectorInput = Omit<Doc<"vectors">, "_id" | "_creationTime" | "embeddingId" | "contentHash"> & { vector: number[] };
 
@@ -26,13 +28,18 @@ export async function readVector(ctx: QueryCtx, row: Doc<"vectors">): Promise<nu
 
 export async function insertVector(ctx: MutationCtx, input: VectorInput): Promise<Id<"vectors">> {
   const { vector, ...identity } = input;
+  validateVector(vector);
   const table = input.partition === recognitionPartition(input.modelVersion) ? "embeddings" : "tentativeEmbeddings";
   const embeddingId = await ctx.db.insert(table, { vector, partition: input.partition });
-  return ctx.db.insert("vectors", { ...identity, embeddingId, contentHash: await vectorHash(vector) });
+  const fields = { ...identity, embeddingId, contentHash: await vectorHash(vector) };
+  const id = await ctx.db.insert("vectors", fields);
+  await queueVectorSync(ctx, { ...fields, _id: id }, "upsert");
+  return id;
 }
 
 export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input: VectorInput): Promise<void> {
   const { vector, ...identity } = input;
+  validateVector(vector);
   const contentHash = await vectorHash(vector);
   const table = input.partition === recognitionPartition(input.modelVersion) ? "embeddings" : "tentativeEmbeddings";
   let { embeddingId } = row;
@@ -51,10 +58,15 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
     )
   ) {
     await ctx.db.replace("vectors", row._id, fields);
+    if (searchRecordId(row) !== searchRecordId(fields)) {
+      await queueVectorSync(ctx, row, "delete");
+      await queueVectorSync(ctx, { ...fields, _id: row._id }, "upsert");
+    }
   }
 }
 
 export async function deleteVector(ctx: MutationCtx, row: Doc<"vectors">): Promise<void> {
   await ctx.db.delete(embeddingTable(ctx, row.embeddingId), row.embeddingId);
   await ctx.db.delete("vectors", row._id);
+  await queueVectorSync(ctx, row, "delete");
 }
