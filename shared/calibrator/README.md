@@ -2,7 +2,7 @@
 
 The match calibrator (`convex/lib/calibrator/`) is a logistic regression over the fixed
 feature vector produced by `featurize()`. Its weights ship as `DEFAULT_CALIBRATOR` in
-`convex/lib/calibrator/weights.ts`, currently `lr-v2`, trained on 5,500 paintings. Its
+`convex/lib/calibrator/weights.ts`, currently `lr-v3`, trained on 5,500 paintings. Its
 evaluation limits are recorded in
 [calibrator findings](../../docs/experiments/README.md#calibrator-v2).
 
@@ -12,7 +12,7 @@ One JSON document shaped exactly like `CalibratorConfig`:
 
 ```json
 {
-  "version": "lr-v2",
+  "version": "lr-v3",
   "featureNames": [
     "similarity",
     "margin",
@@ -32,8 +32,8 @@ One JSON document shaped exactly like `CalibratorConfig`:
   "lowTextureKeypoints": 80,
   "textured": { "minInliers": 15 },
   "lowTexture": {
-    "minSimilarity": 0.93,
-    "minMargin": 0.04,
+    "minSimilarity": 0.8,
+    "minMargin": 0.08,
     "requireVenueAgreement": true
   }
 }

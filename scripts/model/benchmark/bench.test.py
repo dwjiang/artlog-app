@@ -13,7 +13,7 @@ def result():
         "compute_units": "cpuAndNeuralEngine",
         "embedding_count": 1,
         "prediction_median_ms": 67,
-    }, {"https://example.test/painting": [1.0] + [0.0] * 1535}
+    }, {"https://example.test/painting": [1.0] + [0.0] * (bench.EMBEDDING_DIM - 1)}
 
 
 def test_device_run_consumes_the_exported_package_and_preserves_previous_results(
@@ -67,6 +67,7 @@ def test_stale_incomplete_or_invalid_device_results_are_rejected(fault):
         "units": "cpuAndNeuralEngine",
         "urls": list(embeddings),
     }
+    bench.validate_results(report, embeddings, **expected)
     url = next(iter(embeddings))
     if fault == "weights":
         report["weights_sha256"] = "other-export"

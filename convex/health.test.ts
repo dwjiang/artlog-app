@@ -16,7 +16,7 @@ describe("health.ping", () => {
     const health = await t.query(api.health.ping, {});
 
     expect(health.ok).toBe(true);
-    expect(health.modelVersion).toBe("c-radiov3-b-int8-512-dinov2-v1");
+    expect(health.modelVersion).toBe("c-radiov3-b-int8-512-dinov2-pca512-v1");
     expect(health.modelVersion).toBe(model.modelVersion);
     expect(health.time).toBeGreaterThanOrEqual(before);
   });

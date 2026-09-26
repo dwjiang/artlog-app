@@ -3,6 +3,7 @@ import json
 import pytest
 
 from pipeline.features import file_hash, read_jsonl, write_jsonl
+from pipeline.model_version import EMBEDDING_DIM
 from pipeline.push import (
     BATCH_SIZES,
     DEFAULT_CORPUS_LIMIT,
@@ -114,8 +115,8 @@ def test_small_corpus_keeps_views_merge_targets_and_all_references(merged_corpus
     assert plan["selectedSurvivors"] == ["met:0", "met:1"]
     assert plan["requiredVenueKeys"] == ["museum:1"]
     assert plan["featureBytes"] == {
-        "embeddingsFloat32": 3 * 1536 * 4,
-        "embeddingsFloat64": 3 * 1536 * 8,
+        "embeddingsFloat32": 3 * EMBEDDING_DIM * 4,
+        "embeddingsFloat64": 3 * EMBEDDING_DIM * 8,
         "orb": 2 * 48,
     }
 
@@ -249,7 +250,7 @@ def test_order_batches_metadata_without_vectors_and_multiview(merged_corpus):
     views = [r for r in rows if r["objectKey"] == "met:0"]
     assert {r["viewKey"] for r in views} == {"met:0", "wikidata:Q1"}
     assert {r["source"] for r in views} == {"corpus"}
-    assert all(len(r["vector"]) == 1536 for r in rows)
+    assert all(len(r["vector"]) == EMBEDDING_DIM for r in rows)
     objects = [r for s, rows in writer.calls if s == "objects" for r in rows]
     assert any(r["key"] == "met:1001" for r in objects)
     assert objects[-1]["mergedIntoKey"] == "met:0"

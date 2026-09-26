@@ -5,6 +5,7 @@ import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
@@ -111,7 +112,7 @@ describe("identify action", () => {
     expect(result).toMatchObject({
       status: "identified",
       outcome: "confident",
-      calibratorVersion: "lr-v2",
+      calibratorVersion: DEFAULT_CALIBRATOR.version,
       best: {
         objectId: work!.objectId,
         title: "Water Lilies",

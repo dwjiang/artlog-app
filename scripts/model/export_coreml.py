@@ -7,7 +7,8 @@ phone's int8-rounded weights, consumed by the index build) and `out/model-manife
 
 The export uses a fixed INPUT_SIZE RGB image scaled by 1/255 inside CoreML, fp16
 compute, symmetric per-channel int8 on the two-dimensional Linear weights only, and an
-unnormalized EMBEDDING_DIM float32 output. Any change here is a new model version.
+unnormalized EMBEDDING_DIM float32 output: the L2-normalized SUMMARY_DIM summary projected
+by `projection.npz` (see `fit_projection.py`). Any change here is a new model version.
 """
 
 import argparse
@@ -40,18 +41,46 @@ MODEL_NAME = "CRadioV3B"
 INPUT_NAME = "image"
 OUTPUT_NAME = "embedding"
 INPUT_SIZE = 512
-EMBEDDING_DIM = 1536
+SUMMARY_DIM = 1536
+EMBEDDING_DIM = 512
+WHITEN_POWER = 0.5
+PROJECTION = ROOT / "projection.npz"
 WEIGHT_DTYPE = "int8"
-MODEL_VERSION = f"c-radiov3-b-{WEIGHT_DTYPE}-{INPUT_SIZE}-dinov2-v1"
+MODEL_VERSION = f"c-radiov3-b-{WEIGHT_DTYPE}-{INPUT_SIZE}-dinov2-pca{EMBEDDING_DIM}-v1"
+
+
+class Projection(torch.nn.Module):
+    """Buffers rather than a Linear, so int8 quantization leaves the projection in fp16."""
+
+    def __init__(self, mean, matrix):
+        super().__init__()
+        self.register_buffer("mean", torch.as_tensor(mean, dtype=torch.float32))
+        self.register_buffer("matrix", torch.as_tensor(matrix, dtype=torch.float32))
+
+    def forward(self, summary):
+        unit = torch.nn.functional.normalize(summary.to(self.matrix.dtype), dim=-1)
+        return (unit - self.mean) @ self.matrix
+
+
+def load_projection(path=PROJECTION):
+    if not path.exists():
+        raise FileNotFoundError(f"{path} is missing; run fit_projection.py against an index build")
+    with np.load(path) as saved:
+        if saved["matrix"].shape != (SUMMARY_DIM, EMBEDDING_DIM) or saved["mean"].shape != (SUMMARY_DIM,):
+            raise ValueError(f"{path} does not project {SUMMARY_DIM} floats to {EMBEDDING_DIM}")
+        if float(saved["whitenPower"]) != WHITEN_POWER:
+            raise ValueError(f"{path} was fitted with whitening power {saved['whitenPower']}, not {WHITEN_POWER}")
+        return Projection(saved["mean"], saved["matrix"])
 
 
 class DinoSummary(torch.nn.Module):
-    def __init__(self, radio):
+    def __init__(self, radio, projection):
         super().__init__()
         self.radio = radio
+        self.projection = projection
 
     def forward(self, image):
-        return self.radio(image)[ADAPTOR].summary
+        return self.projection(self.radio(image)[ADAPTOR].summary)
 
 
 def build():
@@ -70,7 +99,7 @@ def build():
     with checkpoint.open("rb") as file:
         if file_digest(file, "sha256").hexdigest() != CHECKPOINT_SHA256:
             raise RuntimeError("Upstream checkpoint changed; do not reuse this model version")
-    return DinoSummary(radio).float().eval()
+    return DinoSummary(radio, load_projection()).float().eval()
 
 
 def assert_recipe_matches_shared_model():
@@ -173,6 +202,8 @@ def export(out, build=build):
         "modelName": MODEL_NAME,
         "inputSize": INPUT_SIZE,
         "embeddingDim": EMBEDDING_DIM,
+        "summaryDim": SUMMARY_DIM,
+        "whitenPower": WHITEN_POWER,
         "inputName": INPUT_NAME,
         "outputName": OUTPUT_NAME,
         "normalizedOutput": False,

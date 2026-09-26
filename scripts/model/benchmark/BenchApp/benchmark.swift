@@ -53,7 +53,7 @@ enum Benchmark {
     static func embedding(_ model: MLModel, input: MLFeatureProvider) throws -> [Double] {
         let prediction = try model.prediction(from: input)
         guard let array = prediction.featureValue(for: "embedding")?.multiArrayValue,
-              array.count == 1536 else {
+              array.count == 512 else {
             throw NSError(domain: "Unexpected embedding shape", code: 1)
         }
         let vector = (0..<array.count).map { array[$0].doubleValue }

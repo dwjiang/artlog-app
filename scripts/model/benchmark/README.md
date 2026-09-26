@@ -11,7 +11,7 @@ and consumes the [maintained model export](../README.md).
 
 Export the model first using `scripts/model/export_coreml.py`. Its default
 `scripts/model/out/CRadioV3B.mlpackage` is the benchmark's default input;
-`--model` can select another compatible package with a 1,536-value `embedding`
+`--model` can select another compatible package with a 512-value `embedding`
 output and 448×448 or 512×512 RGB input.
 
 From this directory:

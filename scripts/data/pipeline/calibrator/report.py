@@ -1,8 +1,10 @@
-"""Human review artifacts; failed statistical gates never leave installable v2 weights."""
+"""Human review artifacts; failed statistical gates never leave installable weights."""
 
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from .train import VERSION
 
 if TYPE_CHECKING:
     from .train import TrainingResult
@@ -14,14 +16,14 @@ def _number(value) -> str:
 
 def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
-    artifact = out / "calibrator-lr-v2.json"
+    artifact = out / f"calibrator-{VERSION}.json"
     config, metrics = result.config, result.metrics
     if result.errors:
         artifact.unlink(missing_ok=True)
     else:
         artifact.write_text(json.dumps(config, indent=2, allow_nan=False) + "\n")
     lines = [
-        "# Calibrator v2 training report",
+        f"# Calibrator {VERSION} training report",
         "",
         "Status: **STOP — no v2 artifact**"
         if result.errors

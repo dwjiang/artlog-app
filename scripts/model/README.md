@@ -3,9 +3,24 @@
 Produces the CoreML package the app ships and the index build's weights. The
 [accepted recipe](../../docs/experiments/README.md#embedding-model) is C-RADIOv3-B, DINOv2 adaptor
 summary, 512×512 RGB input scaled by 1/255 inside CoreML, fp16 compute, symmetric per-channel
-int8 on the 53 two-dimensional Linear weights, unnormalized 1536-float output. `export_coreml.py`
-asserts that its recipe constants match `shared/model/model-version.json`; any change to either is a
-new `modelVersion` and an index rebuild.
+int8 on the 53 two-dimensional Linear weights, and a final fp16 layer that L2-normalizes the
+1536-float summary and projects it to an unnormalized 512-float output with `projection.npz`.
+`export_coreml.py` asserts that its recipe constants match `shared/model/model-version.json`; any
+change to either is a new `modelVersion` and an index rebuild.
+
+A new `modelVersion` also moves the cosine scale, so retune every similarity cutoff with it:
+`IMAGE_MATCH_COSINE` (app and `convex/lib/labelVerify.ts`), `DUPLICATE_COSINE`,
+`MULTI_VIEW_DUPLICATE_COSINE`, `AGREEMENT_MIN_COSINE`, `REPLAY_COSINE`,
+`EMBEDDING_MERGE_COSINE` (`scripts/data/pipeline/dedupe.py`), and the calibrator's
+weights and low-texture rule (refit with the [jobs guide](../data/README.md#calibrator-training)).
+
+`projection.npz` is the corpus PCA with square-root whitening: each of the top 512 components is
+divided by λ^¼. Full whitening searched better but amplified the phone's int8/fp16 noise past the
+drift gate. Refit it only together with a new `modelVersion`:
+
+```sh
+uv run python fit_projection.py --features "$HOME/Documents/Artlog Data/jobs/scratch/merged"
+```
 
 Requires Apple silicon macOS, Xcode 26, `uv`, and about 3 GB of disk (a 546 MB checkpoint under
 `cache/`, ~1 GB under `out/`; both ignored). The app and module require iOS 17.0, matching the
@@ -25,8 +40,8 @@ uv run python export_coreml.py --out out/        # out/CRadioV3B.mlpackage, fake
 
 `model-manifest.json` records the model version, input/output names, the weight-file and
 package hashes and the tool versions. A faithful re-export reproduces
-`weightsSha256 = f6f6d2d8c75ed755718114cdbff2dcbf262527b5974c2eefa2916d8533c7b6a7`, the evaluated
-int8 weight file byte for byte (verified 2026-09-10 with torch 2.7.0 / coremltools 9.0). The
+`weightsSha256 = 426326043e6f6b58d8f8c27ae975335d34f3d6dfa2d2e58731384963cf5a216f`, the tracked
+weight file byte for byte (verified 2026-09-26 with torch 2.7.0 / coremltools 9.0). The
 `fakequant_state.pt` next to it is the PyTorch checkpoint with the phone's dequantized weights;
 the index build loads it so index vectors carry the same int8 rounding as the phone.
 
@@ -96,7 +111,20 @@ letterboxes each image with the production vision-rect module, embeds it, and sh
 `iphone-embeddings.json` (`{ url: number[] }`, normalized) plus `iphone-report.json`. Commit
 the embeddings as `scripts/data/calibration/iphone-embeddings.json` whenever the export changes.
 
-## Results, 2026-09-10 (Apple M5 Pro, macOS 26.5, Xcode 26.6)
+## Results, 2026-09-26: pca512 export (Apple M5 Pro)
+
+| Check                                                             | Result                                                |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| Export                                                            | 53 int8 weights; the projection stays fp16            |
+| Mac harness, 200 calibration crops vs PyTorch fake-quant MPS fp16 | mean cosine 0.99292, min 0.98325                      |
+| Pipeline drift check                                              | mean 0.99294, min 0.98329 against the reference below |
+| Mac `CPU_AND_NE` latency                                          | load 2.6 s cold, ~48 ms per crop                      |
+
+The committed `iphone-embeddings.json` is the 2026-09-10 phone vectors passed through the
+exported fp16 projection, not a new device export; the Mac harness covers the projection's
+Neural Engine numerics. Replace it with an in-app export when a device is available.
+
+## Results, 2026-09-10: 1536-float export, superseded (Apple M5 Pro, macOS 26.5, Xcode 26.6)
 
 | Check                                                                                             | Result                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

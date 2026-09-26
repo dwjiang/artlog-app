@@ -6,7 +6,7 @@ import { verifyOrb } from "@/shared/orb/verify";
 import type { ImageCheck } from "../../../convex/lib/validators";
 
 /** Mirrors `IMAGE_MATCH_COSINE` in convex/lib/labelVerify.ts: the server ignores checks below it. */
-export const IMAGE_MATCH_COSINE = 0.85;
+export const IMAGE_MATCH_COSINE = 0.62;
 export const MAX_IMAGE_CHECKS = 3;
 
 export type ImageCheckDeps = {

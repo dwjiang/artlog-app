@@ -18,6 +18,9 @@ from .sources.fetch import write_json
 
 log = logging.getLogger(__name__)
 
+# Preserves the 1536-d corpus merge mapping with pca512 vectors; see docs/experiments/README.md.
+EMBEDDING_MERGE_COSINE = 0.93
+
 
 def priority(key: str) -> tuple[bool, str]:
     return (key.split(":", 1)[0] not in {"met", "aic"}, key)
@@ -86,7 +89,7 @@ def find_merges(objects: list[dict], vectors: dict, artists: dict, *, block_size
         for start in range(0, len(keys), block_size):
             for other in range(start, len(keys), 20000):
                 scores = matrix[start : start + block_size] @ matrix[other : other + 20000].T
-                left, right = np.where(scores >= 0.95)
+                left, right = np.where(scores >= EMBEDDING_MERGE_COSINE)
                 for i, j in zip(left + start, right + other, strict=True):
                     if i < j:
                         merge(keys[i], keys[j], "embedding")

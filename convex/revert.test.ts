@@ -577,7 +577,7 @@ it("reconsiders duplicate views across witness pages and restores them with clea
     expect(row?.multiViewAgreement).toBeUndefined();
   }
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(0);
-  await add(carol.deviceId, testVector(0.7));
+  await add(carol.deviceId, testVector(0.6));
   await promoteGroup(t, work.objectId, venueId);
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(2);
   await t.mutation(internal.revert.revertDevice, {

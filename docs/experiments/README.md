@@ -32,6 +32,23 @@ and corpus preprocessing use the shared mean-color, bilinear contract.
 Evidence: [export results](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/coreml-export/results),
 [preprocessing fixtures](../../shared/model/fixtures/letterbox/README.md).
 
+**Vectors are reduced to 512 dims with square-root-whitened PCA (2026-09-26).** A PCA fitted on
+the 402K corpus keeps 96.1% of the variance. With exact search over that corpus and the phone's
+measured numeric noise added to Mac queries, top-1 against 1536 dims was:
+plain PCA −0.26 pp on 8,000 camera augmentations; square-root whitening +0.17 pp, +0.41 pp on
+10,184 Met↔Commons photo pairs, and +5.7 pp on the 422 pairs whose photos differ; full whitening
++0.29 pp, but its phone drift fell to mean 0.9865 / min 0.9593, below the 0.99 / 0.97 gate.
+Whitening lowers the cosine scale (typical true match 0.98 instead of 0.994; best wrong match for
+an absent painting 0.80 instead of 0.95), so every similarity cutoff was re-derived from matched
+pass rates on the same pairs. Queries were augmentations or alternate photos of indexed images,
+not museum camera captures; the 22 distinct verified tester scans on dev matched in every variant.
+
+Corpus deduplication uses cosine ≥ 0.93 for pca512. Replaying `find_merges` on the full projected
+corpus at that cutoff reproduces all 7,019 prior merges (7,008 accession, 11 embedding), with no
+changed object mappings. The old 0.95 cutoff loses the Manet pair `met:436954` / `wikidata:Q19905443`
+(cosine 0.97564 → 0.93642). This preserves the existing corpus decisions; it does not independently
+validate their accuracy on unseen pairs.
+
 ## Vector search scale
 
 The measured corpus contained 30,000 synthetic vectors on Convex Starter/S16.
@@ -225,3 +242,13 @@ Artifacts live under
 trained JSON, metrics, source manifest, feature rows, import/readback audits,
 TypeScript evaluation, and demo results. Feature SHA-256:
 `dec07b38a7d04fa361c83d0e51c25641f5415dbe0286e1abe3d9f9483945cf6e`.
+
+**`lr-v3` refits v2 for the pca512 vectors (2026-09-26).** Same 5,500 objects, seed and
+augmentations against the 10k index with projected vectors, sampled from the local package
+rather than a Convex export. The low-texture rule became similarity ≥ 0.80 and margin ≥ 0.08:
+it passes 89.6% of true winners (v2's 0.93 / 0.04 passed 73.3%) and none of the 169 false ones.
+On 4,400 holdout queries: 4,382 confident (4,378 correct, four incorrect), 16 soft, two misses;
+confident precision 99.909%, accepted recall 99.864%, AUC 0.999990. TypeScript matched every
+Python probability (maximum difference 2e-16 over 435,150 rows). Artifacts:
+`jobs/out/calibrator-pca512-2026-09-26/`; feature SHA-256
+`4154a81f8b32d58e74ef2ff64c7f82dc1464f65d8a3b544f4e60e8b668a06723`.

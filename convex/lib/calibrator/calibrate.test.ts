@@ -105,12 +105,13 @@ describe("scoreCandidates", () => {
   });
 
   it("applies the stricter bar to low-texture works instead of the homography rule", () => {
+    const { minSimilarity, minMargin } = DEFAULT_CALIBRATOR.lowTexture;
     const lowTexture = signals({
       keypointCount: 40,
       homographyValid: false,
       orbInliers: 0,
-      similarity: 0.96,
-      runnerUpSimilarity: 0.9,
+      similarity: minSimilarity + 0.05,
+      runnerUpSimilarity: minSimilarity + 0.05 - minMargin - 0.01,
     });
     const [atVenue] = scoreCandidates([{ candidate: "x", signals: lowTexture }]);
     expect(atVenue.eligibleForConfident).toBe(true);
@@ -124,8 +125,8 @@ describe("scoreCandidates", () => {
         candidate: "x",
         signals: {
           ...lowTexture,
-          similarity: 0.92,
-          runnerUpSimilarity: 0.9,
+          similarity: minSimilarity - 0.01,
+          runnerUpSimilarity: minSimilarity - 0.01 - minMargin + 0.01,
           atVenue: false,
         },
       },

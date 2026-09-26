@@ -5,9 +5,12 @@ import subprocess
 from hashlib import file_digest
 from pathlib import Path
 
-from calibration import ARTIFACTS, ROOT
+from calibration import ARTIFACTS, REPO_ROOT, ROOT
 
 BUNDLE = "app.artlog.coremlbench"
+EMBEDDING_DIM = json.loads((REPO_ROOT / "shared/model/model-version.json").read_text())[
+    "embeddingDim"
+]
 
 
 def validate_results(report, embeddings, *, weights_hash, size, units, urls):
@@ -21,7 +24,7 @@ def validate_results(report, embeddings, *, weights_hash, size, units, urls):
         raise ValueError("iPhone results do not cover every prepared calibration image")
     for vector in embeddings.values():
         if (
-            len(vector) != 1536
+            len(vector) != EMBEDDING_DIM
             or not all(math.isfinite(value) for value in vector)
             or not any(vector)
         ):

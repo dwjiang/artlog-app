@@ -5,6 +5,7 @@ import pytest
 
 from pipeline.dedupe import find_merges, run
 from pipeline.features import read_jsonl, write_jsonl
+from pipeline.model_version import EMBEDDING_DIM
 from pipeline.sources.fetch import write_json
 
 
@@ -36,6 +37,27 @@ def test_embeddings_require_known_matching_artist_and_owner():
     assert mapping["wikidata:Q1"] == "met:1"
     assert all(mapping[o["key"]] == o["key"] for o in objects[2:])
     assert audit == [{"from": "wikidata:Q1", "into": "met:1", "rule": "embedding"}]
+
+
+@pytest.mark.parametrize("cosine,merges", [(0.9364213943481445, True), (0.90, False)])
+def test_projected_photo_pair_merges_without_admitting_weaker_visual_matches(cosine, merges):
+    # The Manet pair's measured pca512 cosine was 0.93642 (0.97564 before projection).
+    objects = [obj("met:436954", accession="55.193"), obj("wikidata:Q19905443")]
+    reference = np.zeros(EMBEDDING_DIM, dtype=np.float32)
+    reference[0] = 1
+    photo = np.zeros(EMBEDDING_DIM, dtype=np.float32)
+    photo[:2] = [cosine, np.sqrt(1 - cosine**2)]
+    vectors = {"met:436954": reference, "wikidata:Q19905443": photo}
+
+    mapping, audit = find_merges(objects, vectors, dict.fromkeys(vectors, "Édouard Manet"))
+
+    assert mapping["met:436954"] == "met:436954"
+    assert mapping["wikidata:Q19905443"] == ("met:436954" if merges else "wikidata:Q19905443")
+    assert audit == (
+        [{"from": "wikidata:Q19905443", "into": "met:436954", "rule": "embedding"}]
+        if merges
+        else []
+    )
 
 
 def test_empty_accessions_and_unowned_records_do_not_merge():
