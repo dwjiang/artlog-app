@@ -50,8 +50,11 @@ jest.mock("expo-image-manipulator", () => ({
   ImageManipulator: {
     manipulate: () => {
       const context = {
-        resize: (size: unknown) => {
+        resize: (size: { width?: number; height?: number }) => {
           mockResize(size);
+          const scale = size.width ? size.width / mockWidth : size.height! / mockHeight;
+          mockWidth = Math.round(mockWidth * scale);
+          mockHeight = Math.round(mockHeight * scale);
           return context;
         },
         release: mockRelease,
@@ -86,7 +89,7 @@ it("uploads a bounded JPEG copy with authentication while leaving the original f
     storageId: "photo-id",
     photoUpdatedAt: 1,
   });
-  expect(mockResize).toHaveBeenCalledWith({ width: 2560 });
+  expect(mockResize).toHaveBeenCalledWith({ width: 1080 });
   expect(mockSave).toHaveBeenCalledWith({ format: "jpeg", compress: 0.85 });
   expect(mockUpload).toHaveBeenCalledWith(
     "file:///cache/encoded.jpg",
@@ -96,24 +99,63 @@ it("uploads a bounded JPEG copy with authentication while leaving the original f
       headers: {
         Authorization: "Bearer private-token",
         "Content-Type": "image/jpeg",
-        "X-Photo-Height": "3000",
-        "X-Photo-Width": "4000",
+        "X-Photo-Height": "810",
+        "X-Photo-Width": "1080",
       },
     }),
   );
   expect(mockDelete.mock.calls).toEqual([["file:///cache/encoded.jpg"]]);
 });
 
-it("limits portrait crops by height and never upscales a small image", async () => {
+it.each([
+  [3024, 4032, 1080, 1440],
+  [3000, 3000, 1080, 1080],
+  [4032, 3024, 1080, 810],
+  [2160, 6000, 1080, 3000],
+])("uploads a %i × %i photo at %i × %i without cropping", async (width, height, expectedWidth, expectedHeight) => {
+  mockWidth = width;
+  mockHeight = height;
+  await uploadCollectionPhoto("token", "scope", "a", "photo", "original.jpg");
+  expect(mockResize).toHaveBeenCalledWith({ width: 1080 });
+  expect(mockUpload).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.any(String),
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        "X-Photo-Width": String(expectedWidth),
+        "X-Photo-Height": String(expectedHeight),
+      }),
+    }),
+  );
+});
+
+it.each([
+  [200, 300],
+  [1080, 1440],
+  [900, 3000],
+])("preserves a %i × %i photo's dimensions while encoding it as JPEG", async (width, height) => {
+  mockWidth = width;
+  mockHeight = height;
+  await uploadCollectionPhoto("token", "scope", "b", "photo", "small.png");
+  expect(mockResize).not.toHaveBeenCalled();
+  expect(mockSave).toHaveBeenCalledWith({ format: "jpeg", compress: 0.85 });
+  expect(mockUpload).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.any(String),
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        "X-Photo-Width": String(width),
+        "X-Photo-Height": String(height),
+      }),
+    }),
+  );
+});
+
+it("keeps the existing 512-pixel longest-edge limit for crop thumbnails", async () => {
   mockWidth = 1000;
   mockHeight = 2000;
   await uploadCollectionPhoto("token", "scope", "a", "crop", "crop.jpg");
   expect(mockResize).toHaveBeenCalledWith({ height: 512 });
-  mockResize.mockClear();
-  mockWidth = 200;
-  mockHeight = 300;
-  await uploadCollectionPhoto("token", "scope", "b", "photo", "small.jpg");
-  expect(mockResize).not.toHaveBeenCalled();
 });
 
 it("cleans up a failed upload and reports the HTTP failure for retry", async () => {

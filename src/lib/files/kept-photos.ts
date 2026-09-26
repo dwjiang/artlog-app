@@ -6,12 +6,11 @@ import { getSetting, setSetting } from "@/db/repos/settings";
 import type { ArtworkPhoto } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 import { getSaveToPhotos } from "@/lib/settings/save-to-photos";
-import { COLLECTION_PHOTO_LONG_SIDE } from "@/shared/collection/photo-limits";
 
 import { captureFileUri } from "./photos";
 import { removeFileIfExists } from "./remove-file";
 
-const KEPT_LONG_SIDE = COLLECTION_PHOTO_LONG_SIDE;
+const KEPT_LONG_SIDE = 2560;
 
 export type KeptPhoto = Pick<ArtworkPhoto, "kind"> & { path: string };
 

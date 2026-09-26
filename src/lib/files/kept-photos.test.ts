@@ -106,7 +106,7 @@ beforeEach(() => {
   });
 });
 
-it("adds a saved camera original to Photos before replacing it with a copy at the upload size", async () => {
+it("adds a saved camera original to Photos before replacing it with a copy at the local retention size", async () => {
   await keepPhotos([{ path: "photos/scan.jpeg", kind: "full" }]);
 
   expect(mockRequestPermissions).toHaveBeenCalledWith(true);
