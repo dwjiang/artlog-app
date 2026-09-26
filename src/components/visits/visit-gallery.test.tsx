@@ -23,6 +23,22 @@ it("clears a visit artwork search", async () => {
 });
 
 it.each([
+  [0, "No photos"],
+  [3, "3 photos"],
+] as const)("shows the title, artist fallback and badge for %s visit photos", async (photoCount, badge) => {
+  await render(<LocalVisitGalleryArtwork title="Untitled study" artist={null} photoCount={photoCount} path={null} />);
+
+  expect(screen.getByText("Untitled study")).toBeOnTheScreen();
+  expect(screen.getByText("Artist unknown")).toBeOnTheScreen();
+  expect(screen.getByText(badge)).toBeOnTheScreen();
+});
+
+it("omits the photo badge for a single photo", async () => {
+  await render(<LocalVisitGalleryArtwork title="Garden" artist="Artist" photoCount={1} path="garden.jpg" />);
+  expect(screen.queryByText(/photos/)).not.toBeOnTheScreen();
+});
+
+it.each([
   [600, 1200],
   [1200, 600],
 ])("fits a %s × %s photo to its own proportions", async (width, height) => {

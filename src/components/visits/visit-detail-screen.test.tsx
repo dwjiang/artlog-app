@@ -43,7 +43,7 @@ const mockCopy = jest.fn();
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (...args: unknown[]) => mockCopy(...args),
 }));
-/** Chooses a visibility from the status chip's menu and accepts the confirmation a published visit asks for. */
+/** Chooses a visibility and accepts the confirmation a published visit asks for. */
 async function chooseVisibility(label: "Private" | "Friends" | "Public") {
   jest.mocked(Alert.alert).mockClear();
   await fireEvent.press(screen.getByRole("checkbox", { name: label }));
@@ -305,10 +305,10 @@ it("saves the latest note when navigating to an artwork before autosave runs", a
   });
 });
 
-it("shows search for a larger visit and keeps it visible after clearing the filter", async () => {
+it("shows all ten artworks and restores them after searching by artist", async () => {
   mockVisit.works = [
     ...mockVisit.works,
-    ...Array.from({ length: 8 }, (_, i) => ({
+    ...Array.from({ length: 9 }, (_, i) => ({
       ...mockVisit.works[0],
       localId: `extra-${i}`,
       title: `Other ${i}`,
@@ -320,9 +320,12 @@ it("shows search for a larger visit and keeps it visible after clearing the filt
     { initialUrl: "/journal/visit" },
   );
   expect(screen.getByPlaceholderText("Search this visit")).toBeOnTheScreen();
+  expect(screen.getByText("10 artworks")).toBeOnTheScreen();
+  expect(screen.getAllByRole("link")).toHaveLength(10);
   expect(screen.queryByRole("button", { name: "Search visit artworks" })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("Search visit artworks"), "Monet");
   expect(screen.getByRole("link", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
+  expect(screen.getAllByRole("link")).toHaveLength(1);
   await fireEvent.changeText(screen.getByLabelText("Search visit artworks"), "unmatched");
   expect(screen.queryByRole("link", { name: "Water Lilies, Claude Monet" })).toBeNull();
   expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
@@ -330,6 +333,7 @@ it("shows search for a larger visit and keeps it visible after clearing the filt
   expect(screen.getByRole("link", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
   expect(screen.getByLabelText("Search visit artworks")).toHaveProp("value", "");
   expect(screen.getByPlaceholderText("Search this visit")).toBeOnTheScreen();
+  expect(screen.getAllByRole("link")).toHaveLength(10);
 });
 
 it("offers one Link artwork entry: the section header, or the empty state without artworks", async () => {

@@ -3,7 +3,7 @@ import { Keyboard, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius } from "@/constants/theme";
 
 /** The end-of-visit form's Save & end visit; it steps aside while the keyboard covers it. */
 export function VisitActionBar({
@@ -32,7 +32,7 @@ export function VisitActionBar({
         paddingHorizontal: 20,
         paddingTop: 12,
         paddingBottom: Math.max(bottom, 12),
-        backgroundColor: Gallery.paper,
+        backgroundColor: Gallery.groupedBackground,
       }}
     >
       <GalleryButton
@@ -41,6 +41,7 @@ export function VisitActionBar({
         busyLabel="Saving…"
         variant="filled"
         fullWidth
+        cornerRadius={Radius.sheet}
         disabled={disabled}
         onPress={onSave}
       />

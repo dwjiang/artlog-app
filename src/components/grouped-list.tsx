@@ -22,7 +22,7 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
 
-import { Gallery, SettingsOutline, Spacing } from "@/constants/theme";
+import { Gallery, Radius, SettingsOutline, Spacing } from "@/constants/theme";
 
 import { NativeLoadingRing } from "./native-loading-ring";
 
@@ -57,57 +57,76 @@ export function GroupedSection({
 }: ComponentProps<typeof Section> & { destructive?: boolean }) {
   return (
     <Section {...props} modifiers={[listRowBackground("clear"), ...modifiers]}>
-      <Column
-        spacing={0}
-        modifiers={[
-          listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }),
-          listRowSeparator("hidden"),
-          background(
-            destructive ? Gallery.destructiveFill : Gallery.surface,
-            shapes.roundedRectangle({
-              cornerRadius: SettingsOutline.borderRadius,
-            }),
-          ),
-          strokeBorder({
-            color: SettingsOutline.borderColor,
-            style: { lineWidth: SettingsOutline.borderWidth },
-            shape: "roundedRectangle",
-            cornerRadius: SettingsOutline.borderRadius,
-          }),
-        ]}
-      >
-        {Children.toArray(children)
-          .filter(isValidElement)
-          .map((child, index) => (
-            <Fragment key={child.key}>
-              {index > 0 && (
-                <Rectangle
-                  modifiers={[
-                    foregroundStyle(SettingsOutline.borderColor),
-                    frame({ height: SettingsOutline.borderWidth }),
-                    padding({ horizontal: Spacing.compact }),
-                  ]}
-                />
-              )}
-              <Row
-                modifiers={[
-                  padding({
-                    horizontal: Spacing.three,
-                    vertical: Spacing.compact,
-                  }),
-                  frame({
-                    maxWidth: Infinity,
-                    minHeight: 44,
-                    alignment: "leading",
-                  }),
-                ]}
-              >
-                {child}
-              </Row>
-            </Fragment>
-          ))}
-      </Column>
+      <GroupedCard destructive={destructive}>{children}</GroupedCard>
     </Section>
+  );
+}
+
+/** Native grouped rows, also usable inside a Host in a mixed-content scroll view. */
+export function GroupedCard({
+  children,
+  destructive = false,
+  outlined = true,
+}: {
+  children: ReactNode;
+  destructive?: boolean;
+  outlined?: boolean;
+}) {
+  return (
+    <Column
+      spacing={0}
+      modifiers={[
+        listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }),
+        listRowSeparator("hidden"),
+        background(
+          destructive ? Gallery.destructiveFill : Gallery.surface,
+          shapes.roundedRectangle({
+            cornerRadius: outlined ? SettingsOutline.borderRadius : Radius.sheet,
+          }),
+        ),
+        ...(outlined
+          ? [
+              strokeBorder({
+                color: SettingsOutline.borderColor,
+                style: { lineWidth: SettingsOutline.borderWidth },
+                shape: "roundedRectangle",
+                cornerRadius: SettingsOutline.borderRadius,
+              }),
+            ]
+          : []),
+      ]}
+    >
+      {Children.toArray(children)
+        .filter(isValidElement)
+        .map((child, index) => (
+          <Fragment key={child.key}>
+            {index > 0 && (
+              <Rectangle
+                modifiers={[
+                  foregroundStyle(SettingsOutline.borderColor),
+                  frame({ height: SettingsOutline.borderWidth }),
+                  padding({ horizontal: Spacing.compact }),
+                ]}
+              />
+            )}
+            <Row
+              modifiers={[
+                padding({
+                  horizontal: Spacing.three,
+                  vertical: outlined ? Spacing.compact : Spacing.one + Spacing.half,
+                }),
+                frame({
+                  maxWidth: Infinity,
+                  minHeight: 44,
+                  alignment: "leading",
+                }),
+              ]}
+            >
+              {child}
+            </Row>
+          </Fragment>
+        ))}
+    </Column>
   );
 }
 

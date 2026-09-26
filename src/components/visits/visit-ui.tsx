@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, type ScrollViewProps, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
@@ -44,15 +44,19 @@ export function VisitMessage({
     </View>
   );
 }
-export function VisitPage({ children }: { children: ReactNode }) {
+export function VisitPage({
+  children,
+  style,
+  contentContainerStyle,
+}: Pick<ScrollViewProps, "children" | "style" | "contentContainerStyle">) {
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       automaticallyAdjustKeyboardInsets
-      style={visitStyles.page}
-      contentContainerStyle={visitStyles.content}
+      style={[visitStyles.page, style]}
+      contentContainerStyle={[visitStyles.content, contentContainerStyle]}
     >
       {children}
     </ScrollView>

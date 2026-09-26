@@ -4,7 +4,7 @@ import { AppState, StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { patchVisit } from "@/db/repos/visits";
 import type { Visit } from "@/db/schema";
 import { requestCollectionSync } from "@/lib/account/sync-events";
@@ -21,6 +21,7 @@ type VisitNotesProps = {
   /** Saves as the person types and on blur; off, the field stays open and saves only through the handle. */
   autoSave?: boolean;
   editable?: boolean;
+  grouped?: boolean;
   ref?: Ref<VisitNotesHandle>;
 };
 type NoteDraft = {
@@ -72,7 +73,7 @@ export function VisitNotes({ visit, ...props }: VisitNotesProps) {
   return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
 }
 
-function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesProps) {
+function NoteField({ visit, autoSave = true, editable = true, grouped = false, ref }: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? "");
   const [editing, setEditing] = useState(!autoSave);
   const [error, setError] = useState<string>();
@@ -123,7 +124,7 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
   return (
     <View style={{ gap: 8 }}>
       <View style={notes.header}>
-        <Text accessibilityRole="header" style={styles.eyebrow}>
+        <Text accessibilityRole="header" style={grouped ? notes.title : styles.eyebrow}>
           Notes
         </Text>
         {autoSave && (
@@ -168,14 +169,14 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
           autoFocus={autoSave}
           multiline
           maxLength={LIMITS.note}
-          style={[styles.input, styles.reflection]}
+          style={[styles.input, styles.reflection, grouped && notes.card]}
         />
       ) : draft ? (
-        <Text selectable style={styles.body}>
+        <Text selectable style={[styles.body, grouped && notes.card]}>
           {draft}
         </Text>
       ) : (
-        <Text style={styles.caption}>No notes yet.</Text>
+        <Text style={[styles.caption, grouped && notes.card]}>No notes yet.</Text>
       )}
       {error && (
         <View>
@@ -197,5 +198,15 @@ function NoteField({ visit, autoSave = true, editable = true, ref }: VisitNotesP
 }
 
 const notes = StyleSheet.create({
+  title: { fontSize: 20, lineHeight: 25, fontWeight: "600", color: Gallery.ink },
+  card: {
+    borderWidth: 0,
+    borderRadius: Radius.sheet,
+    backgroundColor: Gallery.surface,
+    padding: Spacing.three,
+    minHeight: 104,
+    fontSize: 17,
+    lineHeight: 24,
+  },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
 });
