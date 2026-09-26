@@ -1,8 +1,8 @@
 import { ConvexError } from "convex/values";
 
 import { decodeOrbFeatures, DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../../shared/orb/features";
-import type { Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
+import { fileStorage } from "./fileStorage";
 
 export const ORB_CONTENT_TYPE = "application/octet-stream";
 
@@ -19,10 +19,10 @@ export async function orbHash(packed: Uint8Array<ArrayBuffer>): Promise<string> 
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function storeOrb(ctx: Pick<ActionCtx, "storage">, descriptors: ArrayBuffer, keypoints: ArrayBuffer) {
+export async function storeOrb(ctx: Pick<ActionCtx, "runMutation">, descriptors: ArrayBuffer, keypoints: ArrayBuffer) {
   const packed = packOrb(descriptors, keypoints);
   const sha256 = await orbHash(packed);
-  const storageId = await ctx.storage.store(new Blob([packed], { type: ORB_CONTENT_TYPE }));
+  const storageId = await fileStorage.store(ctx, new Blob([packed], { type: ORB_CONTENT_TYPE }));
   return {
     storageId,
     sha256,
@@ -30,8 +30,8 @@ export async function storeOrb(ctx: Pick<ActionCtx, "storage">, descriptors: Arr
   };
 }
 
-export async function loadOrb(ctx: Pick<ActionCtx, "storage">, storageId: Id<"_storage">, count: number) {
-  const file = await ctx.storage.get(storageId);
+export async function loadOrb(ctx: Parameters<typeof fileStorage.get>[0], storageId: string, count: number) {
+  const file = await fileStorage.get(ctx, storageId);
   if (!file) throw new ConvexError({ code: "orb_file_missing", storageId });
   if (
     !Number.isInteger(count)
@@ -48,7 +48,7 @@ export async function loadOrb(ctx: Pick<ActionCtx, "storage">, storageId: Id<"_s
   return { descriptors, keypoints };
 }
 
-export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: Id<"_storage">) {
+export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: string) {
   const descriptor = await ctx.db
     .query("descriptors")
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
@@ -61,7 +61,7 @@ export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: Id<"_
     .query("savedRecognition")
     .withIndex("by_orbStorageId", (q) => q.eq("orbStorageId", storageId))
     .first();
-  if (!descriptor && !contribution && !saved && (await ctx.db.system.get("_storage", storageId))) {
-    await ctx.storage.delete(storageId);
+  if (!descriptor && !contribution && !saved && (await fileStorage.getMetadata(ctx, storageId))) {
+    await fileStorage.delete(ctx, storageId);
   }
 }

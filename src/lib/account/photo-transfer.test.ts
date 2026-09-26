@@ -1,4 +1,3 @@
-import type { Id } from "../../../convex/_generated/dataModel";
 import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
 
 const mockUpload = jest.fn();
@@ -173,7 +172,7 @@ it("does not upload after the account changes during encoding", async () => {
 });
 
 it("downloads through the authenticated endpoint into the document directory", async () => {
-  expect(await downloadCollectionPhoto("token", "scope", "save-1", "photo", "photo-id" as Id<"_storage">)).toBe(
+  expect(await downloadCollectionPhoto("token", "scope", "save-1", "photo", "photo-id" as string)).toBe(
     "collection-photos/scope-save-1-photo-photo-id.jpg",
   );
   expect(mockDownload).toHaveBeenCalledWith(

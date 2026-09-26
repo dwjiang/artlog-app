@@ -9,8 +9,10 @@ import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { contribute as contributeAction, DUPLICATE_COSINE } from "./contributions";
 import { AGREEMENT_MIN_COSINE } from "./lib/agreement";
+import { fileStorage } from "./lib/fileStorage";
 import { labelField } from "./lib/labelVerify";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
+import { r2 } from "./lib/r2";
 import {
   seedArtworkWithObject,
   seedContribution,
@@ -66,14 +68,14 @@ function verifiedFlow(overrides: Partial<LabelFlow> = {}): LabelFlow {
   };
 }
 
-async function storeCrop(t: Harness, { size = 1000, type = "image/jpeg" } = {}): Promise<Id<"_storage">> {
+async function storeCrop(
+  t: Harness,
+  { size = 1000, type = "image/jpeg", ownerId = undefined as Id<"devices"> | undefined } = {},
+): Promise<string> {
   return t.run(async (ctx) => {
-    const id = await ctx.storage.store(new Blob([new Uint8Array(size)], { type }));
-    // convex-test keeps no content type for stored blobs; the real backend records the upload's header.
-    const system = ctx.db as unknown as {
-      patch(id: Id<"_storage">, value: { contentType: string }): Promise<void>;
-    };
-    await system.patch(id, { contentType: type });
+    const id = await fileStorage.store(ctx, new Blob([new Uint8Array(size)], { type }));
+    const owner = await ctx.db.query("devices").order("desc").first();
+    await ctx.db.patch("files", (await fileStorage.getMetadata(ctx, id))!._id, { uploadOwner: ownerId ?? owner!._id });
     return id;
   });
 }
@@ -130,7 +132,7 @@ describe("contribute", () => {
       }
       if (code === "rate_limited") {
         for (let i = 0; i < 20; i++) {
-          await user.as.mutation(api.contributions.requestCropUpload, {});
+          await user.as.mutation(api.contributions.requestCropUpload, { size: 1000 });
         }
       }
       const work: string[] = [];
@@ -306,8 +308,15 @@ describe("contribute", () => {
     });
     expect(row.cropStorageId).toBeUndefined();
     expect(row.orbStorageId).toBeUndefined();
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", cropStorageId))).toBeNull();
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, cropStorageId))).toBeNull();
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      ),
+    ).toEqual([]);
   });
 
   it("ignores indexed vectors below the duplicate threshold or from another model version", async () => {
@@ -327,7 +336,7 @@ describe("contribute", () => {
     const accepted = await contribute();
     expect(await contribute()).toEqual(accepted);
     expect(await rows()).toHaveLength(1);
-    expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getUrl(ctx, cropStorageId))).not.toBeNull();
     expect(await t.run((ctx) => ctx.db.get("contributions", accepted.contributionId))).toMatchObject({
       cropStorageId,
     });
@@ -338,8 +347,8 @@ describe("contribute", () => {
     const accepted = await contribute();
     const replacement = await storeCrop(t);
     expect(await contribute({ cropStorageId: replacement })).toEqual(accepted);
-    expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
-    expect(await t.run((ctx) => ctx.storage.getUrl(replacement))).toBeNull();
+    expect(await t.run((ctx) => fileStorage.getUrl(ctx, cropStorageId))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getUrl(ctx, replacement))).toBeNull();
   });
 
   it("does not let a retry delete storage files that are not contribution crops", async () => {
@@ -347,7 +356,7 @@ describe("contribute", () => {
     const accepted = await contribute();
     const unrelated = await storeCrop(t, { type: "application/vnd.sqlite3" });
     expect(await contribute({ cropStorageId: unrelated })).toEqual(accepted);
-    expect(await t.run((ctx) => ctx.storage.getUrl(unrelated))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, unrelated))).not.toBeNull();
   });
 
   it.each(["tentative", "rejected"] as const)(
@@ -383,7 +392,7 @@ describe("contribute", () => {
       status: "rejected",
       reason: "duplicate",
     });
-    expect(await t.run((ctx) => ctx.storage.getUrl(cropStorageId))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getUrl(ctx, cropStorageId))).not.toBeNull();
     expect(await t.run((ctx) => ctx.db.get("contributions", accepted.contributionId))).toMatchObject({
       cropStorageId,
     });
@@ -453,24 +462,19 @@ describe("contribute", () => {
     const cropStorageId = await storeCrop(t);
     const contribute = async (overrides: Partial<typeof args>) => {
       const signed = await sign();
-      return user.as.action((ctx) =>
-        runContribute(
-          {
-            ...ctx,
-            // convex-test's action storage writes race with concurrent mutation transactions.
-            storage: {
-              ...ctx.storage,
-              store: (blob) => t.run((transaction) => transaction.storage.store(blob)),
-            },
-          },
-          { ...args, ...overrides, ...signed },
-        ),
-      );
+      return user.as.action((ctx) => runContribute(ctx, { ...args, ...overrides, ...signed }));
     };
     const results = await Promise.all([contribute({}), contribute({ scanId, cropStorageId })]);
     expect(results.map((result) => result.status).sort()).toEqual(["rejected", "tentative"]);
     expect((await rows()).filter((row) => row.status === "tentative")).toHaveLength(1);
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(2);
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      ),
+    ).toHaveLength(2);
   });
 
   it("refuses a stale duplicate check and retries the commit without another authorization", async () => {
@@ -599,7 +603,7 @@ describe("contribute", () => {
 
   it("rejects a crop that is no longer in storage", async () => {
     const { t, cropStorageId, contribute, rows } = await fixture();
-    await t.run((ctx) => ctx.storage.delete(cropStorageId));
+    await t.run((ctx) => fileStorage.delete(ctx, cropStorageId));
     await expect(contribute()).rejects.toMatchObject({
       data: { code: "bad_crop" },
     });
@@ -684,7 +688,9 @@ describe("contribute", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     const { user, contribute } = await fixture();
     for (let i = 0; i < 20; i++) {
-      expect((await user.as.mutation(api.contributions.requestCropUpload, {})).uploadUrl).toMatch(/^https:/);
+      expect((await user.as.mutation(api.contributions.requestCropUpload, { size: 1000 })).uploadUrl).toMatch(
+        /^https:/,
+      );
     }
     await expect(contribute()).rejects.toMatchObject({
       data: { code: "rate_limited", name: "contribute" },
@@ -693,7 +699,7 @@ describe("contribute", () => {
 
   it("requires a registered device throughout", async () => {
     const { t, args } = await fixture();
-    await expect(t.mutation(api.contributions.requestCropUpload, {})).rejects.toMatchObject({
+    await expect(t.mutation(api.contributions.requestCropUpload, { size: 1000 })).rejects.toMatchObject({
       data: { code: "unauthenticated" },
     });
     const unregistered = await signIn(t);
@@ -728,7 +734,7 @@ async function shareAs(
       labelFlow: flow,
     }),
   );
-  const cropStorageId = await storeCrop(t);
+  const cropStorageId = await storeCrop(t, { ownerId: user.deviceId });
   const { nonce } = await user.as.mutation(api.devices.createChallenge, {
     purpose: "assert",
   });
@@ -841,7 +847,7 @@ describe("immediate tentative recognition", () => {
       vector: (await t.run((ctx) => ctx.db.get("scanEmbeddings", second.row.embeddingId)))!.vector,
     });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
-    expect(await t.run((ctx) => ctx.storage.get(replay.cropStorageId))).toBeNull();
+    expect(await t.run((ctx) => fileStorage.get(ctx, replay.cropStorageId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.query("vectors").collect())).toHaveLength(2);
   });
 
@@ -1097,8 +1103,8 @@ describe("precise contribution removal", () => {
         contributionId: bob.contributionId,
         storageId: bob.row.orbStorageId,
       });
-      expect(await t.run((ctx) => ctx.storage.get(cropStorageId))).toBeNull();
-      expect(await t.run((ctx) => ctx.storage.get(own.orbStorageId!))).toBeNull();
+      expect(await t.run((ctx) => fileStorage.get(ctx, cropStorageId))).toBeNull();
+      expect(await t.run((ctx) => fileStorage.get(ctx, own.orbStorageId!))).toBeNull();
       expect(await t.run((ctx) => ctx.db.get("objects", corpus.objectId))).toMatchObject({
         reverted: false,
         identityStatus: "established",
@@ -1201,7 +1207,7 @@ it("finishes a multi-page ban, tolerates a restarted worker, and keeps another d
   for (let i = 0; i < 30; i++) {
     own.push(
       await t.run(async (ctx) => {
-        const cropStorageId = await ctx.storage.store(new Blob(["crop"], { type: "image/jpeg" }));
+        const cropStorageId = await fileStorage.store(ctx, new Blob(["crop"], { type: "image/jpeg" }));
         const id = await seedContribution(ctx, {
           deviceId: alice.deviceId,
           venueId,
@@ -1277,4 +1283,48 @@ it("groups a second view with a published contribution, rejects its replay, and 
   const remaining = await t.run((ctx) => ctx.db.query("vectors").collect());
   expect(remaining).toHaveLength(1);
   expect(await t.run((ctx) => ctx.db.query("tentativeEmbeddings").collect())).toHaveLength(1);
+});
+
+describe("R2 contribution uploads", () => {
+  it("verifies the uploaded bytes before accepting a pending crop and retains the file on commit", async () => {
+    const { t, user, contribute } = await fixture();
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const { storageId } = await user.as.mutation(api.contributions.requestCropUpload, { size: bytes.length });
+    const file = (await t.query(internal.files.metadata, { id: storageId }))!;
+    expect(file.state).toBe("pending");
+    await r2.put(file.key, new Blob([bytes], { type: "image/jpeg" }));
+    expect(await contribute({ cropStorageId: storageId })).toMatchObject({ status: "tentative" });
+    expect(await t.query(internal.files.metadata, { id: storageId })).toMatchObject({
+      state: "ready",
+      publicDownload: true,
+    });
+    expect((await t.query(internal.files.metadata, { id: storageId }))?.expiresAt).toBeUndefined();
+  });
+
+  it("rejects another device's upload without consuming or deleting it", async () => {
+    const { t, contribute } = await fixture();
+    const other = await seedDevice(t);
+    const { storageId } = await other.as.mutation(api.contributions.requestCropUpload, { size: 4 });
+    await expect(contribute({ cropStorageId: storageId })).rejects.toMatchObject({ data: { code: "bad_crop" } });
+    expect((await t.query(internal.files.metadata, { id: storageId }))?.state).toBe("pending");
+  });
+
+  it.each(["wrong-size", "not-jpeg", "missing"])(
+    "refuses a %s upload even when it has a valid reservation",
+    async (kind) => {
+      const { t, user, contribute } = await fixture();
+      const { storageId } = await user.as.mutation(api.contributions.requestCropUpload, { size: 4 });
+      const file = (await t.query(internal.files.metadata, { id: storageId }))!;
+      if (kind !== "missing") {
+        await r2.put(
+          file.key,
+          new Blob([kind === "wrong-size" ? new Uint8Array([0xff, 0xd8, 0xff]) : new Uint8Array(4)], {
+            type: "image/jpeg",
+          }),
+        );
+      }
+      await expect(contribute({ cropStorageId: storageId })).rejects.toMatchObject({ data: { code: "bad_crop" } });
+      expect((await t.query(internal.files.metadata, { id: storageId }))?.state).toBe("pending");
+    },
+  );
 });

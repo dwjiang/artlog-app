@@ -17,6 +17,7 @@ import {
   TRAINING_EXPORT_PAGE_SIZE,
   upsertDescriptors,
 } from "./ingest";
+import { fileStorage } from "./lib/fileStorage";
 import { loadOrb } from "./lib/orbStorage";
 import { insertVector, readVector } from "./lib/vectorStore";
 import schema from "./schema";
@@ -611,7 +612,7 @@ describe("placements, vectors and descriptors", () => {
     expect(stored[0].extractedFrom).toBe("contribution:abc");
     expect(stored[0]).not.toHaveProperty("descriptors");
     expect(stored[0]).not.toHaveProperty("keypoints");
-    expect(await t.run(async (ctx) => (await ctx.storage.get(stored[0].storageId))!.size)).toBe(96);
+    expect(await t.run(async (ctx) => (await fileStorage.get(ctx, stored[0].storageId))!.size)).toBe(96);
 
     expect(
       await errorData(
@@ -651,8 +652,15 @@ describe("ORB file imports", () => {
     expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
     const after = (await t.run((ctx) => ctx.db.get("descriptors", before._id)))!;
     expect(after.storageId).not.toBe(before.storageId);
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", before.storageId))).toBeNull();
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(1);
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, before.storageId))).toBeNull();
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      ),
+    ).toHaveLength(1);
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       descriptors: 1,
     });
@@ -679,10 +687,20 @@ describe("ORB file imports", () => {
           ),
         ),
       ).rejects.toThrow("connection lost");
-      const beforeRetry = await t.run((ctx) => ctx.db.system.query("_storage").collect());
+      const beforeRetry = await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      );
       expect(beforeRetry).toHaveLength(afterCommit ? 1 : 0);
       await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
-      const files = await t.run((ctx) => ctx.db.system.query("_storage").collect());
+      const files = await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      );
       expect(files).toHaveLength(1);
       expect(files.map((file) => file._id)).toEqual(expect.arrayContaining(beforeRetry.map((file) => file._id)));
       expect(await t.query(internal.ingest.counts, {})).toMatchObject({
@@ -696,27 +714,29 @@ describe("ORB file imports", () => {
     await t.mutation(internal.ingest.upsertObjects, {
       rows: [{ ...metObject, key: "met:second" }],
     });
+    const originalStore = fileStorage.store;
     let writes = 0;
+    const store = vi.spyOn(fileStorage, "store").mockImplementation(async (ctx, blob) => {
+      if (++writes === 1) throw new Error("storage unavailable");
+      return originalStore(ctx, blob);
+    });
     await expect(
       t.action((ctx) =>
-        runDescriptorImport(
-          {
-            ...ctx,
-            storage: {
-              ...ctx.storage,
-              store: async (blob) => {
-                if (++writes === 1) throw new Error("storage unavailable");
-                // convex-test's action storage writes can race with its global transaction stack.
-                return t.run((transaction) => transaction.storage.store(blob));
-              },
-            },
-          },
-          { rows: [orbRow, { ...orbRow, objectKey: "met:second" }] },
-        ),
+        runDescriptorImport(ctx, {
+          rows: [orbRow, { ...orbRow, objectKey: "met:second" }],
+        }),
       ),
     ).rejects.toThrow("storage unavailable");
+    store.mockRestore();
     expect(writes).toBe(2);
-    expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      ),
+    ).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("descriptors").collect())).toEqual([]);
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       descriptors: 0,

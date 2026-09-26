@@ -6,6 +6,7 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
+import { fileStorage } from "./lib/fileStorage";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
@@ -81,7 +82,7 @@ describe("identify action", () => {
             .query("descriptors")
             .withIndex("by_objectId", (q) => q.eq("objectId", work.objectId))
             .unique())!;
-          await ctx.storage.delete(reference.storageId);
+          await fileStorage.delete(ctx, reference.storageId);
         }
       }
     });
@@ -95,7 +96,7 @@ describe("identify action", () => {
 
   it("reports a missing file among verified candidates as an error", async () => {
     const { t, user, args } = await fixture();
-    await t.run(async (ctx) => ctx.storage.delete((await ctx.db.query("descriptors").unique())!.storageId));
+    await t.run(async (ctx) => fileStorage.delete(ctx, (await ctx.db.query("descriptors").unique())!.storageId));
     await expect(
       user.as.action(api.identify.identify, {
         ...args,

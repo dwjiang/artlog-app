@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { encodeOrbFeatures } from "../../shared/orb/features";
 import { makeRandomFeatures } from "../../shared/orb/test-fixtures";
 import { harness } from "../test.helpers";
+import { fileStorage } from "./fileStorage";
 import { loadOrb, packOrb, storeOrb } from "./orbStorage";
 
 describe("stored ORB references", () => {
@@ -13,7 +14,7 @@ describe("stored ORB references", () => {
       const reference = await storeOrb(ctx, encoded.descriptors, encoded.keypoints);
       expect(reference.keypointCount).toBe(count);
       expect(await loadOrb(ctx, reference.storageId, count)).toEqual(encoded);
-      const file = await ctx.storage.get(reference.storageId);
+      const file = await fileStorage.get(ctx, reference.storageId);
       expect(file!.size).toBe(count * 48);
     });
   });
@@ -27,9 +28,9 @@ describe("stored ORB references", () => {
   it("fails explicitly for a missing or truncated reference instead of changing recognition", async () => {
     const t = harness();
     await t.run(async (ctx) => {
-      const storageId = await ctx.storage.store(new Blob([new Uint8Array(47)]));
+      const storageId = await fileStorage.store(ctx, new Blob([new Uint8Array(47)]));
       await expect(loadOrb(ctx, storageId, 1)).rejects.toThrow("bad_orb_file");
-      await ctx.storage.delete(storageId);
+      await fileStorage.delete(ctx, storageId);
       await expect(loadOrb(ctx, storageId, 1)).rejects.toMatchObject({
         data: { code: "orb_file_missing" },
       });

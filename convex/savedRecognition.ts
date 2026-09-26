@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { action, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { decodeQuery, matchArtwork } from "./identify";
 import { requireDeviceFromAction } from "./lib/auth";
+import { retainFile } from "./lib/fileStorage";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { isSupported, validateVector } from "./lib/modelVersion";
 import { withErrorReporting } from "./lib/observability";
@@ -39,7 +40,7 @@ export const attach = internalMutation({
     sourceLocalId: v.string(),
     vector: embedding,
     modelVersion: v.string(),
-    orbStorageId: v.id("_storage"),
+    orbStorageId: v.string(),
     keypointCount: v.number(),
   },
   returns: v.null(),
@@ -47,6 +48,7 @@ export const attach = internalMutation({
     const { owner } = await requireJournalOwner(ctx, scope);
     const save = await requireOwnedSave(ctx, owner, localId);
     if (!(await findSavedRecognition(ctx, save._id))) {
+      await retainFile(ctx, payload.orbStorageId);
       await ctx.db.insert("savedRecognition", { ...payload, saveId: save._id, attempt: 0, candidateIds: [] });
     }
     await deleteOrbIfUnreferenced(ctx, payload.orbStorageId);
@@ -55,7 +57,7 @@ export const attach = internalMutation({
 });
 
 export const discard = internalMutation({
-  args: { storageId: v.id("_storage") },
+  args: { storageId: v.string() },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
     await deleteOrbIfUnreferenced(ctx, storageId);

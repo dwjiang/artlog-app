@@ -3,7 +3,6 @@ import type { SavedWork } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 import type { CollectionPhotoKind } from "@/shared/collection/photo-limits";
 
-import type { Id } from "../../../convex/_generated/dataModel";
 import type { PhotoUpload } from "./photo-transfer";
 
 export type PhotoSyncDependencies = Pick<
@@ -16,7 +15,7 @@ export type PhotoSyncDependencies = Pick<
   | "clearDeletedPhotoPaths"
 > & {
   upload: (localId: string, kind: CollectionPhotoKind, path: string) => Promise<PhotoUpload>;
-  download: (localId: string, kind: CollectionPhotoKind, storageId: Id<"_storage">) => Promise<string>;
+  download: (localId: string, kind: CollectionPhotoKind, storageId: string) => Promise<string>;
   removeFile: (path: string) => void;
 };
 

@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import type { JournalSave } from "../shared/journal/contracts";
 import { rankScores } from "../shared/social/leaderboard";
 import { api } from "./_generated/api";
+import { fileStorage } from "./lib/fileStorage";
 import { socialUser, befriend } from "./lib/socialTestFixtures";
 import { publishContribution } from "./lib/tentativeEntries";
 import { seedMuseum, seedContribution, seedDevice, seedArtworkWithObject } from "./lib/testFactories";
@@ -484,7 +485,7 @@ it("keeps shared index activity separate from artwork totals", async () => {
   await a.as.mutation(api.leaderboards.setPreference, { visibility: "global" });
   await t.run(async (ctx) => {
     const venueId = await seedMuseum(ctx);
-    const cropStorageId = await ctx.storage.store(new Blob(["crop"], { type: "image/jpeg" }));
+    const cropStorageId = await fileStorage.store(ctx, new Blob(["crop"], { type: "image/jpeg" }));
     const id = await seedContribution(ctx, {
       deviceId: a.deviceId,
       venueId,

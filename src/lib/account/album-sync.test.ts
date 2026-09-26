@@ -68,7 +68,7 @@ it("finishes the batch when one photo transfer fails, then rethrows so the queue
     .values([
       photo("broken", { path: "gone.jpg" }),
       photo("fine", { path: "fine.jpg" }),
-      photo("remote", { storageId: "cloud" as Id<"_storage"> }),
+      photo("remote", { storageId: "cloud" as string }),
     ])
     .run();
   mockUpload.mockImplementation(async (_token, _scope, _saveId, _kind, path) => {
@@ -102,7 +102,7 @@ it("removes the files of deleted album photos unless a live row still uses them"
       photo("seed", { path: "artwork-photos/seed.jpg", deletedAt: 5 }),
       photo("live", {
         path: "artwork-photos/live.jpg",
-        storageId: "cloud" as Id<"_storage">,
+        storageId: "cloud" as string,
       }),
     ])
     .run();

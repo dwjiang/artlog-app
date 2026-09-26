@@ -67,7 +67,7 @@ export const savedWorks = sqliteTable(
     cropPath: text(),
     /** Where the crop sits in `photoPath`, normalized; null when the crop came from another photo or another device. */
     cropCorners: text({ mode: "json" }).$type<Quad>(),
-    cropStorageId: text().$type<Id<"_storage">>(),
+    cropStorageId: text().$type<string>(),
     photoUpdatedAt: integer().notNull().default(0),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
@@ -112,7 +112,7 @@ export const artworkPhotos = sqliteTable(
     visitLocalId: text(),
     caption: text(),
     path: text(),
-    storageId: text().$type<Id<"_storage">>(),
+    storageId: text().$type<string>(),
     deletedAt: integer(),
     syncedAt: integer(),
     revision: integer().notNull().default(0),

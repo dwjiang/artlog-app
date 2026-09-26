@@ -242,13 +242,13 @@ it("removes the local crop file a newer remote crop displaced", async () => {
     artist: "",
     savedAt: 1,
     cropPath: "crops/old.preview.jpg",
-    cropStorageId: "old" as Id<"_storage">,
+    cropStorageId: "old" as string,
     syncedAt: 1,
   });
   api.mockResolvedValueOnce({
     ...empty,
     visits: [remoteVisit],
-    saves: [{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 5 }],
+    saves: [{ ...remote, cropStorageId: "new" as string, photoUpdatedAt: 5 }],
   });
   await syncJournal(deps, context);
   expect(deps.removeUnreferencedPhotos).toHaveBeenCalledWith(["crops/old.preview.jpg"]);

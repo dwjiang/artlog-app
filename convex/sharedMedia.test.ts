@@ -1,7 +1,8 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
+import { fileStorage } from "./lib/fileStorage";
 import { befriend, setVisitVisibility, socialDerivative, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { serveSharedMedia } from "./sharedMedia";
 import { harness } from "./test.helpers";
@@ -12,17 +13,7 @@ async function fixture() {
   const b = await socialUser(t);
   const draft = await socialVisit(t, a, 1);
   const asset = await socialDerivative(t, a, draft.saves[0].id);
-  const getStored = async (id: typeof asset.storageId) => {
-    const stored = await t.run(async (ctx) => {
-      const blob = await ctx.storage.get(id);
-      return blob ? { body: await blob.text(), type: blob.type } : null;
-    });
-    return stored ? new Blob([stored.body], { type: stored.type }) : null;
-  };
-  const transport = (user = a) => ({
-    runQuery: user.as.query as ActionCtx["runQuery"],
-    storage: { get: getStored },
-  });
+  const transport = (user = a) => ({ runQuery: user.as.query as ActionCtx["runQuery"] });
   const publish = async () => {
     const state = await a.as.mutation(api.sharedVisits.publish, draft.selection);
     const post = await a.as.query(api.sharedVisits.get, {
@@ -77,19 +68,14 @@ it("denies an owner-photo pointer and a publication revoked during the storage f
   });
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
   await t.run((ctx) => ctx.db.delete("artworkPhotos", pointer));
-  const response = await serveSharedMedia(
-    {
-      ...transport(b),
-      storage: {
-        get: async (id: typeof asset.storageId) => {
-          const blob = await transport(b).storage.get(id);
-          await setVisitVisibility(t, a, draft.visit._id, "private");
-          return blob;
-        },
-      },
-    },
-    context,
-  );
+  const { get } = fileStorage;
+  const fetch = vi.spyOn(fileStorage, "get").mockImplementationOnce(async (ctx, id) => {
+    const blob = await get(ctx, id);
+    await setVisitVisibility(t, a, draft.visit._id, "private");
+    return blob;
+  });
+  const response = await serveSharedMedia(transport(b), context);
+  fetch.mockRestore();
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ code: "not_found" });
 });

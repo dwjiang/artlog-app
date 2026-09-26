@@ -37,7 +37,7 @@ const loadedCandidate = v.object({
   runnerUpSimilarity: v.number(),
   placement: v.union(schema.doc("placements"), v.null()),
   institution: v.optional(v.string()),
-  orbStorageId: v.optional(v.id("_storage")),
+  orbStorageId: v.optional(v.string()),
   keypointCount: v.union(v.number(), v.null()),
   inputSize: v.optional(v.number()),
 });

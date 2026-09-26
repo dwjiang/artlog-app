@@ -60,6 +60,21 @@ const rightsRequest = {
 export default defineSchema({
   ...authTables,
 
+  files: defineTable({
+    key: v.string(),
+    state: v.union(v.literal("pending"), v.literal("ready"), v.literal("deleting")),
+    contentType: v.string(),
+    size: v.number(),
+    sha256: v.optional(v.string()),
+    uploadOwner: v.optional(v.id("devices")),
+    publicDownload: v.boolean(),
+    expiresAt: v.optional(v.number()),
+    deleteAttempts: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_state", ["state"])
+    .index("by_expiresAt", ["expiresAt"]),
+
   narrationAudio: defineTable({
     artworkId: v.id("artworks"),
     claim: v.string(),
@@ -69,10 +84,10 @@ export default defineSchema({
     guideModel: v.string(),
     speechModel: v.string(),
     voice: v.string(),
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.string()),
     sentences: v.optional(v.array(docentSentence)),
     // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
-    segments: v.optional(v.array(v.object({ storageId: v.id("_storage"), duration: v.number() }))),
+    segments: v.optional(v.array(v.object({ storageId: v.string(), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),
   museumDownloads: defineTable({
     venueId: v.id("museums"),
@@ -129,7 +144,7 @@ export default defineSchema({
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
     // The contributor's artwork crop: the card thumbnail for `source: user` works.
-    thumbnailStorageId: v.optional(v.id("_storage")),
+    thumbnailStorageId: v.optional(v.string()),
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
@@ -225,7 +240,7 @@ export default defineSchema({
     sourceLocalId: v.string(),
     modelVersion: v.string(),
     vector: embedding,
-    orbStorageId: v.id("_storage"),
+    orbStorageId: v.string(),
     keypointCount: v.number(),
     attempt: v.number(),
     saveUpdatedAt: v.optional(v.number()),
@@ -257,7 +272,7 @@ export default defineSchema({
     contributionId: v.optional(v.id("contributions")),
     proposalId: v.optional(v.id("placementProposals")),
     objectId: v.id("objects"),
-    storageId: v.id("_storage"),
+    storageId: v.string(),
     sha256: v.string(),
     keypointCount: v.number(),
     inputSize: v.number(),
@@ -347,10 +362,10 @@ export default defineSchema({
     scanId: v.optional(v.id("scans")),
     embeddingId: v.id("scanEmbeddings"),
     modelVersion: v.string(),
-    orbStorageId: v.optional(v.id("_storage")),
+    orbStorageId: v.optional(v.string()),
     orbSha256: v.optional(v.string()),
     keypointCount: v.number(),
-    cropStorageId: v.optional(v.id("_storage")),
+    cropStorageId: v.optional(v.string()),
     displayMediaRevokedAt: v.optional(v.number()),
     rawOcr: v.optional(v.any()),
     sourceUrl: v.optional(v.string()),
@@ -607,7 +622,7 @@ export default defineSchema({
   collections: defineTable({
     ...journalSave.fields,
     owner: journalOwner,
-    cropStorageId: v.optional(v.id("_storage")),
+    cropStorageId: v.optional(v.string()),
     photoUpdatedAt: v.optional(v.number()),
     visitId: v.optional(v.id("visits")),
     scanId: v.optional(v.id("scans")),
@@ -627,7 +642,7 @@ export default defineSchema({
     ...albumPhoto.fields,
     owner: journalOwner,
     saveId: v.id("collections"),
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.string()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     updatedAt: v.number(),
@@ -677,7 +692,7 @@ export default defineSchema({
     username: v.string(),
     name: v.string(),
     bio: v.optional(v.string()),
-    photoStorageId: v.optional(v.id("_storage")),
+    photoStorageId: v.optional(v.string()),
     searchText: v.string(),
     active: v.boolean(),
     publishedWallCount: v.number(),
@@ -789,7 +804,7 @@ export default defineSchema({
   mediaAssets: defineTable({
     saveId: v.id("collections"),
     source: mediaSource,
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.string()),
     provenance: v.union(
       v.object({
         kind: v.literal("catalog"),
@@ -799,7 +814,7 @@ export default defineSchema({
       v.object({
         kind: v.literal("contribution"),
         contributionId: v.id("contributions"),
-        sourceStorageId: v.id("_storage"),
+        sourceStorageId: v.string(),
       }),
     ),
     createdAt: v.number(),

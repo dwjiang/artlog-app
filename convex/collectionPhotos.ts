@@ -3,11 +3,11 @@ import { ConvexError, v } from "convex/values";
 import { MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from "../shared/collection/photo-limits";
 import { isUuid } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { httpAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { requireDeviceFromAction } from "./lib/auth";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
 import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";
@@ -41,7 +41,7 @@ async function target(
 
 export const findForCaller = internalQuery({
   args,
-  returns: v.union(v.id("_storage"), v.null()),
+  returns: v.union(v.string(), v.null()),
   handler: async (ctx, { scope, localId, kind, photoId }) => {
     const { save, photo } = await target(ctx, scope, localId, kind, photoId);
     return (photo ? photo.storageId : save.cropStorageId) ?? null;
@@ -52,12 +52,12 @@ export const findForCaller = internalQuery({
 export const attach = internalMutation({
   args: {
     ...args,
-    storageId: v.id("_storage"),
+    storageId: v.string(),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
   },
   returns: v.object({
-    storageId: v.id("_storage"),
+    storageId: v.string(),
     photoUpdatedAt: v.number(),
   }),
   handler: async (ctx, { scope, localId, kind, photoId, storageId, width, height }) => {
@@ -69,6 +69,7 @@ export const attach = internalMutation({
     }
     const changeVersion = await nextChangeVersion(ctx, save.owner);
     const photoUpdatedAt = photo ? 0 : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
+    await retainFile(ctx, storageId);
     if (photo) {
       await ctx.db.patch("artworkPhotos", photo._id, {
         storageId,
@@ -135,7 +136,7 @@ function failure(error: unknown): Response {
 }
 
 export const upload = httpAction(async (ctx, request) => {
-  let uploaded: Id<"_storage"> | undefined;
+  let uploaded: string | undefined;
   try {
     const device = await requireDeviceFromAction(ctx);
     const input = parameters(request);
@@ -158,7 +159,7 @@ export const upload = httpAction(async (ctx, request) => {
     if (header[0] !== 0xff || header[1] !== 0xd8 || header[2] !== 0xff) {
       throw new ConvexError({ code: "invalid_photo" });
     }
-    uploaded = await ctx.storage.store(blob);
+    uploaded = await fileStorage.store(ctx, blob);
     const width = Number(request.headers.get("X-Photo-Width"));
     const height = Number(request.headers.get("X-Photo-Height"));
     const dimensions = width > 0 && height > 0 && width <= 65535 && height <= 65535 ? { width, height } : {};
@@ -180,7 +181,7 @@ export const upload = httpAction(async (ctx, request) => {
 });
 
 export const discard = internalMutation({
-  args: { storageId: v.id("_storage") },
+  args: { storageId: v.string() },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
     await deleteUnreferencedPhoto(ctx, storageId);
@@ -191,7 +192,7 @@ export const discard = internalMutation({
 export const download = httpAction(async (ctx, request) => {
   try {
     const storageId = await ctx.runQuery(internal.collectionPhotos.findForCaller, parameters(request));
-    const blob = storageId ? await ctx.storage.get(storageId) : null;
+    const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
     if (!blob) throw new ConvexError({ code: "not_found" });
     return new Response(blob, {
       headers: {

@@ -5,8 +5,8 @@ import sharp from "sharp";
 
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
+import { fileStorage } from "./lib/fileStorage";
 import { withErrorReporting } from "./lib/observability";
 
 export const save = action({
@@ -21,7 +21,7 @@ export const save = action({
     withErrorReporting("profilePhotos.save", async () => {
       validateProfile(input);
       const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
-      let photo: Id<"_storage"> | null | undefined = input.photo === null ? null : undefined;
+      let photo: string | null | undefined = input.photo === null ? null : undefined;
       if (input.photo) {
         if (input.photo.byteLength > 512 * 1024) {
           throw new ConvexError({ code: "invalid_profile_photo" });
@@ -39,7 +39,7 @@ export const save = action({
         } catch {
           throw new ConvexError({ code: "invalid_profile_photo" });
         }
-        photo = await ctx.storage.store(new Blob([new Uint8Array(encoded)], { type: "image/jpeg" }));
+        photo = await fileStorage.store(ctx, new Blob([new Uint8Array(encoded)], { type: "image/jpeg" }));
       }
       try {
         return await ctx.runMutation(internal.profilePhotoData.save, {
@@ -50,7 +50,7 @@ export const save = action({
           photo,
         });
       } catch (error) {
-        if (photo) await ctx.storage.delete(photo);
+        if (photo) await fileStorage.delete(ctx, photo);
         throw error;
       }
     }),

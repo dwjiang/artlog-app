@@ -4,6 +4,7 @@ import model from "../shared/model/model-version.json";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { fileStorage } from "./lib/fileStorage";
 import { runPipeline } from "./lib/identifyPipeline";
 import { loadOrb } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
@@ -312,7 +313,7 @@ it.each(["row", "file"])("refuses to index a new physical object without its ref
       .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
       .unique())!;
     if (missing === "row") await ctx.db.delete("descriptors", reference._id);
-    else await ctx.storage.delete(reference.storageId);
+    else await fileStorage.delete(ctx, reference.storageId);
   });
   await expect(
     t.mutation(internal.placements.reviewPlacement, {

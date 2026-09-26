@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { normalizeSearch } from "../shared/journal/limits";
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
@@ -18,7 +19,7 @@ export const save = internalMutation({
     name: v.string(),
     username: v.optional(v.string()),
     bio: v.optional(v.string()),
-    photo: v.optional(v.union(v.id("_storage"), v.null())),
+    photo: v.optional(v.union(v.string(), v.null())),
   },
   returns: publicProfile,
   handler: async (ctx, input) => {
@@ -38,6 +39,7 @@ export const save = internalMutation({
       throw new ConvexError({ code: "username_taken" });
     }
     const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
+    if (photoStorageId) await retainFile(ctx, photoStorageId, true);
     await ctx.db.patch("profiles", profile._id, {
       ...fields,
       username,
@@ -46,7 +48,7 @@ export const save = internalMutation({
       updatedAt: Date.now(),
     });
     if (profile.photoStorageId && profile.photoStorageId !== photoStorageId) {
-      await ctx.storage.delete(profile.photoStorageId);
+      await fileStorage.delete(ctx, profile.photoStorageId);
     }
     return projectProfile(ctx, { ...profile, ...fields, username, photoStorageId });
   },

@@ -11,9 +11,11 @@ import { decodeQuery } from "./identify";
 import { contributionGroup } from "./lib/agreement";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { cosine } from "./lib/cosine";
+import { fileHash, fileStorage, findFile, reserveFile, retainFile } from "./lib/fileStorage";
 import { FIELD_NAMES } from "./lib/labelVerify";
 import { withErrorReporting } from "./lib/observability";
 import { storeOrb } from "./lib/orbStorage";
+import { r2 } from "./lib/r2";
 import { limitDevice } from "./lib/rateLimits";
 import { recognitionPartition } from "./lib/recognitionEligibility";
 import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
@@ -59,12 +61,14 @@ const contributionResult = v.object({
 type ContributionResult = Infer<typeof contributionResult>;
 
 export const requestCropUpload = mutation({
-  args: {},
-  returns: v.object({ uploadUrl: v.string() }),
-  handler: async (ctx) => {
+  args: { size: v.number() },
+  returns: v.object({ uploadUrl: v.string(), storageId: v.string() }),
+  handler: async (ctx, { size }) => {
     const device = await requireDevice(ctx);
     await limitDevice(ctx, "contribute", device._id);
-    return { uploadUrl: await ctx.storage.generateUploadUrl() };
+    if (!Number.isInteger(size) || size < 3 || size > MAX_CROP_BYTES) throw new ConvexError({ code: "bad_crop" });
+    const storageId = await reserveFile(ctx, CROP_CONTENT_TYPE, size, device._id);
+    return { uploadUrl: await r2.uploadUrl(storageId, CROP_CONTENT_TYPE, size), storageId };
   },
 });
 
@@ -152,23 +156,24 @@ export const checkDuplicatePage = internalQuery({
   },
 });
 
-async function deleteUnreferencedCrop(ctx: MutationCtx, cropStorageId: Id<"_storage">): Promise<void> {
-  const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
+async function deleteUnreferencedCrop(ctx: MutationCtx, cropStorageId: string, deviceId: Id<"devices">): Promise<void> {
+  const crop = await fileStorage.getMetadata(ctx, cropStorageId);
+  if (!crop || crop.uploadOwner !== deviceId || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
     return;
   }
   const reference = await ctx.db
     .query("contributions")
     .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
     .first();
-  if (!reference) await ctx.storage.delete(cropStorageId);
+  if (!reference) await fileStorage.delete(ctx, cropStorageId);
 }
 
 async function validateSubmission(
   ctx: MutationCtx,
   scan: Doc<"scans">,
   submitted: SubmittedFields,
-  cropStorageId: Id<"_storage">,
+  cropStorageId: string,
+  allowPending = false,
 ): Promise<{ flow: LabelFlow; fields: ContributionFields }> {
   const venue = scan.venueId ? await ctx.db.get("museums", scan.venueId) : null;
   if (!venue || (await isVenueOptedOut(ctx, venue))) {
@@ -179,8 +184,14 @@ async function validateSubmission(
     throw new ConvexError({ code: "label_unverified" });
   }
   const fields = resolveFields(flow, submitted);
-  const crop = await ctx.db.system.get("_storage", cropStorageId);
-  if (!crop || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
+  const crop = await findFile(ctx, cropStorageId);
+  if (
+    !crop
+    || (crop.state !== "ready" && !(allowPending && crop.state === "pending"))
+    || crop.uploadOwner !== scan.deviceId
+    || crop.contentType !== CROP_CONTENT_TYPE
+    || crop.size > MAX_CROP_BYTES
+  ) {
     throw new ConvexError({ code: "bad_crop" });
   }
   return { flow, fields };
@@ -200,7 +211,7 @@ export const authorize = internalMutation({
   args: {
     scanId: v.id("scans"),
     fields: submittedFields,
-    cropStorageId: v.id("_storage"),
+    cropStorageId: v.string(),
     nonce: v.string(),
     assertionBase64: v.string(),
   },
@@ -225,7 +236,7 @@ export const authorize = internalMutation({
       .unique();
     if (existing) {
       if (existing.cropStorageId !== cropStorageId) {
-        await deleteUnreferencedCrop(ctx, cropStorageId);
+        await deleteUnreferencedCrop(ctx, cropStorageId, device._id);
       }
       return {
         kind: "existing",
@@ -236,7 +247,7 @@ export const authorize = internalMutation({
         },
       };
     }
-    await validateSubmission(ctx, scan, args.fields, cropStorageId);
+    await validateSubmission(ctx, scan, args.fields, cropStorageId, true);
     // This transaction commits the charge and assertion before any search, including searches that fail.
     await limitDevice(ctx, "contribute", device._id);
     return {
@@ -299,11 +310,11 @@ export const commit = internalMutation({
   args: {
     scanId: v.id("scans"),
     generation: v.number(),
-    orbStorageId: v.id("_storage"),
+    orbStorageId: v.string(),
     orbSha256: v.string(),
     keypointCount: v.number(),
     fields: submittedFields,
-    cropStorageId: v.id("_storage"),
+    cropStorageId: v.string(),
     duplicate: v.boolean(),
     previousContributionId: v.union(v.id("contributions"), v.null()),
     groupObjectId: v.optional(v.id("objects")),
@@ -326,7 +337,7 @@ export const commit = internalMutation({
       .unique();
     if (existing) {
       if (existing.cropStorageId !== cropStorageId) {
-        await deleteUnreferencedCrop(ctx, cropStorageId);
+        await deleteUnreferencedCrop(ctx, cropStorageId, device._id);
       }
       return {
         contributionId: existing._id,
@@ -339,7 +350,7 @@ export const commit = internalMutation({
       throw new ConvexError({ code: "contributions_changed" });
     }
     const { flow, fields } = await validateSubmission(ctx, scan, args.fields, cropStorageId);
-    const orb = await ctx.db.system.get("_storage", args.orbStorageId);
+    const orb = await fileStorage.getMetadata(ctx, args.orbStorageId);
     if (!orb || orb.size !== args.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
       throw new ConvexError({ code: "bad_orb_file" });
     }
@@ -363,7 +374,7 @@ export const commit = internalMutation({
     if (!duplicate && cropOwner) {
       throw new ConvexError({ code: "crop_already_shared" });
     }
-    if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId);
+    if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId, device._id);
     const vector = await requireEmbedding(ctx, scan.embeddingId);
     const contributionId = await ctx.db.insert("contributions", {
       deviceId: device._id,
@@ -386,6 +397,8 @@ export const commit = internalMutation({
       createdAt: Date.now(),
     });
     if (!duplicate) {
+      await retainFile(ctx, cropStorageId, true);
+      await retainFile(ctx, args.orbStorageId);
       await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!, args.groupObjectId);
     }
     await ctx.db.patch("museums", venue._id, {
@@ -404,7 +417,7 @@ export const contribute = action({
     descriptors: v.bytes(),
     keypoints: v.bytes(),
     fields: submittedFields,
-    cropStorageId: v.id("_storage"),
+    cropStorageId: v.string(),
     nonce: v.string(),
     assertionBase64: v.string(),
   },
@@ -421,6 +434,28 @@ export const contribute = action({
         assertionBase64,
       });
       if (authorization.kind === "existing") return authorization.result;
+      const device = await requireDeviceFromAction(ctx);
+      const crop = await ctx.runQuery(internal.files.metadata, { id: args.cropStorageId });
+      if (!crop || crop.uploadOwner !== device._id || crop.state === "deleting") {
+        throw new ConvexError({ code: "bad_crop" });
+      }
+      if (crop.state === "pending") {
+        const blob = await r2.get(crop.key);
+        const header = blob ? new Uint8Array(await blob.slice(0, 3).arrayBuffer()) : null;
+        if (
+          !blob
+          || blob.size !== crop.size
+          || blob.size > MAX_CROP_BYTES
+          || blob.type !== CROP_CONTENT_TYPE
+          || header?.[0] !== 0xff
+          || header[1] !== 0xd8
+          || header[2] !== 0xff
+        ) {
+          throw new ConvexError({ code: "bad_crop" });
+        }
+        const sha256 = await fileHash(blob);
+        await ctx.runMutation(internal.files.complete, { id: args.cropStorageId, sha256 });
+      }
       const { scan, vector } = authorization;
       let { previousContributionId } = authorization;
       const matches = await searchVectorIndex(ctx, vector, recognitionPartition(scan.modelVersion), 3);

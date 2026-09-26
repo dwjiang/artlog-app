@@ -6,6 +6,7 @@ import { api, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { download } from "./displayMedia";
 import { resolveDisplayAsset } from "./lib/displayMedia";
+import { fileStorage } from "./lib/fileStorage";
 import { projectSharedVisitCard } from "./lib/projections";
 import { seedArtworkWithObject, seedContribution, seedMuseum, seedScan } from "./lib/testFactories";
 import { wallFixture } from "./lib/wallFixtures";
@@ -26,7 +27,7 @@ async function fixture(width = 600, height = 300, orientation = 6) {
   const source = await t.run(async (ctx) => {
     const venueId = await seedMuseum(ctx);
     const scanId = await seedScan(ctx, { deviceId: a.deviceId, venueId });
-    const cropStorageId = await ctx.storage.store(new Blob([new Uint8Array(original)], { type: "image/jpeg" }));
+    const cropStorageId = await fileStorage.store(ctx, new Blob([new Uint8Array(original)], { type: "image/jpeg" }));
     const contributionId = await seedContribution(ctx, {
       deviceId: a.deviceId,
       venueId,
@@ -108,11 +109,23 @@ it("decodes, orients, strips metadata and stores a separate measured derivative;
   expect(metadata.icc).toBeUndefined();
   expect(metadata.orientation).toBeUndefined();
   expect(await sharp(bytes).raw().toBuffer()).toHaveLength(128 * 256 * 3);
-  const before = await f.t.run((ctx) => ctx.db.system.query("_storage").collect());
+  const before = await f.t.run((ctx) =>
+    ctx.db
+      .query("files")
+      .withIndex("by_state", (q) => q.eq("state", "ready"))
+      .collect(),
+  );
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
   });
-  expect(await f.t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual(before);
+  expect(
+    await f.t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toEqual(before);
   const projected = await f.t.query(api.walls.getArtwork, { itemId: f.itemId });
   expect(projected?.artwork.media).toEqual({
     kind: "derivative",
@@ -161,10 +174,23 @@ it("remembers revocation even before the first preparation starts", async () => 
 });
 
 it("concurrent preparations leave one asset and one derivative file", async () => {
-  const f = await fixture();
-  await Promise.all([1, 2, 3].map(() => f.t.action(internal.displayMediaPrepare.prepare, { saveId: f.a.saveId })));
-  expect(await f.t.run((ctx) => ctx.db.query("mediaAssets").collect())).toHaveLength(1);
-  expect(await f.t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(3); // crop, ORB, derivative
+  vi.useFakeTimers();
+  try {
+    const f = await fixture();
+    await Promise.all([1, 2, 3].map(() => f.t.action(internal.displayMediaPrepare.prepare, { saveId: f.a.saveId })));
+    await f.t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await f.t.run((ctx) => ctx.db.query("mediaAssets").collect())).toHaveLength(1);
+    expect(
+      await f.t.run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      ),
+    ).toHaveLength(3); // crop, ORB, derivative
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it.each(["withdrawn", "source-deleted", "source-replaced", "save-deleted", "revoked"] as const)(
@@ -181,16 +207,16 @@ it.each(["withdrawn", "source-deleted", "source-replaced", "save-deleted", "revo
           rejectedReason: "withdrawn",
         });
       }
-      if (change === "source-deleted") await ctx.storage.delete(f.cropStorageId);
+      if (change === "source-deleted") await fileStorage.delete(ctx, f.cropStorageId);
       if (change === "source-replaced") {
         await ctx.db.patch("contributions", f.contributionId, {
-          cropStorageId: await ctx.storage.store(new Blob(["replacement"])),
+          cropStorageId: await fileStorage.store(ctx, new Blob(["replacement"])),
         });
       }
       if (change === "save-deleted") {
         await ctx.db.patch("collections", f.a.saveId, { deletedAt: 1 });
       }
-      return ctx.storage.store(new Blob(["derivative"]));
+      return fileStorage.store(ctx, new Blob(["derivative"]));
     });
     if (change === "revoked") {
       await f.t.mutation(internal.displayMedia.revokeSave, {
@@ -234,10 +260,10 @@ it.each(["removed", "save-deleted", "inactive-profile", "withdrawn", "missing-so
           rejectedReason: "withdrawn",
         });
       }
-      if (change === "missing-source") await ctx.storage.delete(f.cropStorageId);
+      if (change === "missing-source") await fileStorage.delete(ctx, f.cropStorageId);
       if (change === "missing-derivative") {
         const asset = await resolveDisplayAsset(ctx, (await ctx.db.get("collections", f.a.saveId))!);
-        await ctx.storage.delete(asset!.storageId!);
+        await fileStorage.delete(ctx, asset!.storageId!);
       }
     });
     const response = await f.t.fetch(f.path);
@@ -261,7 +287,7 @@ it("revokes derivatives idempotently, removes storage references and never reviv
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
   });
-  expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();
+  expect(await f.t.run((ctx) => fileStorage.getMetadata(ctx, asset.storageId!))).toBeNull();
   expect(await f.t.run((ctx) => ctx.db.get("mediaAssets", asset._id))).toMatchObject({
     revokedAt: expect.any(Number),
   });
@@ -281,13 +307,25 @@ it("withdrawing the contribution revokes its derivative and deletes the file", a
   expect(await f.t.run((ctx) => ctx.db.get("mediaAssets", asset._id))).toMatchObject({
     revokedAt: expect.any(Number),
   });
-  expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();
+  expect(await f.t.run((ctx) => fileStorage.getMetadata(ctx, asset.storageId!))).toBeNull();
   expect((await f.t.fetch(f.path)).status).toBe(404);
-  const files = await f.t.run((ctx) => ctx.db.system.query("_storage").collect());
+  const files = await f.t.run((ctx) =>
+    ctx.db
+      .query("files")
+      .withIndex("by_state", (q) => q.eq("state", "ready"))
+      .collect(),
+  );
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
   });
-  expect(await f.t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual(files);
+  expect(
+    await f.t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toEqual(files);
 });
 
 it("reverting the scanning device revokes its derivatives and deletes the file", async () => {
@@ -312,7 +350,7 @@ it("reverting the scanning device revokes its derivatives and deletes the file",
   expect(await f.t.run((ctx) => ctx.db.get("mediaAssets", asset._id))).toMatchObject({
     revokedAt: expect.any(Number),
   });
-  expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();
+  expect(await f.t.run((ctx) => fileStorage.getMetadata(ctx, asset.storageId!))).toBeNull();
   expect((await f.t.fetch(f.path)).status).toBe(404);
 });
 
@@ -326,7 +364,7 @@ it("purging a deleted account deletes its derivatives and their files", async ()
   await f.a.as.mutation(api.accounts.deleteAccount, {});
   await f.t.finishAllScheduledFunctions(vi.runAllTimers);
   expect(await f.t.run((ctx) => ctx.db.get("mediaAssets", asset._id))).toBeNull();
-  expect(await f.t.run((ctx) => ctx.db.system.get(asset.storageId!))).toBeNull();
+  expect(await f.t.run((ctx) => fileStorage.getMetadata(ctx, asset.storageId!))).toBeNull();
   expect((await f.t.fetch(f.path)).status).toBe(404);
   vi.useRealTimers();
 });
@@ -336,7 +374,13 @@ it("schedules preparation only for selected items with a consented source and no
   await f.t.action(internal.displayMediaPrepare.prepare, {
     saveId: f.a.saveId,
   });
-  const scheduled = () => f.t.run(async (ctx) => (await ctx.db.system.query("_scheduled_functions").collect()).length);
+  const scheduled = () =>
+    f.t.run(
+      async (ctx) =>
+        (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+          (job) => job.name === "displayMediaPrepare:prepare",
+        ).length,
+    );
   const before = await scheduled();
   await f.a.as.mutation(api.walls.setLayout, {
     ...f.a.input,
@@ -458,7 +502,7 @@ it("leaves placeholders for unconsented owner photos and corrupt contribution im
   const t = harness();
   const a = await wallFixture(t, "a");
   await t.run(async (ctx) => {
-    const storageId = await ctx.storage.store(new Blob(["photo"]));
+    const storageId = await fileStorage.store(ctx, new Blob(["photo"]));
     await ctx.db.patch("collections", a.saveId, { cropStorageId: storageId });
   });
   const {
@@ -469,7 +513,7 @@ it("leaves placeholders for unconsented owner photos and corrupt contribution im
   const f = await fixture();
   await f.t.run(async (ctx) =>
     ctx.db.patch("contributions", f.contributionId, {
-      cropStorageId: await ctx.storage.store(new Blob(["not an image"])),
+      cropStorageId: await fileStorage.store(ctx, new Blob(["not an image"])),
     }),
   );
   const warning = vi.spyOn(console, "warn").mockImplementation(() => {});

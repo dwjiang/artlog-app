@@ -4,7 +4,6 @@ import { db } from "@/db/client";
 import * as repo from "@/db/repos/saved-works";
 import { notes, savedWorks } from "@/db/schema";
 
-import type { Id } from "../../../convex/_generated/dataModel";
 import { syncCollectionPhotos, type PhotoSyncDependencies } from "./photo-sync";
 
 jest.mock("@/db/client", () => ({
@@ -14,7 +13,7 @@ let deps: PhotoSyncDependencies;
 const upload = jest.fn();
 const download = jest.fn();
 const removeDownload = jest.fn();
-const cropStorageId = "cloud-crop" as Id<"_storage">;
+const cropStorageId = "cloud-crop" as string;
 beforeEach(async () => {
   await db.delete(notes);
   await db.delete(savedWorks);

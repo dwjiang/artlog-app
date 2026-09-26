@@ -6,6 +6,7 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { fileStorage } from "./lib/fileStorage";
 import { publishContribution } from "./lib/tentativeEntries";
 import {
   seedArtworkWithObject,
@@ -32,7 +33,7 @@ async function seedUserObject(
     venueId: Id<"museums">;
     deviceIds: Id<"devices">[];
     contributionIds?: Id<"contributions">[];
-    thumbnailStorageId?: Id<"_storage">;
+    thumbnailStorageId?: string;
     artworkId?: Id<"artworks">;
     title?: string;
   },
@@ -132,18 +133,18 @@ describe("revertObject", () => {
       objectId: first.objectId,
       reason: "test",
     });
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, storageId))).not.toBeNull();
     await t.action(internal.revert.revertObjectById, {
       objectId: second.objectId,
       reason: "test",
     });
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, storageId))).toBeNull();
   });
 
   it("removes the work from identification, closes its placement, deletes the crop and rejects its contributions", async () => {
     const { t, alice, venueId, get, all } = await fixture();
     const cropStorageId = await t.run((ctx) =>
-      ctx.storage.store(new Blob([new Uint8Array(1000)], { type: "image/jpeg" })),
+      fileStorage.store(ctx, new Blob([new Uint8Array(1000)], { type: "image/jpeg" })),
     );
     const contributionId = await t.run((ctx) =>
       seedContribution(ctx, {
@@ -189,7 +190,7 @@ describe("revertObject", () => {
     expect(await all("vectors")).toEqual([]);
     expect(await all("descriptors")).toEqual([]);
     expect(await all("placements")).toMatchObject([{ objectId: object._id, closedAt: Date.now() }]);
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", cropStorageId))).toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, cropStorageId))).toBeNull();
     expect(await get("contributions", contributionId)).toMatchObject({
       status: "rejected",
       rejectedReason: "object_reverted",
@@ -852,7 +853,7 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
   const scanId = await t.run((ctx) => seedScan(ctx, { deviceId: alice.deviceId }));
   const { contributionId, objectId, jobId } = await t.run(async (ctx) => {
     await ctx.db.patch("devices", alice.deviceId, { banned: true });
-    const cropStorageId = await ctx.storage.store(new Blob(["crop"], { type: "image/jpeg" }));
+    const cropStorageId = await fileStorage.store(ctx, new Blob(["crop"], { type: "image/jpeg" }));
     const contributionId = await seedContribution(ctx, {
       deviceId: bob.deviceId,
       venueId,

@@ -14,7 +14,7 @@ import {
 } from "../shared/audio/guide";
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import {
   action,
   env,
@@ -25,6 +25,7 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { createSegmenter, eventPlaylist, type PackedSegment } from "./lib/hls";
 import {
   liveNarration,
@@ -46,7 +47,7 @@ const audio = v.object({
   renderId: v.string(),
   live: v.boolean(),
 });
-const segment = v.object({ storageId: v.id("_storage"), duration: v.number() });
+const segment = v.object({ storageId: v.string(), duration: v.number() });
 const LEASE_MS = 180_000;
 const FIRST_SEGMENT_POLL_MS = 250;
 const FIRST_SEGMENT_TIMEOUT_MS = 30_000;
@@ -56,7 +57,7 @@ const SEGMENT_RETENTION_MS = 60 * 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function deleteFiles(ctx: MutationCtx, entry: Doc<"narrationAudio">) {
-  await Promise.all(narrationFiles(entry).map((storageId) => ctx.storage.delete(storageId)));
+  await Promise.all(narrationFiles(entry).map((storageId) => fileStorage.delete(ctx, storageId)));
 }
 
 export const claim = internalMutation({
@@ -126,9 +127,10 @@ export const appendSegment = internalMutation({
   handler: async (ctx, { artworkId, claim, segment: added }) => {
     const entry = await narrationEntry(ctx, artworkId);
     if (entry?.claim !== claim || entry.storageId) {
-      await ctx.storage.delete(added.storageId);
+      await fileStorage.delete(ctx, added.storageId);
       return false;
     }
+    await retainFile(ctx, added.storageId, true);
     await ctx.db.patch("narrationAudio", entry._id, { segments: [...(entry.segments ?? []), added] });
     return true;
   },
@@ -139,18 +141,19 @@ export const finish = internalMutation({
   args: {
     artworkId: v.id("artworks"),
     claim: v.string(),
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, { artworkId, claim, storageId }) => {
     const entry = await narrationEntry(ctx, artworkId);
     const artwork = await ctx.db.get("artworks", artworkId);
     if (entry?.claim === claim && storageId && artwork && narrationCurrent(entry, artwork)) {
+      await retainFile(ctx, storageId, true);
       await ctx.db.patch("narrationAudio", entry._id, { storageId });
       await ctx.scheduler.runAfter(SEGMENT_RETENTION_MS, internal.narration.dropSegments, { artworkId, claim });
       return null;
     }
-    if (storageId) await ctx.storage.delete(storageId);
+    if (storageId) await fileStorage.delete(ctx, storageId);
     if (entry?.claim === claim) {
       await deleteFiles(ctx, entry);
       await ctx.db.delete("narrationAudio", entry._id);
@@ -165,7 +168,7 @@ export const dropSegments = internalMutation({
   handler: async (ctx, { artworkId, claim }) => {
     const entry = await narrationEntry(ctx, artworkId);
     if (entry?.claim !== claim || !entry.storageId || !entry.segments) return null;
-    await Promise.all(entry.segments.map(({ storageId }) => ctx.storage.delete(storageId)));
+    await Promise.all(entry.segments.map(({ storageId }) => fileStorage.delete(ctx, storageId)));
     await ctx.db.patch("narrationAudio", entry._id, { segments: undefined });
     return null;
   },
@@ -198,7 +201,7 @@ export const listing = internalQuery({
     if (entry?.claim !== args.render || !entry.segments?.length) return null;
     const segments = [];
     for (const { storageId, duration } of entry.segments) {
-      const uri = await ctx.storage.getUrl(storageId);
+      const uri = await fileStorage.getUrl(ctx, storageId);
       if (!uri) return null;
       segments.push({ uri, duration });
     }
@@ -379,7 +382,7 @@ export const speak = internalAction({
   args: { artworkId: v.id("artworks"), claim: v.string(), input: v.string() },
   returns: v.null(),
   handler: async (ctx, { artworkId, claim, input }) => {
-    let storageId: Id<"_storage"> | undefined;
+    let storageId: string | undefined;
     try {
       const response = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
@@ -408,7 +411,7 @@ export const speak = internalAction({
       let segments = 0;
       const append = async ({ bytes, duration }: PackedSegment) => {
         segments++;
-        const segmentId = await ctx.storage.store(new Blob([bytes], { type: "audio/mpeg" }));
+        const segmentId = await fileStorage.store(ctx, new Blob([bytes], { type: "audio/mpeg" }));
         return ctx.runMutation(internal.narration.appendSegment, {
           artworkId,
           claim,
@@ -428,11 +431,11 @@ export const speak = internalAction({
       const last = segmenter.end();
       if (last && !(await append(last))) return null;
       if (segments === 0) throw new ConvexError({ code: "narration_provider_failed", reason: "invalid_output" });
-      storageId = await ctx.storage.store(new Blob(chunks, { type: "audio/mpeg" }));
+      storageId = await fileStorage.store(ctx, new Blob(chunks, { type: "audio/mpeg" }));
       await ctx.runMutation(internal.narration.finish, { artworkId, claim, storageId });
     } catch (error) {
       await reportBackendError(error, "narration.speak");
-      if (storageId) await ctx.storage.delete(storageId);
+      if (storageId) await fileStorage.delete(ctx, storageId);
       await ctx.runMutation(internal.narration.finish, { artworkId, claim });
     }
     return null;

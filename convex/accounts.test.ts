@@ -3,6 +3,7 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
+import { fileStorage } from "./lib/fileStorage";
 import { limitDevice } from "./lib/rateLimits";
 import { seedDevice } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
@@ -252,7 +253,7 @@ it("purges the deleted account’s journal, photos and sync state without extra 
       region: "US",
       optOut: false,
     });
-    const stored = await ctx.storage.store(new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
+    const stored = await fileStorage.store(ctx, new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
     await ctx.db.insert("journalSyncState", { owner, version: 70 });
     for (let i = 0; i < 5; i++) {
       await ctx.db.insert("visits", {
@@ -284,7 +285,7 @@ it("purges the deleted account’s journal, photos and sync state without extra 
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
-  expect(new Set(jobs.map((job) => job.name))).toEqual(new Set(["accounts:purgeJournal"]));
+  expect(new Set(jobs.map((job) => job.name))).toEqual(new Set(["accounts:purgeJournal", "files:deleteRemote"]));
   expect(
     await t.run((ctx) =>
       ctx.db
@@ -302,6 +303,13 @@ it("purges the deleted account’s journal, photos and sync state without extra 
     ),
   ).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("journalSyncState").collect())).toEqual([]);
-  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+  expect(
+    await t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toEqual([]);
   vi.useRealTimers();
 });

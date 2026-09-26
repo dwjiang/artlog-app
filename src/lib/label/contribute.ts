@@ -25,19 +25,15 @@ export type ContributeInput = {
   state: LabelFormState;
 };
 
-export async function uploadCrop(uploadUrl: string, uri: string): Promise<Id<"_storage">> {
+export async function uploadCrop(uploadUrl: string, uri: string): Promise<void> {
   const response = await new File(uri).upload(uploadUrl, {
-    httpMethod: "POST",
+    httpMethod: "PUT",
     uploadType: UploadType.BINARY_CONTENT,
-    headers: { "Content-Type": "image/jpeg" },
+    headers: { "Content-Type": "image/jpeg", "If-None-Match": "*" },
   });
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`Crop upload failed with HTTP ${response.status}`);
   }
-  const { storageId } = JSON.parse(response.body) as {
-    storageId: Id<"_storage">;
-  };
-  return storageId;
 }
 
 // The shared index receives the fingerprint, label fields, and a small crop, never the full photo.
@@ -55,8 +51,10 @@ export async function contributeLabel({ scanId, capture, state }: ContributeInpu
   }
   const crop = await resizeCropForContribution(captureFileUri(capture.cropPath));
   try {
-    const { uploadUrl } = await convex.mutation(api.contributions.requestCropUpload, {});
-    const cropStorageId = await uploadCrop(uploadUrl, crop.uri);
+    const { uploadUrl, storageId: cropStorageId } = await convex.mutation(api.contributions.requestCropUpload, {
+      size: new File(crop.uri).size,
+    });
+    await uploadCrop(uploadUrl, crop.uri);
     const signed = await signPayload(contributionPayload({ scanId, cropStorageId, fields }));
     if (!signed) throw new Error("This device can’t share contributions yet");
     const result = await convex.action(api.contributions.contribute, {
