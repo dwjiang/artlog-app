@@ -3,8 +3,7 @@ import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 
-import { getSetting, setSetting } from "@/db/repos/settings";
-import { filePath } from "@/lib/file-uri";
+import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import { reportError } from "@/lib/observability";
 import { bundledVenueAsset } from "@/lib/venue-asset";
 
@@ -22,27 +21,22 @@ import {
 } from "./resolve";
 
 export const VENUE_DB_NAME = "venues.db";
-export const STAGED_VENUE_DB_NAME = "venues.next.db";
 const INSTALLED_ASSET_SETTING = "venueTableAssetHash";
+export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";
 
 export type VenueTableMeta = {
-  version: number;
+  /** The server's latest venue change when the table was exported, advanced as later changes are applied. */
+  changeVersion: number;
   generatedAt: string;
-  rowCount: number;
 };
-
-/** The live copy stays at this path; staged tables are applied at launch in a transaction. */
-export function venueDbFile(): File {
-  return new File(Paths.document, "SQLite", VENUE_DB_NAME);
-}
 
 const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, country";
 
 /**
  * Copies the bundled table into place on first launch and again after an app update ships a new
- * asset; a downloaded refresh is kept until then because it is newer than the asset it replaced.
- * Journal venues are read out first so the caller can carry them into the new copy: the sync
- * checkpoint has already passed them, so nothing would send them again.
+ * asset; the new asset's checkpoint fetches again any change it predates. Journal venues are read
+ * out first so the caller can carry them into the new copy: the sync checkpoint has already passed
+ * them, so nothing would send them again.
  */
 async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
@@ -92,45 +86,15 @@ async function journalVenueRows(): Promise<VenueRow[]> {
 
 let opening: Promise<SQLiteDatabase> | undefined;
 
-async function installStagedTable(db: SQLiteDatabase): Promise<void> {
-  const staged = new File(venueDbFile().parentDirectory, STAGED_VENUE_DB_NAME);
-  if (!staged.exists) return;
-  await db.execAsync(`ATTACH DATABASE '${filePath(staged.uri).replaceAll("'", "''")}' AS downloaded`);
-  try {
-    await validateVenueTable(db, "downloaded");
-    const current = await readVenueTableMeta(db);
-    const next = await db.getFirstAsync<VenueTableMeta>(
-      "SELECT version, generatedAt, rowCount FROM downloaded.meta LIMIT 1",
-    );
-    if (!next) throw new Error("The staged venue table has no meta row");
-    if (next.version > current.version) {
-      await db.execAsync("BEGIN IMMEDIATE");
-      try {
-        // Keep confirmations made since the download, allowing published rows to supersede them.
-        await db.execAsync(`DELETE FROM venues WHERE id NOT IN (SELECT id FROM journalVenues);
-          INSERT OR REPLACE INTO venues (${VENUE_COLUMNS}) SELECT ${VENUE_COLUMNS} FROM downloaded.venues;
-          DELETE FROM meta;
-          INSERT INTO meta SELECT * FROM downloaded.meta;`);
-        await db.execAsync("COMMIT");
-      } catch (error) {
-        await db.execAsync("ROLLBACK");
-        throw error;
-      }
-    }
-  } finally {
-    await db.execAsync("DETACH DATABASE downloaded");
-    staged.delete();
-  }
+async function validateVenueTable(db: SQLiteDatabase): Promise<void> {
+  await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM venues LIMIT 0`);
+  await db.getAllAsync("SELECT changeVersion, generatedAt FROM meta LIMIT 0");
 }
 
-export async function validateVenueTable(db: SQLiteDatabase, schema: "main" | "downloaded" = "main"): Promise<void> {
-  await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM ${schema}.venues LIMIT 0`);
-}
-
-/** The writable venue table for this launch; downloads wait until the next launch to replace it. */
+/** The writable venue table, installed from the app's bundled asset when that changes. */
 export function openVenueDb(): Promise<SQLiteDatabase> {
   opening ??= (async () => {
-    const target = venueDbFile();
+    const target = new File(Paths.document, "SQLite", VENUE_DB_NAME);
     const installed = await installBundledTable(target);
     const db = await openDatabaseAsync(VENUE_DB_NAME);
     try {
@@ -141,11 +105,9 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
           await writeVenue(db, venue, "IGNORE");
         }
         await setSetting(INSTALLED_ASSET_SETTING, installed.assetKey);
+        // A new asset can predate changes the replaced table had already fetched; fetch them now, not a month later.
+        await removeSetting(VENUE_TABLE_CHECKED_AT);
       }
-      await installStagedTable(db).catch((error: unknown) => {
-        reportError(error, "venue.table.install", { level: "warning" });
-        console.warn("Could not install the refreshed venue table", error);
-      });
       if (__DEV__) console.debug("Venue table", await readVenueTableMeta(db));
       return db;
     } catch (error) {
@@ -161,7 +123,7 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
 }
 
 export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTableMeta> {
-  const meta = await db.getFirstAsync<VenueTableMeta>("SELECT version, generatedAt, rowCount FROM main.meta LIMIT 1");
+  const meta = await db.getFirstAsync<VenueTableMeta>("SELECT changeVersion, generatedAt FROM meta LIMIT 1");
   if (!meta) throw new Error("The venue table has no meta row");
   return meta;
 }
@@ -197,14 +159,9 @@ export function onVenueMetadataChange(listener: () => void): () => void {
     metadataListeners.delete(listener);
   };
 }
-/** A journal venue row; `IGNORE` lets a row already published in the table win over the incoming one. */
-async function writeVenue(
-  db: SQLiteDatabase,
-  venue: VenueMetadata | VenueRow,
-  conflict: "REPLACE" | "IGNORE",
-): Promise<void> {
-  await db.runAsync(
-    `INSERT OR ${conflict} INTO venues (${VENUE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+const VENUE_PLACEHOLDERS = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+function venueValues(venue: VenueMetadata | VenueRow) {
+  return [
     venue.id,
     venue.key,
     venue.name,
@@ -215,12 +172,35 @@ async function writeVenue(
     venue.city ?? null,
     venue.cityKey ?? null,
     venue.country ?? null,
+  ];
+}
+/** A journal venue row; `IGNORE` lets a row already published in the table win over the incoming one. */
+async function writeVenue(
+  db: SQLiteDatabase,
+  venue: VenueMetadata | VenueRow,
+  conflict: "REPLACE" | "IGNORE",
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR ${conflict} INTO venues (${VENUE_COLUMNS}) VALUES ${VENUE_PLACEHOLDERS}`,
+    ...venueValues(venue),
   );
   await db.runAsync("INSERT OR IGNORE INTO journalVenues (id) VALUES (?)", venue.id);
 }
 export async function applyVenueMetadata(db: SQLiteDatabase, rows: VenueMetadata[]): Promise<void> {
   for (const venue of rows) await writeVenue(db, venue, "REPLACE");
   if (rows.length > 0) for (const listener of metadataListeners) listener();
+}
+export type VenueChanges = FunctionReturnType<typeof api.venueChanges.list>;
+/** Rows are written before the checkpoint, so a page interrupted between the two is fetched and applied again. */
+export async function applyVenueChanges(db: SQLiteDatabase, { venues, checkpoint }: VenueChanges): Promise<void> {
+  if (venues.length > 0) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO venues (${VENUE_COLUMNS}) VALUES ${venues.map(() => VENUE_PLACEHOLDERS).join(", ")}`,
+      ...venues.flatMap(venueValues),
+    );
+  }
+  await db.runAsync("UPDATE meta SET changeVersion = max(changeVersion, ?)", checkpoint);
+  if (venues.length > 0) for (const listener of metadataListeners) listener();
 }
 export async function venueMetadataForIds(ids: string[]): Promise<VenueRow[]> {
   if (ids.length === 0) return [];

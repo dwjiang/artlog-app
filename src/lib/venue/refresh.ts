@@ -1,91 +1,70 @@
-import { File } from "expo-file-system";
-import { openDatabaseAsync } from "expo-sqlite";
-
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
-import { openVenueDb, readVenueTableMeta, STAGED_VENUE_DB_NAME, validateVenueTable, venueDbFile } from "./venue-db";
+import {
+  applyVenueChanges,
+  openVenueDb,
+  readVenueTableMeta,
+  VENUE_TABLE_CHECKED_AT,
+  type VenueChanges,
+} from "./venue-db";
 
-export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";
-export const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const TEMP_DB_NAME = "venues.db.tmp";
-
-export type LatestVenueTable = {
-  version: number;
-  rowCount: number;
-  url: string;
-};
+const REFRESH_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type RefreshDependencies = {
   getCheckedAt(): Promise<number | undefined>;
   setCheckedAt(at: number): Promise<void>;
-  fetchLatest(): Promise<LatestVenueTable | null>;
-  localVersion(): Promise<number>;
-  /** Downloads and verifies a table staged for the next launch. */
-  install(latest: LatestVenueTable): Promise<void>;
+  localChangeVersion(): Promise<number>;
+  fetchChanges(since: number): Promise<VenueChanges>;
+  applyChanges(changes: VenueChanges): Promise<void>;
   now(): number;
 };
 
-export type RefreshOutcome = "skipped" | "current" | "downloaded";
+export type RefreshOutcome = "skipped" | "current" | "updated";
 
-/** Checks `venueTable.latest` at most once a day and installs a newer table for the next launch. */
+/** Fetches venues changed since the local table's checkpoint, at most once every 30 days. */
 export async function refreshVenueTable(deps: RefreshDependencies): Promise<RefreshOutcome> {
   const now = deps.now();
   const checkedAt = await deps.getCheckedAt();
   if (checkedAt !== undefined && now - checkedAt < REFRESH_INTERVAL_MS) {
     return "skipped";
   }
-  const latest = await deps.fetchLatest();
-  await deps.setCheckedAt(now);
-  if (!latest || latest.version <= (await deps.localVersion())) {
-    return "current";
-  }
-  await deps.install(latest);
-  return "downloaded";
-}
-
-async function installTable(latest: LatestVenueTable): Promise<void> {
-  const target = venueDbFile();
-  const temp = new File(target.parentDirectory, TEMP_DB_NAME);
-  if (temp.exists) temp.delete();
-  await File.downloadFileAsync(latest.url, temp);
-  const downloaded = await openDatabaseAsync(TEMP_DB_NAME, {
-    useNewConnection: true,
-  });
-  try {
-    await validateVenueTable(downloaded);
-    const meta = await readVenueTableMeta(downloaded);
-    if (meta.version !== latest.version || meta.rowCount !== latest.rowCount) {
-      throw new Error(
-        `Downloaded venue table is version ${meta.version} with ${meta.rowCount} rows, expected ${latest.version} with ${latest.rowCount}`,
-      );
+  let since = await deps.localChangeVersion();
+  let updated = false;
+  for (;;) {
+    const changes = await deps.fetchChanges(since);
+    if (changes.hasMore && changes.checkpoint <= since) {
+      throw new Error(`Venue changes did not advance past ${since}`);
     }
-  } finally {
-    await downloaded.closeAsync();
+    await deps.applyChanges(changes);
+    updated ||= changes.venues.length > 0;
+    since = changes.checkpoint;
+    if (!changes.hasMore) break;
   }
-  await temp.move(new File(target.parentDirectory, STAGED_VENUE_DB_NAME), {
-    overwrite: true,
-  });
+  await deps.setCheckedAt(now);
+  return updated ? "updated" : "current";
 }
 
 export const refreshDependencies: RefreshDependencies = {
   async getCheckedAt() {
+    // Opening first lets a newly bundled table clear the check time before it is read.
+    await openVenueDb();
     const value = await getSetting(VENUE_TABLE_CHECKED_AT);
     return value === undefined ? undefined : Number(value);
   },
   setCheckedAt: (at) => setSetting(VENUE_TABLE_CHECKED_AT, String(at)),
-  fetchLatest: () => convex.query(api.venueTable.latest, {}),
-  localVersion: async () => (await readVenueTableMeta(await openVenueDb())).version,
-  install: installTable,
+  localChangeVersion: async () => (await readVenueTableMeta(await openVenueDb())).changeVersion,
+  fetchChanges: (since) => convex.query(api.venueChanges.list, { since }),
+  applyChanges: async (changes) => applyVenueChanges(await openVenueDb(), changes),
   now: Date.now,
 };
 
 export function refreshVenueTableInBackground(): void {
   refreshVenueTable(refreshDependencies).then(
     (outcome) => {
-      if (outcome === "downloaded") addBreadcrumb("venue.table.downloaded");
+      if (outcome === "updated") addBreadcrumb("venue.table.updated");
       if (__DEV__) console.debug("Venue table refresh", outcome);
     },
     (error: unknown) => {

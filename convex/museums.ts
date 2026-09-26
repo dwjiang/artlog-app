@@ -13,6 +13,7 @@ import { projectJournalVenue } from "./lib/journalVenue";
 import { limitDevice } from "./lib/rateLimits";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
+import { recordVenueChanges } from "./venueChanges";
 
 const signedPayload = {
   nonce: v.string(),
@@ -116,6 +117,7 @@ export const confirmPoiVenue = mutation({
       region: seeded?.venue.region ?? "country:unknown",
       optOut: false,
     });
+    await recordVenueChanges(ctx, [venueId]);
     await bumpCounter(ctx, "museums", 1);
     await ctx.scheduler.runAfter(0, internal.museums.probeCollectionSite, {
       venueId,
