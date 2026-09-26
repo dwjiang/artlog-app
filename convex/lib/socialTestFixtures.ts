@@ -2,6 +2,7 @@ import type { VisitVisibility } from "../../shared/journal/contracts";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { Harness } from "../test.helpers";
+import { fileStorage } from "./fileStorage";
 import { seedContribution, seedDevice, seedJournalVisit, seedMuseum, seedScan } from "./testFactories";
 
 export type SocialUser = Awaited<ReturnType<typeof seedDevice>> & {
@@ -130,7 +131,7 @@ export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<
       deviceId: user.deviceId,
       venueId: save.venueId,
     });
-    const sourceStorageId = await ctx.storage.store(new Blob(["source crop"], { type: "image/jpeg" }));
+    const sourceStorageId = await fileStorage.store(ctx, new Blob(["source crop"], { type: "image/jpeg" }));
     const contributionId = await seedContribution(ctx, {
       deviceId: user.deviceId,
       scanId,
@@ -138,7 +139,7 @@ export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<
       cropStorageId: sourceStorageId,
     });
     await ctx.db.patch("collections", saveId, { scanId });
-    const storageId = await ctx.storage.store(new Blob(["derivative bytes"], { type: "image/jpeg" }));
+    const storageId = await fileStorage.store(ctx, new Blob(["derivative bytes"], { type: "image/jpeg" }));
     const provenance = {
       kind: "contribution" as const,
       contributionId,

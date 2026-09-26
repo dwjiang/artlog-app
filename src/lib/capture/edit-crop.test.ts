@@ -121,7 +121,7 @@ it("updates only the collection crop and its corners, preserves the original alb
     savedAt: 1,
     photoPath: "full.jpg",
     cropPath: "old.preview.jpg",
-    cropStorageId: "cloud" as Id<"_storage">,
+    cropStorageId: "cloud" as string,
   });
   await saveEditedArtworkCrop("work", crop, owner);
   const work = await getSavedWork("work");

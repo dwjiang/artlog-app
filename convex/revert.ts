@@ -8,6 +8,7 @@ import { clearDocent } from "./docent";
 import { feedbackChanged } from "./feedbackReplay";
 import { bumpCounter } from "./ingest";
 import { revokeContributionMedia } from "./lib/displayMedia";
+import { fileStorage } from "./lib/fileStorage";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { deleteVector } from "./lib/vectorStore";
 import { readyForReview, reassessProposal } from "./placements";
@@ -34,8 +35,8 @@ export async function beginRevert(ctx: MutationCtx, object: Doc<"objects">, reas
     thumbnailStorageId: undefined,
     ...(object.thumbnailStorageId ? { imageRef: undefined } : {}),
   });
-  if (object.thumbnailStorageId && (await ctx.db.system.get(object.thumbnailStorageId))) {
-    await ctx.storage.delete(object.thumbnailStorageId);
+  if (object.thumbnailStorageId && (await fileStorage.getMetadata(ctx, object.thumbnailStorageId))) {
+    await fileStorage.delete(ctx, object.thumbnailStorageId);
   }
 }
 

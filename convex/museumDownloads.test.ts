@@ -7,6 +7,7 @@ import type { MuseumEntry } from "../shared/offline/types";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
+import { fileStorage } from "./lib/fileStorage";
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -59,7 +60,7 @@ it("publishes an authenticated museum download only when all chunks are complete
       .query("museumDownloads")
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique())!;
-    const file = await ctx.storage.get(row.published!.chunks[0].storageId);
+    const file = await fileStorage.get(ctx, row.published!.chunks[0].storageId);
     expect(file!.size).toBe(manifest!.size);
     return jsonToConvex(JSON.parse(await file!.text())) as unknown as MuseumEntry[];
   });
@@ -152,7 +153,7 @@ it("rejects incomplete, unverified, and nonmatching references during offline re
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique())!;
     return jsonToConvex(
-      JSON.parse(await (await ctx.storage.get(row.published!.chunks[0].storageId))!.text()),
+      JSON.parse(await (await fileStorage.get(ctx, row.published!.chunks[0].storageId))!.text()),
     ) as unknown as MuseumEntry[];
   });
   const ranked = rankEntries(testVector(-1), entries);
@@ -197,7 +198,7 @@ it("publishes the rest of a museum when one reference has an unreadable ORB file
       .withIndex("by_venue", (q) => q.eq("venueId", venueId))
       .unique())!;
     return jsonToConvex(
-      JSON.parse(await (await ctx.storage.get(row.published!.chunks[0].storageId))!.text()),
+      JSON.parse(await (await fileStorage.get(ctx, row.published!.chunks[0].storageId))!.text()),
     ) as unknown as MuseumEntry[];
   });
   expect(entries.map((entry) => entry.candidate.object._id)).toEqual([work.objectId]);

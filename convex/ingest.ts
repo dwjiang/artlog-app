@@ -1,8 +1,7 @@
+import { ConvexError, type Infer, v } from "convex/values";
 // The Python ↔ Convex ingest contract. Every function is admin-key only and every
 // upsert is idempotent on its natural key; changing a row shape means changing
 // scripts/data/pipeline in the same PR.
-
-import { ConvexError, type Infer, v } from "convex/values";
 
 import model from "../shared/model/model-version.json";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../shared/orb/features";
@@ -10,6 +9,7 @@ import { validateGeography } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
 import { withErrorReporting } from "./lib/observability";
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
@@ -407,7 +407,7 @@ export const upsertVectors = internalMutation({
 
 const descriptorReference = v.object({
   objectKey: v.string(),
-  storageId: v.id("_storage"),
+  storageId: v.string(),
   sha256: v.string(),
   keypointCount: v.number(),
   inputSize: v.number(),
@@ -429,7 +429,7 @@ export const existingDescriptors = internalQuery({
           .query("descriptors")
           .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
           .unique();
-        if (!row || !(await ctx.db.system.get("_storage", row.storageId))) {
+        if (!row || !(await fileStorage.getMetadata(ctx, row.storageId))) {
           return null;
         }
         const { storageId, sha256, keypointCount, inputSize, extractedFrom } = row;
@@ -452,10 +452,10 @@ export const commitDescriptors = internalMutation({
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
     const ids: Record<string, Id<"descriptors">> = {};
-    const replaced: Id<"_storage">[] = [];
+    const replaced: string[] = [];
     let inserted = 0;
     for (const { objectKey, ...reference } of rows) {
-      const file = await ctx.db.system.get("_storage", reference.storageId);
+      const file = await fileStorage.getMetadata(ctx, reference.storageId);
       if (!file || file.size !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
         throw new ConvexError({
           code: "bad_orb_file",
@@ -467,6 +467,7 @@ export const commitDescriptors = internalMutation({
         .query("descriptors")
         .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
         .unique();
+      await retainFile(ctx, reference.storageId);
       const doc = { objectId: object._id, ...reference };
       if (existing) {
         if (documentChanged(existing, doc)) await ctx.db.replace("descriptors", existing._id, doc);
@@ -516,7 +517,7 @@ export const upsertDescriptors = internalAction({
       const existing = await ctx.runQuery(internal.ingest.existingDescriptors, {
         objectKeys: rows.map((row) => row.objectKey),
       });
-      const created: Id<"_storage">[] = [];
+      const created: string[] = [];
       const references: Infer<typeof descriptorReference>[] = [];
       try {
         for (let start = 0; start < rows.length; start += 8) {
@@ -526,7 +527,7 @@ export const upsertDescriptors = internalAction({
               const sha256 = await orbHash(packed[i]);
               let storageId = existing[i]?.sha256 === sha256 ? existing[i]!.storageId : undefined;
               if (!storageId) {
-                storageId = await ctx.storage.store(new Blob([packed[i]], { type: ORB_CONTENT_TYPE }));
+                storageId = await fileStorage.store(ctx, new Blob([packed[i]], { type: ORB_CONTENT_TYPE }));
                 created.push(storageId);
               }
               return {
@@ -705,7 +706,7 @@ export const exportDescriptorReferences = internalQuery({
     page: v.array(
       v.object({
         objectId: v.id("objects"),
-        storageId: v.id("_storage"),
+        storageId: v.string(),
         keypointCount: v.number(),
         inputSize: v.number(),
       }),

@@ -2,6 +2,7 @@ import { GUIDE_MODEL, guideOpening } from "../../shared/audio/guide";
 import { SPEECH_MODEL, SPEECH_VOICE } from "../../shared/audio/speech";
 import type { Doc, Id } from "../_generated/dataModel";
 import { env, type QueryCtx } from "../_generated/server";
+import { fileStorage } from "./fileStorage";
 import type { DocentSentence } from "./validators";
 
 export type RenderedNarration = {
@@ -51,7 +52,7 @@ export async function renderedNarration(ctx: QueryCtx, artwork: Doc<"artworks">)
   if (!entry?.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) {
     return null;
   }
-  const uri = await ctx.storage.getUrl(entry.storageId);
+  const uri = await fileStorage.getUrl(ctx, entry.storageId);
   return uri ? { uri, sentences: entry.sentences, renderId: entry.claim, live: false } : null;
 }
 

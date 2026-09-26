@@ -11,6 +11,7 @@ import {
   revokeContributionMedia,
   revokeSaveMedia,
 } from "./lib/displayMedia";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import schema from "./schema";
@@ -119,7 +120,7 @@ export const beginPreparation = internalMutation({
 export const attach = internalMutation({
   args: {
     assetId: v.id("mediaAssets"),
-    storageId: v.id("_storage"),
+    storageId: v.string(),
     width: v.number(),
     height: v.number(),
   },
@@ -140,25 +141,26 @@ export const attach = internalMutation({
       return false;
     }
     if (asset.storageId) return asset.storageId === storageId;
-    if (storageId === source.sourceStorageId || !(await ctx.db.system.get(storageId))) {
+    if (storageId === source.sourceStorageId || !(await fileStorage.getMetadata(ctx, storageId))) {
       return false;
     }
     const metadata = { ...asset.source, width, height };
     validateMedia(metadata);
+    await retainFile(ctx, storageId);
     await ctx.db.patch("mediaAssets", assetId, { source: metadata, storageId });
     return true;
   },
 });
 export const discard = internalMutation({
-  args: { storageId: v.id("_storage") },
+  args: { storageId: v.string() },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
     const reference = await ctx.db
       .query("mediaAssets")
       .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
       .first();
-    if (!reference && (await ctx.db.system.get(storageId))) {
-      await ctx.storage.delete(storageId);
+    if (!reference && (await fileStorage.getMetadata(ctx, storageId))) {
+      await fileStorage.delete(ctx, storageId);
     }
     return null;
   },
@@ -181,7 +183,7 @@ export const revokeContribution = internalMutation({
 });
 export const findForWallItem = internalQuery({
   args: { context: wallItemMediaContext },
-  returns: v.union(v.id("_storage"), v.null()),
+  returns: v.union(v.string(), v.null()),
   handler: async (ctx, { context }) => {
     const { item, save } = await requirePublicWallItem(ctx, context.itemId);
     if (context.photoLocalId) {
@@ -225,7 +227,7 @@ export const download = httpAction(async (ctx, request) => {
     } as never;
     if (kind !== "wallItem") return await serveSharedMedia(ctx, context);
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
-    const blob = storageId ? await ctx.storage.get(storageId) : null;
+    const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
     if (
       !blob
       || (await ctx.runQuery(internal.displayMedia.findForWallItem, {

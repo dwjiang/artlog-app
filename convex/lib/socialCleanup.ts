@@ -1,6 +1,7 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { deleteUnreferencedPhoto } from "./collectionPhotos";
+import { fileStorage } from "./fileStorage";
 import { changeEngagement, engagement } from "./visitReactions";
 
 const BATCH = 50;
@@ -134,7 +135,7 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     }
     return true;
   }
-  if (profile.photoStorageId) await ctx.storage.delete(profile.photoStorageId);
+  if (profile.photoStorageId) await fileStorage.delete(ctx, profile.photoStorageId);
   await ctx.db.delete("profiles", profile._id);
   return true;
 }

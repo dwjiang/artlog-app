@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
 import { api, internal } from "./_generated/api";
+import { fileStorage } from "./lib/fileStorage";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
 import { harness } from "./test.helpers";
 
@@ -8,7 +9,7 @@ it("updates only the authenticated profile and deletes replaced public photos", 
   const t = harness();
   const owner = await socialUser(t);
   const other = await socialUser(t);
-  const photo = await t.run((ctx) => ctx.storage.store(new Blob(["photo"], { type: "image/jpeg" })));
+  const photo = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"], { type: "image/jpeg" })));
   await expect(
     other.as.mutation(internal.profilePhotoData.save, {
       profileId: owner.profileId,
@@ -33,7 +34,7 @@ it("updates only the authenticated profile and deletes replaced public photos", 
     name: "Mira",
     photo: null,
   });
-  expect(await t.run((ctx) => ctx.storage.get(photo))).toBeNull();
+  expect(await t.run((ctx) => fileStorage.get(ctx, photo))).toBeNull();
   expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).not.toHaveProperty("photoUrl");
 });
 

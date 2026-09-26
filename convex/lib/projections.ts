@@ -9,9 +9,10 @@ import {
 } from "../../shared/social/contracts";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { fileStorage } from "./fileStorage";
 
 export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
-  const photoUrl = profile.photoStorageId ? await ctx.storage.getUrl(profile.photoStorageId) : null;
+  const photoUrl = profile.photoStorageId ? await fileStorage.getUrl(ctx, profile.photoStorageId) : null;
   return {
     profileId: profile._id,
     username: profile.username,

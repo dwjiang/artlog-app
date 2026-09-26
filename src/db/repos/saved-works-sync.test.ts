@@ -214,7 +214,7 @@ it("accepts an image reference without replacing a newer local note or original 
     photoPath: "original.heic",
   });
   await setNote(remote.localId, "Still uploading");
-  const cropStorageId = "cloud-crop" as Id<"_storage">;
+  const cropStorageId = "cloud-crop" as string;
   await repo.upsertFromRemote([{ ...remote, cropStorageId }]);
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({
     photoPath: "original.heic",
@@ -233,13 +233,13 @@ it("downloads a newer remote crop independently of note stamps, reports the disp
     artist: "",
     savedAt: 1,
     cropPath: "old.jpg",
-    cropStorageId: "old" as Id<"_storage">,
+    cropStorageId: "old" as string,
     photoUpdatedAt: 1,
     syncedAt: 100,
   });
-  expect(
-    await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 }]),
-  ).toEqual(["old.jpg"]);
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as string, photoUpdatedAt: 3 }])).toEqual([
+    "old.jpg",
+  ]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: null,
     cropStorageId: "new",
@@ -247,16 +247,12 @@ it("downloads a newer remote crop independently of note stamps, reports the disp
     syncedAt: 100,
   });
   await repo.updatePhotoTransfer("work", { cropPath: "new.jpg" });
-  expect(
-    await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 2 }]),
-  ).toEqual([]);
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as string, photoUpdatedAt: 2 }])).toEqual([]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "new.jpg",
     cropStorageId: "new",
   });
-  expect(
-    await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as Id<"_storage">, photoUpdatedAt: 3 }]),
-  ).toEqual([]);
+  expect(await repo.upsertFromRemote([{ ...remote, cropStorageId: "new" as string, photoUpdatedAt: 3 }])).toEqual([]);
 });
 
 it("keeps a local crop awaiting upload when remote sync still contains the previous crop", async () => {
@@ -266,10 +262,10 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
     artist: "",
     savedAt: 1,
     cropPath: "old.jpg",
-    cropStorageId: "old" as Id<"_storage">,
+    cropStorageId: "old" as string,
   });
   repo.replaceSavedCrop("work", "edited.jpg", null);
-  await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"_storage">, photoUpdatedAt: 100 }]);
+  await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as string, photoUpdatedAt: 100 }]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "edited.jpg",
     cropStorageId: null,

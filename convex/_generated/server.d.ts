@@ -49,6 +49,10 @@ type Env = {
   readonly OPENAI_API_KEY: string | undefined;
   readonly PINECONE_API_KEY: string | undefined;
   readonly PINECONE_INDEX_HOST: string | undefined;
+  readonly R2_ACCESS_KEY_ID: string | undefined;
+  readonly R2_BUCKET: string | undefined;
+  readonly R2_ENDPOINT: string | undefined;
+  readonly R2_SECRET_ACCESS_KEY: string | undefined;
   readonly SENTRY_DSN: string | undefined;
   readonly SENTRY_ENVIRONMENT: string | undefined;
   readonly SUPPORTED_MODEL_VERSIONS: string | undefined;

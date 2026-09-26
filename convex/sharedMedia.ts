@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import { internalQuery, type ActionCtx } from "./_generated/server";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { resolveDisplayAsset } from "./lib/displayMedia";
+import { fileStorage } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
 import { optionalProfile } from "./lib/ownership";
 import { projectArtwork } from "./lib/projections";
@@ -12,7 +13,7 @@ import { requireSharedVisitItem } from "./lib/publicationAccess";
 
 export const authorize = internalQuery({
   args: { context: sharedVisitMediaContext },
-  returns: v.id("_storage"),
+  returns: v.string(),
   handler: async (ctx, { context }) => {
     validateMediaContext(context);
     const profile = await optionalProfile(ctx);
@@ -45,9 +46,7 @@ export const authorize = internalQuery({
 
 // The wall transport supplies the validated context and forwards the caller's auth.
 export async function serveSharedMedia(
-  ctx: Pick<ActionCtx, "runQuery"> & {
-    storage: Pick<ActionCtx["storage"], "get">;
-  },
+  ctx: Pick<ActionCtx, "runQuery">,
   context: Infer<typeof sharedVisitMediaContext>,
 ): Promise<Response> {
   const headers = {
@@ -58,7 +57,7 @@ export async function serveSharedMedia(
     const storageId = await ctx.runQuery(internal.sharedMedia.authorize, {
       context,
     });
-    const blob = await ctx.storage.get(storageId);
+    const blob = await fileStorage.get(ctx, storageId);
     if (!blob) throw new ConvexError({ code: "not_found" });
     // Recheck after fetching the bytes so a revocation during storage IO is honored.
     if ((await ctx.runQuery(internal.sharedMedia.authorize, { context })) !== storageId) {

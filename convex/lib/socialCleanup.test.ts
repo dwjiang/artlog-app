@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 
 import { api, internal } from "../_generated/api";
 import { harness } from "../test.helpers";
+import { fileStorage } from "./fileStorage";
 import { befriend, socialDerivative, socialUser, socialVisit } from "./socialTestFixtures";
 
 it("revokes immediately, purges social references in batches, and deletes files after the last reference", async () => {
@@ -19,7 +20,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     });
     const asset = await socialDerivative(t, a, draft.saves[0].id);
     const storageId = await t.run(async (ctx) => {
-      const storageId = await ctx.storage.store(new Blob(["derivative"]));
+      const storageId = await fileStorage.store(ctx, new Blob(["derivative"]));
       const wallId = await ctx.db.insert("walls", {
         profileId: a.profileId,
         layoutRevision: 1,
@@ -73,7 +74,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     await expect(b.as.query(api.sharedVisits.get, { postId: post.postId! })).rejects.toMatchObject({
       data: { code: "not_found" },
     });
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).not.toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, storageId))).not.toBeNull();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     for (const table of [
       "sharedVisits",
@@ -91,7 +92,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     }
     expect(await t.run((ctx) => ctx.db.get("profiles", a.profileId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.get("profiles", b.profileId))).not.toBeNull();
-    expect(await t.run((ctx) => ctx.db.system.get("_storage", storageId))).toBeNull();
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, storageId))).toBeNull();
     const report = await t.query(internal.review.getReport, { reportId });
     expect(report?.reporter).toBeUndefined();
     expect(report?.evidence.kind).toBe("profile");

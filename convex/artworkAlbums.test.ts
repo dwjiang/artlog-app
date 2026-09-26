@@ -78,7 +78,14 @@ it("serves each private photo only to its owner and revokes bytes when the artwo
     localId: first.saves[0].localId,
   });
   expect((await owner.as.fetch(path(owner.scope))).status).toBe(404);
-  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+  expect(
+    await t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toEqual([]);
   const deleted = await owner.as.mutation(api.artworkAlbums.sync, {
     ...input,
     photos: [],

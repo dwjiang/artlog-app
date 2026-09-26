@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import { openingFixture } from "../shared/audio/guide-fixtures";
 import { api } from "./_generated/api";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { narrationProvenance } from "./lib/narrationCache";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -144,12 +145,14 @@ it("returns the rendered audio guide script until the research behind it changes
   await t.run(async (ctx) => {
     const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) throw new Error("Seeded artwork is missing.");
+    const storageId = await fileStorage.store(ctx, new Blob(["mp3"], { type: "audio/mpeg" }));
+    await retainFile(ctx, storageId, true);
     await ctx.db.insert("narrationAudio", {
       artworkId,
       claim: "render-1",
       claimedAt: 0,
       ...narrationProvenance(artwork),
-      storageId: await ctx.storage.store(new Blob(["mp3"])),
+      storageId,
       sentences: script,
     });
   });

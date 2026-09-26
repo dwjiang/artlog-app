@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
 import { api } from "./_generated/api";
+import { fileStorage } from "./lib/fileStorage";
 import { seedDevice } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -73,7 +74,14 @@ it("keeps only the latest crop under concurrent uploads and validates content an
   const ids = await Promise.all(responses.map((r) => r.json()));
   expect(ids[0].storageId).not.toEqual(ids[1].storageId);
   expect(responses.every((response) => response.status === 200)).toBe(true);
-  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toHaveLength(1);
+  expect(
+    await t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toHaveLength(1);
   await outsider.as.mutation(api.collections.saveToCollection, {
     ...work,
     scope: await scope(outsider),
@@ -110,7 +118,14 @@ it("deletion revokes every account device and cleans bytes immediately", async (
   });
   expect((await upload()).status).toBe(404);
   expect((await sibling.as.fetch(await path(sibling))).status).toBe(404);
-  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+  expect(
+    await t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    ),
+  ).toEqual([]);
 });
 
 it("replaces a crop for every account device, advances photo sync, and removes obsolete private bytes", async () => {
@@ -127,5 +142,5 @@ it("replaces a crop for every account device, advances photo sync, and removes o
     cropStorageId: next.storageId,
     photoUpdatedAt: next.photoUpdatedAt,
   });
-  expect(await t.run((ctx) => ctx.storage.get(first.storageId))).toBeNull();
+  expect(await t.run((ctx) => fileStorage.get(ctx, first.storageId))).toBeNull();
 });

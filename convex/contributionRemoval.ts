@@ -6,6 +6,7 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 import { bumpCounter } from "./ingest";
 import { verifiedAccession } from "./lib/agreement";
 import { revokeContributionMedia } from "./lib/displayMedia";
+import { fileStorage } from "./lib/fileStorage";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { eligibleContribution } from "./lib/recognitionEligibility";
 import { applyReference, earlier } from "./lib/tentativeEntries";
@@ -52,8 +53,8 @@ export async function removeContribution(
     orbSha256: undefined,
   });
   await revokeContributionMedia(ctx, row._id);
-  if (row.cropStorageId && (await ctx.db.system.get(row.cropStorageId))) {
-    await ctx.storage.delete(row.cropStorageId);
+  if (row.cropStorageId && (await fileStorage.getMetadata(ctx, row.cropStorageId))) {
+    await fileStorage.delete(ctx, row.cropStorageId);
   }
   if (row.orbStorageId) await deleteOrbIfUnreferenced(ctx, row.orbStorageId);
   const venue = await ctx.db.get("museums", row.venueId);

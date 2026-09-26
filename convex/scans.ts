@@ -5,6 +5,7 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { docentStatusOf } from "./docent";
 import { requireDevice } from "./lib/auth";
+import { fileStorage } from "./lib/fileStorage";
 import { displayLabelFlow } from "./lib/labelVerify";
 import { isSupported } from "./lib/modelVersion";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
@@ -208,7 +209,7 @@ export async function joinCandidate(
   const owner = object.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
   // A hotlinked source image only for public-domain works; a contributor's consented crop always.
   const thumbnailUrl = object.thumbnailStorageId
-    ? await ctx.storage.getUrl(object.thumbnailStorageId)
+    ? await fileStorage.getUrl(ctx, object.thumbnailStorageId)
     : artwork.rightsStatus === "public_domain"
       ? object.thumbnailUrl
       : undefined;

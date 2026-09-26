@@ -7,6 +7,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { requireDevice } from "./lib/auth";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
@@ -98,7 +99,7 @@ export const get = query({
     }
     const chunks = [];
     for (const part of pack.chunks) {
-      const url = await ctx.storage.getUrl(part.storageId);
+      const url = await fileStorage.getUrl(ctx, part.storageId);
       if (!url) return null;
       chunks.push({ url, size: part.size, sha256: part.sha256 });
     }
@@ -121,7 +122,7 @@ export const build = internalMutation({
       .unique();
     // A new generation also recovers builds interrupted by a failed scheduled action.
     for (const part of existing?.building?.chunks ?? []) {
-      await ctx.storage.delete(part.storageId);
+      await fileStorage.delete(ctx, part.storageId);
     }
     const building = {
       version: crypto.randomUUID(),
@@ -266,7 +267,7 @@ export const buildPage = internalAction({
     let part: Infer<typeof chunk> | undefined;
     if (entries.length > 0) {
       const bytes = new TextEncoder().encode(JSON.stringify(convexToJson(entries as unknown as Value)));
-      const storageId = await ctx.storage.store(new Blob([bytes], { type: "application/json" }));
+      const storageId = await fileStorage.store(ctx, new Blob([bytes], { type: "application/json" }));
       part = {
         storageId,
         size: bytes.byteLength,
@@ -298,9 +299,10 @@ export const commitPage = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get("museumDownloads", args.id);
     if (!row?.building || row.building.version !== args.version) {
-      if (args.part) await ctx.storage.delete(args.part.storageId);
+      if (args.part) await fileStorage.delete(ctx, args.part.storageId);
       return null;
     }
+    if (args.part) await retainFile(ctx, args.part.storageId, true);
     const { cursor: _cursor, ...previous } = row.building;
     const pack = {
       ...previous,
@@ -312,7 +314,7 @@ export const commitPage = internalMutation({
     if (args.isDone) {
       await ctx.db.patch("museumDownloads", args.id, { published: pack, building: undefined });
       for (const old of row.published?.chunks ?? []) {
-        await ctx.storage.delete(old.storageId);
+        await fileStorage.delete(ctx, old.storageId);
       }
     } else {
       await ctx.db.patch("museumDownloads", args.id, {

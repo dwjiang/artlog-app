@@ -5,6 +5,7 @@ import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { fileStorage } from "./lib/fileStorage";
 import { limitDevice, type RateLimitName } from "./lib/rateLimits";
 import { socialUser } from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
@@ -46,7 +47,7 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
     outcome: "miss",
     candidates: [],
   });
-  const cropStorageId = await t.run((ctx) => ctx.storage.store(new Blob(["photo"])));
+  const cropStorageId = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"])));
   await t.run((ctx) => ctx.db.patch("collections", saved.collectionId, { cropStorageId, note: "My own note" }));
   const work = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
@@ -108,7 +109,7 @@ it("removes private recognition data and verification files when the saved artwo
   const row = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
   await user.as.mutation(api.collections.remove, { scope: user.scope, localId });
   expect(await t.run((ctx) => ctx.db.get("savedRecognition", row._id))).toBeNull();
-  expect(await t.run((ctx) => ctx.storage.get(row.orbStorageId))).toBeNull();
+  expect(await t.run((ctx) => fileStorage.get(ctx, row.orbStorageId))).toBeNull();
   await expect(user.as.action(api.savedRecognition.identify, { scope: user.scope, localId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });

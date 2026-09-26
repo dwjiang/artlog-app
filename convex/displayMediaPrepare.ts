@@ -4,19 +4,19 @@ import { v } from "convex/values";
 import sharp from "sharp";
 
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
+import { fileStorage } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
 
 export const prepare = internalAction({
   args: { saveId: v.id("collections") },
   returns: v.null(),
   handler: async (ctx, { saveId }) => {
-    let storageId: Id<"_storage"> | undefined;
+    let storageId: string | undefined;
     try {
       const asset = await ctx.runMutation(internal.displayMedia.beginPreparation, { saveId });
       if (!asset || asset.provenance.kind !== "contribution") return null;
-      const blob = await ctx.storage.get(asset.provenance.sourceStorageId);
+      const blob = await fileStorage.get(ctx, asset.provenance.sourceStorageId);
       if (!blob || blob.size > 5 * 1024 * 1024) return null;
       const input = sharp(Buffer.from(await blob.arrayBuffer()), {
         limitInputPixels: 40_000_000,
@@ -32,7 +32,7 @@ export const prepare = internalAction({
         })
         .jpeg({ quality: 80 })
         .toBuffer({ resolveWithObject: true });
-      storageId = await ctx.storage.store(new Blob([new Uint8Array(data)], { type: "image/jpeg" }));
+      storageId = await fileStorage.store(ctx, new Blob([new Uint8Array(data)], { type: "image/jpeg" }));
       if (
         await ctx.runMutation(internal.displayMedia.attach, {
           assetId: asset._id,

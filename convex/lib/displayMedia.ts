@@ -2,6 +2,7 @@ import { validateMedia } from "../../shared/social/contracts";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { fileStorage } from "./fileStorage";
 import { eligibleContribution, eligibleObject } from "./recognitionEligibility";
 
 export async function contributionSource(ctx: QueryCtx, save: Doc<"collections">) {
@@ -30,7 +31,7 @@ export async function contributionSource(ctx: QueryCtx, save: Doc<"collections">
     || contribution.status === "rejected"
     || contribution.displayMediaRevokedAt !== undefined
     || !contribution.cropStorageId
-    || !(await ctx.db.system.get(contribution.cropStorageId))
+    || !(await fileStorage.getMetadata(ctx, contribution.cropStorageId))
   ) {
     return null;
   }
@@ -74,7 +75,7 @@ export async function isCurrentAsset(
     asset.provenance.kind !== "contribution"
     || !asset.storageId
     || asset.storageId === asset.provenance.sourceStorageId
-    || !(await ctx.db.system.get(asset.storageId))
+    || !(await fileStorage.getMetadata(ctx, asset.storageId))
   ) {
     return false;
   }
@@ -102,8 +103,8 @@ export async function revokeAsset(ctx: MutationCtx, asset: Doc<"mediaAssets">) {
     revokedAt: asset.revokedAt ?? Date.now(),
     storageId: undefined,
   });
-  if (asset.storageId && (await ctx.db.system.get(asset.storageId))) {
-    await ctx.storage.delete(asset.storageId);
+  if (asset.storageId && (await fileStorage.getMetadata(ctx, asset.storageId))) {
+    await fileStorage.delete(ctx, asset.storageId);
   }
 }
 export async function revokeSaveMedia(ctx: MutationCtx, saveId: Id<"collections">) {

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 export const chunk = v.object({
-  storageId: v.id("_storage"),
+  storageId: v.string(),
   size: v.number(),
   sha256: v.string(),
 });

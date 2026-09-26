@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { bumpCounter } from "./ingest";
+import { fileStorage } from "./lib/fileStorage";
 import { validateVector } from "./lib/modelVersion";
 import { currentPlacement, loadCurrentPlacement } from "./lib/placements";
 import { recognitionPartition } from "./lib/recognitionEligibility";
@@ -253,7 +254,7 @@ export const reviewPlacement = internalMutation({
           .query("descriptors")
           .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
           .unique();
-        if (!reference || !(await ctx.db.system.get("_storage", reference.storageId))) {
+        if (!reference || !(await fileStorage.getMetadata(ctx, reference.storageId))) {
           throw new ConvexError({ code: "reference_descriptors_required" });
         }
         objectId = await ctx.db.insert("objects", {

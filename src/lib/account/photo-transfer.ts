@@ -9,9 +9,7 @@ import {
   type CollectionPhotoKind,
 } from "@/shared/collection/photo-limits";
 
-import type { Id } from "../../../convex/_generated/dataModel";
-
-export type PhotoUpload = { storageId: Id<"_storage">; photoUpdatedAt: number };
+export type PhotoUpload = { storageId: string; photoUpdatedAt: number };
 
 function endpoint(scope: string, localId: string, kind: CollectionPhotoKind, photoId?: string): string {
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
@@ -86,7 +84,7 @@ export async function downloadCollectionPhoto(
   scope: string,
   localId: string,
   kind: CollectionPhotoKind,
-  storageId: Id<"_storage">,
+  storageId: string,
   photoId?: string,
 ): Promise<string> {
   const directory = new Directory(Paths.document, "collection-photos");

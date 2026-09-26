@@ -51,6 +51,7 @@ jest.mock("expo-file-system", () => ({
   UploadType: { BINARY_CONTENT: 0 },
   File: class {
     uri: string;
+    size = 1000;
     constructor(uri: string) {
       this.uri = uri;
     }
@@ -105,7 +106,7 @@ beforeEach(async () => {
   mockMutation.mockImplementation(async (name: string) => {
     calls.push(name);
     if (name === "contributions:requestCropUpload") {
-      return { uploadUrl: "https://upload.example/crop" };
+      return { uploadUrl: "https://upload.example/crop", storageId: "st-1" };
     }
     return null;
   });
@@ -114,7 +115,7 @@ beforeEach(async () => {
     return {
       status: 200,
       headers: {},
-      body: JSON.stringify({ storageId: "st-1" }),
+      body: "",
     };
   });
   mockSign.mockImplementation(async () => {
@@ -152,9 +153,9 @@ it("uploads the 256 px crop, signs the exact fields and contributes the captureâ
   expect(mockVerify).not.toHaveBeenCalled();
   expect(mockResize).toHaveBeenCalledWith("file:///documents/crops/c1.jpg");
   expect(mockUpload).toHaveBeenCalledWith("file:///cache/crop-256.jpg", "https://upload.example/crop", {
-    httpMethod: "POST",
+    httpMethod: "PUT",
     uploadType: 0,
-    headers: { "Content-Type": "image/jpeg" },
+    headers: { "Content-Type": "image/jpeg", "If-None-Match": "*" },
   });
   expect(mockSign).toHaveBeenCalledWith(contributionPayload({ scanId, cropStorageId: "st-1", fields: submitted }));
   expect(mockAction).toHaveBeenCalledWith("contributions:contribute", {
@@ -218,7 +219,7 @@ it("keeps the contribution when resolving the rejection fails", async () => {
   handOffLabelRejection(scanId, Promise.resolve(feedbackId));
   mockMutation.mockImplementation(async (name: string) => {
     if (name === "contributions:requestCropUpload") {
-      return { uploadUrl: "https://upload.example/crop" };
+      return { uploadUrl: "https://upload.example/crop", storageId: "st-1" };
     }
     throw new ConvexError({ code: "invalid_resolution" });
   });

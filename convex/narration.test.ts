@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
+import { fileStorage } from "./lib/fileStorage";
 import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -79,7 +80,13 @@ async function setup() {
   );
   vi.stubGlobal("fetch", fetcher);
   const rows = () => t.run((ctx) => ctx.db.query("narrationAudio").take(10));
-  const files = () => t.run((ctx) => ctx.db.system.query("_storage").collect());
+  const files = () =>
+    t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .withIndex("by_state", (q) => q.eq("state", "ready"))
+        .collect(),
+    );
   // Plays through the live playlist, then waits for the whole file to be stored.
   const render = async (as: typeof device.as = device.as) => {
     const audio = await as.action(api.narration.render, { artworkId });
@@ -121,7 +128,7 @@ it("streams Shimmer with the museum instructions as a live playlist, then shares
   const stored = await other.as.action(api.narration.render, args);
   expect(stored).toEqual({ ...first, uri: expect.not.stringContaining("narration-playlist"), live: false });
   const { storageId } = (await rows())[0];
-  const whole = await t.run(async (ctx) => (await ctx.storage.get(storageId!))!.arrayBuffer());
+  const whole = await t.run(async (ctx) => (await fileStorage.get(ctx, storageId!))!.arrayBuffer());
   expect(new Uint8Array(whole)).toEqual(spokenBytes);
   expect(await files()).toHaveLength(4);
   expect(fetcher).toHaveBeenCalledTimes(2);
@@ -172,13 +179,13 @@ it("drops the live segments an hour after the whole file is stored", async () =>
   await t.mutation(internal.narration.dropSegments, drop.args[0]);
   expect((await rows())[0].segments).toBeUndefined();
   expect(await files()).toHaveLength(1);
-  expect((await t.fetch(path(first.uri))).status).toBe(404);
+  expect((await t.fetch(`/narration-playlist?artworkId=${artworkId}&render=${first.renderId}`)).status).toBe(404);
 });
 
 it("does not serve a playlist for a malformed artwork or another render", async () => {
-  const { t, render } = await setup();
+  const { t, artworkId, render } = await setup();
   const first = await render();
-  const url = new URL(first.uri);
+  const url = new URL(`https://test.convex.site/narration-playlist?artworkId=${artworkId}&render=${first.renderId}`);
   expect((await t.fetch(`${url.pathname}?artworkId=not-an-id&render=${first.renderId}`)).status).toBe(404);
   url.searchParams.set("render", "another-render");
   expect((await t.fetch(url.pathname + url.search)).status).toBe(404);
@@ -368,9 +375,9 @@ it("allows only one generation claim and rejects a late completion after a stale
       })
     ).owned,
   ).toBe(true);
-  const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["obsolete"])));
+  const storageId = await t.run((ctx) => fileStorage.store(ctx, new Blob(["obsolete"])));
   await t.mutation(internal.narration.finish, { ...args, claim: "first", storageId });
-  expect(await t.run((ctx) => ctx.storage.get(storageId))).toBeNull();
+  expect(await t.run((ctx) => fileStorage.get(ctx, storageId))).toBeNull();
   const entries = await rows();
   expect(entries).toHaveLength(1);
   expect(entries[0].claim).toBe("replacement");
