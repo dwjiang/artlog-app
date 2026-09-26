@@ -102,6 +102,7 @@ beforeEach(async () => {
     dismiss: mockDismiss,
     declinePrompt: mockDeclinePrompt,
     end: mockEnd,
+    move: jest.fn(),
   };
 });
 

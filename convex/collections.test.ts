@@ -242,10 +242,10 @@ it("rejects changed or foreign visit associations even when the save UUID is ret
   await expect(save({ visitLocalId: undefined })).rejects.toMatchObject({
     data: { code: "invalid_save" },
   });
+  // A device that has not seen its visit move still reports the old museum; the save keeps the visit's.
   const venueId = await t.run(seedMuseum);
-  await expect(save({ venueId })).rejects.toMatchObject({
-    data: { code: "not_found" },
-  });
+  await save({ venueId });
+  expect(await t.run((ctx) => ctx.db.query("collections").collect())).toMatchObject([{ venueId: args.venueId }]);
 });
 
 it("deduplicates attributable confirmation events by save and refuses a work outside the actual scan candidates", async () => {

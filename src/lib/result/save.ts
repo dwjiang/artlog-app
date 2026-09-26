@@ -94,7 +94,8 @@ export async function saveResult(
     !session.visit
     && capture.visitLocalId != null
     && visit
-    && (visit.venueId !== capture.venueId || (capture.visitId != null && visit.remoteVisitId !== capture.visitId))
+    && capture.visitId != null
+    && visit.remoteVisitId !== capture.visitId
   ) {
     throw new Error("The capture is linked to an invalid visit");
   }

@@ -44,7 +44,7 @@ export const resume = mutation({
           owner,
           changeVersion: await nextChangeVersion(ctx, owner),
         });
-        await recordVisitScore(ctx, owner, row.venueId, row.visitedOn);
+        await recordVisitScore(ctx, owner, row);
         moved++;
         bytes += size;
       }

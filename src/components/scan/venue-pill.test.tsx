@@ -47,6 +47,7 @@ function view(status: VenueView["status"], venue?: VenueView["venue"], current?:
     dismiss: jest.fn(),
     declinePrompt: jest.fn(),
     end: jest.fn(),
+    move: jest.fn(),
   };
 }
 

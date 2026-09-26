@@ -62,7 +62,7 @@ it.each([
   });
 });
 
-it("isolates owners and prevents changing the venue of an existing visit", async () => {
+it("isolates owners and lets an existing visit move to another museum", async () => {
   const { t, user, visit, upsert } = await fixture();
   const first = await upsert();
   const other = await seedDevice(t);
@@ -75,9 +75,8 @@ it("isolates owners and prevents changing the venue of an existing visit", async
     data: { code: "sync_scope_changed" },
   });
   const venueId = await t.run(seedMuseum);
-  await expect(upsert({ venueId })).rejects.toMatchObject({
-    data: { code: "invalid_visit" },
-  });
+  const museum = await t.run((ctx) => ctx.db.get("museums", venueId));
+  expect(await upsert({ venueId })).toMatchObject({ _id: first._id, venueId, venueName: museum!.name });
 });
 
 it("pages history by calendar date and UUID, including empty repeats and museum filters", async () => {
@@ -174,4 +173,14 @@ it("hides foreign detail and membership and keeps a visit after its last save is
       localId: visit.localId,
     }),
   ).toMatchObject({ localId: visit.localId });
+});
+
+it("clears gallery context from the previous museum when moving a visit", async () => {
+  const { t, upsert } = await fixture();
+  const first = await upsert();
+  await t.run((ctx) => ctx.db.patch("visits", first._id, { lastConfidentAt: Date.now(), lastConfidentGallery: "4" }));
+  const venueId = await t.run(seedMuseum);
+  const moved = await upsert({ venueId });
+  expect(moved.lastConfidentGallery).toBeUndefined();
+  expect(moved.lastConfidentAt).toBeUndefined();
 });

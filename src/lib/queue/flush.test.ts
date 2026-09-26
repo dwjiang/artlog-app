@@ -113,7 +113,7 @@ function fakeDependencies(rows: PendingScan[]) {
       });
     }),
     identify: jest.fn(async ({ localId }: { localId: string }) => identified(localId)),
-    resolveVisitId: jest.fn(async (_localId: string, _venueId: Id<"museums">) => "remote-visit" as Id<"visits">),
+    resolveVisitId: jest.fn(async (_localId: string) => "remote-visit" as Id<"visits">),
     runLabelFlow: jest.fn(async () => {}),
     reembed: jest.fn(async () => ({
       vector: [9],
@@ -206,7 +206,7 @@ it("waits for the captured local visit before sending a queued scan", async () =
   expect(deps.identify).not.toHaveBeenCalled();
   finish("original-remote-visit" as Id<"visits">);
   await running;
-  expect(deps.resolveVisitId).toHaveBeenCalledWith("original-visit", venueId);
+  expect(deps.resolveVisitId).toHaveBeenCalledWith("original-visit");
   expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId, visitId: "original-remote-visit" }));
   expect(deps.identify.mock.calls[0][0]).not.toHaveProperty("visitLocalId");
   flusher.stop();

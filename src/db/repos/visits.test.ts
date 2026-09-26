@@ -1,5 +1,5 @@
 import { db } from "@/db/client";
-import { artworkEncounters, artworkPhotos, savedWorks, visits } from "@/db/schema";
+import { artworkEncounters, artworkPhotos, pendingScans, savedWorks, visits } from "@/db/schema";
 import { onCollectionChange } from "@/lib/account/sync-events";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -187,4 +187,67 @@ it("finds the visit at a museum on a day, latest started first, and only open on
   expect(await repo.findVisitOnDay(venueId, "2024-02-29", undefined, { open: true })).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-02-29", "account:other")).toBeUndefined();
   expect(await repo.findVisitOnDay(venueId, "2024-03-01")).toBeUndefined();
+});
+
+it("moves a visit to another museum and day with its saves and unsent scans, keeping its clock times", async () => {
+  const noon = Date.parse("2024-02-29T12:00Z");
+  const otherVenue = "museum-2" as Id<"museums">;
+  await repo.upsertVisit({ ...visit, startedAt: noon, endedAt: noon + 3_600_000 }, "account:me");
+  await repo.upsertVisit({ ...visit, localId: second }, "account:me");
+  const work = { title: "Painting", artist: "Artist", savedAt: noon, venueId, venueName: "Museum", syncedAt: 10 };
+  await db.insert(savedWorks).values([
+    { ...work, owner: "account:me", localId: "moves", visitLocalId: first },
+    { ...work, owner: "account:me", localId: "stays", visitLocalId: second },
+  ]);
+  const scan = {
+    owner: "account:me",
+    photoPath: "photo.jpg",
+    cropPath: "crop.jpg",
+    vector: [0.5],
+    descriptors: new Uint8Array([1]).buffer,
+    keypoints: new Uint8Array([2]).buffer,
+    modelVersion: "model-v1",
+    attemptModelVersion: "model-v1",
+    capturedAt: noon,
+    createdAt: noon,
+    venueId,
+    visitLocalId: first,
+  };
+  await db.insert(pendingScans).values([
+    { ...scan, localId: "unsent" },
+    { ...scan, localId: "sent", scanId: "scan" as Id<"scans"> },
+  ]);
+  await repo.moveVisit(
+    first,
+    { venueId: otherVenue, venueName: "Other Museum", visitedOn: "2024-02-27", timeZone: "Asia/Tokyo" },
+    "account:me",
+  );
+  expect(await repo.getVisit(first, "account:me")).toMatchObject({
+    venueId: otherVenue,
+    venueName: "Other Museum",
+    visitedOn: "2024-02-27",
+    timeZone: "Asia/Tokyo",
+    startedAt: Date.parse("2024-02-27T12:00+09:00"),
+    endedAt: Date.parse("2024-02-27T13:00+09:00"),
+    revision: 1,
+  });
+  const works = await db.select().from(savedWorks);
+  expect(works.find((row) => row.localId === "moves")).toMatchObject({
+    venueId: otherVenue,
+    venueName: "Other Museum",
+    syncedAt: 10,
+  });
+  expect(works.find((row) => row.localId === "stays")).toMatchObject({ venueId, venueName: "Museum" });
+  const scans = await db.select().from(pendingScans);
+  expect(scans.find((row) => row.localId === "unsent")?.venueId).toBe(otherVenue);
+  expect(scans.find((row) => row.localId === "sent")?.venueId).toBe(venueId);
+  await db.delete(pendingScans);
+});
+
+it("refuses to move a visit to a future day or a missing visit", async () => {
+  await repo.upsertVisit(visit);
+  const to = { venueId, venueName: "Museum", visitedOn: "2999-01-01", timeZone: "UTC" };
+  await expect(repo.moveVisit(first, to)).rejects.toThrow("invalid_visit");
+  await expect(repo.moveVisit(second, { ...to, visitedOn: "2024-02-28" })).rejects.toThrow("not_found");
+  expect(await repo.getVisit(first)).toMatchObject({ visitedOn: "2024-02-29", revision: 0 });
 });

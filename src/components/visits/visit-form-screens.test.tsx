@@ -7,12 +7,21 @@ import { getVisit, listVisits } from "@/db/repos/visits";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { pickerDate } from "@/lib/journal/visit-date";
 
-import { VisitCreateScreen } from "./visit-form-screens";
+import { VisitCreateScreen, VisitMuseumScreen } from "./visit-form-screens";
 
 const mockBack = jest.fn();
 const mockDismissTo = jest.fn();
 const mockSearchByName = jest.fn();
 const mockConfirmPlace = jest.fn();
+const mockMove = jest.fn();
+const mockMovingVisit = {
+  localId: "visit-1",
+  owner: "device:test-installation",
+  venueId: "museum",
+  venueName: "Museum of Art",
+  visitedOn: "2026-09-16",
+  timeZone: "Asia/Tokyo",
+};
 let mockSavedId: string | undefined;
 const mockVenue = {
   id: "museum",
@@ -46,8 +55,11 @@ jest.mock("../../../modules/poi-search/src", () => ({
   }),
 }));
 jest.mock("@/lib/venue/use-venue", () => ({
-  useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 } }),
+  useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 }, move: mockMove }),
   confirmPlace: (...args: unknown[]) => mockConfirmPlace(...args),
+}));
+jest.mock("@/lib/journal/use-visits", () => ({
+  useVisits: () => ({ owner: mockMovingVisit.owner, visits: [mockMovingVisit], loading: false }),
 }));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async () => [mockVenue],
@@ -60,7 +72,8 @@ jest.mock("expo-router", () => {
       back: () => mockBack(),
       dismissTo: (...args: unknown[]) => mockDismissTo(...args),
     },
-    useLocalSearchParams: () => ({ savedId: mockSavedId }),
+    useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, []),
+    useLocalSearchParams: () => ({ savedId: mockSavedId, visitId: mockMovingVisit.localId }),
     Stack: {
       Toolbar: Object.assign(View, {
         View,
@@ -79,6 +92,7 @@ beforeEach(() => {
   mockDismissTo.mockClear();
   mockSearchByName.mockReset().mockResolvedValue([]);
   mockConfirmPlace.mockReset();
+  mockMove.mockReset().mockResolvedValue(undefined);
   switchOwner(anonymousOwner(), "scope-form");
 });
 afterEach(() => jest.restoreAllMocks());
@@ -288,4 +302,55 @@ describe("a museum our table does not know", () => {
     expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
   });
+});
+
+describe("changing a visit's museum", () => {
+  it("moves the visit to the chosen museum, keeping a day that has not begun there yet at the museum's today", async () => {
+    // 10:00 UTC on the 16th is still the 15th on Niue (UTC-11).
+    jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-16T10:00:00Z"));
+    switchOwner(mockMovingVisit.owner);
+    await render(<VisitMuseumScreen />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "island");
+    await fireEvent.press(await screen.findByRole("button", { name: "Island Museum, Niue" }));
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+    expect(mockMove).toHaveBeenCalledWith("visit-1", {
+      venueId: "island",
+      venueName: "Island Museum",
+      timeZone: "Pacific/Niue",
+      visitedOn: "2026-09-15",
+    });
+  });
+
+  it("closes without a change for the same museum and keeps the search open when the move fails", async () => {
+    switchOwner(mockMovingVisit.owner);
+    await render(<VisitMuseumScreen />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
+    await fireEvent.press(await screen.findByRole("button", { name: "Museum of Art, New York, United States" }));
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockMove).not.toHaveBeenCalled();
+    mockMove.mockRejectedValue(new Error("disk full"));
+    await fireEvent.press(screen.getByRole("button", { name: "Island Museum, Niue" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The museum could not be changed. Try again.");
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+it.each(["cancel", "dismiss"])("%s ignores a pending Apple Maps choice after leaving the sheet", async (method) => {
+  mockSearchByName.mockResolvedValue([
+    { name: "Fraenkel Gallery", lat: 37.79, lng: -122.4, city: "San Francisco", country: "US", category: "artGallery" },
+  ]);
+  let finish!: (row: typeof mockIsland) => void;
+  mockConfirmPlace.mockImplementation((_place, wanted) =>
+    new Promise<typeof mockIsland>((resolve) => {
+      finish = resolve;
+    }).then((row) => (wanted() ? row : undefined)),
+  );
+  const rendered = await render(<VisitMuseumScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+  await fireEvent.press(await screen.findByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }));
+  if (method === "cancel") await fireEvent.press(screen.getByText("Cancel"));
+  else await rendered.unmount();
+  await act(async () => finish(mockIsland));
+  expect(mockMove).not.toHaveBeenCalled();
+  expect(mockBack).toHaveBeenCalledTimes(method === "cancel" ? 1 : 0);
 });

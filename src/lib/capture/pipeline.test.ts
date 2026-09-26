@@ -172,63 +172,72 @@ it.each([true, false])(
   },
 );
 
-it("syncs a new visit first so the first scan at a museum identifies immediately", async () => {
-  const deps = {
-    ...dependencies(),
-    resolveVisitId: jest.fn(async () => "remote-visit" as NonNullable<CapturePayload["visitId"]>),
-  };
-  const result = await runCapture(atVisit, deps, options);
-  expect(deps.resolveVisitId).toHaveBeenCalledWith("local-visit", "museum-1");
-  expect(result).toMatchObject({ kind: "sent", scanId: "scan-id" });
-  expect(deps.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({
-      visitLocalId: "local-visit",
-      visitId: "remote-visit",
-    }),
-    "identifying",
-  );
-  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }));
-});
-
-it("falls back to the queue when the visit sync fails or takes too long, and skips it offline", async () => {
-  jest.spyOn(console, "warn").mockImplementation(() => {});
-  const failing = {
-    ...dependencies(),
-    resolveVisitId: jest.fn(async () => {
-      throw new Error("offline");
-    }),
-  };
-  expect(await runCapture(atVisit, failing, options)).toMatchObject({
-    kind: "queued",
-  });
-  expect(failing.store.enqueue).toHaveBeenCalledWith(
-    expect.objectContaining({
-      visitLocalId: "local-visit",
-      visitId: undefined,
-    }),
-    "queued",
-  );
-  expect(failing.identify).not.toHaveBeenCalled();
-
-  jest.useFakeTimers();
-  try {
-    const slow = {
+it.each([undefined, "remote-visit"])(
+  "syncs the visit before identification, including an existing id: %s",
+  async (visitId) => {
+    const deps = {
       ...dependencies(),
-      resolveVisitId: jest.fn(() => new Promise<NonNullable<CapturePayload["visitId"]>>(() => {})),
+      resolveVisitId: jest.fn(async () => "remote-visit" as NonNullable<CapturePayload["visitId"]>),
     };
-    const pending = runCapture(atVisit, slow, options);
-    await jest.advanceTimersByTimeAsync(4000);
-    expect(await pending).toMatchObject({ kind: "queued" });
-    expect(slow.identify).not.toHaveBeenCalled();
-  } finally {
-    jest.useRealTimers();
-  }
+    const result = await runCapture({ ...atVisit, visitId: visitId as CaptureInput["visitId"] }, deps, options);
+    expect(deps.resolveVisitId).toHaveBeenCalledWith("local-visit");
+    expect(result).toMatchObject({ kind: "sent", scanId: "scan-id" });
+    expect(deps.store.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visitLocalId: "local-visit",
+        visitId: "remote-visit",
+      }),
+      "identifying",
+    );
+    expect(deps.identify).toHaveBeenCalledWith(
+      expect.objectContaining({ visitId: "remote-visit", venueId: "museum-1" }),
+    );
+  },
+);
 
-  const offline = { ...dependencies(), resolveVisitId: jest.fn() };
-  offline.isOnline.mockReturnValue(false);
-  await runCapture(atVisit, offline, options);
-  expect(offline.resolveVisitId).not.toHaveBeenCalled();
-});
+it.each([undefined, "remote-visit"])(
+  "queues when visit sync fails or times out, including an existing id: %s",
+  async (visitId) => {
+    const capture = { ...atVisit, visitId: visitId as CaptureInput["visitId"] };
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    const failing = {
+      ...dependencies(),
+      resolveVisitId: jest.fn(async () => {
+        throw new Error("offline");
+      }),
+    };
+    expect(await runCapture(capture, failing, options)).toMatchObject({
+      kind: "queued",
+    });
+    expect(failing.store.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visitLocalId: "local-visit",
+        visitId: undefined,
+      }),
+      "queued",
+    );
+    expect(failing.identify).not.toHaveBeenCalled();
+
+    jest.useFakeTimers();
+    try {
+      const slow = {
+        ...dependencies(),
+        resolveVisitId: jest.fn(() => new Promise<NonNullable<CapturePayload["visitId"]>>(() => {})),
+      };
+      const pending = runCapture(capture, slow, options);
+      await jest.advanceTimersByTimeAsync(4000);
+      expect(await pending).toMatchObject({ kind: "queued" });
+      expect(slow.identify).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+
+    const offline = { ...dependencies(), resolveVisitId: jest.fn() };
+    offline.isOnline.mockReturnValue(false);
+    await runCapture(capture, offline, options);
+    expect(offline.resolveVisitId).not.toHaveBeenCalled();
+  },
+);
 
 it.each([
   new Error("Connection lost while action was in flight"),

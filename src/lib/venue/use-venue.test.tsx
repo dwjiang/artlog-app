@@ -95,6 +95,10 @@ jest.mock("@/db/repos/visits", () => ({
     const row = mockVisits.get(localId);
     if (row) mockVisits.set(localId, { ...row, ...fields, syncedAt: null });
   },
+  moveVisit: async (localId: string, to: Partial<Visit>) => {
+    const row = mockVisits.get(localId);
+    if (row) mockVisits.set(localId, { ...row, ...to, syncedAt: null });
+  },
 }));
 jest.mock("@/lib/attested-write", () => ({
   signPayload: (...args: unknown[]) => mockSignPayload(...args),
@@ -640,6 +644,17 @@ describe("the visit a save links to", () => {
       remoteVisitId: "remote-2",
     });
     expect(mockSettings.get(CURRENT)).toBe("uuid-2");
+  });
+
+  it("carries a move of the open visit into the venue state and leaves it alone for another visit", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    const open = await controller.visitForSave(metId, mockNow);
+    const to = { venueId: neueId, venueName: "Neue Galerie", visitedOn: open.visitedOn, timeZone: open.timeZone };
+    await controller.move(open.localId, to);
+    expect(controller.getState().visit).toMatchObject({ localId: open.localId, ...to, startedAt: open.startedAt });
+    await controller.move("elsewhere", { ...to, venueId: metId, venueName: "Metropolitan Museum of Art" });
+    expect(controller.getState().visit).toMatchObject({ localId: open.localId, venueId: neueId });
   });
 
   it("reports a save that cannot start its visit and leaves nothing behind", async () => {
@@ -1394,4 +1409,54 @@ it("keeps a searched museum across relaunch when its visit was already open", as
     venueId: metId,
     visitLocalId: visit.localId,
   });
+});
+
+it("a museum change received through sync leaves new scans usable", async () => {
+  mockNearest.mockResolvedValue([metRow]);
+  await controller.resolve();
+  const open = await controller.visitForSave(metId, mockNow);
+  await controller.syncRemoteVisit();
+  // This is the row upsertVisitsFromRemote installs after another device changes the museum.
+  const row = mockVisits.get(open.localId)!;
+  mockVisits.set(open.localId, { ...row, venueId: neueId, venueName: "Neue Galerie", syncedAt: mockNow });
+  await controller.syncRemoteVisit();
+  await expect(controller.resolveForScan(mockNow)).resolves.toBeDefined();
+});
+
+it.each(["local", "remote"])(
+  "follows a %s move of the manually selected open visit for captures, saves and relaunch",
+  async (source) => {
+    await controller.confirm({ kind: "seeded", venueId: metId, name: metRow.name, manual: byHand() });
+    const open = await controller.visitForSave(metId, mockNow);
+    await controller.syncRemoteVisit();
+    const to = { venueId: neueId, venueName: neueRow.name, visitedOn: open.visitedOn, timeZone: open.timeZone };
+    if (source === "local") {
+      await controller.move(open.localId, to);
+    } else {
+      mockVisits.set(open.localId, { ...mockVisits.get(open.localId)!, ...to, syncedAt: mockNow });
+      await controller.syncRemoteVisit();
+    }
+    const context = { venueId: neueId, visitLocalId: open.localId, visitId: "remote-1" };
+    expect(await controller.resolveForScan(mockNow)).toEqual(context);
+    expect(await controller.visitForSave(neueId, mockNow)).toMatchObject({ localId: open.localId });
+    expect(JSON.parse(mockSettings.get("venuePick:device:test-installation")!)).toMatchObject({ venueId: neueId });
+    const restored = createVenueController();
+    mockGetPermission.mockResolvedValue({ granted: false });
+    await restored.hydrate();
+    expect(await restored.resolveForScan(mockNow)).toEqual(context);
+  },
+);
+
+it("keeps an unrelated manually selected museum when the open visit moves", async () => {
+  await controller.confirm({ kind: "seeded", venueId: metId, name: metRow.name, manual: byHand() });
+  const open = await controller.visitForSave(metId, mockNow);
+  const elsewhere = "id-elsewhere" as Id<"museums">;
+  await controller.confirm({ kind: "seeded", venueId: elsewhere, name: "Elsewhere", manual: byHand() });
+  await controller.move(open.localId, {
+    venueId: neueId,
+    venueName: neueRow.name,
+    visitedOn: open.visitedOn,
+    timeZone: open.timeZone,
+  });
+  expect(await controller.resolveForScan(mockNow)).toEqual({ venueId: elsewhere });
 });

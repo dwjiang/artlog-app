@@ -471,6 +471,11 @@ it("deduplicates museum days and moves backdated totals to the visit’s month",
   await upsert({ ...second, visitedOn: "2020-01-01" });
   expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(0);
   expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(1);
+  const otherVenue = await t.run(seedMuseum);
+  await upsert({ ...second, venueId: otherVenue, visitedOn: "2020-01-01" });
+  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(2);
+  await upsert({ ...first, venueId: otherVenue, visitedOn: "2020-01-01" });
+  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(1);
 });
 
 it("keeps shared index activity separate from artwork totals", async () => {

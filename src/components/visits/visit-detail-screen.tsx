@@ -2,7 +2,7 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { setStringAsync } from "expo-clipboard";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { WorkLink } from "@/components/collection/work-link";
@@ -16,7 +16,6 @@ import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner, useOwnerGeneration } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
-import { formatVisitDate } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
@@ -25,11 +24,13 @@ import { retryAction, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import type { VisitVisibility } from "@/shared/journal/contracts";
+import { calendarDate } from "@/shared/journal/limits";
 
 import { VisitActionBar } from "./visit-action-bar";
+import { VisitDatePicker } from "./visit-date-picker";
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
-import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
+import { VisitMessage, VisitPage, VisitSymbol, visitStyles as styles } from "./visit-ui";
 import { VisitVisibilityChip } from "./visit-visibility-picker";
 
 const REACH: Record<VisitVisibility, number> = { private: 0, friends: 1, public: 2 };
@@ -80,7 +81,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner);
   }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState("");
-  const { end, visit: open } = useVenue();
+  const { end, move, visit: open } = useVenue();
   // The open visit saves only by ending it, whether opened from the visit bar or reviewed from the visit sheet, and a
   // visibility change waits for that save.
   const ending = endingVisit || open?.localId === visit.localId;
@@ -219,6 +220,23 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       submitting.current = false;
     }
   }
+  const [dateError, setDateError] = useState<string>();
+  async function changeDate(visitedOn: string) {
+    const session = captureOwner();
+    if (session.owner !== visit.owner || visitedOn === visit.visitedOn) return;
+    setDateError(undefined);
+    try {
+      await move(visit.localId, {
+        venueId: visit.venueId,
+        venueName: visit.venueName,
+        timeZone: visit.timeZone,
+        visitedOn,
+      });
+    } catch (cause) {
+      reportError(cause, "visit.move.date");
+      if (session.isOwnerCurrent()) setDateError("The date could not be changed. Try again.");
+    }
+  }
   async function copyLink(id: string) {
     try {
       const copied = await setStringAsync(`artlog://visit/${encodeURIComponent(id)}`);
@@ -314,13 +332,27 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               </Text>
             )}
             <View style={{ gap: 6 }}>
-              <Text selectable accessibilityRole="header" style={[Typography.display, { color: Gallery.ink }]}>
-                {visit.venueName}
-              </Text>
-              <Text selectable style={styles.caption}>
-                {formatVisitDate(visit.visitedOn)}
-                {visit.location ? ` · ${visit.location}` : ""}
-              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={visit.venueName}
+                accessibilityHint="Changes the museum"
+                disabled={saving}
+                onPress={() =>
+                  router.push({
+                    pathname: "/visit-museum",
+                    params: { visitId: visit.localId },
+                  })
+                }
+                style={({ pressed }) => [detail.museum, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={[Typography.display, { color: Gallery.ink, flexShrink: 1 }]}>{visit.venueName}</Text>
+                <VisitSymbol name="chevron.down" size={16} color={Gallery.muted} />
+              </Pressable>
+              {visit.location ? (
+                <Text selectable style={styles.caption}>
+                  {visit.location}
+                </Text>
+              ) : null}
             </View>
             <View style={{ gap: 8 }}>
               <View style={detail.status}>
@@ -344,6 +376,27 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                     }}
                   />
                 </View>
+              )}
+            </View>
+            <View style={{ gap: 4 }}>
+              <View style={detail.date}>
+                <Text accessibilityRole="header" style={styles.eyebrow}>
+                  Date
+                </Text>
+                <VisitDatePicker
+                  value={visit.visitedOn}
+                  latest={calendarDate(Date.now(), visit.timeZone)}
+                  showLabel={false}
+                  disabled={saving}
+                  onChange={(value) => {
+                    void changeDate(value);
+                  }}
+                />
+              </View>
+              {dateError && (
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {dateError}
+                </Text>
               )}
             </View>
             {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
@@ -441,6 +494,8 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
 }
 
 const detail = StyleSheet.create({
+  museum: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
+  date: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
   status: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 },
   sectionLabel: {
     flexDirection: "row",

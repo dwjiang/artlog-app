@@ -56,8 +56,10 @@ const mockVisit = {
   syncedAt: null,
   localId: "visit",
   owner: "device:test-installation",
+  venueId: "museum",
   venueName: "Museum",
   visitedOn: "2024-02-29",
+  timeZone: "America/New_York",
   location: "New York",
   reflection: "The afternoon light",
   startedAt: 1,
@@ -72,9 +74,10 @@ const mockVisit = {
   ],
 } as VisitSummary;
 const mockEnd = jest.fn();
+const mockMove = jest.fn();
 let mockOpenVisit: { localId: string } | undefined;
 jest.mock("@/lib/venue/use-venue", () => ({
-  useVenue: () => ({ end: mockEnd, visit: mockOpenVisit }),
+  useVenue: () => ({ end: mockEnd, move: mockMove, visit: mockOpenVisit }),
 }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
@@ -142,6 +145,7 @@ beforeEach(() => {
   mockVisit.visibility = "public";
   mockVisit.syncedAt = null;
   mockEnd.mockReset().mockResolvedValue(undefined);
+  mockMove.mockReset().mockResolvedValue(undefined);
   mockOpenVisit = undefined;
   mockToast.mockClear();
   mockLoad.mockClear();
@@ -169,6 +173,33 @@ it("opens sign-in directly above a guest visit and preserves the visit when dism
   await act(() => router.back());
   expect(navigation.getPathname()).toBe("/journal/visit");
   expect(screen.getByText("The afternoon light")).toBeOnTheScreen();
+});
+
+it("moves the visit to a picked date at its museum and opens the museum chooser from its name", async () => {
+  const navigation = renderRouter(
+    {
+      _layout: () => <Stack />,
+      "journal/[visitId]": VisitDetailScreen,
+      "visit-museum": () => <Text>Change museum</Text>,
+    },
+    { initialUrl: "/journal/visit" },
+  );
+  await navigation;
+  await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-20T12:00:00");
+  await waitFor(() =>
+    expect(mockMove).toHaveBeenCalledWith("visit", {
+      venueId: "museum",
+      venueName: "Museum",
+      timeZone: "America/New_York",
+      visitedOn: "2024-02-20",
+    }),
+  );
+  mockMove.mockRejectedValueOnce(new Error("disk full"));
+  await fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-21T12:00:00");
+  expect(await screen.findByRole("alert")).toHaveTextContent("The date could not be changed. Try again.");
+  await fireEvent.press(screen.getByRole("button", { name: "Museum" }));
+  await waitFor(() => expect(navigation.getPathname()).toBe("/visit-museum"));
+  expect(navigation.getSearchParams()).toMatchObject({ visitId: "visit" });
 });
 
 it("shows a published visit's status and opens its post and link from the menu", async () => {

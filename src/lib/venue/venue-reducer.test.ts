@@ -492,22 +492,14 @@ describe("visits and the scan context", () => {
       visitLocalId: "local-Met",
     });
     const remote = venueReducer(started, {
-      type: "remoteVisit",
-      localId: "local-Met",
-      remoteVisitId: "remote-1" as Id<"visits">,
+      type: "visitStarted",
+      visit: visitAt("Met", fix.at, "remote-1"),
     });
     expect(venueContext(remote)).toEqual({
       venueId: "id-Met",
       visitLocalId: "local-Met",
       visitId: "remote-1",
     });
-    expect(
-      venueReducer(started, {
-        type: "remoteVisit",
-        localId: "other",
-        remoteVisitId: "remote-2" as Id<"visits">,
-      }),
-    ).toBe(started);
   });
 
   it("never attaches a visit from another venue", () => {

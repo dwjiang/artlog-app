@@ -1,31 +1,26 @@
-import { Host } from "@expo/ui";
-import { DatePicker } from "@expo/ui/swift-ui";
-import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { randomUUID } from "expo-crypto";
-import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, TextInput, View } from "react-native";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Keyboard, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { SearchEmptyState } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
-import { countryName } from "@/lib/journal/history";
-import { dateFromPicker, pickerDate, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
+import { useVisits } from "@/lib/journal/use-visits";
+import { dateFromPicker, museumDayAtMost, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
-import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
-import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
+import { useVenue } from "@/lib/venue/use-venue";
 import { venueMetadataForIds } from "@/lib/venue/venue-db";
 import { venueLocation } from "@/lib/venue/venue-location";
-import type { PoiOption } from "@/lib/venue/venue-reducer";
 import { calendarDate, LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
-import { getPoiSearch } from "../../../modules/poi-search/src";
+import { MuseumSearch } from "./museum-search";
+import { VisitDatePicker } from "./visit-date-picker";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 export function VisitCreateScreen() {
@@ -36,41 +31,8 @@ export function VisitCreateScreen() {
   }>();
   return <CreateForm key={`${owner}:${savedId ?? ""}:${venueId ?? ""}`} savedId={savedId} initialVenueId={venueId} />;
 }
-/** Apple Maps is asked only when our table has nothing for the name; a short query would match too much of the world. */
-const PLACE_SEARCH_MIN = 3;
-
-async function searchPlaces(query: string, near?: { lat: number; lng: number }): Promise<PoiOption[]> {
-  if (query.trim().length < PLACE_SEARCH_MIN) return [];
-  const places = await getPoiSearch().searchByName(query, near?.lat, near?.lng);
-  return places.map((place) => ({
-    kind: "poi",
-    name: place.name,
-    lat: place.lat,
-    lng: place.lng,
-    category: place.category,
-    ...(place.distanceMeters === undefined ? {} : { distanceM: place.distanceMeters }),
-    city: place.city,
-    country: place.country,
-    ...(place.website ? { website: place.website } : {}),
-  }));
-}
-
-export function placeLocation(place: PoiOption): string {
-  return [place.city, countryName(place.country)].filter(Boolean).join(", ");
-}
-
 function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenueId?: string }) {
-  const { fix } = useVenue();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<{
-    query: string;
-    retry: number;
-    rows: VenueRow[];
-    places: PoiOption[];
-    error?: string;
-  }>();
   const [venue, setVenue] = useState<VenueRow>();
-  const [adding, setAdding] = useState<string>();
   const [now] = useState(Date.now);
   const [date, setDate] = useState(() => dateFromPicker(new Date(now)));
   useEffect(() => {
@@ -78,10 +40,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     let active = true;
     void venueMetadataForIds([initialVenueId])
       .then((rows) => {
-        if (active && rows[0]) {
-          setVenue(rows[0]);
-          const museumToday = calendarDate(now, venueTimeZone(rows[0]));
-          setDate((current) => (current > museumToday ? museumToday : current));
+        const [row] = rows;
+        if (active && row) {
+          setVenue(row);
+          setDate((current) => museumDayAtMost(current, venueTimeZone(row), now));
         }
       })
       .catch((cause) => reportError(cause, "visit.venue.load"));
@@ -89,7 +51,6 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       active = false;
     };
   }, [initialVenueId, now]);
-  const [retry, setRetry] = useState(0);
   const [reflection, setReflection] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -98,77 +59,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   const timeZone = venue ? venueTimeZone(venue) : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const today = calendarDate(now, timeZone);
   const validDate = validVisitDate(date, timeZone, now);
-  const currentResults = results?.query === query && results.retry === retry ? results : undefined;
-  const venues = currentResults?.rows ?? [];
-  const places = currentResults?.places ?? [];
-  const searchError = currentResults?.error;
-  const searching = !venue && query.trim().length >= 2 && !currentResults;
-  useEffect(() => {
-    let active = true;
-    if (venue || query.trim().length < 2) return;
-    const timer = setTimeout(() => {
-      void searchVenues(query)
-        .then(async (rows) => {
-          if (rows.length > 0) return { rows, places: [] };
-          // Apple Maps is the fallback, so its failure is reported as its own rather than blamed on the table that answered.
-          const places = await searchPlaces(query, fix).catch((cause) => {
-            reportError(cause, "visit.places.search");
-            return undefined;
-          });
-          return places
-            ? { rows, places }
-            : {
-                rows,
-                places: [],
-                error: "Apple Maps could not be reached. Try again.",
-              };
-        })
-        .then((found) => {
-          if (active) setResults({ query, retry, ...found });
-        })
-        .catch((cause) => {
-          reportError(cause, "visit.venues.search");
-          if (active) {
-            setResults({
-              query,
-              retry,
-              rows: [],
-              places: [],
-              error: "Museums could not load. Try again.",
-            });
-          }
-        });
-    }, 200);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [query, venue, retry, fix]);
   function chooseVenue(row: VenueRow) {
     setVenue(row);
-    Keyboard.dismiss();
     // The device may already be on a later calendar day than the museum.
-    const museumToday = calendarDate(now, venueTimeZone(row));
-    setDate((current) => (current > museumToday ? museumToday : current));
-  }
-  /** A place from Apple Maps becomes a museum for everyone before this visit can use it. */
-  async function choosePlace(place: PoiOption) {
-    if (adding) return;
-    const key = `${place.name}:${place.lat}:${place.lng}`;
-    const session = captureOwner();
-    setAdding(key);
-    setError(undefined);
-    try {
-      const row = await confirmPlace(place, () => session.isOwnerCurrent());
-      if (row) chooseVenue(row);
-    } catch (cause) {
-      reportError(cause, "visit.venue.confirm");
-      if (session.isOwnerCurrent()) {
-        setError(socialErrorMessage(cause) ?? "This museum could not be added. Check your connection and try again.");
-      }
-    } finally {
-      if (session.isOwnerCurrent()) setAdding(undefined);
-    }
+    setDate((current) => museumDayAtMost(current, venueTimeZone(row), now));
   }
   async function save() {
     if (!venue || submitting.current || !validDate) return;
@@ -243,90 +137,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             <GalleryButton label="Change museum" disabled={busy} onPress={() => setVenue(undefined)} />
           </View>
         ) : (
-          <>
-            <TextInput
-              keyboardAppearance="light"
-              selectionColor={Gallery.accent}
-              placeholderTextColor={Gallery.muted}
-              accessibilityLabel="Search museums"
-              placeholder="Museum or city"
-              value={query}
-              maxLength={LIMITS.searchMax}
-              onChangeText={setQuery}
-              autoCorrect={false}
-              style={styles.input}
-              returnKeyType="search"
-            />
-            {searching ? (
-              <VisitMessage loading skeleton="list">
-                Searching museums…
-              </VisitMessage>
-            ) : searchError ? (
-              <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>
-                {searchError}
-              </VisitMessage>
-            ) : query.trim().length < 2 ? (
-              <Text style={styles.caption}>Enter at least two characters.</Text>
-            ) : venues.length === 0 && places.length === 0 ? (
-              <SearchEmptyState
-                title="No museums found."
-                detail={
-                  query.trim().length < PLACE_SEARCH_MIN
-                    ? "Type more of the name to search Apple Maps too."
-                    : "Try the city or a shorter name."
-                }
-                onClear={() => setQuery("")}
-              />
-            ) : null}
-            {venues.map((row) => (
-              <Pressable
-                key={row.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${row.name}, ${venueLocation(row).location || row.name}`}
-                style={styles.card}
-                onPress={() => chooseVenue(row)}
-              >
-                <Text style={styles.body}>{row.name}</Text>
-                <Text style={styles.caption}>{venueLocation(row).location}</Text>
-              </Pressable>
-            ))}
-            {venues.length === 0 && places.length > 0 && (
-              <>
-                <Text accessibilityRole="header" style={styles.caption}>
-                  From Apple Maps
-                </Text>
-                {places.map((place) => {
-                  const key = `${place.name}:${place.lat}:${place.lng}`;
-                  return (
-                    <Pressable
-                      key={key}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${place.name}, ${placeLocation(place) || place.name}`}
-                      accessibilityState={{
-                        busy: adding === key,
-                        disabled: !!adding,
-                      }}
-                      disabled={!!adding}
-                      style={styles.card}
-                      onPress={() => {
-                        void choosePlace(place);
-                      }}
-                    >
-                      <Text style={styles.body}>{place.name}</Text>
-                      <Text style={styles.caption}>
-                        {adding === key ? "Adding this museum…" : placeLocation(place)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </>
-            )}
-            {venues.length === MUSEUM_SEARCH_LIMIT && (
-              <Text style={styles.caption}>
-                Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to narrow your search.
-              </Text>
-            )}
-          </>
+          <MuseumSearch onChoose={chooseVenue} disabled={busy} />
         )}
         <View
           style={{
@@ -337,16 +148,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             backgroundColor: Gallery.surface,
           }}
         >
-          <Host matchContents={{ vertical: true }} colorScheme="light">
-            <DatePicker
-              title="Visit date"
-              selection={pickerDate(date)}
-              range={{ end: pickerDate(today) }}
-              displayedComponents={["date"]}
-              onDateChange={(value) => setDate(dateFromPicker(value))}
-              modifiers={[datePickerStyle("compact"), tint(Gallery.accent)]}
-            />
-          </Host>
+          <VisitDatePicker value={date} latest={today} onChange={setDate} />
         </View>
         {!validDate && (
           <Text accessibilityRole="alert" style={styles.error}>
@@ -382,6 +184,84 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           <Text accessibilityRole="alert" style={styles.error}>
             {error}
           </Text>
+        )}
+      </VisitPage>
+    </>
+  );
+}
+
+/** Moves a visit to another museum, keeping its day unless that is still in the future there. */
+export function VisitMuseumScreen() {
+  const { visitId } = useLocalSearchParams<{ visitId: string }>();
+  const { visits, loading, error } = useVisits();
+  const visit = visits.find((row) => row.localId === visitId);
+  const { move } = useVenue();
+  const [busy, setBusy] = useState(false);
+  const [moveError, setMoveError] = useState<string>();
+  const active = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      active.current = true;
+      return () => {
+        active.current = false;
+      };
+    }, []),
+  );
+  function cancel() {
+    active.current = false;
+    router.back();
+  }
+  async function choose(row: VenueRow) {
+    const session = captureOwner();
+    if (!active.current || !visit || busy || session.owner !== visit.owner) return;
+    if (row.id === visit.venueId) {
+      router.back();
+      return;
+    }
+    setBusy(true);
+    setMoveError(undefined);
+    try {
+      const timeZone = venueTimeZone(row);
+      await move(visit.localId, {
+        venueId: row.id,
+        venueName: row.name,
+        timeZone,
+        visitedOn: museumDayAtMost(visit.visitedOn, timeZone),
+      });
+      if (active.current && session.isOwnerCurrent()) router.back();
+    } catch (cause) {
+      reportError(cause, "visit.move.museum");
+      if (session.isOwnerCurrent()) setMoveError("The museum could not be changed. Try again.");
+    } finally {
+      if (session.isOwnerCurrent()) setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={cancel}>
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <VisitPage>
+        {visit ? (
+          <>
+            <MuseumSearch
+              disabled={busy}
+              onChoose={(row) => {
+                void choose(row);
+              }}
+            />
+            {moveError && (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {moveError}
+              </Text>
+            )}
+          </>
+        ) : (
+          <VisitMessage loading={loading && !error} skeleton="list">
+            {error ? "This visit could not load." : loading ? "Loading visit…" : "This visit is unavailable."}
+          </VisitMessage>
         )}
       </VisitPage>
     </>

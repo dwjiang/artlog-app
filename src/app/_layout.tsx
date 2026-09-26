@@ -140,6 +140,7 @@ function RootLayout() {
                     />
                     <Stack.Screen name="artwork" options={{ title: "" }} />
                     <Stack.Screen name="visit-create" options={{ ...visitSheet, title: "Add visit" }} />
+                    <Stack.Screen name="visit-museum" options={{ ...visitSheet, title: "Change museum" }} />
                     <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="visit-globe"
