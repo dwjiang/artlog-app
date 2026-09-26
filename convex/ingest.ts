@@ -17,7 +17,8 @@ import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } 
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
-import { insertVector, readVector, replaceVector } from "./lib/vectorStore";
+import { insertVector, readVector, replaceVector, vectorHash, withVectorArchives } from "./lib/vectorStore";
+import schema from "./schema";
 import { recordVenueChanges } from "./venueChanges";
 
 export const MAX_BATCH_ROWS = 500;
@@ -368,8 +369,69 @@ export const upsertPlacements = internalMutation({
   },
 });
 
-export const upsertVectors = internalMutation({
+const vectorIds = v.object({ ids: v.record(v.string(), v.id("vectors")) });
+
+export const existingVectors = internalQuery({
+  args: { rows: v.array(v.object({ modelVersion: v.string(), viewKey: v.string() })) },
+  returns: v.array(v.union(schema.doc("vectors"), v.null())),
+  handler: async (ctx, { rows }) => {
+    checkBatch(rows);
+    return Promise.all(
+      rows.map((row) =>
+        ctx.db
+          .query("vectors")
+          .withIndex("by_modelVersion_source_viewKey", (q) =>
+            q.eq("modelVersion", row.modelVersion).eq("source", "corpus").eq("viewKey", row.viewKey),
+          )
+          .unique(),
+      ),
+    );
+  },
+});
+
+export const upsertVectors = internalAction({
   args: { rows: v.array(vectorRow) },
+  returns: vectorIds,
+  handler: (ctx, { rows }): Promise<Infer<typeof vectorIds>> =>
+    withErrorReporting("ingest.upsertVectors", async () => {
+      checkBatch(rows);
+      for (const row of rows) {
+        if (row.vector.length !== model.embeddingDim) {
+          throw new ConvexError({
+            code: "bad_dimension",
+            objectKey: row.objectKey,
+            expected: model.embeddingDim,
+            actual: row.vector.length,
+          });
+        }
+      }
+      const hashes = await Promise.all(rows.map((row) => vectorHash(row.vector)));
+      const existing = await ctx.runQuery(internal.ingest.existingVectors, {
+        rows: rows.map(({ modelVersion, viewKey }) => ({ modelVersion, viewKey })),
+      });
+      return withVectorArchives(
+        ctx,
+        rows.map((row, index) => ({
+          vector: row.vector,
+          archiveId: existing[index]?.contentHash === hashes[index] ? existing[index]?.archiveId : undefined,
+        })),
+        async (archiveIds) => {
+          const ids: Record<string, Id<"vectors">> = {};
+          const archived = rows.map((row, index) => ({ ...row, archiveId: archiveIds[index] }));
+          for (let start = 0; start < archived.length; start += 100) {
+            const result = await ctx.runMutation(internal.ingest.commitVectors, {
+              rows: archived.slice(start, start + 100),
+            });
+            Object.assign(ids, result.ids);
+          }
+          return { ids };
+        },
+      );
+    }),
+});
+
+export const commitVectors = internalMutation({
+  args: { rows: v.array(vectorRow.extend({ archiveId: v.string() })) },
   returns: v.object({ ids: v.record(v.string(), v.id("vectors")) }),
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
@@ -392,6 +454,7 @@ export const upsertVectors = internalMutation({
         source: row.source,
         viewKey: row.viewKey,
         vector: row.vector,
+        archiveId: row.archiveId,
       };
       const existing = await ctx.db
         .query("vectors")
@@ -409,6 +472,7 @@ export const upsertVectors = internalMutation({
       }
     }
     await bumpCounter(ctx, "vectors", inserted);
+    if (rows.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return { ids };
   },
 });
@@ -652,13 +716,13 @@ const trainingObject = v.object({
   objectPenalty: v.number(),
 });
 
-export const exportVectors = internalQuery({
+export const exportVectorRows = internalQuery({
   args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
   returns: v.object({
     page: v.array(
       v.object({
         vectorId: v.id("vectors"),
-        vector: v.array(v.float64()),
+        vector: schema.doc("vectors"),
         object: trainingObject,
       }),
     ),
@@ -690,7 +754,7 @@ export const exportVectors = internalQuery({
       const details = await readObjectDetails(ctx, object);
       page.push({
         vectorId: row._id,
-        vector: await readVector(ctx, row),
+        vector: row,
         object: {
           objectId: object._id,
           key: object.key,
@@ -707,6 +771,29 @@ export const exportVectors = internalQuery({
       isDone: result.isDone,
     };
   },
+});
+
+export const exportVectors = internalAction({
+  args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
+  returns: v.object({
+    page: v.array(v.object({ vectorId: v.id("vectors"), vector: v.array(v.float64()), object: trainingObject })),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: (
+    ctx,
+    args,
+  ): Promise<{
+    page: { vectorId: Id<"vectors">; vector: number[]; object: Infer<typeof trainingObject> }[];
+    continueCursor: string;
+    isDone: boolean;
+  }> =>
+    withErrorReporting("ingest.exportVectors", async () => {
+      const result = await ctx.runQuery(internal.ingest.exportVectorRows, args);
+      const page = [];
+      for (const row of result.page) page.push({ ...row, vector: await readVector(ctx, row.vector) });
+      return { ...result, page };
+    }),
 });
 
 export const exportDescriptorReferences = internalQuery({
@@ -918,7 +1005,15 @@ function pickFields<T extends object, F extends Record<string, unknown>>(
 
 const sampleArgs = { table: importTable, rows: v.array(importIdentity) };
 const storedSample = v.array(
-  v.union(v.null(), artworkRow, objectRow, placementRow, vectorRow, descriptorReference, penaltyRow),
+  v.union(
+    v.null(),
+    artworkRow,
+    objectRow,
+    placementRow,
+    vectorRow.omit("vector").extend({ reference: schema.doc("vectors") }),
+    descriptorReference,
+    penaltyRow,
+  ),
 );
 
 // Only the selected natural keys are read; a sample never pages through the corpus.
@@ -952,7 +1047,7 @@ export const readSampleRows = internalQuery({
                 modelVersion: vector.modelVersion,
                 source: "corpus" as const,
                 viewKey: vector.viewKey!,
-                vector: await readVector(ctx, vector),
+                reference: vector,
               }
             : null,
         );
@@ -1021,7 +1116,10 @@ export const readSample = internalAction({
       const rows = await ctx.runQuery(internal.ingest.readSampleRows, args);
       const result = [];
       for (const row of rows) {
-        if (row && "storageId" in row) {
+        if (row && "reference" in row) {
+          const { reference, ...fields } = row;
+          result.push({ ...fields, vector: await readVector(ctx, reference) });
+        } else if (row && "storageId" in row) {
           const { storageId, sha256: _sha256, ...fields } = row;
           result.push({ ...fields, ...(await loadOrb(ctx, storageId, row.keypointCount)) });
         } else {

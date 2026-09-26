@@ -12,7 +12,8 @@ import { deleteOrbIfUnreferenced, loadOrb, storeOrb } from "./lib/orbStorage";
 import { requireJournalOwner, requireOwnedSave, nextChangeVersion } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";
 import { findSavedRecognition } from "./lib/savedRecognition";
-import { embedding } from "./lib/validators";
+import { embedding, embeddingArchive } from "./lib/validators";
+import { readVector, retainVectorArchive, vectorHash, withVectorArchives } from "./lib/vectorStore";
 import { displayCandidate, joinCandidate } from "./scans";
 import schema from "./schema";
 
@@ -38,7 +39,7 @@ export const attach = internalMutation({
   args: {
     ...savedArgs,
     sourceLocalId: v.string(),
-    vector: embedding,
+    ...embeddingArchive.fields,
     modelVersion: v.string(),
     orbStorageId: v.string(),
     keypointCount: v.number(),
@@ -48,6 +49,7 @@ export const attach = internalMutation({
     const { owner } = await requireJournalOwner(ctx, scope);
     const save = await requireOwnedSave(ctx, owner, localId);
     if (!(await findSavedRecognition(ctx, save._id))) {
+      await retainVectorArchive(ctx, payload.archiveId, payload.contentHash);
       await retainFile(ctx, payload.orbStorageId);
       await ctx.db.insert("savedRecognition", { ...payload, saveId: save._id, attempt: 0, candidateIds: [] });
     }
@@ -88,14 +90,18 @@ export const upload = action({
       }
       const orb = await storeOrb(ctx, args.descriptors, args.keypoints);
       try {
-        await ctx.runMutation(internal.savedRecognition.attach, {
-          ...saved,
-          sourceLocalId: args.sourceLocalId,
-          modelVersion: args.modelVersion,
-          vector: args.vector,
-          orbStorageId: orb.storageId,
-          keypointCount: orb.keypointCount,
-        });
+        const contentHash = await vectorHash(args.vector);
+        await withVectorArchives(ctx, [{ vector: args.vector }], ([archiveId]) =>
+          ctx.runMutation(internal.savedRecognition.attach, {
+            ...saved,
+            sourceLocalId: args.sourceLocalId,
+            modelVersion: args.modelVersion,
+            archiveId,
+            contentHash,
+            orbStorageId: orb.storageId,
+            keypointCount: orb.keypointCount,
+          }),
+        );
       } finally {
         await ctx.runMutation(internal.savedRecognition.discard, { storageId: orb.storageId });
       }
@@ -153,7 +159,7 @@ export const identify = action({
       const { data, venueId } = await ctx.runMutation(internal.savedRecognition.begin, args);
       const orb = await loadOrb(ctx, data.orbStorageId, data.keypointCount);
       const { decision, best } = await matchArtwork(ctx, {
-        vector: data.vector,
+        vector: await readVector(ctx, data),
         modelVersion: data.modelVersion,
         venueId,
         query: decodeQuery(orb.descriptors, orb.keypoints),

@@ -1,12 +1,12 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import model from "../../shared/model/model-version.json";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
-import { readEmbedding, requireEmbedding } from "../scanEmbeddings";
-import { AGREEMENT_MIN_COSINE, contributionGroup, REPLAY_COSINE, verifiedAccession } from "./agreement";
-import { cosine } from "./cosine";
+import { getEmbedding, requireEmbedding } from "../scanEmbeddings";
+import { contributionGroup, verifiedAccession } from "./agreement";
 import { patchObjectDetails } from "./objectDetails";
 import {
   contributionRightsIssue,
@@ -14,7 +14,8 @@ import {
   eligibleObjectRecord,
   recognitionPartition,
 } from "./recognitionEligibility";
-import { insertVector, readVector } from "./vectorStore";
+import { embeddingArchive, type EmbeddingArchive } from "./validators";
+import { insertArchivedVector } from "./vectorStore";
 
 const ANCHOR_PAGE = 25;
 const REPLAY_CHECK_VECTORS = 32;
@@ -37,25 +38,30 @@ async function eligibleAnchor(ctx: QueryCtx, object: Doc<"objects">): Promise<Do
 }
 
 // A vector already on the entry this close to the submission is the same photo, not a second view.
-export async function replaysEntry(
+export async function replayArchives(
   ctx: QueryCtx,
-  row: Pick<Doc<"contributions">, "modelVersion"> & { vector: number[] },
+  row: Pick<Doc<"contributions">, "modelVersion">,
   object: Doc<"objects">,
-): Promise<boolean> {
+): Promise<EmbeddingArchive[]> {
   const vectors = await ctx.db
     .query("vectors")
     .withIndex("by_objectId_modelVersion_source", (q) =>
       q.eq("objectId", object._id).eq("modelVersion", row.modelVersion).eq("source", "user"),
     )
     .take(REPLAY_CHECK_VECTORS);
-  for (const vector of vectors) if (cosine(row.vector, await readVector(ctx, vector)) >= REPLAY_COSINE) return true;
-  return false;
+  const archives: EmbeddingArchive[] = [];
+  for (const vector of vectors) {
+    const source = vector.contributionId ? await ctx.db.get("contributions", vector.contributionId) : null;
+    const evidence = source ? await getEmbedding(ctx, source.embeddingId) : null;
+    if (evidence) archives.push({ archiveId: evidence.archiveId, contentHash: evidence.contentHash });
+  }
+  return archives;
 }
 
 // The eligible backer a compatible submission is measured against, or null when the entry is not its group.
-export async function compatibleAnchor(
+export async function groupAnchor(
   ctx: QueryCtx,
-  row: Pick<Doc<"contributions">, "venueId" | "modelVersion" | "fields"> & { vector: number[] },
+  row: Pick<Doc<"contributions">, "venueId" | "modelVersion" | "fields">,
   object: Doc<"objects">,
 ): Promise<Doc<"contributions"> | null> {
   if (
@@ -72,10 +78,7 @@ export async function compatibleAnchor(
   if (accession && object.provenance?.verifiedAccession && accession !== object.provenance.verifiedAccession) {
     return null;
   }
-  const anchorVector = await readEmbedding(ctx, anchor.embeddingId);
-  if (!anchorVector) return null;
-  const similarity = cosine(row.vector, anchorVector);
-  return similarity >= AGREEMENT_MIN_COSINE && similarity < REPLAY_COSINE ? anchor : null;
+  return (await getEmbedding(ctx, anchor.embeddingId)) ? anchor : null;
 }
 
 export async function applyReference(
@@ -143,17 +146,30 @@ export async function applyReference(
   }
 }
 
+export const checkedGroup = v.object({
+  objectId: v.id("objects"),
+  anchorId: v.id("contributions"),
+  ...embeddingArchive.fields,
+});
+
 export async function publishContribution(
   ctx: MutationCtx,
   row: Doc<"contributions">,
-  groupObjectId?: Id<"objects">,
+  group?: Infer<typeof checkedGroup>,
 ): Promise<Id<"objects">> {
   const issue = await contributionRightsIssue(ctx, row);
   if (issue) throw new ConvexError({ code: issue });
-  let object = groupObjectId ? await ctx.db.get("objects", groupObjectId) : null;
-  const vector = await requireEmbedding(ctx, row.embeddingId);
-  const anchor = object ? await compatibleAnchor(ctx, { ...row, vector }, object) : null;
-  if (object && !anchor) {
+  let object = group ? await ctx.db.get("objects", group.objectId) : null;
+  const archive = await requireEmbedding(ctx, row.embeddingId);
+  const anchor = object ? await groupAnchor(ctx, row, object) : null;
+  const anchorArchive = anchor ? await requireEmbedding(ctx, anchor.embeddingId) : null;
+  if (
+    group
+    && (!anchor
+      || anchor._id !== group.anchorId
+      || anchorArchive?.archiveId !== group.archiveId
+      || anchorArchive.contentHash !== group.contentHash)
+  ) {
     throw new ConvexError({ code: "contributions_changed" });
   }
   if (object) {
@@ -203,15 +219,16 @@ export async function publishContribution(
     await bumpCounter(ctx, "placements", 1);
   }
   await ctx.db.patch("contributions", row._id, { indexedObjectId: object._id });
-  await insertVector(ctx, {
+  await insertArchivedVector(ctx, {
     objectId: object._id,
     modelVersion: row.modelVersion,
     source: "user",
     partition: recognitionPartition(row.modelVersion, row.venueId),
     contributionId: row._id,
-    vector,
+    ...archive,
   });
   await bumpCounter(ctx, "vectors", 1);
+  await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
   const source = anchor && earlier(anchor, row) ? anchor : row;
   await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
   await ctx.db.patch("objects", object._id, {

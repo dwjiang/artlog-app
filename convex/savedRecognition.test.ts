@@ -6,9 +6,11 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { fileStorage } from "./lib/fileStorage";
+import { r2 } from "./lib/r2";
 import { limitDevice, type RateLimitName } from "./lib/rateLimits";
 import { socialUser } from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { readVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
 
 afterEach(() => vi.unstubAllEnvs());
@@ -43,6 +45,11 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
   await user.as.action(api.savedRecognition.upload, payload);
   await user.as.action(api.savedRecognition.upload, payload);
   expect(await t.run((ctx) => ctx.db.query("savedRecognition").collect())).toHaveLength(1);
+  const data = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
+  expect(data).not.toHaveProperty("vector");
+  expect(await t.action((ctx) => readVector(ctx, data))).toEqual(payload.vector);
+  expect((await t.run((ctx) => fileStorage.getMetadata(ctx, data.archiveId)))?.publicDownload).toBe(false);
+  expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").first())).toBeNull();
   expect(await user.as.action(api.savedRecognition.identify, { scope: user.scope, localId })).toMatchObject({
     outcome: "miss",
     candidates: [],
@@ -109,10 +116,51 @@ it("removes private recognition data and verification files when the saved artwo
   const row = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
   await user.as.mutation(api.collections.remove, { scope: user.scope, localId });
   expect(await t.run((ctx) => ctx.db.get("savedRecognition", row._id))).toBeNull();
+  expect(await t.run((ctx) => fileStorage.getMetadata(ctx, row.archiveId))).toHaveProperty("expiresAt");
   expect(await t.run((ctx) => fileStorage.get(ctx, row.orbStorageId))).toBeNull();
   await expect(user.as.action(api.savedRecognition.identify, { scope: user.scope, localId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
+});
+
+it.each(["upload", "deleted save"] as const)(
+  "cleans up unused archives when %s prevents attaching saved recognition",
+  async (failure) => {
+    const { t, user, localId, payload } = await fixture();
+    const put = vi.mocked(r2.put).getMockImplementation()!;
+    await vi.mocked(r2.put).withImplementation(
+      async (id, blob) => {
+        if (blob.type === "application/vnd.artlog.embedding") {
+          if (failure === "upload") throw new Error("R2 unavailable");
+          await user.as.mutation(api.collections.remove, { scope: user.scope, localId });
+        }
+        return put(id, blob);
+      },
+      async () => {
+        await expect(user.as.action(api.savedRecognition.upload, payload)).rejects.toThrow(
+          failure === "upload" ? "R2 unavailable" : "not_found",
+        );
+      },
+    );
+    expect(await t.run((ctx) => ctx.db.query("savedRecognition").first())).toBeNull();
+    const files = await t.run((ctx) => ctx.db.query("files").collect());
+    expect(files.every((row) => row.expiresAt !== undefined)).toBe(true);
+  },
+);
+
+it("rejects damaged embedding bytes rather than recognizing a saved artwork with them", async () => {
+  const { t, user, localId, payload } = await fixture();
+  await user.as.action(api.savedRecognition.upload, payload);
+  const row = (await t.run((ctx) => ctx.db.query("savedRecognition").unique()))!;
+  const get = vi.mocked(r2.get).getMockImplementation()!;
+  await vi.mocked(r2.get).withImplementation(
+    async (id) => (id === row.archiveId ? new Blob(["damaged"]) : get(id)),
+    async () => {
+      await expect(user.as.action(api.savedRecognition.identify, { scope: user.scope, localId })).rejects.toThrow(
+        "vector_archive_invalid",
+      );
+    },
+  );
 });
 
 it("lets another device on the same account retry a saved scan without the capturing phone", async () => {

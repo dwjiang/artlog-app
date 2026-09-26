@@ -182,7 +182,7 @@ describe("rejectMatch", () => {
 
   it("refuses a rejection once the scan’s vector has expired", async () => {
     const { t, scanId, best, reject, object, feedbackRows } = await fixture();
-    await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId));
+    await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId!));
     await expect(reject(best.objectId)).rejects.toMatchObject({ data: { code: "scan_not_found" } });
     expect(await feedbackRows()).toEqual([]);
     expect(await object(best.objectId)).toMatchObject({ rejectCount: 0 });
@@ -396,7 +396,7 @@ describe("resolveRejection", () => {
         feedbackId,
         resolution: { kind: "runner_up", objectId: runnerUp.objectId },
       });
-      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
     };
     const views = () =>
       t.run((ctx) =>

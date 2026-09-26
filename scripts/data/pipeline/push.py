@@ -213,12 +213,17 @@ def verify_sample(corpus: Corpus, writer: ConvexWriter, fraction: float) -> dict
                 {"table": stage, "rows": [corpus.identity(stage, row) for row in expected]},
             )
             if stage == "vectors":
-                keys = [{"modelVersion": row["modelVersion"], "viewKey": row["viewKey"]} for row in expected]
+                keys = [
+                    {"modelVersion": row["modelVersion"], "viewKey": row["viewKey"]}
+                    for row in expected
+                ]
                 for attempt in range(6):
                     if writer.action("vectorSync:verifyCorpus", {"keys": keys}):
                         break
                     if attempt == 5:
-                        raise RuntimeError("Pinecone vector readback failed; resume after sync completes")
+                        raise RuntimeError(
+                            "Pinecone vector readback failed; resume after sync completes"
+                        )
                     time.sleep(2)
             if len(actual) != len(expected):
                 raise RuntimeError(f"{stage} readback did not return every sampled row")
@@ -299,7 +304,7 @@ def run(
             rows = corpus.batch(stage, progress["offset"], size)
             started = time.monotonic()
             try:
-                call = writer.action if stage == "descriptors" else writer.mutation
+                call = writer.action if stage in {"descriptors", "vectors"} else writer.mutation
                 response = call(f"ingest:{FUNCTIONS[stage]}", {"rows": rows})
             except Exception as error:
                 size_rejection = is_size_rejection(error)

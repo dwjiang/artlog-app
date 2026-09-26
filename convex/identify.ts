@@ -22,11 +22,12 @@ import type { SearchMatch } from "./lib/pinecone";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
-import { embedding } from "./lib/validators";
+import { embeddingArchive } from "./lib/validators";
 import { searchVectorIndex } from "./lib/vectorSearch";
+import { readVector } from "./lib/vectorStore";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { proposePlacementFromScan } from "./placements";
-import { readEmbedding } from "./scanEmbeddings";
+import { getEmbedding } from "./scanEmbeddings";
 import { scanDisplay, type ScanDisplay } from "./scans";
 import schema from "./schema";
 
@@ -60,14 +61,9 @@ export const loadCandidates = internalQuery({
     }
     const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
     for (let i = 0; i < recordIds.length; i++) {
-      const payloadId = recordIds[i].split(":", 1)[0];
-      const embeddingId =
-        ctx.db.normalizeId("embeddings", payloadId) ?? ctx.db.normalizeId("tentativeEmbeddings", payloadId);
-      if (!embeddingId || !Number.isFinite(scores[i])) continue;
-      const vector = await ctx.db
-        .query("vectors")
-        .withIndex("by_embeddingId", (q) => q.eq("embeddingId", embeddingId))
-        .unique();
+      const vectorId = ctx.db.normalizeId("vectors", recordIds[i].split(":", 1)[0]);
+      if (!vectorId || !Number.isFinite(scores[i])) continue;
+      const vector = await ctx.db.get("vectors", vectorId);
       if (!vector || searchRecordId(vector) !== recordIds[i] || !(await eligibleVector(ctx, vector))) continue;
       let object = await ctx.db.get("objects", vector.objectId);
       if (!object || object.reverted) continue;
@@ -112,14 +108,14 @@ export const loadCandidates = internalQuery({
 
 export const loadContext = internalQuery({
   args: { scanId: v.id("scans") },
-  returns: v.object({ visit: v.union(schema.doc("visits"), v.null()), vector: embedding }),
+  returns: v.object({ visit: v.union(schema.doc("visits"), v.null()), archive: embeddingArchive }),
   handler: async (ctx, { scanId }) => {
     const scan = await ctx.db.get("scans", scanId);
     if (!scan) throw new ConvexError({ code: "scan_not_found" });
-    const [visit, device, vector] = await Promise.all([
+    const [visit, device, archive] = await Promise.all([
       scan.visitId ? ctx.db.get("visits", scan.visitId) : null,
       ctx.db.get("devices", scan.deviceId),
-      readEmbedding(ctx, scan.embeddingId),
+      getEmbedding(ctx, scan.embeddingId),
     ]);
     if (!device || device.banned) {
       throw new ConvexError({ code: "device_banned" });
@@ -127,8 +123,11 @@ export const loadContext = internalQuery({
     if (scan.visitId && (!visit || !sameOwner(visit.owner, await ownerForDevice(ctx, device)))) {
       throw new ConvexError({ code: "not_found" });
     }
-    if (!vector) throw new ConvexError({ code: "scan_not_found" });
-    return { visit: visit?.venueId === scan.venueId ? visit : null, vector };
+    if (!archive) throw new ConvexError({ code: "scan_not_found" });
+    return {
+      visit: visit?.venueId === scan.venueId ? visit : null,
+      archive: { archiveId: archive.archiveId, contentHash: archive.contentHash },
+    };
   },
 });
 
@@ -243,9 +242,9 @@ export async function matchArtworkFromSearch(
 }
 
 async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): Promise<ScanDisplay> {
-  const { visit, vector } = await ctx.runQuery(internal.identify.loadContext, { scanId: scan._id });
+  const { visit, archive } = await ctx.runQuery(internal.identify.loadContext, { scanId: scan._id });
   const { decision, verifications, best } = await matchArtwork(ctx, {
-    vector,
+    vector: await readVector(ctx, archive),
     modelVersion: scan.modelVersion,
     venueId: scan.venueId,
     query,
@@ -322,7 +321,7 @@ export const identify = action({
         validateVector(args.vector);
         query = decodeQuery(args.descriptors, args.keypoints);
       }
-      const { scan, existing } = await ctx.runMutation(internal.scans.create, {
+      const { scan, existing } = await ctx.runAction(internal.scans.create, {
         scope: args.scope,
         deviceId: device._id,
         localId: args.localId,

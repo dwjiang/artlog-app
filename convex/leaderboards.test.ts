@@ -5,8 +5,13 @@ import { rankScores } from "../shared/social/leaderboard";
 import { api } from "./_generated/api";
 import { fileStorage } from "./lib/fileStorage";
 import { socialUser, befriend } from "./lib/socialTestFixtures";
-import { publishContribution } from "./lib/tentativeEntries";
-import { seedMuseum, seedContribution, seedDevice, seedArtworkWithObject } from "./lib/testFactories";
+import {
+  seedPublishedContribution,
+  seedMuseum,
+  seedContribution,
+  seedDevice,
+  seedArtworkWithObject,
+} from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 const artworkQuery = {
@@ -491,7 +496,7 @@ it("keeps shared index activity separate from artwork totals", async () => {
       venueId,
       cropStorageId,
     });
-    await publishContribution(ctx, (await ctx.db.get("contributions", id))!);
+    await seedPublishedContribution(ctx, (await ctx.db.get("contributions", id))!);
   });
   expect(
     (

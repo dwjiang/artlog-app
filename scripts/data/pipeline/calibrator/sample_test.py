@@ -58,7 +58,7 @@ def test_exports_follow_empty_pages_and_preserve_zero_descriptors():
     obj = make_index(1).objects["0"]
 
     class Writer:
-        def query(self, name, args):
+        def action(self, name, args):
             if name == "ingest:exportVectors":
                 assert args["modelVersion"] == "test"
                 if "cursor" not in args:
@@ -68,9 +68,6 @@ def test_exports_follow_empty_pages_and_preserve_zero_descriptors():
                     "isDone": True,
                     "continueCursor": "end",
                 }
-            raise AssertionError(name)
-
-        def action(self, name, args):
             assert name == "ingest:exportDescriptors"
             return {
                 "page": [

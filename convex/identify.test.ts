@@ -11,8 +11,15 @@ import { fileStorage } from "./lib/fileStorage";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
-import { insertVector } from "./lib/vectorStore";
+import {
+  readTestEmbedding,
+  seedArtworkWithObject,
+  seedDevice,
+  seedMuseum,
+  seedJournalVisit,
+  testVector,
+  seedVector,
+} from "./lib/testFactories";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness, signIn } from "./test.helpers";
 
@@ -132,7 +139,7 @@ describe("identify action", () => {
     });
     const scan = await t.run((ctx) => ctx.db.get("scans", result.scanId));
     expect(scan).not.toHaveProperty("vector");
-    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", scan!.embeddingId)))!.vector).toEqual(args.vector);
+    expect(await t.run((ctx) => readTestEmbedding(ctx, scan!.embeddingId!))).toEqual(args.vector);
     expect(scan?.candidateSignals).toHaveLength(1);
     const [signals] = scan!.candidateSignals!;
     expect(signals).toMatchObject({
@@ -183,7 +190,7 @@ describe("identify action", () => {
       modelVersion: model.modelVersion,
     });
     const saved = (await t.run((ctx) => ctx.db.get("scans", old.scanId)))!;
-    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", saved.embeddingId)))!.vector).toEqual(args.vector);
+    expect(await t.run((ctx) => readTestEmbedding(ctx, saved.embeddingId))).toEqual(args.vector);
     expect(await t.run((ctx) => ctx.db.query("scans").collect())).toHaveLength(1);
   });
 
@@ -194,7 +201,7 @@ describe("identify action", () => {
       ...obsoleteArgs,
       scope: (await user.as.query(api.accounts.me, {})).scope,
     });
-    await t.mutation(internal.scans.create, {
+    await t.action(internal.scans.create, {
       deviceId: user.deviceId,
       localId: args.localId,
       venueId,
@@ -658,7 +665,7 @@ describe("candidate loading", () => {
         object: { mergedInto: target.objectId },
       });
       const second = await seedArtworkWithObject(ctx);
-      const duplicate = await insertVector(ctx, {
+      const duplicate = await seedVector(ctx, {
         partition: JSON.stringify([model.modelVersion, "established"]),
         objectId: target.objectId,
         modelVersion: model.modelVersion,

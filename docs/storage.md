@@ -6,6 +6,20 @@ app's `storageId` fields hold opaque object keys, resolved through the `by_key`
 index. Existing Convex file IDs can remain as keys when their bytes move to R2;
 new files receive UUID keys. Neither requires a Convex storage record.
 
+Embedding archives are private binary objects containing 512 little-endian float64
+values. Vector metadata stores their SHA-256 and file key. Offline package builds,
+training exports, and Pinecone rebuilds validate the bytes before using them.
+Scan evidence and saved-artwork recognition use the same archive format; no database
+table retains embedding arrays. Unsupported scan models retain no embedding payload.
+Duplicate and grouping comparisons read R2 in actions, then commits recheck the
+scan generation, contribution revisions, and selected supporting evidence.
+
+Scan and rejection references expire after 180 days; contribution references last
+until removal. Saved-artwork recognition references follow the saved artwork through
+merges and deletion. These references can share an archive with a published vector.
+Removing the final reference schedules archive expiry after a 31-minute grace
+period, allowing in-flight readers to finish. Reattaching the archive cancels expiry.
+
 ## Configuration
 
 Create a separate private bucket for each deployment. Keep public bucket access

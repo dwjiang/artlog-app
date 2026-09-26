@@ -12,10 +12,13 @@ import {
 } from "./_generated/server";
 import { bumpCounter } from "./ingest";
 import { cosine } from "./lib/cosine";
+import { reportBackendError } from "./lib/observability";
 import { recognitionPartition } from "./lib/recognitionEligibility";
-import { deleteVector, insertVector, readVector } from "./lib/vectorStore";
+import { deleteVector, insertArchivedVector, readVector } from "./lib/vectorStore";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { isVenueOptedOut } from "./lib/venueOptOut";
-import { readEmbedding } from "./scanEmbeddings";
+import { getEmbedding } from "./scanEmbeddings";
+import schema from "./schema";
 
 const PAGE_ITEMS = 64;
 const PAGE_BYTES = 4 * 1024 * 1024;
@@ -64,15 +67,18 @@ export const listMultiViewAgreement = internalQuery({
   handler: readAgreementPage,
 });
 
-type ViewStep = { kind: "done" } | { kind: "page"; cursor: string } | { kind: "stale" };
+type ViewStep = { kind: "done" } | { kind: "page"; cursor: string | null } | { kind: "stale" };
+const checkedVector = v.object({ recordId: v.string(), similarity: v.number() });
 
-// Each transaction checks one feedback row against one page of existing views. New views append
-// to this index, so the final page's range read also serializes concurrent duplicate insertions.
+// Re-read the exact page in the commit transaction so a concurrent insertion or replacement
+// cannot turn an external duplicate check into two accepted copies.
 async function applyMultiView(
   ctx: MutationCtx,
   row: Doc<"feedback">,
   agreementIds: Id<"feedback">[],
   cursor: string | null,
+  checked: Infer<typeof checkedVector>[],
+  archiveId: string | null,
 ): Promise<ViewStep> {
   const done = { kind: "done" } as const;
   const stale = { kind: "stale" } as const;
@@ -105,12 +111,12 @@ async function applyMultiView(
     await ctx.db.patch("feedback", row._id, { multiViewAt: now });
     return done;
   }
-  const embedding = await readEmbedding(ctx, row.embeddingId);
+  const embedding = await getEmbedding(ctx, row.embeddingId);
   if (!embedding) {
     await ctx.db.patch("feedback", row._id, { multiViewAt: now });
     return done;
   }
-  if (agreementIds.length !== 2) return stale;
+  if (archiveId !== embedding.archiveId || agreementIds.length !== 2) return stale;
   const devices = new Set<Id<"devices">>();
   for (const id of agreementIds) {
     const partner = await ctx.db.get("feedback", id);
@@ -134,9 +140,15 @@ async function applyMultiView(
       q.eq("objectId", object._id).eq("modelVersion", row.modelVersion).eq("source", "user_scan"),
     )
     .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES });
+  if (
+    page.page.length !== checked.length
+    || page.page.some((row, index) => searchRecordId(row) !== checked[index].recordId)
+  ) {
+    return { kind: "page", cursor };
+  }
   let duplicate: Doc<"vectors"> | undefined;
-  for (const vector of page.page) {
-    if (cosine(await readVector(ctx, vector), embedding) >= MULTI_VIEW_DUPLICATE_COSINE) {
+  for (const [index, vector] of page.page.entries()) {
+    if (checked[index].similarity >= MULTI_VIEW_DUPLICATE_COSINE) {
       duplicate = vector;
       break;
     }
@@ -146,11 +158,12 @@ async function applyMultiView(
   }
   const multiViewVectorId = duplicate
     ? undefined
-    : await insertVector(ctx, {
+    : await insertArchivedVector(ctx, {
         objectId: object._id,
         modelVersion: row.modelVersion,
         source: "user_scan",
-        vector: embedding,
+        archiveId: embedding.archiveId,
+        contentHash: embedding.contentHash,
         partition: recognitionPartition(row.modelVersion),
         scanId: row.scanId,
         feedbackId: row._id,
@@ -162,12 +175,14 @@ async function applyMultiView(
     multiViewDuplicateVectorId: duplicate?._id,
     multiViewAgreement: { firstDeviceId, secondDeviceId },
   });
-  if (multiViewVectorId) await bumpCounter(ctx, "vectors", 1);
+  if (multiViewVectorId) {
+    await bumpCounter(ctx, "vectors", 1);
+    await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
+  }
   return done;
 }
 
-// Call wherever a runner-up resolution starts waiting. Scheduled mutations, unlike actions, run
-// exactly once and retry transient failures, so a waiting view is never silently skipped.
+// Queue every new runner-up resolution; failed external reads retry without marking the view complete.
 export async function queueMultiView(
   ctx: MutationCtx,
   rows: Pick<Doc<"feedback">, "resolution" | "venueId">[],
@@ -228,31 +243,24 @@ export const findGroupAgreement = internalMutation({
   },
 });
 
-export const promoteNextView = internalMutation({
+export const commitNextView = internalMutation({
   args: {
     objectId: v.id("objects"),
     venueId: v.id("museums"),
     agreementIds: v.array(v.id("feedback")),
-    // Set while one view's duplicate check continues onto another vector page.
-    feedbackId: v.optional(v.id("feedback")),
+    feedbackId: v.id("feedback"),
     cursor: cursorArg,
+    checked: v.array(checkedVector),
+    archiveId: v.union(v.string(), v.null()),
+    retryId: v.id("_scheduled_functions"),
   },
   returns: v.null(),
-  handler: async (ctx, { objectId, venueId, agreementIds, feedbackId, cursor }) => {
-    const row = feedbackId
-      ? await ctx.db.get("feedback", feedbackId)
-      : await ctx.db
-          .query("feedback")
-          .withIndex("by_resolution_object_venue_multiView", (q) =>
-            q
-              .eq("resolution.kind", "runner_up")
-              .eq("resolution.objectId", objectId)
-              .eq("venueId", venueId)
-              .eq("multiViewAt", undefined),
-          )
-          .first();
-    if (!row) return null;
-    const step = await applyMultiView(ctx, row, agreementIds, cursor);
+  handler: async (ctx, { objectId, venueId, agreementIds, feedbackId, cursor, checked, archiveId, retryId }) => {
+    await ctx.scheduler.cancel(retryId);
+    const row = await ctx.db.get("feedback", feedbackId);
+    const step = row
+      ? await applyMultiView(ctx, row, agreementIds, cursor, checked, archiveId)
+      : ({ kind: "done" } as const);
     if (step.kind === "stale") {
       // A witness was banned or aged out after agreement was found.
       await ctx.scheduler.runAfter(0, internal.promotion.findGroupAgreement, {
@@ -266,8 +274,93 @@ export const promoteNextView = internalMutation({
         objectId,
         venueId,
         agreementIds,
-        ...(step.kind === "page" ? { feedbackId: row._id, cursor: step.cursor } : { cursor: null }),
+        ...(step.kind === "page" ? { feedbackId, cursor: step.cursor } : { cursor: null }),
       });
+    }
+    return null;
+  },
+});
+
+const nextViewArgs = {
+  objectId: v.id("objects"),
+  venueId: v.id("museums"),
+  feedbackId: v.optional(v.id("feedback")),
+  cursor: cursorArg,
+};
+
+export const promoteNextView = internalMutation({
+  args: { ...nextViewArgs, agreementIds: v.array(v.id("feedback")) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { objectId, venueId, feedbackId, cursor } = args;
+    const row = feedbackId
+      ? await ctx.db.get("feedback", feedbackId)
+      : await ctx.db
+          .query("feedback")
+          .withIndex("by_resolution_object_venue_multiView", (q) =>
+            q
+              .eq("resolution.kind", "runner_up")
+              .eq("resolution.objectId", objectId)
+              .eq("venueId", venueId)
+              .eq("multiViewAt", undefined),
+          )
+          .first();
+    if (!row && !feedbackId) return null;
+    const page = row
+      ? await ctx.db
+          .query("vectors")
+          .withIndex("by_objectId_modelVersion_source", (q) =>
+            q.eq("objectId", objectId).eq("modelVersion", row.modelVersion).eq("source", "user_scan"),
+          )
+          .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES })
+      : null;
+    const selected = { ...args, feedbackId: row?._id ?? feedbackId! };
+    // The retry is durable before any external IO and outlives an action's maximum lifetime.
+    const retryId = await ctx.scheduler.runAfter(31 * 60_000, internal.promotion.promoteNextView, selected);
+    await ctx.scheduler.runAfter(0, internal.promotion.checkNextView, {
+      ...selected,
+      vectors: page?.page ?? [],
+      retryId,
+    });
+    return null;
+  },
+});
+
+export const viewEmbedding = internalQuery({
+  args: { feedbackId: v.id("feedback") },
+  returns: v.union(schema.doc("scanEmbeddings"), v.null()),
+  handler: async (ctx, { feedbackId }) => {
+    const row = await ctx.db.get("feedback", feedbackId);
+    return row && row.multiViewAt === undefined ? getEmbedding(ctx, row.embeddingId) : null;
+  },
+});
+
+export const checkNextView = internalAction({
+  args: {
+    ...nextViewArgs,
+    feedbackId: v.id("feedback"),
+    agreementIds: v.array(v.id("feedback")),
+    vectors: v.array(schema.doc("vectors")),
+    retryId: v.id("_scheduled_functions"),
+  },
+  returns: v.null(),
+  handler: async (ctx, { vectors, ...args }): Promise<null> => {
+    try {
+      const archive = await ctx.runQuery(internal.promotion.viewEmbedding, { feedbackId: args.feedbackId });
+      const checked: Infer<typeof checkedVector>[] = [];
+      if (archive) {
+        const candidate = await readVector(ctx, archive);
+        for (const row of vectors) {
+          checked.push({ recordId: searchRecordId(row), similarity: cosine(await readVector(ctx, row), candidate) });
+        }
+      }
+      await ctx.runMutation(internal.promotion.commitNextView, {
+        ...args,
+        checked,
+        archiveId: archive?.archiveId ?? null,
+      });
+    } catch (error) {
+      await reportBackendError(error, "promotion.checkNextView");
     }
     return null;
   },

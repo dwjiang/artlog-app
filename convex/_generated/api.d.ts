@@ -136,6 +136,7 @@ import type * as sharedMedia from "../sharedMedia.js";
 import type * as sharedVisits from "../sharedVisits.js";
 import type * as spend from "../spend.js";
 import type * as sync from "../sync.js";
+import type * as vectorArchives from "../vectorArchives.js";
 import type * as vectorSync from "../vectorSync.js";
 import type * as venueChanges from "../venueChanges.js";
 import type * as visitReactions from "../visitReactions.js";
@@ -277,6 +278,7 @@ declare const fullApi: ApiFromModules<{
   sharedVisits: typeof sharedVisits;
   spend: typeof spend;
   sync: typeof sync;
+  vectorArchives: typeof vectorArchives;
   vectorSync: typeof vectorSync;
   venueChanges: typeof venueChanges;
   visitReactions: typeof visitReactions;

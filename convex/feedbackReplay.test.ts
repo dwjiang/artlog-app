@@ -3,7 +3,14 @@ import { afterEach, expect, it, vi } from "vitest";
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import { feedbackChanged } from "./feedbackReplay";
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
+import {
+  seedEmbedding,
+  seedArtworkWithObject,
+  seedDevice,
+  seedMuseum,
+  seedScan,
+  testVector,
+} from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 afterEach(() => vi.useRealTimers());
@@ -27,7 +34,7 @@ it("replays surviving events chronologically across pages, resets feedback flags
         scanId: scans[who],
         deviceId,
         rejectedObjectId: work.objectId,
-        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
+        embeddingId: await seedEmbedding(ctx, { vector: testVector() }),
         modelVersion: model.modelVersion,
         venueId,
         score: 1,

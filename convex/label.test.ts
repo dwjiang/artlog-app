@@ -16,7 +16,7 @@ import {
   wikidataSearchMonet,
   wikidataSearchWaterLilies,
 } from "./lib/labelFixtures";
-import { seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import type { WikidataEntity } from "./lib/wikidata";
 import { harness, signIn, type Harness } from "./test.helpers";
 
@@ -105,7 +105,7 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
       generation: 0,
       venueId,
       modelVersion: model.modelVersion,
-      embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
+      embeddingId: await seedEmbedding(ctx, { vector: testVector() }),
       capturedAt: now,
       status: "identified",
       outcome: "miss",
@@ -169,7 +169,7 @@ describe("scan restarts during label requests", () => {
                 fields: { title: "Water Lilies", artist: "Claude Monet" },
               });
       await started;
-      const restarted = await t.mutation(internal.scans.create, {
+      const restarted = await t.action(internal.scans.create, {
         deviceId: user.deviceId,
         localId: original.localId,
         modelVersion: model.modelVersion,

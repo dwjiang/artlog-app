@@ -15,13 +15,13 @@ The host is the index's data-plane hostname, not `api.pinecone.io`.
 1. Confirm `.env.local` selects the intended deployment, then push the backend.
 2. For a fresh corpus, use the normal `pipeline.push` command. It waits for the sync
    queue and checks sampled Pinecone values and partitions before completing.
-3. For vectors already stored in Convex, run from `scripts/data`:
+3. For vectors already archived in R2, run from `scripts/data`:
 
    ```sh
    uv run python -m pipeline.vector_sync --rebuild
    ```
 
-Rebuild pages retained vectors and queues idempotent upserts. It does not remove
+Rebuild pages Convex vector metadata and queues idempotent upserts from R2 archives. It does not remove
 unrelated records from a reused index: create a fresh index when replacing a corpus.
 Restarting rebuild is safe but repeats writes, so do not schedule full rebuilds.
 A changed index host requires a new import checkpoint and a rebuild of existing vectors.
@@ -35,8 +35,9 @@ npx convex run vectorSync:retryFailed
 cd scripts/data && uv run python -m pipeline.vector_sync
 ```
 
-Each vector mutation atomically writes an outbox job. Workers process up to 100
-records at a time. A one-minute cron recovers stranded jobs. Failed/abandoned writes
+Each vector mutation atomically writes an outbox job. Imports, rebuilds, and new
+contributions wake workers once per batch; workers process up to 100 records at a
+time. A one-minute cron drains deletions and recovers stranded jobs. Failed/abandoned writes
 wait 31 minutes before retry, longer than a Convex action can remain alive; after
 eight failed attempts, jobs remain in `failed` state for operator repair. Errors
 use the shared Sentry helper without sending vectors, credentials, or provider bodies.
@@ -48,9 +49,22 @@ otherwise ineligible vectors are rejected against current Convex records even if
 Pinecone still returns them. Immutable remote IDs prevent delayed upserts from
 overwriting a newer vector or partition.
 
-Convex retains embedding payloads for offline museum packages, training exports,
-and rebuilding Pinecone. Only Convex vector indexes are removed; regular database
-storage and file/egress charges still apply. Production corpus upload remains
+Pinecone holds searchable embeddings. Private R2 archives hold the exact float64
+payloads for offline museum packages, training exports, and rebuilding the index.
+Convex keeps vector identities, hashes, archive references, and sync state.
+Corpus imports and scan captures upload to R2 before committing their metadata.
+Contributions, feedback promotions, and placement approvals reuse the scan's archive
+when publishing a searchable vector and a reference-only sync job. Failed or
+superseded commits expire unreferenced uploads after a 31-minute reader grace period.
+Workers read archives to sync Pinecone; the outbox never contains embedding bytes.
+Private scan, rejection, contribution, and saved-artwork recognition payloads also
+live in R2, with ownership and lifecycle references in Convex. They enter Pinecone
+only when explicitly published for shared recognition.
+
+This schema replaces the old `embeddings` and `tentativeEmbeddings` tables and
+changes remote IDs to vector-row IDs plus content hash and partition. Reset and
+reseed the pre-release vector data, remove its old Pinecone records, and start a
+new import checkpoint; no compatibility path is provided. The full production corpus upload remains
 subject to [the production upload checklist](todos/production-upload/README.md).
 
 ## Benchmark

@@ -4,7 +4,7 @@ import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
 import { readArtworkContent } from "./lib/artworkContent";
 import { completion } from "./lib/labelFixtures";
-import { seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
+import { seedEmbedding, seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 afterEach(() => {
@@ -213,7 +213,7 @@ it.each([false, true])(
         localId: "race",
         generation: 0,
         modelVersion: model.modelVersion,
-        embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
+        embeddingId: await seedEmbedding(ctx, { vector: testVector() }),
         capturedAt: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now(),

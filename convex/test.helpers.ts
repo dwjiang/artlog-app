@@ -51,5 +51,5 @@ export async function signIn(t: Harness): Promise<SignedIn> {
 // Runs the promotion pass a runner-up resolution queues for its work and venue. Needs fake timers.
 export async function promoteGroup(t: Harness, objectId: Id<"objects">, venueId: Id<"museums">): Promise<void> {
   await t.mutation(internal.promotion.findGroupAgreement, { objectId, venueId, cursor: null, witnesses: [] });
-  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
 }

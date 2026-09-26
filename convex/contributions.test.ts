@@ -15,15 +15,18 @@ import { readObjectDetails } from "./lib/objectDetails";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
 import { r2 } from "./lib/r2";
 import {
+  readTestEmbedding,
   seedArtworkWithObject,
   seedContribution,
   seedDevice,
   seedMuseum,
+  seedPublishedContribution,
   seedScan,
   testVector,
 } from "./lib/testFactories";
 import type { LabelFlow } from "./lib/validators";
 import * as vectorSearch from "./lib/vectorSearch";
+import { packVector, VECTOR_CONTENT_TYPE } from "./lib/vectorStore";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness, signIn, type Harness } from "./test.helpers";
 
@@ -118,6 +121,45 @@ async function fixture(flow: LabelFlow | null = verifiedFlow(), withVenue = true
 }
 
 describe("contribute", () => {
+  it("reuses the scan archive for contribution evidence and shared search without another embedding upload", async () => {
+    const { t, contribute, scanId } = await fixture();
+    const evidence = await t.run(async (ctx) =>
+      ctx.db.get("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId!),
+    );
+    const put = vi.mocked(r2.put).getMockImplementation()!;
+    await vi.mocked(r2.put).withImplementation(
+      async (key, blob) => {
+        if (blob.type === "application/vnd.artlog.embedding") throw new Error("Unexpected embedding upload");
+        return put(key, blob);
+      },
+      async () => {
+        await contribute();
+      },
+    );
+    const vector = await t.run((ctx) => ctx.db.query("vectors").unique());
+    const row = await t.run((ctx) => ctx.db.query("contributions").unique());
+    expect(vector?.archiveId).toBe(evidence!.archiveId);
+    expect(await t.run((ctx) => ctx.db.get("scanEmbeddings", row!.embeddingId))).toMatchObject({
+      archiveId: evidence!.archiveId,
+    });
+    expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").unique())).not.toHaveProperty("pendingVector");
+  });
+
+  it("leaves no contribution or searchable vector when its R2 evidence cannot be read", async () => {
+    const { t, contribute } = await fixture();
+    await vi.mocked(r2.get).withImplementation(
+      async () => {
+        throw new Error("R2 unavailable");
+      },
+      async () => {
+        await expect(contribute()).rejects.toThrow("R2 unavailable");
+      },
+    );
+    expect(await t.run((ctx) => ctx.db.query("contributions").first())).toBeNull();
+    expect(await t.run((ctx) => ctx.db.query("vectors").first())).toBeNull();
+    expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").first())).toBeNull();
+  });
+
   it.each(["challenge_invalid", "device_not_attested", "rate_limited", "label_unverified"] as const)(
     "does no duplicate search when authorization fails with %s",
     async (code) => {
@@ -203,7 +245,7 @@ describe("contribute", () => {
       },
     });
     expect(row).not.toHaveProperty("vector");
-    expect((await t.run((ctx) => ctx.db.get("scanEmbeddings", row.embeddingId)))!.vector).toEqual(testVector());
+    expect(await t.run((ctx) => readTestEmbedding(ctx, row.embeddingId))).toEqual(testVector());
     expect(row).not.toHaveProperty("descriptors");
     expect(row).not.toHaveProperty("keypoints");
     expect(await t.run((ctx) => loadOrb(ctx, row.orbStorageId!, row.keypointCount))).toEqual(features);
@@ -298,7 +340,7 @@ describe("contribute", () => {
 
   it("rejects a vector that near-duplicates an indexed work and discards its crop", async () => {
     const { t, cropStorageId, contribute, rows } = await fixture();
-    await t.run((ctx) => seedArtworkWithObject(ctx, { vector: testVector() }));
+    const original = await t.run((ctx) => seedArtworkWithObject(ctx, { vector: testVector() }));
     const result = await contribute();
     expect(result).toMatchObject({ status: "rejected", reason: "duplicate" });
     const [row] = await rows();
@@ -310,14 +352,21 @@ describe("contribute", () => {
     expect(row.cropStorageId).toBeUndefined();
     expect(row.orbStorageId).toBeUndefined();
     expect(await t.run((ctx) => fileStorage.getMetadata(ctx, cropStorageId))).toBeNull();
+    const archives = await t.run((ctx) =>
+      ctx.db
+        .query("files")
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
+    );
+    const evidence = await t.run((ctx) => ctx.db.get("scanEmbeddings", row.embeddingId));
+    expect(archives.map((file) => file.key).sort()).toEqual(
+      [evidence!.archiveId, (await t.run((ctx) => ctx.db.get("vectors", original.vectorId)))!.archiveId].sort(),
+    );
     expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query("files")
-          .collect()
-          .then((files) => files.filter((file) => file.state === "ready")),
+      archives.every(
+        (file) => file.contentType === VECTOR_CONTENT_TYPE && !file.publicDownload && file.expiresAt === undefined,
       ),
-    ).toEqual([]);
+    ).toBe(true);
   });
 
   it("ignores indexed vectors below the duplicate threshold or from another model version", async () => {
@@ -475,7 +524,7 @@ describe("contribute", () => {
           .collect()
           .then((files) => files.filter((file) => file.state === "ready")),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(4);
   });
 
   it("refuses a stale duplicate check and retries the commit without another authorization", async () => {
@@ -500,6 +549,10 @@ describe("contribute", () => {
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
     const rest = {
       ...submission,
+      archiveId: await t.run(
+        async (ctx) =>
+          (await ctx.db.get("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId!))!.archiveId,
+      ),
       orbStorageId: orb.storageId,
       orbSha256: orb.sha256,
     };
@@ -644,6 +697,7 @@ describe("contribute", () => {
     const orb = await t.run((ctx) => storeOrb(ctx, descriptors, keypoints));
     const rest = {
       ...submission,
+      archiveId: await t.run((ctx) => fileStorage.store(ctx, packVector(testVector()))),
       orbStorageId: orb.storageId,
       orbSha256: orb.sha256,
     };
@@ -755,6 +809,64 @@ async function shareAs(
 }
 
 describe("immediate tentative recognition", () => {
+  it("finds early and late matches among 64 same-label works within transaction limits", async () => {
+    const t = harness({ transactionLimits: true });
+    const contributor = await seedDevice(t);
+    const venueId = await t.run((ctx) => seedMuseum(ctx));
+    const objectIds = [];
+    for (let index = 0; index < 64; index++) {
+      const cropStorageId = await storeCrop(t, { ownerId: contributor.deviceId });
+      objectIds.push(
+        await t.run(async (ctx) => {
+          const vector = Array<number>(model.embeddingDim).fill(0);
+          vector[index] = 1;
+          const id = await seedContribution(ctx, {
+            deviceId: contributor.deviceId,
+            venueId,
+            vector,
+            cropStorageId,
+          });
+          return seedPublishedContribution(ctx, (await ctx.db.get("contributions", id))!);
+        }),
+      );
+    }
+    vi.mocked(vectorSearch.searchVectorIndex).mockResolvedValue([]);
+    for (const index of [0, 63]) {
+      const vector = Array<number>(model.embeddingDim).fill(0);
+      vector[index] = 0.92;
+      vector[128] = Math.sqrt(1 - 0.92 ** 2);
+      const shared = await shareAs(t, venueId, { vector });
+      expect(shared.status).toBe("tentative");
+      expect(shared.row.indexedObjectId).toBe(objectIds[index]);
+    }
+    expect(await t.run((ctx) => ctx.db.query("objects").collect())).toHaveLength(64);
+  });
+
+  it("rechecks a grouping anchor that was banned during an R2 comparison", async () => {
+    const { t, venueId, contribute, user } = await fixture();
+    const first = await contribute();
+    const row = (await t.run((ctx) => ctx.db.get("contributions", first.contributionId)))!;
+    const archive = (await t.run((ctx) => ctx.db.get("scanEmbeddings", row.embeddingId)))!;
+    const get = vi.mocked(r2.get).getMockImplementation()!;
+    let banned = false;
+    vi.mocked(vectorSearch.searchVectorIndex).mockResolvedValue([]);
+    await vi.mocked(r2.get).withImplementation(
+      async (id) => {
+        if (id === archive.archiveId && !banned) {
+          banned = true;
+          await t.run((ctx) => ctx.db.patch("devices", user.deviceId, { banned: true }));
+        }
+        return get(id);
+      },
+      async () => {
+        const second = await shareAs(t, venueId, { vector: testVector(0.92) });
+        expect(second.status).toBe("tentative");
+        expect(second.row.indexedObjectId).not.toBe(row.indexedObjectId);
+      },
+    );
+    expect(banned).toBe(true);
+  });
+
   it.each(["ocr", "qr", "tavily+image"] as const)(
     "publishes %s evidence immediately without certifying it or changing trust",
     async (evidence) => {
@@ -786,7 +898,7 @@ describe("immediate tentative recognition", () => {
           localId: crypto.randomUUID(),
           venueId: museum,
           capturedAt: Date.now(),
-          vector: (await t.run((ctx) => ctx.db.get("scanEmbeddings", shared.row.embeddingId)))!.vector,
+          vector: await t.run((ctx) => readTestEmbedding(ctx, shared.row.embeddingId)),
           ...features,
           modelVersion: model.modelVersion,
         });
@@ -805,7 +917,7 @@ describe("immediate tentative recognition", () => {
       expect(await t.query(internal.docent.load, { artworkId: object.artworkId })).toBeNull();
       expect(
         (
-          await t.query(internal.ingest.exportVectors, {
+          await t.action(internal.ingest.exportVectors, {
             modelVersion: model.modelVersion,
           })
         ).page,
@@ -845,7 +957,7 @@ describe("immediate tentative recognition", () => {
     });
     // Another device replaying the second backer’s photo is the same view, not a third one.
     const replay = await shareAs(t, venueId, {
-      vector: (await t.run((ctx) => ctx.db.get("scanEmbeddings", second.row.embeddingId)))!.vector,
+      vector: await t.run((ctx) => readTestEmbedding(ctx, second.row.embeddingId)),
     });
     expect(replay).toMatchObject({ status: "rejected", reason: "duplicate" });
     expect(await t.run((ctx) => fileStorage.get(ctx, replay.cropStorageId))).toBeNull();
@@ -1203,7 +1315,7 @@ describe("precise contribution removal", () => {
 
 it("finishes a multi-page ban, tolerates a restarted worker, and keeps another device’s entries", async () => {
   vi.useFakeTimers();
-  const { publishContribution } = await import("./lib/tentativeEntries");
+  const { seedPublishedContribution: publishContribution } = await import("./lib/testFactories");
   const t = harness({ transactionLimits: true });
   const alice = await seedDevice(t);
   const bob = await seedDevice(t);
@@ -1287,7 +1399,7 @@ it("groups a second view with a published contribution, rejects its replay, and 
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const remaining = await t.run((ctx) => ctx.db.query("vectors").collect());
   expect(remaining).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.db.query("tentativeEmbeddings").collect())).toHaveLength(1);
+  expect(remaining[0].contributionId).toBe(first.contributionId);
 });
 
 describe("R2 contribution uploads", () => {

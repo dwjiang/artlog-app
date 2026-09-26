@@ -6,7 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import { jsonResponse } from "./lib/labelFixtures";
 import { regionDomains } from "./lib/regions";
 import { FIXTURE_NOW, rawTavily, rightNowFixtures, type RightNowFixture } from "./lib/rightNowFixtures";
-import { seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 const TAVILY = "https://api.tavily.com/search";
@@ -70,7 +70,7 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
       generation: 0,
       venueId,
       modelVersion: model.modelVersion,
-      embeddingId: await ctx.db.insert("scanEmbeddings", { vector: testVector() }),
+      embeddingId: await seedEmbedding(ctx, { vector: testVector() }),
       capturedAt: now,
       status: "identified",
       outcome: "confident",

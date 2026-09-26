@@ -29,7 +29,7 @@ import {
   identityStatus,
   devicePlatform,
   docentSentence,
-  embedding,
+  embeddingArchive,
   evidenceKind,
   factSheetEntry,
   feedbackResolution,
@@ -221,8 +221,6 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_status_readyForReview", ["status", "readyForReview"]),
 
-  embeddings: defineTable({ vector: embedding, partition: v.string() }),
-  tentativeEmbeddings: defineTable({ vector: embedding, partition: v.string() }),
   vectorSyncJobs: defineTable({
     vectorId: v.id("vectors"),
     recordId: v.string(),
@@ -235,16 +233,16 @@ export default defineSchema({
   })
     .index("by_recordId", ["recordId"])
     .index("by_state_availableAt", ["state", "availableAt"]),
-  // Scan and rejection vectors expire; a contribution's copy lives as long as the contribution.
-  scanEmbeddings: defineTable({ vector: embedding, expiresAt: v.optional(v.number()) }).index("by_expiresAt", [
-    "expiresAt",
-  ]),
+  // Independent evidence lifetimes can share the same immutable R2 archive.
+  scanEmbeddings: defineTable({ ...embeddingArchive.fields, expiresAt: v.optional(v.number()) })
+    .index("by_archiveId", ["archiveId"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   savedRecognition: defineTable({
     saveId: v.id("collections"),
     sourceLocalId: v.string(),
     modelVersion: v.string(),
-    vector: embedding,
+    ...embeddingArchive.fields,
     orbStorageId: v.string(),
     keypointCount: v.number(),
     attempt: v.number(),
@@ -252,10 +250,11 @@ export default defineSchema({
     candidateIds: v.array(v.id("objects")),
   })
     .index("by_saveId", ["saveId"])
+    .index("by_archiveId", ["archiveId"])
     .index("by_orbStorageId", ["orbStorageId"]),
 
   vectors: defineTable({
-    embeddingId: v.union(v.id("embeddings"), v.id("tentativeEmbeddings")),
+    archiveId: v.string(),
     contentHash: v.string(),
     partition: v.string(),
     contributionId: v.optional(v.id("contributions")),
@@ -267,7 +266,7 @@ export default defineSchema({
     source: vectorSource,
     viewKey: v.optional(v.string()),
   })
-    .index("by_embeddingId", ["embeddingId"])
+    .index("by_archiveId", ["archiveId"])
     .index("by_objectId_modelVersion_source", ["objectId", "modelVersion", "source"])
     .index("by_modelVersion_source_viewKey", ["modelVersion", "source", "viewKey"])
     .index("by_contributionId", ["contributionId"])
@@ -524,7 +523,7 @@ export default defineSchema({
     visitId: v.optional(v.id("visits")),
     gallery: v.optional(v.string()),
     modelVersion: v.string(),
-    embeddingId: v.id("scanEmbeddings"),
+    embeddingId: v.optional(v.id("scanEmbeddings")),
     capturedAt: v.number(),
     status: scanStatus,
     calibratorVersion: v.optional(v.string()),

@@ -175,8 +175,8 @@ Convex environment variables, set with `npx convex env set NAME value`
 | `CRAWLER_CONTACT`, `MODERATION_BLOCKLIST`                              | Contact address in the page fetcher's User-Agent; optional additions to the moderation blocklist                                                                                                                                                  |
 
 Pinecone stores search vectors in one `recognition` namespace, filtered by model and venue.
-Convex keeps artwork metadata and embedding payloads for offline packages and rebuilding;
-it no longer maintains vector search indexes. A transactional queue synchronizes inserts,
+R2 archives embedding payloads for offline packages, training exports, and rebuilding.
+Convex keeps artwork metadata, vector identities, and archive references. A transactional queue synchronizes inserts,
 updates, promotions, and deletes. Match hydration rejects stale versions and rechecks eligibility.
 See [Pinecone operations](docs/pinecone.md) for rebuilding and checking sync.
 

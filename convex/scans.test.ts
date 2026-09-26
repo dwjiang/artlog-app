@@ -26,7 +26,7 @@ async function fixture() {
     capturedAt: Date.now(),
     venueId,
   };
-  const created = await t.mutation(internal.scans.create, args);
+  const created = await t.action(internal.scans.create, args);
   const best = {
     identityStatus: "established" as const,
     objectId: work.objectId,
@@ -39,7 +39,7 @@ async function fixture() {
 
 it("creates one pending scan per device and local capture id", async () => {
   const { t, args, scanId } = await fixture();
-  expect(await t.mutation(internal.scans.create, args)).toMatchObject({
+  expect(await t.action(internal.scans.create, args)).toMatchObject({
     scan: { _id: scanId },
     existing: true,
   });
@@ -49,7 +49,7 @@ it("creates one pending scan per device and local capture id", async () => {
   const other = await seedDevice(t);
   expect(
     (
-      await t.mutation(internal.scans.create, {
+      await t.action(internal.scans.create, {
         ...args,
         deviceId: other.deviceId,
       })
@@ -224,7 +224,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     best,
     calibratorVersion: "lr-v1",
   };
-  const soft = await t.mutation(internal.scans.create, {
+  const soft = await t.action(internal.scans.create, {
     ...args,
     localId: "soft",
     visitId,
@@ -239,7 +239,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     lastConfidentGallery: "1",
     lastConfidentAt: 100,
   });
-  const confident = await t.mutation(internal.scans.create, {
+  const confident = await t.action(internal.scans.create, {
     ...args,
     localId: "confident",
     visitId,
@@ -255,7 +255,7 @@ it("updates gallery history only for a confident result and never rolls it backw
     lastConfidentAt: 200,
   });
   await t.run((ctx) => ctx.db.patch("visits", visitId, { lastConfidentGallery: "9", lastConfidentAt: 300 }));
-  const older = await t.mutation(internal.scans.create, {
+  const older = await t.action(internal.scans.create, {
     ...args,
     localId: "older",
     visitId,
@@ -276,7 +276,7 @@ it("refuses another device’s visit and uses the current museum of an owned vis
   const { t, user, venueId, args } = await fixture();
   const other = await seedDevice(t);
   const visitId = await t.run((ctx) => seedJournalVisit(ctx, other.deviceId, venueId));
-  await expect(t.mutation(internal.scans.create, { ...args, localId: "foreign", visitId })).rejects.toMatchObject({
+  await expect(t.action(internal.scans.create, { ...args, localId: "foreign", visitId })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
   const otherVenue = await t.run((ctx) => seedMuseum(ctx));
@@ -287,7 +287,7 @@ it("refuses another device’s visit and uses the current museum of an owned vis
     }),
   );
   await expect(
-    t.mutation(internal.scans.create, {
+    t.action(internal.scans.create, {
       ...args,
       localId: "wrong-venue",
       visitId,
@@ -301,7 +301,7 @@ it.each(["failed", "expired"])(
     const { t, user, args, venueId } = await fixture();
     const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
     const input = { ...args, localId: "linked-capture", visitId };
-    const first = await t.mutation(internal.scans.create, input);
+    const first = await t.action(internal.scans.create, input);
     const otherVenue = await t.run(seedMuseum);
     await t.run((ctx) =>
       ctx.db.patch("visits", visitId, { venueId: otherVenue, lastConfidentGallery: "99", lastConfidentAt: Date.now() }),
@@ -309,14 +309,14 @@ it.each(["failed", "expired"])(
     await t.run((ctx) =>
       reason === "failed"
         ? ctx.db.patch("scans", first.scan._id, { status: "failed" })
-        : ctx.db.delete("scanEmbeddings", first.scan.embeddingId),
+        : ctx.db.delete("scanEmbeddings", first.scan.embeddingId!),
     );
-    const retry = await t.mutation(internal.scans.create, { ...input, venueId: otherVenue });
+    const retry = await t.action(internal.scans.create, { ...input, venueId: otherVenue });
     expect(retry.scan).toMatchObject({ _id: first.scan._id, venueId, visitId, generation: 1, status: "pending" });
     expect(await t.query(internal.identify.loadContext, { scanId: retry.scan._id })).toMatchObject({ visit: null });
-    const next = await t.mutation(internal.scans.create, { ...input, localId: "not-uploaded-yet" });
+    const next = await t.action(internal.scans.create, { ...input, localId: "not-uploaded-yet" });
     expect(next.scan).toMatchObject({ venueId: otherVenue, visitId });
-    await expect(t.mutation(internal.scans.create, { ...input, visitId: undefined })).rejects.toMatchObject({
+    await expect(t.action(internal.scans.create, { ...input, visitId: undefined })).rejects.toMatchObject({
       data: { code: "not_found" },
     });
   },
@@ -331,7 +331,7 @@ it("ignores results from an older payload after an unsupported capture is restar
     calibratorVersion: "lr-v1",
     error: "Update the app to identify.",
   });
-  const restarted = await t.mutation(internal.scans.create, args);
+  const restarted = await t.action(internal.scans.create, args);
   expect(restarted.scan).toMatchObject({
     _id: scanId,
     status: "pending",

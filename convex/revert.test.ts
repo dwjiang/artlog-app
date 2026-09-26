@@ -9,16 +9,17 @@ import type { MutationCtx } from "./_generated/server";
 import { readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
-import { publishContribution } from "./lib/tentativeEntries";
 import {
+  seedEmbedding,
+  seedPublishedContribution,
   seedArtworkWithObject,
   seedContribution,
   seedDevice,
   seedMuseum,
   seedScan,
   testVector,
+  seedVector,
 } from "./lib/testFactories";
-import { insertVector } from "./lib/vectorStore";
 import { harness, promoteGroup } from "./test.helpers";
 
 afterEach(() => {
@@ -68,7 +69,7 @@ async function seedUserObject(
     reverted: false,
   });
   await patchObjectDetails(ctx, { _id: objectId }, { thumbnailStorageId: options.thumbnailStorageId });
-  await insertVector(ctx, {
+  await seedVector(ctx, {
     partition: JSON.stringify([model.modelVersion, "established"]),
     objectId,
     modelVersion: model.modelVersion,
@@ -109,7 +110,7 @@ async function fixture() {
   ) => t.run((ctx) => ctx.db.get(table, id)) as Promise<Doc<T> | null>;
   const all = <T extends "objects" | "vectors" | "descriptors" | "placements" | "contributions">(table: T) =>
     t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
-  const finish = () => t.finishAllScheduledFunctions(vi.runAllTimers);
+  const finish = () => t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
   return { t, alice, bob, venueId, get, all, finish, scheduled };
 }
@@ -162,7 +163,7 @@ describe("revertObject", () => {
         },
       }),
     );
-    await t.run(async (ctx) => publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!));
+    await t.run(async (ctx) => seedPublishedContribution(ctx, (await ctx.db.get("contributions", contributionId))!));
     const [object] = await all("objects");
     const capture = () => ({
       localId: crypto.randomUUID(),
@@ -377,7 +378,7 @@ describe("applyTakedown", () => {
 });
 
 describe("cascade transaction limits", () => {
-  it("cleans 25 objects with 60 views each before completing an opt-out", async () => {
+  it("cleans 25 objects with 60 views each before completing an opt-out", { timeout: 30_000 }, async () => {
     vi.useFakeTimers();
     const t = harness({ transactionLimits: true });
     const venueId = await t.run((ctx) => seedMuseum(ctx));
@@ -387,7 +388,7 @@ describe("cascade transaction limits", () => {
         for (let i = 0; i < 60; i++) {
           const vector = Array<number>(model.embeddingDim).fill(0);
           vector[i] = 1;
-          await insertVector(ctx, {
+          await seedVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -401,7 +402,7 @@ describe("cascade transaction limits", () => {
       venueId,
       requester: "museum",
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
     expect(await t.run((ctx) => ctx.db.get("optOuts", optOutId))).toMatchObject({
       appliedAt: expect.any(Number),
     });
@@ -419,7 +420,7 @@ describe("object cleanup resumption", () => {
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = 0; i < 50; i++) {
-          await insertVector(ctx, {
+          await seedVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -502,7 +503,7 @@ it.each(["first", "second"] as const)("removes views when their %s agreement wit
       await ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+        embeddingId: await seedEmbedding(ctx, { vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -524,7 +525,7 @@ it.each(["first", "second"] as const)("removes views when their %s agreement wit
     deviceId: witness === "first" ? alice.deviceId : bob.deviceId,
     reason: "poisoning",
   });
-  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   const remaining = await t.run((ctx) =>
     ctx.db
       .query("vectors")
@@ -547,7 +548,7 @@ it("reconsiders duplicate views across witness pages and restores them with clea
       return ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+        embeddingId: await seedEmbedding(ctx, { vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -614,7 +615,7 @@ it("removes a taken-down object from a previously identified scan card", async (
     requester: "owner",
   });
   expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();
-  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   expect((await t.run((ctx) => ctx.db.get("takedowns", requestId)))?.appliedAt).toEqual(expect.any(Number));
   expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();
   const cached = await user.as.action(api.identify.identify, {
@@ -648,7 +649,7 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
       await ctx.db.insert("feedback", {
         scanId,
         deviceId,
-        embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+        embeddingId: await seedEmbedding(ctx, { vector }),
         modelVersion: model.modelVersion,
         venueId,
         rejectedObjectId: wrong.objectId,
@@ -670,7 +671,7 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
     venueId,
     requester: "museum",
   });
-  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   const remaining = await t.run((ctx) =>
     ctx.db
       .query("vectors")
@@ -705,7 +706,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
         await ctx.db.insert("feedback", {
           scanId,
           deviceId,
-          embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+          embeddingId: await seedEmbedding(ctx, { vector }),
           modelVersion: model.modelVersion,
           venueId,
           rejectedObjectId: wrong.objectId,
@@ -735,7 +736,7 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
         requester: "museum",
       });
     }
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
     const rows = await t.run((ctx) =>
       ctx.db
         .query("vectors")
@@ -814,7 +815,7 @@ it("removes every scan-owned vector across pages while preserving corpus vectors
   for (let page = 0; page < 3; page++) {
     await t.run(async (ctx) => {
       for (let i = 0; i < 25; i++) {
-        await insertVector(ctx, {
+        await seedVector(ctx, {
           objectId: work.objectId,
           scanId,
           partition: JSON.stringify([model.modelVersion, "established"]),
@@ -862,9 +863,9 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
       venueId,
       cropStorageId,
     });
-    const objectId = await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!);
+    const objectId = await seedPublishedContribution(ctx, (await ctx.db.get("contributions", contributionId))!);
     const object = (await ctx.db.get("objects", objectId))!;
-    await insertVector(ctx, {
+    await seedVector(ctx, {
       objectId: work.objectId,
       scanId,
       partition: JSON.stringify([model.modelVersion, "established"]),

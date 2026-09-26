@@ -2,16 +2,16 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { bumpCounter } from "./ingest";
 import { fileStorage } from "./lib/fileStorage";
-import { validateVector } from "./lib/modelVersion";
+import { withErrorReporting } from "./lib/observability";
 import { currentPlacement, loadCurrentPlacement } from "./lib/placements";
 import { recognitionPartition } from "./lib/recognitionEligibility";
 import { proposalStatus } from "./lib/validators";
-import { insertVector } from "./lib/vectorStore";
+import { insertArchivedVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
-import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
+import { getEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 const DAY = 86_400_000;
@@ -72,7 +72,7 @@ async function isValidEvidence(
   const resolved = feedback.some((row) => row.resolution.kind === "runner_up" && row.resolution.objectId === objectId);
   const confident = scan.outcome === "confident" && scan.best?.objectId === objectId;
   if (feedback.length > 32 || rejected || !(confident || resolved)) return false;
-  return !needsVector || (await readEmbedding(ctx, scan.embeddingId)) !== null;
+  return !needsVector || (await getEmbedding(ctx, scan.embeddingId)) !== null;
 }
 
 async function loadValidEvidence(
@@ -179,12 +179,20 @@ export async function proposePlacementFromScan(
   return null;
 }
 
-export const reviewPlacement = internalMutation({
-  args: {
-    proposalId: v.id("placementProposals"),
-    decision: v.union(v.literal("approve"), v.literal("reject")),
-    reviewer: v.string(),
-  },
+const reviewArgs = {
+  proposalId: v.id("placementProposals"),
+  decision: v.union(v.literal("approve"), v.literal("reject")),
+  reviewer: v.string(),
+};
+export const reviewPlacement = internalAction({
+  args: reviewArgs,
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("placements.reviewPlacement", () => ctx.runMutation(internal.placements.commitReview, args)),
+});
+
+export const commitReview = internalMutation({
+  args: reviewArgs,
   returns: v.null(),
   handler: async (ctx, { proposalId, decision, reviewer }) => {
     if (!reviewer.trim()) throw new ConvexError({ code: "reviewer_required" });
@@ -272,13 +280,12 @@ export const reviewPlacement = internalMutation({
           reverted: false,
         });
         for (const scan of scans) {
-          const vector = await requireEmbedding(ctx, scan.embeddingId);
-          validateVector(vector);
-          await insertVector(ctx, {
+          const archive = await requireEmbedding(ctx, scan.embeddingId);
+          await insertArchivedVector(ctx, {
             objectId,
             modelVersion: scan.modelVersion,
             source: "user_scan",
-            vector,
+            ...archive,
             partition: recognitionPartition(scan.modelVersion),
             scanId: scan._id,
             proposalId,
@@ -295,6 +302,7 @@ export const reviewPlacement = internalMutation({
         });
         await bumpCounter(ctx, "objects", 1);
         await bumpCounter(ctx, "vectors", scans.length);
+        await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
         await bumpCounter(ctx, "descriptors", 1);
       }
       const placementId = await ctx.db.insert("placements", {

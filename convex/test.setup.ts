@@ -10,7 +10,7 @@ vi.mock("./lib/vectorSearch", () => ({
     const matches: { id: string; score: number }[] = [];
     let cursor: string | null = null;
     do {
-      const page: { records: SearchRecord[]; cursor: string | null } = await ctx.runQuery(
+      const page: { records: SearchRecord[]; cursor: string | null } = await ctx.runAction(
         internal.vectorSync.exportPage,
         { cursor },
       );
