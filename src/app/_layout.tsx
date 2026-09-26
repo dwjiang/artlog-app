@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { ProfileSetupPrompt } from "@/components/account/profile-setup-prompt";
 import { AppDiagnostics } from "@/components/app-diagnostics";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
+import { AppUpdateGate } from "@/components/app-update-gate";
 import { ListeningRoot } from "@/components/audio/listening-root";
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
@@ -35,6 +36,14 @@ export const unstable_settings = {
 };
 
 function RootLayout() {
+  return (
+    <AppUpdateGate>
+      <AppContent />
+    </AppUpdateGate>
+  );
+}
+
+function AppContent() {
   useEffect(warmUpEmbedder, []);
   useEffect(limitImageCache, []);
   return (

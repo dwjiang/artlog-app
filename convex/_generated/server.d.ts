@@ -42,6 +42,7 @@ type Env = {
   readonly FLAG_LABEL_FLOW: string | undefined;
   readonly FLAG_RIGHT_NOW: string | undefined;
   readonly LABEL_MODEL: string | undefined;
+  readonly MINIMUM_IOS_BUILD: string | undefined;
   readonly MODERATION_BLOCKLIST: string | undefined;
   readonly MODERATION_MODEL: string | undefined;
   readonly NEBIUS_API_KEY: string | undefined;
