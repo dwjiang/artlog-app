@@ -5,6 +5,7 @@ import { reportError } from "@/lib/observability";
 
 import type { DocentSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
+import type { NarrationPreparationStage } from "./narration-preparation";
 
 async function reportStalledPlayback() {
   try {
@@ -57,6 +58,7 @@ export type ListeningState = {
   current?: ListeningTrack;
   queue: ListeningTrack[];
   phase: "idle" | "loading" | "ready" | "error";
+  preparationStage?: NarrationPreparationStage;
   playing: boolean;
   position: number;
   duration: number;
@@ -70,6 +72,7 @@ type Progress = Record<string, { position: number; duration: number; text: strin
 export type ListeningDependencies = {
   render(
     track: ListeningTrack,
+    onStage?: (stage: NarrationPreparationStage) => void,
   ): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number; live?: boolean }>;
   cancel(): void;
   create(uri: string): AudioHandle;
@@ -169,6 +172,7 @@ export class ListeningController {
       sentences: undefined,
       queue: this.state.queue.filter((item) => item.work.artworkId !== track.work.artworkId),
       phase: "loading",
+      preparationStage: "preparing",
       playing: false,
       position,
       duration: saved?.duration ?? 0,
@@ -178,7 +182,9 @@ export class ListeningController {
     try {
       await this.dependencies.configure();
       if (generation !== this.generation) return;
-      const rendered = await this.dependencies.render(track);
+      const rendered = await this.dependencies.render(track, (stage) => {
+        if (generation === this.generation) this.update({ preparationStage: stage });
+      });
       if (generation !== this.generation) return;
       const player = this.dependencies.create(rendered.uri);
       this.player = player;
@@ -198,6 +204,7 @@ export class ListeningController {
         }
       }, 15000);
       this.update({
+        preparationStage: "buffering",
         duration: rendered.duration ?? saved?.duration ?? 0,
         sentences: rendered.sentences,
       });
@@ -219,7 +226,7 @@ export class ListeningController {
               started = true;
               clearTimeout(this.loadTimeout);
               player.setActiveForLockScreen(true, nowPlaying);
-              this.update({ phase: "ready" });
+              this.update({ phase: "ready", preparationStage: undefined });
               if (rendered.live) this.watchProgress(player);
               if (this.desiredPlaying) player.play();
             })
@@ -262,7 +269,7 @@ export class ListeningController {
   private fail(error: string) {
     this.generation++;
     this.release();
-    this.update({ phase: "error", playing: false, error });
+    this.update({ phase: "error", preparationStage: undefined, playing: false, error });
   }
   toggle = () => {
     if (!this.state.current) return;
@@ -342,6 +349,7 @@ export class ListeningController {
       sentences: undefined,
       queue: [],
       phase: "idle",
+      preparationStage: undefined,
       playing: false,
       position: 0,
       duration: 0,

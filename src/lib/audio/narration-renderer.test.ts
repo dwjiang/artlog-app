@@ -203,3 +203,34 @@ it("replaces cached audio whose transcript lacks the required opening", async ()
   expect((await renderer.render(known)).sentences[0].sentence).toBe(openingFixture);
   expect(generate).toHaveBeenCalledTimes(2);
 });
+
+it("reports generation and download only while that work is happening, and skips both for a local replay", async () => {
+  const onStage = jest.fn();
+  const generate = jest.fn(async () => {
+    expect(onStage).toHaveBeenLastCalledWith("generating");
+    return generated;
+  });
+  mockFetch.mockImplementationOnce(async () => {
+    expect(onStage).toHaveBeenLastCalledWith("downloading");
+    return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer };
+  });
+  const renderer = createNarrationRenderer(generate);
+  await renderer.render(track, onStage);
+  expect(onStage.mock.calls).toEqual([["generating"], ["downloading"]]);
+  onStage.mockClear();
+  await renderer.render(known, onStage);
+  expect(onStage).not.toHaveBeenCalled();
+});
+
+it("does not report a download for live speech or a cancelled generation", async () => {
+  const onStage = jest.fn();
+  await createNarrationRenderer(async () => ({ ...generated, live: true })).render(track, onStage);
+  expect(onStage.mock.calls).toEqual([["generating"]]);
+  onStage.mockClear();
+  const renderer = createNarrationRenderer(async () => {
+    renderer.cancel();
+    return generated;
+  });
+  await expect(renderer.render(track, onStage)).rejects.toThrow("cancelled");
+  expect(onStage.mock.calls).toEqual([["generating"]]);
+});

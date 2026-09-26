@@ -23,6 +23,7 @@ const mockAudio = {
     | { sentence: string; factIds: string[] }[]
     | undefined,
   phase: "ready",
+  waiting: false,
   controller: {},
 };
 jest.mock("@/lib/audio/use-listening", () => ({
@@ -64,6 +65,17 @@ it("shows preparation status until the spoken transcript is available", async ()
   mockAudio.phase = "loading";
   await render(<NowPlayingScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
-  expect(screen.getByText("Preparing your audio guide…")).toBeOnTheScreen();
+  expect(screen.getByText("The transcript will appear when your audio guide is ready.")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
+});
+
+it("does not claim a queued guide is ready while it is still generating", async () => {
+  mockAudio.phase = "loading";
+  mockAudio.waiting = true;
+  const { rerender } = await render(<NowPlayingScreen />);
+  expect(screen.getByText("Preparing audio")).toBeOnTheScreen();
+  expect(screen.queryByText("Ready when you are")).toBeNull();
+  mockAudio.phase = "ready";
+  await rerender(<NowPlayingScreen />);
+  expect(screen.getByText("Ready when you are")).toBeOnTheScreen();
 });

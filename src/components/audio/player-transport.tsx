@@ -1,15 +1,16 @@
 import Slider from "@react-native-community/slider";
-import { useRef, useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { audioTime } from "@/lib/audio/narration";
+import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useListening } from "@/lib/audio/use-listening";
 
 import { SystemVolumeSlider } from "../../../modules/system-volume/src";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
+import { NarrationWaveform } from "./narration-waveform";
 
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
@@ -19,6 +20,11 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const dragging = useRef(false);
   const [draft, setDraft] = useState(audio.position);
   const ready = audio.phase === "ready";
+  const preparing = audio.phase === "loading";
+  const preparation = preparationLabel(audio.preparationStage);
+  useEffect(() => {
+    if (preparing) AccessibilityInfo.announceForAccessibility(preparation);
+  }, [preparing, preparation]);
   // Speech still being generated has no length yet, so there is no range to seek within.
   const seekable = ready && audio.duration > 0;
   const position = scrubbing ? draft : audio.position;
@@ -65,7 +71,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         }}
       />
       <View style={styles.times}>
-        <Text style={styles.time}>{audioTime(position)}</Text>
+        <Text style={styles.time}>{preparing ? "—:—" : audioTime(position)}</Text>
         {seekable && <Text style={styles.time}>−{audioTime(audio.duration - position)}</Text>}
       </View>
       <View style={styles.controls}>
@@ -79,24 +85,21 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            audio.phase === "loading"
-              ? "Preparing narration"
+            preparing
+              ? preparation
               : audio.phase === "error"
                 ? "Retry narration"
                 : audio.playing
                   ? "Pause narration"
                   : "Play narration"
           }
-          accessibilityState={{
-            busy: audio.phase === "loading",
-            disabled: audio.phase === "loading",
-          }}
-          disabled={audio.phase === "loading"}
+          accessibilityState={{ busy: preparing, disabled: preparing }}
+          disabled={preparing}
           onPress={audio.controller.toggle}
           style={({ pressed }) => [styles.play, { opacity: pressed ? 0.75 : 1 }]}
         >
-          {audio.phase === "loading" ? (
-            <LoadingRing color={Gallery.surface} />
+          {preparing ? (
+            <NarrationWaveform color={Gallery.surface} size={40} />
           ) : (
             <AudioIcon
               name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
