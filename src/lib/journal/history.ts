@@ -1,5 +1,6 @@
 import type { Visit } from "@/db/schema";
 import countryNames from "@/shared/journal/country-names.json";
+import { calendarDate } from "@/shared/journal/limits";
 
 import { compareText, matchesSearch, searchTerm } from "./query";
 
@@ -32,6 +33,16 @@ export function countryName(code?: string | null): string {
 export function formatVisitDate(date: string): string {
   const [year, month, day] = date.split("-");
   return `${Number(day)} ${MONTHS[Number(month) - 1].slice(0, 3)} ${year}`;
+}
+/** "2:10 PM" in the museum's time zone, or the day it began ("18 Sep 2026") for a visit still open from an earlier day. */
+export function formatVisitStart(startedAt: number, timeZone: string, now = Date.now()): string {
+  const day = calendarDate(startedAt, timeZone);
+  if (day !== calendarDate(now, timeZone)) return formatVisitDate(day);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).format(startedAt);
 }
 export function filterVisits<T extends JournalVisit>(visits: T[], query = ""): T[] {
   const term = searchTerm(query);

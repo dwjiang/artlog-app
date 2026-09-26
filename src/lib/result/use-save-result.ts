@@ -5,6 +5,7 @@ import type { CaptureCompletion } from "@/lib/capture/completion";
 import { contributionErrorMessage, type ContributionOutcome, type ContributeInput } from "@/lib/label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { withEndVisitPrompt } from "@/lib/venue/end-visit-prompt";
 
 import { saveErrorMessage, saveResult, type SaveResultInput } from "./save";
 
@@ -58,10 +59,9 @@ export function useSaveResult() {
     setSaving(true);
     setError(undefined);
     try {
-      const { localId, completion, contribution } = await saveResult({
-        ...input,
-        capture,
-      });
+      const saved = await withEndVisitPrompt((withoutVisit) => saveResult({ ...input, capture }, { withoutVisit }));
+      if (!saved) return;
+      const { localId, completion, contribution } = saved;
       addBreadcrumb("result.saved", { hasContribution: !!contribution });
       setSavedId(localId);
       setCompletion(completion);

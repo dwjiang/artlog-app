@@ -35,9 +35,12 @@ import { captureFileUri, persistArtworkPhoto } from "@/lib/files/photos";
 import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
 import { useSaveResult } from "@/lib/result/use-save-result";
+import { withEndVisitPrompt } from "@/lib/venue/end-visit-prompt";
 import { visitForSave } from "@/lib/venue/use-venue";
+import { venueNameById } from "@/lib/venue/venue-db";
 import type { PhotoKind } from "@/shared/collection/album";
 
+import type { Id } from "../../../convex/_generated/dataModel";
 import { CameraPermission } from "./camera-permission";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
@@ -200,21 +203,25 @@ function PhotoSession({
   const saveCapture = readPhotoSession(owner, draftId).saveInput?.capture;
   // The visit's day is the scan's, as the context chip shows it; an added photo's own date (a library pick may be weeks old) does not move it.
   const contextCapturedAt = saveCapture?.capturedAt ?? photos[0]?.capturedAt;
-  // The same choice the context chip shows, so a separate save lands in the visit the chip names.
-  async function sessionVisitId(): Promise<string | undefined> {
-    const session = readPhotoSession(owner, draftId);
-    const choice = captureVisitChoice(
-      {
-        visitLocalId: visitId,
-        venueId: saveCapture?.venueId,
-        capturedAt: contextCapturedAt,
-      },
-      session,
-    );
-    if (choice.kind === "venue") {
-      return (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId;
-    }
-    return choice.kind === "visit" ? choice.localId : undefined;
+  // The same choice the context chip shows, so a separate save lands in the visit the chip names. A save kept out of a
+  // visit open elsewhere keeps its museum, as the artwork's own save does. Undefined when the person cancels.
+  function sessionVisit(): Promise<{ id?: string; venueId?: Id<"museums"> } | undefined> {
+    return withEndVisitPrompt(async (withoutVisit) => {
+      const session = readPhotoSession(owner, draftId);
+      const choice = captureVisitChoice(
+        {
+          visitLocalId: visitId,
+          venueId: saveCapture?.venueId,
+          capturedAt: contextCapturedAt,
+        },
+        session,
+      );
+      if (choice.kind === "venue") {
+        if (withoutVisit) return { venueId: choice.venueId };
+        return { id: (await visitForSave(choice.venueId, contextCapturedAt ?? Date.now())).localId };
+      }
+      return { id: choice.kind === "visit" ? choice.localId : undefined };
+    });
   }
   async function done() {
     if (busyRef.current || completion) return;
@@ -229,7 +236,9 @@ function PhotoSession({
     try {
       if (savedId) {
         if (photos.length === 0) return;
-        const selectedVisitId = await sessionVisitId();
+        const selected = await sessionVisit();
+        if (!selected) return;
+        const selectedVisitId = selected.id;
         const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
         if (selectedVisitId && !visit) throw new Error("Visit unavailable");
         if (!session.isOwnerCurrent()) return;
@@ -283,9 +292,13 @@ function PhotoSession({
       const existing = photo.recognized
         ? (await listSavedWorks(owner)).find((work) => work.objectId === photo.recognized!.objectId)
         : undefined;
-      const selectedVisitId = await sessionVisitId();
+      const selected = await sessionVisit();
+      if (!selected) return;
+      const selectedVisitId = selected.id;
       const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
       if (selectedVisitId && !visit) throw new Error("Visit unavailable");
+      const venueId = visit?.venueId ?? selected.venueId;
+      const venueName = visit?.venueName ?? (venueId ? await venueNameById(venueId) : undefined);
       if (!session.isOwnerCurrent()) return;
       const id = existing?.localId ?? randomUUID();
       saveArtworkSession(
@@ -302,8 +315,8 @@ function PhotoSession({
               photoPath: photo.path,
               cropPath: photo.path,
               visitLocalId: visit?.localId,
-              venueId: visit?.venueId,
-              venueName: visit?.venueName,
+              venueId,
+              venueName,
             },
         [
           {

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { AppState } from "react-native";
+import { Alert, AppState, type AlertButton } from "react-native";
 
 import { db } from "@/db/client";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -11,6 +11,7 @@ import { readPhotoSession, updatePhotoSession } from "@/lib/capture/photo-draft"
 import { contributeLabel } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
 import { draftFromCandidate } from "@/lib/result/snapshot";
+import { VisitInProgressError } from "@/lib/venue/use-venue";
 
 import { AddPhotosScreen } from "./add-photos-screen";
 import { CaptureContextScreen } from "./capture-context-screen";
@@ -90,14 +91,26 @@ jest.mock("@/lib/venue/venue-db", () => ({
           },
         ]
       : [],
+  venueNameById: async (id: string) => (id === "museum-met" ? "The Met" : undefined),
 }));
 // A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
 const mockVisitForSave = jest.fn();
-jest.mock("@/lib/venue/use-venue", () => ({
-  useVenue: () => ({ visit: undefined }),
-  visitByDefault: () => true,
-  visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
-}));
+jest.mock("@/lib/venue/use-venue", () => {
+  class MockVisitInProgressError extends Error {
+    visit: { localId: string; venueName: string };
+    constructor(visit: { localId: string; venueName: string }) {
+      super("Another visit is open");
+      this.visit = visit;
+    }
+  }
+  return {
+    useVenue: () => ({ visit: undefined }),
+    visitByDefault: () => true,
+    visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
+    VisitInProgressError: MockVisitInProgressError,
+    venueController: { end: jest.fn() },
+  };
+});
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     mutation: async () => ({
@@ -391,6 +404,45 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
   });
   expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "other.jpg", kind: "full" })]);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
+});
+
+it("keeps the museum on a separate artwork saved outside a visit open elsewhere", async () => {
+  await enqueuePendingScan({
+    localId: "capture",
+    photoPath: "capture.jpg",
+    cropPath: "crop.jpg",
+    capturedAt: 1,
+    status: "queued",
+    venueId: "museum-met" as never,
+    modelVersion: "m",
+    attemptModelVersion: "m",
+    vector: [],
+    descriptors: new ArrayBuffer(0),
+    keypoints: new ArrayBuffer(0),
+    createdAt: 1,
+  });
+  const capture = (await getPendingScan("capture"))!;
+  mockParams = { draftId: capture.photoPath, title: "Water Lilies" };
+  updatePhotoSession(owner, capture.photoPath, {
+    saveInput: { capture, draft: { ...draftFromCandidate(), title: "Water Lilies" } },
+    photos: [{ localId: "other", path: "other.jpg", kind: "full", capturedAt: 7, review: "conflict" }],
+  });
+  mockVisitForSave.mockRejectedValueOnce(
+    new VisitInProgressError({ localId: "neue-visit", venueName: "Neue Galerie" } as never),
+  );
+  const alert = jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => {
+    buttons?.find((button) => button.text === "Save artwork only")?.onPress?.();
+  });
+  await render(<AddPhotosScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Save as a separate artwork" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Save as a separate artwork" })).toBeNull());
+  expect(mockVisitForSave).toHaveBeenCalledTimes(1);
+  expect(await getSavedWork("saved-new")).toMatchObject({
+    visitLocalId: null,
+    venueId: "museum-met",
+    venueName: "The Met",
+  });
+  alert.mockRestore();
 });
 
 it("keeps unresolved photos in the draft until the owner explicitly confirms them", async () => {

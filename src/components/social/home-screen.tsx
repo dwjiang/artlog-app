@@ -4,7 +4,6 @@ import { useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -38,7 +37,6 @@ export function HomeScreen() {
     setAppliedPost(request);
     setChosenTab(requestedFeed as FeedTab);
   }
-  const dockInset = useListeningDockInset();
   const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const guest = session.status === "signed-out";
@@ -60,7 +58,7 @@ export function HomeScreen() {
       <WelcomePrompt />
       <FlatList
         style={socialStyles.root}
-        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 + dockInset }]}
+        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 }]}
         contentInsetAdjustmentBehavior="automatic"
         data={canBrowse ? feed.items : []}
         keyExtractor={visitId}

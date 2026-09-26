@@ -43,6 +43,7 @@ const visit = (localId: string, extra: Partial<VisitSummary>): VisitSummary =>
     venueId: localId,
     venueName: "Museum",
     visitedOn: "2024-02-29",
+    timeZone: "America/New_York",
     location: "",
     works: [],
     startedAt: null,
@@ -81,7 +82,7 @@ it("badges a closed visit as new until it has been opened, and marks the open on
       visits={[
         visit("fresh", { startedAt: 1, endedAt: 2 }),
         visit("seen", { startedAt: 1, endedAt: 2, venueName: "Seen Museum" }),
-        visit("open", { startedAt: 1, venueName: "Open Museum" }),
+        visit("open", { startedAt: Date.UTC(2024, 1, 29, 17), venueName: "Open Museum" }),
         visit("manual", { venueName: "Manual Museum" }),
       ]}
     />,
@@ -103,6 +104,8 @@ it("badges a closed visit as new until it has been opened, and marks the open on
     }),
   ).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /, visiting now$/ })).toBeOnTheScreen();
+  expect(screen.getByText("Since 29 Feb 2024 · Location unavailable · 0 artworks")).toBeOnTheScreen();
+  expect(screen.getAllByText(/^29 Feb 2024 · /)).toHaveLength(3);
   expect(
     screen.getByRole("button", {
       name: "Manual Museum, 29 Feb 2024, 0 artworks",

@@ -1,6 +1,13 @@
 import { sortWorksByArtist } from "@/lib/collection/search";
 
-import { filterVisits, formatVisitDate, groupHistoryByMonth, summarizeJournal, type JournalVisit } from "./history";
+import {
+  filterVisits,
+  formatVisitDate,
+  formatVisitStart,
+  groupHistoryByMonth,
+  summarizeJournal,
+  type JournalVisit,
+} from "./history";
 import { pageRows } from "./query";
 
 const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisit => ({
@@ -111,4 +118,11 @@ it("sorts by artist display name, parsed year, title and save UUID, with undated
     "undated",
     "pablo",
   ]);
+});
+
+it("shows a visit start as a time on its own museum day and as a date afterwards", () => {
+  const startedAt = Date.UTC(2026, 8, 18, 21, 10);
+  expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 18, 22))).toBe("5:10 PM");
+  expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 19, 15))).toBe("18 Sep 2026");
+  expect(formatVisitStart(startedAt, "Asia/Tokyo", Date.UTC(2026, 8, 18, 22))).toBe("6:10 AM");
 });

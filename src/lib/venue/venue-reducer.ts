@@ -42,7 +42,7 @@ export type CurrentVisit = {
   venueName: string;
   startedAt: number;
   manual?: boolean;
-  /** The visit's calendar day in the museum's time zone; the visit resumes while today is that day. */
+  /** The calendar day the visit started, in the museum's time zone; the visit stays open past it until ended by hand. */
   visitedOn: string;
   timeZone: string;
   remoteVisitId?: Id<"visits">;
@@ -68,8 +68,8 @@ export type VenueState = {
   picked?: VenuePick;
   /** When "Not here" lapses for each option key it was tapped over. */
   notHere: Record<string, number>;
-  /** A visit ended by hand today; location alone starts no new visit at that museum until tomorrow. */
-  ended?: Pick<CurrentVisit, "venueId" | "visitedOn" | "timeZone">;
+  /** The museum and day a visit was ended there; location alone starts no new visit at that museum until the next day. */
+  ended?: { venueId: Id<"museums"> } & MuseumDay;
   error?: string;
 };
 
@@ -77,14 +77,14 @@ export type VenueState = {
 export type VenueEvent =
   | {
       type: "hydrated";
+      at: number;
       visit?: CurrentVisit;
       ended?: VenueState["ended"];
       picked?: VenuePick;
       notHere?: VenueState["notHere"];
     }
   | { type: "locating" }
-  /** `declined` once iOS will not ask again; otherwise the permission is unanswered, as an expired Allow Once leaves it. */
-  | { type: "denied"; declined: boolean }
+  | { type: "denied"; at: number }
   | { type: "failed"; error: string }
   | { type: "resolved"; fix: Fix; resolution: VenueResolution; quiet?: boolean }
   | { type: "poiOptions"; options: PoiOption[]; quiet?: boolean }
@@ -95,7 +95,7 @@ export type VenueEvent =
       day: MuseumDay;
     }
   | { type: "visitStarted"; visit: CurrentVisit }
-  | { type: "visitEnded"; localId: string; manual?: boolean }
+  | { type: "visitEnded"; localId: string; at: number }
   | { type: "remoteVisit"; localId: string; remoteVisitId: Id<"visits"> }
   | { type: "dismissed"; at: number }
   | { type: "backgrounded" };
@@ -123,13 +123,30 @@ export function toSeededOption(candidate: VenueCandidate): SeededOption {
   };
 }
 
-/** A visit resumes for the rest of its calendar day at the museum; the next day starts a new one. */
+/** Whether `now` falls on this calendar day in its time zone. */
 export function isVisitToday(visit: Pick<CurrentVisit, "visitedOn" | "timeZone">, now: number): boolean {
   return calendarDate(now, visit.timeZone) === visit.visitedOn;
 }
 
 export function needsFix(state: VenueState, now: number): boolean {
   return state.fix === undefined || now - state.fix.at >= FIX_MAX_AGE_MS;
+}
+
+/**
+ * What a save at a museum does with the one open visit, which only the person ends: `join` it (a capture at its museum
+ * from its day on), give a capture from an earlier day or from before the visit began a `past` visit spanning exactly
+ * its saves, `start` today's visit when none is open, or wait for the open one to end first.
+ */
+export type SaveVisitPlan = "join" | "past" | "start" | "endFirst";
+export function planSaveVisit(
+  open: Pick<CurrentVisit, "venueId" | "visitedOn" | "startedAt"> | undefined,
+  venueId: Id<"museums">,
+  capture: MuseumDay & { at: number },
+  now: number,
+): SaveVisitPlan {
+  if (open?.venueId === venueId && capture.visitedOn >= open.visitedOn) return "join";
+  if (!isVisitToday(capture, now) || (open && capture.at < open.startedAt)) return "past";
+  return open ? "endFirst" : "start";
 }
 
 /** The open visit while the phone is at its museum; undefined while it is paused elsewhere. */
@@ -164,6 +181,10 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (!event.visit) {
         return { ...state, ...answers, visit: undefined, ended: event.ended };
       }
+      // Before the first fix, only a visit from today stands in for the phone's museum; an older one stays paused.
+      if (!isVisitToday(event.visit, event.at)) {
+        return { ...state, ...answers, visit: event.visit, ended: undefined };
+      }
       return {
         ...state,
         ...answers,
@@ -187,15 +208,14 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
     case "locating":
       return { ...state, status: "locating", error: undefined };
     case "denied":
-      if (state.venue?.manual && state.visit) {
+      if (state.venue?.manual && state.visit && isVisitToday(state.visit, event.at)) {
         return { ...state, status: "resolved", fix: undefined };
       }
-      // An unanswered permission pauses the visit like leaving the museum, so the next scan's prompt can resume it.
+      // Without location the visit pauses like leaving the museum, whether access was declined or left unanswered.
       return {
         ...state,
         status: "denied",
         venue: undefined,
-        visit: event.declined ? undefined : state.visit,
         options: [],
         fix: undefined,
       };
@@ -244,7 +264,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
           prompt: !event.quiet && promptAllowed(state, options, fix.at) ? state.prompt + 1 : state.prompt,
         };
       }
-      // Leaving the radius pauses the visit; it resumes on return the same day and closes with the day, a new venue, or End.
+      // Leaving the radius pauses the visit; it resumes on return and stays open until ended by hand.
       return { ...base, status: "none", venue: undefined, options: [] };
     }
     case "poiOptions": {
@@ -289,17 +309,14 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
     case "visitEnded": {
       const { visit } = state;
       if (visit?.localId !== event.localId) return state;
-      const ended = event.manual
-        ? {
-            venueId: visit.venueId,
-            visitedOn: visit.visitedOn,
-            timeZone: visit.timeZone,
-          }
-        : state.ended;
       return {
         ...state,
         visit: undefined,
-        ended,
+        ended: {
+          venueId: visit.venueId,
+          visitedOn: calendarDate(event.at, visit.timeZone),
+          timeZone: visit.timeZone,
+        },
         ...(state.venue?.manual && state.venue.venueId === visit.venueId
           ? { venue: undefined, status: "none" as const }
           : {}),
@@ -312,8 +329,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         visit: { ...state.visit, remoteVisitId: event.remoteVisitId },
       };
     case "dismissed": {
-      // "Not here" rejects the listed options, the resolved venue and its visit; a visit paused elsewhere stays open.
-      const rejected = state.visit !== undefined && state.visit.venueId === state.venue?.venueId;
+      // "Not here" rejects the listed options and the resolved venue; its visit pauses and stays open until ended by hand.
       const keys = new Set(state.options.map(venueOptionKey));
       if (state.venue) keys.add(state.venue.venueId);
       const notHere = Object.fromEntries([
@@ -324,7 +340,6 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         ...state,
         status: state.status === "resolved" ? "none" : state.status,
         venue: undefined,
-        visit: rejected ? undefined : state.visit,
         picked: state.picked && keys.has(state.picked.venueId) ? undefined : state.picked,
         notHere,
       };

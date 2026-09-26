@@ -5,13 +5,12 @@ import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "reac
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { countryName, formatVisitDate, groupHistoryByMonth } from "@/lib/journal/history";
+import { countryName, formatVisitDate, formatVisitStart, groupHistoryByMonth } from "@/lib/journal/history";
 import { isVisitNew, useSeenVisits } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useVenue } from "@/lib/venue/use-venue";
-import { activeVisit } from "@/lib/venue/venue-reducer";
 
 import { api } from "../../../convex/_generated/api";
 import { VisitSymbol, visitStyles } from "./visit-ui";
@@ -29,7 +28,11 @@ export function VisitRow({
 }) {
   const place = visit.city || visit.regionName || countryName(visit.country) || "Location unavailable";
   const artworks = `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"}`;
-  const meta = `${formatVisitDate(visit.visitedOn)} · ${place} · ${artworks}${shared ? " · Shared ✓" : ""}`;
+  const when =
+    isOpen && visit.startedAt !== null
+      ? `Since ${formatVisitStart(visit.startedAt, visit.timeZone)}`
+      : formatVisitDate(visit.visitedOn);
+  const meta = `${when} · ${place} · ${artworks}${shared ? " · Shared ✓" : ""}`;
   return (
     <Link
       href={{
@@ -91,8 +94,7 @@ export function VisitTimeline({
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === "ready" ? {} : "skip", session.key);
   const shared = new Set(sharing.data);
   const seen = useSeenVisits(useLocalOwner());
-  const venue = useVenue();
-  const open = venue.visit?.localId;
+  const open = useVenue().visit?.localId;
   const sections = groupByMuseum
     ? [...new Set(visits.map((visit) => visit.venueId))].map((id) => {
         const data = visits.filter((visit) => visit.venueId === id);
@@ -136,7 +138,7 @@ export function VisitTimeline({
       stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
       // Shorter content must still let the header scroll away without moving pinned controls.
       contentContainerStyle={{
-        paddingBottom: activeVisit(venue) ? 110 : 30,
+        paddingBottom: 30,
         minHeight: controls ? viewportHeight + headerHeight : undefined,
       }}
       ListFooterComponent={footer}

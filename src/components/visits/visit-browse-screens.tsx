@@ -2,7 +2,6 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { FlatList, Pressable, ScrollView, View } from "react-native";
 
-import { useListeningDockInset } from "@/components/audio/use-listening-dock-inset";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
@@ -19,7 +18,6 @@ import { VisitRow } from "./visit-timeline";
 import { VisitMessage, VisitPage } from "./visit-ui";
 
 export function VisitPlaceScreen() {
-  const dockInset = useListeningDockInset();
   const { placeKey, name, venueId } = useLocalSearchParams<{
     placeKey: string;
     name: string;
@@ -28,7 +26,7 @@ export function VisitPlaceScreen() {
   const { visits, loading, error } = useVisits();
   const matches = visitsAtPlace(visits, placeKey).filter((visit) => !venueId || visit.venueId === venueId);
   return (
-    <View style={{ flex: 1, paddingBottom: dockInset }}>
+    <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: name || "Visits by museum" }} />
       {error || loading ? (
         <VisitPage>

@@ -75,12 +75,15 @@ export function VisitDetailScreen() {
   return <VisitDetail key={`${owner}:${visitId}:${endVisit}`} visit={visit} endingVisit={endVisit === "true"} />;
 }
 function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit: boolean }) {
-  // Only a closed visit counts as seen; one viewed while open is still new once it closes on its own.
+  // Only a closed visit counts as seen; one viewed while open is still new once it is ended.
   useEffect(() => {
     if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner);
   }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState("");
-  const { end } = useVenue();
+  const { end, visit: open } = useVenue();
+  // The open visit saves only by ending it, whether opened from the visit bar or reviewed from the visit sheet, and a
+  // visibility change waits for that save.
+  const ending = endingVisit || open?.localId === visit.localId;
   const notes = useRef<VisitNotesHandle>(null);
   const [draftVisibility, setDraftVisibility] = useState(visit.visibility);
   const [saving, setSaving] = useState(false);
@@ -109,7 +112,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     next: VisitVisibility;
     message: string;
   }>();
-  const visibility = endingVisit ? draftVisibility : visit.visibility;
+  const visibility = ending ? draftVisibility : visit.visibility;
   const shared = visibility !== "private";
   const published = sharing.acknowledged?.status === "active";
   const postId = published ? sharing.acknowledged!.postId : null;
@@ -119,12 +122,12 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   // An unsynced row only means a pending change once a published version exists that the server still shows to a
   // different audience.
   const pendingChange =
-    !endingVisit && signedIn && visit.syncedAt === null && published && sharing.acknowledged?.audience !== visibility;
+    !ending && signedIn && visit.syncedAt === null && published && sharing.acknowledged?.audience !== visibility;
   const statusNote = changingVisibility
     ? "Updating…"
     : pendingChange || !!visibilityError
       ? "Visibility change pending"
-      : endingVisit
+      : ending
         ? undefined
         : published
           ? "Posted"
@@ -148,9 +151,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   function chooseVisibility(next: VisitVisibility) {
     if (next === visibility) return;
     const confirmation =
-      !endingVisit && published && next !== "private" && REACH[next] > REACH[visibility]
-        ? CONFIRM_WIDER[next]
-        : undefined;
+      !ending && published && next !== "private" && REACH[next] > REACH[visibility] ? CONFIRM_WIDER[next] : undefined;
     if (!confirmation) {
       void changeVisibility(next);
       return;
@@ -168,7 +169,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   async function changeVisibility(next: VisitVisibility) {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;
-    if (endingVisit) {
+    if (ending) {
       setDraftVisibility(next);
       return;
     }
@@ -260,7 +261,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   return (
     <>
       <Stack.Screen options={{ title: "" }} />
-      {(!endingVisit || postId) && (
+      {(!ending || postId) && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu
             icon="ellipsis"
@@ -268,7 +269,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             hidesSharedBackground
             tintColor={Gallery.ink}
           >
-            {!endingVisit && (
+            {!ending && (
               <Stack.Toolbar.MenuAction
                 icon="square.and.arrow.up"
                 onPress={() => {
@@ -345,6 +346,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 </View>
               )}
             </View>
+            {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
             <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
             <View>
               <View style={detail.sectionLabel}>
@@ -424,7 +426,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             </View>
           )}
         </View>
-        {endingVisit && (
+        {ending && (
           <VisitActionBar
             saving={saving}
             disabled={changingVisibility}

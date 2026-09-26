@@ -1,16 +1,13 @@
 import { useNavigation } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniPlayer } from "@/components/audio/mini-player";
 import { TabBarVisibility } from "@/components/tab-bar-visibility";
 import { VisitBar } from "@/components/visits/visit-bar";
-import { BottomTabInset, Gallery } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useVenue } from "@/lib/venue/use-venue";
-import { activeVisit } from "@/lib/venue/venue-reducer";
 
 export const unstable_settings = {
   anchor: "(home)",
@@ -47,54 +44,36 @@ function useSelectedTab(): string | undefined {
 
 export default function TabsLayout() {
   const listening = useHasListeningTrack();
-  const { bottom } = useSafeAreaInsets();
   const [hidden, setHidden] = useState(false);
-  const { venue, visit } = useVenue();
+  const { visit } = useVenue();
   const selectedTab = useSelectedTab();
-  // The camera has the venue pill; the bar there would crowd the shutter. A visit paused away from its museum stays quiet.
-  const showVisitBar = !!activeVisit({ venue, visit }) && selectedTab !== "(scan)" && !hidden;
+  // The camera has the venue pill; the bar there would crowd the shutter. Elsewhere it stays up until the visit is ended.
+  const showVisitBar = !!visit && selectedTab !== "(scan)";
   return (
     <TabBarVisibility value={setHidden}>
-      <View style={{ flex: 1 }}>
-        <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
-          <NativeTabs.Trigger name="(home)">
-            <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="(scan)">
-            <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="(collection)">
-            <NativeTabs.Trigger.Label>Collection</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              sf={{
-                default: "square.grid.2x2",
-                selected: "square.grid.2x2.fill",
-              }}
-            />
-          </NativeTabs.Trigger>
-        </NativeTabs>
-        {!hidden && (showVisitBar || listening) && (
-          <View
-            style={{
-              position: "absolute",
-              left: 20,
-              right: 20,
-              bottom: bottom + BottomTabInset + 12,
-              borderWidth: 1,
-              borderColor: "#C8C9C1",
-              borderRadius: 12,
-              overflow: "hidden",
-              backgroundColor: Gallery.surface,
-              boxShadow: "0 3px 12px #24271414",
-            }}
-          >
-            {showVisitBar && <VisitBar />}
-            {listening && <MiniPlayer />}
-          </View>
+      <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
+        {/* One thing at a time in the system slot above the tab bar: narration while it plays, otherwise the open visit. */}
+        {!hidden && (listening || showVisitBar) && (
+          <NativeTabs.BottomAccessory>{listening ? <MiniPlayer /> : <VisitBar />}</NativeTabs.BottomAccessory>
         )}
-      </View>
+        <NativeTabs.Trigger name="(home)">
+          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="(scan)">
+          <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="(collection)">
+          <NativeTabs.Trigger.Label>Collection</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{
+              default: "square.grid.2x2",
+              selected: "square.grid.2x2.fill",
+            }}
+          />
+        </NativeTabs.Trigger>
+      </NativeTabs>
     </TabBarVisibility>
   );
 }

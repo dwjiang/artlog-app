@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from "@/db/schema";
@@ -110,35 +110,6 @@ export async function findVisitOnDay(
     .where(open ? and(day, isNull(visits.endedAt)) : day)
     .orderBy(desc(visits.startedAt))
     .get();
-}
-/** Visits with a start and no end, from any day; the venue controller closes the ones whose day has passed. */
-export async function listOpenVisits(owner = getLocalOwner()) {
-  return db
-    .select()
-    .from(visits)
-    .where(and(eq(visits.owner, owner), isNotNull(visits.startedAt), isNull(visits.endedAt)))
-    .orderBy(visits.startedAt)
-    .all();
-}
-/** When the visit's most recent artwork was saved, or undefined when nothing was saved on it. */
-export async function latestVisitActivity(localId: string, owner = getLocalOwner()): Promise<number | undefined> {
-  const row = db
-    .select({ latest: sql<number | null>`max(${savedWorks.savedAt})` })
-    .from(artworkEncounters)
-    .innerJoin(
-      savedWorks,
-      and(eq(savedWorks.owner, artworkEncounters.owner), eq(savedWorks.localId, artworkEncounters.savedLocalId)),
-    )
-    .where(
-      and(
-        eq(artworkEncounters.owner, owner),
-        eq(artworkEncounters.visitLocalId, localId),
-        isNull(artworkEncounters.deletedAt),
-        isNull(savedWorks.deletedAt),
-      ),
-    )
-    .get();
-  return row?.latest ?? undefined;
 }
 /** `sync: false` leaves the edit pending for the next sync request instead of scheduling one now. */
 export async function patchVisit(

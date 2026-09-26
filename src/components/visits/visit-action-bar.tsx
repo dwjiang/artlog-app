@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { Gallery } from "@/constants/theme";
 
-/** The end-of-visit form's Save; it steps aside while the keyboard covers it. */
+/** The end-of-visit form's Save & end visit; it steps aside while the keyboard covers it. */
 export function VisitActionBar({
   saving,
   disabled,
@@ -36,7 +36,7 @@ export function VisitActionBar({
       }}
     >
       <GalleryButton
-        label="Save"
+        label="Save & end visit"
         busy={saving}
         busyLabel="Saving…"
         variant="filled"
