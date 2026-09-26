@@ -19,6 +19,7 @@ const app = defineApp({
     FLAG_LABEL_FLOW: optional,
     FLAG_RIGHT_NOW: optional,
     LABEL_MODEL: optional,
+    MINIMUM_IOS_BUILD: optional,
     MODERATION_BLOCKLIST: optional,
     MODERATION_MODEL: optional,
     NEBIUS_API_KEY: optional,
