@@ -17,6 +17,8 @@ import type { LabelFields } from "./lib/validators";
 import { readVector } from "./lib/vectorStore";
 import { harness, signIn } from "./test.helpers";
 
+const DAY = 86_400_000;
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -161,6 +163,29 @@ describe("rejectMatch", () => {
       data: { code: "invalid_scan" },
     });
     expect(await feedbackRows()).toEqual([]);
+  });
+
+  it("keeps its own copy of the scan vector until 180 days after the rejection", async () => {
+    const { t, best, reject, feedback } = await fixture();
+    const clock = vi.spyOn(Date, "now");
+    const rejectedAt = Date.now();
+    clock.mockReturnValue(rejectedAt);
+    const { embeddingId } = (await feedback((await reject(best.objectId)).feedbackId))!;
+    const copy = () => t.run((ctx) => ctx.db.get("scanEmbeddings", embeddingId));
+    clock.mockReturnValue(rejectedAt + 180 * DAY - 1);
+    await t.action(internal.scanEmbeddings.expire, {});
+    expect(await copy()).not.toBeNull();
+    clock.mockReturnValue(rejectedAt + 180 * DAY);
+    await t.action(internal.scanEmbeddings.expire, {});
+    expect(await copy()).toBeNull();
+  });
+
+  it("refuses a rejection once the scan’s vector has expired", async () => {
+    const { t, scanId, best, reject, object, feedbackRows } = await fixture();
+    await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId));
+    await expect(reject(best.objectId)).rejects.toMatchObject({ data: { code: "scan_not_found" } });
+    expect(await feedbackRows()).toEqual([]);
+    expect(await object(best.objectId)).toMatchObject({ rejectCount: 0 });
   });
 
   it("returns the existing rejection for a repeated tap without counting it again", async () => {

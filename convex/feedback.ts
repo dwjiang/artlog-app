@@ -15,7 +15,7 @@ import { normalizeText, personMatches } from "./lib/textMatch";
 import type { LabelFlow } from "./lib/validators";
 import { proposePlacementFromScan } from "./placements";
 import { queueMultiView } from "./promotion";
-import { requireEmbedding } from "./scanEmbeddings";
+import { insertExpiringEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 const resolution = v.union(
@@ -67,9 +67,7 @@ export const rejectMatch = mutation({
     const flagged =
       rejectCount >= FLAG_MIN_REJECTIONS && rejectCount / (object.confirmCount + rejectCount) >= FLAG_REJECT_RATIO;
     const penaltyAdded = flagged ? PENALTY_STEP : 0;
-    const embeddingId = await ctx.db.insert("scanEmbeddings", {
-      vector: await requireEmbedding(ctx, scan.embeddingId),
-    });
+    const embeddingId = await insertExpiringEmbedding(ctx, await requireEmbedding(ctx, scan.embeddingId));
     const feedbackId = await ctx.db.insert("feedback", {
       scanId,
       deviceId: device._id,

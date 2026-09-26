@@ -21,6 +21,7 @@ import type * as collections from "../collections.js";
 import type * as contributionRemoval from "../contributionRemoval.js";
 import type * as contributions from "../contributions.js";
 import type * as corrections from "../corrections.js";
+import type * as crons from "../crons.js";
 import type * as devices from "../devices.js";
 import type * as displayMedia from "../displayMedia.js";
 import type * as displayMediaPrepare from "../displayMediaPrepare.js";
@@ -147,6 +148,7 @@ declare const fullApi: ApiFromModules<{
   contributionRemoval: typeof contributionRemoval;
   contributions: typeof contributions;
   corrections: typeof corrections;
+  crons: typeof crons;
   devices: typeof devices;
   displayMedia: typeof displayMedia;
   displayMediaPrepare: typeof displayMediaPrepare;

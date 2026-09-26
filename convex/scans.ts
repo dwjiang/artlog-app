@@ -18,7 +18,7 @@ import {
   rightsStatus,
   snapshotFields,
 } from "./lib/validators";
-import { deleteEmbedding } from "./scanEmbeddings";
+import { deleteEmbedding, insertExpiringEmbedding, readEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -82,7 +82,8 @@ export const create = internalMutation({
       && isSupported(args.modelVersion)
       && (existing.status === "unsupported_version"
         || existing.status === "failed"
-        || existing.modelVersion !== args.modelVersion);
+        || existing.modelVersion !== args.modelVersion
+        || (await readEmbedding(ctx, existing.embeddingId)) === null);
     if (args.visitId) {
       const visit = await ctx.db.get("visits", args.visitId);
       if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
@@ -104,7 +105,7 @@ export const create = internalMutation({
     const now = Date.now();
     const { scope: _scope, vector, ...scanArgs } = args;
     if (existing) await deleteEmbedding(ctx, existing.embeddingId);
-    const embeddingId = await ctx.db.insert("scanEmbeddings", { vector });
+    const embeddingId = await insertExpiringEmbedding(ctx, vector);
     const fields = {
       ...scanArgs,
       embeddingId,
