@@ -15,6 +15,7 @@ import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
 import { visitDate } from "@/lib/social/presentation";
+import { reportHref } from "@/lib/social/report";
 import type { PublicProfile } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -87,7 +88,7 @@ export function VisitReactionsSheet({
             </View>
           </View>
           {kind === "comments" ? (
-            <Comments visit={visit} session={session} onJoin={onJoin} />
+            <Comments visit={visit} session={session} onJoin={onJoin} onDismiss={onDismiss} />
           ) : (
             <Likes postId={visit.postId} session={session} onDismiss={onDismiss} />
           )}
@@ -142,7 +143,18 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
   );
 }
 
-function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: SocialSession; onJoin: () => void }) {
+function Comments({
+  visit,
+  session,
+  onJoin,
+  onDismiss,
+}: {
+  visit: ReactionVisit;
+  session: SocialSession;
+  onJoin: () => void;
+  onDismiss: () => void;
+}) {
+  const router = useRouter();
   const comments = useCursorPages(
     api.visitReactions.listComments,
     { postId: visit.postId },
@@ -257,7 +269,7 @@ function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: S
               <Text selectable style={styles.body}>
                 {item.body}
               </Text>
-              {session.profileId === item.author.profileId && (
+              {session.profileId === item.author.profileId ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Delete comment: ${item.body}`}
@@ -267,10 +279,25 @@ function Comments({ visit, session, onJoin }: { visit: ReactionVisit; session: S
                   }}
                   disabled={!!deleting || busy}
                   onPress={() => remove(item)}
-                  style={styles.delete}
+                  style={styles.commentAction}
                 >
                   <Text style={styles.meta}>{deleting === item.commentId ? "Deleting…" : "Delete"}</Text>
                 </Pressable>
+              ) : (
+                session.status !== "loading" && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Report comment: ${item.body}`}
+                    onPress={() => {
+                      // A route sheet can’t present over this native sheet, so this one closes first.
+                      onDismiss();
+                      router.push(reportHref("comment", item.commentId));
+                    }}
+                    style={styles.commentAction}
+                  >
+                    <Text style={styles.meta}>Report</Text>
+                  </Pressable>
+                )
               )}
             </View>
           </View>
@@ -428,7 +455,7 @@ const styles = StyleSheet.create({
   author: { fontSize: 10, lineHeight: 16, color: Gallery.accent },
   meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   body: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  delete: {
+  commentAction: {
     minHeight: 44,
     minWidth: 44,
     alignSelf: "flex-start",

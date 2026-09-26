@@ -26,7 +26,11 @@ jest.mock("@/lib/social/use-social-query", () => ({
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
-jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock("expo-router", () => ({
+  Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+  useRouter: () => ({ push: mockPush }),
+}));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
     const { View } = jest.requireActual("react-native");
@@ -102,6 +106,12 @@ it("shows the shared status, owner, place, reflection, and full artwork count", 
     pathname: "/profile/[profileId]",
     params: { profileId: "alex" },
   });
+});
+
+it("reports someone else’s visit from the header menu", async () => {
+  await render(<VisitScreen postId="post-a" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Report visit" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "sharedVisit", id: "post-a" } });
 });
 
 it("marks a Friends visit as shared with friends", async () => {

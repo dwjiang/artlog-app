@@ -12,6 +12,7 @@ import {
   publicationStatus,
   visitAudience,
   mediaSource,
+  reportReason,
   reportTarget,
   reportEvidence,
   reportReview,
@@ -71,6 +72,8 @@ export default defineSchema({
     voice: v.string(),
     storageId: v.optional(v.id("_storage")),
     sentences: v.optional(v.array(docentSentence)),
+    // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
+    segments: v.optional(v.array(v.object({ storageId: v.id("_storage"), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),
   museumDownloads: defineTable({
     venueId: v.id("museums"),
@@ -209,7 +212,10 @@ export default defineSchema({
     dimensions: model.embeddingDim,
     filterFields: ["partition"],
   }),
-  scanEmbeddings: defineTable({ vector: embedding }),
+  // Scan and rejection vectors expire; a contribution's copy lives as long as the contribution.
+  scanEmbeddings: defineTable({ vector: embedding, expiresAt: v.optional(v.number()) }).index("by_expiresAt", [
+    "expiresAt",
+  ]),
 
   savedRecognition: defineTable({
     saveId: v.id("collections"),
@@ -743,6 +749,7 @@ export default defineSchema({
     .index("by_profile_visit", ["profileId", "visitLocalId"])
     .index("by_audience_status_history", ["audience", "status", "visitedOn", "postId"])
     .index("by_profile_status_history", ["profileId", "status", "visitedOn", "postId"])
+    .index("by_profile_audience_status_history", ["profileId", "audience", "status", "visitedOn", "postId"])
     .index("by_visitId", ["visitId"]),
   sharedVisitItems: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -801,7 +808,7 @@ export default defineSchema({
   reports: defineTable({
     reporter: v.optional(journalOwner),
     target: reportTarget,
-    reason: v.string(),
+    reason: reportReason,
     details: v.optional(v.string()),
     evidence: reportEvidence,
     review: v.optional(reportReview),

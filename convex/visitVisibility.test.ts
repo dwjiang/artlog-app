@@ -117,3 +117,32 @@ it("offers the visit's current visibility as the audience", async () => {
   expect(await setVisitVisibility(t, owner, draft.visit._id, "friends")).toMatchObject({ audience: "friends" });
   expect(await setVisitVisibility(t, owner, draft.visit._id, "public")).toMatchObject({ audience: "public" });
 });
+
+it("filters a profile's visits by audience within what the viewer may read", async () => {
+  const t = harness();
+  const owner = await socialUser(t);
+  const friend = await socialUser(t);
+  const stranger = await socialUser(t);
+  await befriend(owner, friend);
+  const posts: Record<string, string> = {};
+  for (const [index, audience] of (["private", "friends", "public"] as const).entries()) {
+    const draft = await socialVisit(t, owner, 1, `2026-09-0${index + 1}`);
+    await setVisitVisibility(t, owner, draft.visit._id, audience);
+    posts[audience] = (await owner.as.mutation(api.sharedVisits.publish, { ...draft.selection, audience })).postId!;
+  }
+  const list = async (viewer: typeof t | typeof owner.as, audience?: "private" | "friends" | "public") =>
+    (await viewer.query(api.sharedVisits.listByProfile, { profileId: owner.profileId, audience })).page.map(
+      (row) => row.postId,
+    );
+  expect(await list(owner.as)).toEqual([posts.public, posts.friends, posts.private]);
+  for (const audience of ["private", "friends", "public"] as const) {
+    expect(await list(owner.as, audience)).toEqual([posts[audience]]);
+  }
+  expect(await list(friend.as, "friends")).toEqual([posts.friends]);
+  expect(await list(friend.as, "private")).toEqual([]);
+  for (const viewer of [t, stranger.as]) {
+    expect(await list(viewer, "public")).toEqual([posts.public]);
+    expect(await list(viewer, "friends")).toEqual([]);
+    expect(await list(viewer, "private")).toEqual([]);
+  }
+});

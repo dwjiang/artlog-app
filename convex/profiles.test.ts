@@ -356,8 +356,8 @@ it("validates shared layout, dimensions, and reporting boundaries", () => {
   expect(() =>
     validateReport({
       target: { kind: "profile", profileId: "profile" as never },
-      reason: "",
-      details: "",
+      reason: "other",
+      details: " ",
     }),
   ).toThrow("invalid_report");
 });

@@ -18,7 +18,6 @@ export const LIMITS = {
   selectedSaves: 50,
   friends: 200,
   city: 120,
-  reportReason: 120,
   reportDetails: 2000,
   feedbackMessage: 2000,
 } as const;

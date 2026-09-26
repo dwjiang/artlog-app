@@ -12,23 +12,23 @@ it("accepts public reports from registered devices, deduplicates account reporte
   const guest = await seedDevice(t);
   const stranger = await socialUser(t);
   const target = { kind: "profile" as const, profileId: author.profileId };
-  await expect(t.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toThrow("unauthenticated");
+  await expect(t.mutation(api.reports.submit, { target, reason: "spam" })).rejects.toThrow("unauthenticated");
   const unregistered = await signIn(t);
-  await expect(unregistered.as.mutation(api.reports.submit, { target, reason: "Spam" })).rejects.toMatchObject({
+  await expect(unregistered.as.mutation(api.reports.submit, { target, reason: "spam" })).rejects.toMatchObject({
     data: { code: "device_not_registered" },
   });
   const id = await guest.as.mutation(api.reports.submit, {
     target,
-    reason: "Spam",
+    reason: "spam",
   });
-  expect(await guest.as.mutation(api.reports.submit, { target, reason: "Again" })).toBe(id);
+  expect(await guest.as.mutation(api.reports.submit, { target, reason: "harassment" })).toBe(id);
   const first = await stranger.as.mutation(api.reports.submit, {
     target,
-    reason: "Spam",
+    reason: "spam",
   });
   const sibling = await seedDevice(t);
   await t.run((ctx) => ctx.db.patch("devices", sibling.deviceId, { accountId: stranger.accountId }));
-  expect(await sibling.as.mutation(api.reports.submit, { target, reason: "Spam" })).toBe(first);
+  expect(await sibling.as.mutation(api.reports.submit, { target, reason: "spam" })).toBe(first);
   const draft = await socialVisit(t, author);
   await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection: "Public evidence" }));
   const post = await author.as.mutation(api.sharedVisits.publish, {
@@ -38,7 +38,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
   const sharedTarget = { kind: "sharedVisit" as const, postId: post.postId! };
   const reportId = await stranger.as.mutation(api.reports.submit, {
     target: sharedTarget,
-    reason: "Abuse",
+    reason: "harassment",
   });
   const report = await t.query(internal.review.getReport, { reportId });
   expect(report?.evidence).toEqual({
@@ -52,7 +52,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
   await expect(
     stranger.as.mutation(api.reports.submit, {
       target: sharedTarget,
-      reason: "Abuse",
+      reason: "harassment",
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual(report?.evidence);
@@ -67,7 +67,7 @@ it("records operator decisions and permanently removes a publication without cha
   const post = await a.as.mutation(api.sharedVisits.publish, draft.selection);
   const reportId = await b.as.mutation(api.reports.submit, {
     target: { kind: "sharedVisit", postId: post.postId! },
-    reason: "Abuse",
+    reason: "harassment",
   });
   expect((await t.query(internal.review.listReports, {})).rows.map((r) => r.reportId)).toEqual([reportId]);
   const decision = {
@@ -138,7 +138,7 @@ it("captures only published wall text and retains removal even if an active flag
   });
   const reportId = await reporter.as.mutation(api.reports.submit, {
     target: { kind: "wallItem", itemId },
-    reason: "Abuse",
+    reason: "harassment",
   });
   const report = await t.query(internal.review.getReport, { reportId });
   expect(report?.evidence).toEqual({
@@ -171,7 +171,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
   const target = { kind: "profile" as const, profileId: a.profileId };
   const first = await reporter.as.mutation(api.reports.submit, {
     target,
-    reason: "Abuse",
+    reason: "harassment",
   });
   await t.mutation(internal.review.decideReport, {
     reportId: first,
@@ -182,7 +182,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
   expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).not.toBeNull();
   const reportId = await reporter.as.mutation(api.reports.submit, {
     target,
-    reason: "New abuse",
+    reason: "harassment",
   });
   expect(reportId).not.toBe(first);
   await t.mutation(internal.review.decideReport, {
@@ -216,7 +216,7 @@ it("enforces ten daily reports per account across devices without charging dupli
     const author = await socialUser(t);
     const input = {
       target: { kind: "profile" as const, profileId: author.profileId },
-      reason: "Spam",
+      reason: "spam" as const,
     };
     const first = await reporter.as.mutation(api.reports.submit, input);
     expect(await sibling.as.mutation(api.reports.submit, input)).toBe(first);
@@ -225,7 +225,84 @@ it("enforces ten daily reports per account across devices without charging dupli
   await expect(
     sibling.as.mutation(api.reports.submit, {
       target: { kind: "profile", profileId: author.profileId },
-      reason: "Spam",
+      reason: "spam",
     }),
   ).rejects.toMatchObject({ data: { code: "rate_limited", name: "report" } });
+});
+
+it("reports a visible comment with its text as evidence, and removal deletes it", async () => {
+  const t = harness();
+  const author = await socialUser(t);
+  const commenter = await socialUser(t);
+  const guest = await seedDevice(t);
+  const draft = await socialVisit(t, author);
+  const { postId } = await author.as.mutation(api.sharedVisits.publish, draft.selection);
+  const commentId = await commenter.as.mutation(api.visitReactions.addComment, {
+    postId: postId!,
+    body: "Rude words",
+    requestId: crypto.randomUUID(),
+  });
+  const target = { kind: "comment" as const, commentId };
+  const reportId = await guest.as.mutation(api.reports.submit, { target, reason: "harassment" });
+  expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual({
+    kind: "comment",
+    profileId: commenter.profileId,
+    postId,
+    commentId,
+    body: "Rude words",
+  });
+  await author.as.mutation(api.friendships.block, {
+    profileId: commenter.profileId,
+    revision: 0,
+    blockRevision: 0,
+  });
+  await expect(author.as.mutation(api.reports.submit, { target, reason: "harassment" })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
+  await t.mutation(internal.review.decideReport, {
+    reportId,
+    operator: "op",
+    decision: "remove",
+    reason: "Confirmed",
+  });
+  expect(await t.run((ctx) => ctx.db.get("visitComments", commentId))).toBeNull();
+  expect(await guest.as.query(api.visitReactions.getSummary, { postId: postId! })).toMatchObject({
+    commentCount: 0,
+  });
+  expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toMatchObject({ body: "Rude words" });
+});
+
+it("rejects reports of the reporter's own content and a bare “other” reason", async () => {
+  const t = harness();
+  const author = await socialUser(t);
+  const reporter = await socialUser(t);
+  const draft = await socialVisit(t, author);
+  const { postId } = await author.as.mutation(api.sharedVisits.publish, draft.selection);
+  const commentId = await author.as.mutation(api.visitReactions.addComment, {
+    postId: postId!,
+    body: "My own note",
+    requestId: crypto.randomUUID(),
+  });
+  for (const target of [
+    { kind: "profile" as const, profileId: author.profileId },
+    { kind: "sharedVisit" as const, postId: postId! },
+    { kind: "comment" as const, commentId },
+  ]) {
+    await expect(author.as.mutation(api.reports.submit, { target, reason: "spam" })).rejects.toMatchObject({
+      data: { code: "invalid_report" },
+    });
+  }
+  const target = { kind: "comment" as const, commentId };
+  await expect(
+    reporter.as.mutation(api.reports.submit, { target, reason: "other", details: "  " }),
+  ).rejects.toMatchObject({ data: { code: "invalid_report" } });
+  const reportId = await reporter.as.mutation(api.reports.submit, {
+    target,
+    reason: "other",
+    details: "  Links to a scam site  ",
+  });
+  expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+    reason: "other",
+    details: "Links to a scam site",
+  });
 });

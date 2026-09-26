@@ -147,7 +147,7 @@ it("lists only the caller’s active, unremoved shared visits", async () => {
   });
   const reportId = await b.as.mutation(api.reports.submit, {
     target: { kind: "sharedVisit", postId: flagged.postId! },
-    reason: "Abuse",
+    reason: "harassment",
   });
   await t.mutation(internal.review.decideReport, {
     reportId,

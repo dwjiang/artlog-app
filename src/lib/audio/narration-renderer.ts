@@ -7,7 +7,7 @@ import { validateGuide } from "@/shared/audio/guide";
 import type { DocentSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
 
-type Rendered = { uri: string; sentences: DocentSentence[]; renderId: string };
+type Rendered = { uri: string; sentences: DocentSentence[]; renderId: string; live: boolean };
 type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered>;
 
 function cacheDirectory() {
@@ -40,7 +40,7 @@ export function createNarrationRenderer(generate: Generate) {
         if (!file.exists || file.size === 0 || !transcript.exists) return undefined;
         try {
           const sentences = validateGuide(JSON.parse(transcript.textSync()), factIds, opening);
-          return sentences ? { uri: file.uri, sentences, renderId } : undefined;
+          return sentences ? { uri: file.uri, sentences, renderId, live: false } : undefined;
         } catch {
           return undefined; /* A missing or damaged transcript is downloaded with its audio again. */
         }
@@ -52,6 +52,8 @@ export function createNarrationRenderer(generate: Generate) {
       if (request.signal.aborted) throw new Error("Narration cancelled.");
       const sentences = validateGuide(audio.sentences, factIds, opening);
       if (!sentences) throw new Error("Narration transcript is invalid.");
+      // Speech still being generated plays from its playlist; a later play downloads the finished file.
+      if (audio.live) return { ...audio, sentences };
       const downloaded = local(audio.renderId);
       if (downloaded) return downloaded;
       const file = new File(directory, `${audio.renderId}.mp3`);
@@ -69,7 +71,7 @@ export function createNarrationRenderer(generate: Generate) {
         await partial.move(file);
         transcript.write(JSON.stringify(sentences));
         if (request.signal.aborted) throw new Error("Narration cancelled.");
-        return { uri: file.uri, sentences, renderId: audio.renderId };
+        return { uri: file.uri, sentences, renderId: audio.renderId, live: false };
       } finally {
         clearTimeout(timeout);
         if (partial.exists && partial.uri !== file.uri) partial.delete();

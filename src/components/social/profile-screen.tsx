@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
+import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import type { VisitVisibility } from "@/shared/journal/contracts";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
@@ -18,12 +20,18 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
 import { OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
+import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
+const FILTERED_EMPTY: Record<VisitVisibility, string> = {
+  private: "No private visits.",
+  friends: "No friends-only visits.",
+  public: "No public visits.",
+};
 
 export function ProfileScreen({ profileId }: { profileId: string }) {
   const session = useSocialSession();
@@ -32,24 +40,36 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const { top } = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const [tab, setTab] = useState<"wall" | "visits">("wall");
+  const [chosenAudience, setAudience] = useState<VisitAudienceFilterValue>("all");
+  const [visitCount, setVisitCount] = useState<number>();
   const scroll = useRef<ScrollView>(null);
   const offsets = useRef({ wall: 0, visits: 0 });
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : "skip", session.key);
+  const own = session.profileId === profileId;
   const relationship = useSocialQuery(
     api.friendships.getState,
-    session.status === "ready" && session.profileId !== profileId ? args : "skip",
+    session.status === "ready" && !own ? args : "skip",
     session.key,
   );
   const canReadVisits = !session.offline && !!profile.data && !relationship.data?.blocked;
+  const audiences: VisitVisibility[] = own
+    ? ["private", "friends", "public"]
+    : relationship.data?.state === "accepted"
+      ? ["friends", "public"]
+      : [];
+  // Ending a friendship removes the Friends choice, so a stale choice falls back to every visit.
+  const audience = chosenAudience === "all" || audiences.includes(chosenAudience) ? chosenAudience : "all";
   const visits = useCursorPages(
     api.sharedVisits.listByProfile,
-    canReadVisits ? { profileId: profileId as Id<"profiles"> } : "skip",
+    canReadVisits ? { profileId: profileId as Id<"profiles">, ...(audience === "all" ? {} : { audience }) } : "skip",
     session.key,
     visitPage,
     visitId,
   );
+  // The header counts every visit the viewer can see, so it keeps the last full count while a filter is on.
+  if (audience === "all" && visits.done && visits.items.length !== visitCount) setVisitCount(visits.items.length);
   function changeTab(value: "wall" | "visits") {
     setTab(value);
     requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false }));
@@ -100,6 +120,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   return (
     <GestureHandlerRootView style={socialStyles.root}>
       {bar}
+      {session.status !== "loading" && session.profileId !== profileId && (
+        <ReportToolbar kind="profile" id={person.profileId} />
+      )}
       <ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
@@ -115,10 +138,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             identity={{ name: person.name, subtitle: `@${person.username}`, profile: person }}
             stats={[
               { noun: "artwork", count: person.publishedWallCount },
-              ...(visits.done ? [{ noun: "visit", count: visits.items.length }] : []),
+              ...(visitCount !== undefined ? [{ noun: "visit", count: visitCount }] : []),
             ]}
           >
-            {session.profileId === profileId ? (
+            {own ? (
               <OwnProfileActions profileId={person.profileId} />
             ) : (
               <FriendshipControls
@@ -178,15 +201,28 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           />
         ) : (
           <View>
-            {visits.items.map((visit) => (
-              <VisitCard key={visit.postId} visit={visit} token={session.token} />
-            ))}
-            {visits.done && !visits.loading && visits.items.length === 0 && !visits.error && (
-              <EmptyState
-                title="No shared visits yet."
-                detail={`When ${person.name.split(" ")[0]} shares a museum visit, it will appear here.`}
-              />
+            {audiences.length > 0 && !(audience === "all" && visits.done && visits.items.length === 0) && (
+              <View
+                style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: "row", justifyContent: "flex-end" }}
+              >
+                <VisitAudienceFilter value={audience} choices={audiences} onChange={setAudience} />
+              </View>
             )}
+            {visits.items.map((visit) => (
+              <VisitCard key={visit.postId} visit={visit} token={session.token} viewerProfileId={session.profileId} />
+            ))}
+            {visits.done
+              && !visits.loading
+              && visits.items.length === 0
+              && !visits.error
+              && (audience === "all" ? (
+                <EmptyState
+                  title="No shared visits yet."
+                  detail={`When ${person.name.split(" ")[0]} shares a museum visit, it will appear here.`}
+                />
+              ) : (
+                <EmptyState title={FILTERED_EMPTY[audience]} />
+              ))}
             <PageFooter {...visits} count={visits.items.length} />
           </View>
         )}

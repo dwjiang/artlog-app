@@ -69,3 +69,32 @@ export function VisitVisibilityChip({
     />
   );
 }
+
+export type VisitAudienceFilterValue = VisitVisibility | "all";
+
+/** Narrows a list of visits to one visibility, offering only the visibilities the viewer can see. */
+export function VisitAudienceFilter({
+  value,
+  choices,
+  onChange,
+}: {
+  value: VisitAudienceFilterValue;
+  choices: readonly VisitVisibility[];
+  onChange: (value: VisitAudienceFilterValue) => void;
+}) {
+  return (
+    <ChoiceMenu
+      label={LABEL}
+      icon="line.3.horizontal.decrease"
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: "all", label: "All visits" },
+        ...CHOICES.filter((choice) => choices.includes(choice)).map((choice) => ({
+          value: choice,
+          label: VISIT_VISIBILITY[choice].label,
+        })),
+      ]}
+    />
+  );
+}

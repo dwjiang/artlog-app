@@ -9,6 +9,7 @@ import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
 import { Gallery, Typography } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
+import { reportHref } from "@/lib/social/report";
 import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
 
 import { ProfileAvatar } from "./profile-avatar";
@@ -135,10 +136,12 @@ export function VisitArtworks({
 export function VisitCard({
   visit,
   token,
+  viewerProfileId,
   showAuthor = true,
 }: {
   visit: SharedVisit;
   token?: string | null;
+  viewerProfileId?: string;
   showAuthor?: boolean;
 }) {
   const router = useRouter();
@@ -152,16 +155,20 @@ export function VisitCard({
       pathname: "/profile/[profileId]",
       params: { profileId: visit.author.profileId },
     });
+  const actions = [
+    { label: "View visit", run: openVisit },
+    { label: `View ${visit.author.name}’s profile`, run: openProfile },
+    ...(visit.author.profileId === viewerProfileId
+      ? []
+      : [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }]),
+  ];
   const openMenu = () =>
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: ["View visit", `View ${visit.author.name}’s profile`, "Cancel"],
-        cancelButtonIndex: 2,
+        options: [...actions.map((action) => action.label), "Cancel"],
+        cancelButtonIndex: actions.length,
       },
-      (index) => {
-        if (index === 0) openVisit();
-        else if (index === 1) openProfile();
-      },
+      (index) => actions[index]?.run(),
     );
   return (
     <VisitFeedCard

@@ -315,7 +315,10 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
     media: { kind: "placeholder", width: 1, height: 1 },
   });
   expect(JSON.stringify(publicWall)).not.toContain(a.saveLocalId);
-  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual(publicWall!.items[0]);
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual({
+    ...publicWall!.items[0],
+    profileId: a.profile.profileId,
+  });
 });
 
 it("counts artworks by save so a second placement of the same work adds a piece, not an artwork", async () => {

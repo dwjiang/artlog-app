@@ -4,6 +4,7 @@ import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { guideBodyFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
@@ -704,7 +705,7 @@ it("shares a single research search between independent docent and audio scripts
   );
   routes.push((url) =>
     url.href.includes("api.openai.com")
-      ? new Response(new Uint8Array([73, 68, 51]), {
+      ? new Response(speechMp3(100), {
           headers: { "Content-Type": "audio/mpeg" },
         })
       : undefined,

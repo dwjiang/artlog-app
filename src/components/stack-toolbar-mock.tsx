@@ -30,4 +30,14 @@ Toolbar.Button = function ToolbarButton({
   );
 };
 
+// Menus render their actions inline, as if always open.
+Toolbar.Menu = Toolbar;
+Toolbar.MenuAction = function ToolbarMenuAction({ children, onPress }: { children: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress}>
+      <Text>{children}</Text>
+    </Pressable>
+  );
+};
+
 export const mockStack = { Toolbar, Screen: () => null };

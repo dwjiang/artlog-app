@@ -265,25 +265,32 @@ it("refuses another device’s visit and uses the current museum of an owned vis
   ).resolves.toMatchObject({ scan: { venueId: otherVenue, visitId } });
 });
 
-it("retries a scan after its visit moves while retaining the scan's recognition museum", async () => {
-  const { t, user, args, venueId } = await fixture();
-  const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
-  const input = { ...args, localId: "linked-capture", visitId };
-  const first = await t.mutation(internal.scans.create, input);
-  const otherVenue = await t.run(seedMuseum);
-  await t.run((ctx) =>
-    ctx.db.patch("visits", visitId, { venueId: otherVenue, lastConfidentGallery: "99", lastConfidentAt: Date.now() }),
-  );
-  await t.run((ctx) => ctx.db.patch("scans", first.scan._id, { status: "failed" }));
-  const retry = await t.mutation(internal.scans.create, { ...input, venueId: otherVenue });
-  expect(retry.scan).toMatchObject({ _id: first.scan._id, venueId, visitId, generation: 1, status: "pending" });
-  expect(await t.query(internal.identify.loadContext, { scanId: retry.scan._id })).toMatchObject({ visit: null });
-  const next = await t.mutation(internal.scans.create, { ...input, localId: "not-uploaded-yet" });
-  expect(next.scan).toMatchObject({ venueId: otherVenue, visitId });
-  await expect(t.mutation(internal.scans.create, { ...input, visitId: undefined })).rejects.toMatchObject({
-    data: { code: "not_found" },
-  });
-});
+it.each(["failed", "expired"])(
+  "retries a %s scan after its visit moves while retaining the scan's recognition museum",
+  async (reason) => {
+    const { t, user, args, venueId } = await fixture();
+    const visitId = await t.run((ctx) => seedJournalVisit(ctx, user.deviceId, venueId));
+    const input = { ...args, localId: "linked-capture", visitId };
+    const first = await t.mutation(internal.scans.create, input);
+    const otherVenue = await t.run(seedMuseum);
+    await t.run((ctx) =>
+      ctx.db.patch("visits", visitId, { venueId: otherVenue, lastConfidentGallery: "99", lastConfidentAt: Date.now() }),
+    );
+    await t.run((ctx) =>
+      reason === "failed"
+        ? ctx.db.patch("scans", first.scan._id, { status: "failed" })
+        : ctx.db.delete("scanEmbeddings", first.scan.embeddingId),
+    );
+    const retry = await t.mutation(internal.scans.create, { ...input, venueId: otherVenue });
+    expect(retry.scan).toMatchObject({ _id: first.scan._id, venueId, visitId, generation: 1, status: "pending" });
+    expect(await t.query(internal.identify.loadContext, { scanId: retry.scan._id })).toMatchObject({ visit: null });
+    const next = await t.mutation(internal.scans.create, { ...input, localId: "not-uploaded-yet" });
+    expect(next.scan).toMatchObject({ venueId: otherVenue, visitId });
+    await expect(t.mutation(internal.scans.create, { ...input, visitId: undefined })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+  },
+);
 
 it("ignores results from an older payload after an unsupported capture is restarted", async () => {
   const { t, args, scanId } = await fixture();

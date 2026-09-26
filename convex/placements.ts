@@ -10,7 +10,7 @@ import { recognitionPartition } from "./lib/recognitionEligibility";
 import { proposalStatus } from "./lib/validators";
 import { insertVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
-import { requireEmbedding } from "./scanEmbeddings";
+import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 const DAY = 86_400_000;
@@ -48,11 +48,13 @@ function retainEvidence(scans: Doc<"scans">[]): Doc<"scans">[] {
   return [...byDevice.values()].flatMap(({ first, last }) => (first._id === last._id ? [first] : [first, last]));
 }
 
+// A pending copy proposal indexes its evidence scans' stored vectors, which expire.
 async function isValidEvidence(
   ctx: QueryCtx,
   scan: Doc<"scans">,
   objectId: Id<"objects">,
   venueId: Id<"museums">,
+  needsVector: boolean,
 ): Promise<boolean> {
   const object = await ctx.db.get("objects", objectId);
   if (!object || object.identityStatus !== "established") return false;
@@ -68,7 +70,8 @@ async function isValidEvidence(
   );
   const resolved = feedback.some((row) => row.resolution.kind === "runner_up" && row.resolution.objectId === objectId);
   const confident = scan.outcome === "confident" && scan.best?.objectId === objectId;
-  return feedback.length <= 32 && !rejected && (confident || resolved);
+  if (feedback.length > 32 || rejected || !(confident || resolved)) return false;
+  return !needsVector || (await readEmbedding(ctx, scan.embeddingId)) !== null;
 }
 
 async function loadValidEvidence(
@@ -76,11 +79,12 @@ async function loadValidEvidence(
   scanIds: Id<"scans">[],
   objectId: Id<"objects">,
   venueId: Id<"museums">,
+  needsVector: boolean,
 ): Promise<Doc<"scans">[]> {
   const scans: Doc<"scans">[] = [];
   for (const scanId of new Set(scanIds)) {
     const scan = await ctx.db.get("scans", scanId);
-    if (scan && (await isValidEvidence(ctx, scan, objectId, venueId))) {
+    if (scan && (await isValidEvidence(ctx, scan, objectId, venueId, needsVector))) {
       scans.push(scan);
     }
   }
@@ -112,6 +116,7 @@ export async function proposePlacementFromScan(
   if (object.identityStatus !== "established") return null;
   const artwork = await ctx.db.get("artworks", object.artworkId);
   if (!artwork) throw new ConvexError({ code: "invalid_scan" });
+  const kind = artwork.multiplicity === "unique" ? "move" : "new_object";
   const venue = await ctx.db.get("museums", proposedVenueId);
   if (!venue || (await isVenueOptedOut(ctx, venue))) {
     throw new ConvexError({ code: "invalid_venue" });
@@ -127,12 +132,13 @@ export async function proposePlacementFromScan(
   if ((existing?.scanIds.length ?? 0) > MAX_EVIDENCE_SCANS) {
     throw new ConvexError({ code: "invalid_proposal_evidence" });
   }
-  const scans = await loadValidEvidence(ctx, existing?.scanIds ?? [], objectId, proposedVenueId);
+  const needsVector = kind === "new_object";
+  const scans = await loadValidEvidence(ctx, existing?.scanIds ?? [], objectId, proposedVenueId, needsVector);
   // Freeze valid agreement, but let fresh scans replace withdrawn or missing evidence.
   if (
     !summarizeEvidence(scans).readyForReview
     && !scans.some((row) => row._id === scan._id)
-    && (await isValidEvidence(ctx, scan, objectId, proposedVenueId))
+    && (await isValidEvidence(ctx, scan, objectId, proposedVenueId, needsVector))
   ) {
     scans.push(scan);
   }
@@ -144,7 +150,6 @@ export async function proposePlacementFromScan(
   }
   const evidence = summarizeEvidence(retained);
   await input.beforeWrite?.();
-  const kind = artwork.multiplicity === "unique" ? "move" : "new_object";
   const proposalId =
     existing?._id
     ?? (await ctx.db.insert("placementProposals", {
@@ -209,7 +214,13 @@ export const reviewPlacement = internalMutation({
         throw new ConvexError({ code: "invalid_venue" });
       }
       const deviceIds = [...new Set(proposal.deviceIds)];
-      const scans = await loadValidEvidence(ctx, proposal.scanIds, object._id, venue._id);
+      const scans = await loadValidEvidence(
+        ctx,
+        proposal.scanIds,
+        object._id,
+        venue._id,
+        proposal.kind === "new_object",
+      );
       if (
         scans.length !== new Set(proposal.scanIds).size
         || scans.some((scan) => !deviceIds.includes(scan.deviceId))
@@ -396,7 +407,14 @@ export async function reassessProposal(ctx: MutationCtx, proposalId: Id<"placeme
   if (!proposal || proposal.status === "rejected" || proposal.revertedAt !== undefined) {
     return;
   }
-  const scans = await loadValidEvidence(ctx, proposal.scanIds, proposal.objectId, proposal.proposedVenueId);
+  // A promoted copy already indexed its own vectors, so expiry cannot withdraw its evidence.
+  const scans = await loadValidEvidence(
+    ctx,
+    proposal.scanIds,
+    proposal.objectId,
+    proposal.proposedVenueId,
+    proposal.status === "pending" && proposal.kind === "new_object",
+  );
   const summary = summarizeEvidence(scans);
   await ctx.db.patch("placementProposals", proposalId, {
     scanIds: scans.map((scan) => scan._id),
