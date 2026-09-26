@@ -4,7 +4,7 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import {
-  COLLECTION_PHOTO_LONG_SIDE,
+  COLLECTION_PHOTO_MAX_WIDTH,
   MAX_COLLECTION_PHOTO_BYTES,
   type CollectionPhotoKind,
 } from "@/shared/collection/photo-limits";
@@ -35,15 +35,14 @@ export async function uploadCollectionPhoto(
 ): Promise<PhotoUpload> {
   const context = ImageManipulator.manipulate(captureFileUri(path));
   const source = await context.renderAsync();
-  const longSide = kind === "photo" ? COLLECTION_PHOTO_LONG_SIDE : 512;
+  const dimension = kind === "photo" || source.width >= source.height ? "width" : "height";
+  const limit = kind === "photo" ? COLLECTION_PHOTO_MAX_WIDTH : 512;
   const resize = ImageManipulator.manipulate(source);
   let rendered = source;
   let file: File | undefined;
   try {
-    if (Math.max(source.width, source.height) > longSide) {
-      rendered = await resize
-        .resize(source.width >= source.height ? { width: longSide } : { height: longSide })
-        .renderAsync();
+    if (source[dimension] > limit) {
+      rendered = await resize.resize({ [dimension]: limit }).renderAsync();
     }
     // Re-encoding the rendered image omits the original camera and location metadata.
     const encoded = await rendered.saveAsync({
