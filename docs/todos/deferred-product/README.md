@@ -16,7 +16,8 @@ for the current release. [Hub scoring](../hub-scoring/README.md) and the
    venue-derived data, and consented contribution crops should persist; specify
    user deletion and withdrawal effects on shared and derived data. Existing
    withdrawal, takedown, and opt-out code does not by itself define a retention
-   policy. Align the eventual product copy and cleanup behavior with the decision.
+   policy. Stored scan and rejection vectors already expire after 180 days.
+   Align the eventual product copy and cleanup behavior with the decision.
 3. **Prepare for embedding-model changes.** When a new model is chosen, rebuild
    the index with the same numerical behavior as the phone and measure drift.
    Use original source image references or consented contribution crops to

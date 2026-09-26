@@ -209,7 +209,10 @@ export default defineSchema({
     dimensions: model.embeddingDim,
     filterFields: ["partition"],
   }),
-  scanEmbeddings: defineTable({ vector: embedding }),
+  // Scan and rejection vectors expire; a contribution's copy lives as long as the contribution.
+  scanEmbeddings: defineTable({ vector: embedding, expiresAt: v.optional(v.number()) }).index("by_expiresAt", [
+    "expiresAt",
+  ]),
 
   savedRecognition: defineTable({
     saveId: v.id("collections"),

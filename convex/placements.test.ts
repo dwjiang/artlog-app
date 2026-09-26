@@ -782,6 +782,54 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
   expect(await proposal()).toMatchObject({ status: "promoted" });
 });
 
+it("replaces copy evidence whose stored vector expired with a fresh scan", async () => {
+  const { t, users, propose, proposal } = await fixture("multiple");
+  for (let i = 0; i < 3; i++) await propose(i);
+  const p = (await proposal())!;
+  await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", p.scanIds[0]))!.embeddingId));
+  const args = {
+    proposalId: p._id,
+    decision: "approve" as const,
+    reviewer: "curator",
+  };
+  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+    data: { code: "invalid_proposal_evidence" },
+  });
+  users.push(await seedDevice(t));
+  const fresh = await propose(3);
+  expect(await proposal()).toMatchObject({
+    readyForReview: true,
+    scanIds: [...p.scanIds.slice(1), fresh],
+  });
+  await t.mutation(internal.placements.reviewPlacement, args);
+  expect(await proposal()).toMatchObject({ status: "promoted" });
+});
+
+it("keeps a promoted copy when its evidence vectors expire", async () => {
+  vi.useFakeTimers();
+  const { t, users, propose, proposal } = await fixture("multiple");
+  await propose(0);
+  await propose(1);
+  await propose(2, NOW + DAY);
+  const p = (await proposal())!;
+  await t.mutation(internal.placements.reviewPlacement, {
+    proposalId: p._id,
+    decision: "approve",
+    reviewer: "curator",
+  });
+  await t.run(async (ctx) => {
+    for (const scanId of p.scanIds) {
+      await ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId);
+    }
+  });
+  await t.mutation(internal.revert.revertDevice, { deviceId: users[1].deviceId, reason: "abuse" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const promoted = (await proposal())!;
+  expect(promoted).not.toHaveProperty("revertedAt");
+  const placement = (await t.run((ctx) => ctx.db.get("placements", promoted.promotion!.placementId)))!;
+  expect(await t.run((ctx) => ctx.db.get("objects", placement.objectId))).toMatchObject({ reverted: false });
+});
+
 it("recomputes the agreement window after removing missing evidence and can become ready again", async () => {
   const { t, ready, propose, proposal } = await fixture();
   const p = await ready();
