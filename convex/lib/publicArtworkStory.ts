@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { readArtworkContent } from "./artworkContent";
 import { docentSentence, factChip } from "./validators";
 
 export const publicArtworkStory = v.object({
@@ -20,9 +21,10 @@ export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections"
   ) {
     return undefined;
   }
-  const facts = artwork.factSheet ?? [];
+  const content = await readArtworkContent(ctx, artwork);
+  const facts = content?.factSheet ?? [];
   const sources = new Set(facts.map((fact) => fact.id));
-  const docent = artwork.docent?.en?.filter(
+  const docent = content?.docent?.en?.filter(
     (line) => line.factIds.length > 0 && line.factIds.every((id) => sources.has(id)),
   );
   if (!docent?.length) return undefined;

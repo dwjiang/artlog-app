@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { readArtworkContent } from "./lib/artworkContent";
 import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -21,7 +22,8 @@ async function fixture() {
   const user = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: { factSheet, factSheetUpdatedAt: 1 },
+      artworkContent: { factSheet },
+      artwork: { factSheetUpdatedAt: 1 },
     }),
   );
   await user.as.mutation(api.corrections.correctFact, {
@@ -64,7 +66,7 @@ describe("review.replaceFactSheet", () => {
 
   it("rejects a correction from another artwork without changing either report or sheet", async () => {
     const { t, artworkId, correction } = await fixture();
-    const other = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet } }));
+    const other = await t.run((ctx) => seedArtworkWithObject(ctx, { artworkContent: { factSheet } }));
     await expect(
       t.mutation(internal.review.replaceFactSheet, {
         artworkId: other.artworkId,
@@ -72,7 +74,10 @@ describe("review.replaceFactSheet", () => {
         correctionIds: [correction._id],
       }),
     ).rejects.toMatchObject({ data: { code: "invalid_correction" } });
-    expect((await t.run((ctx) => ctx.db.get("artworks", other.artworkId)))?.factSheet).toEqual(factSheet);
+    expect(
+      (await t.run(async (ctx) => readArtworkContent(ctx, (await ctx.db.get("artworks", other.artworkId))!)))
+        ?.factSheet,
+    ).toEqual(factSheet);
     expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheetNeedsReview).toBe(true);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
@@ -86,7 +91,9 @@ describe("review.replaceFactSheet", () => {
         correctionIds: Array(101).fill(correction._id),
       }),
     ).rejects.toMatchObject({ data: { code: "too_many_corrections" } });
-    expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.factSheet).toEqual(factSheet);
+    expect(
+      (await t.run(async (ctx) => readArtworkContent(ctx, (await ctx.db.get("artworks", artworkId))!)))?.factSheet,
+    ).toEqual(factSheet);
     expect(await t.query(internal.review.listCorrections, {})).toHaveLength(1);
   });
 

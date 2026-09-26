@@ -307,8 +307,8 @@ it("purges the deleted account’s journal, photos and sync state without extra 
     await t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toEqual([]);
   vi.useRealTimers();

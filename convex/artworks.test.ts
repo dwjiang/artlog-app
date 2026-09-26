@@ -42,12 +42,13 @@ const chips = [
   },
 ];
 
-it("returns docent sentences, source chips and the public-domain thumbnail to a registered device, keeping fact text on the artwork", async () => {
+it("returns docent sentences, source chips and the public-domain thumbnail to a registered device, keeping fact text private", async () => {
   const t = harness();
   const { as } = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: { docent: { en: docent }, factSheet, factSheetUpdatedAt: 5 },
+      artwork: { factSheetUpdatedAt: 5 },
+      artworkContent: { docent: { en: docent }, factSheet },
     }),
   );
   expect(await as.query(api.artworks.enrichment, { artworkId })).toEqual({
@@ -107,13 +108,13 @@ it("keeps catalogue lines as source chips but out of the narration research", as
   };
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: { factSheet: [...factSheet, catalogue] },
+      artworkContent: { factSheet: [...factSheet, catalogue] },
     }),
   );
   const enrichment = await as.query(api.artworks.enrichment, { artworkId });
   expect(enrichment?.narrationFacts).toEqual(chips);
   expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual(["f1", "f2", "f3"]);
-  const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { factSheet: [catalogue] } }));
+  const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artworkContent: { factSheet: [catalogue] } }));
   expect((await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts).toBeUndefined();
 });
 
@@ -122,11 +123,8 @@ it("withholds additional narration facts while their sources need review", async
   const { as } = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: {
-        docent: { en: docent },
-        factSheet,
-        factSheetNeedsReview: true,
-      },
+      artwork: { factSheetNeedsReview: true },
+      artworkContent: { docent: { en: docent }, factSheet },
     }),
   );
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();
@@ -136,7 +134,7 @@ it("returns the rendered audio guide script until the research behind it changes
   const t = harness();
   const { as } = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, { artwork: { factSheet, factSheetUpdatedAt: 5 } }),
+    seedArtworkWithObject(ctx, { artwork: { factSheetUpdatedAt: 5 }, artworkContent: { factSheet } }),
   );
   const script = [
     { sentence: openingFixture, factIds: [] },

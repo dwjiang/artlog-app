@@ -144,7 +144,7 @@ def run(
                     if not cached and not sources:
                         raise ValueError("No admissible source text; leaving artwork retryable")
                     facts = (
-                        current.get("factSheet", [])
+                        (context["content"] or {}).get("factSheet", [])
                         if cached
                         else factsheet.generate(provider, sources, current)
                     )

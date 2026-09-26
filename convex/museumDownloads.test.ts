@@ -25,7 +25,7 @@ async function fixture() {
     seedArtworkWithObject(ctx, {
       descriptors: pair.ref,
       placement: { venueId, onView: true, source: "feed", confidence: 1 },
-      artwork: {
+      artworkContent: {
         docent: {
           en: [{ sentence: "Painted as part of a series.", factIds: ["series"] }],
         },

@@ -2,8 +2,10 @@ import { v } from "convex/values";
 
 import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { query } from "./_generated/server";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { renderedNarration } from "./lib/narrationCache";
+import { readObjectDetails } from "./lib/objectDetails";
 import { docentSentence, factChip, rightsStatus, type FactSheetEntry } from "./lib/validators";
 
 const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
@@ -38,24 +40,27 @@ export const enrichment = query({
       for await (const object of ctx.db
         .query("objects")
         .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-        if (object.reverted || object.mergedInto || !object.thumbnailUrl) {
+        if (object.reverted || object.mergedInto) {
           continue;
         }
-        thumbnailUrl = object.thumbnailUrl;
+        const details = await readObjectDetails(ctx, object);
+        if (!details?.thumbnailUrl) continue;
+        thumbnailUrl = details.thumbnailUrl;
         break;
       }
     }
+    const content = await readArtworkContent(ctx, artwork);
     const narrationFacts =
-      artwork.factSheet
+      content?.factSheet
       && !artwork.factSheetNeedsReview
       && !artwork.retiredAt
       && artwork.identityStatus === "established"
-        ? guideResearch(artwork.factSheet)
+        ? guideResearch(content.factSheet)
         : [];
     const narration = narrationFacts.length > 0 ? await renderedNarration(ctx, artwork) : null;
     return {
-      docent: artwork.docent?.en,
-      factSheet: artwork.factSheet?.map(chip),
+      docent: content?.docent?.en,
+      factSheet: content?.factSheet?.map(chip),
       narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(chip) : undefined,
       narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
       narrationRenderId: narration?.renderId,

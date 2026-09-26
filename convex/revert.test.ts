@@ -6,7 +6,9 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
+import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
 import { publishContribution } from "./lib/tentativeEntries";
 import {
   seedArtworkWithObject,
@@ -56,7 +58,6 @@ async function seedUserObject(
     ownerId: options.venueId,
     source: "user",
     sourceId,
-    thumbnailStorageId: options.thumbnailStorageId,
     provenance: {
       contributionIds: options.contributionIds ?? [],
       deviceIds: options.deviceIds,
@@ -66,6 +67,7 @@ async function seedUserObject(
     calibratorPenalty: 0,
     reverted: false,
   });
+  await patchObjectDetails(ctx, { _id: objectId }, { thumbnailStorageId: options.thumbnailStorageId });
   await insertVector(ctx, {
     partition: JSON.stringify([model.modelVersion, "established"]),
     objectId,
@@ -186,7 +188,10 @@ describe("revertObject", () => {
       reverted: true,
       revertedReason: "mislabeled",
     });
-    expect((await get("objects", object._id))?.thumbnailStorageId).toBeUndefined();
+    expect(
+      (await t.run(async (ctx) => readObjectDetails(ctx, (await ctx.db.get("objects", object._id))!)))
+        ?.thumbnailStorageId,
+    ).toBeUndefined();
     expect(await all("vectors")).toEqual([]);
     expect(await all("descriptors")).toEqual([]);
     expect(await all("placements")).toMatchObject([{ objectId: object._id, closedAt: Date.now() }]);
@@ -282,10 +287,9 @@ describe("applyTakedown", () => {
     const { t, alice, venueId, get, all, finish } = await fixture();
     const seeded = await t.run(async (ctx) => {
       const corpus = await seedArtworkWithObject(ctx, {
+        artworkContent: { factSheet, docent },
         artwork: {
-          factSheet,
           factSheetUpdatedAt: 1,
-          docent,
           docentUpdatedAt: 1,
           enrichGeneration: 3,
         },
@@ -297,11 +301,10 @@ describe("applyTakedown", () => {
         artworkId: corpus.artworkId,
       });
       const other = await seedArtworkWithObject(ctx, {
+        artworkContent: { factSheet, docent },
         artwork: {
           title: "Haystacks",
-          factSheet,
           factSheetUpdatedAt: 1,
-          docent,
         },
       });
       return { corpus, user, other };
@@ -315,7 +318,7 @@ describe("applyTakedown", () => {
       factSheetNeedsReview: true,
       enrichGeneration: 4,
     });
-    for (const field of ["factSheet", "factSheetUpdatedAt", "docent", "docentUpdatedAt", "enrichClaimedAt"] as const) {
+    for (const field of ["contentId", "factSheetUpdatedAt", "docentUpdatedAt", "enrichClaimedAt"] as const) {
       expect(artwork?.[field]).toBeUndefined();
     }
     await finish();
@@ -330,10 +333,10 @@ describe("applyTakedown", () => {
     });
     expect(await get("objects", seeded.user.objectId)).toMatchObject({ reverted: true });
     expect(await get("objects", seeded.other.objectId)).toMatchObject({ reverted: false });
-    expect(await get("artworks", seeded.other.artworkId)).toMatchObject({
-      factSheet,
-      docent,
-    });
+    expect(
+      await t.run(async (ctx) => readArtworkContent(ctx, (await ctx.db.get("artworks", seeded.other.artworkId))!)),
+    ).toMatchObject({ factSheet, docent });
+    expect(await t.run((ctx) => ctx.db.query("artworkContent").collect())).toHaveLength(1);
     expect((await all("vectors")).map((row) => row.objectId)).toEqual([seeded.other.objectId]);
     expect(
       await t.mutation(internal.docent.claim, {

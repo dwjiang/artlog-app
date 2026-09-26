@@ -72,7 +72,6 @@ export default defineSchema({
     deleteAttempts: v.number(),
   })
     .index("by_key", ["key"])
-    .index("by_state", ["state"])
     .index("by_expiresAt", ["expiresAt"]),
 
   narrationAudio: defineTable({
@@ -109,9 +108,8 @@ export default defineSchema({
     rightsStatus,
     multiplicity,
     seriesId: v.optional(v.string()),
-    factSheet: v.optional(v.array(factSheetEntry)),
+    contentId: v.optional(v.id("artworkContent")),
     factSheetUpdatedAt: v.optional(v.number()),
-    docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
     docentUpdatedAt: v.optional(v.number()),
     // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
     enrichClaimedAt: v.optional(v.number()),
@@ -122,8 +120,21 @@ export default defineSchema({
   })
     .index("by_key", ["key"])
     .index("by_wikidataId", ["wikidataId"])
-    .index("by_artistId", ["artistId"])
     .index("by_factSheetUpdatedAt", ["factSheetUpdatedAt"]),
+
+  artworkContent: defineTable({
+    factSheet: v.optional(v.array(factSheetEntry)),
+    docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
+  }),
+
+  objectDetails: defineTable({
+    medium: v.optional(v.string()),
+    dimensions: v.optional(v.string()),
+    imageRef: v.optional(v.string()),
+    pageUrl: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
+    thumbnailStorageId: v.optional(v.string()),
+  }),
 
   objects: defineTable({
     identityStatus,
@@ -134,17 +145,11 @@ export default defineSchema({
     feedbackRevision: v.optional(v.number()),
     key: v.string(),
     artworkId: v.id("artworks"),
+    detailsId: v.optional(v.id("objectDetails")),
     ownerId: v.optional(v.id("museums")),
     accession: v.optional(v.string()),
-    medium: v.optional(v.string()),
-    dimensions: v.optional(v.string()),
     source: objectSource,
     sourceId: v.string(),
-    imageRef: v.optional(v.string()),
-    pageUrl: v.optional(v.string()),
-    thumbnailUrl: v.optional(v.string()),
-    // The contributor's artwork crop: the card thumbnail for `source: user` works.
-    thumbnailStorageId: v.optional(v.string()),
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),

@@ -78,8 +78,8 @@ it("keeps only the latest crop under concurrent uploads and validates content an
     await t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toHaveLength(1);
   await outsider.as.mutation(api.collections.saveToCollection, {
@@ -122,8 +122,8 @@ it("deletion revokes every account device and cleans bytes immediately", async (
     await t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toEqual([]);
 });

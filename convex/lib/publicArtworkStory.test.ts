@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { harness, type Harness } from "../test.helpers";
+import type { ArtworkContentFields } from "./artworkContent";
 import { setVisitVisibility, socialUser, socialVisit } from "./socialTestFixtures";
 import { wallFixture } from "./wallFixtures";
 
@@ -13,8 +14,18 @@ const source = {
 };
 const docent = [{ sentence: "Painted beside the garden.", factIds: ["museum"] }];
 const enrichment = { docent, factSheet: [source] };
-async function addStory(t: Harness, saveId: Id<"collections">, patch: Partial<Doc<"artworks">> = {}) {
+async function addStory(
+  t: Harness,
+  saveId: Id<"collections">,
+  patch: Partial<Doc<"artworks">> = {},
+  content: ArtworkContentFields = {},
+) {
   return t.run(async (ctx) => {
+    const contentId = await ctx.db.insert("artworkContent", {
+      factSheet: [{ ...source, text: "Internal fact text", sourceScore: 1 }],
+      docent: { en: [...docent, { sentence: "Unsupported claim", factIds: ["missing"] }] },
+      ...content,
+    });
     const id = await ctx.db.insert("artworks", {
       identityStatus: "established",
       key: "garden",
@@ -22,10 +33,7 @@ async function addStory(t: Harness, saveId: Id<"collections">, patch: Partial<Do
       artist: "Artist",
       rightsStatus: "public_domain",
       multiplicity: "unique",
-      factSheet: [{ ...source, text: "Internal fact text", sourceScore: 1 }],
-      docent: {
-        en: [...docent, { sentence: "Unsupported claim", factIds: ["missing"] }],
-      },
+      contentId,
       ...patch,
     });
     await ctx.db.patch("collections", saveId, { artworkId: id });
@@ -56,14 +64,14 @@ it("exposes only cited story fields through an active public wall item", async (
 });
 
 it.each([
-  { retiredAt: 1 },
-  { identityStatus: "tentative" as const },
-  { factSheetNeedsReview: true },
-  { docent: { en: [] } },
+  { artwork: { retiredAt: 1 } },
+  { artwork: { identityStatus: "tentative" as const } },
+  { artwork: { factSheetNeedsReview: true } },
+  { content: { docent: { en: [] } } },
 ])("omits stories that are unavailable or need review: %j", async (patch) => {
   const t = harness();
   const owner = await wallFixture(t);
-  await addStory(t, owner.saveId, patch);
+  await addStory(t, owner.saveId, patch.artwork, patch.content);
   const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
   expect(await t.query(api.walls.getArtwork, { itemId: wall.items[0].itemId })).not.toHaveProperty("enrichment");
 });

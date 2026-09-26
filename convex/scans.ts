@@ -4,10 +4,12 @@ import { sameOwner } from "../shared/journal/contracts";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { docentStatusOf } from "./docent";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { fileStorage } from "./lib/fileStorage";
 import { displayLabelFlow } from "./lib/labelVerify";
 import { isSupported } from "./lib/modelVersion";
+import { readObjectDetails } from "./lib/objectDetails";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import {
@@ -206,12 +208,13 @@ export async function joinCandidate(
   if (!object || !artwork || !(await eligibleObject(ctx, object, venueId))) {
     return null;
   }
+  const details = await readObjectDetails(ctx, object);
   const owner = object.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
   // A hotlinked source image only for public-domain works; a contributor's consented crop always.
-  const thumbnailUrl = object.thumbnailStorageId
-    ? await fileStorage.getUrl(ctx, object.thumbnailStorageId)
+  const thumbnailUrl = details?.thumbnailStorageId
+    ? await fileStorage.getUrl(ctx, details.thumbnailStorageId)
     : artwork.rightsStatus === "public_domain"
-      ? object.thumbnailUrl
+      ? details?.thumbnailUrl
       : undefined;
   // The verifier's projected corners stay on the scan as evidence; the card no longer draws them.
   const { corners, ...fields } = match;
@@ -222,7 +225,7 @@ export async function joinCandidate(
       title: artwork.title,
       artist: artwork.artist,
       date: artwork.date,
-      medium: object.medium,
+      medium: details?.medium,
       institution: owner?.name,
       rightsStatus: artwork.rightsStatus,
       ...(thumbnailUrl ? { thumbnailUrl } : {}),
@@ -237,6 +240,7 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
   ]);
   const prose =
     scan.outcome === "confident" && best?.candidate.identityStatus === "established" ? best?.artwork : undefined;
+  const content = prose ? await readArtworkContent(ctx, prose) : null;
   return {
     scanId: scan._id,
     localId: scan.localId,
@@ -248,9 +252,9 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     calibratorVersion: scan.calibratorVersion,
     best: best?.candidate,
     runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
-    docent: prose?.docent?.en,
-    docentStatus: prose && docentStatusOf(prose),
-    factSheet: prose?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
+    docent: content?.docent?.en,
+    docentStatus: prose && docentStatusOf(prose, content),
+    factSheet: content?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
       id,
       sourceUrl,
       sourceLabel,
