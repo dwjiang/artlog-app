@@ -22,9 +22,11 @@ const mockPerson = {
   bio: "Chasing Rothkos.",
   publishedWallCount: 0,
 };
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
-  useRouter: () => ({ push: jest.fn() }),
+  Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+  useRouter: () => ({ push: mockPush }),
 }));
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("@/components/collection/wall-gallery", () => ({ WallGallery: () => null }));
@@ -117,10 +119,17 @@ it("keeps the full header when switching between Wall and Visits", async () => {
   header().forEach((element) => expect(element).toBeOnTheScreen());
 });
 
-it("offers Share beside Edit profile on your own profile", async () => {
+it("offers Share beside Edit profile on your own profile, with nothing to report", async () => {
   await render(<ProfileScreen profileId="owner" />);
   expect(screen.getByRole("button", { name: "Edit profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Report profile" })).toBeNull();
+});
+
+it("reports someone else’s profile from the header menu", async () => {
+  await render(<ProfileScreen profileId="friend" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Report profile" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "profile", id: "friend" } });
 });
 
 it("uses the same shared visit card as Home", async () => {

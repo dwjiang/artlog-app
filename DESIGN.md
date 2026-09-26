@@ -100,8 +100,8 @@ Interface writing:
   and an empty result each need different explanations.
 - Do name actions directly, and use neutral input prompts such as “Add a note…”
   instead of questions about feelings or inspiration.
-- Do keep privacy, consent, saving behavior, uncertainty, and recovery
-  instructions explicit.
+- Do state privacy, consent, saving behavior, uncertainty, and recovery
+  where a choice depends on them; reassurance alone is not information.
 - Do use natural contractions; warmth comes from clear, helpful wording.
 - Do let lettering within an illustration remain part of its visual design.
 - Don't imply a save or share succeeded before it has completed.

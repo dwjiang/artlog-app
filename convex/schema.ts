@@ -12,6 +12,7 @@ import {
   publicationStatus,
   visitAudience,
   mediaSource,
+  reportReason,
   reportTarget,
   reportEvidence,
   reportReview,
@@ -801,7 +802,7 @@ export default defineSchema({
   reports: defineTable({
     reporter: v.optional(journalOwner),
     target: reportTarget,
-    reason: v.string(),
+    reason: reportReason,
     details: v.optional(v.string()),
     evidence: reportEvidence,
     review: v.optional(reportReview),

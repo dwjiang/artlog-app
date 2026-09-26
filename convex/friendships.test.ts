@@ -275,7 +275,7 @@ it("lets friends drop a moderation-removed profile so it stops holding a friend 
   await befriend(a, b);
   const reportId = await reporter.as.mutation(api.reports.submit, {
     target: { kind: "profile", profileId: b.profileId },
-    reason: "Abuse",
+    reason: "harassment",
   });
   await t.mutation(internal.review.decideReport, {
     reportId,

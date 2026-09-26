@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
 import { factSheetEntry } from "./lib/validators";
+import { changeEngagement } from "./lib/visitReactions";
 import schema from "./schema";
 
 const MAX_ROWS = 100;
@@ -144,7 +145,7 @@ const reportFields = schema.tables.reports.validator.fields;
 const reportSummary = v.object({
   reportId: v.id("reports"),
   target: reportFields.target,
-  reason: v.string(),
+  reason: reportFields.reason,
   createdAt: v.number(),
   status: reportFields.status,
   review: reportFields.review,
@@ -255,7 +256,7 @@ export const decideReport = internalMutation({
             });
           }
         }
-      } else {
+      } else if (target.kind === "sharedVisit") {
         const publication = await ctx.db
           .query("sharedVisits")
           .withIndex("by_postId", (q) => q.eq("postId", target.postId))
@@ -267,6 +268,13 @@ export const decideReport = internalMutation({
             publicationRevision: publication.publicationRevision + 1,
             updatedAt: now,
           });
+        }
+      } else {
+        // The report's evidence keeps the comment's text after the row is gone.
+        const comment = await ctx.db.get("visitComments", target.commentId);
+        if (comment) {
+          await ctx.db.delete("visitComments", comment._id);
+          await changeEngagement(ctx, comment.publicationId, "commentCount", -1);
         }
       }
     }

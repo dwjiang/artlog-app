@@ -113,10 +113,13 @@ export const reportTarget = v.union(
   v.object({ kind: v.literal("profile"), profileId: v.id("profiles") }),
   v.object({ kind: v.literal("wallItem"), itemId: v.id("wallItems") }),
   v.object({ kind: v.literal("sharedVisit"), postId: v.string() }),
+  v.object({ kind: v.literal("comment"), commentId: v.id("visitComments") }),
 );
+export const REPORT_REASONS = ["spam", "harassment", "impersonation", "privacy", "other"] as const;
+export const reportReason = v.union(...REPORT_REASONS.map(v.literal));
 export const reportInput = v.object({
   target: reportTarget,
-  reason: v.string(),
+  reason: reportReason,
   details: v.optional(v.string()),
 });
 export const removal = v.object({
@@ -146,6 +149,13 @@ export const reportEvidence = v.union(
     profileId: v.id("profiles"),
     postId: v.string(),
     reflection: v.string(),
+  }),
+  v.object({
+    kind: v.literal("comment"),
+    profileId: v.id("profiles"),
+    postId: v.string(),
+    commentId: v.id("visitComments"),
+    body: v.string(),
   }),
 );
 export const reportDecision = v.union(v.literal("dismiss"), v.literal("remove"));
@@ -330,8 +340,7 @@ export function validateWallItems(
 export function validateReport(input: Infer<typeof reportInput>): void {
   if (
     (input.target.kind === "sharedVisit" && !isUuid(input.target.postId))
-    || !input.reason.trim()
-    || input.reason.length > LIMITS.reportReason
+    || (input.reason === "other" && !input.details?.trim())
     || (input.details?.length ?? 0) > LIMITS.reportDetails
   ) {
     throw new ConvexError({ code: "invalid_report" });

@@ -145,7 +145,7 @@ it.each(["inactive-profile", "removed-profile", "removed-post", "removed-placeme
     await t.run(async (ctx) => {
       const reportId = await ctx.db.insert("reports", {
         target: { kind: "profile", profileId: owner.profileId },
-        reason: "Removed",
+        reason: "spam",
         evidence: {
           kind: "profile",
           profileId: owner.profileId,
