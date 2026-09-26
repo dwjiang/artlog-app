@@ -4,8 +4,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { insertEmbedding, requireEmbedding } from "../scanEmbeddings";
 import type { Harness, SignedIn } from "../test.helpers";
+import { patchArtworkContent, type ArtworkContentFields } from "./artworkContent";
 import { fileStorage } from "./fileStorage";
 import { registerMuseumObject } from "./museumWorkIdentity";
+import { patchObjectDetails, type ObjectDetailsFields } from "./objectDetails";
 import { storeOrb } from "./orbStorage";
 import { groupAnchor, publishContribution } from "./tentativeEntries";
 import { insertVector, packVector, readVector, vectorHash } from "./vectorStore";
@@ -101,6 +103,8 @@ export async function seedArtworkWithObject(
     modelVersion?: string;
     descriptors?: OrbFeatures;
     placement?: Omit<Doc<"placements">, "_id" | "_creationTime" | "objectId" | "identityStatus">;
+    artworkContent?: ArtworkContentFields;
+    objectDetails?: ObjectDetailsFields;
     artwork?: Partial<Omit<Doc<"artworks">, "_id" | "_creationTime">>;
     object?: Partial<Omit<Doc<"objects">, "_id" | "_creationTime" | "artworkId">>;
   } = {},
@@ -121,20 +125,29 @@ export async function seedArtworkWithObject(
     key,
     artworkId,
     ownerId: options.placement?.venueId,
-    medium: "Oil on canvas",
     source: "corpus",
     sourceId: key,
-    thumbnailUrl: "https://museum.example/work.jpg",
     confirmCount: 0,
     rejectCount: 0,
     calibratorPenalty: 0,
     reverted: false,
     ...options.object,
   });
+  if (options.artworkContent) await patchArtworkContent(ctx, { _id: artworkId }, options.artworkContent);
+  await patchObjectDetails(
+    ctx,
+    { _id: objectId },
+    {
+      medium: "Oil on canvas",
+      thumbnailUrl: "https://museum.example/work.jpg",
+      ...options.objectDetails,
+    },
+  );
   await registerMuseumObject(ctx, {
     artworkId,
     ownerId: options.placement?.venueId,
     ...options.object,
+    pageUrl: options.objectDetails?.pageUrl,
   });
   const vectorId = await seedVector(ctx, {
     partition: JSON.stringify([options.modelVersion ?? model.modelVersion, "established"]),

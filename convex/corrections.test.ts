@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
+import { readArtworkContent } from "./lib/artworkContent";
 import { completion } from "./lib/labelFixtures";
 import { seedEmbedding, seedArtworkWithObject, seedDevice, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -37,14 +38,21 @@ async function fixture() {
   const user = await seedDevice(t);
   const { artworkId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: { factSheet, factSheetUpdatedAt: 1, docent, docentUpdatedAt: 2 },
+      artwork: { factSheetUpdatedAt: 1, docentUpdatedAt: 2 },
+      artworkContent: { factSheet, docent },
     }),
   );
   return {
     t,
     user,
     artworkId,
-    artwork: () => t.run((ctx) => ctx.db.get("artworks", artworkId)),
+    artwork: () =>
+      t.run(async (ctx) => {
+        const artwork = await ctx.db.get("artworks", artworkId);
+        if (!artwork) return null;
+        const { _id, _creationTime, ...content } = (await readArtworkContent(ctx, artwork)) ?? {};
+        return { ...artwork, ...content };
+      }),
   };
 }
 
@@ -185,7 +193,8 @@ it.each([false, true])(
     const user = await seedDevice(t);
     const work = await t.run((ctx) =>
       seedArtworkWithObject(ctx, {
-        artwork: {
+        artwork: { factSheetUpdatedAt: 1 },
+        artworkContent: {
           factSheet: [
             {
               id: "f1",
@@ -195,7 +204,6 @@ it.each([false, true])(
               sourceScore: 1,
             },
           ],
-          factSheetUpdatedAt: 1,
         },
       }),
     );

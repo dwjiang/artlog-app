@@ -6,9 +6,11 @@ import type { MuseumEntry } from "../shared/offline/types";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
+import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
@@ -151,7 +153,9 @@ export const readPage = internalQuery({
       page: v.array(
         v.object({
           object: schema.doc("objects"),
+          details: v.union(schema.doc("objectDetails"), v.null()),
           artwork: schema.doc("artworks"),
+          content: v.union(schema.doc("artworkContent"), v.null()),
           placement: v.union(schema.doc("placements"), v.null()),
           vectors: v.array(schema.doc("vectors")),
           descriptor: schema.doc("descriptors"),
@@ -196,7 +200,9 @@ export const readPage = internalQuery({
       if (vectors.length > 0) {
         page.push({
           object,
+          details: await readObjectDetails(ctx, object),
           artwork,
+          content: await readArtworkContent(ctx, artwork),
           descriptor,
           vectors,
           placement: await loadCurrentPlacement(ctx, object._id, Date.now()),
@@ -220,7 +226,7 @@ export const buildPage = internalAction({
       if (!result) return null;
       const entries: MuseumEntry[] = [];
       const previews: Infer<typeof preview>[] = [];
-      for (const { object, artwork, descriptor, vectors, placement } of result.page) {
+      for (const { object, details, artwork, content, descriptor, vectors, placement } of result.page) {
         // Skipping a damaged reference keeps one unreadable ORB file from failing every rebuild of this museum.
         const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch((error: unknown) => {
           console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
@@ -235,7 +241,7 @@ export const buildPage = internalAction({
               _id: object._id,
               identityStatus: object.identityStatus,
               ownerId: object.ownerId,
-              medium: object.medium,
+              medium: details?.medium,
               calibratorPenalty: object.calibratorPenalty,
               rejectionPenalty: object.rejectionPenalty,
             },
@@ -245,8 +251,8 @@ export const buildPage = internalAction({
               artist: artwork.artist,
               date: artwork.date,
               rightsStatus: artwork.rightsStatus,
-              docent: artwork.docent?.en,
-              factSheet: artwork.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
+              docent: content?.docent?.en,
+              factSheet: content?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
                 id,
                 sourceUrl,
                 sourceLabel,
@@ -264,8 +270,8 @@ export const buildPage = internalAction({
             ...features,
           },
         });
-        if (previews.length < 3 && artwork.rightsStatus === "public_domain" && object.thumbnailUrl) {
-          previews.push({ title: artwork.title, url: object.thumbnailUrl });
+        if (previews.length < 3 && artwork.rightsStatus === "public_domain" && details?.thumbnailUrl) {
+          previews.push({ title: artwork.title, url: details.thumbnailUrl });
         }
       }
       let part: Infer<typeof chunk> | undefined;

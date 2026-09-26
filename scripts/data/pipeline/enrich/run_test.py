@@ -26,10 +26,14 @@ def rig(monkeypatch):
         ]
     )
     writer = Mock()
+    contents = {}
 
     def query(name, args):
         if name == "docent:load":
-            return {"artwork": next(a for a in artworks if a["_id"] == args["artworkId"])}
+            return {
+                "artwork": next(a for a in artworks if a["_id"] == args["artworkId"]),
+                "content": contents.get(args["artworkId"]),
+            }
         if name == "enrich:lookup":
             return artworks[0]
         if name == "enrich:previewBatch":
@@ -69,6 +73,7 @@ def rig(monkeypatch):
         gatherer=gatherer,
         provider=provider,
         artworks=artworks,
+        contents=contents,
         outputs=[],
         calls=lambda name: [c.args[1] for c in writer.mutation.call_args_list if c.args[0] == name],
     )
@@ -198,12 +203,23 @@ def test_release_failure_does_not_abandon_remaining_claims(rig):
 
 
 def test_cached_sheet_rewrite_needs_no_search_budget(rig):
-    rig.artworks[0].update(factSheetUpdatedAt=1, factSheet=[{"id": "f1"}])
+    rig.artworks[0]["factSheetUpdatedAt"] = 1
+    rig.contents["id0"] = {"factSheet": [{"id": "cached-fact"}]}
     summary = execute(rig, artwork_key="met:1")
     assert summary.written == 1
     rig.gatherer.gather.assert_not_called()
     assert all(c.kwargs == {"cached": True} for c in rig.provider.check_budget.call_args_list)
     assert "factSheet" not in rig.calls("docent:writeEnrichment")[0]
+    assert rig.outputs[0]["factSheet"] == [{"id": "cached-fact"}]
+
+
+def test_cached_sheet_without_content_stays_retryable(rig):
+    rig.artworks[0]["factSheetUpdatedAt"] = 1
+    summary = execute(rig, artwork_key="met:1")
+    assert (summary.failed, summary.written) == (1, 0)
+    rig.gatherer.gather.assert_not_called()
+    assert not rig.calls("docent:writeEnrichment")
+    assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]
 
 
 def test_missing_setting_error_does_not_print_provider_keys():

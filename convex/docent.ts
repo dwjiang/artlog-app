@@ -11,6 +11,7 @@ import {
   type MutationCtx,
   env,
 } from "./_generated/server";
+import { patchArtworkContent, readArtworkContent, type ArtworkContentFields } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import {
   DOCENT_MAX_TOKENS,
@@ -27,6 +28,7 @@ import {
 } from "./lib/docentPrompts";
 import { gatherSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
+import { readObjectDetails } from "./lib/objectDetails";
 import { limitDevice } from "./lib/rateLimits";
 import { chatJson } from "./lib/tokenFactory";
 import {
@@ -48,16 +50,16 @@ const MAX_MODEL_CALLS = 4;
 const MODEL_TIMEOUT_MS = 20_000;
 
 export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {
+  await patchArtworkContent(ctx, artwork, { docent: undefined });
   await ctx.db.patch("artworks", artwork._id, {
-    docent: undefined,
     docentUpdatedAt: undefined,
     enrichClaimedAt: undefined,
     enrichGeneration: (artwork.enrichGeneration ?? 0) + 1,
   });
 }
 
-export function docentStatusOf(artwork: Doc<"artworks">): DocentStatus {
-  if (artwork.docent?.en) return artwork.docent.en.length > 0 ? "ready" : "unavailable";
+export function docentStatusOf(artwork: Doc<"artworks">, content: ArtworkContentFields | null): DocentStatus {
+  if (content?.docent?.en) return content.docent.en.length > 0 ? "ready" : "unavailable";
   if (artwork.factSheetNeedsReview) return "unavailable";
   return artwork.docentFailedAt === undefined ? "writing" : "failed";
 }
@@ -68,6 +70,7 @@ export const load = internalQuery({
     v.null(),
     v.object({
       artwork: schema.doc("artworks"),
+      content: v.union(schema.doc("artworkContent"), v.null()),
       pageUrl: v.optional(v.string()),
       owner: v.union(schema.doc("museums"), v.null()),
     }),
@@ -78,16 +81,18 @@ export const load = internalQuery({
     let pageUrl: string | undefined;
     let owner: Doc<"museums"> | null = null;
     for await (const object of ctx.db.query("objects").withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-      if (object.reverted || object.mergedInto || !object.pageUrl || !object.ownerId) {
+      if (object.reverted || object.mergedInto || !object.ownerId) {
         continue;
       }
+      const details = await readObjectDetails(ctx, object);
+      if (!details?.pageUrl) continue;
       const museum = await ctx.db.get("museums", object.ownerId);
       if (!museum || (await isVenueOptedOut(ctx, museum))) continue;
-      pageUrl = object.pageUrl;
+      pageUrl = details.pageUrl;
       owner = museum;
       break;
     }
-    return { artwork, pageUrl, owner };
+    return { artwork, content: await readArtworkContent(ctx, artwork), pageUrl, owner };
   },
 });
 
@@ -96,9 +101,11 @@ export const claim = internalMutation({
   returns: v.union(v.number(), v.null()),
   handler: async (ctx, { artworkId }) => {
     const artwork = await ctx.db.get("artworks", artworkId);
-    if (!artwork || artwork.identityStatus !== "established" || artwork.docent?.en || artwork.factSheetNeedsReview) {
+    if (!artwork || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
       return null;
     }
+    const content = await readArtworkContent(ctx, artwork);
+    if (content?.docent?.en) return null;
     const now = Date.now();
     if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) {
       return null;
@@ -134,9 +141,12 @@ export const writeEnrichment = internalMutation({
       return false;
     }
     const now = Date.now();
-    await ctx.db.patch("artworks", artworkId, {
-      ...(factSheet ? { factSheet, factSheetUpdatedAt: now } : {}),
+    await patchArtworkContent(ctx, artwork, {
+      ...(factSheet ? { factSheet } : {}),
       docent: { en: docentEn },
+    });
+    await ctx.db.patch("artworks", artworkId, {
+      ...(factSheet ? { factSheetUpdatedAt: now } : {}),
       docentUpdatedAt: now,
       enrichClaimedAt: undefined,
       docentFailedAt: undefined,
@@ -192,8 +202,8 @@ export const invalidateDocent = internalMutation({
     if (artwork) {
       await clearDocent(ctx, artwork);
       if (includeResearch) {
+        await patchArtworkContent(ctx, artwork, { factSheet: undefined });
         await ctx.db.patch("artworks", artworkId, {
-          factSheet: undefined,
           factSheetUpdatedAt: undefined,
         });
       }
@@ -214,12 +224,12 @@ async function generate(
   ctx: ActionCtx,
   models: Models,
   artwork: Doc<"artworks">,
-  context: { pageUrl?: string; owner: Doc<"museums"> | null },
+  context: { content: ArtworkContentFields | null; pageUrl?: string; owner: Doc<"museums"> | null },
 ): Promise<{
   factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
 } | null> {
-  const cached = artwork.factSheetUpdatedAt !== undefined ? artwork.factSheet : undefined;
+  const cached = artwork.factSheetUpdatedAt !== undefined ? context.content?.factSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
     // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.

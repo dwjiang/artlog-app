@@ -32,7 +32,7 @@ export async function museumIdentityKeys(input: { accession?: string; pageUrl?: 
 
 export async function registerMuseumObject(
   ctx: MutationCtx,
-  object: Pick<Doc<"objects">, "ownerId" | "artworkId" | "accession" | "pageUrl">,
+  object: Pick<Doc<"objects">, "ownerId" | "artworkId" | "accession"> & { pageUrl?: string },
 ): Promise<void> {
   const venueId = object.ownerId;
   if (!venueId) return;

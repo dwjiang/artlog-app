@@ -11,6 +11,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
+import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
@@ -287,18 +288,23 @@ export const upsertObjects = internalMutation({
         artworkId: artwork._id,
         ownerId: owner?._id,
         accession: row.accession,
-        medium: row.medium,
-        dimensions: row.dimensions,
         source: row.source,
         sourceId: row.sourceId,
+        mergedInto: mergedInto?._id,
+      };
+      const details = {
+        medium: row.medium,
+        dimensions: row.dimensions,
         imageRef: row.imageRef,
         pageUrl: row.pageUrl,
         thumbnailUrl: row.thumbnailUrl,
-        mergedInto: mergedInto?._id,
       };
       const existing = await findByKey(ctx, "objects", row.key);
       if (existing) {
         if (fieldsChanged(existing, fields)) await ctx.db.patch("objects", existing._id, fields);
+        if (fieldsChanged((await readObjectDetails(ctx, existing)) ?? {}, details)) {
+          await patchObjectDetails(ctx, existing, details);
+        }
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("objects", {
@@ -308,10 +314,12 @@ export const upsertObjects = internalMutation({
           calibratorPenalty: 0,
           reverted: false,
         });
+        await patchObjectDetails(ctx, { _id: ids[row.key] }, details);
         inserted += 1;
       }
       await registerMuseumObject(ctx, {
         ...fields,
+        pageUrl: row.pageUrl,
         artworkId: mergedInto?.artworkId ?? fields.artworkId,
       });
     }
@@ -743,6 +751,7 @@ export const exportVectorRows = internalQuery({
       }
       const artwork = await ctx.db.get("artworks", object.artworkId);
       if (!artwork) continue;
+      const details = await readObjectDetails(ctx, object);
       page.push({
         vectorId: row._id,
         vector: row,
@@ -750,7 +759,7 @@ export const exportVectorRows = internalQuery({
           objectId: object._id,
           key: object.key,
           source: object.source,
-          imageRef: object.imageRef,
+          imageRef: details?.imageRef,
           rightsStatus: artwork.rightsStatus,
           objectPenalty: effectiveObjectPenalty(object),
         },
@@ -888,7 +897,8 @@ export const auditThumbnails = internalQuery({
           .paginate({ cursor: cursor ?? null, numItems: 500 });
     let violations = 0;
     for (const object of page.page) {
-      if (object.thumbnailUrl !== undefined) {
+      const details = await readObjectDetails(ctx, object);
+      if (details?.thumbnailUrl !== undefined) {
         const artwork = await ctx.db.get("artworks", object.artworkId);
         if (artwork?.rightsStatus !== "public_domain") violations += 1;
       }
@@ -1049,13 +1059,14 @@ export const readSampleRows = internalQuery({
         continue;
       }
       if (table === "objects") {
+        const details = await readObjectDetails(ctx, object);
         const artwork = await ctx.db.get("artworks", object.artworkId);
         const owner = object.ownerId ? await ctx.db.get("museums", object.ownerId) : null;
         const mergedInto = object.mergedInto ? await ctx.db.get("objects", object.mergedInto) : null;
         result.push(
           artwork
             ? {
-                ...pickFields(object, objectRow.fields),
+                ...pickFields({ ...object, ...details }, objectRow.fields),
                 artworkKey: artwork.key,
                 ownerKey: owner?.key,
                 mergedIntoKey: mergedInto?.key,

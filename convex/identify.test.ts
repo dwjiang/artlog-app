@@ -5,6 +5,7 @@ import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { readArtworkContent } from "./lib/artworkContent";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { fileStorage } from "./lib/fileStorage";
 import { completion, jsonResponse } from "./lib/labelFixtures";
@@ -569,7 +570,10 @@ describe("enrichment after identification", () => {
     expect(result.rightNow).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect((await t.run((ctx) => ctx.db.get("artworks", work!.artworkId)))?.docent?.en).toEqual([
+    expect(
+      (await t.run(async (ctx) => readArtworkContent(ctx, (await ctx.db.get("artworks", work!.artworkId))!)))?.docent
+        ?.en,
+    ).toEqual([
       {
         sentence: "Claude Monet painted these water lilies in 1916.",
         factIds: ["f1"],
@@ -609,7 +613,9 @@ describe("enrichment after identification", () => {
     expect(result.outcome).toBe("soft");
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect((await t.run((ctx) => ctx.db.get("artworks", work!.artworkId)))?.docent).toBeUndefined();
+    expect(
+      (await t.run(async (ctx) => readArtworkContent(ctx, (await ctx.db.get("artworks", work!.artworkId))!)))?.docent,
+    ).toBeUndefined();
     const display = await user.as.query(api.scans.get, {
       scanId: result.scanId,
     });
@@ -619,6 +625,38 @@ describe("enrichment after identification", () => {
 });
 
 describe("candidate loading", () => {
+  it("loads recognition metadata within a small read budget even when display content is large", async () => {
+    const t = harness({ transactionLimits: { bytesRead: 32_000 } });
+    const work = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, {
+        objectDetails: { medium: "Display metadata ".repeat(5_000) },
+        artworkContent: {
+          factSheet: [
+            {
+              id: "f1",
+              text: "Generated research ".repeat(5_000),
+              sourceUrl: "https://museum.example/work",
+              sourceLabel: "Museum",
+              sourceScore: 1,
+            },
+          ],
+          docent: { en: [{ sentence: "Generated narration ".repeat(5_000), factIds: ["f1"] }] },
+        },
+      }),
+    );
+    const [candidate] = await t.query(internal.identify.loadCandidates, {
+      recordIds: [work.recordId],
+      scores: [0.99],
+      now: Date.now(),
+    });
+    expect(candidate.object._id).toBe(work.objectId);
+    expect(candidate.artwork.title).toBe("Water Lilies");
+    expect(candidate.object).not.toHaveProperty("medium");
+    expect(candidate.object).not.toHaveProperty("thumbnailUrl");
+    expect(candidate.artwork).not.toHaveProperty("factSheet");
+    expect(candidate.artwork).not.toHaveProperty("docent");
+  });
+
   it("collapses merged objects and duplicate vectors using their maximum score", async () => {
     const t = harness();
     const { target, merged, second, duplicate } = await t.run(async (ctx) => {

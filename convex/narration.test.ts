@@ -2,13 +2,14 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
+import { patchArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const sentences = [{ sentence: "A short written docent.", factIds: ["f1"] }];
-// Catalogue lines stay on the artwork for the written docent but never reach the guide.
+// Catalogue lines stay in the written docent research but never reach the guide.
 const catalogueFact = {
   id: "f3",
   text: "Material: oil paint, canvas",
@@ -65,10 +66,10 @@ async function setup() {
   const device = await seedDevice(t);
   const { artworkId, vectorId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
-      artwork: {
+      artwork: { factSheetUpdatedAt: 5 },
+      artworkContent: {
         docent: { en: sentences },
         factSheet: [...researchFixture, catalogueFact],
-        factSheetUpdatedAt: 5,
       },
     }),
   );
@@ -82,14 +83,9 @@ async function setup() {
   const rows = () => t.run((ctx) => ctx.db.query("narrationAudio").take(10));
   const { archiveId } = (await t.run((ctx) => ctx.db.get("vectors", vectorId)))!;
   const files = () =>
-    t
-      .run((ctx) =>
-        ctx.db
-          .query("files")
-          .withIndex("by_state", (q) => q.eq("state", "ready"))
-          .collect(),
-      )
-      .then((rows) => rows.filter((file) => file.key !== archiveId));
+    t.run(async (ctx) =>
+      (await ctx.db.query("files").collect()).filter((file) => file.state === "ready" && file.key !== archiveId),
+    );
   // Plays through the live playlist, then waits for the whole file to be stored.
   const render = async (as: typeof device.as = device.as) => {
     const audio = await as.action(api.narration.render, { artworkId });
@@ -216,21 +212,17 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
   });
-  await t.run((ctx) =>
-    ctx.db.patch("artworks", artworkId, {
-      factSheetNeedsReview: undefined,
-      factSheet: [catalogueFact],
-    }),
-  );
+  await t.run(async (ctx) => {
+    await ctx.db.patch("artworks", artworkId, { factSheetNeedsReview: undefined });
+    await patchArtworkContent(ctx, { _id: artworkId }, { factSheet: [catalogueFact] });
+  });
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
   });
-  await t.run((ctx) =>
-    ctx.db.patch("artworks", artworkId, {
-      factSheet: researchFixture,
-      retiredAt: Date.now(),
-    }),
-  );
+  await t.run(async (ctx) => {
+    await patchArtworkContent(ctx, { _id: artworkId }, { factSheet: researchFixture });
+    await ctx.db.patch("artworks", artworkId, { retiredAt: Date.now() });
+  });
   await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
     data: { code: "narration_unavailable" },
   });
@@ -239,14 +231,18 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
 
 it("is independent of the written docent and re-renders only when the research is rewritten", async () => {
   const { t, artworkId, fetcher, rows, files, render } = await setup();
-  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { docent: undefined }));
+  await t.run((ctx) => patchArtworkContent(ctx, { _id: artworkId }, { docent: undefined }));
   const first = await render();
   await t.run((ctx) =>
-    ctx.db.patch("artworks", artworkId, {
-      docent: {
-        en: [{ sentence: "Changed written docent.", factIds: ["f1"] }],
+    patchArtworkContent(
+      ctx,
+      { _id: artworkId },
+      {
+        docent: {
+          en: [{ sentence: "Changed written docent.", factIds: ["f1"] }],
+        },
       },
-    }),
+    ),
   );
   expect((await render()).renderId).toBe(first.renderId);
   const previous = await files();
@@ -254,7 +250,10 @@ it("is independent of the written docent and re-renders only when the research i
     ...fact,
     text: `${fact.text} Corrected evidence.`,
   }));
-  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }));
+  await t.run(async (ctx) => {
+    await patchArtworkContent(ctx, { _id: artworkId }, { factSheet: updatedFacts });
+    await ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 });
+  });
   const updated = await render();
   expect(updated.renderId).not.toBe(first.renderId);
   expect(

@@ -7,6 +7,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
 import { getEmbedding, requireEmbedding } from "../scanEmbeddings";
 import { contributionGroup, verifiedAccession } from "./agreement";
+import { patchObjectDetails } from "./objectDetails";
 import {
   contributionRightsIssue,
   eligibleContribution,
@@ -103,16 +104,18 @@ export async function applyReference(
   await ctx.db.patch("objects", object._id, {
     sourceContributionId: source._id,
     sourceId: source._id,
-    thumbnailStorageId: source.cropStorageId,
-    imageRef: `storage:${source.cropStorageId}`,
     accession: source.fields.accession?.value,
-    medium: source.fields.medium?.value,
     // Claims remain on contributions, including URLs and Wikidata IDs.
     provenance: {
       contributionIds: [],
       deviceIds: [],
       verifiedAccession: accession,
     },
+  });
+  await patchObjectDetails(ctx, object, {
+    thumbnailStorageId: source.cropStorageId,
+    imageRef: `storage:${source.cropStorageId}`,
+    medium: source.fields.medium?.value,
   });
   const scan = source.scanId ? await ctx.db.get("scans", source.scanId) : null;
   const placement = await ctx.db

@@ -82,8 +82,8 @@ it("serves each private photo only to its owner and revokes bytes when the artwo
     await t.run((ctx) =>
       ctx.db
         .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
+        .collect()
+        .then((files) => files.filter((file) => file.state === "ready")),
     ),
   ).toEqual([]);
   const deleted = await owner.as.mutation(api.artworkAlbums.sync, {
