@@ -1,6 +1,6 @@
 """C-RADIOv3-B with the phone's numerics: the pinned RADIO checkpoint with the CoreML
-export's dequantized int8 Linear weights loaded over it, run in the
-compute dtype the drift check accepted. Every module takes its device from settings."""
+export's dequantized int8 Linear weights and fp16-rounded PCA projection loaded over it, run
+in the compute dtype the drift check accepted. Every module takes its device from settings."""
 
 import hashlib
 import logging
@@ -20,19 +20,34 @@ CHECKPOINT_NAME = "c-radio_v3-b_half.pth.tar"
 CHECKPOINT_SHA256 = "530b0e827b1d409ca3b175466e11062885baedd823ec5dae3a88348e76d4c398"
 DEFAULT_FAKEQUANT = REPO_ROOT / "scripts" / "model" / "out" / "fakequant_state.pt"
 DTYPES = {"float16": torch.float16, "float32": torch.float32}
+SUMMARY_DIM = 1536
 
 
 class NonFiniteEmbedding(RuntimeError):
     pass
 
 
+class Projection(torch.nn.Module):
+    """The export's final layer; its values arrive with the fakequant state."""
+
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("mean", torch.zeros(SUMMARY_DIM))
+        self.register_buffer("matrix", torch.zeros(SUMMARY_DIM, EMBEDDING_DIM))
+
+    def forward(self, summary: torch.Tensor) -> torch.Tensor:
+        unit = torch.nn.functional.normalize(summary.to(self.matrix.dtype), dim=-1)
+        return (unit - self.mean) @ self.matrix
+
+
 class DinoSummary(torch.nn.Module):
     def __init__(self, radio: torch.nn.Module):
         super().__init__()
         self.radio = radio
+        self.projection = Projection()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
-        return self.radio(image)["dino_v2"].summary
+        return self.projection(self.radio(image)["dino_v2"].summary)
 
 
 def sha256_of(path: Path) -> str:

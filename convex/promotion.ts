@@ -20,7 +20,7 @@ import { readEmbedding } from "./scanEmbeddings";
 const PAGE_ITEMS = 64;
 const PAGE_BYTES = 4 * 1024 * 1024;
 export const MULTI_VIEW_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-export const MULTI_VIEW_DUPLICATE_COSINE = 0.995;
+export const MULTI_VIEW_DUPLICATE_COSINE = 0.982;
 const cursorArg = v.union(v.string(), v.null());
 
 const agreementQuery = v.object({

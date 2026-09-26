@@ -12,6 +12,7 @@ import {
 } from "./labelFixtures";
 import {
   evidenceSummary,
+  IMAGE_MATCH_COSINE,
   imageCheckPasses,
   labelField,
   selectTavilyEvidence,
@@ -368,9 +369,9 @@ describe("Tavily evidence selection with recorded responses", () => {
 
 describe("image checks", () => {
   it("accepts an image check only with a valid cosine at the threshold and a homography", () => {
-    expect(imageCheckPasses({ url: "x", cosine: 0.85, homographyValid: true })).toBe(true);
+    expect(imageCheckPasses({ url: "x", cosine: IMAGE_MATCH_COSINE, homographyValid: true })).toBe(true);
     expect(imageCheckPasses({ url: "x", cosine: 0.99, homographyValid: false })).toBe(false);
-    for (const cosine of [0.84, 1.01, NaN, Infinity]) {
+    for (const cosine of [IMAGE_MATCH_COSINE - 0.01, 1.01, NaN, Infinity]) {
       expect(imageCheckPasses({ url: "x", cosine, homographyValid: true })).toBe(false);
     }
   });

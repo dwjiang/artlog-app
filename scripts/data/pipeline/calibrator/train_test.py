@@ -10,7 +10,8 @@ from .features import FEATURE_NAMES, featurize
 from .features_test import signals
 from .report import write_report
 from .train import (
-    V1_RULES,
+    RULES,
+    VERSION,
     choose_confident,
     choose_soft,
     eligible,
@@ -72,7 +73,7 @@ def test_training_holds_out_whole_objects_and_emits_the_typescript_contract(tmp_
     result = train(rows, seed=7)
     assert not result.errors
     assert result.config["featureNames"] == FEATURE_NAMES
-    assert result.config["version"] == "lr-v2"
+    assert result.config["version"] == VERSION
     assert len(result.config["weights"]) == len(FEATURE_NAMES)
     assert result.config["thresholds"]["soft"] <= result.config["thresholds"]["confident"]
     assert result.metrics["auc"] >= 0.99
@@ -83,7 +84,7 @@ def test_training_holds_out_whole_objects_and_emits_the_typescript_contract(tmp_
     assert len(result.metrics["ruleSweep"]) == 9
     assert len(result.metrics["calibration"]) == 10
     write_report(result, out=tmp_path)
-    artifact = json.loads((tmp_path / "calibrator-lr-v2.json").read_text())
+    artifact = json.loads((tmp_path / f"calibrator-{VERSION}.json").read_text())
     assert artifact == result.config
     assert "pending" in (tmp_path / "calibrator-report.md").read_text()
 
@@ -117,7 +118,7 @@ def test_bad_separation_writes_diagnostics_but_removes_stale_v2_artifact(tmp_pat
     result = train(rows)
     assert result.metrics["auc"] == 0.5
     assert any("AUC" in error for error in result.errors)
-    stale = tmp_path / "calibrator-lr-v2.json"
+    stale = tmp_path / f"calibrator-{VERSION}.json"
     stale.write_text("{}")
     write_report(result, out=tmp_path)
     assert not stale.exists()
@@ -142,6 +143,10 @@ def test_rejects_feature_drift_before_fitting():
         train(rows)
 
 
+MIN_SIMILARITY = RULES["lowTexture"]["minSimilarity"]
+MIN_MARGIN = RULES["lowTexture"]["minMargin"]
+
+
 @pytest.mark.parametrize(
     "overrides,expected",
     [
@@ -149,14 +154,17 @@ def test_rejects_feature_drift_before_fitting():
         ({"keypointCount": 80, "orbInliers": 14}, False),
         ({"keypointCount": 80, "orbInliers": 15}, True),
         ({"keypointCount": 80, "homographyValid": False}, False),
-        ({"keypointCount": 79, "similarity": 0.95, "runnerUpSimilarity": 0.9}, True),
-        ({"keypointCount": 79, "similarity": 0.92}, False),
-        ({"keypointCount": 79, "similarity": 0.95, "runnerUpSimilarity": 0.94}, False),
+        ({"keypointCount": 79, "similarity": 0.95, "runnerUpSimilarity": 0.94 - MIN_MARGIN}, True),
+        (
+            {"keypointCount": 79, "similarity": MIN_SIMILARITY - 0.01, "runnerUpSimilarity": 0},
+            False,
+        ),
+        ({"keypointCount": 79, "similarity": 0.95, "runnerUpSimilarity": 0.96 - MIN_MARGIN}, False),
         ({"keypointCount": 79, "similarity": 0.95, "atVenue": False}, False),
     ],
 )
 def test_hard_rules_match_typescript_at_the_texture_boundary(overrides, expected):
-    assert eligible(signals(**overrides), V1_RULES) == expected
+    assert eligible(signals(**overrides), RULES) == expected
 
 
 def test_tied_probabilities_choose_the_more_similar_candidate():
@@ -195,7 +203,7 @@ def test_stop_exit_removes_stale_artifacts_and_metrics(tmp_path):
     features.write_text("".join(json.dumps(row) + "\n" for row in rows))
     out = tmp_path / "out"
     out.mkdir()
-    for stale in ("calibrator-lr-v2.json", "calibrator-metrics.json"):
+    for stale in (f"calibrator-{VERSION}.json", "calibrator-metrics.json"):
         (out / stale).write_text("{}")
     assert main(["--features", str(features), "--out", str(out)]) == 1
     assert sorted(path.name for path in out.iterdir()) == ["calibrator-report.md"]

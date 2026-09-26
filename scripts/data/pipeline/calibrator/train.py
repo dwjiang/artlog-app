@@ -18,11 +18,12 @@ from sklearn.preprocessing import StandardScaler
 from ..model import sha256_of
 from .features import FEATURE_NAMES, featurize
 
-# Keep the rule constants in CALIBRATOR_V1 until a real report justifies changing them.
-V1_RULES = {
+VERSION = "lr-v3"
+# Similarity cutoffs follow the model's cosine scale: retune them with every modelVersion.
+RULES = {
     "lowTextureKeypoints": 80,
     "textured": {"minInliers": 15},
-    "lowTexture": {"minSimilarity": 0.93, "minMargin": 0.04, "requireVenueAgreement": True},
+    "lowTexture": {"minSimilarity": 0.80, "minMargin": 0.08, "requireVenueAgreement": True},
 }
 
 
@@ -198,7 +199,7 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
     held_rows = [rows[i] for i in held_ids]
     winners = _winners(held_rows, probabilities)
     winner_truth = y[held_ids][winners]
-    allowed = np.array([eligible(held_rows[i]["signals"], V1_RULES) for i in winners])
+    allowed = np.array([eligible(held_rows[i]["signals"], RULES) for i in winners])
     confident = choose_confident(probabilities[winners], winner_truth, allowed)
     soft = choose_soft(probabilities[winners], winner_truth)
     auc = float(roc_auc_score(y[held_ids], probabilities))
@@ -212,7 +213,7 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
     # Failed fits keep provisional v1 thresholds for diagnostic tables only; no JSON is emitted.
     confident_value = confident if confident is not None else 0.85
     config = {
-        "version": "lr-v2",
+        "version": VERSION,
         "featureNames": list(FEATURE_NAMES),
         "weights": weights.tolist(),
         "bias": bias,
@@ -220,7 +221,7 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
             "confident": confident_value,
             "soft": min(soft if soft is not None else 0.45, confident_value),
         },
-        **copy.deepcopy(V1_RULES),
+        **copy.deepcopy(RULES),
     }
     metrics = evaluate(held_rows, probabilities, config)
     if not errors and (
@@ -285,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
         write_report(result, out=args.out, provenance=provenance)
     except (ValueError, FileNotFoundError, ConvergenceWarning) as error:
         args.out.mkdir(parents=True, exist_ok=True)
-        for stale in ("calibrator-lr-v2.json", "calibrator-metrics.json"):
+        for stale in (f"calibrator-{VERSION}.json", "calibrator-metrics.json"):
             (args.out / stale).unlink(missing_ok=True)
         (args.out / "calibrator-report.md").write_text(f"# Calibrator training — STOP\n\n{error}\n")
         print(str(error))

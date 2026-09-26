@@ -2,7 +2,7 @@ import { reportError } from "@/lib/observability";
 import { encodeOrbFeatures } from "@/shared/orb/features";
 import { makeSyntheticPair } from "@/shared/orb/test-fixtures";
 
-import { checkImages, cosineSimilarity, type ImageCheckDeps } from "./image-check";
+import { checkImages, cosineSimilarity, IMAGE_MATCH_COSINE, type ImageCheckDeps } from "./image-check";
 
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -59,7 +59,7 @@ it("passes the closest image once its cosine clears the threshold and the homogr
 it("returns null below the threshold without running ORB", async () => {
   const deps = fakeDeps({
     "file:///cache/a.jpg.box.jpg": unit(0.5),
-    "file:///cache/b.jpg.box.jpg": unit(0.84),
+    "file:///cache/b.jpg.box.jpg": unit(IMAGE_MATCH_COSINE - 0.01),
   });
   expect(
     await checkImages(["https://museum.example/a.jpg", "https://museum.example/b.jpg"], scan, deps, { inputSize }),

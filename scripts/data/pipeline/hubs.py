@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from .features import Features, file_hash, read_jsonl, write_jsonl
+from .model_version import EMBEDDING_DIM
 from .sources.fetch import write_json
 
 SEED = 20260908
@@ -54,7 +55,9 @@ def run(features: Path, out: Path) -> dict:
     data = Features(features)
     rows = read_jsonl(features / "vector-index.jsonl")
     matrix = (
-        np.stack([data.vectors[row["viewKey"]] for row in rows]) if rows else np.empty((0, 1536))
+        np.stack([data.vectors[row["viewKey"]] for row in rows])
+        if rows
+        else np.empty((0, EMBEDDING_DIM))
     )
     _, flagged, summary = hub_scores(matrix)
     hubs = {rows[i]["objectKey"] for i in flagged}

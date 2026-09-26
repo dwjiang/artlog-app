@@ -55,7 +55,7 @@ export const LOCKING_EVIDENCE: ReadonlySet<LabelEvidence> = new Set([
 ]);
 // The museum is the authority, so plausibility checks never downgrade its own statements.
 export const MUSEUM_EVIDENCE: ReadonlySet<LabelEvidence> = new Set(["accession", "qr"]);
-export const IMAGE_MATCH_COSINE = 0.85;
+export const IMAGE_MATCH_COSINE = 0.62;
 const MAX_IMAGE_URLS = 3;
 
 export function displayLabelFlow(flow: LabelFlow): LabelFlowDisplay {

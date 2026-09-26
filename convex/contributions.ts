@@ -29,7 +29,7 @@ import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
-export const DUPLICATE_COSINE = 0.995;
+export const DUPLICATE_COSINE = 0.982;
 // The phone resizes the contribution crop to ≤ 256 px JPEG; anything larger is not a crop.
 export const MAX_CROP_BYTES = 200 * 1024;
 const CROP_CONTENT_TYPE = "image/jpeg";

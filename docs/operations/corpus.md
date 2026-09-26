@@ -13,13 +13,20 @@ Documents. Production was not contacted or changed during that work.
 
 | Local asset                                                      | Durable path under `/Users/dwjiang/Documents/Artlog Data/`                 |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Complete merged corpus, feature shards, indexes, and hashes      | `jobs/scratch/merged/`                                                     |
+| Complete merged corpus, feature shards, indexes, and hashes      | `jobs/scratch/merged/` (1536-d vectors, superseded)                        |
+| The same corpus with pca512 vectors                              | `jobs/scratch/merged-pca512/`                                              |
+| The 10k calibrator and development corpus with pca512 vectors    | `jobs/scratch/calibrator-corpus-10000-pca512/`                             |
+| pca512 calibrator training rows, model, and metrics              | `jobs/out/calibrator-pca512-2026-09-26/`                                   |
 | Original metadata, raw feature shards, source snapshots, samples | `jobs/scratch/`                                                            |
 | Dedupe provenance and audits                                     | `jobs/out/02-05-2026-09-12-dedupe/`                                        |
 | v2 model, training rows, metrics, and development import audits  | `jobs/out/02-09-2026-09-12-calibrator/`                                    |
 | Completed initial production import and its audits               | `jobs/out/06-01-2026-09-13-production/`                                    |
 | Full local import plan after relocation                          | `full-corpus-dry-run-2026-09-13.json`                                      |
 | SHA-256 file inventory and relocation result                     | `relocation-manifest-2026-09-13.json`, `relocation-report-2026-09-13.json` |
+
+The pca512 packages keep every file of their 1536-d sources except the vectors, which are
+the stored summaries passed through the export's fp16 projection, the same values a
+re-embed produces. Unchanged files are hard links.
 
 The original workspace linked `jobs/scratch` and `jobs/out` to these durable
 directories, with links excluded through its local Git exclude file. Existing
@@ -78,8 +85,8 @@ Relevant implementation, verified during planning:
   venue SQLite from the selected deployment, starting at its latest venue change.
 - [Vector search measurements](../experiments/README.md#vector-search-scale): only 30k synthetic vectors were
   measured on Starter. Full-scale storage/latency and Pro remain unverified.
-- [Calibrator evaluation](../experiments/README.md#calibrator-v2): `lr-v2` was fitted against the 10k
-  index. Its object-penalty coefficient is zero; penalties do not affect its
+- [Calibrator evaluation](../experiments/README.md#calibrator-v2): `lr-v2` and its pca512 refit `lr-v3` were
+  fitted against the 10k index. Its object-penalty coefficient is zero; penalties do not affect its
   scores. Training results do not establish full-index or camera accuracy.
 
 Code excerpts recorded at planning time for drift detection:

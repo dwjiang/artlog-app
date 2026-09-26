@@ -513,7 +513,7 @@ describe("placements, vectors and descriptors", () => {
     });
   });
 
-  // A full 1536-dim batch under transaction limits takes ~2 s alone and more under parallel suite load.
+  // A full-dimension batch under transaction limits takes ~2 s alone and more under parallel suite load.
   it("updates a full vector batch with multiple views within transaction limits", { timeout: 20_000 }, async () => {
     const t = convexTest({ schema, modules, transactionLimits: true });
     await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });

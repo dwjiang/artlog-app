@@ -18,19 +18,19 @@ export type CalibratorConfig = {
 };
 
 export const DEFAULT_CALIBRATOR: CalibratorConfig = {
-  version: "lr-v2",
+  version: "lr-v3",
   featureNames: FEATURE_NAMES,
   weights: [
-    7.474195072142699, 383.78817433584715, -4.045085586473862, 2.778795932765667, 2.470154752909581,
-    -0.2672894750022002, -0.46764532924772256, -0.7245000823878253, 0.7926605931130953, 4.306513855067736, 0.0,
+    9.964552969642448, 63.99188036364444, -2.5067714436639688, 3.386658386779764, 2.9272590186087193,
+    -0.9509585139408095, -0.20729480483641005, -1.1746108830729953, 1.2476475811822216, 3.5361522959629523, 0.0,
   ],
-  bias: 1.5125644129619618,
-  thresholds: { confident: 0.13716605621132733, soft: 0.13716605621132733 },
+  bias: -3.069621449191029,
+  thresholds: { confident: 0.5992237307436383, soft: 0.5992237307436383 },
   lowTextureKeypoints: 80,
   textured: { minInliers: 15 },
   lowTexture: {
-    minSimilarity: 0.93,
-    minMargin: 0.04,
+    minSimilarity: 0.8,
+    minMargin: 0.08,
     requireVenueAgreement: true,
   },
 };

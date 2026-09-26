@@ -11,10 +11,15 @@ import export_coreml
 class ImageSummary(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.radio = torch.nn.Linear(3, export_coreml.EMBEDDING_DIM)
+        generator = torch.Generator().manual_seed(5)
+        self.radio = torch.nn.Linear(3, export_coreml.SUMMARY_DIM)
+        self.projection = export_coreml.Projection(
+            torch.randn(export_coreml.SUMMARY_DIM, generator=generator) / 100,
+            torch.randn(export_coreml.SUMMARY_DIM, export_coreml.EMBEDDING_DIM, generator=generator),
+        )
 
     def forward(self, image):
-        return self.radio(image.mean(dim=(-2, -1)))
+        return self.projection(self.radio(image.mean(dim=(-2, -1))))
 
 
 def dequantize_ops(model):
@@ -23,7 +28,8 @@ def dequantize_ops(model):
 
 
 def test_export_writes_the_package_checkpoint_and_manifest(tmp_path):
-    manifest = export_coreml.export(tmp_path, build=lambda: ImageSummary().eval())
+    model = ImageSummary().eval()
+    manifest = export_coreml.export(tmp_path, build=lambda: model)
 
     package = tmp_path / "CRadioV3B.mlpackage"
     spec = ct.models.MLModel(str(package), skip_model_load=True).get_spec()
@@ -31,12 +37,14 @@ def test_export_writes_the_package_checkpoint_and_manifest(tmp_path):
     assert image.name == "image"
     assert (image.type.imageType.width, image.type.imageType.height) == (512, 512)
     assert spec.description.output[0].name == "embedding"
-    assert list(spec.description.output[0].type.multiArrayType.shape) == [1, 1536]
+    assert list(spec.description.output[0].type.multiArrayType.shape) == [1, export_coreml.EMBEDDING_DIM]
 
     state = torch.load(tmp_path / "fakequant_state.pt", weights_only=True)
     ops = dequantize_ops(ct.models.MLModel(str(package), skip_model_load=True))
     assert len(ops) == 1
     np.testing.assert_array_equal(ops[0].materialized_val_inference(), state["radio.weight"].numpy())
+    # The projection is not quantized: the checkpoint carries its fp16 rounding only.
+    torch.testing.assert_close(state["projection.matrix"], model.projection.matrix.half().float(), rtol=0, atol=0)
 
     shared = json.loads((export_coreml.REPO_ROOT / "shared" / "model" / "model-version.json").read_text())
     written = json.loads((tmp_path / "model-manifest.json").read_text())
@@ -87,3 +95,15 @@ def test_quantize_stores_signed_int8_per_output_channel_and_recovers_coreml_weig
     assert int(ops[0].axis.val) == 0
     assert ops[0].quantized_data.val.dtype == np.int8
     assert np.all(ops[0].zero_point.val == 0)
+
+
+def test_load_projection_refuses_a_file_fitted_with_another_whitening_power(tmp_path):
+    path = tmp_path / "projection.npz"
+    shape = (export_coreml.SUMMARY_DIM, export_coreml.EMBEDDING_DIM)
+    np.savez(path, mean=np.zeros(export_coreml.SUMMARY_DIM, np.float32), matrix=np.zeros(shape, np.float32),
+             whitenPower=np.float64(1.0))
+    with pytest.raises(ValueError, match="whitening power"):
+        export_coreml.load_projection(path)
+    np.savez(path, mean=np.zeros(export_coreml.SUMMARY_DIM, np.float32), matrix=np.zeros(shape, np.float32),
+             whitenPower=np.float64(export_coreml.WHITEN_POWER))
+    assert export_coreml.load_projection(path).matrix.shape == shape

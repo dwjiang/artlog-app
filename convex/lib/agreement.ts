@@ -6,9 +6,9 @@ import type { ContributionField, EvidenceKind } from "./validators";
 // The museum's page, not the visitor, named the work. `tavily+image` qualifies because
 // the phone confirmed the page's own image against the scan by embedding and homography.
 export const STRONG_EVIDENCE: ReadonlySet<EvidenceKind> = new Set(["accession", "qr", "tavily+image"]);
-export const AGREEMENT_MIN_COSINE = 0.9;
+export const AGREEMENT_MIN_COSINE = 0.75;
 // An exact-duplicate embedding is a replay, not an independent scan.
-export const REPLAY_COSINE = 0.999;
+export const REPLAY_COSINE = 0.997;
 
 export type AgreementContribution = {
   _id: Id<"contributions">;

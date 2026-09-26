@@ -7,7 +7,8 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
-import { contribute as contributeAction } from "./contributions";
+import { contribute as contributeAction, DUPLICATE_COSINE } from "./contributions";
+import { AGREEMENT_MIN_COSINE } from "./lib/agreement";
 import { labelField } from "./lib/labelVerify";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
 import {
@@ -310,7 +311,7 @@ describe("contribute", () => {
   it("ignores indexed vectors below the duplicate threshold or from another model version", async () => {
     const { t, contribute } = await fixture();
     await t.run(async (ctx) => {
-      await seedArtworkWithObject(ctx, { vector: testVector(0.99) });
+      await seedArtworkWithObject(ctx, { vector: testVector(DUPLICATE_COSINE - 0.01) });
       await seedArtworkWithObject(ctx, {
         vector: testVector(),
         modelVersion: "other-model",
@@ -392,9 +393,13 @@ describe("contribute", () => {
       const t = harness({ transactionLimits: true });
       const { user, venueId, contribute } = await fixture(verifiedFlow(), true, t);
       const historyVenue = scope === "same" ? venueId : await t.run((ctx) => seedMuseum(ctx));
+      // Distinct, mutually dissimilar history: one-hot off axis 0 (the fresh scan's), then two-hot
+      // once the axes run out.
       const vectorAt = (index: number) => {
         const vector = Array<number>(model.embeddingDim).fill(0);
-        vector[index] = 1;
+        const axes = model.embeddingDim - 1;
+        vector[1 + (index % axes)] = 1;
+        if (index >= axes) vector[1 + ((index + 1) % axes)] = 1;
         return vector;
       };
       for (let batch = 0; batch < 12; batch++) {
@@ -544,7 +549,7 @@ describe("contribute", () => {
       seedScan(ctx, {
         deviceId: user.deviceId,
         venueId,
-        vector: testVector(0.8),
+        vector: testVector(AGREEMENT_MIN_COSINE - 0.05),
         labelFlow: verifiedFlow(),
       }),
     );
