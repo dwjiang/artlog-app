@@ -31,13 +31,12 @@ it("defaults publishing to public and exposes notes only after publishing the vi
     audience: "public" as const,
     reflection: state.reflection,
   };
-  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe(input.reflection);
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   const published = await owner.as.mutation(api.sharedVisits.publish, selection);
   expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(input.reflection);
 });
 
-it("makes the whole visit private, hiding its notes and artworks from detail, profile history, and feeds", async () => {
+it("makes the whole visit private, hiding its notes and artworks from everyone but the owner", async () => {
   const t = harness();
   const owner = await socialUser(t);
   const draft = await socialVisit(t, owner, 1);
@@ -47,7 +46,6 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
     audience: "public" as const,
     reflection: "Visit memory",
   };
-  expect((await owner.as.query(api.sharedVisits.preview, selection)).reflection).toBe("Visit memory");
   const published = await owner.as.mutation(api.sharedVisits.publish, selection);
   const visible = await t.query(api.sharedVisits.get, {
     postId: published.postId!,
@@ -63,7 +61,7 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
     ).page[0].reflection,
   ).toBe("Visit memory");
   const hidden = await setVisitVisibility(t, owner, draft.visit._id, "private");
-  expect(hidden.status).toBe("private");
+  expect(hidden).toMatchObject({ status: "active", audience: "private" });
   await expect(t.query(api.sharedVisits.get, { postId: published.postId! })).rejects.toMatchObject({
     data: { code: "not_found" },
   });
@@ -82,11 +80,8 @@ it("makes the whole visit private, hiding its notes and artworks from detail, pr
       })
     ).reflection,
   ).toBe("Visit memory");
+  expect((await owner.as.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe("Visit memory");
   await setVisitVisibility(t, owner, draft.visit._id, "public");
-  await owner.as.mutation(api.sharedVisits.publish, {
-    ...selection,
-    revision: hidden.revision,
-  });
   expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe("Visit memory");
 });
 
@@ -111,7 +106,6 @@ it("refuses a stale note preview and keeps edits unpublished until an updated pu
     audience: "public" as const,
     reflection: input.reflection,
   };
-  await owner.as.query(api.sharedVisits.preview, selection);
   await owner.as.mutation(api.visits.upsertJournal, {
     scope: owner.scope,
     visit: { ...input, reflection: "Edited draft" },

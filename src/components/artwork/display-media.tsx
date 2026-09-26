@@ -24,23 +24,15 @@ export function DisplayMedia(props: Props) {
   let uri: string | undefined;
   if (media.kind === "catalog") {
     uri = media.url;
-  } else if (
-    (media.kind === "derivative" || media.kind === "photo")
-    && (media.reference.kind !== "sharedVisitPreview" || token)
-  ) {
+  } else if (media.kind === "derivative" || media.kind === "photo") {
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
     if (site) {
       const url = new URL("/display-media", site);
       const { reference } = media;
       url.searchParams.set("kind", reference.kind);
-      if (reference.kind === "sharedVisitPreview") {
-        url.searchParams.set("visitLocalId", reference.visitLocalId);
-        url.searchParams.set("saveLocalId", reference.saveLocalId);
-      } else {
-        url.searchParams.set("itemId", reference.itemId);
-        if (reference.kind === "sharedVisit") {
-          url.searchParams.set("postId", reference.postId);
-        }
+      url.searchParams.set("itemId", reference.itemId);
+      if (reference.kind === "sharedVisit") {
+        url.searchParams.set("postId", reference.postId);
       }
       if (reference.photoLocalId) {
         url.searchParams.set("photoLocalId", reference.photoLocalId);

@@ -39,7 +39,7 @@ export const browsedProfile = v.object({
   ...publicProfile.fields,
   relationship: v.optional(relationship),
 });
-export const visitAudience = v.literal("public");
+export const visitAudience = v.union(v.literal("private"), v.literal("friends"), v.literal("public"));
 export const publicationStatus = v.union(v.literal("private"), v.literal("active"));
 export const sharedVisitMediaContext = v.object({
   kind: v.literal("sharedVisit"),
@@ -52,14 +52,7 @@ export const wallItemMediaContext = v.object({
   itemId: v.id("wallItems"),
   photoLocalId: v.optional(v.string()),
 });
-export const publicMediaContext = v.union(wallItemMediaContext, sharedVisitMediaContext);
-export const previewMediaContext = v.object({
-  kind: v.literal("sharedVisitPreview"),
-  visitLocalId: v.string(),
-  saveLocalId: v.string(),
-  photoLocalId: v.optional(v.string()),
-});
-export const displayMediaContext = v.union(publicMediaContext, previewMediaContext);
+export const displayMediaContext = v.union(wallItemMediaContext, sharedVisitMediaContext);
 export const mediaContext = v.union(
   v.object({ kind: v.literal("owner"), saveLocalId: v.string() }),
   displayMediaContext,
@@ -166,14 +159,14 @@ export const sharedPhotoSelection = v.object({
   saveLocalId: v.string(),
   photoLocalIds: v.array(v.string()),
 });
-// The text is a preview snapshot, checked against the visit before publishing.
+// The text is a preview snapshot, checked against the visit before publishing. The artworks are in shared order,
+// and the first three lead the feed card.
 export const sharedSelection = v.object({
   audience: visitAudience,
   saveLocalIds: v.array(v.string()),
   reflection: v.string(),
   revision: v.number(),
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
-  highlightLocalIds: v.optional(v.array(v.string())),
 });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
@@ -262,14 +255,13 @@ export function validateMediaContext(input: Infer<typeof mediaContext>): void {
   if (
     (input.kind === "owner" && !isUuid(input.saveLocalId))
     || (input.kind === "sharedVisit" && !isUuid(input.postId))
-    || (input.kind === "sharedVisitPreview" && (!isUuid(input.visitLocalId) || !isUuid(input.saveLocalId)))
   ) {
     throw new ConvexError({ code: "invalid_media" });
   }
 }
 export function validateSelection(input: Infer<typeof sharedSelection>): void {
   if (
-    input.audience !== "public"
+    !["private", "friends", "public"].includes(input.audience)
     || input.saveLocalIds.length > LIMITS.selectedSaves
     || new Set(input.saveLocalIds).size !== input.saveLocalIds.length
     || input.saveLocalIds.some((id) => !isUuid(id))
@@ -279,10 +271,7 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
     throw new ConvexError({ code: "invalid_post" });
   }
   if (
-    (input.highlightLocalIds?.length ?? 0) > 3
-    || new Set(input.highlightLocalIds).size !== (input.highlightLocalIds?.length ?? 0)
-    || input.highlightLocalIds?.some((id) => !input.saveLocalIds.includes(id))
-    || (input.photoSelections?.length ?? 0) > LIMITS.selectedSaves
+    (input.photoSelections?.length ?? 0) > LIMITS.selectedSaves
     || new Set(input.photoSelections?.map((row) => row.saveLocalId)).size !== (input.photoSelections?.length ?? 0)
     || input.photoSelections?.some(
       (row) =>

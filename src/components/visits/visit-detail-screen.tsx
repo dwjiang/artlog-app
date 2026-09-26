@@ -1,4 +1,5 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { setStringAsync } from "expo-clipboard";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -23,11 +24,28 @@ import { reportError } from "@/lib/observability";
 import { retryAction, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
+import type { VisitVisibility } from "@/shared/journal/contracts";
 
 import { VisitActionBar } from "./visit-action-bar";
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
+import { VisitVisibilityChip } from "./visit-visibility-picker";
+
+const REACH: Record<VisitVisibility, number> = { private: 0, friends: 1, public: 2 };
+// Showing a published visit to more people asks first; narrowing who sees it does not.
+const CONFIRM_WIDER: Record<"friends" | "public", { title: string; message: string; action: string }> = {
+  friends: {
+    title: "Share this visit with friends?",
+    message: "Your friends will be able to see its shared version.",
+    action: "Share with friends",
+  },
+  public: {
+    title: "Make this visit public?",
+    message: "Anyone will be able to see its shared version, including people without an account.",
+    action: "Make public",
+  },
+};
 
 export function VisitDetailScreen() {
   const { visitId, endVisit } = useLocalSearchParams<{
@@ -91,18 +109,31 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   );
   const [changingVisibility, setChangingVisibility] = useState(false);
   const [visibilityError, setVisibilityError] = useState<{
-    next: "public" | "private";
+    next: VisitVisibility;
     message: string;
   }>();
-  const isPublic = (ending ? draftVisibility : visit.visibility) === "public";
-  const active = isPublic && sharing.acknowledged?.status === "active";
-  // The status check only decides what this screen offers for a public visit; sharing itself reports its own errors.
+  const visibility = ending ? draftVisibility : visit.visibility;
+  const shared = visibility !== "private";
+  const published = sharing.acknowledged?.status === "active";
+  const postId = published ? sharing.acknowledged!.postId : null;
+  // The status check only decides what this screen offers for a shared visit; sharing itself reports its own errors.
   // A retry clears the error as it starts, so the pill steps aside and returns only if the retry fails too.
-  const shareCheckFailed = isPublic && !sharing.profileRequired && !!sharing.error;
-  // Visits start private, so an unsynced private row only means a pending change once a published version exists.
-  const pendingPrivate =
-    !ending && signedIn && !isPublic && visit.syncedAt === null && sharing.acknowledged?.status === "active";
-  const privacyPending = pendingPrivate || visibilityError?.next === "private" || (changingVisibility && isPublic);
+  const shareCheckFailed = shared && !sharing.profileRequired && !!sharing.error;
+  // An unsynced row only means a pending change once a published version exists that the server still shows to a
+  // different audience.
+  const pendingChange =
+    !ending && signedIn && visit.syncedAt === null && published && sharing.acknowledged?.audience !== visibility;
+  const statusNote = changingVisibility
+    ? "Updating…"
+    : pendingChange || !!visibilityError
+      ? "Visibility change pending"
+      : ending
+        ? undefined
+        : published
+          ? "Posted"
+          : sharing.acknowledged
+            ? "Not posted yet"
+            : undefined;
   const openSharing = () =>
     router.push(
       signedIn
@@ -112,7 +143,30 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           }
         : signInRoute("visit", visit.localId),
     );
-  async function changeVisibility(next: "public" | "private" = isPublic ? "private" : "public") {
+  const linkArtwork = () =>
+    router.push({
+      pathname: "/link-artwork",
+      params: { visitId: visit.localId },
+    });
+  function chooseVisibility(next: VisitVisibility) {
+    if (next === visibility) return;
+    const confirmation =
+      !ending && published && next !== "private" && REACH[next] > REACH[visibility] ? CONFIRM_WIDER[next] : undefined;
+    if (!confirmation) {
+      void changeVisibility(next);
+      return;
+    }
+    Alert.alert(confirmation.title, confirmation.message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: confirmation.action,
+        onPress: () => {
+          void changeVisibility(next);
+        },
+      },
+    ]);
+  }
+  async function changeVisibility(next: VisitVisibility) {
     const session = captureOwner();
     if (session.owner !== visit.owner || changingVisibility) return;
     if (ending) {
@@ -144,13 +198,34 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         setVisibilityError({
           next,
           message: signedIn
-            ? "Visibility could not sync. A published visit may still be visible."
+            ? "Visibility could not sync. A published visit may keep its previous visibility."
             : "Visibility could not save. Try again.",
         });
       }
     } finally {
       clearTimeout(timeout);
       if (session.isOwnerCurrent()) setChangingVisibility(false);
+    }
+  }
+  /** Opens the share form once any note still being edited has saved. */
+  async function share() {
+    const session = captureOwner();
+    if (session.owner !== visit.owner || submitting.current) return;
+    submitting.current = true;
+    try {
+      if (!(await notes.current?.save()) || !session.isCurrent()) return;
+      openSharing();
+    } finally {
+      submitting.current = false;
+    }
+  }
+  async function copyLink(id: string) {
+    try {
+      const copied = await setStringAsync(`artlog://visit/${encodeURIComponent(id)}`);
+      showToast(copied ? "Visit link copied." : "Couldn’t copy the link. Try again.");
+    } catch (cause) {
+      reportError(cause, "visit.share.copy-link", { level: "warning" });
+      showToast("Couldn’t copy the link. Try again.");
     }
   }
   async function save() {
@@ -160,17 +235,15 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     setSaving(true);
     setSaveError(undefined);
     try {
-      if (ending && draftVisibility !== visit.visibility) {
+      if (draftVisibility !== visit.visibility) {
         await patchVisit(visit.localId, { visibility: draftVisibility }, visit.owner);
         if (!session.isCurrent()) return;
       }
       if (!(await notes.current?.save()) || !session.isCurrent()) return;
-      if (ending) {
-        await end(visit.localId);
-        if (!session.isCurrent()) return;
-        router.setParams({ endVisit: undefined });
-      }
-      if (isPublic) {
+      await end(visit.localId);
+      if (!session.isCurrent()) return;
+      router.setParams({ endVisit: undefined });
+      if (shared) {
         openSharing();
       } else {
         showToast("Visit saved.");
@@ -184,72 +257,54 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       if (session.isOwnerCurrent()) setSaving(false);
     }
   }
+  const count = visit.works.length;
   return (
     <>
       <Stack.Screen options={{ title: "" }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon="ellipsis"
-          accessibilityLabel="Visit options"
-          hidesSharedBackground
-          tintColor={Gallery.ink}
-        >
-          <Stack.Toolbar.MenuAction
-            icon="plus"
-            onPress={() =>
-              router.push({
-                pathname: "/link-artwork",
-                params: { visitId: visit.localId },
-              })
-            }
+      {(!ending || postId) && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon="ellipsis"
+            accessibilityLabel="Visit options"
+            hidesSharedBackground
+            tintColor={Gallery.ink}
           >
-            Link artwork
-          </Stack.Toolbar.MenuAction>
-          {!ending && (
-            <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={openSharing}>
-              Prepare shared visit
-            </Stack.Toolbar.MenuAction>
-          )}
-          {isPublic && (
-            <Stack.Toolbar.MenuAction
-              icon="lock"
-              destructive
-              disabled={changingVisibility || sharing.busy}
-              onPress={() =>
-                Alert.alert(
-                  "Make this visit private?",
-                  "Its shared version will be removed from profiles and feeds once the change syncs. Your artworks and notes stay in your collection.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Make private",
-                      style: "destructive",
-                      onPress: () => {
-                        void changeVisibility("private");
-                      },
-                    },
-                  ],
-                )
-              }
-            >
-              Make private
-            </Stack.Toolbar.MenuAction>
-          )}
-          {active && (
-            <Stack.Toolbar.MenuAction
-              icon="globe"
-              onPress={() =>
-                router.push({
-                  pathname: "/visit-share/[visitId]/shared",
-                  params: { visitId: visit.localId },
-                })
-              }
-            >
-              View shared version
-            </Stack.Toolbar.MenuAction>
-          )}
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+            {!ending && (
+              <Stack.Toolbar.MenuAction
+                icon="square.and.arrow.up"
+                onPress={() => {
+                  void share();
+                }}
+              >
+                {published ? "Edit post" : "Share visit"}
+              </Stack.Toolbar.MenuAction>
+            )}
+            {postId && (
+              <Stack.Toolbar.MenuAction
+                icon="eye"
+                onPress={() =>
+                  router.push({
+                    pathname: "/visit/[postId]",
+                    params: { postId },
+                  })
+                }
+              >
+                View post
+              </Stack.Toolbar.MenuAction>
+            )}
+            {postId && sharing.acknowledged?.audience !== "private" && (
+              <Stack.Toolbar.MenuAction
+                icon="link"
+                onPress={() => {
+                  void copyLink(postId);
+                }}
+              >
+                Copy link
+              </Stack.Toolbar.MenuAction>
+            )}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
       <View style={styles.page}>
         <View style={{ flex: 1 }}>
           <VisitPage>
@@ -258,37 +313,8 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 {saveError}
               </Text>
             )}
-            {visibilityError && (
-              <View
-                style={{
-                  gap: 8,
-                  padding: 14,
-                  backgroundColor: "#FFF4DE",
-                  borderLeftWidth: 3,
-                  borderLeftColor: Gallery.warning,
-                }}
-              >
-                <Text accessibilityRole="alert" style={styles.error}>
-                  {visibilityError.message}
-                </Text>
-                <GalleryButton
-                  label="Retry visibility"
-                  disabled={changingVisibility}
-                  onPress={() => {
-                    void changeVisibility(visibilityError.next);
-                  }}
-                />
-              </View>
-            )}
-            <View style={{ gap: 8 }}>
-              <Text style={{ fontSize: 12, lineHeight: 18, color: Gallery.muted }}>
-                {privacyPending ? "Privacy change pending" : isPublic ? "Public visit" : "Private visit"}
-              </Text>
-              <Text
-                selectable
-                accessibilityRole="header"
-                style={[Typography.pageTitle, { color: Gallery.ink, fontSize: 42, lineHeight: 50 }]}
-              >
+            <View style={{ gap: 6 }}>
+              <Text selectable accessibilityRole="header" style={[Typography.display, { color: Gallery.ink }]}>
                 {visit.venueName}
               </Text>
               <Text selectable style={styles.caption}>
@@ -296,43 +322,40 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 {visit.location ? ` · ${visit.location}` : ""}
               </Text>
             </View>
-            {privacyPending && !visibilityError && (
-              <View
-                style={{
-                  padding: 14,
-                  backgroundColor: "#FFF4DE",
-                  borderLeftWidth: 3,
-                  borderLeftColor: Gallery.warning,
-                }}
-              >
-                <Text style={{ color: Gallery.warning, fontSize: 14, lineHeight: 21 }}>
-                  Waiting to sync. The published visit is still visible.
-                </Text>
+            <View style={{ gap: 8 }}>
+              <View style={detail.status}>
+                <VisitVisibilityChip
+                  value={visibility}
+                  disabled={saving || changingVisibility || sharing.busy}
+                  onChange={chooseVisibility}
+                />
+                {statusNote && <Text style={styles.caption}>{statusNote}</Text>}
               </View>
-            )}
+              {visibilityError && (
+                <View style={{ gap: 4 }}>
+                  <Text accessibilityRole="alert" style={styles.error}>
+                    {visibilityError.message}
+                  </Text>
+                  <GalleryButton
+                    label="Retry visibility"
+                    disabled={changingVisibility}
+                    onPress={() => {
+                      void changeVisibility(visibilityError.next);
+                    }}
+                  />
+                </View>
+              )}
+            </View>
             {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
             <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} />
             <View>
-              <View style={styles.sectionLabel}>
-                <Text accessibilityRole="header" style={detail.sectionTitle}>
-                  {visit.works.length > 0
-                    ? `${visit.works.length} ${visit.works.length === 1 ? "artwork" : "artworks"} saved`
-                    : "Your artworks"}
+              <View style={detail.sectionLabel}>
+                <Text accessibilityRole="header" style={styles.eyebrow}>
+                  {count > 0 ? `${count} ${count === 1 ? "artwork" : "artworks"}` : "Artworks"}
                 </Text>
-                {visit.works.length > 0 && (
-                  <GalleryButton
-                    label="Link artwork"
-                    icon="plus"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/link-artwork",
-                        params: { visitId: visit.localId },
-                      })
-                    }
-                  />
-                )}
+                {count > 0 && <GalleryButton label="Link artwork" icon="plus" onPress={linkArtwork} />}
               </View>
-              {visit.works.length > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+              {count > 8 && <VisitGallerySearch value={search} onChangeText={setSearch} />}
               <View
                 style={{
                   flexDirection: "row",
@@ -389,18 +412,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                     detail="Link a saved artwork to this visit."
                     visual={<EmptySymbol name="photo.on.rectangle" />}
                   >
-                    <GalleryButton
-                      label="Link artwork"
-                      icon="plus"
-                      variant="filled"
-                      fullWidth
-                      onPress={() =>
-                        router.push({
-                          pathname: "/link-artwork",
-                          params: { visitId: visit.localId },
-                        })
-                      }
-                    />
+                    <GalleryButton label="Link artwork" icon="plus" variant="filled" fullWidth onPress={linkArtwork} />
                   </EmptyState>
                 ))}
             </View>
@@ -414,27 +426,31 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             </View>
           )}
         </View>
-        <VisitActionBar
-          endingVisit={ending}
-          isPublic={isPublic}
-          pendingPrivate={pendingPrivate}
-          changingVisibility={changingVisibility}
-          sharingBusy={sharing.busy}
-          saving={saving}
-          onChangeVisibility={() => {
-            void changeVisibility();
-          }}
-          onSave={() => {
-            void save();
-          }}
-        />
+        {ending && (
+          <VisitActionBar
+            saving={saving}
+            disabled={changingVisibility}
+            onSave={() => {
+              void save();
+            }}
+          />
+        )}
       </View>
     </>
   );
 }
 
 const detail = StyleSheet.create({
-  sectionTitle: { ...Typography.section, color: Gallery.ink },
+  status: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 },
+  sectionLabel: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingTop: 8,
+    minHeight: 44,
+  },
   toast: {
     position: "absolute",
     left: Spacing.content,

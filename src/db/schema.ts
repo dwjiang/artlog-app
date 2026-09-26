@@ -21,7 +21,7 @@ const bytes = customType<{ data: ArrayBuffer; driverData: Uint8Array }>({
 export const visits = sqliteTable(
   "visits",
   {
-    visibility: text("visibility", { enum: ["public", "private"] })
+    visibility: text("visibility", { enum: ["private", "friends", "public"] })
       .notNull()
       .default("public"),
     owner: text().notNull(),

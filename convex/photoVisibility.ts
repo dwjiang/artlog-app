@@ -49,7 +49,7 @@ export const forArtwork = query({
       if (item.saveLocalId !== save.localId) continue;
       const publication = await ctx.db.get("sharedVisits", item.publicationId);
       const access = publication && (await readablePublication(ctx, publication, publication.profileId));
-      if (!access) continue;
+      if (!access || access.visit.visibility === "private") continue;
       try {
         await requireMembership(ctx, save, access.visit);
       } catch (error) {

@@ -47,7 +47,6 @@ export const publicationState = v.object({
   postId: v.union(v.string(), v.null()),
   status: v.union(v.literal("private"), v.literal("active")),
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
-  highlightLocalIds: v.optional(v.array(v.string())),
   removed: v.boolean(),
   reflection: v.string(),
   saveLocalIds: v.array(v.string()),
@@ -55,7 +54,7 @@ export const publicationState = v.object({
 });
 export const PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_ARTWORKS = 50;
-// Reserve for one more maximum-size save plus its media rows; preview and publish share it so they accept the same selections.
+// Reserve for one more maximum-size save plus its media rows, so publishing stops before the read limit.
 export const SAVE_READ_RESERVE = 1.1 * 1024 * 1024;
 
 export async function readHeadroom(ctx: QueryCtx, reserve = 6 * 1024 * 1024) {
@@ -78,13 +77,9 @@ export async function selectedSaves(
   ctx: QueryCtx,
   owner: JournalOwner,
   input: Infer<typeof sharedSelection> & { visitLocalId: string },
-  allowPrivate = false,
 ) {
   validateSelection(input);
   const visit = await ownedVisit(ctx, owner, input.visitLocalId);
-  if (visit.visibility === "private" && !allowPrivate) {
-    throw new ConvexError({ code: "visit_private" });
-  }
   if (input.reflection !== (visit.reflection ?? "")) {
     throw new ConvexError({ code: "conflict" });
   }
@@ -138,14 +133,13 @@ export async function stateForPublication(
 ): Promise<Infer<typeof publicationState>> {
   const items = publication ? await publicationItems(ctx, publication._id) : [];
   return {
-    audience: publication?.audience ?? "public",
+    audience: visit.visibility,
     photoSelections: items
       .filter((item) => item.photoLocalIds?.length)
       .map((item) => ({
         saveLocalId: item.saveLocalId,
         photoLocalIds: item.photoLocalIds!,
       })),
-    highlightLocalIds: items.filter((item) => item.highlighted).map((item) => item.saveLocalId),
     postId: publication?.postId ?? null,
     status: publication?.status ?? "private",
     removed: !!publication?.removal,

@@ -53,11 +53,11 @@ export function SocialState({
 
 export function SocialGate({
   session,
-  browsePublic = false,
+  onBrowseGlobal,
   context = "friends",
 }: {
   session: SocialSession;
-  browsePublic?: boolean;
+  onBrowseGlobal?: () => void;
   context?: SignInContext;
 }) {
   const router = useRouter();
@@ -69,7 +69,7 @@ export function SocialGate({
         detail="See the museum visits and artworks your friends share."
       >
         <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
-        {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />}
+        {onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
       </SocialInvitation>
     );
   }
@@ -85,7 +85,7 @@ export function SocialGate({
           fullWidth
           onPress={() => router.push("/create-profile")}
         />
-        {browsePublic && <GalleryButton label="Find friends" fullWidth onPress={() => router.push("/people")} />}
+        {onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
       </SocialInvitation>
     );
   }

@@ -211,6 +211,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (state.venue?.manual && state.visit && isVisitToday(state.visit, event.at)) {
         return { ...state, status: "resolved", fix: undefined };
       }
+      // Without location the visit pauses like leaving the museum, whether access was declined or left unanswered.
       return {
         ...state,
         status: "denied",

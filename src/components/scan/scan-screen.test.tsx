@@ -262,6 +262,7 @@ it("shows Hold steady only while the detected painting is accumulating hold time
       [0.2, 0.8],
     ],
     progress: 0.5,
+    guidance: "hold-still",
   };
   await view.rerender(<ScanScreen />);
   expect(screen.getByText("Hold steady")).toBeOnTheScreen();
@@ -283,10 +284,11 @@ it("takes a still only when the controller accepts a detection", async () => {
   };
   await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  await act(() => mockOnDetection({}));
+  const detection = { width: 1080, height: 1440, observations: [] };
+  await act(() => mockOnDetection(detection));
   expect(mockPhoto).not.toHaveBeenCalled();
   mockObserve.mockReturnValue(attempt);
-  await act(() => mockOnDetection({}));
+  await act(() => mockOnDetection(detection));
   expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   expect(mockCapture).not.toHaveBeenCalled();

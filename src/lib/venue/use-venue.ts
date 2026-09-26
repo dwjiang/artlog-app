@@ -10,6 +10,7 @@ import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import { findVisitOnDay, getVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
 import type { NewVisit, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
+import { useIntroductionOver } from "@/lib/account/introduction";
 import { captureOwner, getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
 import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
@@ -431,7 +432,9 @@ export function createVenueController(): VenueController {
     }
   }
 
-  async function runResolve(quiet: boolean): Promise<VenueContext> {
+  // A scan resolves quietly (no sheet) and is the only resolve that may raise the system location prompt: launch and
+  // foreground resolves keep whatever the person chose on the welcome's Access page or in the museum sheet.
+  async function runResolve(forScan: boolean): Promise<VenueContext> {
     void syncRemoteVisit();
     // A museum picked by hand stands for the rest of its day there, visit or not; location takes over again the next day.
     if (state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) {
@@ -442,7 +445,9 @@ export function createVenueController(): VenueController {
     const wanted = () => revision === selectionRevision;
     dispatch({ type: "locating" });
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const permission = await (forScan
+        ? Location.requestForegroundPermissionsAsync()
+        : Location.getForegroundPermissionsAsync());
       if (!wanted()) return venueContext(state);
       if (!permission.granted) {
         dispatch({ type: "denied", at: Date.now() });
@@ -468,10 +473,10 @@ export function createVenueController(): VenueController {
             : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`),
         );
       }
-      dispatch({ type: "resolved", fix, resolution, quiet });
+      dispatch({ type: "resolved", fix, resolution, quiet: forScan });
       addBreadcrumb("venue.resolved", { kind: resolution.kind });
       if (state.status === "none" && resolution.kind === "none") {
-        await searchNearbyPlaces(fix, quiet);
+        await searchNearbyPlaces(fix, forScan);
       }
       return venueContext(state);
     } catch (error) {
@@ -486,8 +491,8 @@ export function createVenueController(): VenueController {
     }
   }
 
-  function startResolve(quiet: boolean): Promise<VenueContext> {
-    inFlight ??= runResolve(quiet).finally(() => {
+  function startResolve(forScan: boolean): Promise<VenueContext> {
+    inFlight ??= runResolve(forScan).finally(() => {
       inFlight = undefined;
     });
     return inFlight;
@@ -653,8 +658,11 @@ export function VenueResolver({ controller = venueController }: { controller?: V
     () => controller.getState().prompt,
   );
   const seenPrompt = useRef(prompt);
+  const introduced = useIntroductionOver(owner);
 
   useEffect(() => {
+    // The location request and the museum sheet would otherwise land on top of a first launch's welcome.
+    if (!introduced) return;
     void controller
       .hydrate()
       .then(controller.resolve)
@@ -665,7 +673,7 @@ export function VenueResolver({ controller = venueController }: { controller?: V
     refreshVenueTableInBackground();
     const subscription = AppState.addEventListener("change", controller.appStateChanged);
     return () => subscription.remove();
-  }, [controller, owner]);
+  }, [controller, owner, introduced]);
 
   useEffect(() => {
     if (device && isInternetReachable !== false) {

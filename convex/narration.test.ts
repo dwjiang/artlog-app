@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { guideBodyFixture, guideFixture, researchFixture } from "../shared/audio/guide-fixtures";
+import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
@@ -26,7 +26,7 @@ const script = guideBodyFixture.map(({ sentence, factIds }) => ({
 const completion = (value = script) =>
   new Response(
     JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(value) } }],
+      choices: [{ message: { content: JSON.stringify(sectionedGuide(value)) } }],
     }),
     {
       headers: { "Content-Type": "application/json" },
@@ -170,7 +170,7 @@ it("re-renders from corrected artwork metadata even when the research is unchang
       date: "1917",
     }),
   );
-  const opening = "This is Nymphéas, by Attributed to Claude Monet, dated 1917.";
+  const opening = "Attributed to Claude Monet. Nymphéas. Dated 1917.";
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationOpening).toBe(opening);
   const updated = await as.action(api.narration.render, args);
   expect(updated.renderId).not.toBe(first.renderId);
@@ -306,9 +306,15 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   fetcher.mockResolvedValueOnce(completion(invented));
   expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(3);
-  const retry = JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
+  const request = (call: number) =>
+    JSON.parse((fetcher.mock.calls[call] as unknown as [string, RequestInit])[1].body as string);
+  const retry = request(1);
   expect(retry.messages[1].content).toContain("lilies float serenely");
   expect(retry.messages[1].content).toContain("not verbatim");
+  // Neither call reasons; thin research asks for a five-sentence story.
+  expect(request(0).chat_template_kwargs).toEqual({ enable_thinking: false });
+  expect(retry.chat_template_kwargs).toEqual({ enable_thinking: false });
+  expect(retry.response_format.json_schema.schema.properties.story.minItems).toBe(5);
   expect((await t.run((ctx) => ctx.db.query("dailySpend").take(1)))[0].tokenFactoryCalls).toBe(2);
 });
 
@@ -319,7 +325,7 @@ it("asks for the thin-research length, not the full one, when a script from thin
   const retry = JSON.parse(
     JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   );
-  expect(retry.previousAttemptProblems).toContain("110 to 200 words after the opening");
+  expect(retry.previousAttemptProblems).toContain("90 to 225 words after the opening");
 });
 
 it("rejects invented citations before generating speech and releases the claim for retry", async () => {

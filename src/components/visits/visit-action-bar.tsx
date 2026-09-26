@@ -3,26 +3,16 @@ import { Keyboard, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 
+/** The end-of-visit form's Save & end visit; it steps aside while the keyboard covers it. */
 export function VisitActionBar({
-  endingVisit,
-  isPublic,
-  pendingPrivate,
-  changingVisibility,
-  sharingBusy,
   saving,
-  onChangeVisibility,
+  disabled,
   onSave,
 }: {
-  endingVisit: boolean;
-  isPublic: boolean;
-  pendingPrivate: boolean;
-  changingVisibility: boolean;
-  sharingBusy: boolean;
   saving: boolean;
-  onChangeVisibility: () => void;
+  disabled: boolean;
   onSave: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
@@ -42,40 +32,18 @@ export function VisitActionBar({
         paddingHorizontal: 20,
         paddingTop: 12,
         paddingBottom: Math.max(bottom, 12),
-        gap: 8,
         backgroundColor: Gallery.paper,
       }}
     >
-      {endingVisit && (
-        <GalleryButton
-          label={isPublic ? "Public" : "Private"}
-          icon={isPublic ? "globe" : "lock"}
-          fullWidth
-          accessibilityLabel={`${isPublic ? "Public" : "Private"} visit. ${isPublic ? "Make private." : "Make public."}`}
-          disabled={saving || changingVisibility || sharingBusy}
-          busy={changingVisibility}
-          onPress={onChangeVisibility}
-        />
-      )}
       <GalleryButton
-        label={endingVisit ? "Save & end visit" : isPublic ? "Prepare to share" : "Save"}
+        label="Save & end visit"
         busy={saving}
         busyLabel="Saving…"
         variant="filled"
         fullWidth
-        disabled={changingVisibility || (isPublic && sharingBusy)}
+        disabled={disabled}
         onPress={onSave}
       />
-      <Text
-        style={{
-          fontSize: 12,
-          lineHeight: 18,
-          color: Gallery.muted,
-          textAlign: "center",
-        }}
-      >
-        {pendingPrivate ? "Privacy change waiting to sync" : "You choose what to share before anything is published."}
-      </Text>
     </View>
   );
 }

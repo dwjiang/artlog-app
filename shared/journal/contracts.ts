@@ -17,7 +17,8 @@ export const journalSnapshot = v.object({
   medium: v.optional(v.string()),
   institution: v.optional(v.string()),
 });
-export const visitVisibility = v.union(v.literal("public"), v.literal("private"));
+export const visitVisibility = v.union(v.literal("private"), v.literal("friends"), v.literal("public"));
+export type VisitVisibility = Infer<typeof visitVisibility>;
 export const journalVisit = v.object({
   visibility: visitVisibility,
   localId: v.string(),
@@ -61,7 +62,7 @@ export function pagination(input: { cursor?: string | null; limit?: number }) {
 }
 export function validateVisit(visit: JournalVisit, now = Date.now()): void {
   if (
-    (visit.visibility !== "public" && visit.visibility !== "private")
+    !["private", "friends", "public"].includes(visit.visibility)
     || !isUuid(visit.localId)
     || !isCalendarDate(visit.visitedOn)
     || !isTimeZone(visit.timeZone)

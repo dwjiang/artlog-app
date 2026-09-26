@@ -1,3 +1,4 @@
+import type { VisitVisibility } from "../../shared/journal/contracts";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { Harness } from "../test.helpers";
@@ -89,7 +90,7 @@ export async function setVisitVisibility(
   t: Harness,
   user: Pick<SocialUser, "as" | "scope">,
   visitId: Id<"visits">,
-  visibility: "public" | "private",
+  visibility: VisitVisibility,
 ) {
   const { localId, venueId, visitedOn, timeZone, reflection, startedAt, endedAt } = (await t.run((ctx) =>
     ctx.db.get("visits", visitId),

@@ -12,11 +12,6 @@ async function fixture() {
   const b = await socialUser(t);
   const draft = await socialVisit(t, a, 1);
   const asset = await socialDerivative(t, a, draft.saves[0].id);
-  const previewContext = {
-    kind: "sharedVisitPreview" as const,
-    visitLocalId: draft.visit.localId,
-    saveLocalId: draft.saves[0].localId,
-  };
   const getStored = async (id: typeof asset.storageId) => {
     const stored = await t.run(async (ctx) => {
       const blob = await ctx.storage.get(id);
@@ -39,26 +34,8 @@ async function fixture() {
       itemId: post.artworks.page[0].itemId,
     };
   };
-  return { t, a, b, draft, asset, previewContext, transport, publish };
+  return { t, a, b, draft, asset, transport, publish };
 }
-
-it("displays eligible draft media only to the owner without publishing or exposing storage IDs", async () => {
-  const { t, a, b, draft, asset, previewContext, transport } = await fixture();
-  const preview = await a.as.query(api.sharedVisits.preview, draft.selection);
-  expect(preview.artworks[0].artwork.media).toMatchObject({
-    kind: "derivative",
-    reference: previewContext,
-  });
-  expect(JSON.stringify(preview)).not.toContain(asset.storageId);
-  const response = await serveSharedMedia(transport(), previewContext);
-  expect(await response.text()).toBe("derivative bytes");
-  expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-  await befriend(a, b);
-  const denied = await serveSharedMedia(transport(b), previewContext);
-  expect(denied.status).toBe(404);
-  expect(denied.headers.get("Cache-Control")).toBe("private, no-store");
-  expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
-});
 
 it("serves public media without friendship and rechecks publication, selection, and media eligibility", async () => {
   const { t, a, b, draft, asset, transport, publish } = await fixture();

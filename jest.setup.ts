@@ -11,9 +11,13 @@ jest.mock("@sentry/react-native", () => ({
 // Native CSS animations are verified on iOS; Jest exercises their content and accessibility states.
 jest.mock("react-native-reanimated", () => ({
   __esModule: true,
-  default: { View: jest.requireActual("react-native").View },
+  default: {
+    View: jest.requireActual("react-native").View,
+    ScrollView: jest.requireActual("react-native").ScrollView,
+  },
   isSharedValue: () => false,
   getUseOfValueInStyleWarning: () => "",
+  useAnimatedRef: () => jest.requireActual("react").useRef(null),
 }));
 
 // expo-audio patches its native player class on import, which jest-expo does not mock; route tests load it through the root layout.

@@ -216,27 +216,6 @@ export function ArtworkSkeleton({ label = "Opening artwork…" }: { label?: stri
   );
 }
 
-export function ProfileSkeleton() {
-  return (
-    <LoadingSkeleton label="Opening profile…" style={{ padding: 20 }}>
-      <View style={{ gap: 24 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-          <Ghost width={76} height={76} round />
-          <View style={{ flex: 1, gap: 10 }}>
-            <Ghost width="80%" height={28} />
-            <Ghost width="56%" />
-            <Ghost width="68%" />
-          </View>
-        </View>
-        <View style={{ gap: 11 }}>
-          <Ghost />
-          <Ghost width="72%" />
-        </View>
-      </View>
-    </LoadingSkeleton>
-  );
-}
-
 export function VisitSkeleton({ label = "Loading visit…", heading = true }: { label?: string; heading?: boolean }) {
   return (
     <LoadingSkeleton label={label} style={{ padding: 20 }}>

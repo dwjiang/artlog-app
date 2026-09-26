@@ -34,6 +34,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
 
 const visit: ReactionVisit = {
   postId: "visit-a",
+  audience: "public",
   author: {
     profileId: "author" as never,
     name: "Maya Park",
