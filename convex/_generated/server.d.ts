@@ -47,6 +47,8 @@ type Env = {
   readonly MODERATION_MODEL: string | undefined;
   readonly NEBIUS_API_KEY: string | undefined;
   readonly OPENAI_API_KEY: string | undefined;
+  readonly PINECONE_API_KEY: string | undefined;
+  readonly PINECONE_INDEX_HOST: string | undefined;
   readonly SENTRY_DSN: string | undefined;
   readonly SENTRY_ENVIRONMENT: string | undefined;
   readonly SUPPORTED_MODEL_VERSIONS: string | undefined;

@@ -212,6 +212,14 @@ def verify_sample(corpus: Corpus, writer: ConvexWriter, fraction: float) -> dict
                 "ingest:readSample",
                 {"table": stage, "rows": [corpus.identity(stage, row) for row in expected]},
             )
+            if stage == "vectors":
+                keys = [{"modelVersion": row["modelVersion"], "viewKey": row["viewKey"]} for row in expected]
+                for attempt in range(6):
+                    if writer.action("vectorSync:verifyCorpus", {"keys": keys}):
+                        break
+                    if attempt == 5:
+                        raise RuntimeError("Pinecone vector readback failed; resume after sync completes")
+                    time.sleep(2)
             if len(actual) != len(expected):
                 raise RuntimeError(f"{stage} readback did not return every sampled row")
             for wanted, stored in zip(expected, actual, strict=True):
@@ -244,11 +252,16 @@ def run(
     if not 0 < verify_fraction <= 1:
         raise ValueError("Verification fraction must be within (0, 1]")
     checkpoint = Path(checkpoint)
+    search_index = writer.action("vectorSync:configuration", {})
     if checkpoint.exists():
         state = json.loads(checkpoint.read_text())
-        if state["fingerprint"] != corpus.fingerprint or state["deployment"] != deployment_url:
+        if (
+            state["fingerprint"] != corpus.fingerprint
+            or state["deployment"] != deployment_url
+            or state.get("searchIndex") != search_index
+        ):
             raise ValueError(
-                "Push checkpoint belongs to different inputs or deployment; use a new checkpoint"
+                "Push checkpoint belongs to different inputs, deployment, or Pinecone index; use a new checkpoint"
             )
     else:
         baseline = writer.query("ingest:counts")
@@ -271,6 +284,7 @@ def run(
         state = {
             "fingerprint": corpus.fingerprint,
             "deployment": deployment_url,
+            "searchIndex": search_index,
             "baseline": baseline,
             "expected": expected,
             "stages": {},
@@ -312,6 +326,9 @@ def run(
             progress["seconds"] += time.monotonic() - started
             write_json(checkpoint, state)
             log.info("%s: %d/%d", stage, progress["offset"], total)
+    from .vector_sync import wait_for_sync
+
+    wait_for_sync(writer)
     actual = writer.query("ingest:counts")
     verification = state.get("verification")
     if not verification or verification["fraction"] != verify_fraction:

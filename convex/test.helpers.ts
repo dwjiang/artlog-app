@@ -1,10 +1,12 @@
 /// <reference types="vite/client" />
 import { register } from "@convex-dev/rate-limiter/test";
 import { convexTest, type TestConvex } from "convex-test";
+import { v } from "convex/values";
 import { vi } from "vitest";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { internalAction } from "./_generated/server";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -16,8 +18,18 @@ export type SignedIn = {
   as: ReturnType<Harness["withIdentity"]>;
 };
 
-export function harness(options: { transactionLimits?: boolean } = {}): Harness {
-  const t = convexTest({ schema, modules, ...options });
+export function harness(options: { transactionLimits?: boolean; vectorSync?: boolean } = {}): Harness {
+  const { vectorSync, ...limits } = options;
+  const testModules = vectorSync
+    ? modules
+    : {
+        ...modules,
+        "./vectorSync.ts": async () => ({
+          ...(await import("./vectorSync")),
+          drain: internalAction({ args: {}, returns: v.number(), handler: async () => 0 }),
+        }),
+      };
+  const t = convexTest({ schema, modules: testModules, ...limits });
   register(t);
   return t;
 }

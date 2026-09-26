@@ -11,6 +11,7 @@ import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedJournalVisit, testVector } from "./lib/testFactories";
 import { insertVector } from "./lib/vectorStore";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness, signIn } from "./test.helpers";
 
 beforeEach(() => {
@@ -628,11 +629,11 @@ describe("candidate loading", () => {
       return { target, merged, second, duplicate };
     });
     const candidates = await t.query(internal.identify.loadCandidates, {
-      embeddingIds: [
-        target.embeddingId,
-        merged.embeddingId,
-        second.embeddingId,
-        (await t.run((ctx) => ctx.db.get("vectors", duplicate)))!.embeddingId,
+      recordIds: [
+        target.recordId,
+        merged.recordId,
+        second.recordId,
+        searchRecordId((await t.run((ctx) => ctx.db.get("vectors", duplicate)))!),
       ],
       scores: [0.9, 0.99, 0.8, 0.95],
       now: Date.now(),
@@ -664,7 +665,7 @@ describe("candidate loading", () => {
     });
     expect(
       await t.query(internal.identify.loadCandidates, {
-        embeddingIds: rows.map((r) => r.embeddingId),
+        recordIds: rows.map((r) => r.recordId),
         scores: rows.map(() => 0.99),
         now: Date.now(),
       }),
@@ -695,7 +696,7 @@ describe("candidate loading", () => {
       return { venueId, rows };
     });
     const candidates = await t.query(internal.identify.loadCandidates, {
-      embeddingIds: rows.map((r) => r.embeddingId),
+      recordIds: rows.map((r) => r.recordId),
       scores: rows.map((_, i) => 0.9 - i / 100),
       now: Date.now(),
       venueId: await t.run((ctx) => seedMuseum(ctx)),

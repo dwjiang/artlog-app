@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import example from "../shared/sources/fixtures/checklist-example.json";
 import { internal } from "./_generated/api";
 import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness } from "./test.helpers";
 
 async function fixture() {
@@ -198,7 +199,7 @@ it.each([
       ["2026-10-31T07:00:00Z", ownerId],
     ] as const) {
       const [candidate] = await t.query(internal.identify.loadCandidates, {
-        embeddingIds: [(await t.run((ctx) => ctx.db.get("vectors", vectorId)))!.embeddingId],
+        recordIds: [searchRecordId((await t.run((ctx) => ctx.db.get("vectors", vectorId)))!)],
         scores: [1],
         now: Date.parse(instant),
       });

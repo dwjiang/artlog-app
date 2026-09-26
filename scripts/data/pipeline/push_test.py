@@ -29,6 +29,8 @@ class Writer:
         self.after_commit = False
 
     def query(self, name, args=None):
+        if name == "vectorSync:status":
+            return {"ready": True, "failed": False}
         if name == "ingest:counts":
             return {"museums": 1, **{s: len(self.stored[s]) for s in STAGES[:-1]}}
         if name == "ingest:countExisting":
@@ -46,6 +48,10 @@ class Writer:
         raise AssertionError(name)
 
     def action(self, name, args):
+        if name == "vectorSync:configuration":
+            return {"host": "test.pinecone.io", "namespace": "recognition"}
+        if name == "vectorSync:verifyCorpus":
+            return True
         if name == "ingest:readSample":
             self.readbacks.append(args)
             return [
@@ -286,14 +292,14 @@ def test_changed_inputs_or_destination_cannot_reuse_checkpoint(merged_corpus):
     directory = merged_corpus()
     writer = Writer()
     push(directory, writer)
-    with pytest.raises(ValueError, match="different inputs or deployment"):
+    with pytest.raises(ValueError, match="different inputs, deployment, or Pinecone index"):
         run(
             Corpus(directory),
             writer,
             checkpoint=directory / "push.json",
             deployment_url="https://other.test",
         )
-    with pytest.raises(ValueError, match="different inputs or deployment"):
+    with pytest.raises(ValueError, match="different inputs, deployment, or Pinecone index"):
         run(
             Corpus(directory, limit=1),
             writer,
@@ -421,3 +427,28 @@ def test_readback_detects_corruption_without_rewriting_on_resume(merged_corpus, 
     assert len(writer.calls) == before
     assert not json.loads((directory / "push.report.json").read_text())["readback"]["matches"]
     assert "verification" not in json.loads((directory / "push.json").read_text())
+
+
+def test_pinecone_destination_cannot_reuse_checkpoint(merged_corpus):
+    directory = merged_corpus()
+    writer = Writer()
+    push(directory, writer)
+    original = writer.action
+    writer.action = lambda name, args: (
+        {"host": "another.pinecone.io", "namespace": "recognition"}
+        if name == "vectorSync:configuration" else original(name, args)
+    )
+    with pytest.raises(ValueError, match="Pinecone index"):
+        push(directory, writer)
+
+
+def test_pinecone_sync_failure_does_not_complete_import(merged_corpus):
+    directory = merged_corpus()
+    writer = Writer()
+    original = writer.query
+    writer.query = lambda name, args=None: (
+        {"ready": False, "failed": True}
+        if name == "vectorSync:status" else original(name, args)
+    )
+    with pytest.raises(RuntimeError, match="failed jobs"):
+        push(directory, writer)

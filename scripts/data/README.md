@@ -136,14 +136,16 @@ then upload with a deployment-specific checkpoint:
 uv run python -m pipeline.push --in "$SCRATCH_DIR/small-corpus" --checkpoint "$SCRATCH_DIR/push-dev.json"
 ```
 
-Repeat the same command to resume. Changed inputs or a different deployment
+Repeat the same command to resume. Changed inputs, deployment, or Pinecone index
 require a separate checkpoint. Imports upsert: existing rows remain, and
 different selections accumulate. Reports are written beside the checkpoint.
 
 Unchanged metadata, vector payloads, descriptor references, and zero penalties
 are not rewritten. Vector overlap checks read small identity rows. Each import
 verifies a deterministic 2% sample per source and stage, including actual vector
-and ORB bytes, and audits thumbnails for sampled objects. This is a sample, not
+and ORB bytes, and audits thumbnails for sampled objects. The import waits for
+the Pinecone sync queue, then verifies sampled remote vectors and partitions at
+float32 precision. Configure both Pinecone environment variables on Convex first. This is a sample, not
 proof that every stored row matches. The report records its fraction, timestamp,
 checked counts, and mismatches. A completed checkpoint reuses its successful
 verification; use a new checkpoint to verify the same inputs again.

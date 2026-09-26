@@ -24,6 +24,8 @@ const app = defineApp({
     MODERATION_MODEL: optional,
     NEBIUS_API_KEY: optional,
     OPENAI_API_KEY: optional,
+    PINECONE_API_KEY: optional,
+    PINECONE_INDEX_HOST: optional,
     SENTRY_DSN: optional,
     SENTRY_ENVIRONMENT: optional,
     SUPPORTED_MODEL_VERSIONS: optional,

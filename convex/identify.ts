@@ -18,10 +18,13 @@ import { isSupported, validateVector } from "./lib/modelVersion";
 import { withErrorReporting } from "./lib/observability";
 import { loadOrb } from "./lib/orbStorage";
 import { ownerForDevice } from "./lib/ownership";
+import type { SearchMatch } from "./lib/pinecone";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { embedding } from "./lib/validators";
+import { searchVectorIndex } from "./lib/vectorSearch";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { proposePlacementFromScan } from "./placements";
 import { readEmbedding } from "./scanEmbeddings";
 import { scanDisplay, type ScanDisplay } from "./scans";
@@ -45,23 +48,27 @@ export type LoadedCandidate = Infer<typeof loadedCandidate> & {
 
 export const loadCandidates = internalQuery({
   args: {
-    embeddingIds: v.array(v.union(v.id("embeddings"), v.id("tentativeEmbeddings"))),
+    recordIds: v.array(v.string()),
     scores: v.array(v.number()),
     venueId: v.optional(v.id("museums")),
     now: v.number(),
   },
   returns: v.array(loadedCandidate),
-  handler: async (ctx, { embeddingIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
-    if (embeddingIds.length !== scores.length || embeddingIds.length > 32) {
+  handler: async (ctx, { recordIds, scores, now, venueId }): Promise<LoadedCandidate[]> => {
+    if (recordIds.length !== scores.length || recordIds.length > 32) {
       throw new ConvexError({ code: "bad_candidates" });
     }
     const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
-    for (let i = 0; i < embeddingIds.length; i++) {
+    for (let i = 0; i < recordIds.length; i++) {
+      const payloadId = recordIds[i].split(":", 1)[0];
+      const embeddingId =
+        ctx.db.normalizeId("embeddings", payloadId) ?? ctx.db.normalizeId("tentativeEmbeddings", payloadId);
+      if (!embeddingId || !Number.isFinite(scores[i])) continue;
       const vector = await ctx.db
         .query("vectors")
-        .withIndex("by_embeddingId", (q) => q.eq("embeddingId", embeddingIds[i]))
+        .withIndex("by_embeddingId", (q) => q.eq("embeddingId", embeddingId))
         .unique();
-      if (!vector || !(await eligibleVector(ctx, vector))) continue;
+      if (!vector || searchRecordId(vector) !== recordIds[i] || !(await eligibleVector(ctx, vector))) continue;
       let object = await ctx.db.get("objects", vector.objectId);
       if (!object || object.reverted) continue;
       if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
@@ -173,28 +180,32 @@ function candidateSignals(scored: ScoredCandidate<LoadedCandidate>[], verificati
   });
 }
 
-export async function matchArtwork(
-  ctx: ActionCtx,
-  input: {
-    vector: number[];
-    modelVersion: string;
-    venueId?: Id<"museums">;
-    query: OrbFeatures;
-    visit?: Pick<Doc<"visits">, "lastConfidentGallery" | "lastConfidentAt">;
-  },
-) {
+type MatchInput = {
+  vector: number[];
+  modelVersion: string;
+  venueId?: Id<"museums">;
+  query: OrbFeatures;
+  visit?: Pick<Doc<"visits">, "lastConfidentGallery" | "lastConfidentAt">;
+};
+
+export async function matchArtwork(ctx: ActionCtx, input: MatchInput) {
   const search = (venueId?: Id<"museums">) =>
-    ctx.vectorSearch(venueId ? "tentativeEmbeddings" : "embeddings", "by_vector", {
-      vector: input.vector,
-      limit: MAX_CANDIDATES,
-      filter: (q) => q.eq("partition", recognitionPartition(input.modelVersion, venueId)),
-    });
+    searchVectorIndex(ctx, input.vector, recognitionPartition(input.modelVersion, venueId), MAX_CANDIDATES);
   const [established, tentative] = await Promise.all([search(), input.venueId ? search(input.venueId) : []]);
+  return matchArtworkFromSearch(ctx, input, established, tentative);
+}
+
+export async function matchArtworkFromSearch(
+  ctx: ActionCtx,
+  input: MatchInput,
+  established: SearchMatch[],
+  tentative: SearchMatch[],
+) {
   const now = Date.now();
   const load = (matches: typeof established) =>
     ctx.runQuery(internal.identify.loadCandidates, {
-      embeddingIds: matches.map((match) => match._id),
-      scores: matches.map((match) => match._score),
+      recordIds: matches.map((match) => match.id),
+      scores: matches.map((match) => match.score),
       venueId: input.venueId,
       now,
     });

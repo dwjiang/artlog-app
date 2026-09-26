@@ -20,6 +20,8 @@ import {
   testVector,
 } from "./lib/testFactories";
 import type { LabelFlow } from "./lib/validators";
+import * as vectorSearch from "./lib/vectorSearch";
+import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness, signIn, type Harness } from "./test.helpers";
 
 afterEach(() => {
@@ -134,7 +136,7 @@ describe("contribute", () => {
       const work: string[] = [];
       await expect(
         user.as.action(async (ctx) => {
-          const search = vi.spyOn(ctx, "vectorSearch");
+          const search = vi.spyOn(vectorSearch, "searchVectorIndex");
           const queries = vi.spyOn(ctx, "runQuery");
           try {
             return await runContribute(ctx, { ...args, ...signed });
@@ -156,7 +158,7 @@ describe("contribute", () => {
     const contributeWithFailingSearch = async () => {
       const signed = await sign();
       return user.as.action(async (ctx) => {
-        vi.spyOn(ctx, "vectorSearch").mockImplementation(async () => {
+        vi.spyOn(vectorSearch, "searchVectorIndex").mockImplementation(async () => {
           searches++;
           throw new Error("search unavailable");
         });
@@ -952,7 +954,7 @@ describe("immediate tentative recognition", () => {
           .collect(),
       );
       const candidates = await t.query(internal.identify.loadCandidates, {
-        embeddingIds: vectors.map((row) => row.embeddingId),
+        recordIds: vectors.map(searchRecordId),
         scores: vectors.map(() => 1),
         venueId,
         now: Date.now(),
@@ -1002,7 +1004,7 @@ describe("immediate tentative recognition", () => {
     );
     const candidates = () =>
       t.query(internal.identify.loadCandidates, {
-        embeddingIds: [vector!.embeddingId],
+        recordIds: [searchRecordId(vector!)],
         scores: [1],
         venueId,
         now: Date.now(),
@@ -1059,7 +1061,7 @@ describe("precise contribution removal", () => {
       }
       const vectors = await t.run((ctx) => ctx.db.query("vectors").collect());
       const during = await t.query(internal.identify.loadCandidates, {
-        embeddingIds: vectors.map((row) => row.embeddingId),
+        recordIds: vectors.map(searchRecordId),
         scores: vectors.map(() => 1),
         venueId,
         now: Date.now(),
