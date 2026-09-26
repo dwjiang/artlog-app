@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
+import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
 import { useListening } from "@/lib/audio/use-listening";
 import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
@@ -11,6 +11,7 @@ import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { openPlayer } from "./mini-player";
+import { NarrationWaveform } from "./narration-waveform";
 
 export function ListenActions({
   artworkId,
@@ -63,7 +64,7 @@ export function ListenActions({
     resume ? remaining : same && audio.duration ? audio.duration : savedProgress?.duration || cachedDuration,
   );
   const actionLabel = preparing
-    ? "Preparing narration…"
+    ? preparationLabel(audio.preparationStage)
     : same && audio.phase === "error"
       ? "Retry narration"
       : same && audio.playing
@@ -76,7 +77,7 @@ export function ListenActions({
   const queuedHere = queued || inPlayer;
   function listen() {
     if (!same) void audio.controller.play(track);
-    else if (!audio.playing) audio.controller.toggle();
+    else if (!preparing && !audio.playing) audio.controller.toggle();
     openPlayer();
   }
   function enqueue() {
@@ -91,15 +92,15 @@ export function ListenActions({
         accessibilityHint={another ? "Keeps the current audio guide playing." : "Opens the audio guide player."}
         accessibilityState={{
           busy: preparing,
-          disabled: preparing || (another && queued),
+          disabled: another && queued,
         }}
-        disabled={preparing || (another && queued)}
+        disabled={another && queued}
         onPress={another ? enqueue : listen}
         style={({ pressed }) => [styles.listen, pressed && { opacity: 0.65 }]}
       >
         <View style={[styles.play, another && queued && styles.queued]}>
           {preparing ? (
-            <LoadingRing color={Gallery.surface} />
+            <NarrationWaveform color={Gallery.surface} size={24} />
           ) : (
             <AudioIcon
               name={
@@ -123,20 +124,23 @@ export function ListenActions({
             {label}
           </ThemedText>
           <ThemedText variant="metadata" themeColor="textSecondary">
-            {duration ? `${duration}${resume ? " left" : ""} · ` : ""}
-            AI-generated voice
+            {preparing
+              ? "Tap to view progress"
+              : `${duration ? `${duration}${resume ? " left" : ""} · ` : ""}AI-generated voice`}
           </ThemedText>
         </View>
       </Pressable>
-      <AudioIconButton
-        name={another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"}
-        label={another ? "Listen now" : inPlayer ? "Already in player" : queued ? "Added to queue" : "Add to queue"}
-        color={Gallery.accent}
-        size={20}
-        disabled={!another && queuedHere}
-        onPress={another ? listen : enqueue}
-        style={styles.queue}
-      />
+      {!preparing && (
+        <AudioIconButton
+          name={another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"}
+          label={another ? "Listen now" : inPlayer ? "Already in player" : queued ? "Added to queue" : "Add to queue"}
+          color={Gallery.accent}
+          size={20}
+          disabled={!another && queuedHere}
+          onPress={another ? listen : enqueue}
+          style={styles.queue}
+        />
+      )}
     </View>
   );
 }

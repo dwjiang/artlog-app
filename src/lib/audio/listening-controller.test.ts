@@ -3,7 +3,12 @@ import { getNetworkStateAsync } from "expo-network";
 import { reportError } from "@/lib/observability";
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
 
-import { ListeningController, type AudioHandle, type Playback } from "./listening-controller";
+import {
+  ListeningController,
+  type AudioHandle,
+  type Playback,
+  type ListeningDependencies,
+} from "./listening-controller";
 import { trackKey, type ListeningTrack } from "./narration";
 
 jest.mock("expo-network", () => ({ getNetworkStateAsync: jest.fn() }));
@@ -64,11 +69,13 @@ class Player implements AudioHandle {
 function setup() {
   const players: Player[] = [];
   const deps = {
-    render: jest.fn(async () => ({
-      uri: "file:///audio.mp3",
-      duration: 100,
-      sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
-    })),
+    render: jest.fn<ReturnType<ListeningDependencies["render"]>, Parameters<ListeningDependencies["render"]>>(
+      async () => ({
+        uri: "file:///audio.mp3",
+        duration: 100,
+        sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
+      }),
+    ),
     cancel: jest.fn(),
     configure: jest.fn(async () => {}),
     create: jest.fn(() => {
@@ -255,7 +262,7 @@ it("shows the spoken transcript while retaining the original evidence for replay
   controller.restart();
   await Promise.resolve();
   await Promise.resolve();
-  expect(deps.render).toHaveBeenLastCalledWith(original);
+  expect(deps.render).toHaveBeenLastCalledWith(original, expect.any(Function));
   controller.stop();
   expect(controller.snapshot().sentences).toBeUndefined();
 });
@@ -417,5 +424,55 @@ it("stops monitoring once streamed narration finishes", async () => {
   await jest.advanceTimersByTimeAsync(30000);
   expect(controller.snapshot()).toMatchObject({ phase: "ready", playing: false, position: 60 });
   expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("tracks real preparation stages and clears them when playback is ready", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockImplementationOnce(async (_track, onStage) => {
+    onStage?.("generating");
+    expect(controller.snapshot().preparationStage).toEqual("generating");
+    onStage?.("downloading");
+    expect(controller.snapshot().preparationStage).toEqual("downloading");
+    return liveAudio;
+  });
+  const pending = controller.play(track("a"));
+  expect(controller.snapshot().preparationStage).toEqual("preparing");
+  await pending;
+  expect(controller.snapshot().preparationStage).toEqual("buffering");
+  players[0].emit();
+  await Promise.resolve();
+  expect(controller.snapshot().phase).toBe("ready");
+  expect(controller.snapshot().preparationStage).toBeUndefined();
+  controller.dispose();
+});
+
+it("ignores old preparation updates after switching tracks or stopping", async () => {
+  const { controller, deps } = setup();
+  let oldStage: Parameters<ListeningDependencies["render"]>[1];
+  deps.render.mockImplementationOnce(async (_track, onStage) => {
+    oldStage = onStage;
+    return liveAudio;
+  });
+  await controller.play(track("a"));
+  await controller.play(track("b"));
+  const current = controller.snapshot().preparationStage;
+  oldStage?.("downloading");
+  expect(controller.snapshot().preparationStage).toBe(current);
+  controller.stop();
+  oldStage?.("generating");
+  expect(controller.snapshot().preparationStage).toBeUndefined();
+});
+
+it("clears preparation on failure and reports the new attempt on retry", async () => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new Error("No audio"));
+  await controller.play(track("a"));
+  expect(controller.snapshot().phase).toBe("error");
+  expect(controller.snapshot().preparationStage).toBeUndefined();
+  const retry = controller.play(track("a"));
+  expect(controller.snapshot().preparationStage).toBe("preparing");
+  await retry;
+  expect(controller.snapshot().preparationStage).toBe("buffering");
   controller.dispose();
 });

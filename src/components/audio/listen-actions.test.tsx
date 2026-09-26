@@ -118,22 +118,26 @@ it("opens a playing guide without interrupting it", async () => {
     duration: 120,
   };
   await renderActions();
+  expect(screen.getByRole("button", { name: "Already in player" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "Now playing" }));
   expect(mockController.toggle).not.toHaveBeenCalled();
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
 
-it("keeps preparation labeled and prevents duplicate playback requests", async () => {
-  mockAudio = { ...mockAudio, current: track, phase: "loading" };
+it("reopens generation progress without duplicating or pausing the request", async () => {
+  mockAudio = { ...mockAudio, current: track, phase: "loading", preparationStage: "generating" };
   await renderActions();
   const preparing = screen.getByRole("button", {
-    name: "Preparing narration…",
+    name: "Generating narration…",
   });
-  expect(preparing).toBeDisabled();
+  expect(preparing).toBeEnabled();
   expect(preparing).toBeBusy();
+  expect(screen.getByText("Tap to view progress")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Already in player" })).toBeNull();
   await fireEvent.press(preparing);
   expect(mockController.toggle).not.toHaveBeenCalled();
-  expect(mockOpenPlayer).not.toHaveBeenCalled();
+  expect(mockController.play).not.toHaveBeenCalled();
+  expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
 
 it("offers retry when the current narration fails", async () => {

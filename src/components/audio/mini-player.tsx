@@ -4,10 +4,12 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { audioTime } from "@/lib/audio/narration";
+import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useListening } from "@/lib/audio/use-listening";
 
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
+import { NarrationWaveform } from "./narration-waveform";
 
 export const MINI_PLAYER_HEIGHT = 46;
 export function openPlayer(view: "player" | "queue" = "player") {
@@ -18,7 +20,7 @@ export function MiniPlayer() {
   if (!audio.current) return null;
   const subtitle =
     audio.phase === "loading"
-      ? "Preparing narration…"
+      ? preparationLabel(audio.preparationStage)
       : audio.phase === "error"
         ? "Couldn’t play · Tap to retry"
         : audio.waiting
@@ -43,14 +45,25 @@ export function MiniPlayer() {
             </Text>
           </View>
         </Pressable>
-        <AudioIconButton
-          name={audio.playing ? "pause.fill" : "play.fill"}
-          label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
-          onPress={audio.controller.toggle}
-          disabled={audio.phase === "loading"}
-          color={Gallery.accent}
-          size={23}
-        />
+        {audio.phase === "loading" ? (
+          <View
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={subtitle}
+            accessibilityState={{ busy: true }}
+            style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+          >
+            <NarrationWaveform />
+          </View>
+        ) : (
+          <AudioIconButton
+            name={audio.playing ? "pause.fill" : "play.fill"}
+            label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
+            onPress={audio.controller.toggle}
+            color={Gallery.accent}
+            size={23}
+          />
+        )}
         <AudioIconButton name="list.bullet" label="Up next" onPress={() => openPlayer("queue")} size={22} />
       </View>
       <View style={styles.track}>

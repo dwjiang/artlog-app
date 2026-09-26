@@ -7,6 +7,7 @@ import { validateGuide } from "@/shared/audio/guide";
 
 import type { DocentSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
+import type { NarrationPreparationStage } from "./narration-preparation";
 
 type Rendered = { uri: string; sentences: DocentSentence[]; renderId: string; live: boolean };
 type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered>;
@@ -27,7 +28,7 @@ export function createNarrationRenderer(generate: Generate) {
     cancel() {
       pending?.abort();
     },
-    async render(track: ListeningTrack): Promise<Rendered> {
+    async render(track: ListeningTrack, onStage?: (stage: NarrationPreparationStage) => void): Promise<Rendered> {
       pending?.abort();
       const request = new AbortController();
       pending = request;
@@ -49,6 +50,7 @@ export function createNarrationRenderer(generate: Generate) {
       if (request.signal.aborted) throw new Error("Narration cancelled.");
       const known = track.work.renderId ? local(track.work.renderId) : undefined;
       if (known) return known;
+      onStage?.("generating");
       const audio = await generate({ artworkId: track.work.artworkId });
       if (request.signal.aborted) throw new Error("Narration cancelled.");
       const sentences = validateGuide(audio.sentences, factIds, opening);
@@ -57,6 +59,7 @@ export function createNarrationRenderer(generate: Generate) {
       if (audio.live) return { ...audio, sentences };
       const downloaded = local(audio.renderId);
       if (downloaded) return downloaded;
+      onStage?.("downloading");
       const file = new File(directory, `${audio.renderId}.mp3`);
       const transcript = new File(directory, `${audio.renderId}.json`);
       const timeout = setTimeout(() => request.abort(), 30_000);

@@ -107,7 +107,7 @@ export function NowPlayingScreen() {
       )}
     </View>
   );
-  const status = (audio.error || audio.waiting) && (
+  const status = (audio.error || (audio.waiting && audio.phase === "ready")) && (
     <Text
       accessibilityRole={audio.error ? "alert" : undefined}
       variant="secondary"
@@ -121,8 +121,14 @@ export function NowPlayingScreen() {
     <View style={[styles.screen, { paddingBottom: Math.max(8, bottom) }]}>
       <View style={styles.header}>
         <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
-        <Text variant="secondary" style={{ fontWeight: "600" }}>
-          {view === "player" ? "Now playing" : view === "transcript" ? "Transcript" : "Audio guide"}
+        <Text variant="secondary" style={{ fontWeight: "600", flex: 1, textAlign: "center" }}>
+          {view === "player"
+            ? audio.phase === "loading"
+              ? "Preparing audio"
+              : "Now playing"
+            : view === "transcript"
+              ? "Transcript"
+              : "Audio guide"}
         </Text>
         {view === "player" ? (
           options
@@ -165,11 +171,7 @@ export function NowPlayingScreen() {
           {audio.sentences ? (
             <DocentSection docent={audio.sentences} factSheet={work.facts} />
           ) : (
-            <Text themeColor="textSecondary">
-              {audio.phase === "loading"
-                ? "Preparing your audio guide…"
-                : "The transcript will appear when your audio guide is ready."}
-            </Text>
+            <Text themeColor="textSecondary">The transcript will appear when your audio guide is ready.</Text>
           )}
         </ScrollView>
       )}
