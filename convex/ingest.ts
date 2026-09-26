@@ -17,6 +17,7 @@ import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/reco
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
 import { insertVector, readVector, replaceVector } from "./lib/vectorStore";
+import { recordVenueChanges } from "./venueChanges";
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
@@ -185,6 +186,7 @@ export const upsertMuseums = internalMutation({
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
     const ids: Record<string, Id<"museums">> = {};
+    const changed: Id<"museums">[] = [];
     let inserted = 0;
     for (const row of rows) {
       validateGeography(row);
@@ -206,16 +208,21 @@ export const upsertMuseums = internalMutation({
       };
       const existing = await findByKey(ctx, "museums", row.key);
       if (existing) {
-        if (fieldsChanged(existing, fields)) await ctx.db.patch("museums", existing._id, fields);
+        if (fieldsChanged(existing, fields)) {
+          await ctx.db.patch("museums", existing._id, fields);
+          changed.push(existing._id);
+        }
         ids[row.key] = existing._id;
       } else {
         ids[row.key] = await ctx.db.insert("museums", {
           ...fields,
           optOut: false,
         });
+        changed.push(ids[row.key]);
         inserted += 1;
       }
     }
+    await recordVenueChanges(ctx, changed);
     await bumpCounter(ctx, "museums", inserted);
     return { ids };
   },

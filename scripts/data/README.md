@@ -44,14 +44,15 @@ npx convex dev --once
 Seed venues before building metadata or importing objects:
 
 ```sh
-caffeinate -i uv run python -m pipeline.seed_venues --all --out out/ --publish
+caffeinate -i uv run python -m pipeline.seed_venues --all --out out/
 sqlite3 out/venues.db 'PRAGMA integrity_check; SELECT count(*) FROM venues;'
 cp out/venues.db ../../assets/venues.db
 ```
 
-`--publish` uploads the exported database and publishes its version in Convex.
 Commit `assets/venues.db` after a successful full run. Its IDs must come from the
-same deployment the app uses.
+same deployment the app uses. The export records the deployment's latest venue
+change; every 30 days phones fetch the venues added or edited after it, so
+re-export only for the next app build.
 
 For a smaller seed, replace `--all` with `--countries US,GB,FR`. Country-filtered
 runs still export every museum already in the deployment; use them for local
@@ -61,8 +62,8 @@ use `--refresh` once for a fresh census, then omit it when resuming.
 To fill `city`, `cityKey` and `country` on the venues already in the deployment
 without a census, replace `--all` with `--cities-only`. It resolves each museum's
 city from its Wikidata administrative areas, falling back to its location and the
-towns its street address names, then exports (and with `--publish`, publishes) as
-above, so it is also the quick way to republish after a venue-column change.
+towns its street address names, then exports as above, so it is also the quick way
+to re-export after a venue-column change.
 
 ## Build the corpus
 

@@ -4,7 +4,6 @@ import sys
 from dataclasses import replace
 from unittest.mock import Mock
 
-import httpx
 import pytest
 
 from . import seed_venues
@@ -23,6 +22,27 @@ EXPORT_ROW = {
     "website": "https://museum.example",
     "region": "sf-bay-area",
 }
+
+
+def exporting(*pages, change_version=0):
+    writer = Mock()
+    remaining = list(pages)
+
+    def query(name, *args):
+        if name == "venueChanges:latestVersion":
+            return change_version
+        return remaining.pop(0) if len(remaining) > 1 else remaining[0]
+
+    writer.query.side_effect = query
+    return writer
+
+
+def exporting_live(stored):
+    return lambda name, *args: (
+        0
+        if name == "venueChanges:latestVersion"
+        else {"page": list(stored.values()), "isDone": True}
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -119,7 +139,7 @@ def test_full_census_restores_country_assignment_after_partial_refresh(
         stored.update((row["key"], {**row, "_id": row["key"]}) for row in rows)
 
     writer.upsert.side_effect = upsert
-    writer.query.side_effect = lambda *args: {"page": list(stored.values()), "isDone": True}
+    writer.query.side_effect = exporting_live(stored)
     monkeypatch.setattr(seed_venues, "ConvexWriter", lambda _settings: writer)
     fetch = Mock(
         side_effect=lambda selected, **kwargs: (
@@ -162,50 +182,49 @@ def test_full_census_restores_country_assignment_after_partial_refresh(
     assert fetch.call_count == 4
 
 
-def test_export_pages_preserves_ids_and_writes_matching_metadata(tmp_path):
-    writer = Mock()
-    writer.query.side_effect = [
+def test_export_pages_preserves_ids_and_starts_from_the_change_version_read_first(tmp_path):
+    writer = exporting(
         {"page": [EXPORT_ROW], "continueCursor": "next", "isDone": False},
         {
             "page": [{**EXPORT_ROW, "_id": "museum-2", "key": "wikidata:Q2", "website": None}],
             "isDone": True,
         },
-    ]
-    asset = seed_venues.export_asset(writer, tmp_path, version=123)
-    assert asset.row_count == 2
+        change_version=123,
+    )
+    asset = seed_venues.export_asset(writer, tmp_path)
+    assert (asset.change_version, asset.row_count) == (123, 2)
     assert asset.size_bytes == asset.path.stat().st_size
+    assert writer.query.call_args_list[0].args == ("venueChanges:latestVersion",)
     with sqlite3.connect(asset.path) as db:
-        assert db.execute("SELECT version, rowCount FROM meta").fetchall() == [(123, 2)]
+        assert db.execute("SELECT changeVersion FROM meta").fetchall() == [(123,)]
         assert db.execute("SELECT id, name FROM venues ORDER BY id").fetchall() == [
             ("museum-1", "Musée"),
             ("museum-2", "Musée"),
         ]
         assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)
-    assert writer.query.call_args_list[1].args == ("ingest:exportVenues", {"cursor": "next"})
+    assert writer.query.call_args_list[2].args == ("ingest:exportVenues", {"cursor": "next"})
 
 
 def test_failed_export_preserves_previous_asset(tmp_path):
     existing = tmp_path / "venues.db"
     existing.write_bytes(b"previous")
-    writer = Mock()
-    writer.query.return_value = {"page": [], "isDone": True}
+    writer = exporting({"page": [], "isDone": True})
     with pytest.raises(RuntimeError, match="empty"):
-        seed_venues.export_asset(writer, tmp_path, version=1)
+        seed_venues.export_asset(writer, tmp_path)
     assert existing.read_bytes() == b"previous"
     assert list(tmp_path.iterdir()) == [existing]
 
 
 def test_oversized_export_omits_websites_then_enforces_hard_limit(tmp_path, monkeypatch):
-    writer = Mock()
-    writer.query.return_value = {"page": [{**EXPORT_ROW, "website": "x" * 100_000}], "isDone": True}
+    writer = exporting({"page": [{**EXPORT_ROW, "website": "x" * 100_000}], "isDone": True})
     monkeypatch.setattr(seed_venues, "MAX_ASSET_BYTES", 20_000)
-    asset = seed_venues.export_asset(writer, tmp_path, version=1)
+    asset = seed_venues.export_asset(writer, tmp_path)
     assert asset.websites_omitted
     with sqlite3.connect(asset.path) as db:
         assert db.execute("SELECT website FROM venues").fetchone() == (None,)
     monkeypatch.setattr(seed_venues, "MAX_ASSET_BYTES", 1)
     with pytest.raises(RuntimeError, match="without websites"):
-        seed_venues.export_asset(writer, tmp_path, version=2)
+        seed_venues.export_asset(writer, tmp_path)
 
 
 def test_census_over_limit_stops_before_writes(tmp_path, monkeypatch):
@@ -223,57 +242,12 @@ def test_census_over_limit_stops_before_writes(tmp_path, monkeypatch):
     writer.upsert.assert_not_called()
 
 
-def test_publication_uploads_exact_asset_and_matching_metadata(tmp_path, monkeypatch):
-    writer = Mock()
-    writer.query.return_value = {"page": [EXPORT_ROW], "isDone": True}
-    asset = seed_venues.export_asset(writer, tmp_path, version=123)
-    writer.mutation.side_effect = ["https://upload.example/", "table-1"]
-    uploaded = []
-
-    def post(url, *, content, headers, timeout):
-        uploaded.append(content.read())
-        assert headers["Content-Type"] == "application/octet-stream"
-        return httpx.Response(
-            200, json={"storageId": "storage-1"}, request=httpx.Request("POST", url)
-        )
-
-    monkeypatch.setattr(seed_venues.httpx, "post", post)
-    assert seed_venues.publish_asset(writer, asset) == "table-1"
-    assert uploaded == [asset.path.read_bytes()]
-    writer.mutation.assert_called_with(
-        "venueTable:publish",
-        {
-            "storageId": "storage-1",
-            "rowCount": 1,
-            "version": 123,
-        },
-    )
-
-
-def test_failed_upload_does_not_publish(tmp_path, monkeypatch):
-    writer = Mock()
-    writer.query.return_value = {"page": [EXPORT_ROW], "isDone": True}
-    asset = seed_venues.export_asset(writer, tmp_path, version=123)
-    writer.mutation.return_value = "https://upload.example/"
-    monkeypatch.setattr(
-        seed_venues.httpx,
-        "post",
-        lambda *args, **kwargs: httpx.Response(
-            503, request=httpx.Request("POST", "https://upload.example/")
-        ),
-    )
-    with pytest.raises(httpx.HTTPStatusError):
-        seed_venues.publish_asset(writer, asset)
-    writer.mutation.assert_called_once_with("venueTable:requestUpload")
-
-
 def test_city_and_country_survive_export_without_filling_unknown_values(tmp_path):
-    writer = Mock()
-    writer.query.return_value = {"page": [
+    writer = exporting({"page": [
         {**EXPORT_ROW, "city": "San Francisco", "country": "US", "cityKey": "wikidata:Q62"},
         {**EXPORT_ROW, "_id": "unknown", "key": "unknown"},
-    ], "isDone": True}
-    asset = seed_venues.export_asset(writer, tmp_path, version=123)
+    ], "isDone": True})
+    asset = seed_venues.export_asset(writer, tmp_path)
     with sqlite3.connect(asset.path) as db:
         assert db.execute("SELECT city, country, cityKey FROM venues ORDER BY id").fetchall() == [
             ("San Francisco", "US", "wikidata:Q62"), (None, None, None),
@@ -315,7 +289,7 @@ def test_cities_only_fills_existing_venues_without_a_census(tmp_path, monkeypatc
         "poi:1": {**EXPORT_ROW, "_id": "museum-3", "key": "poi:1", "city": "Oakland"},
     }
     writer = Mock()
-    writer.query.side_effect = lambda *args: {"page": list(stored.values()), "isDone": True}
+    writer.query.side_effect = exporting_live(stored)
     writer.upsert.side_effect = lambda _fn, rows, **kwargs: stored.update(
         (row["key"], {**stored[row["key"]], **row}) for row in rows
     )

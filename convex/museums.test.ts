@@ -67,6 +67,9 @@ it("confirms a POI, inherits the nearest seeded region, and records its collecti
     collectionSiteUrl: expect.any(String),
   });
   expect((await t.query(internal.ingest.counts, {})).museums).toBe(1);
+  expect((await t.query(api.venueChanges.list, { since: 0 })).venues).toEqual([
+    expect.objectContaining({ id: venueId, name: poi.name }),
+  ]);
 });
 
 it("deduplicates names within 100 m without replacing the existing website or probing again", async () => {
@@ -81,6 +84,7 @@ it("deduplicates names within 100 m without replacing the existing website or pr
   });
   expect(await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).toHaveLength(0);
   expect((await t.run((ctx) => ctx.db.get("museums", venueId)))?.website).toBeUndefined();
+  expect((await t.query(api.venueChanges.list, { since: 0 })).venues).toEqual([]);
 });
 
 it("does not deduplicate distant names and uses unknown region beyond 60 km", async () => {

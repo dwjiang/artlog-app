@@ -178,7 +178,7 @@ Before running the jobs, add `CONVEX_URL` to `.env.local` with the same literal 
 npx convex deployment token create artlog-jobs-local --deployment dev --save-env   # CONVEX_DEPLOY_KEY into .env.local
 cd scripts/data && uv sync
 uv run python -m pipeline.smoke                                       # prints the torch device and live table counts
-uv run python -m pipeline.seed_venues --countries US --out out/ --publish   # or --all for the full 42k-venue census
+uv run python -m pipeline.seed_venues --countries US --out out/   # or --all for the full 42k-venue census
 cp out/venues.db ../../assets/venues.db      # the app must ship the venue table exported from the deployment it talks to
 ```
 
@@ -281,7 +281,7 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    repository root only when replacing the app's compiled model, then commit its LFS files and manifest.
 
 2. **Seed venues**, if not done above:
-   `uv run python -m pipeline.seed_venues --all --out out/ --publish`, then
+   `uv run python -m pipeline.seed_venues --all --out out/`, then
    `cp out/venues.db ../../assets/venues.db`. The full seed contains 42,452 museums and galleries
    with coordinates and a website from Wikidata; an 8.6 MB SQLite the app bundles.
 3. **Corpus metadata**, from `scripts/data/`:

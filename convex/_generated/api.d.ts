@@ -122,7 +122,7 @@ import type * as sharedMedia from "../sharedMedia.js";
 import type * as sharedVisits from "../sharedVisits.js";
 import type * as spend from "../spend.js";
 import type * as sync from "../sync.js";
-import type * as venueTable from "../venueTable.js";
+import type * as venueChanges from "../venueChanges.js";
 import type * as visitReactions from "../visitReactions.js";
 import type * as visits from "../visits.js";
 import type * as walls from "../walls.js";
@@ -248,7 +248,7 @@ declare const fullApi: ApiFromModules<{
   sharedVisits: typeof sharedVisits;
   spend: typeof spend;
   sync: typeof sync;
-  venueTable: typeof venueTable;
+  venueChanges: typeof venueChanges;
   visitReactions: typeof visitReactions;
   visits: typeof visits;
   walls: typeof walls;

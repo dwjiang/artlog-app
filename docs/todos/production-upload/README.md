@@ -175,8 +175,8 @@ All 3,924 required keys existed in the saved 42,452-museum mapping. No museum
 upload is expected. If any are now missing, stop and identify exact keys and
 verified source metadata before proposing a seed. Do not invent coordinates,
 reimport all museums, or reset `ingestCounters`. If an approved repair changes
-the directory, regenerate/publish the SQLite using `export_asset` and
-`publish_asset`, and verify downloaded bytes and **production** IDs.
+the directory, phones fetch the changed venues on their next check; re-export the
+bundled SQLite with `export_asset` for the next build and verify its **production** IDs.
 
 For `readback`, reuse `pipeline.push.verify_sample` and the internal
 `ingest:readSample` action. Default to fraction `0.02`, sampled deterministically

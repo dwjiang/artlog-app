@@ -279,12 +279,13 @@ export default defineSchema({
     .index("by_wikidataId", ["wikidataId"])
     .index("by_lat", ["lat"]),
 
-  venueTables: defineTable({
-    version: v.number(),
-    storageId: v.id("_storage"),
-    rowCount: v.number(),
-    createdAt: v.number(),
-  }).index("by_version", ["version"]),
+  // One row per venue changed since the log began; venues without one are in every exported table.
+  venueChanges: defineTable({
+    venueId: v.id("museums"),
+    changeVersion: v.number(),
+  })
+    .index("by_venueId", ["venueId"])
+    .index("by_changeVersion", ["changeVersion"]),
 
   // Singleton maintained by convex/ingest.ts; counting large tables per query is too expensive.
   ingestCounters: defineTable({

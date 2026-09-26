@@ -74,8 +74,8 @@ Relevant implementation, verified during planning:
   reused by SHA-256 when unchanged, and referenced by the `descriptors` table.
 - `convex/ingest.ts:488`: paginated venue export supplies production IDs.
   `exportVectors` and `exportDescriptors` provide bounded feature readback.
-- `scripts/data/pipeline/seed_venues.py:118`: `export_asset` constructs the venue
-  SQLite from the selected deployment; `publish_asset` publishes it.
+- `scripts/data/pipeline/seed_venues.py:180`: `export_asset` constructs the bundled
+  venue SQLite from the selected deployment, starting at its latest venue change.
 - [Vector search measurements](../experiments/README.md#vector-search-scale): only 30k synthetic vectors were
   measured on Starter. Full-scale storage/latency and Pro remain unverified.
 - [Calibrator evaluation](../experiments/README.md#calibrator-v2): `lr-v2` was fitted against the 10k

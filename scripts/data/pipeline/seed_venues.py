@@ -5,7 +5,6 @@ import logging
 import os
 import sqlite3
 import tempfile
-import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import closing
 from dataclasses import asdict, dataclass, replace
@@ -31,7 +30,7 @@ COUNTRY_CODES = frozenset(json.loads((REPO_ROOT / "shared" / "journal" / "countr
 @dataclass(frozen=True)
 class VenueAsset:
     path: Path
-    version: int
+    change_version: int
     row_count: int
     size_bytes: int
     websites_omitted: bool
@@ -178,7 +177,9 @@ def fill_cities(writer: ConvexWriter, regions: Mapping[str, Region], *, user_age
     return len(cities)
 
 
-def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset:
+def export_asset(writer: ConvexWriter, out: Path) -> VenueAsset:
+    # Read before paging: phones fetch every change after it, including any made during the export.
+    change_version = writer.query("venueChanges:latestVersion")
     out.mkdir(parents=True, exist_ok=True)
     descriptor, filename = tempfile.mkstemp(prefix="venues-", suffix=".db", dir=out)
     os.close(descriptor)
@@ -190,7 +191,9 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
               id TEXT PRIMARY KEY, key TEXT, name TEXT NOT NULL,
               lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT, cityKey TEXT
             )""")
-            db.execute("CREATE TABLE meta (version INTEGER, generatedAt TEXT, rowCount INTEGER)")
+            db.execute(
+                "CREATE TABLE meta (changeVersion INTEGER NOT NULL, generatedAt TEXT NOT NULL)"
+            )
             row_count = 0
             for row in _exported_venues(writer):
                 db.execute(
@@ -212,12 +215,7 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
             if not row_count:
                 raise RuntimeError("Refusing to export an empty venue table")
             db.execute(
-                "INSERT INTO meta VALUES (?, ?, ?)",
-                (
-                    version,
-                    datetime.now(UTC).isoformat(),
-                    row_count,
-                ),
+                "INSERT INTO meta VALUES (?, ?)", (change_version, datetime.now(UTC).isoformat())
             )
             db.commit()
             db.execute("VACUUM")
@@ -232,39 +230,20 @@ def export_asset(writer: ConvexWriter, out: Path, *, version: int) -> VenueAsset
                 )
         destination = out / "venues.db"
         temporary.replace(destination)
-        asset = VenueAsset(destination, version, row_count, destination.stat().st_size, omitted)
+        asset = VenueAsset(
+            destination, change_version, row_count, destination.stat().st_size, omitted
+        )
         log.info(
-            "%s: %d rows, %d bytes, version %d, websites omitted: %s",
+            "%s: %d rows, %d bytes, change version %d, websites omitted: %s",
             asset.path,
             asset.row_count,
             asset.size_bytes,
-            asset.version,
+            asset.change_version,
             asset.websites_omitted,
         )
         return asset
     finally:
         temporary.unlink(missing_ok=True)
-
-
-def publish_asset(writer: ConvexWriter, asset: VenueAsset) -> str:
-    upload_url = writer.mutation("venueTable:requestUpload")
-    with asset.path.open("rb") as body:
-        response = httpx.post(
-            upload_url,
-            content=body,
-            headers={"Content-Type": "application/octet-stream"},
-            timeout=120,
-        )
-    response.raise_for_status()
-    storage_id = response.json()["storageId"]
-    return writer.mutation(
-        "venueTable:publish",
-        {
-            "storageId": storage_id,
-            "rowCount": asset.row_count,
-            "version": asset.version,
-        },
-    )
 
 
 def _census(
@@ -316,9 +295,6 @@ def main() -> None:
     )
     parser.add_argument("--out", type=Path, default=Path("out"))
     parser.add_argument(
-        "--publish", action="store_true", help="Upload and publish the exported asset"
-    )
-    parser.add_argument(
         "--refresh", action="store_true", help="Start a fresh Wikidata census; omit when resuming"
     )
     args = parser.parse_args()
@@ -326,7 +302,6 @@ def main() -> None:
         parser.error("--refresh starts a fresh census; --cities-only runs none")
     settings = get_settings()
     setup_logging(settings)
-    # Upload URLs grant write access; do not include them in HTTPX request logs.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     regions = load_regions()
     writer = ConvexWriter(settings)
@@ -335,10 +310,8 @@ def main() -> None:
         summary = {"city_venues": fill_cities(writer, regions, user_agent=settings.user_agent)}
     else:
         summary = {"seeded_venues": _census(parser, args, settings, regions, writer)}
-    asset = export_asset(writer, args.out, version=int(time.time()))
+    asset = export_asset(writer, args.out)
     print(json.dumps({**asdict(asset), "path": str(asset.path), **summary}))
-    if args.publish:
-        print(json.dumps({"published_id": publish_asset(writer, asset), "version": asset.version}))
 
 
 if __name__ == "__main__":
