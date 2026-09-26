@@ -27,6 +27,7 @@ import { runLabelFlowForScan, type LabelSource } from "@/lib/label/label-deps";
 import { useLabelCapture } from "@/lib/label/use-label-capture";
 import { useLabelForm } from "@/lib/label/use-label-form";
 import { isTransientError } from "@/lib/network-error";
+import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { discardPendingLabel, flushQueue, retryPendingLabel } from "@/lib/queue/queue";
 import type { ResultViewState } from "@/lib/result/state";
@@ -108,7 +109,8 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
     retry: retryForm,
   } = useLabelForm(remoteScanId, phase.kind === "review" ? phase.flow : undefined);
   const pendingLabel = !!(capture?.labelPhotoPath || capture?.qrUrl);
-  const storeOnly = !remoteScanId || network.isInternetReachable === false;
+  const offline = isOffline(network);
+  const storeOnly = !remoteScanId || offline;
   const restoring = !!remoteScanId && !storeOnly && scan === undefined;
   const active = isFocused && appState === "active" && phase.kind === "capture" && !restoring && !pendingLabel;
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
@@ -378,7 +380,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
     }
     return (
       <StateCard
-        title={network.isInternetReachable === false ? QUEUED_MESSAGE : QUEUED_ONLINE_MESSAGE}
+        title={offline ? QUEUED_MESSAGE : QUEUED_ONLINE_MESSAGE}
         detail="Your scan and this label are queued together; we’ll identify and read them in order."
       >
         <GalleryButton label="Back to the scan" variant="filled" fullWidth onPress={() => router.back()} />

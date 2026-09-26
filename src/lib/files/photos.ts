@@ -3,6 +3,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef } from "expo-image-manipulator";
 
 import type { CropContentBounds } from "../../../modules/vision-rect/src";
+import { removeFileIfExists } from "./remove-file";
 
 export type CaptureFiles = { photoPath: string; cropPath: string };
 export type CapturePaths = {
@@ -90,7 +91,6 @@ export function deleteCapture(paths: CapturePaths): void {
     paths.labelPhotoPath,
   ]) {
     if (!path) continue;
-    const file = new File(captureFileUri(path));
-    if (file.exists) file.delete();
+    removeFileIfExists(captureFileUri(path));
   }
 }

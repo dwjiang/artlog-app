@@ -2,6 +2,8 @@ import { File } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
+import { removeFileIfExists } from "@/lib/files/remove-file";
+
 export async function chooseProfilePhoto(): Promise<string | undefined> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
@@ -40,6 +42,5 @@ export async function profilePhotoBytes(uri: string): Promise<ArrayBuffer> {
 
 export function removeProfilePhotoDraft(uri?: string) {
   if (!uri) return;
-  const file = new File(uri);
-  if (file.exists) file.delete();
+  removeFileIfExists(uri);
 }

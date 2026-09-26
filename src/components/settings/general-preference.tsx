@@ -12,8 +12,10 @@ import { useRef, useState } from "react";
 
 import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { Gallery } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { setMeasurementUnits, type MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
+import { showErrorToast } from "@/lib/ui/toast";
 
 const options = [
   { value: "metric", label: "Metric", detail: "Meters and kilometers" },
@@ -23,7 +25,6 @@ const options = [
 export function GeneralPreference() {
   const { units: saved, failed } = useMeasurementUnits();
   const [choice, setChoice] = useState<MeasurementUnits>();
-  const [error, setError] = useState<string>();
   const pending = useRef(false);
   const units = choice ?? saved;
   const loading = units === undefined && !failed;
@@ -33,18 +34,18 @@ export function GeneralPreference() {
     if (pending.current || value === units) return;
     pending.current = true;
     setChoice(value);
-    setError(undefined);
     try {
       await setMeasurementUnits(value);
-    } catch {
-      setError("The preference could not be saved. Try again.");
+    } catch (cause) {
+      reportError(cause, "settings.measurement-units.save");
+      showErrorToast("Couldn’t save measurement units.", () => void change(value));
     } finally {
       pending.current = false;
       setChoice(undefined);
     }
   }
 
-  const message = error ?? (failed ? "The preference could not load. Choose your units to try again." : undefined);
+  const message = failed ? "The preference could not load. Choose your units to try again." : undefined;
   return (
     <GroupedSection
       title="Measurement units"

@@ -8,7 +8,9 @@ import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./c
 import { revokeSaveMedia } from "./displayMedia";
 import { relationshipSnapshot } from "./friendships";
 import { activeProfile, nextChangeVersion, requireMembership } from "./ownership";
+import { advancePublicationRevision } from "./publicationUpdates";
 import { deleteSavedRecognition } from "./savedRecognition";
+import { deactivateWallItem } from "./wallItems";
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
@@ -35,21 +37,7 @@ export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<"collectio
     .take(LIMITS.wallItems + 1);
   for (const item of items) {
     if (!item.active && !item.noteVisible) continue;
-    await ctx.db.patch("wallItems", item._id, {
-      active: false,
-      noteVisible: false,
-      noteRevision: item.noteRevision + 1,
-    });
-    const wall = await ctx.db.get("walls", item.wallId);
-    if (wall) {
-      await ctx.db.patch("walls", wall._id, { layoutRevision: wall.layoutRevision + 1 });
-    }
-    const profile = await ctx.db.get("profiles", item.profileId);
-    if (profile && item.active) {
-      await ctx.db.patch("profiles", profile._id, {
-        publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
-      });
-    }
+    await deactivateWallItem(ctx, item);
   }
 }
 export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collections">): Promise<void> {
@@ -80,12 +68,7 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collect
   for (const item of selections) {
     await ctx.db.delete("sharedVisitItems", item._id);
     const publication = await ctx.db.get("sharedVisits", item.publicationId);
-    if (publication) {
-      await ctx.db.patch("sharedVisits", publication._id, {
-        publicationRevision: publication.publicationRevision + 1,
-        updatedAt: Date.now(),
-      });
-    }
+    if (publication) await advancePublicationRevision(ctx, publication);
   }
   await revokeSaveMedia(ctx, save._id);
   await deleteUnreferencedCollectionPhotos(ctx, save);

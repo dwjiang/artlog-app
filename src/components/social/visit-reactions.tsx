@@ -11,6 +11,7 @@ import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
+import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
@@ -64,7 +65,6 @@ function LiveReactions({
   const [sheet, setSheet] = useState<"comments" | "likes" | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
-  const [error, setError] = useState<string>();
   const join = () => {
     setSheet(null);
     router.push(session.status === "profile-required" ? "/create-profile" : signInRoute("reactions"));
@@ -77,11 +77,10 @@ function LiveReactions({
     if (!summary.data || session.status !== "ready" || pending.current) return;
     pending.current = true;
     setBusy(true);
-    setError(undefined);
     try {
       await setLike({ postId: visit.postId, liked: !summary.data.liked });
     } catch (cause) {
-      setError(socialErrorMessage(cause) ?? "Couldn’t update your like. Try again.");
+      showErrorToast(socialErrorMessage(cause) ?? "Couldn’t update your like.", () => void like());
     } finally {
       pending.current = false;
       setBusy(false);
@@ -98,15 +97,15 @@ function LiveReactions({
         onLikes={() => setSheet("likes")}
         onOpenVisit={onOpenVisit}
       />
-      {(error || summary.error) && (
+      {summary.error && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry reactions"
-          onPress={summary.error ? summary.refresh : () => void like()}
+          onPress={summary.refresh}
           style={styles.retry}
         >
           <Text accessibilityRole="alert" style={styles.error}>
-            {error ?? "Couldn’t load reactions. Tap to retry."}
+            Couldn’t load reactions. Tap to retry.
           </Text>
         </Pressable>
       )}

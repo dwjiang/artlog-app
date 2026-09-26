@@ -3,20 +3,11 @@ import * as Location from "expo-location";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery, Fonts } from "@/constants/theme";
@@ -30,6 +21,7 @@ import {
 } from "@/lib/museum-downloads/model";
 import { museumDownloads, previewUri } from "@/lib/museum-downloads/storage";
 import { useMuseumDownloads } from "@/lib/museum-downloads/use-museum-downloads";
+import { isOffline } from "@/lib/network-state";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import type { Coordinate } from "@/lib/venue/resolve";
 import type { MuseumSummary } from "@/shared/offline/types";
@@ -189,19 +181,15 @@ export function MuseumDownloadsScreen() {
                   Museum{"\n"}downloads
                 </ThemedText>
                 <View style={styles.searchRow}>
-                  <View style={styles.search}>
-                    <DownloadIcon name="magnifyingglass" size={16} color={Gallery.muted} />
-                    <TextInput
-                      accessibilityLabel="Search museums"
-                      placeholder="Museum or city"
-                      placeholderTextColor={Gallery.muted}
-                      value={query}
-                      onChangeText={setQuery}
-                      autoCorrect={false}
-                      returnKeyType="search"
-                      style={styles.searchInput}
-                    />
-                  </View>
+                  <SearchField
+                    label="Search museums"
+                    placeholder="Museum or city"
+                    value={query}
+                    onChange={setQuery}
+                    onClear={() => setQuery("")}
+                    showLabel={false}
+                    style={{ flex: 1 }}
+                  />
                   <DownloadMenu
                     label={`Sort museums: ${museumSortLabels[sort]}`}
                     icon="arrow.up.arrow.down"
@@ -372,7 +360,7 @@ export function MuseumDetail({
 }) {
   const { height, fontScale } = useWindowDimensions();
   const network = useNetworkState();
-  const offline = network.isConnected === false || network.isInternetReachable === false;
+  const offline = isOffline(network);
   const active = row?.status === "downloading";
   const paused = row?.status === "paused";
   const ready = row?.status === "ready";
@@ -508,25 +496,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 20,
     marginBottom: 8,
-  },
-  search: {
-    flex: 1,
-    minHeight: 45,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Gallery.softBorder,
-    borderRadius: 8,
-    backgroundColor: Gallery.surface,
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    color: Gallery.ink,
-    fontSize: 14,
-    paddingVertical: 12,
   },
   row: { borderBottomWidth: 1, borderColor: Gallery.softBorder },
   rowOpen: {

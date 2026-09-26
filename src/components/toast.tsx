@@ -12,17 +12,39 @@ import { ToastPill } from "./toast-pill";
  *  `showToast` instead of inline banners. Natively presented sheets cover the root layer, so a flow inside one mounts its own.
  *  Without an explicit offset the layer clears the tab bar only while a tab is focused; root-stack screens cover the tabs. */
 export function ToastLayer({ children, offset }: { children?: ReactNode; offset?: number }) {
+  return offset === undefined ? (
+    <RoutedToastLayer>{children}</RoutedToastLayer>
+  ) : (
+    <PositionedToastLayer offset={offset}>{children}</PositionedToastLayer>
+  );
+}
+
+function RoutedToastLayer({ children }: { children?: ReactNode }) {
+  const [root] = useSegments();
+  return (
+    <PositionedToastLayer offset={root === "(tabs)" ? BottomTabInset : 0} lifted>
+      {children}
+    </PositionedToastLayer>
+  );
+}
+
+function PositionedToastLayer({
+  children,
+  offset,
+  lifted = false,
+}: {
+  children?: ReactNode;
+  offset: number;
+  lifted?: boolean;
+}) {
   const toast = useToast();
   const { bottom } = useSafeAreaInsets();
-  const [root] = useSegments();
   const lift = useToastLift();
   const [measured, setMeasured] = useState<{ id?: number; height: number }>();
-  const inset = offset ?? (root === "(tabs)" ? BottomTabInset : 0);
-  const resting = bottom + inset + Spacing.content;
-  const position =
-    offset === undefined
-      ? toastLayerBottom(resting, lift, measured?.id === toast?.id ? measured?.height : undefined)
-      : resting;
+  const resting = bottom + offset + Spacing.content;
+  const position = lifted
+    ? toastLayerBottom(resting, lift, measured?.id === toast?.id ? measured?.height : undefined)
+    : resting;
   return (
     // Keyed by toast so each new one is measured before the room under a raised bar is trusted with it.
     <View

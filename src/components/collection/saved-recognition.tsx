@@ -10,6 +10,7 @@ import {
   savedRecognitionError,
 } from "@/lib/collection/saved-recognition";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import type { SavedRecognitionResult } from "../../../convex/savedRecognition";
 import { GalleryButton } from "./gallery-button";
@@ -28,7 +29,6 @@ export function SavedRecognition({
   onAccepted: () => void;
 }) {
   const [result, setResult] = useState<SavedRecognitionResult>();
-  const [error, setError] = useState<string>();
   const [busy, setBusy] = useState<"search" | ObjectId>();
   const running = useRef(false);
   const mounted = useRef(true);
@@ -44,7 +44,6 @@ export function SavedRecognition({
     running.current = true;
     setBusy(kind === "search" ? "search" : objectId);
     onBusyChange(true);
-    setError(undefined);
     try {
       if (kind === "search") {
         const next = await identifySavedArtwork(work);
@@ -54,7 +53,7 @@ export function SavedRecognition({
       }
     } catch (cause) {
       reportError(cause, `collection.recognition.${kind}`);
-      if (mounted.current) setError(savedRecognitionError(cause));
+      if (mounted.current) showErrorToast(savedRecognitionError(cause), () => void run(kind, objectId));
     } finally {
       running.current = false;
       if (mounted.current) {
@@ -114,11 +113,6 @@ export function SavedRecognition({
             </View>
           ))}
         </View>
-      )}
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
-        </Text>
       )}
     </View>
   );

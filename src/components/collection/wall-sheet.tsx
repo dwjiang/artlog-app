@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 
@@ -72,6 +73,7 @@ export function WallSheet({
                 children
               )}
               {footer && <View onLayout={fitted.onFooterLayout}>{footer}</View>}
+              <ToastLayer offset={0} />
             </View>
           </RNHostView>
         </Group>

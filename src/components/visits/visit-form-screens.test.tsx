@@ -6,6 +6,7 @@ import { insertSavedWork } from "@/db/repos/saved-works";
 import { getVisit, listVisits } from "@/db/repos/visits";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { pickerDate } from "@/lib/journal/visit-date";
+import { dismissToast } from "@/lib/ui/toast";
 
 import { VisitCreateScreen, VisitMuseumScreen } from "./visit-form-screens";
 
@@ -87,6 +88,7 @@ jest.mock("expo-router", () => {
   };
 });
 beforeEach(() => {
+  dismissToast();
   mockSavedId = undefined;
   mockBack.mockClear();
   mockDismissTo.mockClear();
@@ -95,6 +97,7 @@ beforeEach(() => {
   mockMove.mockReset().mockResolvedValue(undefined);
   switchOwner(anonymousOwner(), "scope-form");
 });
+afterEach(() => dismissToast());
 afterEach(() => jest.restoreAllMocks());
 async function fill() {
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
@@ -113,7 +116,7 @@ it("creates repeat visits with fresh UUIDs, no artworks, a museum timezone, and 
   await fill();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Private memory");
   await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
-  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("alert")).toHaveTextContent("Visit saved.");
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   const firstVisit = (await listVisits())[0];
   expect(firstVisit).toMatchObject({
@@ -285,22 +288,24 @@ describe("a museum our table does not know", () => {
     ).toBeOnTheScreen();
   });
 
-  it("keeps the search open when Apple Maps has nothing or the museum cannot be added", async () => {
+  it("keeps the search open and offers retry when an Apple Maps museum cannot be added", async () => {
     await render(<VisitCreateScreen />);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
     expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
     expect(screen.queryByRole("header", { name: "From Apple Maps" })).toBeNull();
     mockSearchByName.mockResolvedValue([place]);
-    mockConfirmPlace.mockRejectedValue(new Error("offline"));
+    mockConfirmPlace.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(row);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel gallery");
     await fireEvent.press(
       await screen.findByRole("button", {
         name: "Fraenkel Gallery, San Francisco, United States",
       }),
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent(/This museum could not be added\./);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn’t add this museum.");
     expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Add visit" })).toBeDisabled();
+    await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Add visit" })).toBeEnabled();
   });
 });
 
@@ -328,10 +333,12 @@ describe("changing a visit's museum", () => {
     await fireEvent.press(await screen.findByRole("button", { name: "Museum of Art, New York, United States" }));
     expect(mockBack).toHaveBeenCalledTimes(1);
     expect(mockMove).not.toHaveBeenCalled();
-    mockMove.mockRejectedValue(new Error("disk full"));
+    mockMove.mockRejectedValueOnce(new Error("disk full"));
     await fireEvent.press(screen.getByRole("button", { name: "Island Museum, Niue" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("The museum could not be changed. Try again.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn’t change the museum.");
     expect(mockBack).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(2));
   });
 });
 

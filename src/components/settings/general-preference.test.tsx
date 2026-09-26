@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 
 import { GroupedList } from "@/components/grouped-list";
 import * as settings from "@/db/repos/settings";
 import { getMeasurementUnits } from "@/lib/settings/measurement-units";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import { GeneralPreference } from "./general-preference";
 
@@ -12,6 +13,7 @@ jest.mock("@/db/client", () => ({
 
 beforeEach(async () => {
   jest.restoreAllMocks();
+  dismissToast();
   await settings.removeSetting("measurement-units");
 });
 
@@ -38,6 +40,7 @@ it("selects and remembers either measurement system when General is reopened", a
 });
 
 it("keeps the saved selection on a failed write and allows retry", async () => {
+  const toast = await renderHook(useToast);
   await render(
     <GroupedList>
       <GeneralPreference />
@@ -46,12 +49,14 @@ it("keeps the saved selection on a failed write and allows retry", async () => {
   await screen.findByRole("button", { name: "Metric", selected: true });
   jest.spyOn(settings, "setSetting").mockRejectedValueOnce(new Error("Disk full"));
   await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
-  expect(screen.getByText("The preference could not be saved. Try again.")).toBeOnTheScreen();
+  expect(toast.result.current).toMatchObject({
+    message: "Couldn’t save measurement units.",
+    action: { label: "Retry" },
+  });
   expect(screen.getByRole("button", { name: "Metric", selected: true })).toBeOnTheScreen();
   expect(await getMeasurementUnits()).toBe("metric");
-  await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
-  expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen();
-  expect(screen.queryByText("The preference could not be saved. Try again.")).toBeNull();
+  await act(() => toast.result.current?.action?.onPress());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen());
 });
 
 it("allows choosing units after a failed read without claiming a saved selection", async () => {

@@ -20,7 +20,7 @@ import { useVisits } from "@/lib/journal/use-visits";
 import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { reportError } from "@/lib/observability";
-import { retryAction, showToast } from "@/lib/ui/toast";
+import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import type { VisitVisibility } from "@/shared/journal/contracts";
@@ -240,10 +240,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   async function copyLink(id: string) {
     try {
       const copied = await setStringAsync(`artlog://visit/${encodeURIComponent(id)}`);
-      showToast(copied ? "Visit link copied." : "Couldn’t copy the link. Try again.");
+      if (copied) showToast("Visit link copied.");
+      else showErrorToast("Couldn’t copy the link.", () => void copyLink(id));
     } catch (cause) {
       reportError(cause, "visit.share.copy-link", { level: "warning" });
-      showToast("Couldn’t copy the link. Try again.");
+      showErrorToast("Couldn’t copy the link.", () => void copyLink(id));
     }
   }
   async function save() {
@@ -453,11 +454,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               </View>
               {filtered.length === 0
                 && (search.trim() ? (
-                  <SearchEmptyState
-                    title="No artworks found."
-                    detail="Try an artist or artwork title."
-                    onClear={() => setSearch("")}
-                  />
+                  <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." />
                 ) : (
                   <EmptyState
                     inset={false}

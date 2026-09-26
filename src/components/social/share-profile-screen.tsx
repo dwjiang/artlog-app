@@ -15,6 +15,7 @@ import { reportError } from "@/lib/observability";
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -60,7 +61,6 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
   const sharing = useRef(false);
   const code = useMemo(() => {
     const qr = createQrCode(0, "M");
@@ -73,7 +73,6 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
     if (sharing.current) return;
     sharing.current = true;
     setBusy(true);
-    setError(undefined);
     let uri: string | undefined;
     let context: ReturnType<typeof ImageManipulator.manipulate> | undefined;
     try {
@@ -91,7 +90,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
       });
     } catch (cause) {
       reportError(cause, "profile.share");
-      setError("Your QR code could not be shared. Try again.");
+      showErrorToast("Couldn’t share your QR code.", () => void share());
     } finally {
       context?.release();
       if (uri) {
@@ -130,11 +129,6 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
             Scan to view this profile in Artlog.
           </Text>
         </View>
-        {error && (
-          <Text accessibilityRole="alert" style={styles.error}>
-            {error}
-          </Text>
-        )}
       </ScrollView>
       <View collapsable={false} style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}>
         <GalleryButton
@@ -187,5 +181,4 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.compact,
     gap: Spacing.two,
   },
-  error: { color: Gallery.destructive, textAlign: "center" },
 });

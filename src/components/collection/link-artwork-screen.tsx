@@ -8,6 +8,7 @@ import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { ArtworkCollage } from "@/components/guest/artwork-preview";
 import { VisitKeepsake } from "@/components/guest/visit-keepsake";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SearchField } from "@/components/search-field";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -18,10 +19,9 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
-import { showToast } from "@/lib/ui/toast";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { normalizeSearch } from "@/shared/journal/limits";
 
-import { CollectionSearchField } from "./collection-search-field";
 import { GalleryButton } from "./gallery-button";
 import { SavedWorkImage } from "./saved-work-image";
 
@@ -61,7 +61,6 @@ function LinkPicker({
   useEffect(() => {
     if (queryError) reportError(queryError, "collection.link-options.load");
   }, [queryError]);
-  const [error, setError] = useState<string>();
   const [search, setSearch] = useState("");
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
@@ -91,6 +90,28 @@ function LinkPicker({
   );
   const query = savedId ? visits : works;
   const noun = savedId ? (selected.length === 1 ? "visit" : "visits") : selected.length === 1 ? "artwork" : "artworks";
+  function linkSelection(ids: string[]) {
+    try {
+      if (visitId) linkArtworksVisit(ids, visitId, owner);
+      else linkArtworkVisits(savedId!, ids, owner);
+      const linkedNoun = savedId ? (ids.length === 1 ? "visit" : "visits") : ids.length === 1 ? "artwork" : "artworks";
+      showToast(`${ids.length} ${linkedNoun} linked.`);
+      if (visitId) {
+        router.dismissTo({
+          pathname: "/journal/[visitId]",
+          params: { visitId },
+        });
+      } else {
+        router.dismissTo({
+          pathname: "/saved/[savedId]",
+          params: { savedId: savedId! },
+        });
+      }
+    } catch (cause) {
+      reportError(cause, "collection.visit.link");
+      showErrorToast("Couldn’t link your selection.", () => linkSelection(ids));
+    }
+  }
   if (!!savedId === !!visitId) {
     return (
       <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
@@ -124,7 +145,7 @@ function LinkPicker({
               </Text>
             )}
             {rows.length > 0 && (
-              <CollectionSearchField
+              <SearchField
                 value={search}
                 label={savedId ? "Search visits" : "Search artworks"}
                 showLabel={false}
@@ -149,11 +170,6 @@ function LinkPicker({
                   })
                 }
               />
-            )}
-            {error && (
-              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                {error}
-              </Text>
             )}
           </View>
         }
@@ -260,27 +276,7 @@ function LinkPicker({
             variant="filled"
             fullWidth
             disabled={selected.length === 0}
-            onPress={() => {
-              try {
-                if (visitId) linkArtworksVisit(selected, visitId, owner);
-                else linkArtworkVisits(savedId!, selected, owner);
-                showToast(`${selected.length} ${noun} linked.`);
-                if (visitId) {
-                  router.dismissTo({
-                    pathname: "/journal/[visitId]",
-                    params: { visitId },
-                  });
-                } else {
-                  router.dismissTo({
-                    pathname: "/saved/[savedId]",
-                    params: { savedId: savedId! },
-                  });
-                }
-              } catch (cause) {
-                reportError(cause, "collection.visit.link");
-                setError("Could not link your selection. Try again.");
-              }
-            }}
+            onPress={() => linkSelection(selected)}
           />
         </View>
       )}

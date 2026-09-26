@@ -2,6 +2,7 @@ import { Directory, File, Paths, UploadType } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
 import { captureFileUri } from "@/lib/files/photos";
+import { removeFileIfExists } from "@/lib/files/remove-file";
 import {
   COLLECTION_PHOTO_LONG_SIDE,
   MAX_COLLECTION_PHOTO_BYTES,
@@ -73,7 +74,7 @@ export async function uploadCollectionPhoto(
     }
     return result;
   } finally {
-    if (file?.exists) file.delete();
+    if (file) removeFileIfExists(file);
     if (rendered !== source) rendered.release();
     resize.release();
     source.release();
@@ -100,6 +101,5 @@ export async function downloadCollectionPhoto(
 }
 
 export function removePhotoFile(path: string): void {
-  const file = new File(captureFileUri(path));
-  if (file.exists) file.delete();
+  removeFileIfExists(captureFileUri(path));
 }

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 
 import type { PhotoSessionDraft } from "@/lib/capture/photo-draft";
 import { formatVisitDate } from "@/lib/journal/history";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 import { calendarDate } from "@/shared/journal/limits";
 
 import { CaptureContextScreen } from "./capture-context-screen";
@@ -89,6 +90,7 @@ const other = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  dismissToast();
   mockParams = { draftId: "capture.jpg" };
   mockSession = { photos: [] };
   mockOpenVisit = undefined;
@@ -359,15 +361,21 @@ it("distinguishes loading visits from an empty collection", async () => {
 });
 
 it("preserves the current choice when saving the new choice fails", async () => {
+  const toast = await renderHook(useToast);
   mockQuery = { data: [museum], updatedAt: new Date(), error: undefined };
   mockUpdateSession.mockImplementationOnce(() => {
     throw new Error("Write failed");
   });
   await render(<CaptureContextScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Museum · 29 Feb 2024" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(/Your previous selection is unchanged\./);
+  expect(toast.result.current).toMatchObject({
+    message: "Couldn’t save this visit choice. Your previous selection is unchanged.",
+    action: { label: "Retry" },
+  });
   expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
+  await act(() => toast.result.current?.action?.onPress());
+  expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
 it("shows a query failure without claiming there are no visits, and still offers a new visit", async () => {

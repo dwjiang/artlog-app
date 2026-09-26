@@ -13,6 +13,7 @@ import { listUnsyncedVisits } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { SyncUnavailableError } from "@/lib/network-error";
+import { hasInternetSignal } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
@@ -265,7 +266,7 @@ export function CollectionSync(): null {
       if (state === "active") scheduleSync();
     });
     const network = addNetworkStateListener((state) => {
-      if (state.isInternetReachable ?? state.isConnected) scheduleSync();
+      if (hasInternetSignal(state)) scheduleSync();
     });
     return () => {
       unsubscribe();

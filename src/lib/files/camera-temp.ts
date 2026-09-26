@@ -2,10 +2,11 @@ import { Directory, File, Paths } from "expo-file-system";
 
 import { reportError } from "@/lib/observability";
 
+import { removeFileIfExists } from "./remove-file";
+
 export function removeCameraTempFile(uri: string): void {
   try {
-    const file = new File(uri);
-    if (file.exists) file.delete();
+    removeFileIfExists(uri);
   } catch (error) {
     reportError(error, "capture.cleanup_temporary_photo", { level: "warning" });
   }

@@ -2,27 +2,25 @@ import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
-import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
 const ANTON_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
 
 export function AboutSection() {
-  const [error, setError] = useState<string>();
   async function open(url: string) {
-    setError(undefined);
     try {
       await Linking.openURL(url);
     } catch (cause) {
       reportError(cause, "settings.open-link", { level: "warning" });
-      setError("Couldn't open the link. Try again.");
+      showErrorToast("Couldn’t open the link.", () => void open(url));
     }
   }
   return (
@@ -146,11 +144,6 @@ export function AboutSection() {
           </Pressable>
         ))}
       </View>
-      {error && (
-        <ThemedText themeColor="error" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      )}
       <ThemedText
         type="small"
         themeColor="textSecondary"

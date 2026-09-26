@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, TextInput } from "react-native";
+import { Keyboard, Pressable } from "react-native";
 
 import { SearchEmptyState } from "@/components/empty-state";
+import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
 import { countryName } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
 import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
@@ -60,7 +61,6 @@ export function MuseumSearch({
   }>();
   const [retry, setRetry] = useState(0);
   const [adding, setAdding] = useState<string>();
-  const [error, setError] = useState<string>();
   const selection = useRef<AbortController | null>(null);
   useEffect(() => () => selection.current?.abort(), []);
   const currentResults = results?.query === query && results.retry === retry ? results : undefined;
@@ -121,7 +121,6 @@ export function MuseumSearch({
     selection.current = request;
     const wanted = () => !request.signal.aborted && session.isOwnerCurrent();
     setAdding(key);
-    setError(undefined);
     try {
       const row = await confirmPlace(place, wanted);
       if (row && wanted()) choose(row);
@@ -129,7 +128,7 @@ export function MuseumSearch({
       if (!wanted()) return;
       reportError(cause, "visit.venue.confirm");
       if (session.isOwnerCurrent()) {
-        setError(socialErrorMessage(cause) ?? "This museum could not be added. Check your connection and try again.");
+        showErrorToast(socialErrorMessage(cause) ?? "Couldn’t add this museum.", () => void choosePlace(place));
       }
     } finally {
       selection.current = null;
@@ -138,18 +137,14 @@ export function MuseumSearch({
   }
   return (
     <>
-      <TextInput
-        keyboardAppearance="light"
-        selectionColor={Gallery.accent}
-        placeholderTextColor={Gallery.muted}
-        accessibilityLabel="Search museums"
+      <SearchField
+        label="Search museums"
         placeholder="Museum or city"
         value={query}
         maxLength={LIMITS.searchMax}
-        onChangeText={setQuery}
-        autoCorrect={false}
-        style={styles.input}
-        returnKeyType="search"
+        showLabel={false}
+        onChange={setQuery}
+        onClear={() => setQuery("")}
       />
       {searching ? (
         <VisitMessage loading skeleton="list">
@@ -218,11 +213,6 @@ export function MuseumSearch({
       {venues.length === MUSEUM_SEARCH_LIMIT && (
         <Text style={styles.caption}>
           Showing the first {MUSEUM_SEARCH_LIMIT} museums. Add a city or more of the name to narrow your search.
-        </Text>
-      )}
-      {error && (
-        <Text accessibilityRole="alert" style={styles.error}>
-          {error}
         </Text>
       )}
     </>

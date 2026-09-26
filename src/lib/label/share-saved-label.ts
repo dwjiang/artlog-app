@@ -7,6 +7,7 @@ import { getSavedWork } from "@/db/repos/saved-works";
 import { listSettings, removeSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner } from "@/lib/account/owner-store";
 import { isTransientError } from "@/lib/network-error";
+import { hasInternetSignal, isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 
 import {
@@ -61,7 +62,7 @@ export function flushPendingShares(): Promise<void> {
   if (flushing) return flushing;
   flushing = (async () => {
     const current = captureOwner();
-    if (!current.scope || (await getNetworkStateAsync()).isInternetReachable === false) {
+    if (!current.scope || isOffline(await getNetworkStateAsync())) {
       return;
     }
     for (const { key: id, value } of await listSettings(key(current.owner, ""))) {
@@ -101,7 +102,7 @@ async function isSaved(share: PendingShare, captureLocalId: string, owner: strin
 export function startPendingShareFlusher(): () => void {
   void flushPendingShares();
   const network = addNetworkStateListener((state) => {
-    if (state.isInternetReachable ?? state.isConnected) {
+    if (hasInternetSignal(state)) {
       void flushPendingShares();
     }
   });

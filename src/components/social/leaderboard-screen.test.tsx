@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 import type { ReactNode } from "react";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { dismissToast } from "@/lib/ui/toast";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { LeaderboardScreen } from "./leaderboard-screen";
@@ -78,6 +79,7 @@ jest.mock("expo-router", () => {
       dismissAll: () => mockDismissAll(),
     },
     useRouter: () => ({ push: mockPush }),
+    useSegments: () => [],
     Stack: {
       Screen: () => null,
       Toolbar: Object.assign(View, {
@@ -129,6 +131,7 @@ jest.mock("@/components/settings/account-section", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  dismissToast();
   mockSettings.clear();
   mockChange.mockResolvedValue(null);
   mockSession.status = "signed-out";
@@ -148,6 +151,7 @@ beforeEach(() => {
     },
   ];
 });
+afterEach(() => dismissToast());
 
 it("lets a guest move from the Friends prompt to Global rankings and open a public profile", async () => {
   await render(<LeaderboardScreen />);
@@ -268,9 +272,27 @@ it("keeps a failed participation change available for retry", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
   await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
-  expect(screen.getByRole("alert")).toHaveTextContent("Could not save participation. Try again.");
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t save participation.");
+  await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
   expect(mockChange).toHaveBeenLastCalledWith({ visibility: "global" });
+});
+
+it("clears an outdated retry when the participation audience changes", async () => {
+  mockSession.status = "ready";
+  mockChange.mockRejectedValueOnce(new Error("offline"));
+  await render(<LeaderboardScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  expect(screen.getByRole("button", { name: "Retry" })).toBeOnTheScreen();
+
+  await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
+  expect(screen.getByRole("button", { name: "Friends only" })).toBeSelected();
+  expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  expect(mockChange).toHaveBeenCalledTimes(1);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  expect(mockChange).toHaveBeenLastCalledWith({ visibility: "friends" });
 });
 
 it("offers creation for the selected metric while preserving actual participation", async () => {

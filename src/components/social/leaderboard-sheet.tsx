@@ -10,6 +10,7 @@ import { ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 
@@ -68,6 +69,7 @@ export function LeaderboardSheet({
               >
                 {children}
               </ScrollView>
+              <ToastLayer offset={0} />
             </View>
           </RNHostView>
         </Group>

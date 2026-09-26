@@ -118,6 +118,8 @@ it("searches museums, sorts by size, and preserves the search when returning fro
   expect(mockStart).toHaveBeenCalledWith(museum);
   await fireEvent.press(screen.getByRole("button", { name: "Back to museum downloads" }));
   expect(screen.getByLabelText("Search museums").props.value).toBe("Chicago");
+  await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+  expect(screen.getAllByRole("button", { name: /^View / })).toHaveLength(2);
 });
 
 it("pauses and cancels directly from the list without opening a museum", async () => {

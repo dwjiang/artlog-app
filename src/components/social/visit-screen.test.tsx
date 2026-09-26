@@ -132,6 +132,8 @@ it("offers search at five artworks and matches titles or artists without case or
   expect(screen.queryByRole("button", { name: "View Water Lilies" })).toBeNull();
   await fireEvent.changeText(search, "no match");
   expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+  expect(screen.getByLabelText("Search visit artworks")).toHaveProp("value", "");
   mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 4 }, items: works.slice(0, 4) }));
   await view.rerender(<VisitScreen postId="post-b" />);
   expect(screen.queryByLabelText("Search visit artworks")).toBeNull();

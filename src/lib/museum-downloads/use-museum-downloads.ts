@@ -2,6 +2,7 @@ import { addNetworkStateListener } from "expo-network";
 import { useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
+import { isOffline } from "@/lib/network-state";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { museumDownloads } from "./storage";
@@ -26,7 +27,7 @@ export function MuseumDownloadLifecycle() {
       if (state === "background") pause();
     });
     const network = addNetworkStateListener((state) => {
-      if (state.isConnected === false || state.isInternetReachable === false) {
+      if (isOffline(state)) {
         pause();
       }
     });

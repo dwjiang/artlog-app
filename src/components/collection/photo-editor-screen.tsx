@@ -14,6 +14,7 @@ import type { ArtworkPhoto } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
@@ -67,7 +68,6 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [kind, setKind] = useState(photo.kind);
   const [moving, setMoving] = useState(false);
-  const [error, setError] = useState<string>();
   const [captionFocused, setCaptionFocused] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const works = useLiveQuery(listSavedWorks(photo.owner), [photo.owner]);
@@ -85,7 +85,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
       router.back();
     } catch (cause) {
       reportError(cause, "collection.photo.update");
-      setError("Could not update this photo. Please try again.");
+      showErrorToast("Couldn’t update this photo.", () => execute(patch));
     }
   };
   return (
@@ -228,11 +228,6 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   <Text style={{ color: Gallery.muted }}>›</Text>
                 </Pressable>
               ))}
-              {error && (
-                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                  {error}
-                </Text>
-              )}
               <Text style={{ color: Gallery.muted, fontSize: 13 }}>The photo’s type and caption move with it.</Text>
             </View>
           </WallSheet>
@@ -259,11 +254,6 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
           }
         />
       </View>
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
-        </Text>
-      )}
     </ScrollView>
   );
 }

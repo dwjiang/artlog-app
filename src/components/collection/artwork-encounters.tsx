@@ -13,7 +13,7 @@ import { listVisits } from "@/db/repos/visits";
 import type { SavedWork } from "@/db/schema";
 import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
-import { showToast } from "@/lib/ui/toast";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
 
 import { GalleryButton } from "./gallery-button";
 import { NoteHeading } from "./note-editor";
@@ -63,7 +63,16 @@ type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState("");
-  const [error, setError] = useState<string>();
+  function saveNote() {
+    try {
+      editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
+      setEditing(false);
+      showToast("Private note saved for this encounter.");
+    } catch (cause) {
+      reportError(cause, "collection.encounter.note.save");
+      showErrorToast("Couldn’t save your note.", saveNote);
+    }
+  }
   return (
     <View style={styles.context}>
       <NoteHeading title="Note from this visit">
@@ -91,27 +100,8 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
             style={styles.input}
           />
           <View style={styles.actions}>
-            <GalleryButton
-              label="Save encounter note"
-              onPress={() => {
-                try {
-                  editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
-                  setEditing(false);
-                  setError(undefined);
-                  showToast("Private note saved for this encounter.");
-                } catch (cause) {
-                  reportError(cause, "collection.encounter.note.save");
-                  setError("Your note could not be saved. Try again.");
-                }
-              }}
-            />
-            <GalleryButton
-              label="Cancel"
-              onPress={() => {
-                setEditing(false);
-                setError(undefined);
-              }}
-            />
+            <GalleryButton label="Save encounter note" onPress={saveNote} />
+            <GalleryButton label="Cancel" onPress={() => setEditing(false)} />
           </View>
         </>
       ) : (
@@ -120,11 +110,6 @@ export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encount
             {encounter.note}
           </Text>
         )
-      )}
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
-        </Text>
       )}
     </View>
   );
@@ -144,8 +129,20 @@ export function ArtworkEncounterList({
   loading?: boolean;
   loadError?: Error;
 }) {
-  const [error, setError] = useState<string>();
   const current = encounters.find(({ visit }) => visit.localId === visitId);
+  function unlink() {
+    if (!current) return;
+    try {
+      editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner);
+      router.replace({
+        pathname: "/saved/[savedId]",
+        params: { savedId: work.localId },
+      });
+    } catch (cause) {
+      reportError(cause, "collection.encounter.unlink");
+      showErrorToast("Couldn’t unlink this visit.", unlink);
+    }
+  }
   return (
     <View>
       {encounters.map(({ visit }) => (
@@ -212,27 +209,11 @@ export function ArtworkEncounterList({
               { text: "Cancel", style: "cancel" },
               {
                 text: "Unlink",
-                onPress: () => {
-                  try {
-                    editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner);
-                    router.replace({
-                      pathname: "/saved/[savedId]",
-                      params: { savedId: work.localId },
-                    });
-                  } catch (cause) {
-                    reportError(cause, "collection.encounter.unlink");
-                    setError("This visit could not be unlinked. Try again.");
-                  }
-                },
+                onPress: unlink,
               },
             ])
           }
         />
-      )}
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
-        </Text>
       )}
     </View>
   );

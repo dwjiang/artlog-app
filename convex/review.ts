@@ -4,6 +4,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
 import { factSheetEntry } from "./lib/validators";
 import { changeEngagement } from "./lib/visitReactions";
+import { deactivateWallItem } from "./lib/wallItems";
 import schema from "./schema";
 
 const MAX_ROWS = 100;
@@ -237,24 +238,7 @@ export const decideReport = internalMutation({
       } else if (target.kind === "wallItem") {
         const item = await ctx.db.get("wallItems", target.itemId);
         if (item && !item.removal) {
-          await ctx.db.patch("wallItems", item._id, {
-            active: false,
-            noteVisible: false,
-            noteRevision: item.noteRevision + 1,
-            removal,
-          });
-          const wall = await ctx.db.get("walls", item.wallId);
-          const profile = await ctx.db.get("profiles", item.profileId);
-          if (wall) {
-            await ctx.db.patch("walls", wall._id, {
-              layoutRevision: wall.layoutRevision + 1,
-            });
-          }
-          if (profile && item.active) {
-            await ctx.db.patch("profiles", profile._id, {
-              publishedWallCount: Math.max(0, profile.publishedWallCount - 1),
-            });
-          }
+          await deactivateWallItem(ctx, item, removal);
         }
       } else if (target.kind === "sharedVisit") {
         const publication = await ctx.db

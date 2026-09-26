@@ -2,6 +2,8 @@ import { getNetworkStateAsync } from "expo-network";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import { isOffline } from "@/lib/network-state";
+
 import { showErrorToast } from "./toast";
 
 /**
@@ -30,7 +32,7 @@ export function useSheetSubmit<T>(
     try {
       // Convex queues mutations while offline instead of failing, so the send would never settle.
       const network = await getNetworkStateAsync();
-      if (network.isConnected === false || network.isInternetReachable === false) {
+      if (isOffline(network)) {
         showErrorToast(offlineMessage, retry);
         return;
       }

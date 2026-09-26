@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 
-import { LocalVisitGalleryArtwork } from "./visit-gallery";
+import { LocalVisitGalleryArtwork, VisitGallerySearch } from "./visit-gallery";
 
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///${path}`,
@@ -12,6 +12,15 @@ jest.mock("expo-image", () => ({
     return <View {...props} />;
   },
 }));
+
+it("clears a visit artwork search", async () => {
+  const onChangeText = jest.fn();
+  await render(<VisitGallerySearch value="Garden" onChangeText={onChangeText} />);
+
+  expect(screen.getByLabelText("Search visit artworks")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+  expect(onChangeText).toHaveBeenCalledWith("");
+});
 
 it.each([
   [600, 1200],

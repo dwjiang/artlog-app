@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import { getPermissionsAsync } from "expo-media-library";
 
 import * as settings from "@/db/repos/settings";
 import { getSaveToPhotos } from "@/lib/settings/save-to-photos";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import { PhotoLibraryPreference } from "./photo-library-preference";
 
@@ -10,7 +11,10 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
-beforeEach(() => settings.removeSetting("save-originals-to-photos"));
+beforeEach(() => {
+  dismissToast();
+  return settings.removeSetting("save-originals-to-photos");
+});
 afterEach(() => jest.restoreAllMocks());
 
 it("saves originals to Photos by default and remembers turning it off", async () => {
@@ -31,4 +35,19 @@ it("explains where to allow Photos access after it was declined", async () => {
   await render(<PhotoLibraryPreference />);
 
   expect(await screen.findByText(/Allow it in the Settings app under Privacy & Security > Photos/)).toBeOnTheScreen();
+});
+
+it("restores the previous setting after a failed write and offers a toast retry", async () => {
+  const toast = await renderHook(useToast);
+  await render(<PhotoLibraryPreference />);
+  const toggle = await screen.findByRole("switch", { name: "Save to Photos" });
+  jest.spyOn(settings, "setSetting").mockRejectedValueOnce(new Error("Disk full"));
+  await fireEvent.press(toggle);
+  expect(screen.getByRole("switch", { name: "Save to Photos" })).toBeChecked();
+  expect(toast.result.current).toMatchObject({
+    message: "Couldn’t save the Save to Photos setting.",
+    action: { label: "Retry" },
+  });
+  await act(() => toast.result.current?.action?.onPress());
+  await waitFor(async () => expect(await getSaveToPhotos()).toBe(false));
 });

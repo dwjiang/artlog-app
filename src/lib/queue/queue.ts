@@ -12,6 +12,7 @@ import { captureFileUri, persistCapture, scanPreviewPath } from "@/lib/files/pho
 import { removeFile } from "@/lib/label/crop";
 import { LabelFlowError } from "@/lib/label/flow";
 import { runLabelFlowForScan } from "@/lib/label/label-deps";
+import { hasInternetSignal, isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
 import model from "@/shared/model/model-version.json";
@@ -120,8 +121,7 @@ function makeFlusher() {
       }
     },
     reembed: (cropPath) => extractFeatures(captureFileUri(cropPath), { embedder, orb }),
-    isOnline: async () =>
-      current.isCurrent() && !!current.scope && (await getNetworkStateAsync()).isInternetReachable !== false,
+    isOnline: async () => current.isCurrent() && !!current.scope && !isOffline(await getNetworkStateAsync()),
     modelVersion: model.modelVersion,
   });
 }
@@ -166,7 +166,7 @@ export function startQueueFlusher(): () => void {
     if (active) return currentFlusher.start();
   });
   const network = addNetworkStateListener((state) => {
-    if (state.isInternetReachable ?? state.isConnected) void flushQueue();
+    if (hasInternetSignal(state)) void flushQueue();
   });
   const appState = AppState.addEventListener("change", (state) => {
     if (state === "active") void flushQueue();

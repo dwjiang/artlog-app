@@ -8,6 +8,7 @@ import { ArtworkCollage } from "@/components/guest/artwork-preview";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 /** `notice` is the capture's own retry message, shown here because the camera overlay that normally carries it is not mounted. */
 export function CameraPermission({
@@ -26,8 +27,19 @@ export function CameraPermission({
   bottomInset?: number;
 }) {
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
-  const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  async function openPermissions() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await (canRequestPermission ? requestPermission() : Linking.openSettings());
+    } catch (error) {
+      reportError(error, "camera.request_permission");
+      showErrorToast("Couldn’t open camera permissions.", () => void openPermissions());
+    } finally {
+      setBusy(false);
+    }
+  }
   if (hasPermission) {
     return (
       <>
@@ -56,21 +68,12 @@ export function CameraPermission({
         variant="filled"
         fullWidth
         busy={busy}
-        onPress={() => {
-          setBusy(true);
-          setError(undefined);
-          void (canRequestPermission ? requestPermission() : Linking.openSettings())
-            .catch((error: unknown) => {
-              reportError(error, "camera.request_permission");
-              setError("Could not open camera permissions. Try again.");
-            })
-            .finally(() => setBusy(false));
-        }}
+        onPress={() => void openPermissions()}
       />
       {onImport && <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />}
-      {(error ?? notice) && (
+      {notice && (
         <ThemedText themeColor="error" accessibilityRole="alert">
-          {error ?? notice}
+          {notice}
         </ThemedText>
       )}
     </EmptyState>

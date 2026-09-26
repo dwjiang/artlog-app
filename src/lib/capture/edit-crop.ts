@@ -13,8 +13,10 @@ import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { embedder } from "@/lib/embed/embedder";
 import { filePath } from "@/lib/file-uri";
 import { captureFileUri, copyArtworkPhoto, scanPreviewPath } from "@/lib/files/photos";
+import { removeFileIfExists } from "@/lib/files/remove-file";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
+import { isOffline } from "@/lib/network-state";
 import model from "@/shared/model/model-version.json";
 
 import { getVisionRect } from "../../../modules/vision-rect/src";
@@ -36,8 +38,7 @@ export type EditedCrop = {
 
 export function discardEditedCrop(crop: EditedCrop) {
   for (const uri of [crop.modelUri, crop.previewUri]) {
-    const file = new File(uri);
-    if (file.exists) file.delete();
+    removeFileIfExists(uri);
   }
 }
 
@@ -62,8 +63,7 @@ export async function prepareEditedCrop(photoPath: string, corners: Quad): Promi
     });
     return { modelUri, previewUri: preview.uri, width, height, photoPath, corners: toQuad(result.usedQuad) };
   } catch (error) {
-    const file = new File(modelUri);
-    if (file.exists) file.delete();
+    removeFileIfExists(modelUri);
     throw error;
   } finally {
     image?.release();
@@ -178,7 +178,7 @@ async function recognizeUnsendableCrop(
   payload: Parameters<typeof recognizeOfflineCapture>[0],
   scope: string | undefined,
 ) {
-  if (scope && (await getNetworkStateAsync()).isInternetReachable !== false) {
+  if (scope && !isOffline(await getNetworkStateAsync())) {
     return;
   }
   await recognizeOfflineCapture(payload);

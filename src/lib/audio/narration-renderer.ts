@@ -2,6 +2,7 @@ import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { fetch } from "expo/fetch";
 
+import { removeFileIfExists } from "@/lib/files/remove-file";
 import { validateGuide } from "@/shared/audio/guide";
 
 import type { DocentSentence } from "../../../convex/lib/validators";
@@ -67,14 +68,14 @@ export function createNarrationRenderer(generate: Generate) {
         if (request.signal.aborted) throw new Error("Narration cancelled.");
         if (bytes.length === 0) throw new Error("Narration audio is empty.");
         partial.write(bytes);
-        if (file.exists) file.delete();
+        removeFileIfExists(file);
         await partial.move(file);
         transcript.write(JSON.stringify(sentences));
         if (request.signal.aborted) throw new Error("Narration cancelled.");
         return { uri: file.uri, sentences, renderId: audio.renderId, live: false };
       } finally {
         clearTimeout(timeout);
-        if (partial.exists && partial.uri !== file.uri) partial.delete();
+        if (partial.uri !== file.uri) removeFileIfExists(partial);
       }
     },
   };

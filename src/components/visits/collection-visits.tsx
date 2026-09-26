@@ -2,12 +2,12 @@ import { router } from "expo-router";
 import type { ReactElement } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 
-import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SearchEmptyState } from "@/components/empty-state";
 import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { searchTerm } from "@/lib/journal/query";
@@ -84,7 +84,7 @@ export function CollectionVisits({
           <GalleryButton label="Add visit" icon="plus" onPress={() => router.push("/visit-create")} />
         </View>
         {mode === "list" && (
-          <CollectionSearchField
+          <SearchField
             value={search}
             label="Search your visits"
             showLabel={false}

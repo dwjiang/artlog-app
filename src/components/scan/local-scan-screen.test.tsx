@@ -19,6 +19,9 @@ import { IDENTIFYING_TITLE, LABEL_NOW, WAITING_LINE, WAITING_TITLE } from "./sta
 jest.mock("@/components/audio/listen-actions", () => ({
   ListenActions: () => null,
 }));
+jest.mock("@/components/audio/guide-transcript", () => ({
+  GuideTranscript: () => null,
+}));
 jest.mock("./capture-context-button", () => ({
   CaptureContextButton: () => null,
 }));
