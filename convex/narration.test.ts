@@ -63,7 +63,7 @@ const completion = (value = script) =>
 async function setup() {
   const t = harness();
   const device = await seedDevice(t);
-  const { artworkId } = await t.run((ctx) =>
+  const { artworkId, vectorId } = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
       artwork: {
         docent: { en: sentences },
@@ -80,13 +80,16 @@ async function setup() {
   );
   vi.stubGlobal("fetch", fetcher);
   const rows = () => t.run((ctx) => ctx.db.query("narrationAudio").take(10));
+  const { archiveId } = (await t.run((ctx) => ctx.db.get("vectors", vectorId)))!;
   const files = () =>
-    t.run((ctx) =>
-      ctx.db
-        .query("files")
-        .withIndex("by_state", (q) => q.eq("state", "ready"))
-        .collect(),
-    );
+    t
+      .run((ctx) =>
+        ctx.db
+          .query("files")
+          .withIndex("by_state", (q) => q.eq("state", "ready"))
+          .collect(),
+      )
+      .then((rows) => rows.filter((file) => file.key !== archiveId));
   // Plays through the live playlist, then waits for the whole file to be stored.
   const render = async (as: typeof device.as = device.as) => {
     const audio = await as.action(api.narration.render, { artworkId });

@@ -17,9 +17,7 @@ const receipt = v.object({ id: v.id("vectorSyncJobs"), lease: v.string(), revisi
 
 export const claim = internalMutation({
   args: {},
-  returns: v.array(
-    v.object({ job: schema.doc("vectorSyncJobs"), vector: v.union(embedding, v.null()), partition: v.string() }),
-  ),
+  returns: v.array(v.object({ job: schema.doc("vectorSyncJobs"), row: v.union(schema.doc("vectors"), v.null()) })),
   handler: async (ctx) => {
     const jobs = await ctx.db
       .query("vectorSyncJobs")
@@ -28,12 +26,11 @@ export const claim = internalMutation({
     return Promise.all(
       jobs.map(async (job) => {
         const row = await ctx.db.get("vectors", job.vectorId);
-        const vector =
-          job.operation === "upsert" && row && searchRecordId(row) === job.recordId ? await readVector(ctx, row) : null;
+        const current = job.operation === "upsert" && row && searchRecordId(row) === job.recordId ? row : null;
         const lease = crypto.randomUUID();
         const fields = { lease, availableAt: Date.now() + LEASE_MS, attempts: job.attempts + 1 };
         await ctx.db.patch("vectorSyncJobs", job._id, fields);
-        return { job: { ...job, ...fields }, vector, partition: row?.partition ?? "" };
+        return { job: { ...job, ...fields }, row: current };
       }),
     );
   },
@@ -81,20 +78,19 @@ export const drain = internalAction({
     withErrorReporting("vectorSync.drain", async () => {
       const batch = await ctx.runMutation(internal.vectorSync.claim, {});
       if (batch.length === 0) return 0;
-      const upserts = batch.filter((entry) => entry.vector !== null);
-      const deletes = batch.filter((entry) => entry.vector === null);
+      const upserts = batch.filter((entry) => entry.row !== null);
+      const deletes = batch.filter((entry) => entry.row === null);
       for (const group of [upserts, deletes]) {
         if (group.length === 0) continue;
         let success = false;
         try {
           if (group === upserts) {
-            await upsertPinecone(
-              group.map(({ job, vector, partition }) => ({
-                id: job.recordId,
-                values: vector!,
-                metadata: { partition },
-              })),
-            );
+            const records = [];
+            for (const { job, row } of group) {
+              const values = await readVector(ctx, row!);
+              records.push({ id: job.recordId, values, metadata: { partition: row!.partition } });
+            }
+            await upsertPinecone(records);
           } else {
             await deletePinecone(group.map(({ job }) => job.recordId));
           }
@@ -165,27 +161,42 @@ export const rebuild = internalMutation({
   handler: async (ctx, { cursor }) => {
     const page = await ctx.db.query("vectors").withIndex("by_creation_time").paginate({ cursor, numItems: BATCH_SIZE });
     for (const row of page.page) await queueVectorSync(ctx, row, "upsert");
+    if (page.page.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return { queued: page.page.length, cursor: page.isDone ? null : page.continueCursor };
   },
 });
 
-export const exportPage = internalQuery({
+export const page = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({ rows: v.array(schema.doc("vectors")), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query("vectors").withIndex("by_creation_time").paginate({ cursor, numItems: BATCH_SIZE });
+    return { rows: page.page, cursor: page.isDone ? null : page.continueCursor };
+  },
+});
+
+export const exportPage = internalAction({
   args: { cursor: v.union(v.string(), v.null()) },
   returns: v.object({
     records: v.array(v.object({ id: v.string(), values: embedding, metadata: v.object({ partition: v.string() }) })),
     cursor: v.union(v.string(), v.null()),
   }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db.query("vectors").withIndex("by_creation_time").paginate({ cursor, numItems: BATCH_SIZE });
-    const records = await Promise.all(
-      page.page.map(async (row) => ({
-        id: searchRecordId(row),
-        values: await readVector(ctx, row),
-        metadata: { partition: row.partition },
-      })),
-    );
-    return { records, cursor: page.isDone ? null : page.continueCursor };
-  },
+  handler: (
+    ctx,
+    args,
+  ): Promise<{ records: { id: string; values: number[]; metadata: { partition: string } }[]; cursor: string | null }> =>
+    withErrorReporting("vectorSync.exportPage", async () => {
+      const page = await ctx.runQuery(internal.vectorSync.page, args);
+      const records = [];
+      for (const row of page.rows) {
+        records.push({
+          id: searchRecordId(row),
+          values: await readVector(ctx, row),
+          metadata: { partition: row.partition },
+        });
+      }
+      return { records, cursor: page.cursor };
+    }),
 });
 
 export const configuration = internalAction({
@@ -200,11 +211,10 @@ export const configuration = internalAction({
 });
 
 const corpusKeys = v.array(v.object({ modelVersion: v.string(), viewKey: v.string() }));
-const searchRecord = v.object({ id: v.string(), values: embedding, metadata: v.object({ partition: v.string() }) });
 
 export const corpusRecords = internalQuery({
   args: { keys: corpusKeys },
-  returns: v.array(searchRecord),
+  returns: v.array(schema.doc("vectors")),
   handler: async (ctx, { keys }) => {
     if (keys.length > 32) throw new ConvexError({ code: "batch_too_large" });
     const records = [];
@@ -216,11 +226,7 @@ export const corpusRecords = internalQuery({
         )
         .unique();
       if (row) {
-        records.push({
-          id: searchRecordId(row),
-          values: await readVector(ctx, row),
-          metadata: { partition: row.partition },
-        });
+        records.push(row);
       }
     }
     return records;
@@ -232,7 +238,16 @@ export const verifyCorpus = internalAction({
   returns: v.boolean(),
   handler: async (ctx, { keys }): Promise<boolean> =>
     withErrorReporting("vectorSync.verifyCorpus", async () => {
-      const records = await ctx.runQuery(internal.vectorSync.corpusRecords, { keys });
-      return records.length === keys.length && (await verifyPinecone(records));
+      const rows = await ctx.runQuery(internal.vectorSync.corpusRecords, { keys });
+      if (rows.length !== keys.length) return false;
+      const records = [];
+      for (const row of rows) {
+        records.push({
+          id: searchRecordId(row),
+          values: await readVector(ctx, row),
+          metadata: { partition: row.partition },
+        });
+      }
+      return verifyPinecone(records);
     }),
 });

@@ -58,11 +58,11 @@ class Writer:
                 self.values[args["table"]].get(json.dumps(row, sort_keys=True))
                 for row in args["rows"]
             ]
-        assert name == "ingest:upsertDescriptors"
+        assert name in {"ingest:upsertDescriptors", "ingest:upsertVectors"}
         return self._write(name, args)
 
     def mutation(self, name, args):
-        assert name != "ingest:upsertDescriptors"
+        assert name not in {"ingest:upsertDescriptors", "ingest:upsertVectors"}
         return self._write(name, args)
 
     def _write(self, name, args):
@@ -326,20 +326,20 @@ def test_rights_gate_runs_before_any_write(merged_corpus):
 def test_size_error_halves_persisted_batch_and_stops(merged_corpus):
     directory = merged_corpus()
     writer = Writer()
-    original = writer.mutation
+    original = writer.action
 
-    def mutation(name, args):
+    def action(name, args):
         if name == "ingest:upsertVectors":
             raise RuntimeError("BadJsonBody: length limit exceeded")
         return original(name, args)
 
-    writer.mutation = mutation
+    writer.action = action
     with pytest.raises(BatchSizeReduced, match="250 to 125"):
         push(directory, writer)
     state = json.loads((directory / "push.json").read_text())
     assert state["batchSizes"]["vectors"] == 125
     assert state["stages"]["vectors"]["offset"] == 0
-    writer.mutation = original
+    writer.action = original
     assert push(directory, writer)["countsMatch"]
 
 
@@ -436,7 +436,8 @@ def test_pinecone_destination_cannot_reuse_checkpoint(merged_corpus):
     original = writer.action
     writer.action = lambda name, args: (
         {"host": "another.pinecone.io", "namespace": "recognition"}
-        if name == "vectorSync:configuration" else original(name, args)
+        if name == "vectorSync:configuration"
+        else original(name, args)
     )
     with pytest.raises(ValueError, match="Pinecone index"):
         push(directory, writer)
@@ -447,8 +448,7 @@ def test_pinecone_sync_failure_does_not_complete_import(merged_corpus):
     writer = Writer()
     original = writer.query
     writer.query = lambda name, args=None: (
-        {"ready": False, "failed": True}
-        if name == "vectorSync:status" else original(name, args)
+        {"ready": False, "failed": True} if name == "vectorSync:status" else original(name, args)
     )
     with pytest.raises(RuntimeError, match="failed jobs"):
         push(directory, writer)

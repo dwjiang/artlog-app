@@ -1,17 +1,17 @@
-import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
-export function searchRecordId(row: Pick<Doc<"vectors">, "embeddingId" | "contentHash" | "partition">): string {
+export function searchRecordId(row: Pick<Doc<"vectors">, "_id" | "contentHash" | "partition">): string {
   // Immutable IDs keep a delayed upsert from overwriting a newer embedding or partition.
-  return `${row.embeddingId}:${row.contentHash}:${row.partition}`;
+  return `${row._id}:${row.contentHash}:${row.partition}`;
 }
 
 export async function queueVectorSync(
   ctx: MutationCtx,
-  row: Pick<Doc<"vectors">, "_id" | "embeddingId" | "contentHash" | "partition">,
+  row: Pick<Doc<"vectors">, "_id" | "contentHash" | "partition">,
   operation: "upsert" | "delete",
 ): Promise<void> {
+  // Callers wake once per batch. Reading the queue head here would make imports conflict with worker claims.
   const recordId = searchRecordId(row);
   const existing = await ctx.db
     .query("vectorSyncJobs")
@@ -27,10 +27,6 @@ export async function queueVectorSync(
       availableAt: existing.lease ? existing.availableAt : Date.now(),
     });
   } else {
-    const first = await ctx.db
-      .query("vectorSyncJobs")
-      .withIndex("by_state_availableAt", (q) => q.eq("state", "pending"))
-      .first();
     await ctx.db.insert("vectorSyncJobs", {
       vectorId: row._id,
       recordId,
@@ -40,6 +36,5 @@ export async function queueVectorSync(
       state: "pending",
       availableAt: Date.now(),
     });
-    if (!first) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
   }
 }

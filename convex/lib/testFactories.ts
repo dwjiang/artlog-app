@@ -2,10 +2,13 @@ import model from "../../shared/model/model-version.json";
 import { encodeOrbFeatures, type OrbFeatures } from "../../shared/orb/features";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
+import { insertEmbedding, requireEmbedding } from "../scanEmbeddings";
 import type { Harness, SignedIn } from "../test.helpers";
+import { fileStorage } from "./fileStorage";
 import { registerMuseumObject } from "./museumWorkIdentity";
 import { storeOrb } from "./orbStorage";
-import { insertVector } from "./vectorStore";
+import { groupAnchor, publishContribution } from "./tentativeEntries";
+import { insertVector, packVector, readVector, vectorHash } from "./vectorStore";
 import { searchRecordId } from "./vectorSyncQueue";
 
 type TestCtx = MutationCtx & Pick<ActionCtx, "storage">;
@@ -15,6 +18,39 @@ export function testVector(similarity = 1): number[] {
   vector[0] = similarity;
   vector[1] = Math.sqrt(1 - similarity * similarity);
   return vector;
+}
+
+export async function seedVector(
+  ctx: MutationCtx,
+  input: Omit<Parameters<typeof insertVector>[1], "archiveId"> & { archiveId?: string },
+) {
+  const archiveId = input.archiveId ?? (await fileStorage.store(ctx, packVector(input.vector)));
+  return insertVector(ctx, { ...input, archiveId });
+}
+
+export async function seedPublishedContribution(
+  ctx: MutationCtx,
+  row: Doc<"contributions">,
+  groupObjectId?: Id<"objects">,
+) {
+  const object = groupObjectId ? await ctx.db.get("objects", groupObjectId) : null;
+  const anchor = object ? await groupAnchor(ctx, row, object) : null;
+  return publishContribution(
+    ctx,
+    row,
+    object && anchor
+      ? { objectId: object._id, anchorId: anchor._id, ...(await requireEmbedding(ctx, anchor.embeddingId)) }
+      : undefined,
+  );
+}
+
+export async function seedEmbedding(ctx: MutationCtx, { vector, expiresAt }: { vector: number[]; expiresAt?: number }) {
+  const archiveId = await fileStorage.store(ctx, packVector(vector));
+  return insertEmbedding(ctx, { archiveId, contentHash: await vectorHash(vector) }, expiresAt);
+}
+
+export async function readTestEmbedding(ctx: MutationCtx, id: Id<"scanEmbeddings"> | undefined) {
+  return readVector(ctx, await requireEmbedding(ctx, id));
 }
 
 export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<"devices">; scope: string }> {
@@ -100,7 +136,7 @@ export async function seedArtworkWithObject(
     ownerId: options.placement?.venueId,
     ...options.object,
   });
-  const vectorId = await insertVector(ctx, {
+  const vectorId = await seedVector(ctx, {
     partition: JSON.stringify([options.modelVersion ?? model.modelVersion, "established"]),
     objectId,
     modelVersion: options.modelVersion ?? model.modelVersion,
@@ -124,7 +160,7 @@ export async function seedArtworkWithObject(
     });
   }
   const row = (await ctx.db.get("vectors", vectorId))!;
-  return { artworkId, objectId, vectorId, embeddingId: row.embeddingId, recordId: searchRecordId(row) };
+  return { artworkId, objectId, vectorId, recordId: searchRecordId(row) };
 }
 
 export async function seedScan(
@@ -135,12 +171,12 @@ export async function seedScan(
   },
 ): Promise<Id<"scans">> {
   const now = Date.now();
-  const { vector = testVector(), ...fields } = overrides;
+  const { vector = testVector(), embeddingId, ...fields } = overrides;
   return ctx.db.insert("scans", {
     localId: crypto.randomUUID(),
     generation: 0,
     modelVersion: model.modelVersion,
-    embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+    embeddingId: embeddingId ?? (await seedEmbedding(ctx, { vector })),
     capturedAt: now,
     status: "identified",
     outcome: "miss",
@@ -165,11 +201,12 @@ export async function seedContribution(
     descriptors = new ArrayBuffer((overrides.keypointCount ?? 0) * 32),
     keypoints = new ArrayBuffer((overrides.keypointCount ?? 0) * 16),
     vector = testVector(),
+    embeddingId,
     ...fields
   } = overrides;
   const orb = await storeOrb(ctx, descriptors, keypoints);
   return ctx.db.insert("contributions", {
-    embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+    embeddingId: embeddingId ?? (await seedEmbedding(ctx, { vector })),
     modelVersion: model.modelVersion,
     orbStorageId: orb.storageId,
     orbSha256: orb.sha256,

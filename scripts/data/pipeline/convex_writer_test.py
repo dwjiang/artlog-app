@@ -19,6 +19,10 @@ class FakeClient:
             raise self.failures.pop(0)
         return {"ids": {row["key"]: f"id-{row['key']}" for row in args["rows"]}}
 
+    def action(self, name, args=None):
+        assert name in {"ingest:upsertVectors", "ingest:upsertDescriptors"}
+        return self.mutation(name, args)
+
     def query(self, name, args=None):
         self.calls.append((name, args))
         if self.failures:
@@ -153,3 +157,24 @@ def test_size_rejections_are_not_retried_as_transient_errors():
     with pytest.raises(RuntimeError, match="length limit exceeded"):
         writer(client).upsert("ingest:upsertVectors", rows(1))
     assert len(client.calls) == 1
+
+
+def test_vectors_use_the_archive_action_and_checkpoint_each_successful_batch():
+    class ArchiveClient(FakeClient):
+        def mutation(self, name, args=None):
+            raise AssertionError("Vector imports require external storage IO")
+
+        def action(self, name, args=None):
+            assert name == "ingest:upsertVectors"
+            return FakeClient.mutation(self, name, args)
+
+    client = ArchiveClient()
+    completed = []
+    ids = writer(client).upsert(
+        "ingest:upsertVectors",
+        rows(3),
+        batch_size=2,
+        on_batch=lambda batch, ids: completed.extend(ids),
+    )
+    assert ids == {f"k{i}": f"id-k{i}" for i in range(3)}
+    assert completed == ["k0", "k1", "k2"]

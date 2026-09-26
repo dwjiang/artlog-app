@@ -187,7 +187,7 @@ it("concurrent preparations leave one asset and one derivative file", async () =
           .withIndex("by_state", (q) => q.eq("state", "ready"))
           .collect(),
       ),
-    ).toHaveLength(3); // crop, ORB, derivative
+    ).toHaveLength(5); // crop, ORB, derivative, scan archive, contribution archive
   } finally {
     vi.useRealTimers();
   }

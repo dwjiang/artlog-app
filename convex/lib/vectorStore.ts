@@ -1,37 +1,89 @@
 import { ConvexError } from "convex/values";
 
+import model from "../../shared/model/model-version.json";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { ActionCtx, MutationCtx } from "../_generated/server";
+import { fileHash, fileStorage, retainFile } from "./fileStorage";
 import { validateVector } from "./modelVersion";
-import { recognitionPartition } from "./recognitionEligibility";
+import type { EmbeddingArchive } from "./validators";
 import { queueVectorSync, searchRecordId } from "./vectorSyncQueue";
 
-type VectorInput = Omit<Doc<"vectors">, "_id" | "_creationTime" | "embeddingId" | "contentHash"> & { vector: number[] };
+type VectorInput = Omit<Doc<"vectors">, "_id" | "_creationTime" | "contentHash"> & { vector: number[] };
+export const VECTOR_CONTENT_TYPE = "application/vnd.artlog.embedding";
+// Longer than a Convex action's lifetime so readers of an earlier snapshot can finish.
+export const VECTOR_ARCHIVE_GRACE_MS = 31 * 60_000;
 
-function embeddingTable(ctx: QueryCtx, id: Doc<"vectors">["embeddingId"]) {
-  return ctx.db.normalizeId("embeddings", id) ? "embeddings" : "tentativeEmbeddings";
-}
-
-export async function vectorHash(vector: number[]): Promise<string> {
+export function packVector(vector: number[]): Blob {
+  validateVector(vector);
   const bytes = new ArrayBuffer(vector.length * 8);
   const view = new DataView(bytes);
   vector.forEach((value, index) => view.setFloat64(index * 8, value, true));
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return new Blob([bytes], { type: VECTOR_CONTENT_TYPE });
 }
 
-export async function readVector(ctx: QueryCtx, row: Doc<"vectors">): Promise<number[]> {
-  const payload = await ctx.db.get(embeddingTable(ctx, row.embeddingId), row.embeddingId);
-  if (!payload) throw new ConvexError({ code: "vector_payload_missing" });
-  return payload.vector;
+export async function vectorHash(vector: number[]): Promise<string> {
+  return fileHash(packVector(vector));
+}
+
+export async function readVector(ctx: Pick<ActionCtx, "runQuery">, row: EmbeddingArchive): Promise<number[]> {
+  const blob = await fileStorage.get(ctx, row.archiveId);
+  if (!blob) throw new ConvexError({ code: "vector_archive_missing" });
+  // Convex response blobs are single-use; buffer once for integrity checking and decoding.
+  const bytes = await blob.arrayBuffer();
+  if (bytes.byteLength !== model.embeddingDim * 8 || (await fileHash(new Blob([bytes]))) !== row.contentHash) {
+    throw new ConvexError({ code: "vector_archive_invalid" });
+  }
+  const view = new DataView(bytes);
+  const vector = Array.from({ length: model.embeddingDim }, (_, i) => view.getFloat64(i * 8, true));
+  validateVector(vector);
+  return vector;
+}
+
+export async function retainVectorArchive(ctx: MutationCtx, archiveId: string, contentHash: string): Promise<void> {
+  const file = await fileStorage.getMetadata(ctx, archiveId);
+  if (
+    !file
+    || file.size !== model.embeddingDim * 8
+    || file.sha256 !== contentHash
+    || file.contentType !== VECTOR_CONTENT_TYPE
+  ) {
+    throw new ConvexError({ code: "vector_archive_invalid" });
+  }
+  await retainFile(ctx, archiveId);
+}
+
+export async function expireVectorArchiveIfUnreferenced(ctx: MutationCtx, archiveId: string): Promise<void> {
+  const reference = await ctx.db
+    .query("vectors")
+    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
+    .first();
+  if (reference) return;
+  const evidence = await ctx.db
+    .query("scanEmbeddings")
+    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
+    .first();
+  if (evidence) return;
+  const saved = await ctx.db
+    .query("savedRecognition")
+    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
+    .first();
+  if (saved) return;
+  const file = await fileStorage.getMetadata(ctx, archiveId);
+  if (file) await ctx.db.patch("files", file._id, { expiresAt: Date.now() + VECTOR_ARCHIVE_GRACE_MS });
 }
 
 export async function insertVector(ctx: MutationCtx, input: VectorInput): Promise<Id<"vectors">> {
   const { vector, ...identity } = input;
-  validateVector(vector);
-  const table = input.partition === recognitionPartition(input.modelVersion) ? "embeddings" : "tentativeEmbeddings";
-  const embeddingId = await ctx.db.insert(table, { vector, partition: input.partition });
-  const fields = { ...identity, embeddingId, contentHash: await vectorHash(vector) };
+  const contentHash = await vectorHash(vector);
+  return insertArchivedVector(ctx, { ...identity, contentHash });
+}
+
+export async function insertArchivedVector(
+  ctx: MutationCtx,
+  fields: Omit<Doc<"vectors">, "_id" | "_creationTime">,
+): Promise<Id<"vectors">> {
+  await retainVectorArchive(ctx, fields.archiveId, fields.contentHash);
   const id = await ctx.db.insert("vectors", fields);
   await queueVectorSync(ctx, { ...fields, _id: id }, "upsert");
   return id;
@@ -39,18 +91,10 @@ export async function insertVector(ctx: MutationCtx, input: VectorInput): Promis
 
 export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input: VectorInput): Promise<void> {
   const { vector, ...identity } = input;
-  validateVector(vector);
   const contentHash = await vectorHash(vector);
-  const table = input.partition === recognitionPartition(input.modelVersion) ? "embeddings" : "tentativeEmbeddings";
-  let { embeddingId } = row;
-  const currentTable = embeddingTable(ctx, embeddingId);
-  if (currentTable !== table) {
-    await ctx.db.delete(currentTable, embeddingId);
-    embeddingId = await ctx.db.insert(table, { vector, partition: input.partition });
-  } else if (row.contentHash !== contentHash || row.partition !== input.partition) {
-    await ctx.db.replace(table, embeddingId, { vector, partition: input.partition });
-  }
-  const fields = { ...identity, embeddingId, contentHash };
+  const archiveId = row.contentHash === contentHash ? row.archiveId : identity.archiveId;
+  if (archiveId !== row.archiveId) await retainVectorArchive(ctx, archiveId, contentHash);
+  const fields = { ...identity, archiveId, contentHash };
   if (
     Object.entries(fields).some(([key, value]) => row[key as keyof typeof row] !== value)
     || Object.entries(row).some(
@@ -58,15 +102,48 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
     )
   ) {
     await ctx.db.replace("vectors", row._id, fields);
-    if (searchRecordId(row) !== searchRecordId(fields)) {
+    if (searchRecordId(row) !== searchRecordId({ ...fields, _id: row._id })) {
       await queueVectorSync(ctx, row, "delete");
       await queueVectorSync(ctx, { ...fields, _id: row._id }, "upsert");
     }
+    if (row.archiveId !== archiveId) await expireVectorArchiveIfUnreferenced(ctx, row.archiveId);
+  }
+  if (identity.archiveId !== archiveId) {
+    await expireVectorArchiveIfUnreferenced(ctx, identity.archiveId);
   }
 }
 
 export async function deleteVector(ctx: MutationCtx, row: Doc<"vectors">): Promise<void> {
-  await ctx.db.delete(embeddingTable(ctx, row.embeddingId), row.embeddingId);
   await ctx.db.delete("vectors", row._id);
   await queueVectorSync(ctx, row, "delete");
+  await expireVectorArchiveIfUnreferenced(ctx, row.archiveId);
+}
+
+export async function withVectorArchives<T>(
+  ctx: Pick<ActionCtx, "runMutation">,
+  vectors: { vector: number[]; archiveId?: string }[],
+  commit: (archiveIds: string[]) => Promise<T>,
+): Promise<T> {
+  const uploaded: string[] = [];
+  const archiveIds: string[] = [];
+  try {
+    for (let start = 0; start < vectors.length; start += 8) {
+      const results = await Promise.allSettled(
+        vectors.slice(start, start + 8).map(async ({ vector, archiveId }) => {
+          if (archiveId) return archiveId;
+          const id = await fileStorage.store(ctx, packVector(vector));
+          uploaded.push(id);
+          return id;
+        }),
+      );
+      for (const result of results) {
+        if (result.status === "rejected") throw result.reason;
+        archiveIds.push(result.value);
+      }
+    }
+    return await commit(archiveIds);
+  } finally {
+    // A commit response can be lost after success; never discard a referenced archive.
+    if (uploaded.length > 0) await ctx.runMutation(internal.vectorArchives.discard, { ids: uploaded });
+  }
 }

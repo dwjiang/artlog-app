@@ -105,7 +105,11 @@ class ConvexWriter:
         ids: dict[str, str] = {}
         for start in range(0, len(rows), batch_size):
             batch = rows[start : start + batch_size]
-            call = self.action if fn == "ingest:upsertDescriptors" else self.mutation
+            call = (
+                self.action
+                if fn in {"ingest:upsertDescriptors", "ingest:upsertVectors"}
+                else self.mutation
+            )
             result = call(fn, {"rows": list(batch)})
             batch_ids = dict(result.get("ids", {})) if isinstance(result, Mapping) else {}
             ids.update(batch_ids)

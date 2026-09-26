@@ -1,5 +1,8 @@
 import { type Infer, v } from "convex/values";
 
+export const embeddingArchive = v.object({ archiveId: v.string(), contentHash: v.string() });
+export type EmbeddingArchive = Infer<typeof embeddingArchive>;
+
 export const rightsStatus = v.union(v.literal("public_domain"), v.literal("in_copyright"), v.literal("unknown"));
 export type RightsStatus = Infer<typeof rightsStatus>;
 

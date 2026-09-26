@@ -8,7 +8,7 @@ import { action, internalMutation, internalQuery, mutation, type MutationCtx } f
 import { removeContribution } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
 import { decodeQuery } from "./identify";
-import { contributionGroup } from "./lib/agreement";
+import { AGREEMENT_MIN_COSINE, REPLAY_COSINE, contributionGroup } from "./lib/agreement";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { cosine } from "./lib/cosine";
 import { fileHash, fileStorage, findFile, reserveFile, retainFile } from "./lib/fileStorage";
@@ -18,17 +18,19 @@ import { storeOrb } from "./lib/orbStorage";
 import { r2 } from "./lib/r2";
 import { limitDevice } from "./lib/rateLimits";
 import { recognitionPartition } from "./lib/recognitionEligibility";
-import { compatibleAnchor, publishContribution, replaysEntry } from "./lib/tentativeEntries";
+import { checkedGroup, groupAnchor, publishContribution, replayArchives } from "./lib/tentativeEntries";
 import {
   contributionRejectedReason,
+  embeddingArchive,
   type ContributionField,
   type EvidenceKind,
   type LabelFieldName,
   type LabelFlow,
 } from "./lib/validators";
 import { searchVectorIndex } from "./lib/vectorSearch";
+import { readVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
-import { readEmbedding, requireEmbedding } from "./scanEmbeddings";
+import { getEmbedding, insertEmbedding, requireEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 // A vector this close to an indexed work, or to the device's own earlier contribution, is a replay.
@@ -108,13 +110,18 @@ function evidenceOf(fields: ContributionFields): EvidenceKind[] {
 }
 
 const duplicatePage = v.object({
-  duplicate: v.boolean(),
+  archives: v.array(embeddingArchive),
   cursor: v.union(v.string(), v.null()),
 });
 type DuplicatePage = Infer<typeof duplicatePage>;
 const groupPage = v.object({
-  duplicate: v.boolean(),
-  objectId: v.optional(v.id("objects")),
+  entries: v.array(
+    v.object({
+      objectId: v.id("objects"),
+      anchor: v.union(checkedGroup, v.null()),
+      replays: v.array(embeddingArchive),
+    }),
+  ),
   revision: v.number(),
   cursor: v.union(v.string(), v.null()),
 });
@@ -146,13 +153,13 @@ export const checkDuplicatePage = internalQuery({
         numItems: DUPLICATE_PAGE_SIZE,
         maximumBytesRead: DUPLICATE_PAGE_BYTES,
       });
-    const vector = await requireEmbedding(ctx, scan.embeddingId);
+    const archives = [];
     for (const row of page.page) {
       if (row.status === "rejected") continue;
-      const previous = await readEmbedding(ctx, row.embeddingId);
-      if (previous && cosine(previous, vector) >= DUPLICATE_COSINE) return { duplicate: true, cursor: null };
+      const previous = await getEmbedding(ctx, row.embeddingId);
+      if (previous) archives.push({ archiveId: previous.archiveId, contentHash: previous.contentHash });
     }
-    return { duplicate: false, cursor: page.isDone ? null : page.continueCursor };
+    return { archives, cursor: page.isDone ? null : page.continueCursor };
   },
 });
 
@@ -202,7 +209,7 @@ const authorizationResult = v.union(
   v.object({
     kind: v.literal("authorized"),
     scan: schema.doc("scans"),
-    vector: v.array(v.number()),
+    archive: embeddingArchive,
     previousContributionId: v.union(v.id("contributions"), v.null()),
   }),
 );
@@ -253,7 +260,7 @@ export const authorize = internalMutation({
     return {
       kind: "authorized",
       scan,
-      vector: await requireEmbedding(ctx, scan.embeddingId),
+      archive: await requireEmbedding(ctx, scan.embeddingId),
       previousContributionId: device.lastContributionId ?? null,
     };
   },
@@ -277,37 +284,32 @@ export const findGroupPage = internalQuery({
     const candidate = {
       venueId: scan.venueId,
       modelVersion: scan.modelVersion,
-      vector: await requireEmbedding(ctx, scan.embeddingId),
       fields: resolveFields(scan.labelFlow, fields),
     };
     const page = await ctx.db
       .query("objects")
       .withIndex("by_groupKey", (q) => q.eq("groupKey", contributionGroup(candidate)))
-      .paginate({ cursor, numItems: 32 });
+      // Anchor rights checks scan the label group; let the action stop before checking another entry.
+      .paginate({ cursor, numItems: 1 });
+    const entries = [];
     for (const object of page.page) {
       if (object.reverted || object.mergedInto) continue;
-      if (await replaysEntry(ctx, candidate, object)) {
-        return { duplicate: true, revision, cursor: null };
-      }
-      if (await compatibleAnchor(ctx, candidate, object)) {
-        return {
-          duplicate: false,
-          objectId: object._id,
-          revision,
-          cursor: null,
-        };
-      }
+      const anchor = await groupAnchor(ctx, candidate, object);
+      entries.push({
+        objectId: object._id,
+        anchor: anchor
+          ? { objectId: object._id, anchorId: anchor._id, ...(await requireEmbedding(ctx, anchor.embeddingId)) }
+          : null,
+        replays: await replayArchives(ctx, candidate, object),
+      });
     }
-    return {
-      duplicate: false,
-      revision,
-      cursor: page.isDone ? null : page.continueCursor,
-    };
+    return { entries, revision, cursor: page.isDone ? null : page.continueCursor };
   },
 });
 
 export const commit = internalMutation({
   args: {
+    archiveId: v.string(),
     scanId: v.id("scans"),
     generation: v.number(),
     orbStorageId: v.string(),
@@ -317,7 +319,7 @@ export const commit = internalMutation({
     cropStorageId: v.string(),
     duplicate: v.boolean(),
     previousContributionId: v.union(v.id("contributions"), v.null()),
-    groupObjectId: v.optional(v.id("objects")),
+    group: v.optional(checkedGroup),
     venueRevision: v.number(),
   },
   returns: contributionResult,
@@ -358,11 +360,11 @@ export const commit = internalMutation({
     if ((venue.contributionRevision ?? 0) !== args.venueRevision) {
       throw new ConvexError({ code: "contributions_changed" });
     }
-    const own = args.groupObjectId
+    const own = args.group?.objectId
       ? await ctx.db
           .query("contributions")
           .withIndex("by_object_device", (q) =>
-            q.eq("indexedObjectId", args.groupObjectId).eq("deviceId", device._id).eq("status", "tentative"),
+            q.eq("indexedObjectId", args.group?.objectId).eq("deviceId", device._id).eq("status", "tentative"),
           )
           .first()
       : null;
@@ -375,12 +377,13 @@ export const commit = internalMutation({
       throw new ConvexError({ code: "crop_already_shared" });
     }
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId, device._id);
-    const vector = await requireEmbedding(ctx, scan.embeddingId);
+    const archive = await requireEmbedding(ctx, scan.embeddingId);
+    if (archive.archiveId !== args.archiveId) throw new ConvexError({ code: "scan_restarted" });
     const contributionId = await ctx.db.insert("contributions", {
       deviceId: device._id,
       venueId: scan.venueId,
       scanId,
-      embeddingId: await ctx.db.insert("scanEmbeddings", { vector }),
+      embeddingId: await insertEmbedding(ctx, archive),
       modelVersion: scan.modelVersion,
       orbStorageId: duplicate ? undefined : args.orbStorageId,
       orbSha256: duplicate ? undefined : args.orbSha256,
@@ -399,7 +402,7 @@ export const commit = internalMutation({
     if (!duplicate) {
       await retainFile(ctx, cropStorageId, true);
       await retainFile(ctx, args.orbStorageId);
-      await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!, args.groupObjectId);
+      await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!, args.group);
     }
     await ctx.db.patch("museums", venue._id, {
       contributionRevision: (venue.contributionRevision ?? 0) + 1,
@@ -456,7 +459,8 @@ export const contribute = action({
         const sha256 = await fileHash(blob);
         await ctx.runMutation(internal.files.complete, { id: args.cropStorageId, sha256 });
       }
-      const { scan, vector } = authorization;
+      const { scan, archive } = authorization;
+      const vector = await readVector(ctx, archive);
       let { previousContributionId } = authorization;
       const matches = await searchVectorIndex(ctx, vector, recognitionPartition(scan.modelVersion), 3);
       const established = await ctx.runQuery(internal.identify.loadCandidates, {
@@ -480,11 +484,16 @@ export const contribute = action({
               generation: scan.generation,
               cursor,
             });
-            duplicate = page.duplicate;
+            for (const reference of page.archives) {
+              if (cosine(vector, await readVector(ctx, reference)) >= DUPLICATE_COSINE) {
+                duplicate = true;
+                break;
+              }
+            }
             cursor = page.cursor;
           } while (cursor !== null);
           try {
-            let groupObjectId: Id<"objects"> | undefined;
+            let group: Infer<typeof checkedGroup> | undefined;
             let venueRevision: number | undefined;
             let groupCursor: string | null = null;
             do {
@@ -497,17 +506,32 @@ export const contribute = action({
                 throw new ConvexError({ code: "contributions_changed" });
               }
               venueRevision = page.revision;
-              duplicate ||= page.duplicate;
-              groupObjectId = page.objectId;
-              groupCursor = page.cursor;
+              for (const entry of page.entries) {
+                for (const reference of entry.replays) {
+                  if (cosine(vector, await readVector(ctx, reference)) >= REPLAY_COSINE) {
+                    duplicate = true;
+                    break;
+                  }
+                }
+                if (duplicate) break;
+                if (entry.anchor) {
+                  const similarity = cosine(vector, await readVector(ctx, entry.anchor));
+                  if (similarity >= AGREEMENT_MIN_COSINE && similarity < REPLAY_COSINE) {
+                    group = entry.anchor;
+                    break;
+                  }
+                }
+              }
+              groupCursor = duplicate || group ? null : page.cursor;
             } while (groupCursor !== null);
             return await ctx.runMutation(internal.contributions.commit, {
               ...submission,
+              archiveId: archive.archiveId,
               generation: scan.generation,
               keypointCount,
               duplicate,
               previousContributionId,
-              groupObjectId,
+              group,
               venueRevision: venueRevision!,
               orbStorageId: orb.storageId,
               orbSha256: orb.sha256,

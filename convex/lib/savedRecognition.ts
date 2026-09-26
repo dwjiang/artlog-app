@@ -1,6 +1,7 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { deleteOrbIfUnreferenced } from "./orbStorage";
+import { expireVectorArchiveIfUnreferenced } from "./vectorStore";
 
 export function findSavedRecognition(ctx: QueryCtx, saveId: Id<"collections">) {
   return ctx.db
@@ -13,6 +14,7 @@ export async function deleteSavedRecognition(ctx: MutationCtx, saveId: Id<"colle
   const row = await findSavedRecognition(ctx, saveId);
   if (!row) return;
   await ctx.db.delete("savedRecognition", row._id);
+  await expireVectorArchiveIfUnreferenced(ctx, row.archiveId);
   await deleteOrbIfUnreferenced(ctx, row.orbStorageId);
 }
 

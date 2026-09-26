@@ -1,17 +1,28 @@
+import type { FunctionArgs } from "convex/server";
 import { afterEach, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import type { ActionCtx } from "./_generated/server";
 import { fileStorage } from "./lib/fileStorage";
 import { runPipeline } from "./lib/identifyPipeline";
 import { loadOrb } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, testVector } from "./lib/testFactories";
+import { r2 } from "./lib/r2";
+import {
+  readTestEmbedding,
+  seedEmbedding,
+  seedArtworkWithObject,
+  seedDevice,
+  seedMuseum,
+  seedScan,
+  testVector,
+} from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
 import { searchRecordId } from "./lib/vectorSyncQueue";
-import { proposePlacementFromScan } from "./placements";
+import { proposePlacementFromScan, reviewPlacement } from "./placements";
 import { harness } from "./test.helpers";
 
 const DAY = 86_400_000;
@@ -85,6 +96,67 @@ async function fixture(multiplicity: Doc<"artworks">["multiplicity"] = "unique")
   return { t, users, ...seeded, propose, proposal, ready };
 }
 
+it("approves a new copy using its scan archives without external IO", async () => {
+  const { t, ready } = await fixture("multiple");
+  const pending = await ready();
+  const archiveIds = await t.run(async (ctx) =>
+    Promise.all(
+      pending.scanIds.map(async (id) => {
+        const scan = (await ctx.db.get("scans", id))!;
+        return (await ctx.db.get("scanEmbeddings", scan.embeddingId!))!.archiveId;
+      }),
+    ),
+  );
+  await vi.mocked(r2.put).withImplementation(
+    async () => {
+      throw new Error("Unexpected R2 upload");
+    },
+    async () => {
+      await t.action(internal.placements.reviewPlacement, {
+        proposalId: pending._id,
+        decision: "approve",
+        reviewer: "curator",
+      });
+    },
+  );
+  const vectors = await t.run((ctx) => ctx.db.query("vectors").collect());
+  expect(vectors.filter((row) => row.proposalId === pending._id).map((row) => row.archiveId)).toEqual(archiveIds);
+});
+
+it("reports unexpected review failures from the action without exposing review details", async () => {
+  const { t, ready } = await fixture();
+  const pending = await ready();
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetch);
+  const failure = new Error("private review details");
+  try {
+    await expect(
+      t.action(async (ctx) => {
+        vi.spyOn(ctx, "runMutation").mockRejectedValueOnce(failure);
+        const handler = (
+          reviewPlacement as unknown as {
+            _handler: (ctx: ActionCtx, args: FunctionArgs<typeof internal.placements.reviewPlacement>) => Promise<null>;
+          }
+        )._handler;
+        return handler(ctx, {
+          proposalId: pending._id,
+          decision: "approve",
+          reviewer: "private reviewer",
+        });
+      }),
+    ).rejects.toThrow("private review details");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const envelope = String(fetch.mock.calls[0][1]?.body);
+    expect(envelope).toContain("placements.reviewPlacement");
+    expect(envelope).not.toContain("private review");
+    expect(await t.run((ctx) => ctx.db.get("placementProposals", pending._id))).toMatchObject({ status: "pending" });
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+
 it("needs two devices over at least a day or three distinct devices; elapsed time alone is insufficient", async () => {
   const { t, propose, proposal, users } = await fixture();
   await propose(0);
@@ -133,13 +205,13 @@ it("approval requires readiness, while a human may reject weak evidence", async 
   await propose(0);
   const proposalId = (await proposal())!._id;
   await expect(
-    t.mutation(internal.placements.reviewPlacement, {
+    t.action(internal.placements.reviewPlacement, {
       proposalId,
       decision: "approve",
       reviewer: "curator",
     }),
   ).rejects.toMatchObject({ data: { code: "proposal_not_ready" } });
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId,
     decision: "reject",
     reviewer: "curator",
@@ -168,7 +240,7 @@ it("approving a move closes active placements elsewhere and preserves ownership,
     }),
   );
   const p = await ready();
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "approve",
     reviewer: "curator",
@@ -205,7 +277,7 @@ it.each(["multiple", "unknown"] as const)(
     const before = await t.run((ctx) => ctx.db.get("collections", savedId));
     const p = await ready();
     expect(p.kind).toBe("new_object");
-    await t.mutation(internal.placements.reviewPlacement, {
+    await t.action(internal.placements.reviewPlacement, {
       proposalId: p._id,
       decision: "approve",
       reviewer: "curator",
@@ -316,7 +388,7 @@ it.each(["row", "file"])("refuses to index a new physical object without its ref
     else await fileStorage.delete(ctx, reference.storageId);
   });
   await expect(
-    t.mutation(internal.placements.reviewPlacement, {
+    t.action(internal.placements.reviewPlacement, {
       proposalId: p._id,
       decision: "approve",
       reviewer: "curator",
@@ -362,7 +434,7 @@ it("uses recorded scan times for delayed and out-of-order proposal submissions",
   // Review recomputes the interval even if the stored summary is wrong.
   await t.run((ctx) => ctx.db.patch("placementProposals", p._id, { firstSeenAt: NOW - DAY, readyForReview: true }));
   await expect(
-    t.mutation(internal.placements.reviewPlacement, {
+    t.action(internal.placements.reviewPlacement, {
       proposalId: p._id,
       decision: "approve",
       reviewer: "curator",
@@ -432,7 +504,7 @@ it("keeps approval within transaction limits after 2100 repeat scans", async () 
   const ready = (await proposal())!;
   await propose(2, NOW + 2 * DAY);
   expect(await proposal()).toEqual(ready);
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: ready._id,
     decision: "approve",
     reviewer: "curator",
@@ -445,7 +517,7 @@ it("device reversion restores the home placement without changing the saved snap
   const { t, ready, users, objectId, home, savedId } = await fixture();
   const before = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "approve",
     reviewer: "curator",
@@ -471,7 +543,7 @@ it.each(["device", "venue"] as const)(
     vi.useFakeTimers();
     const { t, ready, users, objectId, artworkId, home } = await fixture();
     const first = await ready();
-    await t.mutation(internal.placements.reviewPlacement, {
+    await t.action(internal.placements.reviewPlacement, {
       proposalId: first._id,
       decision: "approve",
       reviewer: "curator",
@@ -505,7 +577,7 @@ it.each(["device", "venue"] as const)(
         .withIndex("by_object_venue", (q) => q.eq("objectId", objectId).eq("proposedVenueId", nextVenue))
         .unique(),
     ))!;
-    await t.mutation(internal.placements.reviewPlacement, {
+    await t.action(internal.placements.reviewPlacement, {
       proposalId: second._id,
       decision: "approve",
       reviewer: "curator",
@@ -562,7 +634,7 @@ it.each([
       });
     });
     const p = await ready();
-    await t.mutation(internal.placements.reviewPlacement, {
+    await t.action(internal.placements.reviewPlacement, {
       proposalId: p._id,
       decision: "approve",
       reviewer: "curator",
@@ -600,7 +672,7 @@ it("venue opt-out undoes a corpus-object move while preserving the corpus and sa
   const { t, ready, objectId, home, venueId, savedId } = await fixture();
   const saved = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "approve",
     reviewer: "curator",
@@ -701,7 +773,7 @@ it("device reversion preserves a subsequent feed update and closes the revoked m
   const { t, ready, users, objectId, savedId } = await fixture();
   const saved = await t.run((ctx) => ctx.db.get("collections", savedId));
   const p = await ready();
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "approve",
     reviewer: "curator",
@@ -748,8 +820,8 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
       scanId: scan._id,
       deviceId: scan.deviceId,
       venueId: scan.venueId,
-      embeddingId: await ctx.db.insert("scanEmbeddings", {
-        vector: (await ctx.db.get("scanEmbeddings", scan.embeddingId))!.vector,
+      embeddingId: await seedEmbedding(ctx, {
+        vector: await readTestEmbedding(ctx, scan.embeddingId),
       }),
       modelVersion: scan.modelVersion,
       rejectedObjectId: objectId,
@@ -769,7 +841,7 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
     decision: "approve" as const,
     reviewer: "curator",
   };
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "invalid_proposal_evidence" },
   });
   users.push(await seedDevice(t));
@@ -780,7 +852,7 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
     scanIds: [...p.scanIds.slice(1), fresh],
     deviceIds: users.slice(1).map((user) => user.deviceId),
   });
-  await t.mutation(internal.placements.reviewPlacement, args);
+  await t.action(internal.placements.reviewPlacement, args);
   expect(await proposal()).toMatchObject({ status: "promoted" });
 });
 
@@ -788,13 +860,13 @@ it("replaces copy evidence whose stored vector expired with a fresh scan", async
   const { t, users, propose, proposal } = await fixture("multiple");
   for (let i = 0; i < 3; i++) await propose(i);
   const p = (await proposal())!;
-  await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", p.scanIds[0]))!.embeddingId));
+  await t.run(async (ctx) => ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", p.scanIds[0]))!.embeddingId!));
   const args = {
     proposalId: p._id,
     decision: "approve" as const,
     reviewer: "curator",
   };
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "invalid_proposal_evidence" },
   });
   users.push(await seedDevice(t));
@@ -803,7 +875,7 @@ it("replaces copy evidence whose stored vector expired with a fresh scan", async
     readyForReview: true,
     scanIds: [...p.scanIds.slice(1), fresh],
   });
-  await t.mutation(internal.placements.reviewPlacement, args);
+  await t.action(internal.placements.reviewPlacement, args);
   expect(await proposal()).toMatchObject({ status: "promoted" });
 });
 
@@ -814,14 +886,14 @@ it("keeps a promoted copy when its evidence vectors expire", async () => {
   await propose(1);
   await propose(2, NOW + DAY);
   const p = (await proposal())!;
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "approve",
     reviewer: "curator",
   });
   await t.run(async (ctx) => {
     for (const scanId of p.scanIds) {
-      await ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId);
+      await ctx.db.delete("scanEmbeddings", (await ctx.db.get("scans", scanId))!.embeddingId!);
     }
   });
   await t.mutation(internal.revert.revertDevice, { deviceId: users[1].deviceId, reason: "abuse" });
@@ -847,7 +919,7 @@ it("recomputes the agreement window after removing missing evidence and can beco
     decision: "approve" as const,
     reviewer: "curator",
   };
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "proposal_not_ready" },
   });
   await propose(2, NOW + 2 * DAY);
@@ -856,7 +928,7 @@ it("recomputes the agreement window after removing missing evidence and can beco
     firstSeenAt: NOW + DAY,
     lastSeenAt: NOW + 2 * DAY,
   });
-  await t.mutation(internal.placements.reviewPlacement, args);
+  await t.action(internal.placements.reviewPlacement, args);
   expect(await proposal()).toMatchObject({ status: "promoted" });
 });
 
@@ -866,14 +938,14 @@ it.each(["approve", "reject"] as const)(
     const { t, ready, propose, proposal } = await fixture("multiple");
     const p = await ready();
     const args = { proposalId: p._id, decision, reviewer: "curator" };
-    await t.mutation(internal.placements.reviewPlacement, args);
+    await t.action(internal.placements.reviewPlacement, args);
     const before = await proposal();
-    await t.mutation(internal.placements.reviewPlacement, args);
+    await t.action(internal.placements.reviewPlacement, args);
     await propose(2, NOW + 2 * DAY);
     expect(await proposal()).toEqual(before);
     expect(await t.run((ctx) => ctx.db.query("objects").collect())).toHaveLength(decision === "approve" ? 2 : 1);
     await expect(
-      t.mutation(internal.placements.reviewPlacement, {
+      t.action(internal.placements.reviewPlacement, {
         ...args,
         decision: decision === "approve" ? "reject" : "approve",
       }),
@@ -890,14 +962,14 @@ it("refuses approval when an evidence device is banned or the object has been re
     reviewer: "curator",
   };
   await t.run((ctx) => ctx.db.patch("devices", users[0].deviceId, { banned: true }));
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "invalid_proposal_evidence" },
   });
   await t.run(async (ctx) => {
     await ctx.db.patch("devices", users[0].deviceId, { banned: false });
     await ctx.db.patch("objects", objectId, { reverted: true });
   });
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "object_not_found" },
   });
 });
@@ -910,7 +982,7 @@ it("lists proposals by status with pagination and supports the existing ready qu
   });
   expect(first).toMatchObject({ rows: [{ _id: p._id }], cursor: null });
   expect(await t.query(internal.review.listProposalsReady, {})).toMatchObject([{ _id: p._id }]);
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: p._id,
     decision: "reject",
     reviewer: "curator",
@@ -929,7 +1001,7 @@ it("refuses stale evidence and rolls back approval if a scan no longer identifie
   const p = await ready();
   await t.run((ctx) => ctx.db.patch("scans", p.scanIds[0], { outcome: "miss", best: undefined }));
   await expect(
-    t.mutation(internal.placements.reviewPlacement, {
+    t.action(internal.placements.reviewPlacement, {
       proposalId: p._id,
       decision: "approve",
       reviewer: "curator",
@@ -962,8 +1034,8 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
           scanId,
           deviceId: scan.deviceId,
           venueId: scan.venueId,
-          embeddingId: await ctx.db.insert("scanEmbeddings", {
-            vector: (await ctx.db.get("scanEmbeddings", scan.embeddingId))!.vector,
+          embeddingId: await seedEmbedding(ctx, {
+            vector: await readTestEmbedding(ctx, scan.embeddingId),
           }),
           modelVersion: scan.modelVersion,
           rejectedObjectId: rejected.objectId,
@@ -987,7 +1059,7 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
     decision: "approve" as const,
     reviewer: "curator",
   };
-  await expect(t.mutation(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
+  await expect(t.action(internal.placements.reviewPlacement, args)).rejects.toMatchObject({
     data: { code: "invalid_proposal_evidence" },
   });
   await t.run((ctx) =>
@@ -995,7 +1067,7 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
       resolution: { kind: "runner_up", objectId },
     }),
   );
-  await t.mutation(internal.placements.reviewPlacement, args);
+  await t.action(internal.placements.reviewPlacement, args);
   expect(await t.run((ctx) => ctx.db.get("placementProposals", p._id))).toMatchObject({
     status: "promoted",
   });
@@ -1042,7 +1114,7 @@ it.each(["unique", "multiple"] as const)(
     await propose(1);
     await propose(2, NOW + DAY);
     const row = (await proposal())!;
-    await t.mutation(internal.placements.reviewPlacement, {
+    await t.action(internal.placements.reviewPlacement, {
       proposalId: row._id,
       decision: "approve",
       reviewer: "curator",
@@ -1070,7 +1142,7 @@ it("reverses a reviewed new object when surviving evidence no longer qualifies",
   vi.useFakeTimers();
   const { t, ready, users } = await fixture("multiple");
   const row = await ready();
-  await t.mutation(internal.placements.reviewPlacement, {
+  await t.action(internal.placements.reviewPlacement, {
     proposalId: row._id,
     decision: "approve",
     reviewer: "curator",

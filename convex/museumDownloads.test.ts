@@ -9,6 +9,7 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import { fileStorage } from "./lib/fileStorage";
 import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { packVector, replaceVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
 
 beforeEach(() => vi.useFakeTimers());
@@ -141,6 +142,36 @@ it("can restart an interrupted build without publishing stale batches", async ()
   const manifest = await user.as.query(api.museumDownloads.get, { venueId });
   expect(manifest?.count).toBe(1);
   expect(manifest?.chunks).toHaveLength(1);
+});
+
+it("finishes a package when an imported vector is replaced after the page is selected", async () => {
+  const { t, user, venueId, work } = await fixture();
+  const archiveId = await t.action((ctx) => fileStorage.store(ctx, packVector(testVector(0.8))));
+  const { get } = fileStorage;
+  const read = vi.spyOn(fileStorage, "get").mockImplementationOnce(async (ctx, id) => {
+    await t.run(async (ctx) => {
+      const row = (await ctx.db.get("vectors", work.vectorId))!;
+      const { _id, _creationTime: _time, contentHash: _hash, ...identity } = row;
+      await replaceVector(ctx, row, { ...identity, archiveId, vector: testVector(0.8) });
+    });
+    return get(ctx, id);
+  });
+  try {
+    await t.mutation(internal.museumDownloads.build, { venueId });
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  } finally {
+    read.mockRestore();
+  }
+  const manifest = await user.as.query(api.museumDownloads.get, { venueId });
+  expect(manifest?.count).toBe(1);
+  const pack = (await t.run((ctx) => ctx.db.query("museumDownloads").unique()))!;
+  expect(pack.building).toBeUndefined();
+  const contents = await t.action(async (ctx) => {
+    const file = await fileStorage.get(ctx, pack.published!.chunks[0].storageId);
+    return file!.text();
+  });
+  const entries = jsonToConvex(JSON.parse(contents)) as unknown as MuseumEntry[];
+  expect(entries[0].vectors).toEqual([testVector()]);
 });
 
 it("rejects incomplete, unverified, and nonmatching references during offline recognition", async () => {

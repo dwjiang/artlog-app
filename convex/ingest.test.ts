@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
@@ -19,10 +17,9 @@ import {
 } from "./ingest";
 import { fileStorage } from "./lib/fileStorage";
 import { loadOrb } from "./lib/orbStorage";
-import { insertVector, readVector } from "./lib/vectorStore";
-import schema from "./schema";
-
-const modules = import.meta.glob("./**/*.*s");
+import { seedVector } from "./lib/testFactories";
+import { readVector } from "./lib/vectorStore";
+import { harness } from "./test.helpers";
 
 const runDescriptorImport = (
   upsertDescriptors as unknown as {
@@ -84,7 +81,7 @@ function vector(seed: number) {
 }
 
 async function seeded() {
-  const t = convexTest(schema, modules);
+  const t = harness();
   await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
   await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
   const { ids } = await t.mutation(internal.ingest.upsertObjects, {
@@ -143,7 +140,7 @@ it("reads only requested sample identities, including actual vector and ORB byte
     viewKey: "met:alternate",
     vector: vector(1),
   };
-  await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
+  await t.action(internal.ingest.upsertVectors, { rows: [row] });
   await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
   expect(
     await t.action(internal.ingest.readSample, {
@@ -186,7 +183,7 @@ describe("calibrator training exports", () => {
         [objectId, "old"],
         [ids["met:alias"], model.modelVersion],
       ] as const) {
-        await insertVector(ctx, {
+        await seedVector(ctx, {
           partition: JSON.stringify([version, "established"]),
           objectId: id,
           modelVersion: version,
@@ -195,7 +192,7 @@ describe("calibrator training exports", () => {
         });
       }
     });
-    const page = await t.query(internal.ingest.exportVectors, {
+    const page = await t.action(internal.ingest.exportVectors, {
       modelVersion: model.modelVersion,
     });
     expect(page.isDone).toBe(true);
@@ -212,7 +209,7 @@ describe("calibrator training exports", () => {
     await t.run((ctx) => ctx.db.patch("objects", objectId, { reverted: true }));
     expect(
       (
-        await t.query(internal.ingest.exportVectors, {
+        await t.action(internal.ingest.exportVectors, {
           modelVersion: model.modelVersion,
         })
       ).page,
@@ -223,7 +220,7 @@ describe("calibrator training exports", () => {
     const { t, objectId } = await seeded();
     await t.run(async (ctx) => {
       for (let i = 0; i < TRAINING_EXPORT_PAGE_SIZE + 1; i++) {
-        await insertVector(ctx, {
+        await seedVector(ctx, {
           partition: JSON.stringify([model.modelVersion, "established"]),
           objectId,
           modelVersion: model.modelVersion,
@@ -238,7 +235,7 @@ describe("calibrator training exports", () => {
     let done = false;
     let pages = 0;
     while (!done) {
-      const result = await t.query(internal.ingest.exportVectors, {
+      const result = await t.action(internal.ingest.exportVectors, {
         modelVersion: model.modelVersion,
         cursor,
       });
@@ -286,7 +283,7 @@ describe("calibrator training exports", () => {
 
 describe("upserting museums and artworks", () => {
   it("inserts once, then updates the same row on a second upsert", async () => {
-    const t = convexTest(schema, modules);
+    const t = harness();
     const first = await t.mutation(internal.ingest.upsertMuseums, {
       rows: [met],
     });
@@ -303,7 +300,7 @@ describe("upserting museums and artworks", () => {
   });
 
   it("keeps artwork enrichment while refreshing the ingested fields", async () => {
-    const t = convexTest(schema, modules);
+    const t = harness();
     const { ids } = await t.mutation(internal.ingest.upsertArtworks, {
       rows: [wheatField],
     });
@@ -331,7 +328,7 @@ describe("upserting museums and artworks", () => {
   });
 
   it("rejects batches over the row limit", async () => {
-    const t = convexTest(schema, modules);
+    const t = harness();
     const rows = Array.from({ length: MAX_BATCH_ROWS + 1 }, (_, i) => ({
       ...met,
       key: `poi:${i}`,
@@ -473,8 +470,8 @@ describe("placements, vectors and descriptors", () => {
       viewKey: "primary",
       vector: vector(1),
     };
-    await t.mutation(internal.ingest.upsertVectors, { rows: [row] });
-    await t.mutation(internal.ingest.upsertVectors, {
+    await t.action(internal.ingest.upsertVectors, { rows: [row] });
+    await t.action(internal.ingest.upsertVectors, {
       rows: [
         { ...row, vector: vector(2) },
         { ...row, viewKey: "second-view", vector: vector(3) },
@@ -503,7 +500,7 @@ describe("placements, vectors and descriptors", () => {
 
     expect(
       await errorData(
-        t.mutation(internal.ingest.upsertVectors, {
+        t.action(internal.ingest.upsertVectors, {
           rows: [{ ...row, vector: [0.1, 0.2] }],
         }),
       ),
@@ -514,9 +511,9 @@ describe("placements, vectors and descriptors", () => {
     });
   });
 
-  // A full-dimension batch under transaction limits takes ~2 s alone and more under parallel suite load.
-  it("updates a full vector batch with multiple views within transaction limits", { timeout: 20_000 }, async () => {
-    const t = convexTest({ schema, modules, transactionLimits: true });
+  // Exercise the full import size, including archive uploads, under transaction limits.
+  it("updates a full vector batch with multiple views within transaction limits", { timeout: 60_000 }, async () => {
+    const t = harness({ transactionLimits: true });
     await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
     await t.mutation(internal.ingest.upsertArtworks, { rows: [wheatField] });
     const objectRows = Array.from({ length: MAX_BATCH_ROWS }, (_, i) => ({
@@ -533,11 +530,11 @@ describe("placements, vectors and descriptors", () => {
       viewKey: key,
       vector: vector(1),
     }));
-    const original = await t.mutation(internal.ingest.upsertVectors, {
+    const original = await t.action(internal.ingest.upsertVectors, {
       rows,
     });
     for (const view of ["second", "third"]) {
-      await t.mutation(internal.ingest.upsertVectors, {
+      await t.action(internal.ingest.upsertVectors, {
         rows: rows.map((row) => ({
           ...row,
           viewKey: `${row.viewKey}:${view}`,
@@ -545,7 +542,7 @@ describe("placements, vectors and descriptors", () => {
       });
     }
 
-    const updated = await t.mutation(internal.ingest.upsertVectors, {
+    const updated = await t.action(internal.ingest.upsertVectors, {
       rows: rows.map((row) => ({ ...row, vector: vector(2) })),
     });
     expect(updated.ids).toEqual(original.ids);
@@ -786,7 +783,7 @@ describe("ORB file imports", () => {
 
 describe("counts", () => {
   it("counts inserts, not updates", async () => {
-    const t = convexTest(schema, modules);
+    const t = harness();
     expect(await t.query(internal.ingest.counts, {})).toEqual({
       museums: 0,
       artworks: 0,
@@ -826,7 +823,7 @@ describe("counts", () => {
 
 describe("exportVenues", () => {
   it("pages through every venue with a continue cursor", async () => {
-    const t = convexTest(schema, modules);
+    const t = harness();
     const rows = Array.from({ length: EXPORT_PAGE_SIZE + 5 }, (_, i) => ({
       ...met,
       key: `poi:${i}`,
@@ -873,8 +870,8 @@ describe("corpus import invariants", () => {
       viewKey,
       vector: vector(i),
     }));
-    const first = await t.mutation(internal.ingest.upsertVectors, { rows });
-    const second = await t.mutation(internal.ingest.upsertVectors, {
+    const first = await t.action(internal.ingest.upsertVectors, { rows });
+    const second = await t.action(internal.ingest.upsertVectors, {
       rows: [{ ...rows[1], vector: vector(9) }],
     });
     expect(Object.values(first.ids)).toContain(Object.values(second.ids)[0]);
@@ -938,10 +935,10 @@ describe("rebuilding corpus views", () => {
       viewKey: metObject.key,
       vector: vector(1),
     };
-    const first = await t.mutation(internal.ingest.upsertVectors, {
+    const first = await t.action(internal.ingest.upsertVectors, {
       rows: [row],
     });
-    const second = await t.mutation(internal.ingest.upsertVectors, {
+    const second = await t.action(internal.ingest.upsertVectors, {
       rows: [{ ...row, objectKey: "met:survivor" }],
     });
     expect(second).toEqual(first);

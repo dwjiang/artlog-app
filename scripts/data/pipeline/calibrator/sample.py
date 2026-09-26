@@ -81,7 +81,7 @@ def load_index(writer: ConvexWriter, *, model_version: str = MODEL_VERSION) -> I
     chunks = []
     object_ids = []
     objects = {}
-    for page in _pages(writer.query, "ingest:exportVectors", {"modelVersion": model_version}):
+    for page in _pages(writer.action, "ingest:exportVectors", {"modelVersion": model_version}):
         if not page:
             continue
         chunk = np.asarray([row["vector"] for row in page], dtype=np.float32)

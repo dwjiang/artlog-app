@@ -1,17 +1,20 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { sameOwner } from "../shared/journal/contracts";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { docentStatusOf } from "./docent";
 import { requireDevice } from "./lib/auth";
 import { fileStorage } from "./lib/fileStorage";
 import { displayLabelFlow } from "./lib/labelVerify";
 import { isSupported } from "./lib/modelVersion";
+import { withErrorReporting } from "./lib/observability";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import {
   embedding,
+  embeddingArchive,
   docentSentence,
   docentStatus,
   factChip,
@@ -19,7 +22,8 @@ import {
   rightsStatus,
   snapshotFields,
 } from "./lib/validators";
-import { deleteEmbedding, insertExpiringEmbedding, readEmbedding } from "./scanEmbeddings";
+import { vectorHash, withVectorArchives } from "./lib/vectorStore";
+import { deleteEmbedding, insertExpiringEmbedding, getEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
 const scanFields = schema.tables.scans.validator.fields;
@@ -55,58 +59,78 @@ export const scanDisplay = v.object({
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
 
-export const create = internalMutation({
-  args: {
-    scope: v.optional(v.string()),
-    deviceId: v.id("devices"),
-    localId: v.string(),
+const createArgs = {
+  scope: v.optional(v.string()),
+  deviceId: v.id("devices"),
+  localId: v.string(),
+  venueId: scanFields.venueId,
+  visitId: scanFields.visitId,
+  gallery: scanFields.gallery,
+  modelVersion: v.string(),
+
+  capturedAt: v.number(),
+};
+const created = v.object({ scan: schema.doc("scans"), existing: v.boolean() });
+
+async function prepareScan(ctx: QueryCtx, args: Infer<typeof vCreateArgs>) {
+  const device = await ctx.db.get("devices", args.deviceId);
+  if (!device || device.banned) throw new ConvexError({ code: "not_found" });
+  if (args.scope !== undefined) await requireJournalOwner(ctx, args.scope);
+  const owner = await ownerForDevice(ctx, device);
+  const existing = await ctx.db
+    .query("scans")
+    .withIndex("by_device_localId", (q) => q.eq("deviceId", args.deviceId).eq("localId", args.localId))
+    .unique();
+  const restart =
+    existing
+    && existing.status !== "identified"
+    && isSupported(args.modelVersion)
+    && (existing.status === "unsupported_version"
+      || existing.status === "failed"
+      || existing.modelVersion !== args.modelVersion
+      || (await getEmbedding(ctx, existing.embeddingId)) === null);
+  const visit = args.visitId ? await ctx.db.get("visits", args.visitId) : null;
+  if (args.visitId && (!visit || !sameOwner(visit.owner, owner))) {
+    throw new ConvexError({ code: "not_found" });
+  }
+  // New captures follow a moved visit; retries keep the context already used for this scan's recognition.
+  const venueId = existing ? existing.venueId : (visit?.venueId ?? args.venueId);
+  if (venueId && !(await ctx.db.get("museums", venueId))) {
+    throw new ConvexError({ code: "invalid_venue" });
+  }
+  if (
+    existing
+    && (existing.visitId !== args.visitId
+      || (!visit && existing.venueId !== args.venueId)
+      || existing.capturedAt !== args.capturedAt)
+  ) {
+    throw new ConvexError({ code: "not_found" });
+  }
+  return { existing, restart: !!restart, venueId };
+}
+const vCreateArgs = v.object(createArgs);
+
+export const prepare = internalQuery({
+  args: createArgs,
+  returns: v.object({
+    existing: v.union(schema.doc("scans"), v.null()),
+    restart: v.boolean(),
     venueId: scanFields.venueId,
-    visitId: scanFields.visitId,
-    gallery: scanFields.gallery,
-    modelVersion: v.string(),
-    vector: embedding,
-    capturedAt: v.number(),
-  },
-  returns: v.object({ scan: schema.doc("scans"), existing: v.boolean() }),
-  handler: async (ctx, args) => {
-    const device = await ctx.db.get("devices", args.deviceId);
-    if (!device) throw new ConvexError({ code: "not_found" });
-    if (args.scope !== undefined) await requireJournalOwner(ctx, args.scope);
-    const owner = await ownerForDevice(ctx, device);
-    const existing = await ctx.db
-      .query("scans")
-      .withIndex("by_device_localId", (q) => q.eq("deviceId", args.deviceId).eq("localId", args.localId))
-      .unique();
-    const restart =
-      existing
-      && existing.status !== "identified"
-      && isSupported(args.modelVersion)
-      && (existing.status === "unsupported_version"
-        || existing.status === "failed"
-        || existing.modelVersion !== args.modelVersion
-        || (await readEmbedding(ctx, existing.embeddingId)) === null);
-    const visit = args.visitId ? await ctx.db.get("visits", args.visitId) : null;
-    if (args.visitId && (!visit || !sameOwner(visit.owner, owner))) {
-      throw new ConvexError({ code: "not_found" });
-    }
-    // New captures follow a moved visit; retries keep the context already used for this scan's recognition.
-    const venueId = existing ? existing.venueId : (visit?.venueId ?? args.venueId);
-    if (venueId && !(await ctx.db.get("museums", venueId))) {
-      throw new ConvexError({ code: "invalid_venue" });
-    }
-    if (
-      existing
-      && (existing.visitId !== args.visitId
-        || (!visit && existing.venueId !== args.venueId)
-        || existing.capturedAt !== args.capturedAt)
-    ) {
-      throw new ConvexError({ code: "not_found" });
-    }
+  }),
+  handler: prepareScan,
+});
+
+export const commit = internalMutation({
+  args: { ...createArgs, archive: v.optional(embeddingArchive) },
+  returns: created,
+  handler: async (ctx, { archive, ...args }) => {
+    const { existing, restart, venueId } = await prepareScan(ctx, args);
     if (existing && !restart) return { scan: existing, existing: true };
+    if (isSupported(args.modelVersion) && !archive) throw new ConvexError({ code: "vector_archive_missing" });
     const now = Date.now();
-    const { scope: _scope, vector, ...scanArgs } = args;
+    const { scope: _scope, ...scanArgs } = args;
     if (existing) await deleteEmbedding(ctx, existing.embeddingId);
-    const embeddingId = await insertExpiringEmbedding(ctx, vector);
+    const embeddingId = archive ? await insertExpiringEmbedding(ctx, archive) : undefined;
     const fields = {
       ...scanArgs,
       venueId,
@@ -118,10 +142,26 @@ export const create = internalMutation({
     };
     const scanId = existing?._id ?? (await ctx.db.insert("scans", fields));
     if (existing) await ctx.db.replace("scans", scanId, fields);
-    const scan = await ctx.db.get("scans", scanId);
-    if (!scan) throw new ConvexError({ code: "scan_not_found" });
-    return { scan, existing: false };
+    return { scan: (await ctx.db.get("scans", scanId))!, existing: false };
   },
+});
+
+export const create = internalAction({
+  args: { ...createArgs, vector: embedding },
+  returns: created,
+  handler: async (ctx, { vector, ...args }): Promise<Infer<typeof created>> =>
+    withErrorReporting("scans.create", async () => {
+      const { existing, restart } = await ctx.runQuery(internal.scans.prepare, args);
+      if (existing && !restart) return { scan: existing, existing: true };
+      if (!isSupported(args.modelVersion)) return ctx.runMutation(internal.scans.commit, args);
+      const contentHash = await vectorHash(vector);
+      return withVectorArchives(ctx, [{ vector }], ([archiveId]) =>
+        ctx.runMutation(internal.scans.commit, {
+          ...args,
+          archive: { archiveId, contentHash },
+        }),
+      );
+    }),
 });
 
 export const setResult = internalMutation({

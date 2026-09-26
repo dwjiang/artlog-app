@@ -59,6 +59,9 @@ it.each([
   "invalid_attestation",
   "key_mismatch",
   "batch_too_large",
+  "reviewer_required",
+  "proposal_not_ready",
+  "invalid_proposal_evidence",
 ])("ignores expected %s failures", async (code) => {
   expect(await reportBackendError(new ConvexError({ code }), "test.expected")).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();

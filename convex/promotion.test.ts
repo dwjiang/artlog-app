@@ -4,15 +4,19 @@ import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { fileStorage } from "./lib/fileStorage";
+import { r2 } from "./lib/r2";
 import {
+  seedEmbedding,
   seedArtworkWithObject,
   seedContribution,
   seedDevice,
   seedMuseum,
   seedScan,
   testVector,
+  seedVector,
 } from "./lib/testFactories";
-import { insertVector, readVector } from "./lib/vectorStore";
+import { readVector } from "./lib/vectorStore";
 import { harness, promoteGroup } from "./test.helpers";
 
 beforeEach(() => {
@@ -46,17 +50,20 @@ async function seedFeedback(
     objectId: Id<"objects">;
     rejectedObjectId: Id<"objects">;
     vector?: number[];
+    embeddingId?: Id<"scanEmbeddings">;
     createdAt?: number;
   },
 ): Promise<Id<"feedback">> {
   const scanId = await seedScan(ctx, {
     deviceId: row.deviceId,
     venueId: row.venueId,
+    embeddingId: row.embeddingId,
+    vector: row.vector ?? testVector(0.9),
   });
   return ctx.db.insert("feedback", {
     scanId,
     deviceId: row.deviceId,
-    embeddingId: await ctx.db.insert("scanEmbeddings", { vector: row.vector ?? testVector(0.9) }),
+    embeddingId: (await ctx.db.get("scans", scanId))!.embeddingId!,
     modelVersion: model.modelVersion,
     venueId: row.venueId,
     rejectedObjectId: row.rejectedObjectId,
@@ -100,6 +107,72 @@ describe("multi-view vectors from resolved rejections", () => {
     const promote = (venue = venueId) => promoteGroup(t, work.objectId, venue);
     return { ...base, work, feedback, userScanVectors, promote };
   }
+
+  it("retries promotion after an archive read failure without committing a vector", async () => {
+    const { t, alice, bob, venueId, feedback, get, userScanVectors, promote } = await multiViewFixture();
+    const first = await feedback({ deviceId: alice.deviceId, venueId });
+    await feedback({ deviceId: bob.deviceId, venueId });
+    await vi.mocked(r2.get).withImplementation(
+      async () => {
+        throw new Error("R2 unavailable");
+      },
+      async () => {
+        await promote();
+      },
+    );
+    expect(await userScanVectors()).toEqual([]);
+    expect((await get(first))?.multiViewAt).toBeUndefined();
+    vi.advanceTimersByTime(31 * 60_000);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    const vectors = await userScanVectors();
+    expect(vectors).toHaveLength(1);
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, vectors[0].archiveId))).not.toBeNull();
+    expect((await get(first))?.multiViewAt).toBeDefined();
+    expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").collect())).toEqual(
+      expect.arrayContaining([expect.objectContaining({ vectorId: vectors[0]._id })]),
+    );
+    for (const job of await t.run((ctx) => ctx.db.query("vectorSyncJobs").collect())) {
+      expect(job).not.toHaveProperty("pendingVector");
+    }
+  });
+
+  it("rechecks a page if a matching view arrives while archive reads are in flight", async () => {
+    const { t, alice, bob, venueId, work, feedback, get, userScanVectors } = await multiViewFixture();
+    const first = await feedback({ deviceId: alice.deviceId, venueId, vector: testVector(0.9) });
+    const second = await feedback({ deviceId: bob.deviceId, venueId, vector: testVector(0.9) });
+    const duplicateId = await t.run((ctx) =>
+      seedVector(ctx, {
+        objectId: work.objectId,
+        modelVersion: model.modelVersion,
+        source: "user_scan",
+        vector: testVector(0.9),
+        partition: JSON.stringify([model.modelVersion, "established"]),
+      }),
+    );
+    const retryId = await t.run((ctx) =>
+      ctx.scheduler.runAfter(31 * 60_000, internal.promotion.promoteNextView, {
+        objectId: work.objectId,
+        venueId,
+        feedbackId: first,
+        agreementIds: [first, second],
+        cursor: null,
+      }),
+    );
+    await t.mutation(internal.promotion.commitNextView, {
+      objectId: work.objectId,
+      venueId,
+      feedbackId: first,
+      agreementIds: [first, second],
+      cursor: null,
+      checked: [],
+      archiveId: null,
+      retryId,
+    });
+    expect((await get(first))?.multiViewAt).toBeUndefined();
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    expect((await get(first))?.multiViewDuplicateVectorId).toBe(duplicateId);
+    expect(await userScanVectors()).toHaveLength(1);
+  });
 
   it("adds one user_scan vector per resolution once two devices resolved to the work at the venue", async () => {
     const { t, alice, bob, venueId, get, feedback, userScanVectors, work, promote } = await multiViewFixture();
@@ -253,11 +326,13 @@ describe("multi-view regression guards", () => {
     const [work, wrong] = await t.run(async (ctx) =>
       Promise.all([seedArtworkWithObject(ctx), seedArtworkWithObject(ctx)]),
     );
+    const embeddingId = await t.run((ctx) => seedEmbedding(ctx, { vector: testVector(0.9) }));
     for (let batch = 0; batch < 15; batch++) {
       await t.run(async (ctx) => {
         for (let i = 0; i < 100; i++) {
           const id = await seedFeedback(ctx, {
             deviceId: alice.deviceId,
+            embeddingId,
             venueId,
             objectId: work.objectId,
             rejectedObjectId: wrong.objectId,
@@ -299,7 +374,7 @@ describe("multi-view regression guards", () => {
     const second = await add(bob.deviceId, testVector(0.8));
     await promoteGroup(t, work.objectId, venueId);
     await t.mutation(internal.promotion.replaceWitnesses, { feedbackId: second, agreementIds: [] });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
     expect(await t.run((ctx) => ctx.db.get("feedback", second))).toMatchObject({
       multiViewVectorId: expect.any(String),
     });
@@ -320,7 +395,7 @@ describe("multi-view paginated validation", () => {
     for (let batch = 0; batch < 3; batch++) {
       await t.run(async (ctx) => {
         for (let i = batch * 50; i < (batch + 1) * 50; i++) {
-          await insertVector(ctx, {
+          await seedVector(ctx, {
             partition: JSON.stringify([model.modelVersion, "established"]),
             objectId: work.objectId,
             source: "user_scan",
@@ -384,7 +459,7 @@ describe("multi-view paginated validation", () => {
       agreementIds: [first, second],
       cursor: null,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
     expect(await views()).toEqual([]);
     expect((await t.run((ctx) => ctx.db.get("feedback", first)))?.multiViewAt).toBeUndefined();
     await add(carol.deviceId, testVector(0.7));

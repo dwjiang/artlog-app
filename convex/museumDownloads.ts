@@ -9,6 +9,7 @@ import { internalAction, internalMutation, internalQuery, query } from "./_gener
 import { requireDevice } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
+import { withErrorReporting } from "./lib/observability";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
@@ -152,7 +153,7 @@ export const readPage = internalQuery({
           object: schema.doc("objects"),
           artwork: schema.doc("artworks"),
           placement: v.union(schema.doc("placements"), v.null()),
-          vectors: v.array(v.array(v.number())),
+          vectors: v.array(schema.doc("vectors")),
           descriptor: schema.doc("descriptors"),
         }),
       ),
@@ -189,7 +190,7 @@ export const readPage = internalQuery({
         )
         .take(32)) {
         if (vector.source !== "user_scan" && vector.source !== "user" && (await eligibleVector(ctx, vector))) {
-          vectors.push(await readVector(ctx, vector));
+          vectors.push(vector);
         }
       }
       if (vectors.length > 0) {
@@ -213,77 +214,80 @@ export const readPage = internalQuery({
 export const buildPage = internalAction({
   args: { id: v.id("museumDownloads"), version: v.string() },
   returns: v.null(),
-  handler: async (ctx, args) => {
-    const result = await ctx.runQuery(internal.museumDownloads.readPage, args);
-    if (!result) return null;
-    const entries: MuseumEntry[] = [];
-    const previews: Infer<typeof preview>[] = [];
-    for (const { object, artwork, descriptor, vectors, placement } of result.page) {
-      // Skipping a damaged reference keeps one unreadable ORB file from failing every rebuild of this museum.
-      const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch((error: unknown) => {
-        console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
-      });
-      if (!features) continue;
-      entries.push({
-        vectors,
-        candidate: {
-          object: {
-            _id: object._id,
-            identityStatus: object.identityStatus,
-            ownerId: object.ownerId,
-            medium: object.medium,
-            calibratorPenalty: object.calibratorPenalty,
-            rejectionPenalty: object.rejectionPenalty,
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("museumDownloads.buildPage", async () => {
+      const result = await ctx.runQuery(internal.museumDownloads.readPage, args);
+      if (!result) return null;
+      const entries: MuseumEntry[] = [];
+      const previews: Infer<typeof preview>[] = [];
+      for (const { object, artwork, descriptor, vectors, placement } of result.page) {
+        // Skipping a damaged reference keeps one unreadable ORB file from failing every rebuild of this museum.
+        const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch((error: unknown) => {
+          console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
+        });
+        if (!features) continue;
+        const values = [];
+        for (const vector of vectors) values.push(await readVector(ctx, vector));
+        entries.push({
+          vectors: values,
+          candidate: {
+            object: {
+              _id: object._id,
+              identityStatus: object.identityStatus,
+              ownerId: object.ownerId,
+              medium: object.medium,
+              calibratorPenalty: object.calibratorPenalty,
+              rejectionPenalty: object.rejectionPenalty,
+            },
+            artwork: {
+              _id: artwork._id,
+              title: artwork.title,
+              artist: artwork.artist,
+              date: artwork.date,
+              rightsStatus: artwork.rightsStatus,
+              docent: artwork.docent?.en,
+              factSheet: artwork.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
+                id,
+                sourceUrl,
+                sourceLabel,
+              })),
+            },
+            placement: placement && {
+              venueId: placement.venueId,
+              gallery: placement.gallery,
+              onView: placement.onView,
+            },
+            institution: result.museum.name,
+            similarity: 0,
+            keypointCount: descriptor.keypointCount,
+            inputSize: descriptor.inputSize,
+            ...features,
           },
-          artwork: {
-            _id: artwork._id,
-            title: artwork.title,
-            artist: artwork.artist,
-            date: artwork.date,
-            rightsStatus: artwork.rightsStatus,
-            docent: artwork.docent?.en,
-            factSheet: artwork.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
-              id,
-              sourceUrl,
-              sourceLabel,
-            })),
-          },
-          placement: placement && {
-            venueId: placement.venueId,
-            gallery: placement.gallery,
-            onView: placement.onView,
-          },
-          institution: result.museum.name,
-          similarity: 0,
-          keypointCount: descriptor.keypointCount,
-          inputSize: descriptor.inputSize,
-          ...features,
-        },
-      });
-      if (previews.length < 3 && artwork.rightsStatus === "public_domain" && object.thumbnailUrl) {
-        previews.push({ title: artwork.title, url: object.thumbnailUrl });
+        });
+        if (previews.length < 3 && artwork.rightsStatus === "public_domain" && object.thumbnailUrl) {
+          previews.push({ title: artwork.title, url: object.thumbnailUrl });
+        }
       }
-    }
-    let part: Infer<typeof chunk> | undefined;
-    if (entries.length > 0) {
-      const bytes = new TextEncoder().encode(JSON.stringify(convexToJson(entries as unknown as Value)));
-      const storageId = await fileStorage.store(ctx, new Blob([bytes], { type: "application/json" }));
-      part = {
-        storageId,
-        size: bytes.byteLength,
-        sha256: await orbHash(bytes),
-      };
-    }
-    await ctx.runMutation(internal.museumDownloads.commitPage, {
-      ...args,
-      part,
-      previews,
-      count: entries.length,
-      cursor: result.continueCursor,
-      isDone: result.isDone,
-    });
-    return null;
-  },
+      let part: Infer<typeof chunk> | undefined;
+      if (entries.length > 0) {
+        const bytes = new TextEncoder().encode(JSON.stringify(convexToJson(entries as unknown as Value)));
+        const storageId = await fileStorage.store(ctx, new Blob([bytes], { type: "application/json" }));
+        part = {
+          storageId,
+          size: bytes.byteLength,
+          sha256: await orbHash(bytes),
+        };
+      }
+      await ctx.runMutation(internal.museumDownloads.commitPage, {
+        ...args,
+        part,
+        previews,
+        count: entries.length,
+        cursor: result.continueCursor,
+        isDone: result.isDone,
+      });
+      return null;
+    }),
 });
 export const commitPage = internalMutation({
   args: {
