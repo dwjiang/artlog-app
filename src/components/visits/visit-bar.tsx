@@ -1,8 +1,17 @@
+import { Button, Column, Host, Icon, Row, Text } from "@expo/ui";
+import {
+  accessibilityHint,
+  accessibilityLabel,
+  accessibilityValue,
+  contentShape,
+  fixedSize,
+  font,
+  frame,
+  shapes,
+} from "@expo/ui/swift-ui/modifiers";
 import { useRouter } from "expo-router";
-import { Pressable, View } from "react-native";
+import { useWindowDimensions } from "react-native";
 
-import { AudioIcon } from "@/components/audio/audio-icon";
-import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -11,45 +20,86 @@ import { useVenue } from "@/lib/venue/use-venue";
 
 export function VisitBar() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const { visit, venue } = useVenue();
   const { works, loading, error } = useVisitWorks(visit?.localId, useLocalOwner());
   if (!visit) return null;
   // Away from its museum the visit is paused, not over: only the person ends it.
   const here = visit.venueId === venue?.venueId;
   const count = loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`;
-  const detail = [here ? "Currently visiting" : "Visit open", formatVisitStart(visit.startedAt, visit.timeZone), count]
-    .filter(Boolean)
-    .join(" · ");
+  const detail = [here ? "Currently visiting" : "Visit open", count].filter(Boolean).join(" · ");
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`}
-      accessibilityHint="Opens the current visit"
-      onPress={() =>
-        router.push({
-          pathname: "/journal/[visitId]",
-          params: { visitId: visit.localId },
-        })
-      }
-      style={({ pressed }) => ({
-        minHeight: 44,
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        gap: 10,
-        opacity: pressed ? 0.6 : 1,
-      })}
+    <Host
+      key={fontScale}
+      matchContents={{ vertical: true }}
+      ignoreSafeArea="all"
+      colorScheme="light"
+      seedColor={Gallery.accent}
+      style={{ width: "100%" }}
     >
-      <AudioIcon name="building.columns" size={15} color={Gallery.muted} />
-      <View style={{ flex: 1, gap: 1 }}>
-        <ThemedText numberOfLines={1} style={{ fontSize: 15, lineHeight: 20, fontWeight: "600" }}>
-          {visit.venueName}
-        </ThemedText>
-        <ThemedText numberOfLines={1} themeColor="textSecondary" style={{ fontSize: 12, lineHeight: 16 }}>
-          {detail}
-        </ThemedText>
-      </View>
-      <AudioIcon name="chevron.right" size={12} color={Gallery.muted} />
-    </Pressable>
+      <Row alignment="center" spacing={10} style={{ paddingHorizontal: 12 }} modifiers={[frame({ minHeight: 48 })]}>
+        <Button
+          variant="text"
+          onPress={() =>
+            router.push({
+              pathname: "/journal/[visitId]",
+              params: { visitId: visit.localId },
+            })
+          }
+          modifiers={[
+            accessibilityLabel(here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`),
+            accessibilityValue([formatVisitStart(visit.startedAt, visit.timeZone), count].filter(Boolean).join(" · ")),
+            accessibilityHint("Opens the current visit"),
+            frame({ maxWidth: Infinity, alignment: "leading" }),
+          ]}
+        >
+          <Row
+            alignment="center"
+            spacing={10}
+            modifiers={[
+              frame({ minHeight: 44, maxWidth: Infinity, alignment: "leading" }),
+              contentShape(shapes.rectangle()),
+            ]}
+          >
+            <Icon name="building.columns.fill" size={22} color={Gallery.accent} />
+            <Column spacing={1} alignment="start">
+              <Text
+                numberOfLines={1}
+                textStyle={{ color: Gallery.ink }}
+                modifiers={[font({ textStyle: "subheadline", weight: "semibold" })]}
+              >
+                {visit.venueName}
+              </Text>
+              <Text numberOfLines={1} textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "caption" })]}>
+                {detail}
+              </Text>
+            </Column>
+          </Row>
+        </Button>
+        <Button
+          variant="text"
+          onPress={() =>
+            router.push({
+              pathname: "/journal/[visitId]",
+              params: { visitId: visit.localId, endVisit: "true" },
+            })
+          }
+          modifiers={[
+            accessibilityLabel("Done?"),
+            accessibilityHint("Opens a review before saving and ending the visit"),
+            fixedSize({ horizontal: true, vertical: true }),
+          ]}
+        >
+          <Row
+            alignment="center"
+            modifiers={[frame({ minHeight: 44, minWidth: 44 }), contentShape(shapes.rectangle())]}
+          >
+            <Text textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
+              Done?
+            </Text>
+          </Row>
+        </Button>
+      </Row>
+    </Host>
   );
 }

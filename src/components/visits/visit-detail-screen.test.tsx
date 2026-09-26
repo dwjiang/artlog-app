@@ -2,12 +2,13 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { renderRouter } from "expo-router/testing-library";
-import { Alert, DeviceEventEmitter, Pressable, Text } from "react-native";
+import { Alert, DeviceEventEmitter, Text } from "react-native";
 
 import * as visits from "@/db/repos/visits";
 import { switchOwner } from "@/lib/account/owner-store";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 
+import { VisitBar } from "./visit-bar";
 import { VisitDetailScreen } from "./visit-detail-screen";
 
 jest.mock("expo-router", () => {
@@ -77,7 +78,14 @@ const mockEnd = jest.fn();
 const mockMove = jest.fn();
 let mockOpenVisit: { localId: string } | undefined;
 jest.mock("@/lib/venue/use-venue", () => ({
-  useVenue: () => ({ end: mockEnd, move: mockMove, visit: mockOpenVisit }),
+  useVenue: () => ({
+    end: mockEnd,
+    move: mockMove,
+    visit: mockOpenVisit ? { ...mockVisit, ...mockOpenVisit } : undefined,
+  }),
+}));
+jest.mock("@/lib/journal/use-visit-works", () => ({
+  useVisitWorks: () => ({ works: mockVisit.works, loading: false }),
 }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
@@ -613,19 +621,16 @@ it("holds a visibility change on the open visit until Save & end visit, as the e
 });
 
 async function openEndReview() {
+  mockOpenVisit = { localId: mockVisit.localId };
   const navigation = renderRouter({
     _layout: () => <Stack />,
-    index: () => (
-      <Pressable accessibilityRole="button" onPress={() => router.push("/journal/visit?endVisit=true")}>
-        <Text>End visit</Text>
-      </Pressable>
-    ),
+    index: VisitBar,
     "journal/[visitId]": VisitDetailScreen,
     "visit-share/[visitId]/index": () => <Text>Share form</Text>,
     "sign-in": () => <Text>Sign in to share this visit</Text>,
   });
   await navigation;
-  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Done?" }));
   return { navigation };
 }
 
@@ -659,7 +664,7 @@ it("discards end-visit edits on Back and keeps the visit open", async () => {
   expect(navigation.getPathname()).toBe("/");
   expect(mockEnd).not.toHaveBeenCalled();
   expect(save).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Done?" }));
   expect(screen.getByLabelText("Notes")).toHaveProp("value", "The afternoon light");
   expect(chip("Public")).toBeOnTheScreen();
 });
