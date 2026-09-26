@@ -316,8 +316,8 @@ it("resets a failed row and flushes on manual retry", async () => {
 it("wires identify, reachability and re-embedding into the flusher", async () => {
   await startWorker();
   mockResolveVisit.mockResolvedValue("remote-visit");
-  expect(await flushDeps.resolveVisitId("local-visit", "museum-1" as Id<"museums">)).toBe("remote-visit");
-  expect(mockResolveVisit).toHaveBeenCalledWith("local-visit", "museum-1");
+  expect(await flushDeps.resolveVisitId("local-visit")).toBe("remote-visit");
+  expect(mockResolveVisit).toHaveBeenCalledWith("local-visit");
   mockAction.mockResolvedValue("response");
   const args = {
     localId: "cap-1",

@@ -4,7 +4,7 @@ import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/co
 import { db } from "@/db/client";
 import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
 import { getSavedWork } from "@/db/repos/saved-works";
-import { upsertVisit } from "@/db/repos/visits";
+import { moveVisit, upsertVisit } from "@/db/repos/visits";
 import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
 import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import type { Quad } from "@/lib/capture/stages";
@@ -66,6 +66,35 @@ const capture = {
   visitId: null,
   visitLocalId: "aea0b816-f46f-5312-a657-f92d1af2cb76",
 };
+
+it("saves an identified capture into its moved visit without attributing its old recognition to the new museum", async () => {
+  const localId = "00000000-0000-4000-8000-000000000099";
+  const original = {
+    localId,
+    venueId: capture.venueId,
+    venueName: "The Met",
+    visitedOn: "1970-01-01",
+    timeZone: "UTC",
+  };
+  await upsertVisit(original);
+  await moveVisit(localId, { ...original, venueId: "new-museum" as never, venueName: "New Museum" });
+  const result = await saveResult({
+    scanId: SCAN_ID,
+    capture: { ...capture, localId: "moved-capture", visitLocalId: localId },
+    view: toResultViewState(confidentScan),
+    draft: draftFromCandidate(lilies),
+  });
+  await result.synced;
+  expect(await getSavedWork(result.localId)).toMatchObject({
+    visitLocalId: localId,
+    venueId: "new-museum",
+    venueName: "New Museum",
+  });
+  expect(mockMutation).toHaveBeenCalledWith(
+    "collections:saveToCollection",
+    expect.objectContaining({ scanId: undefined, suggested: null, visitLocalId: localId }),
+  );
+});
 const contribution = {
   scanId: SCAN_ID,
   capture: {
@@ -576,7 +605,7 @@ it("still records the confirmation when the journal flush fails and the visit is
   expect((await getSavedWork(localId))?.syncedAt).toEqual(expect.any(Number));
 });
 
-it.each([{ visitLocalId: "missing" }, { visitLocalId: "" }, { venueId: "wrong-museum" as never }])(
+it.each([{ visitLocalId: "missing" }, { visitLocalId: "" }, { visitId: "wrong-visit" as never }])(
   "rejects an invalid requested visit without silently dropping its link: %j",
   async (fields) => {
     await expect(

@@ -275,3 +275,23 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
     cropStorageId: null,
   });
 });
+
+it("takes the server's museum for a save moved with its visit, even while a local note edit is pending", async () => {
+  await repo.insertSavedWork({
+    localId: "work",
+    title: "Water Lilies",
+    artist: "Monet",
+    savedAt: 1,
+    venueId: "old-museum" as Id<"museums">,
+    venueName: "Old Museum",
+  });
+  await setNote("work", "Pending here");
+  const moved = { ...remote, venueId: "new-museum" as Id<"museums">, venueName: "New Museum", updatedAt: 1 };
+  await repo.upsertFromRemote([moved]);
+  expect(await repo.getSavedWork("work")).toMatchObject({
+    venueId: "new-museum",
+    venueName: "New Museum",
+    syncedAt: null,
+  });
+  expect(await getNote("work")).toMatchObject({ text: "Pending here" });
+});

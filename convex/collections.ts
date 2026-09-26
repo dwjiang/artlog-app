@@ -52,8 +52,9 @@ export const saveToCollection = mutation({
       if (!scan || scan.deviceId !== device._id) {
         throw new ConvexError({ code: "invalid_scan" });
       }
-      // A scan identified before its museum's visit existed may be saved into that visit; any other context is a different save.
-      if (scan.venueId !== saved.venueId || (scan.visitId !== undefined && scan.visitId !== saved.visitId)) {
+      // A scan identified before its museum's visit existed may be saved into that visit, and a visit moved to another
+      // museum keeps its scans; any other context is a different save.
+      if (scan.visitId !== undefined ? scan.visitId !== saved.visitId : scan.venueId !== saved.venueId) {
         throw new ConvexError({ code: "not_found" });
       }
     }

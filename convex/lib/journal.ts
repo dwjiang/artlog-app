@@ -23,9 +23,6 @@ export async function upsertJournalVisit(
   const existing = await findOwnedVisit(ctx, owner, input.localId);
   const venue = await ctx.db.get("museums", input.venueId);
   if (!venue) throw new ConvexError({ code: "invalid_venue" });
-  if (existing && existing.venueId !== input.venueId) {
-    throw new ConvexError({ code: "invalid_visit" });
-  }
   const unchanged =
     existing
     && Object.entries(input).every(([key, value]) => existing[key as keyof typeof existing] === value)
@@ -46,6 +43,19 @@ export async function upsertJournalVisit(
   };
   const id = existing?._id ?? (await ctx.db.insert("visits", fields));
   if (existing) await ctx.db.patch("visits", id, fields);
+  if (existing && existing.venueId !== input.venueId) {
+    await ctx.db.patch("visits", id, { lastConfidentGallery: undefined, lastConfidentAt: undefined });
+    // Saves recorded on a visit were made at its museum, so they move with it.
+    for await (const save of ctx.db.query("collections").withIndex("by_visitId", (q) => q.eq("visitId", id))) {
+      await ctx.db.patch("collections", save._id, {
+        venueId: input.venueId,
+        venueName: venue.name,
+        updatedAt: Math.max(Date.now(), save.updatedAt + 1),
+        updatedBy: deviceId,
+        changeVersion: await nextChangeVersion(ctx, owner),
+      });
+    }
+  }
   if (existing && (existing.visitedOn !== input.visitedOn || existing.visibility !== input.visibility)) {
     const publication = await ctx.db
       .query("sharedVisits")
@@ -62,7 +72,7 @@ export async function upsertJournalVisit(
       });
     }
   }
-  await recordVisitScore(ctx, owner, input.venueId, input.visitedOn, existing?.visitedOn);
+  await recordVisitScore(ctx, owner, input, existing ?? undefined);
   return (await ctx.db.get("visits", id))!;
 }
 export async function upsertJournalSave(
@@ -74,14 +84,14 @@ export async function upsertJournalSave(
   validateSave(input);
   const existing = await findOwnedSave(ctx, owner, input.localId);
   const visit = input.visitLocalId ? await findOwnedVisit(ctx, owner, input.visitLocalId) : null;
-  if (input.visitLocalId && (!visit || visit.venueId !== input.venueId)) {
-    throw new ConvexError({ code: "not_found" });
-  }
-  if (existing && (existing.visitLocalId !== input.visitLocalId || existing.venueId !== input.venueId)) {
+  if (input.visitLocalId && !visit) throw new ConvexError({ code: "not_found" });
+  // A save on a visit takes the visit's museum, which a device that has not yet seen a move still reports as the old one.
+  const venue = visit ? { venueId: visit.venueId, venueName: visit.venueName } : undefined;
+  if (existing && (existing.visitLocalId !== input.visitLocalId || (!venue && existing.venueId !== input.venueId))) {
     throw new ConvexError({ code: "invalid_save" });
   }
   if (existing?.deletedAt !== undefined) return existing;
-  if (input.venueId && !(await ctx.db.get("museums", input.venueId))) {
+  if (!venue && input.venueId && !(await ctx.db.get("museums", input.venueId))) {
     throw new ConvexError({ code: "invalid_venue" });
   }
   const object = input.objectId ? await ctx.db.get("objects", input.objectId) : null;
@@ -111,6 +121,7 @@ export async function upsertJournalSave(
     existing?._id
     ?? (await ctx.db.insert("collections", {
       ...input,
+      ...venue,
       artworkId: object?.artworkId ?? input.artworkId,
       owner,
       visitId: visit?._id,

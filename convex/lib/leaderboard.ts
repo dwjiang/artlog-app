@@ -1,4 +1,4 @@
-import type { JournalOwner, JournalSave } from "../../shared/journal/contracts";
+import type { JournalOwner, JournalSave, JournalVisit } from "../../shared/journal/contracts";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
@@ -30,24 +30,27 @@ async function increment(
     }
   }
 }
+/** The visits metric counts museum days: a visit scores when it is the first at its museum that day. */
 export async function recordVisitScore(
   ctx: MutationCtx,
   owner: JournalOwner,
-  venueId: Id<"museums">,
-  day: string,
-  previousDay?: string,
+  visit: Pick<JournalVisit, "venueId" | "visitedOn">,
+  previous?: Pick<JournalVisit, "venueId" | "visitedOn">,
 ) {
-  if (owner.kind !== "account" || day === previousDay) return;
-  const onDay = (date: string) =>
+  if (owner.kind !== "account") return;
+  if (previous && previous.venueId === visit.venueId && previous.visitedOn === visit.visitedOn) return;
+  const onDay = ({ venueId, visitedOn }: Pick<JournalVisit, "venueId" | "visitedOn">) =>
     ctx.db
       .query("visits")
-      .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", date))
+      .withIndex("by_owner_venue_history", (q) =>
+        q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", visitedOn),
+      )
       .take(2);
-  if (previousDay && (await onDay(previousDay)).length === 0) {
-    await increment(ctx, owner.accountId, "visits", previousDay, -1);
+  if (previous && (await onDay(previous)).length === 0) {
+    await increment(ctx, owner.accountId, "visits", previous.visitedOn, -1);
   }
-  if ((await onDay(day)).length === 1) {
-    await increment(ctx, owner.accountId, "visits", day, 1);
+  if ((await onDay(visit)).length === 1) {
+    await increment(ctx, owner.accountId, "visits", visit.visitedOn, 1);
   }
 }
 export async function recordArtworkScore(

@@ -117,14 +117,11 @@ export const loadContext = internalQuery({
     if (!device || device.banned) {
       throw new ConvexError({ code: "device_banned" });
     }
-    if (
-      scan.visitId
-      && (!visit || !sameOwner(visit.owner, await ownerForDevice(ctx, device)) || visit.venueId !== scan.venueId)
-    ) {
+    if (scan.visitId && (!visit || !sameOwner(visit.owner, await ownerForDevice(ctx, device)))) {
       throw new ConvexError({ code: "not_found" });
     }
     if (!vector) throw new ConvexError({ code: "scan_not_found" });
-    return { visit, vector };
+    return { visit: visit?.venueId === scan.venueId ? visit : null, vector };
   },
 });
 

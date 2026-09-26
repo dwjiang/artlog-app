@@ -200,6 +200,7 @@ beforeEach(() => {
     dismiss: jest.fn(),
     declinePrompt: jest.fn(),
     end: jest.fn(),
+    move: jest.fn(),
   };
   mockDetectorActive.length = 0;
   AppState.currentState = "active";

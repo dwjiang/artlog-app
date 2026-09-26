@@ -79,11 +79,8 @@ export type CaptureDependencies = {
   identify: (payload: CapturePayload) => Promise<IdentifyResponse>;
   isOnline: () => boolean;
   recognizeOffline?: (payload: CapturePayload) => Promise<void>;
-  /** Syncs a visit the server has not seen yet, so the first scan at a museum identifies now instead of queuing. */
-  resolveVisitId?: (
-    visitLocalId: string,
-    venueId: NonNullable<CapturePayload["venueId"]>,
-  ) => Promise<NonNullable<CapturePayload["visitId"]>>;
+  /** Syncs a visit's pending edits before identification uses its museum, including visits with an existing remote ID. */
+  resolveVisitId?: (visitLocalId: string) => Promise<NonNullable<CapturePayload["visitId"]>>;
   store: CaptureStore;
   /** Retain presentation images before enqueue moves their files. Visual errors must not fail capture. */
   onPrepared?: (painting: PreparedPainting) => Promise<void>;

@@ -84,6 +84,26 @@ it("syncs empty visits and later edits to artwork details without duplicating th
   expect(await t.run((ctx) => ctx.db.query("collections").collect())).toHaveLength(1);
 });
 
+it("moves a visit's saves with it to another museum, even past a device that still reports the old one", async () => {
+  const { t, user, visit, sync } = await fixture();
+  const work = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
+  const first = await sync(user, { visits: [visit], saves: [work] });
+  const venueId = await t.run(seedMuseum);
+  const museum = await t.run((ctx) => ctx.db.get("museums", venueId));
+  const moved = await sync(user, { visits: [{ ...visit, venueId }], since: first.checkpoint });
+  expect(moved.visits).toMatchObject([{ venueId, venueName: museum!.name }]);
+  expect(moved.saves).toMatchObject([{ localId: work.localId, venueId, venueName: museum!.name }]);
+  const stale = await sync(user, {
+    saves: [{ ...work, note: "edited before the move arrived" }],
+    since: moved.checkpoint,
+  });
+  expect(stale.saves).toMatchObject([{ venueId, note: "edited before the move arrived" }]);
+  const late = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
+  expect((await sync(user, { saves: [late], since: stale.checkpoint })).saves).toMatchObject([
+    { localId: late.localId, venueId },
+  ]);
+});
+
 it("uses auth ownership, never the caller scope, and hides missing or foreign parents", async () => {
   const { user, other, visit, sync } = await fixture();
   await sync(user, { visits: [visit], saves: [save()] });

@@ -28,7 +28,7 @@ export type FlushDependencies = {
   ) => Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
   updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
-  resolveVisitId(localId: string, venueId: Id<"museums">): Promise<Id<"visits">>;
+  resolveVisitId(localId: string): Promise<Id<"visits">>;
   identify(args: IdentifyArgs): Promise<IdentifyResponse>;
   runLabelFlow(scanId: Id<"scans">, label: LabelInput): Promise<void>;
   reembed(cropPath: string): Promise<ScanFeatures>;
@@ -97,7 +97,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       if (!row.venueId) {
         throw new Error("The capture visit is missing its venue");
       }
-      visitId = await deps.resolveVisitId(row.visitLocalId, row.venueId);
+      visitId = await deps.resolveVisitId(row.visitLocalId);
     }
     if (!isCurrent()) return;
     await deps.markIdentifying(row.localId);

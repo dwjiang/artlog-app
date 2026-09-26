@@ -84,19 +84,19 @@ export const create = internalMutation({
         || existing.status === "failed"
         || existing.modelVersion !== args.modelVersion
         || (await readEmbedding(ctx, existing.embeddingId)) === null);
-    if (args.visitId) {
-      const visit = await ctx.db.get("visits", args.visitId);
-      if (!visit || !sameOwner(visit.owner, owner) || visit.venueId !== args.venueId) {
-        throw new ConvexError({ code: "not_found" });
-      }
+    const visit = args.visitId ? await ctx.db.get("visits", args.visitId) : null;
+    if (args.visitId && (!visit || !sameOwner(visit.owner, owner))) {
+      throw new ConvexError({ code: "not_found" });
     }
-    if (args.venueId && !(await ctx.db.get("museums", args.venueId))) {
+    // New captures follow a moved visit; retries keep the context already used for this scan's recognition.
+    const venueId = existing ? existing.venueId : (visit?.venueId ?? args.venueId);
+    if (venueId && !(await ctx.db.get("museums", venueId))) {
       throw new ConvexError({ code: "invalid_venue" });
     }
     if (
       existing
       && (existing.visitId !== args.visitId
-        || existing.venueId !== args.venueId
+        || (!visit && existing.venueId !== args.venueId)
         || existing.capturedAt !== args.capturedAt)
     ) {
       throw new ConvexError({ code: "not_found" });
@@ -108,6 +108,7 @@ export const create = internalMutation({
     const embeddingId = await insertExpiringEmbedding(ctx, vector);
     const fields = {
       ...scanArgs,
+      venueId,
       embeddingId,
       generation: existing ? existing.generation + 1 : 0,
       status: "pending" as const,

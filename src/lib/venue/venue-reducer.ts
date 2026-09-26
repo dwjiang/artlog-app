@@ -96,7 +96,6 @@ export type VenueEvent =
     }
   | { type: "visitStarted"; visit: CurrentVisit }
   | { type: "visitEnded"; localId: string; at: number }
-  | { type: "remoteVisit"; localId: string; remoteVisitId: Id<"visits"> }
   | { type: "dismissed"; at: number }
   | { type: "backgrounded" };
 
@@ -322,12 +321,6 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
           : {}),
       };
     }
-    case "remoteVisit":
-      if (state.visit?.localId !== event.localId) return state;
-      return {
-        ...state,
-        visit: { ...state.visit, remoteVisitId: event.remoteVisitId },
-      };
     case "dismissed": {
       // "Not here" rejects the listed options and the resolved venue; its visit pauses and stays open until ended by hand.
       const keys = new Set(state.options.map(venueOptionKey));

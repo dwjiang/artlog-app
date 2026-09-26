@@ -170,6 +170,13 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
             .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId)))
             .run();
         }
+        // A save's museum follows its visit on the server, even past an edit still pending here.
+        if (existing.venueId !== (row.venueId ?? null) || existing.venueName !== (row.venueName ?? null)) {
+          tx.update(savedWorks)
+            .set({ venueId: row.venueId ?? null, venueName: row.venueName ?? null })
+            .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId)))
+            .run();
+        }
         if (existing.syncedAt === null || !isNewer(row, existing)) continue;
         // Optional snapshot fields arrive absent when cleared; drizzle skips undefined in SET, so write nulls explicitly.
         tx.update(savedWorks)

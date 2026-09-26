@@ -2,9 +2,10 @@ import { ConvexError } from "convex/values";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { artworkEncounters, savedWorks, visits, type NewVisit, type Visit } from "@/db/schema";
+import { artworkEncounters, pendingScans, savedWorks, visits, type NewVisit, type Visit } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
+import { moveVisitTimes } from "@/lib/journal/visit-date";
 import { visitInput } from "@/lib/journal/visit-payload";
 import { validateVisit } from "@/shared/journal/contracts";
 
@@ -130,6 +131,37 @@ export async function patchVisit(
       .run();
   });
   if (sync) requestCollectionSync();
+}
+/**
+ * Moves a visit to another museum or day, keeping its clock times. Saves and unsent scans recorded on it were made at
+ * its museum, so they move with it; the server moves the synced saves itself.
+ */
+export async function moveVisit(
+  localId: string,
+  to: Pick<Visit, "venueId" | "venueName" | "visitedOn" | "timeZone">,
+  owner = getLocalOwner(),
+): Promise<void> {
+  db.transaction((tx) => {
+    const target = and(eq(visits.owner, owner), eq(visits.localId, localId));
+    const existing = tx.select().from(visits).where(target).get();
+    if (!existing) throw new ConvexError({ code: "not_found" });
+    const fields = { ...to, ...moveVisitTimes(existing, to) };
+    validateVisit(visitInput({ ...existing, ...fields }));
+    tx.update(visits)
+      .set({ ...fields, syncedAt: null, revision: sql`${visits.revision} + 1` })
+      .where(target)
+      .run();
+    if (existing.venueId === to.venueId) return;
+    tx.update(savedWorks)
+      .set({ venueId: to.venueId, venueName: to.venueName })
+      .where(and(eq(savedWorks.owner, owner), eq(savedWorks.visitLocalId, localId)))
+      .run();
+    tx.update(pendingScans)
+      .set({ venueId: to.venueId })
+      .where(and(eq(pendingScans.owner, owner), eq(pendingScans.visitLocalId, localId), isNull(pendingScans.scanId)))
+      .run();
+  });
+  requestCollectionSync();
 }
 export function listUnsyncedVisits(owner = getLocalOwner()) {
   return db

@@ -1,7 +1,7 @@
 import { randomUUID } from "expo-crypto";
 
 import { captureOwner } from "@/lib/account/owner-store";
-import { errorMessage, isNetworkError } from "@/lib/network-error";
+import { errorMessage, isNetworkError, isTransientError } from "@/lib/network-error";
 import { reportError, addBreadcrumb } from "@/lib/observability";
 
 import { roundVector } from "./features";
@@ -98,18 +98,17 @@ export async function runCapture(
     };
     if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
-    if (online && payload.visitLocalId && !payload.visitId && payload.venueId && deps.resolveVisitId) {
-      payload.visitId = await withTimeout(
-        deps.resolveVisitId(payload.visitLocalId, payload.venueId),
-        VISIT_SYNC_TIMEOUT_MS,
-      ).catch((error: unknown) => {
-        if (!(error instanceof Error && error.message === "Visit sync timed out")) {
-          reportError(error, "capture.sync_visit", { level: "warning" });
-        }
-        addBreadcrumb("capture.queued", { reason: "visit_sync" });
-        console.warn("The visit has not synced yet; queuing the scan", error);
-        return undefined;
-      });
+    if (online && payload.visitLocalId && payload.venueId && deps.resolveVisitId) {
+      payload.visitId = await withTimeout(deps.resolveVisitId(payload.visitLocalId), VISIT_SYNC_TIMEOUT_MS).catch(
+        (error: unknown) => {
+          if (!isTransientError(error) && !(error instanceof Error && error.message === "Visit sync timed out")) {
+            reportError(error, "capture.sync_visit", { level: "warning" });
+          }
+          addBreadcrumb("capture.queued", { reason: "visit_sync" });
+          console.warn("The visit has not synced yet; queuing the scan", error);
+          return undefined;
+        },
+      );
       if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     }
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
