@@ -3,6 +3,7 @@ import { useNetworkState } from "expo-network";
 
 import { useLocalOwner, useOwnerGeneration, useServerScope } from "@/lib/account/owner-store";
 import { convexErrorCode } from "@/lib/network-error";
+import { isOffline } from "@/lib/network-state";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
@@ -15,7 +16,7 @@ export function useSocialSession() {
   const token = useAuthToken();
   const deviceReady = useDeviceReady();
   const network = useNetworkState();
-  const offline = network.isConnected === false || network.isInternetReachable === false;
+  const offline = isOffline(network);
   const key = `${generation}:${offline ? "offline" : "online"}:${deviceReady && !!token}`;
   const account = useSocialQuery(api.accounts.me, deviceReady && !offline ? {} : "skip", key);
   const linked = account.data?.linked === true;

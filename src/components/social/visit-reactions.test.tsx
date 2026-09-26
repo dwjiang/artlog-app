@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 import type { FunctionReference } from "convex/server";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import { VisitReactions, type ReactionVisit } from "./visit-reactions";
 
@@ -47,6 +48,7 @@ const visit: ReactionVisit = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  dismissToast();
   mockSession = {
     key: "me",
     profileId: "me" as never,
@@ -86,12 +88,13 @@ it("shows the liked state and submits only one unlike while a request is pending
 });
 
 it("keeps the like state and exposes retry after a failed write", async () => {
+  const toast = await renderHook(useToast);
   mockMutate.mockRejectedValueOnce(new Error("Network"));
   await render(<VisitReactions visit={visit} />);
   await fireEvent.press(screen.getByRole("button", { name: "Unlike visit" }));
   expect(screen.getByRole("button", { name: "Unlike visit", selected: true })).toBeOnTheScreen();
-  expect(screen.getByText("Couldn’t update your like. Try again.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Retry reactions" }));
+  expect(toast.result.current).toMatchObject({ message: "Couldn’t update your like.", action: { label: "Retry" } });
+  await act(() => toast.result.current?.action?.onPress());
   expect(mockMutate).toHaveBeenCalledTimes(2);
 });
 

@@ -138,7 +138,12 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
     encounters: [],
   });
   expect((await t.fetch(url(photos[0].localId))).status).toBe(404);
-  expect((await owner.as.query(api.walls.getMine, {})).items).toHaveLength(1);
+  const remainingWall = await owner.as.query(api.walls.getMine, {});
+  expect(remainingWall.items).toHaveLength(1);
+  expect(remainingWall.revision).toBe(2);
+  expect(await owner.as.query(api.profiles.getPublic, { profileId: owner.profileId })).toMatchObject({
+    publishedWallCount: 1,
+  });
   expect((await owner.as.query(api.sharedVisits.get, { postId: published.postId! })).artworks.page).toEqual([]);
 });
 

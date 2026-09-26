@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import type { SavedWork } from "@/db/schema";
 import { identifySavedArtwork, acceptSavedRecognition } from "@/lib/collection/saved-recognition";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { SavedRecognition } from "./saved-recognition";
@@ -35,7 +36,10 @@ const element = () => (
   <SavedRecognition work={work} disabled={false} onBusyChange={onBusyChange} onAccepted={onAccepted} />
 );
 
-beforeEach(() => jest.resetAllMocks());
+beforeEach(() => {
+  jest.resetAllMocks();
+  dismissToast();
+});
 
 it("searches only on request and applies only the match the person chooses", async () => {
   jest.mocked(identifySavedArtwork).mockResolvedValue({ ...result, candidates: [...result.candidates] });
@@ -51,6 +55,7 @@ it("searches only on request and applies only the match the person chooses", asy
 });
 
 it("keeps the retry control after a miss or recoverable failure", async () => {
+  const toast = await renderHook(useToast);
   jest
     .mocked(identifySavedArtwork)
     .mockResolvedValueOnce({ attempt: 1, outcome: "miss", candidates: [] })
@@ -59,7 +64,10 @@ it("keeps the retry control after a miss or recoverable failure", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Try identifying again" }));
   expect(await screen.findByText("No match found yet")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Try identifying again" }));
-  expect(await screen.findByText("Connect to the internet and try identifying again.")).toBeOnTheScreen();
+  expect(toast.result.current).toMatchObject({
+    message: "Connect to the internet and try identifying again.",
+    action: { label: "Retry" },
+  });
   expect(onAccepted).not.toHaveBeenCalled();
 });
 

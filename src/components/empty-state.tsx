@@ -64,11 +64,11 @@ export function SearchEmptyState({
 }: {
   title?: string;
   detail: string;
-  onClear: () => void;
+  onClear?: () => void;
 }) {
   return (
     <EmptyState title={title} detail={detail} visual={<EmptySymbol name="magnifyingglass" size={132} />}>
-      <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />
+      {onClear && <GalleryButton label="Clear search" variant="filled" fullWidth onPress={onClear} />}
     </EmptyState>
   );
 }

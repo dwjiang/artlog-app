@@ -11,6 +11,7 @@ import { getVisit } from "@/db/repos/visits";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
 import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
+import { isOffline } from "@/lib/network-state";
 import { reportError, addBreadcrumb } from "@/lib/observability";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
 import { venueIdAt } from "@/lib/venue/venue-db";
@@ -52,10 +53,11 @@ export function useCapture({
 } = {}) {
   const identify = useAction(api.identify.identify);
   const network = useNetworkState();
-  const online = useRef(network.isInternetReachable);
+  const offline = isOffline(network);
+  const online = useRef(!offline);
   useEffect(() => {
-    online.current = network.isInternetReachable;
-  }, [network.isInternetReachable]);
+    online.current = !offline;
+  }, [offline]);
   const router = useRouter();
   const navigation = useRef(router);
   useEffect(() => {
@@ -219,7 +221,7 @@ export function useCapture({
             }
             return identify({ ...payload, scope });
           },
-          isOnline: () => online.current !== false,
+          isOnline: () => online.current,
           resolveVisitId: resolveScanVisit,
         },
         captureOptions,

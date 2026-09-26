@@ -9,6 +9,7 @@ import { CollectionVisits } from "@/components/visits/collection-visits";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useCollectionData } from "@/lib/collection/use-collection-data";
+import { isOffline } from "@/lib/network-state";
 
 import { CollectionHeader } from "./collection-header";
 import { CollectionWall } from "./collection-wall";
@@ -91,7 +92,7 @@ function OwnedCollection({
         artworkCount={data.works.length}
         visitCount={data.visits.length}
       />
-      {network.isInternetReachable === false && (
+      {isOffline(network) && (
         <View
           style={{
             marginHorizontal: 20,

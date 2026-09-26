@@ -17,6 +17,7 @@ import { convex } from "@/lib/convex-client";
 import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
 import { museumDay } from "@/lib/journal/visit-date";
 import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
+import { isOffline } from "@/lib/network-state";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { calendarDate } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -684,7 +685,8 @@ export function VenueResolver({ controller = venueController }: { controller?: V
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const device = useQuery(api.devices.me, isAuthenticated ? {} : "skip");
-  const { isInternetReachable } = useNetworkState();
+  const network = useNetworkState();
+  const offline = isOffline(network);
   const prompt = useSyncExternalStore(
     controller.subscribe,
     () => controller.getState().prompt,
@@ -709,10 +711,10 @@ export function VenueResolver({ controller = venueController }: { controller?: V
   }, [controller, owner, introduced]);
 
   useEffect(() => {
-    if (device && isInternetReachable !== false) {
+    if (device && !offline) {
       void controller.syncRemoteVisit();
     }
-  }, [controller, device, isInternetReachable]);
+  }, [controller, device, offline]);
 
   useEffect(() => {
     if (prompt === seenPrompt.current) return;

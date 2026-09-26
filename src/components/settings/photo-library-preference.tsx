@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { GroupedFooter, GroupedSection, ValueRow } from "@/components/grouped-list";
 import { reportError } from "@/lib/observability";
 import { getSaveToPhotos, setSaveToPhotos } from "@/lib/settings/save-to-photos";
+import { showErrorToast } from "@/lib/ui/toast";
 
 export function PhotoLibraryPreference() {
   const [enabled, setEnabled] = useState(true);
@@ -46,7 +47,7 @@ export function PhotoLibraryPreference() {
     } catch (cause) {
       reportError(cause, "settings.save-to-photos.save");
       setEnabled(!value);
-      setError("The preference could not be saved.");
+      showErrorToast("Couldn’t save the Save to Photos setting.", () => void change(value));
     } finally {
       saving.current = false;
     }

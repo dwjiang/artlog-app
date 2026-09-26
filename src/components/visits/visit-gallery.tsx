@@ -1,9 +1,10 @@
 import { Image } from "expo-image";
 import { useState, type ReactNode } from "react";
-import { StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { WallFrame, wallFrameInset } from "@/components/collection/wall-frame";
+import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { normalizeSearch } from "@/shared/journal/limits";
@@ -14,23 +15,16 @@ export function matchesVisitSearch(work: { title: string; artist: string | null 
 
 export function VisitGallerySearch({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
   return (
-    <View style={styles.search}>
-      <Image source="sf:magnifyingglass" tintColor={Gallery.muted} style={{ width: 15, height: 15 }} />
-      <TextInput
-        accessibilityLabel="Search visit artworks"
-        placeholder="Search this visit"
-        placeholderTextColor={Gallery.muted}
-        value={value}
-        onChangeText={onChangeText}
-        autoCapitalize="none"
-        autoCorrect={false}
-        clearButtonMode="while-editing"
-        returnKeyType="search"
-        keyboardAppearance="light"
-        selectionColor={Gallery.accent}
-        style={styles.input}
-      />
-    </View>
+    <SearchField
+      label="Search visit artworks"
+      placeholder="Search this visit"
+      value={value}
+      showLabel={false}
+      filled
+      onChange={onChangeText}
+      onClear={() => onChangeText("")}
+      style={styles.search}
+    />
   );
 }
 
@@ -111,23 +105,8 @@ export function LocalVisitGalleryArtwork({
 
 const styles = StyleSheet.create({
   search: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
     marginTop: 5,
     marginBottom: 13,
-    paddingHorizontal: 12,
-    backgroundColor: Gallery.fill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.controlBorder,
-    borderRadius: 8,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    color: Gallery.ink,
-    fontSize: 17,
-    paddingVertical: 10,
   },
   stage: {
     aspectRatio: 1.04,

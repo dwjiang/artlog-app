@@ -1,11 +1,11 @@
 import { Image } from "expo-image";
 import { useState, type Ref } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 
-export function CollectionSearchField({
+export function SearchField({
   value,
   label,
   placeholder = label,
@@ -14,6 +14,9 @@ export function CollectionSearchField({
   onChange,
   onClear,
   inputRef,
+  editable = true,
+  maxLength,
+  style,
 }: {
   inputRef?: Ref<TextInput>;
   value: string;
@@ -23,10 +26,13 @@ export function CollectionSearchField({
   filled?: boolean;
   onChange: (value: string) => void;
   onClear: () => void;
+  editable?: boolean;
+  maxLength?: number;
+  style?: StyleProp<ViewStyle>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
-    <View style={{ gap: Spacing.two }}>
+    <View style={[{ gap: Spacing.two }, style]}>
       {showLabel && <ThemedText variant="metadata">{label}</ThemedText>}
       <View
         style={[
@@ -47,6 +53,8 @@ export function CollectionSearchField({
           ref={inputRef}
           value={value}
           onChangeText={onChange}
+          editable={editable}
+          maxLength={maxLength}
           placeholder={placeholder}
           accessibilityLabel={label}
           autoCapitalize="none"
@@ -64,6 +72,8 @@ export function CollectionSearchField({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear search"
+            accessibilityState={{ disabled: !editable }}
+            disabled={!editable}
             onPress={onClear}
             style={({ pressed }) => [styles.clear, { opacity: pressed ? 0.6 : 1 }]}
           >
@@ -94,6 +104,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     paddingVertical: Spacing.two,
     ...Typography.body,

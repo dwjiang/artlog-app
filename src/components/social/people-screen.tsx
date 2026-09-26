@@ -2,11 +2,11 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 
-import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SearchEmptyState } from "@/components/empty-state";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { peopleSearch } from "@/lib/social/presentation";
@@ -144,7 +144,7 @@ export function PeopleScreen() {
               </Text>
             )}
             {!guestFriends && !emptyFriends && (
-              <CollectionSearchField
+              <SearchField
                 filled
                 label="Name or username"
                 value={text}

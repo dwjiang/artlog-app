@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
+
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import { ShareProfileScreen } from "./share-profile-screen";
 
@@ -40,6 +42,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  dismissToast();
   mockResult = { data: undefined, loading: true };
   mockShare.mockResolvedValue(undefined);
   mockManipulate.mockImplementation(() => ({
@@ -100,6 +103,7 @@ it("shows the profile identity and shares a PNG QR code through the native share
 });
 
 it("allows retry when QR image preparation fails before creating a context", async () => {
+  const toast = await renderHook(useToast);
   mockResult = {
     data: {
       profileId: "public-profile",
@@ -113,9 +117,8 @@ it("allows retry when QR image preparation fails before creating a context", asy
   });
   await render(<ShareProfileScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
-  expect(screen.getByRole("alert")).toHaveTextContent("Your QR code could not be shared. Try again.");
+  expect(toast.result.current).toMatchObject({ message: "Couldn’t share your QR code.", action: { label: "Retry" } });
   expect(screen.getByRole("button", { name: "Share QR code" })).toBeEnabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Share QR code" }));
+  await act(() => toast.result.current?.action?.onPress());
   await waitFor(() => expect(mockShare).toHaveBeenCalledTimes(1));
-  expect(screen.queryByRole("alert")).toBeNull();
 });

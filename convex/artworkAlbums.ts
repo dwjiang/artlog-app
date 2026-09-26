@@ -8,6 +8,7 @@ import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, requireJournalOwner } from "./lib/ownership";
 import { invalidateDeletedSave } from "./lib/publicationAccess";
+import { advancePublicationRevision } from "./lib/publicationUpdates";
 import { limitDevice } from "./lib/rateLimits";
 import { mergeSavedRecognition } from "./lib/savedRecognition";
 import schema from "./schema";
@@ -147,10 +148,7 @@ export const sync = mutation({
               await ctx.db.delete("sharedVisitItems", item._id);
             }
           }
-          await ctx.db.patch("sharedVisits", publication._id, {
-            publicationRevision: publication.publicationRevision + 1,
-            updatedAt: Date.now(),
-          });
+          await advancePublicationRevision(ctx, publication);
         }
       }
     }

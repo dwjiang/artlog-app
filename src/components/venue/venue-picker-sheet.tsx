@@ -4,12 +4,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 
-import { CollectionSearchField } from "@/components/collection/collection-search-field";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
+import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ArtworkPreviews, VisitSymbol } from "@/components/visits/visit-ui";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
@@ -234,7 +234,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       <ThemedText type="title" accessibilityRole="header">
         Choose museum
       </ThemedText>
-      <CollectionSearchField
+      <SearchField
         inputRef={searchInput}
         value={query}
         label="Search museums"

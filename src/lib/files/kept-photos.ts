@@ -9,6 +9,7 @@ import { getSaveToPhotos } from "@/lib/settings/save-to-photos";
 import { COLLECTION_PHOTO_LONG_SIDE } from "@/shared/collection/photo-limits";
 
 import { captureFileUri } from "./photos";
+import { removeFileIfExists } from "./remove-file";
 
 const KEPT_LONG_SIDE = COLLECTION_PHOTO_LONG_SIDE;
 
@@ -109,9 +110,9 @@ async function keepPhoto({ path, kind }: KeptPhoto): Promise<void> {
       }
     }
   } finally {
-    if (temporary?.exists) {
+    if (temporary) {
       try {
-        temporary.delete();
+        removeFileIfExists(temporary);
       } catch (error) {
         reportError(error, "photos.cleanup_resize", { level: "warning" });
       }

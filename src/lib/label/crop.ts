@@ -1,6 +1,6 @@
-import { File } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef, type ImageResult } from "expo-image-manipulator";
 
+import { removeFileIfExists } from "@/lib/files/remove-file";
 import { reportError } from "@/lib/observability";
 
 /** The contribution crop becomes the next visitor's thumbnail; contributions.ts caps it at 200 KB. */
@@ -16,8 +16,7 @@ async function renderWithin(uri: string, longSide: number): Promise<ImageRef> {
 
 export function removeFile(uri: string): void {
   try {
-    const file = new File(uri);
-    if (file.exists) file.delete();
+    removeFileIfExists(uri);
   } catch (error) {
     reportError(error, "label.remove_temporary_image", { level: "warning" });
     console.warn("Could not remove a temporary image", error);

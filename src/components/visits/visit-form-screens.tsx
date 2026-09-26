@@ -1,17 +1,19 @@
 import { randomUUID } from "expo-crypto";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Keyboard, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { useVisits } from "@/lib/journal/use-visits";
 import { dateFromPicker, museumDayAtMost, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
-import { showToast } from "@/lib/ui/toast";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { useVenue } from "@/lib/venue/use-venue";
 import { venueMetadataForIds } from "@/lib/venue/venue-db";
@@ -22,6 +24,16 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { MuseumSearch } from "./museum-search";
 import { VisitDatePicker } from "./visit-date-picker";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
+
+function VisitFormPage({ children }: { children: ReactNode }) {
+  const { bottom } = useSafeAreaInsets();
+  return (
+    <>
+      <VisitPage>{children}</VisitPage>
+      <ToastLayer offset={-bottom} />
+    </>
+  );
+}
 
 export function VisitCreateScreen() {
   const owner = useLocalOwner();
@@ -121,7 +133,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
-      <VisitPage>
+      <VisitFormPage>
         <Text style={styles.caption}>
           {savedId
             ? "This visit will be linked to your artwork when you save."
@@ -185,7 +197,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             {error}
           </Text>
         )}
-      </VisitPage>
+      </VisitFormPage>
     </>
   );
 }
@@ -197,7 +209,6 @@ export function VisitMuseumScreen() {
   const visit = visits.find((row) => row.localId === visitId);
   const { move } = useVenue();
   const [busy, setBusy] = useState(false);
-  const [moveError, setMoveError] = useState<string>();
   const active = useRef(true);
   useFocusEffect(
     useCallback(() => {
@@ -219,7 +230,6 @@ export function VisitMuseumScreen() {
       return;
     }
     setBusy(true);
-    setMoveError(undefined);
     try {
       const timeZone = venueTimeZone(row);
       await move(visit.localId, {
@@ -231,7 +241,7 @@ export function VisitMuseumScreen() {
       if (active.current && session.isOwnerCurrent()) router.back();
     } catch (cause) {
       reportError(cause, "visit.move.museum");
-      if (session.isOwnerCurrent()) setMoveError("The museum could not be changed. Try again.");
+      if (session.isOwnerCurrent()) showErrorToast("Couldn’t change the museum.", () => void choose(row));
     } finally {
       if (session.isOwnerCurrent()) setBusy(false);
     }
@@ -243,7 +253,7 @@ export function VisitMuseumScreen() {
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <VisitPage>
+      <VisitFormPage>
         {visit ? (
           <>
             <MuseumSearch
@@ -252,18 +262,13 @@ export function VisitMuseumScreen() {
                 void choose(row);
               }}
             />
-            {moveError && (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {moveError}
-              </Text>
-            )}
           </>
         ) : (
           <VisitMessage loading={loading && !error} skeleton="list">
             {error ? "This visit could not load." : loading ? "Loading visit…" : "This visit is unavailable."}
           </VisitMessage>
         )}
-      </VisitPage>
+      </VisitFormPage>
     </>
   );
 }

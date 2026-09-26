@@ -6,6 +6,7 @@ import { widgetsDirectory } from "expo-widgets";
 
 import { loadLocalImage } from "@/lib/files/local-image";
 import { captureFileUri } from "@/lib/files/photos";
+import { removeFileIfExists } from "@/lib/files/remove-file";
 
 import { artlogWidget } from "./artlog-widget";
 import type { PreparedWidgetArtwork, WidgetArtwork } from "./widget-collection";
@@ -56,7 +57,7 @@ export async function prepareWidgetArtwork(
         format: SaveFormat.JPEG,
         compress: 0.9,
       });
-      if (target.exists) target.delete();
+      removeFileIfExists(target);
       await new File(result.uri).move(target);
       const aspect = loaded.width / loaded.height;
       info.write(JSON.stringify({ aspect }));

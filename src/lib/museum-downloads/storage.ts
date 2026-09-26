@@ -7,6 +7,7 @@ import { fetch } from "expo/fetch";
 
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { convex } from "@/lib/convex-client";
+import { isOffline } from "@/lib/network-state";
 import model from "@/shared/model/model-version.json";
 import type { MuseumEntry, MuseumSummary } from "@/shared/offline/types";
 
@@ -80,7 +81,7 @@ const deps: DownloadDependencies = {
   manifest: (venueId) => convex.query(api.museumDownloads.get, { venueId }),
   online: async () => {
     const network = await getNetworkStateAsync();
-    return network.isConnected !== false && network.isInternetReachable !== false;
+    return !isOffline(network);
   },
   folder: (manifest) => `${manifest.id}-${manifest.version}`,
   async download(pack, index, signal) {

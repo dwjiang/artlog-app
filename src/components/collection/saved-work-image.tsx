@@ -7,6 +7,7 @@ import { ImageSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { captureFileUri } from "@/lib/files/photos";
+import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 
 export function SavedWorkImage({
@@ -101,7 +102,7 @@ export function SavedWorkImage({
 
 function PhotoDownload({ title, compact }: { title: string; compact: boolean }) {
   const network = useNetworkState();
-  if (network.isConnected === false || network.isInternetReachable === false) {
+  if (isOffline(network)) {
     return (
       <View
         accessible

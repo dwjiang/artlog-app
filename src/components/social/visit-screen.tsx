@@ -141,7 +141,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
               detail="This visit is no longer shared with you."
             />
           ) : visit.done && !visit.loading && !visit.error ? (
-            <SharedEmpty query={query} onClear={() => setSearch("")} />
+            <SharedEmpty query={query} />
           ) : null
         }
         ListFooterComponent={
@@ -223,9 +223,9 @@ function SharedCountHeading({ label }: { label: string }) {
   );
 }
 
-function SharedEmpty({ query, onClear }: { query: string; onClear: () => void }) {
+function SharedEmpty({ query }: { query: string }) {
   return query ? (
-    <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." onClear={onClear} />
+    <SearchEmptyState title="No artworks found." detail="Try an artist or artwork title." />
   ) : (
     <View style={styles.empty}>
       <Text style={styles.meta}>This visit was shared without artworks.</Text>

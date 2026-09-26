@@ -6,13 +6,14 @@ import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import type { useAccount } from "@/lib/account/use-account";
+import { isOffline } from "@/lib/network-state";
 
 type SignInState = Pick<ReturnType<typeof useAccount>, "available" | "busy" | "error" | "ready" | "signInWithApple">;
 
 export function AppleSignInAction({ state }: { state: SignInState }) {
   const network = useNetworkState();
   // Offline, the device never becomes ready, so say so instead of spinning until the sheet is dismissed.
-  const offline = network.isConnected === false || network.isInternetReachable === false;
+  const offline = isOffline(network);
   return (
     <View style={styles.root}>
       {state.busy ? (

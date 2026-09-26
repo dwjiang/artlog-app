@@ -16,7 +16,7 @@ import { Gallery } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
-import { showToast } from "@/lib/ui/toast";
+import { dismissToast, showErrorToast, showToast } from "@/lib/ui/toast";
 
 import { api } from "../../../convex/_generated/api";
 import { LeaderboardSheet } from "./leaderboard-sheet";
@@ -46,14 +46,12 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
   const change = useMutation(api.leaderboards.setPreference);
   const [draft, setDraft] = useState<LeaderboardVisibility>();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
   const saving = useRef(false);
   const value = draft ?? preference.data ?? "global";
   async function save() {
     if (saving.current || preference.data === undefined) return;
     saving.current = true;
     setPending(true);
-    setError(undefined);
     try {
       await change({ visibility: value });
       showToast(
@@ -66,7 +64,7 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
       onDismiss();
     } catch (cause) {
       reportError(cause, "leaderboard.participation.save");
-      setError("Could not save participation. Try again.");
+      showErrorToast("Couldn’t save participation.", () => void save());
     } finally {
       saving.current = false;
       setPending(false);
@@ -86,7 +84,10 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
                   key={mode.value}
                   variant="text"
                   disabled={pending || preference.data === undefined}
-                  onPress={() => setDraft(mode.value)}
+                  onPress={() => {
+                    dismissToast();
+                    setDraft(mode.value);
+                  }}
                   style={{ paddingVertical: 14 }}
                   modifiers={[
                     accessibilityLabel(PARTICIPATION_LABELS[mode.value]),
@@ -141,11 +142,6 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
         Only your name, photo and activity totals are shared. Museum names, visit dates, private notes and the rest of
         your collection stay private.
       </Text>
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
-        </Text>
-      )}
       {session.status === "ready" && (
         <GalleryButton
           label="Save participation"

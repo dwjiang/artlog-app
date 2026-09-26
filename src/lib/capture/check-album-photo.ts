@@ -1,9 +1,10 @@
-import { File } from "expo-file-system";
 import { getNetworkStateAsync } from "expo-network";
 
 import { captureOwner } from "@/lib/account/owner-store";
 import { convex } from "@/lib/convex-client";
 import { captureFileUri } from "@/lib/files/photos";
+import { removeFileIfExists } from "@/lib/files/remove-file";
+import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
@@ -22,7 +23,7 @@ export async function checkAlbumPhoto(
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const network = await getNetworkStateAsync();
-    if (network.isInternetReachable === false) return { review: "uncertain" };
+    if (isOffline(network)) return { review: "uncertain" };
     const prepared = await defaultStages.warper.warpAndLetterbox(
       captureFileUri(photo.path),
       null,
@@ -63,8 +64,7 @@ export async function checkAlbumPhoto(
   } finally {
     clearTimeout(timeout);
     if (cropUri) {
-      const file = new File(cropUri);
-      if (file.exists) file.delete();
+      removeFileIfExists(cropUri);
     }
   }
 }

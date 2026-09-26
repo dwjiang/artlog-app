@@ -15,6 +15,7 @@ import { readPhotoSession, updatePhotoSession, type CaptureVisitChoice } from "@
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { formatVisitDate, formatVisitStart } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { planSaveVisit } from "@/lib/venue/venue-reducer";
 
@@ -79,7 +80,6 @@ function CaptureContext({
       captureVisitChoice({ visitLocalId: visitId, venueId, capturedAt: captureTime }, readPhotoSession(owner, draftId)),
     ),
   );
-  const [error, setError] = useState<string>();
   const [venue, setVenue] = useState<{
     name: string;
     visitedOn: string;
@@ -123,7 +123,9 @@ function CaptureContext({
       router.back();
     } catch (error) {
       reportError(error, "capture.save_visit");
-      setError("Couldn’t save this visit choice. Your previous selection is unchanged. Try again.");
+      showErrorToast("Couldn’t save this visit choice. Your previous selection is unchanged.", () =>
+        choose(value, choice),
+      );
     }
   }
 
@@ -161,11 +163,6 @@ function CaptureContext({
       <ThemedText themeColor="textSecondary">
         Only this artwork changes. The next scan joins the visit you are at.
       </ThemedText>
-      {error && (
-        <ThemedText themeColor="error" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      )}
       <View>{option("none", { kind: "none" }, "Artwork only")}</View>
       {!noVisits && (
         <>

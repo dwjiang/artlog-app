@@ -5,6 +5,7 @@ import { Alert, ScrollView, TextInput, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { applyAlbum } from "@/db/repos/artwork-album";
@@ -163,24 +164,13 @@ function Editor({ work }: { work: SavedWork }) {
         />
         {choosing && (
           <View style={{ gap: 12 }}>
-            <Text style={{ color: Gallery.ink }}>Find saved artwork</Text>
-            <TextInput
-              accessibilityLabel="Find saved artwork"
+            <SearchField
+              label="Find saved artwork"
               placeholder="Search your collection"
-              placeholderTextColor={Gallery.muted}
-              keyboardAppearance="light"
-              selectionColor={Gallery.accent}
               value={search}
-              onChangeText={setSearch}
               editable={!busy}
-              style={{
-                padding: 16,
-                backgroundColor: Gallery.surface,
-                color: Gallery.ink,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: Gallery.controlBorder,
-              }}
+              onChange={setSearch}
+              onClear={() => setSearch("")}
             />
             {works.error ? (
               <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>

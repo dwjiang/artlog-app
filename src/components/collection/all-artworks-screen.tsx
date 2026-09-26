@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { View } from "react-native";
 
+import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { useCollectionData } from "@/lib/collection/use-collection-data";
 
 import { CollectionArtworks } from "./collection-artworks";
-import { CollectionSearchField } from "./collection-search-field";
 
 export function AllArtworksScreen() {
   const [attempt, setAttempt] = useState(0);
@@ -29,7 +29,7 @@ function AllArtworks({ onRetry }: { onRetry: () => void }) {
           <ThemedText variant="metadata" themeColor="textSecondary">
             {data.works.length} {data.works.length === 1 ? "artwork" : "artworks"}
           </ThemedText>
-          <CollectionSearchField
+          <SearchField
             filled
             label="Search artworks"
             placeholder="Title, artist, date or place"
