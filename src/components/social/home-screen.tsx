@@ -64,7 +64,7 @@ export function HomeScreen() {
         keyExtractor={visitId}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
-        renderItem={({ item }) => <VisitCard visit={item} token={session.token} />}
+        renderItem={({ item }) => <VisitCard visit={item} token={session.token} viewerProfileId={session.profileId} />}
         refreshControl={
           canBrowse ? (
             <RefreshControl refreshing={feed.refreshing} tintColor="transparent" onRefresh={feed.refresh} />

@@ -169,6 +169,15 @@ function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="report"
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
                       name="queue"
                       dangerouslySingular
                       options={{

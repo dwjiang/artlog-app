@@ -10,6 +10,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PublishedArtwork } from "./published-artwork";
+import { ReportToolbar } from "./report-toolbar";
 import { SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 
@@ -32,45 +33,51 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
   const result = shared ? visit : wall;
   const { data } = result;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
+  const owner = wall.data?.profileId;
   return (
-    <ScrollView
-      style={socialStyles.root}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={socialStyles.content}
-    >
-      {session.offline || (shared && !sessionReady) ? (
-        <SocialGate session={session} />
-      ) : unavailable ? (
-        <SocialState
-          action="Back to Home"
-          onAction={() => {
-            router.dismissAll();
-            router.navigate("/");
-          }}
-          title="Artwork unavailable."
-          detail="This artwork is no longer shared."
-        />
-      ) : result.error ? (
-        <SocialState
-          title="Couldn’t load this artwork."
-          detail={socialErrorMessage(result.error) ?? "Please try again."}
-          action="Try again"
-          onAction={result.refresh}
-        />
-      ) : !data ? (
-        <ArtworkSkeleton />
-      ) : (
-        <PublishedArtwork
-          key={`${session.key}:${itemId}`}
-          artwork={data.artwork}
-          photos={shared ? (visit.data?.photos ?? []) : [data.artwork.media]}
-          shared={shared}
-          frame={shared ? "none" : (wall.data?.layout.frame ?? "none")}
-          token={session.token}
-          enrichment={data.enrichment}
-          note={shared ? undefined : wall.data?.note}
-        />
+    <>
+      {owner && session.status !== "loading" && owner !== session.profileId && (
+        <ReportToolbar kind="wallItem" id={itemId} />
       )}
-    </ScrollView>
+      <ScrollView
+        style={socialStyles.root}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={socialStyles.content}
+      >
+        {session.offline || (shared && !sessionReady) ? (
+          <SocialGate session={session} />
+        ) : unavailable ? (
+          <SocialState
+            action="Back to Home"
+            onAction={() => {
+              router.dismissAll();
+              router.navigate("/");
+            }}
+            title="Artwork unavailable."
+            detail="This artwork is no longer shared."
+          />
+        ) : result.error ? (
+          <SocialState
+            title="Couldn’t load this artwork."
+            detail={socialErrorMessage(result.error) ?? "Please try again."}
+            action="Try again"
+            onAction={result.refresh}
+          />
+        ) : !data ? (
+          <ArtworkSkeleton />
+        ) : (
+          <PublishedArtwork
+            key={`${session.key}:${itemId}`}
+            artwork={data.artwork}
+            photos={shared ? (visit.data?.photos ?? []) : [data.artwork.media]}
+            shared={shared}
+            frame={shared ? "none" : (wall.data?.layout.frame ?? "none")}
+            token={session.token}
+            enrichment={data.enrichment}
+            note={shared ? undefined : wall.data?.note}
+          />
+        )}
+      </ScrollView>
+    </>
   );
 }

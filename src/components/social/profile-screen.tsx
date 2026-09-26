@@ -20,6 +20,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
 import { OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
+import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
@@ -119,6 +120,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   return (
     <GestureHandlerRootView style={socialStyles.root}>
       {bar}
+      {session.status !== "loading" && session.profileId !== profileId && (
+        <ReportToolbar kind="profile" id={person.profileId} />
+      )}
       <ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
@@ -205,7 +209,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               </View>
             )}
             {visits.items.map((visit) => (
-              <VisitCard key={visit.postId} visit={visit} token={session.token} />
+              <VisitCard key={visit.postId} visit={visit} token={session.token} viewerProfileId={session.profileId} />
             ))}
             {visits.done
               && !visits.loading

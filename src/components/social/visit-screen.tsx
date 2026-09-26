@@ -18,6 +18,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitReactions } from "./visit-reactions";
@@ -57,94 +58,101 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
   const countLabel = `${totalCount}${visit.first?.artworkCount === undefined && !visit.done ? "+" : ""}`;
   const author = visit.first?.author;
   return (
-    <FlatList
-      key={columns}
-      style={socialStyles.root}
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      data={items}
-      keyExtractor={artworkId}
-      numColumns={columns}
-      columnWrapperStyle={columns === 2 ? styles.row : undefined}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
-      refreshControl={
-        ready ? (
-          <RefreshControl refreshing={visit.refreshing} tintColor="transparent" onRefresh={visit.refresh} />
-        ) : undefined
-      }
-      ListHeaderComponent={
-        ready && !unavailable && visit.first && author ? (
-          <>
-            {visit.refreshing && <LoadingRing accessibilityLabel="Refreshing visit" style={{ paddingVertical: 12 }} />}
-            <SharedVisitHeading
-              audience={visit.first.audience}
-              venue={visit.first.venue}
-              visitedOn={visit.first.visitedOn}
-              owner={{
-                name: author.name,
-                username: author.username,
-                photoUrl: author.photoUrl,
-                onPress: () =>
-                  router.push({
-                    pathname: "/profile/[profileId]",
-                    params: { profileId: author.profileId },
-                  }),
-              }}
-            />
-            {!!visit.first.reflection && (
-              <Text selectable style={styles.reflection}>
-                {visit.first.reflection}
-              </Text>
-            )}
-            <View style={{ marginBottom: 12 }}>
-              <VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} />
-            </View>
-            <SharedCountHeading label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`} />
-            {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}
-          </>
-        ) : null
-      }
-      renderItem={({ item }) => (
-        <SharedArtworkTile
-          title={item.artwork.title}
-          artist={item.artwork.artist}
-          photos={item.photos ?? []}
-          token={session.token}
-          onPress={() =>
-            router.push({
-              pathname: "/artwork",
-              params: { kind: "visit", postId, itemId: item.itemId },
-            })
-          }
-        />
+    <>
+      {author && session.status !== "loading" && author.profileId !== session.profileId && (
+        <ReportToolbar kind="sharedVisit" id={postId} />
       )}
-      ListEmptyComponent={
-        !ready ? (
-          <SocialGate session={session} />
-        ) : unavailable ? (
-          <SocialState
-            action="Back to Home"
-            onAction={() => {
-              router.dismissAll();
-              router.navigate("/");
-            }}
-            title="Visit unavailable."
-            detail="This visit is no longer shared with you."
+      <FlatList
+        key={columns}
+        style={socialStyles.root}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        data={items}
+        keyExtractor={artworkId}
+        numColumns={columns}
+        columnWrapperStyle={columns === 2 ? styles.row : undefined}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        refreshControl={
+          ready ? (
+            <RefreshControl refreshing={visit.refreshing} tintColor="transparent" onRefresh={visit.refresh} />
+          ) : undefined
+        }
+        ListHeaderComponent={
+          ready && !unavailable && visit.first && author ? (
+            <>
+              {visit.refreshing && (
+                <LoadingRing accessibilityLabel="Refreshing visit" style={{ paddingVertical: 12 }} />
+              )}
+              <SharedVisitHeading
+                audience={visit.first.audience}
+                venue={visit.first.venue}
+                visitedOn={visit.first.visitedOn}
+                owner={{
+                  name: author.name,
+                  username: author.username,
+                  photoUrl: author.photoUrl,
+                  onPress: () =>
+                    router.push({
+                      pathname: "/profile/[profileId]",
+                      params: { profileId: author.profileId },
+                    }),
+                }}
+              />
+              {!!visit.first.reflection && (
+                <Text selectable style={styles.reflection}>
+                  {visit.first.reflection}
+                </Text>
+              )}
+              <View style={{ marginBottom: 12 }}>
+                <VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} />
+              </View>
+              <SharedCountHeading label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`} />
+              {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}
+            </>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <SharedArtworkTile
+            title={item.artwork.title}
+            artist={item.artwork.artist}
+            photos={item.photos ?? []}
+            token={session.token}
+            onPress={() =>
+              router.push({
+                pathname: "/artwork",
+                params: { kind: "visit", postId, itemId: item.itemId },
+              })
+            }
           />
-        ) : visit.done && !visit.loading && !visit.error ? (
-          <SharedEmpty query={query} onClear={() => setSearch("")} />
-        ) : null
-      }
-      ListFooterComponent={
-        ready && !unavailable && !(visit.refreshing && items.length > 0 && !visit.error) ? (
-          <PageFooter {...visit} count={items.length} noun="artworks" skeleton="gallery" />
-        ) : null
-      }
-      onEndReached={ready ? visit.loadMore : undefined}
-      onEndReachedThreshold={0.4}
-    />
+        )}
+        ListEmptyComponent={
+          !ready ? (
+            <SocialGate session={session} />
+          ) : unavailable ? (
+            <SocialState
+              action="Back to Home"
+              onAction={() => {
+                router.dismissAll();
+                router.navigate("/");
+              }}
+              title="Visit unavailable."
+              detail="This visit is no longer shared with you."
+            />
+          ) : visit.done && !visit.loading && !visit.error ? (
+            <SharedEmpty query={query} onClear={() => setSearch("")} />
+          ) : null
+        }
+        ListFooterComponent={
+          ready && !unavailable && !(visit.refreshing && items.length > 0 && !visit.error) ? (
+            <PageFooter {...visit} count={items.length} noun="artworks" skeleton="gallery" />
+          ) : null
+        }
+        onEndReached={ready ? visit.loadMore : undefined}
+        onEndReachedThreshold={0.4}
+      />
+    </>
   );
 }
 

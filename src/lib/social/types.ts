@@ -1,4 +1,4 @@
-import type { FunctionReturnType } from "convex/server";
+import type { FunctionArgs, FunctionReturnType } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
 
@@ -8,3 +8,6 @@ export type PublicProfile = NonNullable<FunctionReturnType<typeof api.profiles.g
 export type PublicWall = NonNullable<FunctionReturnType<typeof api.walls.getPublic>>;
 export type Relationship = FunctionReturnType<typeof api.friendships.getState>;
 export type FriendshipAction = "request" | "accept" | "decline" | "cancel" | "remove";
+export type ReportInput = FunctionArgs<typeof api.reports.submit>;
+export type ReportTarget = ReportInput["target"];
+export type ReportReason = ReportInput["reason"];

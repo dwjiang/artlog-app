@@ -145,3 +145,29 @@ it("opens the likes list from the compact summary and dismisses it", async () =>
   await fireEvent.press(screen.getByRole("button", { name: "Close likes" }));
   expect(screen.queryByText("@jules")).toBeNull();
 });
+
+it("reports someone else’s comment after closing the sheet, and offers Delete instead on your own", async () => {
+  mockComments = [
+    {
+      commentId: "theirs",
+      body: "Rude words.",
+      createdAt: 1,
+      isAuthor: false,
+      author: { profileId: "friend", name: "Jules Morgan" },
+    },
+    {
+      commentId: "mine",
+      body: "My note.",
+      createdAt: 2,
+      isAuthor: false,
+      author: { profileId: "me", name: "Me" },
+    },
+  ];
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  expect(screen.queryByRole("button", { name: "Report comment: My note." })).toBeNull();
+  expect(screen.getByRole("button", { name: "Delete comment: My note." })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Report comment: Rude words." }));
+  expect(screen.queryByText("Rude words.")).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "comment", id: "theirs" } });
+});

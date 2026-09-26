@@ -150,6 +150,7 @@ export const getArtwork = query({
   returns: v.union(
     v.object({
       ...wallArtwork.fields,
+      profileId: v.id("profiles"),
       enrichment: v.optional(publicArtworkStory),
     }),
     v.null(),
@@ -159,7 +160,7 @@ export const getArtwork = query({
     const current = item ? await currentProjection(ctx, item) : null;
     if (!current) return null;
     const enrichment = await projectArtworkStory(ctx, current.save);
-    return { ...current.projection, ...(enrichment ? { enrichment } : {}) };
+    return { ...current.projection, profileId: current.profile._id, ...(enrichment ? { enrichment } : {}) };
   },
 });
 const sameLayout = (a: Infer<typeof wallLayout>, b: Infer<typeof wallLayout>) =>
