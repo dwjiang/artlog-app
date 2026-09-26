@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
-import { sharedSelection, sharedVisitCard } from "../shared/social/contracts";
+import { sharedSelection, sharedVisitCard, visitAudience } from "../shared/social/contracts";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
@@ -239,25 +239,29 @@ export const listFeed = query({
   },
 });
 export const listByProfile = query({
-  args: { profileId: v.id("profiles"), ...pageArgs },
+  args: { profileId: v.id("profiles"), audience: v.optional(visitAudience), ...pageArgs },
   returns: historyResult,
-  handler: async (ctx, input) => {
+  handler: async (ctx, { audience, ...input }) => {
     const viewer = await optionalProfile(ctx);
     if (!(await activeProfile(ctx, input.profileId))) {
       throw new ConvexError({ code: "not_found" });
     }
-    if (viewer && viewer._id !== input.profileId) {
+    const empty = { page: [], cursor: null, isDone: true };
+    const own = viewer?._id === input.profileId;
+    let friend = false;
+    if (viewer && !own) {
       // A block in either direction hides every post, so skip the per-candidate scan that would reject them all.
-      const { block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
-      if (block?.active || reverseBlock?.active) {
-        return { page: [], cursor: null, isDone: true };
-      }
+      const { edge, block, reverseBlock } = await relationshipSnapshot(ctx, input.profileId, viewer._id);
+      if (block?.active || reverseBlock?.active) return empty;
+      friend = edge?.state === "accepted";
     }
+    // The same shortcut for an audience filter the viewer can never read.
+    if ((audience === "private" && !own) || (audience === "friends" && !own && !friend)) return empty;
     return historyPage(
       ctx,
       viewer?._id,
-      [profileHistory(ctx, input.profileId)],
-      `profile:${viewer?._id ?? "guest"}:${input.profileId}`,
+      [profileHistory(ctx, input.profileId, audience)],
+      `profile:${viewer?._id ?? "guest"}:${input.profileId}:${audience ?? "all"}`,
       input,
     );
   },

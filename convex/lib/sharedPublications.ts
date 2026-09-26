@@ -275,11 +275,17 @@ export type HistoryStream = (
   bound: (tail: HistoryTail) => IndexRange,
 ) => Query<NamedTableInfo<DataModel, "sharedVisits">>;
 export const profileHistory =
-  (ctx: QueryCtx, profileId: Id<"profiles">): HistoryStream =>
+  (ctx: QueryCtx, profileId: Id<"profiles">, audience?: Infer<typeof visitAudience>): HistoryStream =>
   (bound) =>
-    ctx.db
-      .query("sharedVisits")
-      .withIndex("by_profile_status_history", (q) => bound(q.eq("profileId", profileId).eq("status", "active")));
+    audience
+      ? ctx.db
+          .query("sharedVisits")
+          .withIndex("by_profile_audience_status_history", (q) =>
+            bound(q.eq("profileId", profileId).eq("audience", audience).eq("status", "active")),
+          )
+      : ctx.db
+          .query("sharedVisits")
+          .withIndex("by_profile_status_history", (q) => bound(q.eq("profileId", profileId).eq("status", "active")));
 export const publicHistory =
   (ctx: QueryCtx): HistoryStream =>
   (bound) =>
