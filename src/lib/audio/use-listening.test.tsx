@@ -8,6 +8,7 @@ import { ListeningContext, useHasListeningTrack } from "./use-listening";
 
 let emit: (patch?: Partial<Playback>) => void = () => {};
 const player: AudioHandle = {
+  currentStatus: { currentTime: 0, duration: 100, playing: false, isLoaded: true, didJustFinish: false },
   play: jest.fn(),
   pause: jest.fn(),
   remove: jest.fn(),

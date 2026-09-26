@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
+import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
@@ -23,6 +24,32 @@ const script = guideBodyFixture.map(({ sentence, factIds }) => ({
   fact_ids: factIds,
   support: supportFor[factIds[0]],
 }));
+// Six seconds of speech: segments of 2.016, 2.016 and 1.968 seconds.
+const spokenBytes = speechMp3(250);
+const speech = (body: BodyInit = spokenBytes) => new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
+// Speech that pauses after its first segment until released, then finishes or drops the connection.
+function heldSpeech(ending: "finish" | "fail" = "finish") {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let pulls = 0;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (pulls++ === 0) {
+        controller.enqueue(spokenBytes.subarray(0, 100 * FRAME_BYTES));
+        return;
+      }
+      await held;
+      if (ending === "fail") {
+        controller.error(new Error("Connection reset"));
+        return;
+      }
+      controller.enqueue(spokenBytes.subarray(100 * FRAME_BYTES));
+      controller.close();
+    },
+  });
+  return { response: speech(body), release };
+}
+const path = (uri: string) => new URL(uri).pathname + new URL(uri).search;
 const completion = (value = script) =>
   new Response(
     JSON.stringify({
@@ -44,18 +71,22 @@ async function setup() {
       },
     }),
   );
+  vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
   vi.stubEnv("OPENAI_API_KEY", "test-only-secret");
   vi.stubEnv("NEBIUS_API_KEY", "test-nebius-secret");
   const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) =>
-    url.includes("tokenfactory")
-      ? completion()
-      : new Response(new Uint8Array([73, 68, 51, 1]), {
-          headers: { "Content-Type": "audio/mpeg" },
-        }),
+    url.includes("tokenfactory") ? completion() : speech(),
   );
   vi.stubGlobal("fetch", fetcher);
   const rows = () => t.run((ctx) => ctx.db.query("narrationAudio").take(10));
-  return { t, ...device, artworkId, fetcher, rows, args: { artworkId } };
+  const files = () => t.run((ctx) => ctx.db.system.query("_storage").collect());
+  // Plays through the live playlist, then waits for the whole file to be stored.
+  const render = async (as: typeof device.as = device.as) => {
+    const audio = await as.action(api.narration.render, { artworkId });
+    await t.finishInProgressScheduledFunctions();
+    return audio;
+  };
+  return { t, ...device, artworkId, fetcher, rows, files, render, args: { artworkId } };
 }
 afterEach(() => {
   vi.useRealTimers();
@@ -63,11 +94,36 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-it("generates Shimmer with the museum instructions once and shares cached audio across devices", async () => {
-  const { t, as, args, fetcher } = await setup();
+it("streams Shimmer with the museum instructions as a live playlist, then shares the stored file across devices", async () => {
+  const { t, as, args, artworkId, fetcher, rows, files } = await setup();
+  const held = heldSpeech();
+  fetcher.mockResolvedValueOnce(completion());
+  fetcher.mockResolvedValueOnce(held.response);
   const first = await as.action(api.narration.render, args);
+  expect(first).toEqual({
+    uri: `https://test.convex.site/narration-playlist?artworkId=${artworkId}&render=${first.renderId}`,
+    sentences: guideFixture,
+    renderId: expect.any(String),
+    live: true,
+  });
+  held.release();
+  await t.finishInProgressScheduledFunctions();
+  const playlist = await t.fetch(path(first.uri));
+  expect(playlist.headers.get("Content-Type")).toBe("application/vnd.apple.mpegurl");
+  const lines = (await playlist.text()).split("\n");
+  expect(lines.filter((line) => line.startsWith("#EXTINF"))).toEqual([
+    "#EXTINF:2.016,",
+    "#EXTINF:2.016,",
+    "#EXTINF:1.968,",
+  ]);
+  expect(lines.at(-2)).toBe("#EXT-X-ENDLIST");
   const other = await seedDevice(t);
-  expect(await other.as.action(api.narration.render, args)).toEqual(first);
+  const stored = await other.as.action(api.narration.render, args);
+  expect(stored).toEqual({ ...first, uri: expect.not.stringContaining("narration-playlist"), live: false });
+  const { storageId } = (await rows())[0];
+  const whole = await t.run(async (ctx) => (await ctx.storage.get(storageId!))!.arrayBuffer());
+  expect(new Uint8Array(whole)).toEqual(spokenBytes);
+  expect(await files()).toHaveLength(4);
   expect(fetcher).toHaveBeenCalledTimes(2);
   const options = (fetcher.mock.calls[1] as unknown as [string, RequestInit])[1];
   expect(JSON.parse(options.body as string)).toMatchObject({
@@ -77,15 +133,55 @@ it("generates Shimmer with the museum instructions once and shares cached audio 
     response_format: "mp3",
   });
   expect(JSON.parse(options.body as string).instructions).toContain("museum guide");
-  expect(first.uri).toBeTruthy();
-  expect(first.renderId).toBeTruthy();
-  expect(first.sentences).toEqual(guideFixture);
   const authoring = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
   expect(authoring.model).toBe("nvidia/Nemotron-3-Ultra-550b-a55b");
   expect(JSON.parse(authoring.messages[1].content).research).toEqual(researchFixture);
   const spend = await t.run((ctx) => ctx.db.query("dailySpend").take(1));
   expect(spend[0].tokenFactoryCalls).toBe(1);
   expect(JSON.stringify(first)).not.toContain("test-only-secret");
+});
+
+it("lets a second device join the playlist while the first is still being spoken", async () => {
+  const { t, as, args, fetcher } = await setup();
+  const held = heldSpeech();
+  fetcher.mockResolvedValueOnce(completion());
+  fetcher.mockResolvedValueOnce(held.response);
+  const first = await as.action(api.narration.render, args);
+  const other = await seedDevice(t);
+  expect(await other.as.action(api.narration.render, args)).toEqual(first);
+  const open = await (await t.fetch(path(first.uri))).text();
+  expect(open).not.toContain("#EXT-X-ENDLIST");
+  expect(open.match(/#EXTINF/g)).toHaveLength(1);
+  held.release();
+  await t.finishInProgressScheduledFunctions();
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it("drops the live segments an hour after the whole file is stored", async () => {
+  const { t, artworkId, rows, files, render } = await setup();
+  const first = await render();
+  const [drop] = await t.run((ctx) =>
+    ctx.db.system
+      .query("_scheduled_functions")
+      .filter((q) => q.eq(q.field("name"), "narration:dropSegments"))
+      .collect(),
+  );
+  expect(drop.args).toEqual([{ artworkId, claim: first.renderId }]);
+  expect(drop.scheduledTime).toBeGreaterThan(Date.now() + 59 * 60_000);
+  expect((await rows())[0].segments).toHaveLength(3);
+  await t.mutation(internal.narration.dropSegments, drop.args[0]);
+  expect((await rows())[0].segments).toBeUndefined();
+  expect(await files()).toHaveLength(1);
+  expect((await t.fetch(path(first.uri))).status).toBe(404);
+});
+
+it("does not serve a playlist for a malformed artwork or another render", async () => {
+  const { t, render } = await setup();
+  const first = await render();
+  const url = new URL(first.uri);
+  expect((await t.fetch(`${url.pathname}?artworkId=not-an-id&render=${first.renderId}`)).status).toBe(404);
+  url.searchParams.set("render", "another-render");
+  expect((await t.fetch(url.pathname + url.search)).status).toBe(404);
 });
 
 it("rejects unauthenticated, unregistered and banned callers before spending", async () => {
@@ -132,9 +228,9 @@ it("rejects facts under review, catalogue-only research and retired artworks bef
 });
 
 it("is independent of the written docent and re-renders only when the research is rewritten", async () => {
-  const { t, as, args, artworkId, fetcher, rows } = await setup();
+  const { t, artworkId, fetcher, rows, files, render } = await setup();
   await t.run((ctx) => ctx.db.patch("artworks", artworkId, { docent: undefined }));
-  const first = await as.action(api.narration.render, args);
+  const first = await render();
   await t.run((ctx) =>
     ctx.db.patch("artworks", artworkId, {
       docent: {
@@ -142,14 +238,14 @@ it("is independent of the written docent and re-renders only when the research i
       },
     }),
   );
-  expect(await as.action(api.narration.render, args)).toEqual(first);
-  const previous = (await rows())[0].storageId!;
+  expect((await render()).renderId).toBe(first.renderId);
+  const previous = await files();
   const updatedFacts = researchFixture.map((fact) => ({
     ...fact,
     text: `${fact.text} Corrected evidence.`,
   }));
   await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheet: updatedFacts, factSheetUpdatedAt: 6 }));
-  const updated = await as.action(api.narration.render, args);
+  const updated = await render();
   expect(updated.renderId).not.toBe(first.renderId);
   expect(
     JSON.parse((fetcher.mock.calls[2] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
@@ -157,12 +253,13 @@ it("is independent of the written docent and re-renders only when the research i
   expect(fetcher).toHaveBeenCalledTimes(4);
   expect(fetcher.mock.calls.every(([url]) => !url.includes("tavily"))).toBe(true);
   expect(await rows()).toHaveLength(1);
-  expect(await t.run((ctx) => ctx.storage.get(previous))).toBeNull();
+  const remaining = new Set((await files()).map((file) => file._id));
+  expect(previous.filter((file) => remaining.has(file._id))).toEqual([]);
 });
 
 it("re-renders from corrected artwork metadata even when the research is unchanged", async () => {
-  const { t, as, args, artworkId, fetcher } = await setup();
-  const first = await as.action(api.narration.render, args);
+  const { t, as, artworkId, fetcher, render } = await setup();
+  const first = await render();
   await t.run((ctx) =>
     ctx.db.patch("artworks", artworkId, {
       title: "Nymphéas",
@@ -172,7 +269,7 @@ it("re-renders from corrected artwork metadata even when the research is unchang
   );
   const opening = "Attributed to Claude Monet. Nymphéas. Dated 1917.";
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationOpening).toBe(opening);
-  const updated = await as.action(api.narration.render, args);
+  const updated = await render();
   expect(updated.renderId).not.toBe(first.renderId);
   expect(updated.sentences).toEqual([{ sentence: opening, factIds: [] }, ...guideBodyFixture]);
   expect(fetcher).toHaveBeenCalledTimes(4);
@@ -181,50 +278,70 @@ it("re-renders from corrected artwork metadata even when the research is unchang
 });
 
 it("re-renders audio that was made with another voice or model", async () => {
-  const { t, as, args, fetcher, rows } = await setup();
-  const first = await as.action(api.narration.render, args);
+  const { t, fetcher, rows, render } = await setup();
+  const first = await render();
   const entry = (await rows())[0];
   await t.run((ctx) => ctx.db.patch("narrationAudio", entry._id, { voice: "previous-voice" }));
-  expect((await as.action(api.narration.render, args)).renderId).not.toBe(first.renderId);
+  expect((await render()).renderId).not.toBe(first.renderId);
   await t.run(async (ctx) => {
     const row = (await ctx.db.query("narrationAudio").take(1))[0];
     await ctx.db.patch("narrationAudio", row._id, { guideModel: "previous-model" });
   });
-  await as.action(api.narration.render, args);
+  await render();
   expect(fetcher).toHaveBeenCalledTimes(6);
 });
 
-it("tells the client which render is current only while it is fresh", async () => {
-  const { t, as, args, artworkId } = await setup();
-  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
+it("tells the client which render is current only once its file is stored and while it is fresh", async () => {
+  const { t, as, args, artworkId, fetcher } = await setup();
+  const held = heldSpeech();
+  fetcher.mockResolvedValueOnce(completion());
+  fetcher.mockResolvedValueOnce(held.response);
+  const current = async () => (await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId;
+  expect(await current()).toBeUndefined();
   const first = await as.action(api.narration.render, args);
-  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBe(first.renderId);
+  expect(await current()).toBeUndefined();
+  held.release();
+  await t.finishInProgressScheduledFunctions();
+  expect(await current()).toBe(first.renderId);
   await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
-  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationRenderId).toBeUndefined();
+  expect(await current()).toBeUndefined();
 });
 
 it("clears every rendering and its audio so the next play renders again", async () => {
-  const { t, as, args, fetcher, rows } = await setup();
-  const first = await as.action(api.narration.render, args);
-  const storageId = (await rows())[0].storageId!;
+  const { t, fetcher, rows, files, render } = await setup();
+  const first = await render();
   expect(await t.mutation(internal.narration.clear, {})).toBe(1);
   expect(await rows()).toHaveLength(0);
-  expect(await t.run((ctx) => ctx.storage.get(storageId))).toBeNull();
-  expect((await as.action(api.narration.render, args)).renderId).not.toBe(first.renderId);
+  expect(await files()).toEqual([]);
+  expect((await render()).renderId).not.toBe(first.renderId);
   expect(fetcher).toHaveBeenCalledTimes(4);
 });
 
 it("releases failed generations, hides provider response details, and permits retry", async () => {
-  const { t, as, args, fetcher, rows } = await setup();
+  const { t, as, args, fetcher, rows, render } = await setup();
   fetcher.mockResolvedValueOnce(completion());
   fetcher.mockResolvedValueOnce(new Response("Sensitive provider error", { status: 429 }));
-  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
-    data: { code: "narration_provider_failed" },
-  });
+  const failure = await as.action(api.narration.render, args).catch((error: unknown) => error);
+  expect(failure).toMatchObject({ data: { code: "narration_provider_failed" } });
+  expect(JSON.stringify(failure)).not.toContain("Sensitive");
+  await t.finishInProgressScheduledFunctions();
   expect(await rows()).toHaveLength(0);
-  expect((await as.action(api.narration.render, args)).uri).toBeTruthy();
+  expect((await render()).uri).toBeTruthy();
   expect(fetcher).toHaveBeenCalledTimes(4);
-  expect(t).toBeTruthy();
+});
+
+it("releases a stream that drops midway and deletes the segments it already stored", async () => {
+  const { t, as, args, fetcher, rows, files } = await setup();
+  const held = heldSpeech("fail");
+  fetcher.mockResolvedValueOnce(completion());
+  fetcher.mockResolvedValueOnce(held.response);
+  const live = await as.action(api.narration.render, args);
+  expect(await files()).toHaveLength(1);
+  held.release();
+  await t.finishInProgressScheduledFunctions();
+  expect(await rows()).toHaveLength(0);
+  expect(await files()).toEqual([]);
+  expect((await t.fetch(path(live.uri))).status).toBe(404);
 });
 
 it("allows only one generation claim and rejects a late completion after a stale claim is replaced", async () => {
@@ -252,11 +369,7 @@ it("allows only one generation claim and rejects a late completion after a stale
     ).owned,
   ).toBe(true);
   const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["obsolete"])));
-  await t.mutation(internal.narration.finish, {
-    ...args,
-    claim: "first",
-    audio: { storageId, sentences },
-  });
+  await t.mutation(internal.narration.finish, { ...args, claim: "first", storageId });
   expect(await t.run((ctx) => ctx.storage.get(storageId))).toBeNull();
   const entries = await rows();
   expect(entries).toHaveLength(1);
@@ -272,29 +385,27 @@ it("takes over a shared generation once its owner releases it instead of waiting
   await vi.advanceTimersByTimeAsync(3000);
   expect(fetcher).not.toHaveBeenCalled();
   await t.mutation(internal.narration.finish, { ...args, claim: "failing" });
-  await vi.advanceTimersByTimeAsync(1000);
+  await vi.advanceTimersByTimeAsync(2000);
   expect((await waiting).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
-it("deletes its audio when the research changes while it is being spoken", async () => {
-  const { t, as, args, artworkId, fetcher, rows } = await setup();
+it("deletes its speech when the research changes while it is being spoken", async () => {
+  const { t, as, args, artworkId, fetcher, rows, files } = await setup();
+  const held = heldSpeech();
   fetcher.mockResolvedValueOnce(completion());
-  fetcher.mockImplementationOnce(async () => {
-    await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
-    return new Response(new Uint8Array([73, 68, 51, 1]), {
-      headers: { "Content-Type": "audio/mpeg" },
-    });
-  });
-  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
-    data: { code: "narration_unavailable" },
-  });
+  fetcher.mockResolvedValueOnce(held.response);
+  const live = await as.action(api.narration.render, args);
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
+  held.release();
+  await t.finishInProgressScheduledFunctions();
   expect(await rows()).toHaveLength(0);
-  expect(await t.run((ctx) => ctx.db.system.query("_storage").collect())).toEqual([]);
+  expect(await files()).toEqual([]);
+  expect((await t.fetch(path(live.uri))).status).toBe(404);
 });
 
 it("retries once naming the sentence whose evidence span is not verbatim, then speaks the fixed script", async () => {
-  const { t, as, args, fetcher } = await setup();
+  const { t, fetcher, render } = await setup();
   const invented = [
     ...script.slice(0, 9),
     {
@@ -304,7 +415,7 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
     },
   ];
   fetcher.mockResolvedValueOnce(completion(invented));
-  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
+  expect((await render()).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(3);
   const request = (call: number) =>
     JSON.parse((fetcher.mock.calls[call] as unknown as [string, RequestInit])[1].body as string);

@@ -1,7 +1,21 @@
+import { getNetworkStateAsync } from "expo-network";
+
 import { convexErrorCode } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
 
 import type { DocentSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
+
+async function reportStalledPlayback() {
+  try {
+    const network = await getNetworkStateAsync();
+    if (network.isConnected && network.isInternetReachable !== false) {
+      reportError(new Error("Narration playback stalled"), "narration.playback");
+    }
+  } catch {
+    // Diagnostics must not prevent playback recovery when connectivity cannot be checked.
+  }
+}
 
 function preparationError(error: unknown) {
   switch (convexErrorCode(error)) {
@@ -26,11 +40,13 @@ export type Playback = {
   isLoaded: boolean;
   didJustFinish: boolean;
   playbackState?: string;
+  timeControlStatus?: string;
 };
 export type AudioHandle = {
+  readonly currentStatus: Playback;
   play(): void;
   pause(): void;
-  seekTo(seconds: number): Promise<void>;
+  seekTo(seconds: number, toleranceMillisBefore?: number, toleranceMillisAfter?: number): Promise<void>;
   remove(): void;
   setPlaybackRate(rate: number): void;
   setActiveForLockScreen(active: boolean, metadata?: { title: string; artist: string; artworkUrl?: string }): void;
@@ -52,7 +68,9 @@ export type ListeningState = {
 };
 type Progress = Record<string, { position: number; duration: number; text: string }>;
 export type ListeningDependencies = {
-  render(track: ListeningTrack): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number }>;
+  render(
+    track: ListeningTrack,
+  ): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number; live?: boolean }>;
   cancel(): void;
   create(uri: string): AudioHandle;
   configure(): Promise<void>;
@@ -77,6 +95,9 @@ export class ListeningController {
   private progress: Progress = {};
   private desiredPlaying = false;
   private loadTimeout?: ReturnType<typeof setTimeout>;
+  private progressWatch?: ReturnType<typeof setInterval>;
+  // A live playlist has no length yet, and AVPlayer pauses it at any rate above 1× until it has one.
+  private awaitingLength = false;
   constructor(private dependencies: ListeningDependencies) {}
   snapshot = () => this.state;
   subscribe = (listener: () => void) => {
@@ -105,6 +126,8 @@ export class ListeningController {
   }
   private release() {
     clearTimeout(this.loadTimeout);
+    clearInterval(this.progressWatch);
+    this.awaitingLength = false;
     this.subscription?.remove();
     this.subscription = undefined;
     if (this.player) {
@@ -114,6 +137,24 @@ export class ListeningController {
       this.player = undefined;
     }
   }
+  private watchProgress(player: AudioHandle) {
+    let position = player.currentStatus.currentTime;
+    let progressedAt = Date.now();
+    this.progressWatch = setInterval(() => {
+      // AVPlayer can stop sending events while an HLS playlist returns 404. Read native state
+      // so a lock-screen pause or background playback with delayed JS events is not a failure.
+      const status = player.currentStatus;
+      if (status.timeControlStatus === "paused" || status.didJustFinish || status.currentTime !== position) {
+        position = status.currentTime;
+        progressedAt = Date.now();
+      } else if (Date.now() - progressedAt >= 15_000) {
+        this.update({ position: status.currentTime, duration: status.duration || this.state.duration });
+        this.remember();
+        this.fail("Audio stopped responding. Tap Retry.");
+        void reportStalledPlayback();
+      }
+    }, 1000);
+  }
   async play(track: ListeningTrack, autoplay = true, waiting = false) {
     if (track.work.facts.length === 0) return;
     this.remember();
@@ -122,7 +163,7 @@ export class ListeningController {
     this.dependencies.cancel();
     this.desiredPlaying = autoplay;
     const saved = this.progressFor(track);
-    const position = saved && saved.position < saved.duration - 0.5 ? saved.position : 0;
+    const position = saved && (saved.duration === 0 || saved.position < saved.duration - 0.5) ? saved.position : 0;
     this.update({
       current: track,
       sentences: undefined,
@@ -141,7 +182,13 @@ export class ListeningController {
       if (generation !== this.generation) return;
       const player = this.dependencies.create(rendered.uri);
       this.player = player;
-      player.setPlaybackRate(this.state.rate);
+      this.awaitingLength = rendered.live === true;
+      player.setPlaybackRate(this.awaitingLength ? 1 : this.state.rate);
+      const nowPlaying = {
+        title: track.work.title,
+        artist: track.work.artist,
+        artworkUrl: track.work.imageUri,
+      };
       let starting = false;
       let started = false;
       let finished = false;
@@ -166,17 +213,14 @@ export class ListeningController {
           const duration = status.duration || rendered.duration || 0;
           this.update({ duration });
           void player
-            .seekTo(Math.min(position, duration))
+            .seekTo(duration > 0 ? Math.min(position, duration) : position, 0, 0)
             .then(() => {
               if (generation !== this.generation) return;
               started = true;
               clearTimeout(this.loadTimeout);
-              player.setActiveForLockScreen(true, {
-                title: track.work.title,
-                artist: track.work.artist,
-                artworkUrl: track.work.imageUri,
-              });
+              player.setActiveForLockScreen(true, nowPlaying);
               this.update({ phase: "ready" });
+              if (rendered.live) this.watchProgress(player);
               if (this.desiredPlaying) player.play();
             })
             .catch(() => {
@@ -186,6 +230,13 @@ export class ListeningController {
             });
         }
         if (!started) return;
+        if (this.awaitingLength && status.duration > 0) {
+          this.awaitingLength = false;
+          player.setPlaybackRate(this.state.rate);
+          // Expo retains the live-stream metadata flag until now-playing info is cleared.
+          player.setActiveForLockScreen(false);
+          player.setActiveForLockScreen(true, nowPlaying);
+        }
         this.update({
           position: status.currentTime,
           duration: status.duration || this.state.duration,
@@ -194,6 +245,7 @@ export class ListeningController {
         this.remember();
         if (status.didJustFinish && !finished) {
           finished = true;
+          clearInterval(this.progressWatch);
           const next = this.state.queue[0];
           if (next) {
             void this.play(next, !this.state.pauseBetween, this.state.pauseBetween);
@@ -225,7 +277,7 @@ export class ListeningController {
     if (this.state.playing) {
       this.desiredPlaying = false;
       this.player?.pause();
-    } else if (this.state.position >= this.state.duration - 0.2) {
+    } else if (this.state.duration > 0 && this.state.position >= this.state.duration - 0.2) {
       void this.play(this.state.current);
     } else {
       this.desiredPlaying = true;
@@ -234,7 +286,7 @@ export class ListeningController {
     }
   };
   seek = async (position: number) => {
-    if (this.state.phase !== "ready" || !Number.isFinite(position)) return;
+    if (this.state.phase !== "ready" || !this.state.duration || !Number.isFinite(position)) return;
     const { generation } = this;
     const next = Math.max(0, Math.min(this.state.duration, position));
     try {
@@ -277,7 +329,7 @@ export class ListeningController {
   };
   setPauseBetween = (pauseBetween: boolean) => this.update({ pauseBetween });
   setRate = (rate: number) => {
-    this.player?.setPlaybackRate(rate);
+    if (!this.awaitingLength) this.player?.setPlaybackRate(rate);
     this.update({ rate });
   };
   stop = () => {

@@ -3,12 +3,13 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { PlayerTransport } from "./player-transport";
 
 const mockSeek = jest.fn();
+const mockAudio = { duration: 120 };
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({
     position: 12,
-    duration: 120,
+    duration: mockAudio.duration,
     phase: "ready",
-    playing: false,
+    playing: true,
     rate: 1,
     controller: { seek: mockSeek },
   }),
@@ -20,7 +21,10 @@ jest.mock("@react-native-community/slider", () => {
   };
 });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockAudio.duration = 120;
+});
 
 it("previews the drag position and seeks once to the final released value", async () => {
   await render(<PlayerTransport view="player" onView={jest.fn()} />);
@@ -65,4 +69,18 @@ it("keeps Up next selected while adding saved artworks", async () => {
   await render(<PlayerTransport view="saved" onView={onView} />);
   await fireEvent.press(screen.getByRole("button", { name: "Up next", selected: true }));
   expect(onView).toHaveBeenCalledWith("player");
+});
+
+it("offers no seeking and no time left while the narration's length is still unknown", async () => {
+  mockAudio.duration = 0;
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  const slider = screen.getByRole("adjustable", { name: "Narration position" });
+  expect(slider).toHaveProp("disabled", true);
+  expect(slider).toHaveProp("value", 0);
+  expect(slider).toHaveAccessibilityValue({ text: "0:12" });
+  expect(screen.getByRole("button", { name: "Back 15 seconds" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Forward 15 seconds" })).toBeDisabled();
+  expect(screen.queryByText(/^−/)).not.toBeOnTheScreen();
+  await fireEvent(slider, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
+  expect(mockSeek).not.toHaveBeenCalled();
 });
