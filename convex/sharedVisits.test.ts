@@ -400,12 +400,12 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
       seedSource: "manual",
       region: "US",
       optOut: false,
+      contributionRevision: 0,
     });
     const postIds = [];
     for (let i = 0; i < LIMITS.friends; i++) {
       const accountId = await ctx.db.insert("accounts", {
         appleUserId: `stress-${i}`,
-        createdAt: 1,
       });
       const profileId = await ctx.db.insert("profiles", {
         accountId,
@@ -415,7 +415,6 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
         active: true,
         leaderboardVisibility: "global",
         publishedWallCount: 0,
-        createdAt: 1,
         updatedAt: 1,
       });
       const owner = { kind: "account" as const, accountId };

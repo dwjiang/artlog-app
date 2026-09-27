@@ -55,7 +55,6 @@ export const registerCatalog = internalMutation({
         saveId,
         source,
         provenance,
-        createdAt: Date.now(),
       });
     }
     // A save keeps one catalog row, so a changed source or evidence replaces it in place.
@@ -73,7 +72,6 @@ export const registerCatalog = internalMutation({
       await ctx.db.patch("mediaAssets", existing._id, {
         source,
         provenance,
-        createdAt: Date.now(),
         revokedAt: undefined,
       });
     }
@@ -113,7 +111,6 @@ export const beginPreparation = internalMutation({
         height: 1,
       },
       provenance: { kind: "contribution", ...source },
-      createdAt: Date.now(),
     });
     return ctx.db.get("mediaAssets", id);
   },

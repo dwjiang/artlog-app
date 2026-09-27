@@ -10,7 +10,7 @@ import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/reje
 export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">, rebuild = true) {
   const object = await ctx.db.get("objects", objectId);
   if (!object) return;
-  const revision = (object.feedbackRevision ?? 0) + 1;
+  const revision = object.feedbackRevision + 1;
   await ctx.db.patch("objects", objectId, { feedbackRevision: revision });
   if (
     !rebuild
@@ -46,7 +46,7 @@ export const rebuildPage = internalMutation({
       await ctx.db.delete("feedbackRebuilds", jobId);
       return null;
     }
-    const restart = job.revision !== (object.feedbackRevision ?? 0);
+    const restart = job.revision !== object.feedbackRevision;
     const state = restart
       ? {
           confirmCount: 0,
@@ -62,7 +62,7 @@ export const rebuildPage = internalMutation({
         };
     const page = await ctx.db
       .query("feedbackEvents")
-      .withIndex("by_object_created", (q) => q.eq("objectId", object._id))
+      .withIndex("by_object", (q) => q.eq("objectId", object._id))
       .paginate({ cursor: restart ? null : job.cursor, numItems: 50 });
     for (const event of page.page) {
       const device = await ctx.db.get("devices", event.deviceId);
@@ -95,7 +95,7 @@ export const rebuildPage = internalMutation({
     } else {
       await ctx.db.patch("feedbackRebuilds", jobId, {
         ...state,
-        revision: object.feedbackRevision ?? 0,
+        revision: object.feedbackRevision,
         cursor: page.continueCursor,
       });
       await ctx.scheduler.runAfter(0, internal.feedbackReplay.rebuildPage, {

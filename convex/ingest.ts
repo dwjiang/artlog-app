@@ -13,6 +13,7 @@ import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
 import { patchContributionState } from "./lib/objectContributionState";
+import { newObjectCounters } from "./lib/objectCounters";
 import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
@@ -226,6 +227,7 @@ export const upsertMuseums = internalMutation({
         ids[row.key] = await ctx.db.insert("museums", {
           ...fields,
           optOut: false,
+          contributionRevision: 0,
         });
         changed.push(ids[row.key]);
         inserted += 1;
@@ -264,7 +266,7 @@ export const upsertArtworks = internalMutation({
         if (fieldsChanged(existing, fields)) await ctx.db.patch("artworks", existing._id, fields);
         ids[row.key] = existing._id;
       } else {
-        ids[row.key] = await ctx.db.insert("artworks", fields);
+        ids[row.key] = await ctx.db.insert("artworks", { ...fields, enrichGeneration: 0 });
         inserted += 1;
       }
     }
@@ -322,9 +324,7 @@ export const upsertObjects = internalMutation({
       } else {
         ids[row.key] = await ctx.db.insert("objects", {
           ...fields,
-          confirmCount: 0,
-          rejectCount: 0,
-          calibratorPenalty: 0,
+          ...newObjectCounters,
           reverted: false,
         });
         await patchObjectDetails(ctx, { _id: ids[row.key] }, details);

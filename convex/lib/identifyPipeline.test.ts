@@ -8,6 +8,7 @@ import type { LoadedCandidate } from "../identify";
 import { featureIndex } from "./calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./calibrator/weights";
 import { runPipeline } from "./identifyPipeline";
+import { newObjectCounters } from "./objectCounters";
 
 const pair = makeSyntheticPair({ count: 120 });
 const now = 2_000_000;
@@ -26,9 +27,7 @@ function candidate(id = "one", similarity = 0.99, features?: OrbFeatures): Loade
       key: id,
       source: "corpus",
       sourceId: id,
-      calibratorPenalty: 0,
-      confirmCount: 0,
-      rejectCount: 0,
+      ...newObjectCounters,
       reverted: false,
     },
     artwork: {
@@ -40,6 +39,7 @@ function candidate(id = "one", similarity = 0.99, features?: OrbFeatures): Loade
       artist: "Artist",
       rightsStatus: "public_domain",
       multiplicity: "unique",
+      enrichGeneration: 0,
     },
     placement: {
       identityStatus: "established",

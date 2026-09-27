@@ -35,6 +35,7 @@ describe("schema", () => {
         wikidataId: "Q160236",
         region: "us-ny",
         optOut: false,
+        contributionRevision: 0,
       }),
     );
 

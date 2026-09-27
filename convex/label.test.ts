@@ -16,7 +16,7 @@ import {
   wikidataSearchMonet,
   wikidataSearchWaterLilies,
 } from "./lib/labelFixtures";
-import { seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { readSpend, seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import type { WikidataEntity } from "./lib/wikidata";
 import { harness, signIn, type Harness } from "./test.helpers";
 
@@ -109,7 +109,6 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
       capturedAt: now,
       status: "identified",
       outcome: "miss",
-      createdAt: now,
       updatedAt: now,
     }),
   );
@@ -121,7 +120,7 @@ async function fixture(venue: MuseumOverrides | null = MET) {
   const venueId = venue ? await t.run((ctx) => seedMuseum(ctx, venue)) : undefined;
   const scanId = await seedScan(t, user.deviceId, venueId);
   const stored = async () => (await t.run((ctx) => ctx.db.get("scans", scanId)))?.labelFlow;
-  const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
+  const spend = () => readSpend(t);
   return { t, user, venueId, scanId, stored, spend };
 }
 

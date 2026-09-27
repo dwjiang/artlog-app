@@ -32,6 +32,7 @@ import {
 } from "./lib/narrationCache";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitDevice, limitKey } from "./lib/rateLimits";
+import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
 import { docentSentence, factSheetEntry, type DocentSentence } from "./lib/validators";
 
@@ -262,10 +263,7 @@ export const render = action({
       if (!env.OPENAI_API_KEY || !env.NEBIUS_API_KEY) {
         throw new ConvexError({ code: "narration_not_configured" });
       }
-      const day = await ctx.runMutation(internal.spend.reserve, {
-        kind: "tokenFactory",
-        amount: 2,
-      });
+      const day = await reserveSpend(ctx, "tokenFactory", 2);
       let calls = 0;
       let sentences: DocentSentence[];
       const factIds = new Set(facts.map((fact) => fact.id));

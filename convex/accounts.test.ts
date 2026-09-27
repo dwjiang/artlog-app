@@ -207,12 +207,12 @@ it("checks every claim on deletion and forgets a device’s claim once it unlink
         banned: false,
         platform: "simulator",
         attestCounter: 0,
+        scopeRevision: 0,
       });
       await ctx.db.insert("journalClaims", {
         deviceId,
         accountId,
         phase: "complete",
-        createdAt: 1,
         completedAt: 1,
       });
     }
@@ -252,6 +252,7 @@ it("purges the deleted account’s journal, photos and sync state without extra 
       seedSource: "manual",
       region: "US",
       optOut: false,
+      contributionRevision: 0,
     });
     const stored = await fileStorage.store(ctx, new Blob([new Uint8Array([0xff, 0xd8, 0xff])]));
     await ctx.db.insert("journalSyncState", { owner, version: 70 });

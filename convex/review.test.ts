@@ -5,7 +5,7 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { readArtworkContent } from "./lib/artworkContent";
 import { patchContributionState } from "./lib/objectContributionState";
-import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
+import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
 const factSheet = [
@@ -118,7 +118,6 @@ describe("review.replaceFactSheet", () => {
           factId: "f1",
           message: `Report ${i}`,
           deviceId: user.deviceId,
-          createdAt: Date.now(),
           status: "open",
         });
       }
@@ -165,14 +164,11 @@ describe("review queues", () => {
         status: "rejected",
         rejectedReason: "duplicate",
       });
-      const scanId = await seedScan(ctx, { deviceId: user.deviceId, venueId });
       const proposal = (deviceIds: Id<"devices">[]) =>
         ctx.db.insert("placementProposals", {
           objectId: clean.objectId,
           proposedVenueId: venueId,
           kind: "move",
-          scanIds: [scanId],
-          deviceIds,
           firstSeenAt: 1,
           lastSeenAt: 2,
           status: "pending",

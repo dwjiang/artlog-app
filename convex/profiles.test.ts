@@ -165,6 +165,7 @@ it("deletion revokes profile and publication access immediately", async () => {
       seedSource: "manual",
       region: "US",
       optOut: false,
+      contributionRevision: 0,
     });
     const localId = crypto.randomUUID();
     const visitId = await ctx.db.insert("visits", {
@@ -253,6 +254,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
       seedSource: "manual",
       region: "US",
       optOut: false,
+      contributionRevision: 0,
     });
     const visitId = await ctx.db.insert("visits", {
       visibility: "public" as const,

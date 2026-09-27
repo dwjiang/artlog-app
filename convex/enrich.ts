@@ -108,7 +108,7 @@ export const claimBatch = internalMutation({
     for (const artwork of page.artworks) {
       const fields = {
         enrichClaimedAt: Date.now(),
-        enrichGeneration: (artwork.enrichGeneration ?? 0) + 1,
+        enrichGeneration: artwork.enrichGeneration + 1,
       };
       await ctx.db.patch("artworks", artwork._id, fields);
       artworks.push({ ...artwork, ...fields });

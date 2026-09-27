@@ -107,7 +107,6 @@ export const saveToCollection = mutation({
           scanId: scan._id,
           objectId: object._id,
           saveId: collectionId,
-          createdAt: Date.now(),
         });
         await ctx.db.patch("objects", object._id, {
           confirmCount: object.confirmCount + 1,

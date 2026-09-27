@@ -117,6 +117,7 @@ export const confirmPoiVenue = mutation({
       seedSource: "poi",
       region: seeded?.venue.region ?? "country:unknown",
       optOut: false,
+      contributionRevision: 0,
     });
     await recordVenueChanges(ctx, [venueId]);
     await bumpCounter(ctx, "museums", 1);

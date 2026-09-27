@@ -22,7 +22,7 @@ export type AgreementContribution = {
     accession?: ContributionField;
   };
   evidence: EvidenceKind[];
-  createdAt: number;
+  _creationTime: number;
 };
 
 export function workKey(fields: AgreementContribution["fields"]): string {

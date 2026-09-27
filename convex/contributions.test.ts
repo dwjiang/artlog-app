@@ -499,7 +499,6 @@ describe("contribute", () => {
               },
               evidence: ["wikidata"],
               status: "tentative",
-              createdAt: Date.now(),
             });
           }
         });

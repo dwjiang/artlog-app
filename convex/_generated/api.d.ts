@@ -75,6 +75,7 @@ import type * as lib_museumDownloadValidators from "../lib/museumDownloadValidat
 import type * as lib_museumWorkIdentity from "../lib/museumWorkIdentity.js";
 import type * as lib_narrationCache from "../lib/narrationCache.js";
 import type * as lib_objectContributionState from "../lib/objectContributionState.js";
+import type * as lib_objectCounters from "../lib/objectCounters.js";
 import type * as lib_objectDetails from "../lib/objectDetails.js";
 import type * as lib_observability from "../lib/observability.js";
 import type * as lib_orbStorage from "../lib/orbStorage.js";
@@ -85,6 +86,7 @@ import type * as lib_placements from "../lib/placements.js";
 import type * as lib_plausibility from "../lib/plausibility.js";
 import type * as lib_politeFetch from "../lib/politeFetch.js";
 import type * as lib_projections from "../lib/projections.js";
+import type * as lib_proposalEvidence from "../lib/proposalEvidence.js";
 import type * as lib_publicArtworkStory from "../lib/publicArtworkStory.js";
 import type * as lib_publicationAccess from "../lib/publicationAccess.js";
 import type * as lib_publicationUpdates from "../lib/publicationUpdates.js";
@@ -223,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   "lib/museumWorkIdentity": typeof lib_museumWorkIdentity;
   "lib/narrationCache": typeof lib_narrationCache;
   "lib/objectContributionState": typeof lib_objectContributionState;
+  "lib/objectCounters": typeof lib_objectCounters;
   "lib/objectDetails": typeof lib_objectDetails;
   "lib/observability": typeof lib_observability;
   "lib/orbStorage": typeof lib_orbStorage;
@@ -233,6 +236,7 @@ declare const fullApi: ApiFromModules<{
   "lib/plausibility": typeof lib_plausibility;
   "lib/politeFetch": typeof lib_politeFetch;
   "lib/projections": typeof lib_projections;
+  "lib/proposalEvidence": typeof lib_proposalEvidence;
   "lib/publicArtworkStory": typeof lib_publicArtworkStory;
   "lib/publicationAccess": typeof lib_publicationAccess;
   "lib/publicationUpdates": typeof lib_publicationUpdates;

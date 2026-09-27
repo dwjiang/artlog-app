@@ -140,7 +140,6 @@ export const commit = internalMutation({
       embeddingId,
       generation: existing ? existing.generation + 1 : 0,
       status: "pending" as const,
-      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
     const scanId = existing?._id ?? (await ctx.db.insert("scans", fields));

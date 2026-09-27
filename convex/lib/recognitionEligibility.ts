@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { contributionGroup, verifiedAccession, workKey } from "./agreement";
 import { museumIdentityKeys } from "./museumWorkIdentity";
+import { evidenceDeviceIds, loadProposalEvidence } from "./proposalEvidence";
 import { isVenueOptedOut } from "./venueOptOut";
 
 export function recognitionPartition(modelVersion: string, venueId?: Id<"museums">): string {
@@ -94,7 +95,7 @@ export async function eligibleObjectRecord(ctx: QueryCtx, object: Doc<"objects">
   if (object.sourceProposalId) {
     const proposal = await ctx.db.get("placementProposals", object.sourceProposalId);
     if (!proposal || proposal.revertedAt !== undefined) return false;
-    for (const deviceId of proposal.deviceIds) {
+    for (const deviceId of evidenceDeviceIds(await loadProposalEvidence(ctx, proposal._id))) {
       const device = await ctx.db.get("devices", deviceId);
       if (!device || device.banned) return false;
     }

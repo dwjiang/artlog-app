@@ -215,7 +215,6 @@ it.each([false, true])(
         modelVersion: model.modelVersion,
         embeddingId: await seedEmbedding(ctx, { vector: testVector() }),
         capturedAt: Date.now(),
-        createdAt: Date.now(),
         updatedAt: Date.now(),
         status: "identified",
         outcome: "confident",

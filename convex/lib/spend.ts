@@ -1,7 +1,8 @@
 import { ConvexError } from "convex/values";
 
+import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
-import { env, type MutationCtx, type QueryCtx } from "../_generated/server";
+import { type ActionCtx, env, type MutationCtx, type QueryCtx } from "../_generated/server";
 
 export type SpendKind = "tokenFactory" | "tavily";
 
@@ -20,6 +21,9 @@ const kinds: Record<SpendKind, { field: SpendField; variable: keyof typeof env; 
   },
 };
 
+// Concurrent paid calls write different rows; a mutation that read the day's total would serialise them all.
+const SHARDS = 16;
+
 export function dailyCap(kind: SpendKind): number {
   const raw = env[kinds[kind].variable];
   const parsed = raw === undefined ? NaN : Number(raw);
@@ -30,22 +34,22 @@ export function utcDay(now: number = Date.now()): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-async function getDay(ctx: QueryCtx | MutationCtx, day: string): Promise<Doc<"dailySpend"> | null> {
+async function dayRows(ctx: QueryCtx | MutationCtx, day: string): Promise<Doc<"dailySpend">[]> {
   return ctx.db
     .query("dailySpend")
     .withIndex("by_day", (q) => q.eq("day", day))
-    .unique();
+    .take(SHARDS);
 }
 
 export async function spentToday(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<number> {
-  const row = await getDay(ctx, utcDay());
-  return row ? row[kinds[kind].field] : 0;
+  const rows = await dayRows(ctx, utcDay());
+  return rows.reduce((sum, row) => sum + row[kinds[kind].field], 0);
 }
 
-export async function assertUnderCap(ctx: QueryCtx | MutationCtx, kind: SpendKind): Promise<void> {
+export async function assertUnderCap(ctx: QueryCtx | MutationCtx, kind: SpendKind, amount = 0): Promise<void> {
   const spent = await spentToday(ctx, kind);
   const cap = dailyCap(kind);
-  if (spent >= cap) {
+  if (spent >= cap || spent + amount > cap) {
     throw new ConvexError({ code: "spend_cap", kind, spent, cap });
   }
 }
@@ -58,18 +62,20 @@ function requireAmount(amount: number): void {
   }
 }
 
+// A random shard takes the write. A shard can go negative after a reconciliation; the day's sum cannot.
 async function adjustSpend(ctx: MutationCtx, day: string, delta: SpendDelta): Promise<void> {
-  const now = Date.now();
-  const row = await getDay(ctx, day);
+  const shard = Math.floor(Math.random() * SHARDS);
+  const row = await ctx.db
+    .query("dailySpend")
+    .withIndex("by_day", (q) => q.eq("day", day).eq("shard", shard))
+    .unique();
   const next = {
     tokenFactoryCalls: (row?.tokenFactoryCalls ?? 0) + (delta.tokenFactoryCalls ?? 0),
     tavilyCredits: (row?.tavilyCredits ?? 0) + (delta.tavilyCredits ?? 0),
-    updatedAt: now,
+    updatedAt: Date.now(),
   };
-  requireAmount(next.tokenFactoryCalls);
-  requireAmount(next.tavilyCredits);
   if (row) await ctx.db.patch("dailySpend", row._id, next);
-  else await ctx.db.insert("dailySpend", { day, ...next });
+  else await ctx.db.insert("dailySpend", { day, shard, ...next });
 }
 
 export async function recordSpend(ctx: MutationCtx, delta: SpendDelta): Promise<void> {
@@ -78,21 +84,23 @@ export async function recordSpend(ctx: MutationCtx, delta: SpendDelta): Promise<
   await adjustSpend(ctx, utcDay(), delta);
 }
 
-/**
- * Atomically counts `amount` against today's cap before a provider call is made, so concurrent
- * callers cannot collectively overshoot. Returns the UTC day to pass to `reconcileSpend` exactly
- * once when usage is known; retain the reservation after an ambiguous timeout.
- */
-export async function reserveSpend(ctx: MutationCtx, kind: SpendKind, amount: number): Promise<string> {
+export async function addSpend(ctx: MutationCtx, kind: SpendKind, amount: number): Promise<string> {
   requireAmount(amount);
   const day = utcDay();
-  const spent = await spentToday(ctx, kind);
-  const cap = dailyCap(kind);
-  if (spent + amount > cap) {
-    throw new ConvexError({ code: "spend_cap", kind, spent, cap });
-  }
   await adjustSpend(ctx, day, { [kinds[kind].field]: amount });
   return day;
+}
+
+/**
+ * Counts `amount` against today's cap before a provider call is made. The check is a query and the
+ * write lands on a random shard, so callers never serialise on one document; a burst can overshoot
+ * the cap by at most the calls in flight. Returns the UTC day to pass to `reconcileSpend` exactly once
+ * when usage is known; retain the reservation after an ambiguous timeout.
+ */
+export async function reserveSpend(ctx: ActionCtx, kind: SpendKind, amount: number): Promise<string> {
+  requireAmount(amount);
+  await ctx.runQuery(internal.spend.assertCap, { kind, amount });
+  return ctx.runMutation(internal.spend.add, { kind, amount });
 }
 
 export async function reconcileSpend(
@@ -102,11 +110,6 @@ export async function reconcileSpend(
 ): Promise<void> {
   requireAmount(usage.reserved);
   requireAmount(usage.actual);
-  const row = await getDay(ctx, usage.day);
-  if (!row || row[kinds[kind].field] < usage.reserved) {
-    throw new ConvexError({ code: "invalid_spend" });
-  }
-  await adjustSpend(ctx, usage.day, {
-    [kinds[kind].field]: usage.actual - usage.reserved,
-  });
+  if (usage.actual === usage.reserved) return;
+  await adjustSpend(ctx, usage.day, { [kinds[kind].field]: usage.actual - usage.reserved });
 }

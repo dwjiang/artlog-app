@@ -85,7 +85,6 @@ export const rejectMatch = mutation({
       venueMismatch: scan.venueId !== undefined && placement !== null && placement.venueId !== scan.venueId,
       penaltyAdded,
       resolution: { kind: "unresolved" },
-      createdAt: now,
     });
     await ctx.db.insert("feedbackEvents", {
       kind: "rejection",
@@ -93,7 +92,6 @@ export const rejectMatch = mutation({
       scanId,
       objectId,
       feedbackId,
-      createdAt: now,
     });
     await feedbackChanged(ctx, objectId, false);
     await ctx.db.patch("objects", objectId, {
@@ -101,7 +99,7 @@ export const rejectMatch = mutation({
       ...(flagged
         ? {
             // Keep uncapped contributions so undoing one rejection preserves the others, even at the cap.
-            rejectionPenalty: (object.rejectionPenalty ?? 0) + penaltyAdded,
+            rejectionPenalty: object.rejectionPenalty + penaltyAdded,
           }
         : {}),
     });
@@ -185,7 +183,7 @@ export async function resolveFalseRejections(ctx: MutationCtx, scan: Doc<"scans"
     await feedbackChanged(ctx, object._id);
     await ctx.db.patch("objects", object._id, {
       rejectCount: Math.max(0, object.rejectCount - 1),
-      rejectionPenalty: Math.max(0, (object.rejectionPenalty ?? 0) - row.penaltyAdded),
+      rejectionPenalty: Math.max(0, object.rejectionPenalty - row.penaltyAdded),
     });
   }
 }

@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
-import { internalAction, internalQuery } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { deletePinecone, pineconeHost, PINECONE_NAMESPACE, upsertPinecone, verifyPinecone } from "./lib/pinecone";
@@ -14,26 +15,56 @@ import schema from "./schema";
 const BATCH_SIZE = 100;
 // Longer than a Convex action's maximum lifetime: a timed-out worker cannot race its retry.
 const LEASE_MS = 31 * 60_000;
-const receipt = v.object({ id: v.id("vectorSyncJobs"), lease: v.string(), revision: v.number() });
+const receipt = v.object({ id: v.id("vectorSyncJobs"), lease: v.string() });
+const drainArgs = {
+  continuation: v.optional(v.object({ cursor: v.string(), cutoff: v.number() })),
+};
+
+// A job's operation is whatever the vectors row says now: a matching row is upserted, anything else is deleted.
+async function currentRow(ctx: MutationCtx, job: Doc<"vectorSyncJobs">): Promise<Doc<"vectors"> | null> {
+  const row = await ctx.db.get("vectors", job.vectorId);
+  return row && searchRecordId(row) === job.recordId ? row : null;
+}
+
+// Every other job for the same record is either an in-flight write this job must wait for, or a duplicate
+// this job subsumes. Serialising per record keeps a stale upsert from landing after its delete.
+async function reserveRecord(ctx: MutationCtx, job: Doc<"vectorSyncJobs">, now: number): Promise<boolean> {
+  const siblings = await ctx.db
+    .query("vectorSyncJobs")
+    .withIndex("by_recordId", (q) => q.eq("recordId", job.recordId))
+    .take(BATCH_SIZE);
+  const others = siblings.filter((other) => other._id !== job._id);
+  if (others.some((other) => other.lease !== undefined && other.availableAt > now)) return false;
+  for (const other of others) await ctx.db.delete("vectorSyncJobs", other._id);
+  return true;
+}
 
 export const claim = internalMutation({
-  args: {},
+  args: drainArgs,
   returns: v.array(v.object({ job: schema.doc("vectorSyncJobs"), row: v.union(schema.doc("vectors"), v.null()) })),
-  handler: async (ctx) => {
-    const jobs = await ctx.db
+  handler: async (ctx, { continuation }) => {
+    const now = Date.now();
+    // Pagination cursors require the same query bounds on every page.
+    const cutoff = continuation?.cutoff ?? now;
+    const page = await ctx.db
       .query("vectorSyncJobs")
-      .withIndex("by_state_availableAt", (q) => q.eq("state", "pending").lte("availableAt", Date.now()))
-      .take(BATCH_SIZE);
-    return Promise.all(
-      jobs.map(async (job) => {
-        const row = await ctx.db.get("vectors", job.vectorId);
-        const current = job.operation === "upsert" && row && searchRecordId(row) === job.recordId ? row : null;
-        const lease = crypto.randomUUID();
-        const fields = { lease, availableAt: Date.now() + LEASE_MS, attempts: job.attempts + 1 };
-        await ctx.db.patch("vectorSyncJobs", job._id, fields);
-        return { job: { ...job, ...fields }, row: current };
-      }),
-    );
+      .withIndex("by_state_availableAt", (q) => q.eq("state", "pending").lte("availableAt", cutoff))
+      .paginate({ cursor: continuation?.cursor ?? null, numItems: BATCH_SIZE });
+    const claimed = [];
+    for (const job of page.page) {
+      // A duplicate subsumed earlier in this batch is already gone.
+      if (!(await ctx.db.get("vectorSyncJobs", job._id)) || !(await reserveRecord(ctx, job, now))) continue;
+      const fields = { lease: crypto.randomUUID(), availableAt: now + LEASE_MS, attempts: job.attempts + 1 };
+      await ctx.db.patch("vectorSyncJobs", job._id, fields);
+      claimed.push({ job: { ...job, ...fields }, row: await currentRow(ctx, job) });
+    }
+    // A page can contain only leased or duplicate records; keep advancing to unrelated ready work.
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {
+        continuation: { cursor: page.continueCursor, cutoff },
+      });
+    }
+    return claimed;
   },
 });
 
@@ -44,40 +75,24 @@ export const acknowledge = internalMutation({
     for (const receipt of receipts) {
       const job = await ctx.db.get("vectorSyncJobs", receipt.id);
       if (!job || job.lease !== receipt.lease) continue;
-      if (success && job.revision === receipt.revision) {
+      if (success) {
         await ctx.db.delete("vectorSyncJobs", job._id);
       } else {
-        await ctx.db.patch("vectorSyncJobs", job._id, {
-          lease: success ? undefined : job.lease,
-          state: !success && job.attempts >= 8 ? "failed" : "pending",
-          // Failed requests may have reached Pinecone. Keep their lease before sending a newer operation.
-          availableAt: success ? Date.now() : job.availableAt,
-        });
+        // The write may have reached Pinecone: the lease keeps newer jobs for this record waiting.
+        await ctx.db.patch("vectorSyncJobs", job._id, { state: job.attempts >= 8 ? "failed" : "pending" });
       }
     }
     return null;
   },
 });
 
-export const wake = internalMutation({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    const next = await ctx.db
-      .query("vectorSyncJobs")
-      .withIndex("by_state_availableAt", (q) => q.eq("state", "pending"))
-      .first();
-    if (next) await ctx.scheduler.runAfter(Math.max(0, next.availableAt - Date.now()), internal.vectorSync.drain, {});
-    return null;
-  },
-});
-
+// Each claim chains the next page; records skipped behind a lease are revisited by the cron.
 export const drain = internalAction({
-  args: {},
+  args: drainArgs,
   returns: v.number(),
-  handler: async (ctx): Promise<number> =>
+  handler: async (ctx, args): Promise<number> =>
     withErrorReporting("vectorSync.drain", async () => {
-      const batch = await ctx.runMutation(internal.vectorSync.claim, {});
+      const batch = await ctx.runMutation(internal.vectorSync.claim, args);
       if (batch.length === 0) return 0;
       const upserts = batch.filter((entry) => entry.row !== null);
       const deletes = batch.filter((entry) => entry.row === null);
@@ -100,11 +115,10 @@ export const drain = internalAction({
           await reportBackendError(error, "vectorSync.write");
         }
         await ctx.runMutation(internal.vectorSync.acknowledge, {
-          receipts: group.map(({ job }) => ({ id: job._id, lease: job.lease!, revision: job.revision })),
+          receipts: group.map(({ job }) => ({ id: job._id, lease: job.lease! })),
           success,
         });
       }
-      await ctx.runMutation(internal.vectorSync.wake, {});
       return batch.length;
     }),
 });
@@ -143,14 +157,19 @@ export const retryFailed = internalMutation({
       .query("vectorSyncJobs")
       .withIndex("by_state_availableAt", (q) => q.eq("state", "failed"))
       .take(BATCH_SIZE);
+    const now = Date.now();
     for (const job of jobs) {
       await ctx.db.patch("vectorSyncJobs", job._id, {
         state: "pending",
         attempts: 0,
-        availableAt: Math.max(job.availableAt, Date.now()),
+        availableAt: Math.max(job.availableAt, now),
       });
     }
-    if (jobs.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.wake, {});
+    if (jobs.length > 0) {
+      // Retried jobs keep waiting out their leases; drain once the earliest becomes available.
+      const delay = Math.max(0, Math.min(...jobs.map((job) => job.availableAt)) - now);
+      await ctx.scheduler.runAfter(delay, internal.vectorSync.drain, {});
+    }
     if (jobs.length === BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.vectorSync.retryFailed, {});
     return jobs.length;
   },
@@ -161,7 +180,7 @@ export const rebuild = internalMutation({
   returns: v.object({ queued: v.number(), cursor: v.union(v.string(), v.null()) }),
   handler: async (ctx, { cursor }) => {
     const page = await ctx.db.query("vectors").withIndex("by_creation_time").paginate({ cursor, numItems: BATCH_SIZE });
-    for (const row of page.page) await queueVectorSync(ctx, row, "upsert");
+    for (const row of page.page) await queueVectorSync(ctx, row);
     if (page.page.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return { queued: page.page.length, cursor: page.isDone ? null : page.continueCursor };
   },

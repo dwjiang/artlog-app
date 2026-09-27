@@ -77,7 +77,6 @@ export const submit = mutation({
       ...input,
       details: input.details?.trim() || undefined,
       evidence,
-      createdAt: Date.now(),
       status: "open",
     });
   },

@@ -46,7 +46,6 @@ it("replays surviving events chronologically across pages, resets feedback flags
         venueMismatch: false,
         penaltyAdded: 0,
         resolution: { kind: "unresolved" },
-        createdAt: at,
       });
       await ctx.db.insert("feedbackEvents", {
         kind: "rejection",
@@ -54,8 +53,8 @@ it("replays surviving events chronologically across pages, resets feedback flags
         deviceId,
         objectId: work.objectId,
         feedbackId,
-        createdAt: at++,
       });
+      at++;
     });
   for (let i = 0; i < 19; i++) await reject("bob");
   await reject("alice");
@@ -77,8 +76,8 @@ it("replays surviving events chronologically across pages, resets feedback flags
           scanId: scans.bob,
           objectId: work.objectId,
           saveId,
-          createdAt: at++,
         });
+        at++;
       }
     });
   }
@@ -131,7 +130,6 @@ it("restarts a partial replay when new feedback arrives", async () => {
           deviceId: device.deviceId,
           scanId,
           objectId: work.objectId,
-          createdAt: Date.now(),
         });
       }
       await feedbackChanged(ctx, work.objectId);

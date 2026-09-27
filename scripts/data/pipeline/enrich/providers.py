@@ -47,7 +47,8 @@ class Providers:
 
     def _reserve(self, kind: str) -> str:
         try:
-            return self.writer.mutation("spend:reserve", {"kind": kind, "amount": 1})
+            self.writer.query("spend:assertCap", {"kind": kind, "amount": 1})
+            return self.writer.mutation("spend:add", {"kind": kind, "amount": 1})
         except ConvexError as error:
             # The Python client keeps application data on `.data`; its message is generic.
             data = error.data if isinstance(error.data, dict) else {}

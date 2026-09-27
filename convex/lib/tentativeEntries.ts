@@ -8,6 +8,7 @@ import { bumpCounter } from "../ingest";
 import { getEmbedding, requireEmbedding } from "../scanEmbeddings";
 import { contributionGroup, verifiedAccession } from "./agreement";
 import { readContributionState, patchContributionState } from "./objectContributionState";
+import { newObjectCounters } from "./objectCounters";
 import { patchObjectDetails, readObjectOrb } from "./objectDetails";
 import { findPlacement } from "./placements";
 import {
@@ -23,7 +24,7 @@ const ANCHOR_PAGE = 25;
 const REPLAY_CHECK_VECTORS = 32;
 
 export function earlier(a: Doc<"contributions">, b: Doc<"contributions"> | null): boolean {
-  return !b || a.createdAt < b.createdAt || (a.createdAt === b.createdAt && a._id < b._id);
+  return !b || a._creationTime < b._creationTime || (a._creationTime === b._creationTime && a._id < b._id);
 }
 
 // The displayed reference can be withdrawn or banned before its rebuild runs. The oldest surviving
@@ -33,7 +34,7 @@ async function eligibleAnchor(ctx: QueryCtx, object: Doc<"objects">): Promise<Do
   if (await eligibleContribution(ctx, source)) return source;
   const rows = await ctx.db
     .query("contributions")
-    .withIndex("by_object_status_created", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
+    .withIndex("by_object_status", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
     .take(ANCHOR_PAGE);
   for (const row of rows) if (await eligibleContribution(ctx, row)) return row;
   return null;
@@ -178,6 +179,7 @@ export async function publishContribution(
       date: row.fields.date?.value,
       rightsStatus: "unknown",
       multiplicity: "unknown",
+      enrichGeneration: 0,
     });
     const objectId = await ctx.db.insert("objects", {
       key: `user:${row._id}`,
@@ -186,9 +188,7 @@ export async function publishContribution(
       ownerId: row.venueId,
       source: "user",
       sourceId: row._id,
-      confirmCount: 0,
-      rejectCount: 0,
-      calibratorPenalty: 0,
+      ...newObjectCounters,
       reverted: false,
     });
     await patchContributionState(ctx, objectId, { groupKey: contributionGroup(row) });
@@ -221,7 +221,7 @@ export async function publishContribution(
   const source = anchor && earlier(anchor, row) ? anchor : row;
   await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
   await ctx.db.patch("objects", object._id, {
-    supportRevision: (object.supportRevision ?? 0) + 1,
+    supportRevision: object.supportRevision + 1,
   });
   return object._id;
 }

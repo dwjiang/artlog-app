@@ -152,7 +152,6 @@ it.each(["inactive-profile", "removed-profile", "removed-post", "removed-placeme
           username: "owner",
           name: "Owner",
         },
-        createdAt: 1,
         status: "resolved",
       });
       const removal = { reportId, removedAt: 2 };

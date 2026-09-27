@@ -8,6 +8,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
+import { newObjectCounters } from "./lib/objectCounters";
 import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
 import {
   readTestOrb,
@@ -52,6 +53,7 @@ async function seedUserObject(
       artist: "Claude Monet",
       rightsStatus: "unknown",
       multiplicity: "unknown",
+      enrichGeneration: 0,
     }));
   const objectId = await ctx.db.insert("objects", {
     identityStatus: "established" as const,
@@ -64,9 +66,7 @@ async function seedUserObject(
       contributionIds: options.contributionIds ?? [],
       deviceIds: options.deviceIds,
     },
-    confirmCount: 0,
-    rejectCount: 0,
-    calibratorPenalty: 0,
+    ...newObjectCounters,
     reverted: false,
   });
   await patchObjectDetails(ctx, { _id: objectId }, { thumbnailStorageId: options.thumbnailStorageId });
@@ -514,7 +514,6 @@ it.each(["first", "second"] as const)("removes views when their %s agreement wit
         venueMismatch: false,
         penaltyAdded: 0,
         resolution: { kind: "runner_up", objectId: work.objectId },
-        createdAt: Date.now(),
       });
     });
   }
@@ -559,7 +558,6 @@ it("reconsiders duplicate views across witness pages and restores them with clea
         venueMismatch: false,
         penaltyAdded: 0,
         resolution: { kind: "runner_up", objectId: work.objectId },
-        createdAt: Date.now(),
       });
     });
   await add(alice.deviceId, testVector(0.9));
@@ -660,7 +658,6 @@ it("removes vectors learned at an opted-out venue while preserving the corpus ve
         venueMismatch: false,
         penaltyAdded: 0,
         resolution: { kind: "runner_up", objectId: work.objectId },
-        createdAt: Date.now(),
       });
     });
   }
@@ -717,7 +714,6 @@ it.each(["ban", "opt_out", "duplicate_opt_out"] as const)(
           venueMismatch: false,
           penaltyAdded: 0,
           resolution: { kind: "runner_up", objectId: work.objectId },
-          createdAt: Date.now(),
         });
       });
     }
@@ -875,12 +871,12 @@ it("re-schedules parked rebuilds and scan cleanup when a stalled ban is resumed"
     // Rebuild rows whose scheduled runs were lost, and a scan whose vector cleanup never ran.
     await ctx.db.insert("entryRebuilds", {
       objectId,
-      revision: object.supportRevision ?? 0,
+      revision: object.supportRevision,
       cursor: null,
     });
     await ctx.db.insert("feedbackRebuilds", {
       objectId,
-      revision: object.feedbackRevision ?? 0,
+      revision: object.feedbackRevision,
       cursor: null,
       confirmCount: 0,
       rejectCount: 0,

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
-import { assertUnderCap, dailyCap, reconcileSpend, recordSpend, reserveSpend, spentToday } from "./lib/spend";
+import { addSpend, assertUnderCap, dailyCap, reconcileSpend, recordSpend, spentToday } from "./lib/spend";
 
 const spendKind = v.union(v.literal("tokenFactory"), v.literal("tavily"));
 
@@ -18,12 +18,11 @@ export const record = internalMutation({
   },
 });
 
-export const reserve = internalMutation({
+// Callers check the cap through `assertCap` first; see `reserveSpend`.
+export const add = internalMutation({
   args: { kind: spendKind, amount: v.number() },
   returns: v.string(),
-  handler: async (ctx, args) => {
-    return reserveSpend(ctx, args.kind, args.amount);
-  },
+  handler: (ctx, args) => addSpend(ctx, args.kind, args.amount),
 });
 
 export const reconcile = internalMutation({
@@ -55,10 +54,10 @@ export const status = internalQuery({
 });
 
 export const assertCap = internalQuery({
-  args: { kind: spendKind },
+  args: { kind: spendKind, amount: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await assertUnderCap(ctx, args.kind);
+    await assertUnderCap(ctx, args.kind, args.amount);
     return null;
   },
 });

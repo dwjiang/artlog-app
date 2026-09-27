@@ -49,7 +49,6 @@ it("expires feedback, its vector and evidence, and rebuilds reputation from surv
       resolution: { kind: "runner_up", objectId: work.objectId },
       multiViewVectorId: work.vectorId,
       multiViewAgreement: { firstDeviceId: user.deviceId, secondDeviceId: user.deviceId },
-      createdAt: Date.now(),
     });
     await ctx.db.insert("feedbackEvents", {
       kind: "rejection",
@@ -57,7 +56,6 @@ it("expires feedback, its vector and evidence, and rebuilds reputation from surv
       scanId,
       objectId: work.objectId,
       feedbackId,
-      createdAt: Date.now(),
     });
     return { ...work, feedbackId, embeddingId: scan.embeddingId! };
   });

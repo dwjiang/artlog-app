@@ -42,6 +42,7 @@ import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { extractPage, hasArtworkMetadata } from "./lib/pageExtract";
 import { assessPlausibility } from "./lib/plausibility";
 import { limitDevice } from "./lib/rateLimits";
+import { reserveSpend } from "./lib/spend";
 import { searchWithCredit } from "./lib/tavilySpend";
 import { personMatches } from "./lib/textMatch";
 import { chatJson } from "./lib/tokenFactory";
@@ -222,10 +223,7 @@ export const readLabel = action({
       await limitDevice(ctx, "labelRead", device._id);
       const model = env.LABEL_MODEL;
       if (!model) throw new ConvexError({ code: "model_unconfigured" });
-      const day = await ctx.runMutation(internal.spend.reserve, {
-        kind: "tokenFactory",
-        amount: MAX_READ_CALLS,
-      });
+      const day = await reserveSpend(ctx, "tokenFactory", MAX_READ_CALLS);
       let calls = 0;
       try {
         // The photo stays on the phone; only its OCR lines reach the model, and they are never logged.
@@ -320,12 +318,7 @@ export async function moderateVerifiedFields(
   }
   const values = FIELD_NAMES.map((name) => fields[name]?.value);
   const reserved = env.MODERATION_MODEL && values.some(Boolean) ? MAX_MODERATION_CALLS : 0;
-  const day = reserved
-    ? await ctx.runMutation(internal.spend.reserve, {
-        kind: "tokenFactory",
-        amount: reserved,
-      })
-    : undefined;
+  const day = reserved ? await reserveSpend(ctx, "tokenFactory", reserved) : undefined;
   let calls = 0;
   try {
     const result = await checkText(values);

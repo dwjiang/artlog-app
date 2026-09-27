@@ -72,6 +72,7 @@ it("publishes an authenticated museum download only when all chunks are complete
     ownerId: venueId,
     medium: "Oil on canvas",
     calibratorPenalty: 0,
+    rejectionPenalty: 0,
   });
   expect(entries[0].candidate.artwork).toEqual({
     _id: work.artworkId,

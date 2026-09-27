@@ -50,7 +50,6 @@ async function seedFeedback(
     rejectedObjectId: Id<"objects">;
     vector?: number[];
     embeddingId?: Id<"scanEmbeddings">;
-    createdAt?: number;
   },
 ): Promise<Id<"feedback">> {
   const scanId = await seedScan(ctx, {
@@ -74,7 +73,6 @@ async function seedFeedback(
     venueMismatch: false,
     penaltyAdded: 0,
     resolution: { kind: "runner_up", objectId: row.objectId },
-    createdAt: row.createdAt ?? Date.now(),
   });
 }
 
@@ -239,6 +237,11 @@ describe("multi-view vectors from resolved rejections", () => {
   it("suppresses near-duplicate views and settles expired ones", async () => {
     const { t, alice, bob, venueId, get, feedback, userScanVectors, promote } = await multiViewFixture();
     const elsewhere = await t.run((ctx) => seedMuseum(ctx));
+    const expired = await feedback({
+      deviceId: bob.deviceId,
+      venueId,
+    });
+    vi.setSystemTime(Date.now() + 100 * DAY);
     const first = await feedback({
       deviceId: alice.deviceId,
       venueId,
@@ -252,11 +255,6 @@ describe("multi-view vectors from resolved rejections", () => {
     const lonely = await feedback({
       deviceId: alice.deviceId,
       venueId: elsewhere,
-    });
-    const expired = await feedback({
-      deviceId: bob.deviceId,
-      venueId,
-      createdAt: Date.now() - 100 * DAY,
     });
     await promote();
     expect(await userScanVectors()).toHaveLength(1);

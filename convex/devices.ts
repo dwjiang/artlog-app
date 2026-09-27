@@ -57,6 +57,7 @@ export const registerDevice = mutation({
       banned: false,
       platform: args.platform,
       attestCounter: 0,
+      scopeRevision: 0,
     });
     return { deviceId, attested: false, attestRequired: attestRequired() };
   },
@@ -106,7 +107,6 @@ export const createChallenge = mutation({
       authUserId: await requireAuthUserId(ctx),
       nonce,
       purpose: args.purpose,
-      createdAt: Date.now(),
     });
     return { nonce };
   },
@@ -129,8 +129,7 @@ export async function consumeChallenge(
     && challenge.authUserId === device.authUserId
     && challenge.purpose === purpose
     && challenge.usedAt === undefined
-    && now >= challenge.createdAt
-    && now - challenge.createdAt < CHALLENGE_TTL_MS;
+    && now - challenge._creationTime < CHALLENGE_TTL_MS;
   if (!valid) throw new ConvexError({ code: "challenge_invalid" });
   await ctx.db.patch("attestChallenges", challenge._id, { usedAt: now });
 }

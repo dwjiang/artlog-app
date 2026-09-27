@@ -39,7 +39,6 @@ export const correctFact = mutation({
       message,
       contact,
       deviceId: device._id,
-      createdAt: Date.now(),
       status: "open",
     });
     await ctx.db.patch("artworks", artwork._id, { factSheetNeedsReview: true });
