@@ -170,7 +170,6 @@ it("lets another device on the same account retry a saved scan without the captu
   const accountId = await t.run(async (ctx) => {
     const accountId = await ctx.db.insert("accounts", {
       appleUserId: "same-owner",
-      deviceIds: [user.deviceId, second.deviceId],
       createdAt: Date.now(),
     });
     await ctx.db.patch("devices", user.deviceId, { accountId });
@@ -272,8 +271,7 @@ it("scores an accepted match as the matched artwork on the leaderboard", async (
     savedAt: Date.now(),
   });
   const score = async () =>
-    (await user.as.query(api.leaderboards.list, { audience: "global", period: "all", metric: "artworks" })).rows[0]
-      ?.score;
+    (await user.as.query(api.leaderboards.list, { audience: "global", metric: "artworks" })).rows[0]?.score;
   expect(await score()).toBe(2);
   await user.as.action(api.savedRecognition.upload, {
     scope: user.scope,

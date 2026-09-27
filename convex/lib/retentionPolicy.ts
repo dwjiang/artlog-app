@@ -1,0 +1,3 @@
+export const EVIDENCE_RETENTION_MS = 180 * 24 * 60 * 60_000;
+export const COMPLETED_REMOVAL_RETENTION_MS = 30 * 24 * 60 * 60_000;
+export const CHALLENGE_RETENTION_MS = 5 * 60_000;

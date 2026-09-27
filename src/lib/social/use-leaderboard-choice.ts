@@ -6,12 +6,10 @@ import { reportError } from "@/lib/observability";
 export type LeaderboardChoice = {
   audience: "friends" | "global";
   metric: "visits" | "artworks";
-  period: "month" | "all";
 };
 const DEFAULT_CHOICE: LeaderboardChoice = {
   audience: "friends",
   metric: "visits",
-  period: "month",
 };
 const KEY = "leaderboard-choice";
 
@@ -22,7 +20,6 @@ function readChoice(value: string | undefined): LeaderboardChoice {
     return {
       audience: choice?.audience === "global" ? "global" : "friends",
       metric: choice?.metric === "artworks" ? "artworks" : "visits",
-      period: choice?.period === "all" ? "all" : "month",
     };
   } catch {
     return DEFAULT_CHOICE;

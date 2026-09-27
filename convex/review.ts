@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
+import { internalMutation } from "./functions";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { factSheetEntry } from "./lib/validators";
 import { changeEngagement } from "./lib/visitReactions";
@@ -33,12 +34,15 @@ const contributionReview = v.object({
 export const listFlaggedObjects = internalQuery({
   args: {},
   returns: v.array(schema.doc("objects")),
-  handler: (ctx) =>
-    ctx.db
-      .query("objects")
+  handler: async (ctx) => {
+    const states = await ctx.db
+      .query("objectContributionState")
       .withIndex("by_flaggedForReview", (q) => q.eq("flaggedForReview", true))
       .order("desc")
-      .take(MAX_ROWS),
+      .take(MAX_ROWS);
+    const objects = await Promise.all(states.map((state) => ctx.db.get("objects", state.objectId)));
+    return objects.filter((object) => object !== null);
+  },
 });
 
 export const listContributions = internalQuery({

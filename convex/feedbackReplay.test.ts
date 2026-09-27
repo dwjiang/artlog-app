@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import { feedbackChanged } from "./feedbackReplay";
+import { patchContributionState, readContributionState } from "./lib/objectContributionState";
 import {
   seedEmbedding,
   seedArtworkWithObject,
@@ -86,20 +87,20 @@ it("replays surviving events chronologically across pages, resets feedback flags
     await ctx.db.patch("objects", work.objectId, {
       confirmCount: 120,
       rejectCount: 21,
-      flaggedForReview: true,
       rejectionPenalty: 0.2,
       calibratorPenalty: 0.35,
     });
+    await patchContributionState(ctx, work.objectId, { flaggedForReview: true });
   });
   const removalId = await t.mutation(internal.revert.revertDevice, {
     deviceId: alice.deviceId,
     reason: "abuse",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.run((ctx) => readContributionState(ctx, work.objectId))).toMatchObject({ flaggedForReview: false });
   expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toMatchObject({
     confirmCount: 120,
     rejectCount: 20,
-    flaggedForReview: false,
     rejectionPenalty: 0,
     calibratorPenalty: 0.35,
   });
@@ -140,6 +141,7 @@ it("restarts a partial replay when new feedback arrives", async () => {
   await t.mutation(internal.feedbackReplay.rebuildPage, { jobId: job._id });
   await add(1);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.run((ctx) => readContributionState(ctx, work.objectId))).toMatchObject({ flaggedForReview: false });
   expect(await t.run((ctx) => ctx.db.get("objects", work.objectId))).toMatchObject({
     confirmCount: 76,
   });

@@ -7,14 +7,16 @@ import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/o
 import type { VerifyResult } from "../shared/orb/verify";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalQuery, mutation, type ActionCtx } from "./_generated/server";
+import { action, internalQuery, type ActionCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
+import { mutation } from "./functions";
 import { requireDeviceFromAction } from "./lib/auth";
 import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
 import { isSupported, validateVector } from "./lib/modelVersion";
+import { readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { loadOrb } from "./lib/orbStorage";
 import { ownerForDevice } from "./lib/ownership";
@@ -38,7 +40,7 @@ const loadedCandidate = v.object({
   runnerUpSimilarity: v.number(),
   placement: v.union(schema.doc("placements"), v.null()),
   institution: v.optional(v.string()),
-  orbStorageId: v.optional(v.string()),
+  orbStorageId: v.optional(v.id("files")),
   keypointCount: v.union(v.number(), v.null()),
   inputSize: v.optional(v.number()),
 });
@@ -79,10 +81,7 @@ export const loadCandidates = internalQuery({
     for (const { object, similarity } of ranked) {
       const [artwork, descriptors, owner] = await Promise.all([
         ctx.db.get("artworks", object.artworkId),
-        ctx.db
-          .query("descriptors")
-          .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-          .unique(),
+        readObjectOrb(ctx, object),
         object.ownerId ? ctx.db.get("museums", object.ownerId) : null,
       ]);
       if (!artwork) continue;

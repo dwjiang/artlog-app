@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { normalizeSearch } from "../shared/journal/limits";
 import { publicProfile, validateProfile } from "../shared/social/contracts";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
@@ -19,7 +20,7 @@ export const save = internalMutation({
     name: v.string(),
     username: v.optional(v.string()),
     bio: v.optional(v.string()),
-    photo: v.optional(v.union(v.string(), v.null())),
+    photo: v.optional(v.union(v.id("files"), v.null())),
   },
   returns: publicProfile,
   handler: async (ctx, input) => {

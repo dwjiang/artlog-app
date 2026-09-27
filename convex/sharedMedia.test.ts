@@ -48,26 +48,36 @@ it("serves public media without friendship and rechecks publication, selection, 
   ).rejects.toMatchObject({ data: { code: "not_found" } });
 });
 
-it("denies an owner-photo pointer and a publication revoked during the storage fetch", async () => {
-  const { t, a, b, draft, asset, transport, publish } = await fixture();
-  const context = await publish();
-  await befriend(a, b);
-  const pointer = await t.run(async (ctx) => {
-    const save = (await ctx.db.get("collections", draft.saves[0].id))!;
-    return ctx.db.insert("artworkPhotos", {
-      owner: save.owner,
-      saveId: save._id,
-      savedLocalId: save.localId,
-      localId: crypto.randomUUID(),
-      kind: "full",
-      capturedAt: 1,
-      storageId: asset.storageId,
-      updatedAt: 1,
-      changeVersion: 1,
+it.each([undefined, 1])(
+  "denies current and deleted owner-photo pointers permanently (deletedAt=%s)",
+  async (deletedAt) => {
+    const { t, a, b, draft, asset, transport, publish } = await fixture();
+    const context = await publish();
+    await befriend(a, b);
+    const pointer = await t.run(async (ctx) => {
+      const save = (await ctx.db.get("collections", draft.saves[0].id))!;
+      return ctx.db.insert("artworkPhotos", {
+        owner: save.owner,
+        saveId: save._id,
+        savedLocalId: save.localId,
+        localId: crypto.randomUUID(),
+        kind: "full",
+        capturedAt: 1,
+        deletedAt,
+        storageId: asset.storageId,
+        updatedAt: 1,
+        changeVersion: 1,
+      });
     });
-  });
-  expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
-  await t.run((ctx) => ctx.db.delete("artworkPhotos", pointer));
+    expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
+    await t.run((ctx) => ctx.db.delete("artworkPhotos", pointer));
+    expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
+  },
+);
+
+it("denies a publication revoked during the storage fetch", async () => {
+  const { t, a, b, draft, transport, publish } = await fixture();
+  const context = await publish();
   const { get } = fileStorage;
   const fetch = vi.spyOn(fileStorage, "get").mockImplementationOnce(async (ctx, id) => {
     const blob = await get(ctx, id);
@@ -75,6 +85,7 @@ it("denies an owner-photo pointer and a publication revoked during the storage f
     return blob;
   });
   const response = await serveSharedMedia(transport(b), context);
+  expect(fetch).toHaveBeenCalledOnce();
   fetch.mockRestore();
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ code: "not_found" });

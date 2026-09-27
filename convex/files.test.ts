@@ -116,19 +116,56 @@ it("cleans a failed upload and recovers deletion jobs whose action never complet
   expect(await r2.get(id)).toBeNull();
 });
 
-it("treats malformed, wrong-table, and deleted file IDs as missing", async () => {
+it("rejects invalid internal IDs and treats invalid download URLs and deleted IDs as missing", async () => {
   const t = harness();
   const { deviceId } = await seedDevice(t);
   const deletedId = await t.mutation(internal.files.reserve, { contentType: "image/jpeg", size: 3 });
   await t.run((ctx) => ctx.db.delete("files", deletedId));
-  const get = vi.mocked(r2.get);
-  const remove = vi.mocked(r2.remove);
-  for (const id of ["not-a-file", crypto.randomUUID(), deviceId, deletedId]) {
-    expect(await t.query(internal.files.metadata, { id })).toBeNull();
-    expect(await t.run((ctx) => fileStorage.get(ctx, id))).toBeNull();
+  for (const id of ["not-a-file", crypto.randomUUID(), deviceId]) {
+    // @ts-expect-error deliberately violate the internal file-ID contract
+    await expect(t.query(internal.files.metadata, { id })).rejects.toThrow(/Validator/);
     expect((await t.fetch(`/file?id=${id}`)).status).toBe(404);
-    await t.mutation(internal.files.discard, { id });
   }
-  expect(get).not.toHaveBeenCalled();
-  expect(remove).not.toHaveBeenCalled();
+  expect(await t.query(internal.files.metadata, { id: deletedId })).toBeNull();
+  expect(await t.run((ctx) => fileStorage.get(ctx, deletedId))).toBeNull();
+  await t.mutation(internal.files.discard, { id: deletedId });
+});
+
+it("counts shared references atomically and releases a file only after the last attachment", async () => {
+  vi.useFakeTimers();
+  const t = harness();
+  const id = await t.run((ctx) => fileStorage.store(ctx, new Blob(["shared photo"], { type: "image/jpeg" })));
+  const [first, second] = await t.run(async (ctx) => [
+    await ctx.db.insert("objectDetails", { thumbnailStorageId: id }),
+    await ctx.db.insert("objectDetails", { thumbnailStorageId: id }),
+  ]);
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 2 });
+  await t.mutation(internal.files.discard, { id });
+  await t.run((ctx) => ctx.db.delete("objectDetails", first));
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 1, state: "ready" });
+  await t.run((ctx) => ctx.db.patch("objectDetails", second, { medium: "changed without touching the file" }));
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 1 });
+  await t.run((ctx) => ctx.db.delete("objectDetails", second));
+  expect(await t.run((ctx) => fileStorage.getMetadata(ctx, id))).toBeNull();
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.query(internal.files.metadata, { id })).toBeNull();
+});
+
+it("allows a reference to move within a transaction and rolls back an invalid replacement", async () => {
+  vi.useFakeTimers();
+  const t = harness();
+  const id = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"], { type: "image/jpeg" })));
+  const first = await t.run((ctx) => ctx.db.insert("objectDetails", { thumbnailStorageId: id }));
+  const second = await t.run(async (ctx) => {
+    await ctx.db.delete("objectDetails", first);
+    return ctx.db.insert("objectDetails", { thumbnailStorageId: id });
+  });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 1, state: "ready" });
+  const pending = await t.mutation(internal.files.reserve, { contentType: "image/jpeg", size: 1 });
+  await expect(
+    t.run((ctx) => ctx.db.patch("objectDetails", second, { thumbnailStorageId: pending })),
+  ).rejects.toMatchObject({ data: { code: "file_missing" } });
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 1 });
+  expect(await t.run((ctx) => ctx.db.get("objectDetails", second))).toMatchObject({ thumbnailStorageId: id });
 });

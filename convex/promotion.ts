@@ -2,14 +2,8 @@ import { type Infer, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type ActionCtx,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server";
+import { internalAction, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
 import { cosine } from "./lib/cosine";
 import { reportBackendError } from "./lib/observability";
@@ -78,7 +72,7 @@ async function applyMultiView(
   agreementIds: Id<"feedback">[],
   cursor: string | null,
   checked: Infer<typeof checkedVector>[],
-  archiveId: string | null,
+  archiveId: Id<"files"> | null,
 ): Promise<ViewStep> {
   const done = { kind: "done" } as const;
   const stale = { kind: "stale" } as const;
@@ -94,7 +88,7 @@ async function applyMultiView(
     object
     && (await ctx.db
       .query("takedowns")
-      .withIndex("by_artworkId", (q) => q.eq("artworkId", object.artworkId))
+      .withIndex("by_artworkId", (q) => q.eq("target.artworkId", object.artworkId))
       .first());
   if (
     !object
@@ -251,7 +245,7 @@ export const commitNextView = internalMutation({
     feedbackId: v.id("feedback"),
     cursor: cursorArg,
     checked: v.array(checkedVector),
-    archiveId: v.union(v.string(), v.null()),
+    archiveId: v.union(v.id("files"), v.null()),
     retryId: v.id("_scheduled_functions"),
   },
   returns: v.null(),

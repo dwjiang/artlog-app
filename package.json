@@ -37,6 +37,7 @@
     "@shopify/react-native-skia": "2.6.2",
     "cbor-x": "^1.6.6",
     "convex": "^1.45.0",
+    "convex-helpers": "^0.1.124",
     "drizzle-orm": "^0.45.2",
     "expo": "~57.0.20",
     "expo-apple-authentication": "~57.0.2",

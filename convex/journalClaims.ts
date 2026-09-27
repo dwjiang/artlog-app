@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
-import { mutation } from "./_generated/server";
+import { mutation } from "./functions";
 import { recordArtworkScore, recordVisitScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, resolveOwner } from "./lib/ownership";
 

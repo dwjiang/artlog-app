@@ -3,8 +3,9 @@ import { ConvexError, v } from "convex/values";
 import { MAX_OCR_LINE_CHARS, MAX_OCR_LINES, type OcrLine } from "../shared/label/ocr-limits";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, type ActionCtx, env } from "./_generated/server";
+import { action, internalQuery, type ActionCtx, env } from "./_generated/server";
 import { resolveFalseRejections } from "./feedback";
+import { internalMutation } from "./functions";
 import { requireDeviceFromAction } from "./lib/auth";
 import { isEnabled } from "./lib/flags";
 import {

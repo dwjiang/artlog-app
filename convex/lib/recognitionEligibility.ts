@@ -39,16 +39,17 @@ export async function contributionRightsIssue(
     if (artwork) artworkIds.add(artwork._id);
   }
   // A visitor entry has no museum identity; a takedown of one binds its label at the venue through its artwork.
-  for await (const object of ctx.db
-    .query("objects")
+  for await (const state of ctx.db
+    .query("objectContributionState")
     .withIndex("by_groupKey", (q) => q.eq("groupKey", contributionGroup(row)))) {
-    artworkIds.add(object.artworkId);
+    const object = await ctx.db.get("objects", state.objectId);
+    if (object) artworkIds.add(object.artworkId);
   }
   for (const artworkId of artworkIds) {
     if (
       await ctx.db
         .query("takedowns")
-        .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))
+        .withIndex("by_artworkId", (q) => q.eq("target.artworkId", artworkId))
         .first()
     ) {
       return "artwork_taken_down";
@@ -56,7 +57,9 @@ export async function contributionRightsIssue(
     if (
       await ctx.db
         .query("takedowns")
-        .withIndex("by_identity_artwork_venue", (q) => q.eq("identityArtworkId", artworkId).eq("venueId", row.venueId))
+        .withIndex("by_identity_artwork_venue", (q) =>
+          q.eq("target.identityArtworkId", artworkId).eq("target.venueId", row.venueId),
+        )
         .first()
     ) {
       return "artwork_taken_down";
@@ -79,11 +82,11 @@ export async function eligibleObjectRecord(ctx: QueryCtx, object: Doc<"objects">
   if (
     (await ctx.db
       .query("takedowns")
-      .withIndex("by_artworkId", (q) => q.eq("artworkId", object.artworkId))
+      .withIndex("by_artworkId", (q) => q.eq("target.artworkId", object.artworkId))
       .first())
     || (await ctx.db
       .query("takedowns")
-      .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
+      .withIndex("by_objectId", (q) => q.eq("target.objectId", object._id))
       .first())
   ) {
     return false;

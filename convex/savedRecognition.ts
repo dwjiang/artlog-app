@@ -1,7 +1,8 @@
 import { ConvexError, v, type Infer } from "convex/values";
 
 import { internal } from "./_generated/api";
-import { action, internalMutation, internalQuery, mutation } from "./_generated/server";
+import { action, internalQuery } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { decodeQuery, matchArtwork } from "./identify";
 import { requireDeviceFromAction } from "./lib/auth";
 import { retainFile } from "./lib/fileStorage";
@@ -41,7 +42,7 @@ export const attach = internalMutation({
     sourceLocalId: v.string(),
     ...embeddingArchive.fields,
     modelVersion: v.string(),
-    orbStorageId: v.string(),
+    orbStorageId: v.id("files"),
     keypointCount: v.number(),
   },
   returns: v.null(),
@@ -59,7 +60,7 @@ export const attach = internalMutation({
 });
 
 export const discard = internalMutation({
-  args: { storageId: v.string() },
+  args: { storageId: v.id("files") },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
     await deleteOrbIfUnreferenced(ctx, storageId);

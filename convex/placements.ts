@@ -2,9 +2,12 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
 import { fileStorage } from "./lib/fileStorage";
+import { patchContributionState } from "./lib/objectContributionState";
+import { readObjectOrb, patchObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { currentPlacement, loadCurrentPlacement } from "./lib/placements";
 import { recognitionPartition } from "./lib/recognitionEligibility";
@@ -258,10 +261,7 @@ export const commitReview = internalMutation({
           }
         }
       } else {
-        const reference = await ctx.db
-          .query("descriptors")
-          .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-          .unique();
+        const reference = await readObjectOrb(ctx, object);
         if (!reference || !(await fileStorage.getMetadata(ctx, reference.storageId))) {
           throw new ConvexError({ code: "reference_descriptors_required" });
         }
@@ -291,15 +291,21 @@ export const commitReview = internalMutation({
             proposalId,
           });
         }
-        await ctx.db.insert("descriptors", {
-          objectId,
-          storageId: reference.storageId,
-          sha256: reference.sha256,
-          keypointCount: reference.keypointCount,
-          inputSize: reference.inputSize,
-          extractedFrom: reference.extractedFrom,
-          proposalId,
-        });
+        await patchObjectDetails(
+          ctx,
+          { _id: objectId },
+          {
+            orb: {
+              storageId: reference.storageId,
+              sha256: reference.sha256,
+              keypointCount: reference.keypointCount,
+              inputSize: reference.inputSize,
+              extractedFrom: reference.extractedFrom,
+              proposalId,
+            },
+          },
+        );
+        await patchContributionState(ctx, objectId, {});
         await bumpCounter(ctx, "objects", 1);
         await bumpCounter(ctx, "vectors", scans.length);
         await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});

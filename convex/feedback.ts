@@ -3,10 +3,12 @@ import { ConvexError, v } from "convex/values";
 
 import { rejectionPayload } from "../shared/attestation/attested-payloads";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalQuery, mutation, type MutationCtx } from "./_generated/server";
+import { internalQuery, type MutationCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
 import { feedbackChanged } from "./feedbackReplay";
+import { mutation } from "./functions";
 import { requireDevice } from "./lib/auth";
+import { patchContributionState } from "./lib/objectContributionState";
 import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
 import { eligibleObject } from "./lib/recognitionEligibility";
@@ -99,11 +101,11 @@ export const rejectMatch = mutation({
       ...(flagged
         ? {
             // Keep uncapped contributions so undoing one rejection preserves the others, even at the cap.
-            flaggedForReview: true,
             rejectionPenalty: (object.rejectionPenalty ?? 0) + penaltyAdded,
           }
         : {}),
     });
+    if (flagged) await patchContributionState(ctx, objectId, { flaggedForReview: true });
     return { feedbackId };
   },
 });

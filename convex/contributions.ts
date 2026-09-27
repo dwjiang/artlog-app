@@ -4,9 +4,10 @@ import { contributionPayload } from "../shared/attestation/attested-payloads";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from "../shared/orb/features";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, type MutationCtx } from "./_generated/server";
+import { action, internalQuery, type MutationCtx } from "./_generated/server";
 import { removeContribution } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
+import { internalMutation, mutation } from "./functions";
 import { decodeQuery } from "./identify";
 import { AGREEMENT_MIN_COSINE, REPLAY_COSINE, contributionGroup } from "./lib/agreement";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -64,7 +65,7 @@ type ContributionResult = Infer<typeof contributionResult>;
 
 export const requestCropUpload = mutation({
   args: { size: v.number() },
-  returns: v.object({ uploadUrl: v.string(), storageId: v.string() }),
+  returns: v.object({ uploadUrl: v.string(), storageId: v.id("files") }),
   handler: async (ctx, { size }) => {
     const device = await requireDevice(ctx);
     await limitDevice(ctx, "contribute", device._id);
@@ -163,23 +164,23 @@ export const checkDuplicatePage = internalQuery({
   },
 });
 
-async function deleteUnreferencedCrop(ctx: MutationCtx, cropStorageId: string, deviceId: Id<"devices">): Promise<void> {
+async function deleteUnreferencedCrop(
+  ctx: MutationCtx,
+  cropStorageId: Id<"files">,
+  deviceId: Id<"devices">,
+): Promise<void> {
   const crop = await fileStorage.getMetadata(ctx, cropStorageId);
   if (!crop || crop.uploadOwner !== deviceId || crop.contentType !== CROP_CONTENT_TYPE || crop.size > MAX_CROP_BYTES) {
     return;
   }
-  const reference = await ctx.db
-    .query("contributions")
-    .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
-    .first();
-  if (!reference) await fileStorage.delete(ctx, cropStorageId);
+  await fileStorage.delete(ctx, cropStorageId);
 }
 
 async function validateSubmission(
   ctx: MutationCtx,
   scan: Doc<"scans">,
   submitted: SubmittedFields,
-  cropStorageId: string,
+  cropStorageId: Id<"files">,
   allowPending = false,
 ): Promise<{ flow: LabelFlow; fields: ContributionFields }> {
   const venue = scan.venueId ? await ctx.db.get("museums", scan.venueId) : null;
@@ -218,7 +219,7 @@ export const authorize = internalMutation({
   args: {
     scanId: v.id("scans"),
     fields: submittedFields,
-    cropStorageId: v.string(),
+    cropStorageId: v.id("files"),
     nonce: v.string(),
     assertionBase64: v.string(),
   },
@@ -287,12 +288,14 @@ export const findGroupPage = internalQuery({
       fields: resolveFields(scan.labelFlow, fields),
     };
     const page = await ctx.db
-      .query("objects")
+      .query("objectContributionState")
       .withIndex("by_groupKey", (q) => q.eq("groupKey", contributionGroup(candidate)))
       // Anchor rights checks scan the label group; let the action stop before checking another entry.
       .paginate({ cursor, numItems: 1 });
     const entries = [];
-    for (const object of page.page) {
+    for (const state of page.page) {
+      const object = await ctx.db.get("objects", state.objectId);
+      if (!object) continue;
       if (object.reverted || object.mergedInto) continue;
       const anchor = await groupAnchor(ctx, candidate, object);
       entries.push({
@@ -309,14 +312,14 @@ export const findGroupPage = internalQuery({
 
 export const commit = internalMutation({
   args: {
-    archiveId: v.string(),
+    archiveId: v.id("files"),
     scanId: v.id("scans"),
     generation: v.number(),
-    orbStorageId: v.string(),
+    orbStorageId: v.id("files"),
     orbSha256: v.string(),
     keypointCount: v.number(),
     fields: submittedFields,
-    cropStorageId: v.string(),
+    cropStorageId: v.id("files"),
     duplicate: v.boolean(),
     previousContributionId: v.union(v.id("contributions"), v.null()),
     group: v.optional(checkedGroup),
@@ -369,11 +372,8 @@ export const commit = internalMutation({
           .first()
       : null;
     const duplicate = args.duplicate || own !== null;
-    const cropOwner = await ctx.db
-      .query("contributions")
-      .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", cropStorageId))
-      .first();
-    if (!duplicate && cropOwner) {
+    const crop = await fileStorage.getMetadata(ctx, cropStorageId);
+    if (!duplicate && crop?.contributionCrop) {
       throw new ConvexError({ code: "crop_already_shared" });
     }
     if (duplicate) await deleteUnreferencedCrop(ctx, cropStorageId, device._id);
@@ -420,7 +420,7 @@ export const contribute = action({
     descriptors: v.bytes(),
     keypoints: v.bytes(),
     fields: submittedFields,
-    cropStorageId: v.string(),
+    cropStorageId: v.id("files"),
     nonce: v.string(),
     assertionBase64: v.string(),
   },

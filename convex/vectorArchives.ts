@@ -1,10 +1,10 @@
 import { ConvexError, v } from "convex/values";
 
-import { internalMutation } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { expireVectorArchiveIfUnreferenced } from "./lib/vectorStore";
 
 export const discard = internalMutation({
-  args: { ids: v.array(v.string()) },
+  args: { ids: v.array(v.id("files")) },
   returns: v.null(),
   handler: async (ctx, { ids }) => {
     if (ids.length > 500) throw new ConvexError({ code: "batch_too_large", max: 500 });

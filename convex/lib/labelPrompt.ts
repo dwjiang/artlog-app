@@ -1,4 +1,7 @@
+import type { Infer } from "convex/values";
+
 import type { OcrLine } from "../../shared/label/ocr-limits";
+import type { labelReading } from "./validators";
 
 // Bump PROMPT_VERSION when prompts or schemas change.
 export const PROMPT_VERSION = "label-v2";
@@ -74,9 +77,7 @@ export function titleWithoutDate(title: string, workDate: string | null): string
 const LABEL_TEXT_KEYS = ["title", "artist", "artist_dates", "work_date", "medium", "accession", "credit_line"] as const;
 const CONFIDENCE_KEYS = ["title", "artist", "work_date", "medium", "accession"] as const;
 
-export type LabelReading = Record<(typeof LABEL_TEXT_KEYS)[number], string | null> & {
-  confidence: Record<(typeof CONFIDENCE_KEYS)[number], number>;
-};
+export type LabelReading = Infer<typeof labelReading>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);

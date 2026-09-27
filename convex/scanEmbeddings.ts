@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalAction, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { withErrorReporting } from "./lib/observability";
 import type { EmbeddingArchive } from "./lib/validators";
 import { expireVectorArchiveIfUnreferenced, retainVectorArchive } from "./lib/vectorStore";

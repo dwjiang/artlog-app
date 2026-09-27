@@ -23,18 +23,20 @@ export async function reserveFile(ctx: MutationCtx, contentType: string, size: n
     size,
     uploadOwner,
     state: "pending",
+    refCount: 0,
+    ownerPhoto: false,
+    contributionCrop: false,
     publicDownload: false,
     expiresAt: Date.now() + FILE_LEASE_MS,
     deleteAttempts: 0,
   });
 }
 
-export async function findFile(ctx: Pick<QueryCtx, "db">, id: string): Promise<Doc<"files"> | null> {
-  const fileId = ctx.db.normalizeId("files", id);
-  return fileId ? ctx.db.get("files", fileId) : null;
+export async function findFile(ctx: Pick<QueryCtx, "db">, id: Id<"files">): Promise<Doc<"files"> | null> {
+  return ctx.db.get("files", id);
 }
 
-export async function retainFile(ctx: MutationCtx, id: string, publicDownload = false) {
+export async function retainFile(ctx: MutationCtx, id: Id<"files">, publicDownload = false) {
   const file = await fileStorage.getMetadata(ctx, id);
   if (!file) throw new ConvexError({ code: "file_missing" });
   await ctx.db.patch("files", file._id, {
@@ -43,9 +45,9 @@ export async function retainFile(ctx: MutationCtx, id: string, publicDownload = 
   });
 }
 
-export async function queueFileDeletion(ctx: MutationCtx, id: string) {
+export async function queueFileDeletion(ctx: MutationCtx, id: Id<"files">) {
   const file = await findFile(ctx, id);
-  if (!file || file.state === "deleting") return;
+  if (!file || file.state === "deleting" || file.refCount > 0) return;
   // A direct-upload URL can still be used until it expires. Delete only after that window.
   const delay = file.uploadOwner
     ? Math.max(0, file._creationTime + (UPLOAD_LIFETIME_SECONDS + 60) * 1000 - Date.now())
@@ -59,9 +61,11 @@ export async function queueFileDeletion(ctx: MutationCtx, id: string) {
 }
 
 export const fileStorage = {
-  async getMetadata(ctx: Reader, id: string): Promise<Doc<"files"> | null> {
+  async getMetadata(ctx: Reader, id: Id<"files">): Promise<Doc<"files"> | null> {
     const file = "db" in ctx ? await findFile(ctx, id) : await ctx.runQuery(internal.files.metadata, { id });
-    return file?.state === "ready" ? file : null;
+    return file?.state === "ready" && (file.refCount > 0 || file.expiresAt === undefined || file.expiresAt > Date.now())
+      ? file
+      : null;
   },
   async store(ctx: Pick<ActionCtx, "runMutation">, blob: Blob): Promise<Id<"files">> {
     return withErrorReporting("files.store", async () => {
@@ -78,18 +82,18 @@ export const fileStorage = {
       }
     });
   },
-  async get(ctx: Reader, id: string): Promise<Blob | null> {
+  async get(ctx: Reader, id: Id<"files">): Promise<Blob | null> {
     const file = await fileStorage.getMetadata(ctx, id);
     if (!file) return null;
     return withErrorReporting("files.get", () => r2.get(file._id));
   },
-  async getUrl(ctx: Reader, id: string): Promise<string | null> {
+  async getUrl(ctx: Reader, id: Id<"files">): Promise<string | null> {
     const file = await fileStorage.getMetadata(ctx, id);
     if (!file?.publicDownload) return null;
     // Reactive query results may be cached longer than a signed URL's lifetime.
     return `${env.CONVEX_SITE_URL}/file?id=${encodeURIComponent(id)}`;
   },
-  async delete(ctx: Writer, id: string): Promise<void> {
+  async delete(ctx: Writer, id: Id<"files">): Promise<void> {
     if ("db" in ctx) await queueFileDeletion(ctx, id);
     else await ctx.runMutation(internal.files.discard, { id });
   },

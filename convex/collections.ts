@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
 import { pageArgs, pagination, validateSave } from "../shared/journal/contracts";
-import { mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
 import { feedbackChanged } from "./feedbackReplay";
+import { mutation } from "./functions";
 import { upsertJournalSave } from "./lib/journal";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { requireJournalOwner, findOwnedSave, nextChangeVersion } from "./lib/ownership";

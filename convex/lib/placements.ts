@@ -71,3 +71,27 @@ function compareFrom(a: number | undefined, b: number | undefined): number {
   if (b === undefined) return 1;
   return a - b;
 }
+
+export async function matchingPlacements(
+  ctx: QueryCtx,
+  objectId: Id<"objects">,
+  venueId: Id<"museums">,
+  source: Doc<"placements">["source"],
+) {
+  const matches = [];
+  for await (const row of ctx.db.query("placements").withIndex("by_objectId", (q) => q.eq("objectId", objectId))) {
+    if (row.venueId === venueId && row.source === source) matches.push(row);
+  }
+  return matches;
+}
+
+export async function findPlacement(
+  ctx: QueryCtx,
+  objectId: Id<"objects">,
+  venueId: Id<"museums">,
+  source: Doc<"placements">["source"],
+) {
+  const matches = await matchingPlacements(ctx, objectId, venueId, source);
+  if (matches.length > 1) throw new Error("Duplicate placement natural key");
+  return matches[0] ?? null;
+}

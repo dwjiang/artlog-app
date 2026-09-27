@@ -4,7 +4,7 @@ import { journalSave, journalVisit, validateBatch } from "../shared/journal/cont
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { journalVenue, type JournalVenue } from "../shared/journal/venue";
 import type { Doc } from "./_generated/dataModel";
-import { mutation } from "./_generated/server";
+import { mutation } from "./functions";
 import { upsertJournalSave, upsertJournalVisit } from "./lib/journal";
 import { projectJournalVenue } from "./lib/journalVenue";
 import { requireJournalOwner } from "./lib/ownership";

@@ -28,3 +28,7 @@ export async function patchObjectDetails(
     await ctx.db.patch("objects", current._id, { detailsId });
   }
 }
+
+export async function readObjectOrb(ctx: QueryCtx, object: Pick<Doc<"objects">, "detailsId">) {
+  return (await readObjectDetails(ctx, object))?.orb ?? null;
+}

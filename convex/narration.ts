@@ -14,16 +14,9 @@ import {
 } from "../shared/audio/guide";
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
-import {
-  action,
-  env,
-  httpAction,
-  internalAction,
-  internalMutation,
-  internalQuery,
-  type MutationCtx,
-} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { action, env, httpAction, internalAction, internalQuery, type MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
@@ -48,7 +41,7 @@ const audio = v.object({
   renderId: v.string(),
   live: v.boolean(),
 });
-const segment = v.object({ storageId: v.string(), duration: v.number() });
+const segment = v.object({ storageId: v.id("files"), duration: v.number() });
 const LEASE_MS = 180_000;
 const FIRST_SEGMENT_POLL_MS = 250;
 const FIRST_SEGMENT_TIMEOUT_MS = 30_000;
@@ -97,8 +90,8 @@ export const claim = internalMutation({
       segments: undefined,
     };
     if (entry) {
-      await deleteFiles(ctx, entry);
       await ctx.db.replace("narrationAudio", entry._id, fields);
+      await deleteFiles(ctx, entry);
     } else {
       await ctx.db.insert("narrationAudio", fields);
     }
@@ -143,7 +136,7 @@ export const finish = internalMutation({
   args: {
     artworkId: v.id("artworks"),
     claim: v.string(),
-    storageId: v.optional(v.string()),
+    storageId: v.optional(v.id("files")),
   },
   returns: v.null(),
   handler: async (ctx, { artworkId, claim, storageId }) => {
@@ -157,8 +150,8 @@ export const finish = internalMutation({
     }
     if (storageId) await fileStorage.delete(ctx, storageId);
     if (entry?.claim === claim) {
-      await deleteFiles(ctx, entry);
       await ctx.db.delete("narrationAudio", entry._id);
+      await deleteFiles(ctx, entry);
     }
     return null;
   },
@@ -170,8 +163,8 @@ export const dropSegments = internalMutation({
   handler: async (ctx, { artworkId, claim }) => {
     const entry = await narrationEntry(ctx, artworkId);
     if (entry?.claim !== claim || !entry.storageId || !entry.segments) return null;
-    await Promise.all(entry.segments.map(({ storageId }) => fileStorage.delete(ctx, storageId)));
     await ctx.db.patch("narrationAudio", entry._id, { segments: undefined });
+    await Promise.all(entry.segments.map(({ storageId }) => fileStorage.delete(ctx, storageId)));
     return null;
   },
 });
@@ -235,8 +228,8 @@ export const clear = internalMutation({
   handler: async (ctx) => {
     let cleared = 0;
     for await (const entry of ctx.db.query("narrationAudio")) {
-      await deleteFiles(ctx, entry);
       await ctx.db.delete("narrationAudio", entry._id);
+      await deleteFiles(ctx, entry);
       cleared++;
     }
     return cleared;
@@ -384,7 +377,7 @@ export const speak = internalAction({
   args: { artworkId: v.id("artworks"), claim: v.string(), input: v.string() },
   returns: v.null(),
   handler: async (ctx, { artworkId, claim, input }) => {
-    let storageId: string | undefined;
+    let storageId: Id<"files"> | undefined;
     try {
       const response = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",

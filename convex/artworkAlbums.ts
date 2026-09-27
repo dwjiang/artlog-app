@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { albumEncounter, albumPhoto, validateAlbumEncounter, validateAlbumPhoto } from "../shared/collection/album";
 import { isRevision, LIMITS, utf8Bytes } from "../shared/journal/limits";
-import { mutation } from "./_generated/server";
+import { mutation } from "./functions";
 import { invalidateAlbumPhoto } from "./lib/albumMedia";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { recordArtworkScore } from "./lib/leaderboard";

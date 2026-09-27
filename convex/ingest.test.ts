@@ -17,9 +17,9 @@ import {
 } from "./ingest";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
-import { readObjectDetails } from "./lib/objectDetails";
+import { readObjectDetails, patchObjectDetails } from "./lib/objectDetails";
 import { loadOrb } from "./lib/orbStorage";
-import { seedVector } from "./lib/testFactories";
+import { readTestOrb, seedVector } from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
 
@@ -630,12 +630,7 @@ describe("placements, vectors and descriptors", () => {
       rows: [{ ...row, extractedFrom: "contribution:abc" }],
     });
 
-    const stored = await t.run((ctx) =>
-      ctx.db
-        .query("descriptors")
-        .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-        .collect(),
-    );
+    const stored = await t.run((ctx) => readTestOrb(ctx, objectId).then((orb) => (orb ? [orb] : [])));
     expect(stored).toHaveLength(1);
     expect(stored[0].extractedFrom).toBe("contribution:abc");
     expect(stored[0]).not.toHaveProperty("descriptors");
@@ -658,13 +653,13 @@ describe("ORB file imports", () => {
     const first = await t.action(internal.ingest.upsertDescriptors, {
       rows: [orbRow],
     });
-    const before = (await t.run((ctx) => ctx.db.get("descriptors", first.ids[orbRow.objectKey])))!;
+    const before = (await t.run((ctx) => readTestOrb(ctx, first.ids[orbRow.objectKey])))!;
     expect(
       await t.action(internal.ingest.upsertDescriptors, {
         rows: [{ ...orbRow, extractedFrom: "new URL" }],
       }),
     ).toEqual(first);
-    expect(await t.run((ctx) => ctx.db.get("descriptors", before._id))).toMatchObject({
+    expect(await t.run((ctx) => readTestOrb(ctx, first.ids[orbRow.objectKey]))).toMatchObject({
       storageId: before.storageId,
       extractedFrom: "new URL",
     });
@@ -678,7 +673,7 @@ describe("ORB file imports", () => {
       descriptors: new Uint8Array(64).fill(8).buffer,
     };
     expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
-    const after = (await t.run((ctx) => ctx.db.get("descriptors", before._id)))!;
+    const after = (await t.run((ctx) => readTestOrb(ctx, first.ids[orbRow.objectKey])))!;
     expect(after.storageId).not.toBe(before.storageId);
     expect(await t.run((ctx) => fileStorage.getMetadata(ctx, before.storageId))).toBeNull();
     expect(
@@ -749,7 +744,14 @@ describe("ORB file imports", () => {
     expect(
       await t.run(async (ctx) => (await ctx.db.query("files").collect()).filter((file) => file.state === "ready")),
     ).toEqual([]);
-    expect(await t.run((ctx) => ctx.db.query("descriptors").collect())).toEqual([]);
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("objectDetails")
+          .collect()
+          .then((rows) => rows.flatMap((row) => (row.orb ? [row.orb] : []))),
+      ),
+    ).toEqual([]);
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       descriptors: 0,
     });
@@ -769,17 +771,13 @@ describe("ORB file imports", () => {
     });
     await t.run(async (ctx) => {
       const { _id: _objectId, _creationTime: _objectTime, ...object } = (await ctx.db.get("objects", objectId))!;
-      const {
-        _id: _referenceId,
-        _creationTime: _referenceTime,
-        ...reference
-      } = (await ctx.db.query("descriptors").unique())!;
+      const reference = (await readTestOrb(ctx, objectId))!;
       for (let i = 0; i < 104; i++) {
         const copy = await ctx.db.insert("objects", {
           ...object,
           key: `met:copy:${i}`,
         });
-        await ctx.db.insert("descriptors", { ...reference, objectId: copy });
+        await patchObjectDetails(ctx, { _id: copy }, { orb: reference });
       }
     });
     const first = await t.action(internal.ingest.exportDescriptors, {});

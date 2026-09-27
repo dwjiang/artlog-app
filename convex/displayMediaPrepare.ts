@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import sharp from "sharp";
 
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
 import { fileStorage } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
@@ -12,7 +13,7 @@ export const prepare = internalAction({
   args: { saveId: v.id("collections") },
   returns: v.null(),
   handler: async (ctx, { saveId }) => {
-    let storageId: string | undefined;
+    let storageId: Id<"files"> | undefined;
     try {
       const asset = await ctx.runMutation(internal.displayMedia.beginPreparation, { saveId });
       if (!asset || asset.provenance.kind !== "contribution") return null;

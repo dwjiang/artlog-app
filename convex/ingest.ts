@@ -1,19 +1,22 @@
 import { ConvexError, type Infer, v } from "convex/values";
-// The Python ↔ Convex ingest contract. Every function is admin-key only and every
-// upsert is idempotent on its natural key; changing a row shape means changing
-// scripts/data/pipeline in the same PR.
 
 import model from "../shared/model/model-version.json";
 import { DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../shared/orb/features";
+// The Python ↔ Convex ingest contract. Every function is admin-key only and every
+// upsert is idempotent on its natural key; changing a row shape means changing
+// scripts/data/pipeline in the same PR.
 import { validateGeography } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
-import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
+import { patchContributionState } from "./lib/objectContributionState";
+import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
+import { findPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
@@ -174,9 +177,13 @@ async function requireByKey<T extends KeyedTable>(ctx: QueryCtx, table: T, key: 
 
 export async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inserted: number) {
   if (inserted === 0) return;
-  const existing = await ctx.db.query("ingestCounters").first();
+  const shard = Math.floor(Math.random() * 64);
+  const existing = await ctx.db
+    .query("ingestCounters")
+    .withIndex("by_shard", (q) => q.eq("shard", shard))
+    .unique();
   if (existing === null) {
-    await ctx.db.insert("ingestCounters", { ...zeroCounts, [table]: inserted });
+    await ctx.db.insert("ingestCounters", { ...zeroCounts, shard, [table]: inserted });
   } else {
     await ctx.db.patch("ingestCounters", existing._id, { [table]: existing[table] + inserted });
   }
@@ -275,12 +282,18 @@ export const upsertObjects = internalMutation({
     checkBatch(rows);
     const ids: Record<string, Id<"objects">> = {};
     let inserted = 0;
+    const artworks = new Map<string, Doc<"artworks">>();
+    const museums = new Map<string, Doc<"museums">>();
     for (const row of rows) {
-      const artwork = await requireByKey(ctx, "artworks", row.artworkKey);
+      const artwork = artworks.get(row.artworkKey) ?? (await requireByKey(ctx, "artworks", row.artworkKey));
+      artworks.set(row.artworkKey, artwork);
       if (row.thumbnailUrl !== undefined && artwork.rightsStatus !== "public_domain") {
         throw new ConvexError({ code: "thumbnail_rights", objectKey: row.key });
       }
-      const owner = row.ownerKey ? await requireByKey(ctx, "museums", row.ownerKey) : null;
+      const owner = row.ownerKey
+        ? (museums.get(row.ownerKey) ?? (await requireByKey(ctx, "museums", row.ownerKey)))
+        : null;
+      if (row.ownerKey && owner) museums.set(row.ownerKey, owner);
       const mergedInto = row.mergedIntoKey ? await requireByKey(ctx, "objects", row.mergedIntoKey) : null;
       const fields = {
         key: row.key,
@@ -317,6 +330,9 @@ export const upsertObjects = internalMutation({
         await patchObjectDetails(ctx, { _id: ids[row.key] }, details);
         inserted += 1;
       }
+      if (row.source === "user" || existing?.source === "user") {
+        await patchContributionState(ctx, ids[row.key], { userCreated: row.source === "user" });
+      }
       await registerMuseumObject(ctx, {
         ...fields,
         pageUrl: row.pageUrl,
@@ -349,12 +365,7 @@ export const upsertPlacements = internalMutation({
         source: row.source,
         confidence: row.confidence,
       };
-      const existing = await ctx.db
-        .query("placements")
-        .withIndex("by_object_venue_source", (q) =>
-          q.eq("objectId", object._id).eq("venueId", venue._id).eq("source", row.source),
-        )
-        .unique();
+      const existing = await findPlacement(ctx, object._id, venue._id, row.source);
       const naturalKey = `${row.objectKey}|${row.venueKey}|${row.source}`;
       if (existing) {
         if (documentChanged(existing, doc)) await ctx.db.replace("placements", existing._id, doc);
@@ -431,7 +442,7 @@ export const upsertVectors = internalAction({
 });
 
 export const commitVectors = internalMutation({
-  args: { rows: v.array(vectorRow.extend({ archiveId: v.string() })) },
+  args: { rows: v.array(vectorRow.extend({ archiveId: v.id("files") })) },
   returns: v.object({ ids: v.record(v.string(), v.id("vectors")) }),
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
@@ -479,14 +490,14 @@ export const commitVectors = internalMutation({
 
 const descriptorReference = v.object({
   objectKey: v.string(),
-  storageId: v.string(),
+  storageId: v.id("files"),
   sha256: v.string(),
   keypointCount: v.number(),
   inputSize: v.number(),
   extractedFrom: v.string(),
 });
 const descriptorIds = v.object({
-  ids: v.record(v.string(), v.id("descriptors")),
+  ids: v.record(v.string(), v.id("objects")),
 });
 
 export const existingDescriptors = internalQuery({
@@ -497,10 +508,7 @@ export const existingDescriptors = internalQuery({
     return Promise.all(
       objectKeys.map(async (objectKey) => {
         const object = await requireByKey(ctx, "objects", objectKey);
-        const row = await ctx.db
-          .query("descriptors")
-          .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-          .unique();
+        const row = await readObjectOrb(ctx, object);
         if (!row || !(await fileStorage.getMetadata(ctx, row.storageId))) {
           return null;
         }
@@ -523,8 +531,8 @@ export const commitDescriptors = internalMutation({
   returns: descriptorIds,
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
-    const ids: Record<string, Id<"descriptors">> = {};
-    const replaced: string[] = [];
+    const ids: Record<string, Id<"objects">> = {};
+    const replaced: Id<"files">[] = [];
     let inserted = 0;
     for (const { objectKey, ...reference } of rows) {
       const file = await fileStorage.getMetadata(ctx, reference.storageId);
@@ -535,20 +543,13 @@ export const commitDescriptors = internalMutation({
         });
       }
       const object = await requireByKey(ctx, "objects", objectKey);
-      const existing = await ctx.db
-        .query("descriptors")
-        .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-        .unique();
+      const existing = await readObjectOrb(ctx, object);
       await retainFile(ctx, reference.storageId);
-      const doc = { objectId: object._id, ...reference };
+      await patchObjectDetails(ctx, object, { orb: reference });
+      ids[objectKey] = object._id;
       if (existing) {
-        if (documentChanged(existing, doc)) await ctx.db.replace("descriptors", existing._id, doc);
-        ids[objectKey] = existing._id;
-        if (existing.storageId !== reference.storageId) {
-          replaced.push(existing.storageId);
-        }
+        if (existing.storageId !== reference.storageId) replaced.push(existing.storageId);
       } else {
-        ids[objectKey] = await ctx.db.insert("descriptors", doc);
         inserted += 1;
       }
     }
@@ -589,7 +590,7 @@ export const upsertDescriptors = internalAction({
       const existing = await ctx.runQuery(internal.ingest.existingDescriptors, {
         objectKeys: rows.map((row) => row.objectKey),
       });
-      const created: string[] = [];
+      const created: Id<"files">[] = [];
       const references: Infer<typeof descriptorReference>[] = [];
       try {
         for (let start = 0; start < rows.length; start += 8) {
@@ -651,16 +652,11 @@ export const counts = internalQuery({
   args: {},
   returns: v.object(countsShape),
   handler: async (ctx) => {
-    const counters = await ctx.db.query("ingestCounters").first();
-    if (counters === null) return zeroCounts;
-    return {
-      museums: counters.museums,
-      artworks: counters.artworks,
-      objects: counters.objects,
-      placements: counters.placements,
-      vectors: counters.vectors,
-      descriptors: counters.descriptors,
-    };
+    const result = { ...zeroCounts };
+    for (const shard of await ctx.db.query("ingestCounters").withIndex("by_shard").take(64)) {
+      for (const key of Object.keys(zeroCounts) as (keyof Counters)[]) result[key] += shard[key];
+    }
+    return result;
   },
 });
 
@@ -802,7 +798,7 @@ export const exportDescriptorReferences = internalQuery({
     page: v.array(
       v.object({
         objectId: v.id("objects"),
-        storageId: v.string(),
+        storageId: v.id("files"),
         keypointCount: v.number(),
         inputSize: v.number(),
       }),
@@ -812,21 +808,20 @@ export const exportDescriptorReferences = internalQuery({
   }),
   handler: async (ctx, { cursor }) => {
     const result = await ctx.db
-      .query("descriptors")
-      .withIndex("by_objectId")
+      .query("objects")
+      .withIndex("by_creation_time")
       .paginate({
         numItems: Math.floor(TRAINING_EXPORT_BYTES / (MAX_KEYPOINTS * (DESCRIPTOR_BYTES + KEYPOINT_BYTES))),
         cursor: cursor ?? null,
         maximumBytesRead: TRAINING_EXPORT_BYTES,
       });
     const page = [];
-    for (const row of result.page) {
-      const object = await ctx.db.get("objects", row.objectId);
-      if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
-        continue;
-      }
+    for (const object of result.page) {
+      if (object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) continue;
+      const row = await readObjectOrb(ctx, object);
+      if (!row) continue;
       page.push({
-        objectId: row.objectId,
+        objectId: object._id,
         storageId: row.storageId,
         keypointCount: row.keypointCount,
         inputSize: row.inputSize,
@@ -962,28 +957,12 @@ export const countExisting = internalQuery({
       const object = await findByKey(ctx, "objects", row.key);
       if (!object) continue;
       if (table === "descriptors") {
-        if (
-          await ctx.db
-            .query("descriptors")
-            .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-            .first()
-        ) {
+        if (await readObjectOrb(ctx, object)) {
           count += 1;
         }
       } else {
         const venue = row.venueKey && (await findByKey(ctx, "museums", row.venueKey));
-        if (
-          venue
-          && (await ctx.db
-            .query("placements")
-            .withIndex("by_object_venue_source", (q) =>
-              q
-                .eq("objectId", object._id)
-                .eq("venueId", venue._id)
-                .eq("source", row.source as Doc<"placements">["source"]),
-            )
-            .unique())
-        ) {
+        if (venue && (await findPlacement(ctx, object._id, venue._id, row.source as Doc<"placements">["source"]))) {
           count += 1;
         }
       }
@@ -1076,25 +1055,14 @@ export const readSampleRows = internalQuery({
       } else if (table === "penalties") {
         result.push({ objectKey: object.key, calibratorPenalty: object.calibratorPenalty });
       } else if (table === "descriptors") {
-        const descriptor = await ctx.db
-          .query("descriptors")
-          .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-          .unique();
+        const descriptor = await readObjectOrb(ctx, object);
         result.push(
           descriptor ? { ...pickFields(descriptor, descriptorReference.fields), objectKey: object.key } : null,
         );
       } else {
         const venue = row.venueKey ? await findByKey(ctx, "museums", row.venueKey) : null;
         const placement = venue
-          ? await ctx.db
-              .query("placements")
-              .withIndex("by_object_venue_source", (q) =>
-                q
-                  .eq("objectId", object._id)
-                  .eq("venueId", venue._id)
-                  .eq("source", row.source as Doc<"placements">["source"]),
-              )
-              .unique()
+          ? await findPlacement(ctx, object._id, venue._id, row.source as Doc<"placements">["source"])
           : null;
         result.push(
           placement && venue

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalQuery } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { assertUnderCap, dailyCap, reconcileSpend, recordSpend, reserveSpend, spentToday } from "./lib/spend";
 
 const spendKind = v.union(v.literal("tokenFactory"), v.literal("tavily"));

@@ -161,7 +161,6 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "global",
     metric: "visits",
-    period: "month",
   });
   const row = screen.getByRole("button", {
     name: "Rank 1, Ada, 4 visits. Open public profile.",
@@ -174,17 +173,17 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
   expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBeOnTheScreen();
 });
 
-it("changes category and period independently using the dropdowns", async () => {
+it("changes the ranking metric without time-period controls", async () => {
   mockSession.status = "ready";
   await render(<LeaderboardScreen />);
+  expect(screen.queryByText("Time period")).toBeNull();
+  expect(screen.queryByRole("checkbox", { name: "This month" })).toBeNull();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
-  await fireEvent.press(screen.getByRole("checkbox", { name: "All time" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "friends",
     metric: "artworks",
-    period: "all",
   });
-  expect(mockSettings.get("leaderboard-choice")).toBe('{"audience":"friends","metric":"artworks","period":"all"}');
+  expect(mockSettings.get("leaderboard-choice")).toBe('{"audience":"friends","metric":"artworks"}');
   expect(
     screen.getByRole("button", {
       name: "Rank 1, Ada, 4 artworks. Open public profile.",
@@ -299,10 +298,10 @@ it("offers creation for the selected metric while preserving actual participatio
   mockSession.status = "ready";
   mockVisibility = "global";
   mockRows = [];
-  mockSettings.set("leaderboard-choice", JSON.stringify({ audience: "global", metric: "visits", period: "month" }));
+  mockSettings.set("leaderboard-choice", JSON.stringify({ audience: "global", metric: "visits" }));
   await render(<LeaderboardScreen />);
   expect(await screen.findByRole("button", { name: "Manage participation" })).toBeOnTheScreen();
-  expect(screen.getByRole("header", { name: "No rankings this month." })).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole("button", { name: "Add visit" }));
   expect(mockPush).toHaveBeenLastCalledWith("/visit-create");
   expect(screen.queryByText("LOGGED VISITS")).toBeNull();
@@ -310,6 +309,5 @@ it("offers creation for the selected metric while preserving actual participatio
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
-  await fireEvent.press(screen.getByRole("checkbox", { name: "All time" }));
   expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
 });

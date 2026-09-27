@@ -39,7 +39,7 @@ export function LeaderboardScreen() {
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.4;
   const { choice, changeChoice, error: preferenceError } = useLeaderboardChoice();
-  const { audience, metric, period } = choice;
+  const { audience, metric } = choice;
   const ready = session.status === "ready";
   const guest = session.status === "signed-out" || session.status === "profile-required";
   const canBrowse = ready || (audience === "global" && guest);
@@ -99,15 +99,6 @@ export function LeaderboardScreen() {
                   options={[
                     { value: "visits", label: "Museum visits" },
                     { value: "artworks", label: "Artworks" },
-                  ]}
-                />
-                <ChoiceMenu
-                  label="Time period"
-                  value={period}
-                  onChange={(value) => filter({ period: value })}
-                  options={[
-                    { value: "month", label: "This month" },
-                    { value: "all", label: "All time" },
                   ]}
                 />
               </View>
@@ -179,16 +170,10 @@ export function LeaderboardScreen() {
           ) : board.loading && !board.error ? (
             <LeaderboardSkeleton />
           ) : board.error ? (
-            <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
+            <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} centered />
           ) : board.data ? (
             <EmptyState
-              title={
-                audience === "friends"
-                  ? "No friends on this leaderboard yet."
-                  : period === "month"
-                    ? "No rankings this month."
-                    : "No rankings yet."
-              }
+              title={audience === "friends" ? "No friends on this leaderboard yet." : "No rankings yet."}
               detail={
                 audience === "friends"
                   ? "Add friends to see their shared activity totals."

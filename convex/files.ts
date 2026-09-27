@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import { httpAction, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { httpAction, internalAction, internalQuery } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { fileStorage, findFile, queueFileDeletion, reserveFile } from "./lib/fileStorage";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { r2 } from "./lib/r2";
@@ -14,13 +15,13 @@ export const reserve = internalMutation({
 });
 
 export const metadata = internalQuery({
-  args: { id: v.string() },
+  args: { id: v.id("files") },
   returns: v.union(schema.doc("files"), v.null()),
   handler: (ctx, { id }) => findFile(ctx, id),
 });
 
 export const complete = internalMutation({
-  args: { id: v.string(), sha256: v.string() },
+  args: { id: v.id("files"), sha256: v.string() },
   returns: v.null(),
   handler: async (ctx, { id, sha256 }) => {
     const file = await findFile(ctx, id);
@@ -34,7 +35,7 @@ export const complete = internalMutation({
 });
 
 export const discard = internalMutation({
-  args: { id: v.string() },
+  args: { id: v.id("files") },
   returns: v.null(),
   handler: async (ctx, { id }) => {
     await queueFileDeletion(ctx, id);
@@ -65,7 +66,7 @@ export const expire = internalMutation({
 });
 
 export const deletionResult = internalMutation({
-  args: { id: v.string(), success: v.boolean() },
+  args: { id: v.id("files"), success: v.boolean() },
   returns: v.null(),
   handler: async (ctx, { id, success }) => {
     const file = await findFile(ctx, id);
@@ -83,7 +84,7 @@ export const deletionResult = internalMutation({
 });
 
 export const deleteRemote = internalAction({
-  args: { id: v.string() },
+  args: { id: v.id("files") },
   returns: v.null(),
   handler: (ctx, { id }) =>
     withErrorReporting("files.deleteRemote", async () => {
@@ -118,7 +119,8 @@ export const downloadable = internalQuery({
   args: { id: v.string() },
   returns: v.union(v.id("files"), v.null()),
   handler: async (ctx, { id }) => {
-    const file = await fileStorage.getMetadata(ctx, id);
+    const fileId = ctx.db.normalizeId("files", id);
+    const file = fileId ? await fileStorage.getMetadata(ctx, fileId) : null;
     return file?.publicDownload ? file._id : null;
   },
 });

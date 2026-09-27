@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, mutation, query, type MutationCtx, env } from "./_generated/server";
+import { action, internalQuery, query, type MutationCtx, env } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
 import { findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { withErrorReporting } from "./lib/observability";
@@ -102,7 +103,7 @@ export const createChallenge = mutation({
     const nonce = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(16)));
     await ctx.db.insert("attestChallenges", {
       deviceId: device._id,
-      authUserId: device.authUserId ?? "",
+      authUserId: await requireAuthUserId(ctx),
       nonce,
       purpose: args.purpose,
       createdAt: Date.now(),

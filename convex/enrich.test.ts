@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { BatchCursor } from "./enrich";
+import { patchContributionState } from "./lib/objectContributionState";
 import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
@@ -138,50 +139,55 @@ describe("enrich.claimBatch", () => {
     expect(next[0].enrichGeneration).toBe(2);
   });
 
-  it("reaches pending work after 4,200 enriched contributions within transaction limits", async () => {
-    const t = harness({ transactionLimits: true });
-    for (let batch = 0; batch < 21; batch++) {
-      await t.run(async (ctx) => {
-        for (let i = 0; i < 200; i++) {
-          const key = `enriched-${batch}-${i}`;
-          const artworkId = await ctx.db.insert("artworks", {
-            identityStatus: "established" as const,
-            key,
-            title: "Work",
-            artist: "Artist",
-            rightsStatus: "unknown",
-            multiplicity: "unique",
-            factSheetUpdatedAt: 1,
-          });
-          await ctx.db.insert("objects", {
-            identityStatus: "established" as const,
-            key,
-            artworkId,
-            source: "user",
-            sourceId: key,
-            confirmCount: 0,
-            rejectCount: 0,
-            calibratorPenalty: 0,
-            reverted: false,
-          });
-        }
+  it(
+    "reaches pending work after 4,200 enriched contributions within transaction limits",
+    { timeout: 30_000 },
+    async () => {
+      const t = harness({ transactionLimits: true });
+      for (let batch = 0; batch < 21; batch++) {
+        await t.run(async (ctx) => {
+          for (let i = 0; i < 200; i++) {
+            const key = `enriched-${batch}-${i}`;
+            const artworkId = await ctx.db.insert("artworks", {
+              identityStatus: "established" as const,
+              key,
+              title: "Work",
+              artist: "Artist",
+              rightsStatus: "unknown",
+              multiplicity: "unique",
+              factSheetUpdatedAt: 1,
+            });
+            const objectId = await ctx.db.insert("objects", {
+              identityStatus: "established" as const,
+              key,
+              artworkId,
+              source: "user",
+              sourceId: key,
+              confirmCount: 0,
+              rejectCount: 0,
+              calibratorPenalty: 0,
+              reverted: false,
+            });
+            await patchContributionState(ctx, objectId, {});
+          }
+        });
+      }
+      const expected = await t.run(async (ctx) => {
+        const venueId = await seedMuseum(ctx);
+        const contribution = await seedArtworkWithObject(ctx, {
+          object: { source: "user" },
+        });
+        const hanging = await seedArtworkWithObject(ctx, {
+          placement: { venueId, onView: true, source: "feed", confidence: 1 },
+        });
+        return [contribution.artworkId, hanging.artworkId];
       });
-    }
-    const expected = await t.run(async (ctx) => {
-      const venueId = await seedMuseum(ctx);
-      const contribution = await seedArtworkWithObject(ctx, {
-        object: { source: "user" },
-      });
-      const hanging = await seedArtworkWithObject(ctx, {
-        placement: { venueId, onView: true, source: "feed", confidence: 1 },
-      });
-      return [contribution.artworkId, hanging.artworkId];
-    });
-    const first = await t.mutation(internal.enrich.claimBatch, { limit: 1 });
-    expect(first.artworks).toEqual([]);
-    expect(first.after).not.toBeNull();
-    expect(claimed(await sweep(t, 100, first.after!))).toEqual(expected);
-  });
+      const first = await t.mutation(internal.enrich.claimBatch, { limit: 1 });
+      expect(first.artworks).toEqual([]);
+      expect(first.after).not.toBeNull();
+      expect(claimed(await sweep(t, 100, first.after!))).toEqual(expected);
+    },
+  );
 });
 
 it("previews pending work without claims or generations and resolves object keys", async () => {

@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
+import { databaseTriggers } from "./lib/databaseTriggers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -33,6 +34,8 @@ export function harness(
       };
   const t = convexTest({ schema, modules: testModules, ...limits });
   register(t);
+  const { run } = t;
+  t.run = (handler) => run((ctx) => handler(databaseTriggers.wrapDB(ctx)));
   return t;
 }
 

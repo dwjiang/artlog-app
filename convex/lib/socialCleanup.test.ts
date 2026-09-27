@@ -27,9 +27,9 @@ it("revokes immediately, purges social references in batches, and deletes files 
         color: "#fff",
       });
       await ctx.db.insert("leaderboardScores", {
+        visibility: "global",
         accountId: a.accountId,
         metric: "visits",
-        period: "all",
         score: 1,
       });
       for (let i = 0; i < 75; i++) {
@@ -86,10 +86,17 @@ it("revokes immediately, purges social references in batches, and deletes files 
       "mediaAssets",
       "collections",
       "visits",
-      "leaderboardScores",
     ] as const) {
       expect(await t.run((ctx) => ctx.db.query(table).collect())).toEqual([]);
     }
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("leaderboardScores")
+          .withIndex("by_account_metric", (q) => q.eq("accountId", a.accountId))
+          .collect(),
+      ),
+    ).toEqual([]);
     expect(await t.run((ctx) => ctx.db.get("profiles", a.profileId))).toBeNull();
     expect(await t.run((ctx) => ctx.db.get("profiles", b.profileId))).not.toBeNull();
     expect(await t.run((ctx) => fileStorage.getMetadata(ctx, storageId))).toBeNull();

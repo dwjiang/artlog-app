@@ -7,7 +7,8 @@ import type { Harness, SignedIn } from "../test.helpers";
 import { patchArtworkContent, type ArtworkContentFields } from "./artworkContent";
 import { fileStorage } from "./fileStorage";
 import { registerMuseumObject } from "./museumWorkIdentity";
-import { patchObjectDetails, type ObjectDetailsFields } from "./objectDetails";
+import { patchContributionState } from "./objectContributionState";
+import { readObjectDetails, patchObjectDetails, type ObjectDetailsFields } from "./objectDetails";
 import { storeOrb } from "./orbStorage";
 import { groupAnchor, publishContribution } from "./tentativeEntries";
 import { insertVector, packVector, readVector, vectorHash } from "./vectorStore";
@@ -24,7 +25,7 @@ export function testVector(similarity = 1): number[] {
 
 export async function seedVector(
   ctx: MutationCtx,
-  input: Omit<Parameters<typeof insertVector>[1], "archiveId"> & { archiveId?: string },
+  input: Omit<Parameters<typeof insertVector>[1], "archiveId"> & { archiveId?: Id<"files"> },
 ) {
   const archiveId = input.archiveId ?? (await fileStorage.store(ctx, packVector(input.vector)));
   return insertVector(ctx, { ...input, archiveId });
@@ -133,6 +134,7 @@ export async function seedArtworkWithObject(
     reverted: false,
     ...options.object,
   });
+  if (options.object?.source === "user") await patchContributionState(ctx, objectId, {});
   if (options.artworkContent) await patchArtworkContent(ctx, { _id: artworkId }, options.artworkContent);
   await patchObjectDetails(
     ctx,
@@ -158,12 +160,17 @@ export async function seedArtworkWithObject(
   });
   if (options.descriptors) {
     const encoded = encodeOrbFeatures(options.descriptors);
-    await ctx.db.insert("descriptors", {
-      objectId,
-      ...(await storeOrb(ctx, encoded.descriptors, encoded.keypoints)),
-      inputSize: model.inputSize,
-      extractedFrom: "synthetic fixture",
-    });
+    await patchObjectDetails(
+      ctx,
+      { _id: objectId },
+      {
+        orb: {
+          ...(await storeOrb(ctx, encoded.descriptors, encoded.keypoints)),
+          inputSize: model.inputSize,
+          extractedFrom: "synthetic fixture",
+        },
+      },
+    );
   }
   if (options.placement) {
     await ctx.db.insert("placements", {
@@ -254,4 +261,9 @@ export async function seedJournalVisit(
     changeVersion: 1,
     ...overrides,
   });
+}
+
+export async function readTestOrb(ctx: MutationCtx, objectId: Id<"objects">) {
+  const object = await ctx.db.get("objects", objectId);
+  return object ? ((await readObjectDetails(ctx, object))?.orb ?? null) : null;
 }

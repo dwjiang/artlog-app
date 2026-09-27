@@ -3,7 +3,6 @@ import { convexAuth, createAccount, getAuthUserId } from "@convex-dev/auth/serve
 import { ConvexError } from "convex/values";
 
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
 
 const anonymous = ConvexCredentials({
@@ -33,7 +32,7 @@ const appleNative = ConvexCredentials({
     if (!device?.authUserId || device.banned) {
       throw new ConvexError({ code: "device_not_registered" });
     }
-    const userId = device.authUserId as Id<"users">;
+    const userId = device.authUserId;
     if (typeof params.identityToken !== "string" || typeof params.nonce !== "string") {
       throw new ConvexError({ code: "invalid_apple_identity" });
     }

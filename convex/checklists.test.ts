@@ -103,6 +103,28 @@ it("refuses ambiguous physical objects, then resolves an owner and accession dis
   });
 });
 
+it("limits matches within the requested owner when an edition has over 100 objects", async () => {
+  const { t, objectId } = await fixture();
+  await t.run(async (ctx) => {
+    const elsewhere = await seedMuseum(ctx);
+    const { _id, _creationTime, ...object } = (await ctx.db.get("objects", objectId))!;
+    for (let i = 0; i < 100; i++) {
+      await ctx.db.insert("objects", { ...object, key: `copy-${i}`, ownerId: elsewhere });
+    }
+  });
+  expect(
+    await t.mutation(internal.checklists.ingestChecklist, {
+      ...example,
+      works: [{ wikidataId: "Q123", ownerKey: "example:lender" }],
+    }),
+  ).toEqual({ placed: 1, unresolved: [] });
+  const input = { wikidataId: "Q123" };
+  expect(await t.mutation(internal.checklists.ingestChecklist, { ...example, works: [input] })).toEqual({
+    placed: 0,
+    unresolved: [{ input, reason: "too_many_matches" }],
+  });
+});
+
 it("reports missing identities and unindexed title matches instead of guessing", async () => {
   const { t } = await fixture();
   const works = [

@@ -7,7 +7,9 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
 import { getEmbedding, requireEmbedding } from "../scanEmbeddings";
 import { contributionGroup, verifiedAccession } from "./agreement";
-import { patchObjectDetails } from "./objectDetails";
+import { readContributionState, patchContributionState } from "./objectContributionState";
+import { patchObjectDetails, readObjectOrb } from "./objectDetails";
+import { findPlacement } from "./placements";
 import {
   contributionRightsIssue,
   eligibleContribution,
@@ -67,7 +69,7 @@ export async function groupAnchor(
   if (
     object.identityStatus !== "tentative"
     || object.ownerId !== row.venueId
-    || object.groupKey !== contributionGroup(row)
+    || (await readContributionState(ctx, object._id))?.groupKey !== contributionGroup(row)
     || !(await eligibleObjectRecord(ctx, object))
   ) {
     return null;
@@ -118,19 +120,10 @@ export async function applyReference(
     medium: source.fields.medium?.value,
   });
   const scan = source.scanId ? await ctx.db.get("scans", source.scanId) : null;
-  const placement = await ctx.db
-    .query("placements")
-    .withIndex("by_object_venue_source", (q) =>
-      q.eq("objectId", object._id).eq("venueId", source.venueId).eq("source", "contribution"),
-    )
-    .unique();
+  const placement = await findPlacement(ctx, object._id, source.venueId, "contribution");
   if (placement) await ctx.db.patch("placements", placement._id, { gallery: scan?.gallery });
-  const reference = await ctx.db
-    .query("descriptors")
-    .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-    .unique();
+  const reference = await readObjectOrb(ctx, object);
   const fields = {
-    objectId: object._id,
     contributionId: source._id,
     storageId: source.orbStorageId,
     sha256: source.orbSha256,
@@ -138,12 +131,8 @@ export async function applyReference(
     inputSize: model.inputSize,
     extractedFrom: `contribution:${source._id}`,
   };
-  if (reference) {
-    await ctx.db.replace("descriptors", reference._id, fields);
-  } else {
-    await ctx.db.insert("descriptors", fields);
-    await bumpCounter(ctx, "descriptors", 1);
-  }
+  await patchObjectDetails(ctx, object, { orb: fields });
+  if (!reference) await bumpCounter(ctx, "descriptors", 1);
 }
 
 export const checkedGroup = v.object({
@@ -193,7 +182,6 @@ export async function publishContribution(
     const objectId = await ctx.db.insert("objects", {
       key: `user:${row._id}`,
       identityStatus: "tentative",
-      groupKey: contributionGroup(row),
       artworkId,
       ownerId: row.venueId,
       source: "user",
@@ -203,6 +191,7 @@ export async function publishContribution(
       calibratorPenalty: 0,
       reverted: false,
     });
+    await patchContributionState(ctx, objectId, { groupKey: contributionGroup(row) });
     object = (await ctx.db.get("objects", objectId))!;
     const scan = row.scanId ? await ctx.db.get("scans", row.scanId) : null;
     await ctx.db.insert("placements", {

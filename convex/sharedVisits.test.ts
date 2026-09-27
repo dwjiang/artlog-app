@@ -405,7 +405,6 @@ it("merges 200 friend streams under transaction limits and honors short-page cur
     for (let i = 0; i < LIMITS.friends; i++) {
       const accountId = await ctx.db.insert("accounts", {
         appleUserId: `stress-${i}`,
-        deviceIds: [],
         createdAt: 1,
       });
       const profileId = await ctx.db.insert("profiles", {

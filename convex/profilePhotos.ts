@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 import { fileStorage } from "./lib/fileStorage";
 import { withErrorReporting } from "./lib/observability";
@@ -21,7 +22,7 @@ export const save = action({
     withErrorReporting("profilePhotos.save", async () => {
       validateProfile(input);
       const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
-      let photo: string | null | undefined = input.photo === null ? null : undefined;
+      let photo: Id<"files"> | null | undefined = input.photo === null ? null : undefined;
       if (input.photo) {
         if (input.photo.byteLength > 512 * 1024) {
           throw new ConvexError({ code: "invalid_profile_photo" });
