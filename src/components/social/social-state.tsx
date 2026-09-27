@@ -24,6 +24,7 @@ export function SocialState({
   onAction,
   secondaryAction,
   onSecondaryAction,
+  centered,
 }: {
   title: string;
   detail?: string;
@@ -33,6 +34,7 @@ export function SocialState({
   onSecondaryAction?: () => void;
   action?: string;
   onAction?: () => void;
+  centered?: boolean;
 }) {
   if (loading) {
     return (
@@ -42,7 +44,7 @@ export function SocialState({
     );
   }
   return (
-    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />}>
+    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />} centered={centered}>
       {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
       {secondaryAction && onSecondaryAction && (
         <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />

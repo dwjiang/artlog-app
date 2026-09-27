@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import model from "../../shared/model/model-version.json";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { loadCandidates } from "../identify";
 import { deleteEmbedding, insertEmbedding } from "../scanEmbeddings";
@@ -120,7 +121,7 @@ it("discards unused uploads after a failed commit and preserves an ambiguously c
   const t = harness();
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
   const object = (await t.run((ctx) => ctx.db.get("objects", work.objectId)))!;
-  let unused = "";
+  let unused!: Id<"files">;
   await expect(
     t.action((ctx) =>
       withVectorArchives(ctx, [{ vector: testVector(0.8) }], async ([id]) => {
@@ -133,7 +134,7 @@ it("discards unused uploads after a failed commit and preserves an ambiguously c
     state: "ready",
     expiresAt: expect.any(Number),
   });
-  let committed = "";
+  let committed!: Id<"files">;
   await expect(
     t.action((ctx) =>
       withVectorArchives(ctx, [{ vector: testVector(0.8) }], async ([id]) => {

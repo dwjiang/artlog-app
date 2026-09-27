@@ -2,8 +2,9 @@ import { ConvexError, v } from "convex/values";
 
 import { stableStringify } from "../shared/attestation/stable-stringify";
 import { internal } from "./_generated/api";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
+import { internalMutation, mutation } from "./functions";
 import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos } from "./lib/collectionPhotos";
 import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
@@ -35,8 +36,14 @@ export const linkAccount = mutation({
     if (!proof || proof.sub !== appleUserId || proof.expiresAt <= Date.now()) {
       throw new ConvexError({ code: "apple_sign_in_required" });
     }
-    const deviceIds = [...new Set([...(existing?.deviceIds ?? []), device._id])];
-    if (deviceIds.length > MAX_DEVICES) {
+    const members = existing
+      ? await ctx.db
+          .query("devices")
+          .withIndex("by_accountId", (q) => q.eq("accountId", existing._id))
+          .take(MAX_DEVICES)
+      : [];
+    members.push(device);
+    if (members.length > MAX_DEVICES) {
       throw new ConvexError({ code: "account_device_limit" });
     }
     const accountId =
@@ -44,19 +51,12 @@ export const linkAccount = mutation({
       ?? (await ctx.db.insert("accounts", {
         appleUserId,
         email: proof.email,
-        deviceIds,
         createdAt: Date.now(),
       }));
-    if (existing) {
-      await ctx.db.patch("accounts", existing._id, {
-        deviceIds,
-        ...(proof.email ? { email: proof.email } : {}),
-      });
-    }
-    const members = await Promise.all(deviceIds.map((id) => ctx.db.get("devices", id)));
-    const trustWeight = Math.max(...members.map((member) => member?.trustWeight ?? 0));
+    if (existing && proof.email) await ctx.db.patch("accounts", existing._id, { email: proof.email });
+    const trustWeight = Math.max(...members.map((member) => member.trustWeight));
     for (const member of members) {
-      if (member) await ctx.db.patch("devices", member._id, { trustWeight });
+      await ctx.db.patch("devices", member._id, { trustWeight });
     }
     const claim = await ctx.db
       .query("journalClaims")
@@ -95,12 +95,6 @@ export const unlink = mutation({
       .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
       .unique();
     if (claim) await ctx.db.delete("journalClaims", claim._id);
-    const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
-    if (account) {
-      await ctx.db.patch("accounts", account._id, {
-        deviceIds: account.deviceIds.filter((id) => id !== device._id),
-      });
-    }
     await ctx.db.patch("devices", device._id, {
       accountId: undefined,
       appleLinkProof: undefined,
@@ -124,8 +118,11 @@ export const deleteAccount = mutation({
     if (claims.some((claim) => claim.phase !== "complete")) {
       throw new ConvexError({ code: "claim_required" });
     }
-    for (const id of account.deviceIds) {
-      const member = await ctx.db.get("devices", id);
+    for (const member of await ctx.db
+      .query("devices")
+      .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
+      .take(MAX_DEVICES)) {
+      const id = member._id;
       if (member?.accountId === account._id) {
         await ctx.db.patch("devices", id, {
           accountId: undefined,
@@ -229,7 +226,14 @@ export const me = query({
       : null;
     return {
       linked: !!account,
-      deviceCount: account?.deviceIds.length ?? 0,
+      deviceCount: account
+        ? (
+            await ctx.db
+              .query("devices")
+              .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
+              .take(MAX_DEVICES)
+          ).length
+        : 0,
       accountId: account?._id ?? null,
       email: account?.email ?? null,
       hasProfile: !!profile,

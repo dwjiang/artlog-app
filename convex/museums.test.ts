@@ -201,7 +201,7 @@ it("honors registry-only opt-outs: the probe never fetches", async () => {
   const { t, venueId } = await fixture();
   await t.run((ctx) =>
     ctx.db.insert("optOuts", {
-      venueId,
+      target: { kind: "venue", venueId },
       requester: "museum",
       receivedAt: Date.now(),
     }),
@@ -220,7 +220,7 @@ it("ignores a successful probe if an opt-out is recorded while it is fetching", 
     vi.fn(async () => {
       await t.run((ctx) =>
         ctx.db.insert("optOuts", {
-          venueId,
+          target: { kind: "venue", venueId },
           requester: "museum",
           receivedAt: Date.now(),
         }),

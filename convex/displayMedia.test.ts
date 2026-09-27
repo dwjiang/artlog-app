@@ -207,7 +207,7 @@ it.each(["withdrawn", "source-deleted", "source-replaced", "save-deleted", "revo
           rejectedReason: "withdrawn",
         });
       }
-      if (change === "source-deleted") await fileStorage.delete(ctx, f.cropStorageId);
+      if (change === "source-deleted") await ctx.db.patch("files", f.cropStorageId, { state: "deleting" });
       if (change === "source-replaced") {
         await ctx.db.patch("contributions", f.contributionId, {
           cropStorageId: await fileStorage.store(ctx, new Blob(["replacement"])),
@@ -260,10 +260,10 @@ it.each(["removed", "save-deleted", "inactive-profile", "withdrawn", "missing-so
           rejectedReason: "withdrawn",
         });
       }
-      if (change === "missing-source") await fileStorage.delete(ctx, f.cropStorageId);
+      if (change === "missing-source") await ctx.db.patch("files", f.cropStorageId, { state: "deleting" });
       if (change === "missing-derivative") {
         const asset = await resolveDisplayAsset(ctx, (await ctx.db.get("collections", f.a.saveId))!);
-        await fileStorage.delete(ctx, asset!.storageId!);
+        await ctx.db.patch("files", asset!.storageId!, { state: "deleting" });
       }
     });
     const response = await f.t.fetch(f.path);

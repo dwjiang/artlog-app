@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
-import { internalMutation } from "./_generated/server";
 import { consumeChallenge } from "./devices";
+import { internalMutation } from "./functions";
 import { requireDevice } from "./lib/auth";
 
 export const recordVerifiedIdentity = internalMutation({

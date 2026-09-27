@@ -41,7 +41,7 @@ describe("schema", () => {
     const found = await t.run((ctx) =>
       ctx.db
         .query("museums")
-        .withIndex("by_wikidataId", (q) => q.eq("wikidataId", "Q160236"))
+        .withIndex("by_key", (q) => q.eq("key", "wikidata:Q160236"))
         .unique(),
     );
 

@@ -6,7 +6,7 @@ export async function isVenueOptedOut(ctx: QueryCtx, venue: Doc<"museums">): Pro
     venue.optOut
     || (await ctx.db
       .query("optOuts")
-      .withIndex("by_venueId", (q) => q.eq("venueId", venue._id))
+      .withIndex("by_venueId", (q) => q.eq("target.venueId", venue._id))
       .first()) !== null
   );
 }

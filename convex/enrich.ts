@@ -1,7 +1,8 @@
 import { type Infer, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
+import { internalQuery, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { currentPlacement } from "./lib/placements";
 import schema from "./schema";
 
@@ -53,15 +54,17 @@ async function pendingPage(
   const artworks: Doc<"artworks">[] = [];
   if (after.phase === "contributions") {
     const page = await ctx.db
-      .query("objects")
-      .withIndex("by_source", (q) => q.eq("source", "user"))
+      .query("objectContributionState")
+      .withIndex("by_userCreated", (q) => q.eq("userCreated", true))
       .paginate({
         cursor: after.cursor,
         numItems: limit,
         maximumBytesRead: 1024 * 1024,
       });
     const seen = new Set<Id<"artworks">>();
-    for (const object of page.page) {
+    for (const state of page.page) {
+      const object = await ctx.db.get("objects", state.objectId);
+      if (!object) continue;
       if (object.reverted || object.mergedInto || seen.has(object.artworkId)) {
         continue;
       }
@@ -78,7 +81,7 @@ async function pendingPage(
   }
   const page = await ctx.db
     .query("artworks")
-    .withIndex("by_factSheetUpdatedAt", (q) => q.eq("factSheetUpdatedAt", undefined))
+    .withIndex("by_creation_time")
     .paginate({
       cursor: after.cursor,
       numItems: limit,

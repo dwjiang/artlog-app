@@ -2,7 +2,9 @@ import { v } from "convex/values";
 
 import { publicProfile } from "../shared/social/contracts";
 import { leaderboardMetric, leaderboardVisibility, rankScores } from "../shared/social/leaderboard";
-import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { query } from "./_generated/server";
+import { mutation } from "./functions";
 import { acceptedRelationships, findBlock } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
@@ -28,7 +30,6 @@ export const list = query({
   args: {
     metric: leaderboardMetric,
     audience: v.union(v.literal("friends"), v.literal("global")),
-    period: v.union(v.literal("month"), v.literal("all")),
   },
   returns: v.object({
     visibility: leaderboardVisibility,
@@ -37,29 +38,56 @@ export const list = query({
   handler: async (ctx, args) => {
     const viewer = args.audience === "friends" ? (await requireProfile(ctx)).profile : await optionalProfile(ctx);
     const visibility = viewer?.leaderboardVisibility ?? "off";
-    const period = args.period === "all" ? "all" : new Date().toISOString().slice(0, 7);
     const edges = args.audience === "friends" && viewer ? await acceptedRelationships(ctx, viewer._id) : [];
-    // The global board reads at most the first 1000 opted-in profiles so it keeps answering as participation grows.
-    const candidates =
-      args.audience === "global"
-        ? await ctx.db
-            .query("profiles")
-            .withIndex("by_leaderboard", (q) => q.eq("leaderboardVisibility", "global"))
-            .take(1000)
-        : viewer
-          ? (
-              await Promise.all(
-                [
-                  viewer._id,
-                  ...edges.map((edge) =>
-                    edge.firstProfileId === viewer._id ? edge.secondProfileId : edge.firstProfileId,
-                  ),
-                ].map((id) => activeProfile(ctx, id)),
-              )
-            ).filter((row) => row !== null)
-          : [];
+    const candidates: { person: Doc<"profiles">; score: number }[] = [];
+    if (args.audience === "global") {
+      const blocked = new Set<string>();
+      if (viewer) {
+        for await (const block of ctx.db.query("blocks").withIndex("by_pair", (q) => q.eq("blockerId", viewer._id))) {
+          if (block.active) blocked.add(block.blockedId);
+        }
+        for await (const block of ctx.db
+          .query("blocks")
+          .withIndex("by_blockedId", (q) => q.eq("blockedId", viewer._id))) {
+          if (block.active) blocked.add(block.blockerId);
+        }
+      }
+      for await (const score of ctx.db
+        .query("leaderboardScores")
+        .withIndex("by_metric_visibility_score", (q) => q.eq("metric", args.metric).eq("visibility", "global"))
+        .order("desc")) {
+        const person = await ctx.db
+          .query("profiles")
+          .withIndex("by_accountId", (q) => q.eq("accountId", score.accountId))
+          .unique();
+        if (
+          !person
+          || !person.active
+          || person.removal
+          || blocked.has(person._id)
+          || !(await ctx.db.get("accounts", score.accountId))
+        ) {
+          continue;
+        }
+        candidates.push({ person, score: score.score });
+        if (candidates.length === 100) break;
+      }
+    } else if (viewer) {
+      for (const id of [
+        viewer._id,
+        ...edges.map((edge) => (edge.firstProfileId === viewer._id ? edge.secondProfileId : edge.firstProfileId)),
+      ]) {
+        const person = await activeProfile(ctx, id);
+        if (!person) continue;
+        const score = await ctx.db
+          .query("leaderboardScores")
+          .withIndex("by_account_metric", (q) => q.eq("accountId", person.accountId).eq("metric", args.metric))
+          .unique();
+        candidates.push({ person, score: score?.score ?? 0 });
+      }
+    }
     const rows = [];
-    for (const person of candidates) {
+    for (const { person, score } of candidates) {
       if (
         !person.active
         || person.removal
@@ -69,21 +97,16 @@ export const list = query({
         continue;
       }
       if (
-        viewer
+        args.audience === "friends"
+        && viewer
         && ((await findBlock(ctx, viewer._id, person._id))?.active
           || (await findBlock(ctx, person._id, viewer._id))?.active)
       ) {
         continue;
       }
-      const score = await ctx.db
-        .query("leaderboardScores")
-        .withIndex("by_account_metric_period", (q) =>
-          q.eq("accountId", person.accountId).eq("metric", args.metric).eq("period", period),
-        )
-        .unique();
       rows.push({
         profile: await projectProfile(ctx, person),
-        score: score?.score ?? 0,
+        score,
         name: person.name,
         username: person.username,
       });

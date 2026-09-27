@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
+import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { isEnabled } from "./lib/flags";
 import { limitDevice } from "./lib/rateLimits";
 import { regionDomains } from "./lib/regions";

@@ -2,15 +2,16 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
+import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
 import { removeContribution } from "./contributionRemoval";
 import { clearDocent } from "./docent";
 import { feedbackChanged } from "./feedbackReplay";
+import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { revokeContributionMedia } from "./lib/displayMedia";
 import { fileStorage } from "./lib/fileStorage";
-import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
+import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { deleteVector } from "./lib/vectorStore";
 import { readyForReview, reassessProposal } from "./placements";
@@ -76,16 +77,13 @@ export const cleanupObjectPage = internalMutation({
         return page.isDone ? null : page.continueCursor;
       }
       case "descriptors": {
-        const page = await ctx.db
-          .query("descriptors")
-          .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-          .paginate(options);
-        for (const row of page.page) {
-          await ctx.db.delete("descriptors", row._id);
-          await deleteOrbIfUnreferenced(ctx, row.storageId);
+        const reference = await readObjectOrb(ctx, object);
+        if (reference) {
+          await patchObjectDetails(ctx, object, { orb: undefined });
+          await deleteOrbIfUnreferenced(ctx, reference.storageId);
+          await bumpCounter(ctx, "descriptors", -1);
         }
-        await bumpCounter(ctx, "descriptors", -page.page.length);
-        return page.isDone ? null : page.continueCursor;
+        return null;
       }
       case "placements": {
         const page = await ctx.db
@@ -150,7 +148,7 @@ function paging(cursor: string | null) {
   return { cursor, numItems: CHUNK, maximumBytesRead: CHUNK_BYTES };
 }
 
-async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
+export async function resetMultiView(ctx: MutationCtx, row: Doc<"feedback">): Promise<number> {
   const vector = row.multiViewVectorId ? await ctx.db.get("vectors", row.multiViewVectorId) : null;
   if (vector) {
     await deleteVector(ctx, vector);
@@ -628,7 +626,7 @@ export const applyOptOut = internalMutation({
     const venue = await ctx.db.get("museums", venueId);
     if (!venue) throw new ConvexError({ code: "venue_not_found" });
     const optOutId = await ctx.db.insert("optOuts", {
-      venueId,
+      target: { kind: "venue", venueId },
       requester,
       receivedAt: Date.now(),
     });
@@ -708,23 +706,21 @@ export const revertVenueObjects = internalMutation({
 
 export const applyTakedown = internalMutation({
   args: {
-    artworkId: v.optional(v.id("artworks")),
-    objectId: v.optional(v.id("objects")),
+    target: v.union(
+      v.object({ kind: v.literal("artwork"), artworkId: v.id("artworks") }),
+      v.object({ kind: v.literal("object"), objectId: v.id("objects") }),
+    ),
     requester: v.string(),
   },
   returns: v.id("takedowns"),
-  handler: async (ctx, { artworkId, objectId, requester }) => {
-    if ((artworkId === undefined) === (objectId === undefined)) {
-      throw new ConvexError({ code: "takedown_target" });
-    }
+  handler: async (ctx, { target, requester }) => {
     const now = Date.now();
-    if (objectId !== undefined) {
+    if (target.kind === "object") {
+      const { objectId } = target;
       const object = await ctx.db.get("objects", objectId);
       if (!object) throw new ConvexError({ code: "object_not_found" });
       const takedownId = await ctx.db.insert("takedowns", {
-        objectId,
-        identityArtworkId: object.artworkId,
-        venueId: object.ownerId,
+        target: { kind: "object", objectId, identityArtworkId: object.artworkId, venueId: object.ownerId },
         requester,
         receivedAt: now,
       });
@@ -737,10 +733,10 @@ export const applyTakedown = internalMutation({
       });
       return takedownId;
     }
-    const artwork = await ctx.db.get("artworks", artworkId!);
+    const artwork = await ctx.db.get("artworks", target.artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     const takedownId = await ctx.db.insert("takedowns", {
-      artworkId: artwork._id,
+      target: { kind: "artwork", artworkId: artwork._id },
       requester,
       receivedAt: now,
     });

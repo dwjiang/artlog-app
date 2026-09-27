@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { internalAction, internalQuery } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { deletePinecone, pineconeHost, PINECONE_NAMESPACE, upsertPinecone, verifyPinecone } from "./lib/pinecone";
 import { embedding } from "./lib/validators";

@@ -2,7 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { catalogMedia, validateMedia, wallItemMediaContext } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
-import { httpAction, internalMutation, internalQuery } from "./_generated/server";
+import { httpAction, internalQuery } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import {
   contributionSource,
@@ -120,7 +121,7 @@ export const beginPreparation = internalMutation({
 export const attach = internalMutation({
   args: {
     assetId: v.id("mediaAssets"),
-    storageId: v.string(),
+    storageId: v.id("files"),
     width: v.number(),
     height: v.number(),
   },
@@ -152,16 +153,10 @@ export const attach = internalMutation({
   },
 });
 export const discard = internalMutation({
-  args: { storageId: v.string() },
+  args: { storageId: v.id("files") },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
-    const reference = await ctx.db
-      .query("mediaAssets")
-      .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-      .first();
-    if (!reference && (await fileStorage.getMetadata(ctx, storageId))) {
-      await fileStorage.delete(ctx, storageId);
-    }
+    await fileStorage.delete(ctx, storageId);
     return null;
   },
 });

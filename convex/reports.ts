@@ -2,7 +2,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 
 import { ownerKey } from "../shared/journal/contracts";
 import { type reportEvidence, reportInput, validateReport } from "../shared/social/contracts";
-import { mutation } from "./_generated/server";
+import { mutation } from "./functions";
 import { activeProfile, optionalProfile, resolveOwner } from "./lib/ownership";
 import { projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";

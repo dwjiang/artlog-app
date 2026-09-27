@@ -7,11 +7,12 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { readArtworkContent } from "./lib/artworkContent";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
-import { fileStorage } from "./lib/fileStorage";
 import { completion, jsonResponse } from "./lib/labelFixtures";
+import { patchObjectDetails } from "./lib/objectDetails";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
 import {
+  readTestOrb,
   readTestEmbedding,
   seedArtworkWithObject,
   seedDevice,
@@ -86,11 +87,8 @@ describe("identify action", () => {
           placement: { venueId, onView: true, source: "feed", confidence: 1 },
         });
         if (i > 10) {
-          const reference = (await ctx.db
-            .query("descriptors")
-            .withIndex("by_objectId", (q) => q.eq("objectId", work.objectId))
-            .unique())!;
-          await fileStorage.delete(ctx, reference.storageId);
+          const reference = (await readTestOrb(ctx, work.objectId))!;
+          await ctx.db.patch("files", reference.storageId, { state: "deleting" });
         }
       }
     });
@@ -104,7 +102,9 @@ describe("identify action", () => {
 
   it("reports a missing file among verified candidates as an error", async () => {
     const { t, user, args } = await fixture();
-    await t.run(async (ctx) => fileStorage.delete(ctx, (await ctx.db.query("descriptors").unique())!.storageId));
+    await t.run(async (ctx) =>
+      ctx.db.patch("files", (await ctx.db.query("objectDetails").unique())!.orb!.storageId, { state: "deleting" }),
+    );
     await expect(
       user.as.action(api.identify.identify, {
         ...args,
@@ -366,16 +366,21 @@ describe("identify action", () => {
         const work = await seedArtworkWithObject(ctx, {
           placement: { venueId, onView: true, source: "feed", confidence: 1 },
         });
-        await ctx.db.insert("descriptors", {
-          objectId: work.objectId,
-          inputSize: model.inputSize,
-          extractedFrom: "test reference",
-          ...(await storeOrb(
-            ctx,
-            count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).descriptors,
-            count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).keypoints,
-          )),
-        });
+        await patchObjectDetails(
+          ctx,
+          { _id: work.objectId },
+          {
+            orb: {
+              inputSize: model.inputSize,
+              extractedFrom: "test reference",
+              ...(await storeOrb(
+                ctx,
+                count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).descriptors,
+                count === 0 ? new ArrayBuffer(0) : encodeOrbFeatures(pair.ref).keypoints,
+              )),
+            },
+          },
+        );
         return work;
       });
       const result = await user.as.action(api.identify.identify, {
@@ -625,8 +630,8 @@ describe("enrichment after identification", () => {
 });
 
 describe("candidate loading", () => {
-  it("loads recognition metadata within a small read budget even when display content is large", async () => {
-    const t = harness({ transactionLimits: { bytesRead: 32_000 } });
+  it("reads ORB details within a bounded budget while leaving generated artwork prose separate", async () => {
+    const t = harness({ transactionLimits: { bytesRead: 256_000 } });
     const work = await t.run((ctx) =>
       seedArtworkWithObject(ctx, {
         objectDetails: { medium: "Display metadata ".repeat(5_000) },

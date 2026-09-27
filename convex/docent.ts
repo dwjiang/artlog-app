@@ -2,15 +2,8 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  mutation,
-  type ActionCtx,
-  type MutationCtx,
-  env,
-} from "./_generated/server";
+import { internalAction, internalQuery, type ActionCtx, type MutationCtx, env } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { patchArtworkContent, readArtworkContent, type ArtworkContentFields } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import {

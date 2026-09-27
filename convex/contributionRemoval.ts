@@ -2,11 +2,13 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import { type MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
 import { verifiedAccession } from "./lib/agreement";
 import { revokeContributionMedia } from "./lib/displayMedia";
-import { fileStorage } from "./lib/fileStorage";
+import { fileStorage, revokeFileDownload } from "./lib/fileStorage";
+import { readObjectOrb, patchObjectDetails } from "./lib/objectDetails";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { eligibleContribution } from "./lib/recognitionEligibility";
 import { applyReference, earlier } from "./lib/tentativeEntries";
@@ -33,12 +35,9 @@ export async function removeContribution(
     await bumpCounter(ctx, "vectors", -1);
   }
   if (object) {
-    const reference = await ctx.db
-      .query("descriptors")
-      .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-      .unique();
+    const reference = await readObjectOrb(ctx, object);
     if (reference?.contributionId === row._id) {
-      await ctx.db.delete("descriptors", reference._id);
+      await patchObjectDetails(ctx, object, { orb: undefined });
       await bumpCounter(ctx, "descriptors", -1);
     }
     await ctx.db.patch("objects", object._id, {
@@ -53,7 +52,9 @@ export async function removeContribution(
     orbSha256: undefined,
   });
   await revokeContributionMedia(ctx, row._id);
-  if (row.cropStorageId && (await fileStorage.getMetadata(ctx, row.cropStorageId))) {
+  if (row.cropStorageId) {
+    // Public consent ends now, even if a thumbnail reference survives until the entry rebuild.
+    await revokeFileDownload(ctx, row.cropStorageId);
     await fileStorage.delete(ctx, row.cropStorageId);
   }
   if (row.orbStorageId) await deleteOrbIfUnreferenced(ctx, row.orbStorageId);

@@ -285,7 +285,9 @@ it("purges the deleted account’s journal, photos and sync state without extra 
   await a.as.mutation(api.accounts.deleteAccount, {});
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
-  expect(new Set(jobs.map((job) => job.name))).toEqual(new Set(["accounts:purgeJournal", "files:deleteRemote"]));
+  expect(new Set(jobs.map((job) => job.name))).toEqual(
+    new Set(["accounts:purgeJournal", "files:discard", "files:deleteRemote"]),
+  );
   expect(
     await t.run((ctx) =>
       ctx.db

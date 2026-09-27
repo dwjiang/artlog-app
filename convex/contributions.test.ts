@@ -15,6 +15,7 @@ import { readObjectDetails } from "./lib/objectDetails";
 import { loadOrb, storeOrb } from "./lib/orbStorage";
 import { r2 } from "./lib/r2";
 import {
+  readTestOrb,
   readTestEmbedding,
   seedArtworkWithObject,
   seedContribution,
@@ -66,7 +67,16 @@ function verifiedFlow(overrides: Partial<LabelFlow> = {}): LabelFlow {
     warnings: [],
     moderation: "clear",
     wikidataId: "Q3374376",
-    rawOcr: { title: "Water Lilies" },
+    rawOcr: {
+      title: "Water Lilies",
+      artist: null,
+      artist_dates: null,
+      work_date: null,
+      medium: null,
+      accession: null,
+      credit_line: null,
+      confidence: { title: 1, artist: 0, work_date: 0, medium: 0, accession: 0 },
+    },
     updatedAt: Date.now(),
     ...overrides,
   };
@@ -75,7 +85,7 @@ function verifiedFlow(overrides: Partial<LabelFlow> = {}): LabelFlow {
 async function storeCrop(
   t: Harness,
   { size = 1000, type = "image/jpeg", ownerId = undefined as Id<"devices"> | undefined } = {},
-): Promise<string> {
+): Promise<Id<"files">> {
   return t.run(async (ctx) => {
     const id = await fileStorage.store(ctx, new Blob([new Uint8Array(size)], { type }));
     const owner = await ctx.db.query("devices").order("desc").first();
@@ -236,7 +246,16 @@ describe("contribute", () => {
       cropStorageId,
       status: "tentative",
       wikidataId: "Q3374376",
-      rawOcr: { title: "Water Lilies" },
+      rawOcr: {
+        title: "Water Lilies",
+        artist: null,
+        artist_dates: null,
+        work_date: null,
+        medium: null,
+        accession: null,
+        credit_line: null,
+        confidence: { title: 1, artist: 0, work_date: 0, medium: 0, accession: 0 },
+      },
       evidence: ["wikidata", "ocr"],
       fields: {
         title: { value: "Water Lilies", edited: false, evidence: "wikidata" },
@@ -498,6 +517,7 @@ describe("contribute", () => {
         status: scope === "same" ? "rejected" : "tentative",
       });
     },
+    30_000,
   );
 
   it("accepts only one of two concurrent duplicate scans", async () => {
@@ -1036,7 +1056,7 @@ describe("immediate tentative recognition", () => {
     );
     await t.run((ctx) =>
       ctx.db.insert("takedowns", {
-        artworkId: corpus.artworkId,
+        target: { kind: "artwork", artworkId: corpus.artworkId },
         requester: "museum",
         receivedAt: Date.now(),
       }),
@@ -1082,7 +1102,7 @@ describe("immediate tentative recognition", () => {
     };
     expect(await eligible(sibling.row.indexedObjectId!)).toBe(true);
     await t.mutation(internal.revert.applyTakedown, {
-      objectId: shared.row.indexedObjectId!,
+      target: { kind: "object", objectId: shared.row.indexedObjectId! },
       requester: "museum",
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -1130,7 +1150,7 @@ describe("immediate tentative recognition", () => {
       });
     expect((await candidates()).map((candidate) => candidate.object._id)).toEqual([objectId]);
     await t.mutation(internal.revert.applyTakedown, {
-      artworkId: corpus.artworkId,
+      target: { kind: "artwork", artworkId: corpus.artworkId },
       requester: "museum",
     });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -1142,6 +1162,35 @@ describe("immediate tentative recognition", () => {
 });
 
 describe("precise contribution removal", () => {
+  it.each([false, true])(
+    "revokes a withdrawn photo before the entry rebuild runs (surviving contribution: %s)",
+    async (survivingContribution) => {
+      vi.useFakeTimers();
+      const { t, user, contribute, venueId, cropStorageId } = await fixture();
+      const { contributionId } = await contribute();
+      const bob = survivingContribution ? await shareAs(t, venueId) : null;
+      const path = `/file?id=${cropStorageId}`;
+      const remainingPath = `/file?id=${bob?.cropStorageId ?? cropStorageId}`;
+      const remainingStatus = survivingContribution ? 302 : 404;
+      expect((await t.fetch(path)).status).toBe(302);
+
+      await user.as.mutation(api.contributions.withdraw, { contributionId });
+
+      // The old thumbnail still holds a reference until the scheduled rebuild completes.
+      expect(await r2.get(cropStorageId)).not.toBeNull();
+      const response = await t.fetch(path);
+      expect(response.status).toBe(404);
+      expect(response.headers.get("Location")).toBeNull();
+      expect(await t.run((ctx) => fileStorage.getUrl(ctx, cropStorageId))).toBeNull();
+      expect((await t.fetch(remainingPath)).status).toBe(remainingStatus);
+
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(await r2.get(cropStorageId)).toBeNull();
+      expect((await t.fetch(path)).status).toBe(404);
+      expect((await t.fetch(remainingPath)).status).toBe(remainingStatus);
+    },
+  );
+
   it.each(["withdraw", "ban"] as const)(
     "%s removes Alice’s exact material and rebuilds the entry from Bob’s complete reference",
     async (kind) => {
@@ -1209,14 +1258,7 @@ describe("precise contribution removal", () => {
             .unique(),
         ),
       ).toMatchObject({ gallery: "Bob gallery" });
-      expect(
-        await t.run((ctx) =>
-          ctx.db
-            .query("descriptors")
-            .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-            .unique(),
-        ),
-      ).toMatchObject({
+      expect(await t.run((ctx) => readTestOrb(ctx, objectId))).toMatchObject({
         contributionId: bob.contributionId,
         storageId: bob.row.orbStorageId,
       });

@@ -5,7 +5,8 @@ import { validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shar
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { query, type QueryCtx } from "./_generated/server";
+import { mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
 import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile } from "./lib/ownership";

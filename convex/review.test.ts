@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { readArtworkContent } from "./lib/artworkContent";
+import { patchContributionState } from "./lib/objectContributionState";
 import { seedArtworkWithObject, seedContribution, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -149,8 +150,9 @@ describe("review queues", () => {
     const seeded = await t.run(async (ctx) => {
       const venueId = await seedMuseum(ctx);
       const flagged = await seedArtworkWithObject(ctx, {
-        object: { flaggedForReview: true, rejectCount: 20 },
+        object: { rejectCount: 20 },
       });
+      await patchContributionState(ctx, flagged.objectId, { flaggedForReview: true });
       const clean = await seedArtworkWithObject(ctx);
       const pending = await seedContribution(ctx, {
         deviceId: user.deviceId,

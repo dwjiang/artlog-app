@@ -35,9 +35,8 @@ async function fixture() {
   const bob = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   const get = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get("feedback", id));
-  const all = <T extends "objects" | "artworks" | "vectors" | "descriptors" | "placements" | "contributions">(
-    table: T,
-  ) => t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
+  const all = <T extends "objects" | "artworks" | "vectors" | "placements" | "contributions">(table: T) =>
+    t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
   const seed = (overrides: Parameters<typeof seedContribution>[1]) => t.run((ctx) => seedContribution(ctx, overrides));
   return { t, alice, bob, venueId, get, all, seed };
 }

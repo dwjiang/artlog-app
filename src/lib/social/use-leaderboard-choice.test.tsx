@@ -23,14 +23,12 @@ it("restores every filter after reopening the board", async () => {
   const first = await renderHook(useLeaderboardChoice);
   await act(() => first.result.current.changeChoice({ audience: "global" }));
   await act(() => first.result.current.changeChoice({ metric: "artworks" }));
-  await act(() => first.result.current.changeChoice({ period: "all" }));
   await first.unmount();
   const reopened = await renderHook(useLeaderboardChoice);
   await waitFor(() =>
     expect(reopened.result.current.choice).toEqual({
       audience: "global",
       metric: "artworks",
-      period: "all",
     }),
   );
 });
@@ -54,14 +52,13 @@ it("uses valid defaults for malformed stored preferences", async () => {
   expect(hook.result.current.choice).toEqual({
     audience: "friends",
     metric: "visits",
-    period: "month",
   });
 });
 
 it("keeps browsing available when preferences cannot save", async () => {
   jest.mocked(setSetting).mockRejectedValue(new Error("disk full"));
   const hook = await renderHook(useLeaderboardChoice);
-  await act(() => hook.result.current.changeChoice({ period: "all" }));
-  expect(hook.result.current.choice.period).toBe("all");
+  await act(() => hook.result.current.changeChoice({ metric: "artworks" }));
+  expect(hook.result.current.choice.metric).toBe("artworks");
   await waitFor(() => expect(hook.result.current.error).toMatch(/could not be remembered/));
 });

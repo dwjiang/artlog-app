@@ -4,6 +4,7 @@ import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { labelField } from "./lib/labelVerify";
+import { readContributionState } from "./lib/objectContributionState";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import {
   seedArtworkWithObject,
@@ -117,7 +118,7 @@ async function fixture() {
 
 describe("rejectMatch", () => {
   it("records the rejected candidate’s signals, its venue relation and the running count", async () => {
-    const { user, scanId, venueId, best, runnerUp, reject, object, feedbackRows } = await fixture();
+    const { t, user, scanId, venueId, best, runnerUp, reject, object, feedbackRows } = await fixture();
     const { feedbackId } = await reject(best.objectId);
     expect(await feedbackRows()).toMatchObject([
       {
@@ -143,7 +144,7 @@ describe("rejectMatch", () => {
       confirmCount: 0,
       calibratorPenalty: 0,
     });
-    expect(counted?.flaggedForReview).toBeUndefined();
+    expect((await t.run((ctx) => readContributionState(ctx, best.objectId)))?.flaggedForReview).toBeUndefined();
     await reject(runnerUp.objectId);
     expect((await feedbackRows())[1]).toMatchObject({
       rejectedObjectId: runnerUp.objectId,
@@ -251,7 +252,7 @@ describe("rejectMatch", () => {
     const row = await object(best.objectId);
     const { calibratorPenalty, flaggedForReview, ...expectedState } = expected;
     expect(row).toMatchObject(expectedState);
-    expect(row?.flaggedForReview).toBe(flaggedForReview);
+    expect((await t.run((ctx) => readContributionState(ctx, best.objectId)))?.flaggedForReview).toBe(flaggedForReview);
     expect(effectiveObjectPenalty(row!)).toBeCloseTo(calibratorPenalty);
   });
 

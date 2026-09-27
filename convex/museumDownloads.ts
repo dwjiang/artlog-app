@@ -5,16 +5,18 @@ import model from "../shared/model/model-version.json";
 import type { MuseumEntry } from "../shared/offline/types";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
+import { internalAction, internalQuery, query } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
-import { readObjectDetails } from "./lib/objectDetails";
+import { readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
+import { orbReference } from "./lib/validators";
 import { readVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
@@ -158,7 +160,7 @@ export const readPage = internalQuery({
           content: v.union(schema.doc("artworkContent"), v.null()),
           placement: v.union(schema.doc("placements"), v.null()),
           vectors: v.array(schema.doc("vectors")),
-          descriptor: schema.doc("descriptors"),
+          descriptor: orbReference,
         }),
       ),
       isDone: v.boolean(),
@@ -181,10 +183,7 @@ export const readPage = internalQuery({
         continue;
       }
       const artwork = await ctx.db.get("artworks", object.artworkId);
-      const descriptor = await ctx.db
-        .query("descriptors")
-        .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-        .unique();
+      const descriptor = await readObjectOrb(ctx, object);
       if (!artwork || artwork.retiredAt || !descriptor) continue;
       const vectors = [];
       for (const vector of await ctx.db

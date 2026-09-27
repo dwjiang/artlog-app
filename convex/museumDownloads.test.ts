@@ -8,7 +8,8 @@ import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { api, internal } from "./_generated/api";
 import { fileStorage } from "./lib/fileStorage";
-import { seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { patchObjectDetails } from "./lib/objectDetails";
+import { readTestOrb, seedArtworkWithObject, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { packVector, replaceVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
 
@@ -209,13 +210,12 @@ it("publishes the rest of a museum when one reference has an unreadable ORB file
     }),
   );
   await t.run(async (ctx) => {
-    const reference = (await ctx.db
-      .query("descriptors")
-      .withIndex("by_objectId", (q) => q.eq("objectId", damaged.objectId))
-      .unique())!;
-    await ctx.db.patch("descriptors", reference._id, {
-      keypointCount: reference.keypointCount + 1,
-    });
+    const reference = (await readTestOrb(ctx, damaged.objectId))!;
+    await patchObjectDetails(
+      ctx,
+      { _id: damaged.objectId },
+      { orb: { ...reference, keypointCount: reference.keypointCount + 1 } },
+    );
   });
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   await t.mutation(internal.museumDownloads.build, { venueId });

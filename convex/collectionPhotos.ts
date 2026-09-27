@@ -3,7 +3,9 @@ import { ConvexError, v } from "convex/values";
 import { MAX_COLLECTION_PHOTO_BYTES, type CollectionPhotoKind } from "../shared/collection/photo-limits";
 import { isUuid } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
-import { httpAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { httpAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { requireDeviceFromAction } from "./lib/auth";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
@@ -41,7 +43,7 @@ async function target(
 
 export const findForCaller = internalQuery({
   args,
-  returns: v.union(v.string(), v.null()),
+  returns: v.union(v.id("files"), v.null()),
   handler: async (ctx, { scope, localId, kind, photoId }) => {
     const { save, photo } = await target(ctx, scope, localId, kind, photoId);
     return (photo ? photo.storageId : save.cropStorageId) ?? null;
@@ -52,12 +54,12 @@ export const findForCaller = internalQuery({
 export const attach = internalMutation({
   args: {
     ...args,
-    storageId: v.string(),
+    storageId: v.id("files"),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
   },
   returns: v.object({
-    storageId: v.string(),
+    storageId: v.id("files"),
     photoUpdatedAt: v.number(),
   }),
   handler: async (ctx, { scope, localId, kind, photoId, storageId, width, height }) => {
@@ -136,7 +138,7 @@ function failure(error: unknown): Response {
 }
 
 export const upload = httpAction(async (ctx, request) => {
-  let uploaded: string | undefined;
+  let uploaded: Id<"files"> | undefined;
   try {
     const device = await requireDeviceFromAction(ctx);
     const input = parameters(request);
@@ -181,7 +183,7 @@ export const upload = httpAction(async (ctx, request) => {
 });
 
 export const discard = internalMutation({
-  args: { storageId: v.string() },
+  args: { storageId: v.id("files") },
   returns: v.null(),
   handler: async (ctx, { storageId }) => {
     await deleteUnreferencedPhoto(ctx, storageId);

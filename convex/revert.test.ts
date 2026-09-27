@@ -10,6 +10,7 @@ import { readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { patchObjectDetails, readObjectDetails } from "./lib/objectDetails";
 import {
+  readTestOrb,
   seedEmbedding,
   seedPublishedContribution,
   seedArtworkWithObject,
@@ -36,7 +37,7 @@ async function seedUserObject(
     venueId: Id<"museums">;
     deviceIds: Id<"devices">[];
     contributionIds?: Id<"contributions">[];
-    thumbnailStorageId?: string;
+    thumbnailStorageId?: Id<"files">;
     artworkId?: Id<"artworks">;
     title?: string;
   },
@@ -108,7 +109,7 @@ async function fixture() {
     table: T,
     id: Id<T>,
   ) => t.run((ctx) => ctx.db.get(table, id)) as Promise<Doc<T> | null>;
-  const all = <T extends "objects" | "vectors" | "descriptors" | "placements" | "contributions">(table: T) =>
+  const all = <T extends "objects" | "vectors" | "placements" | "contributions">(table: T) =>
     t.run((ctx) => ctx.db.query(table).collect()) as Promise<Doc<T>[]>;
   const finish = () => t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
@@ -121,15 +122,8 @@ describe("revertObject", () => {
     const { first, second, storageId } = await t.run(async (ctx) => {
       const first = await seedArtworkWithObject(ctx, { descriptors: pair.ref });
       const second = await seedArtworkWithObject(ctx);
-      const {
-        _id: _referenceId,
-        _creationTime: _createdAt,
-        ...reference
-      } = (await ctx.db.query("descriptors").unique())!;
-      await ctx.db.insert("descriptors", {
-        ...reference,
-        objectId: second.objectId,
-      });
+      const reference = (await readTestOrb(ctx, first.objectId))!;
+      await patchObjectDetails(ctx, { _id: second.objectId }, { orb: reference });
       return { first, second, storageId: reference.storageId };
     });
     await t.action(internal.revert.revertObjectById, {
@@ -194,7 +188,7 @@ describe("revertObject", () => {
         ?.thumbnailStorageId,
     ).toBeUndefined();
     expect(await all("vectors")).toEqual([]);
-    expect(await all("descriptors")).toEqual([]);
+    expect((await t.run((ctx) => ctx.db.query("objectDetails").collect())).every((row) => !row.orb)).toBe(true);
     expect(await all("placements")).toMatchObject([{ objectId: object._id, closedAt: Date.now() }]);
     expect(await t.run((ctx) => fileStorage.getMetadata(ctx, cropStorageId))).toBeNull();
     expect(await get("contributions", contributionId)).toMatchObject({
@@ -248,7 +242,7 @@ describe("applyOptOut", () => {
     });
     expect(await get("museums", venueId)).toMatchObject({ optOut: true });
     expect(await get("optOuts", optOutId)).toMatchObject({
-      venueId,
+      target: { kind: "venue", venueId },
       requester: "registrar@museum.example",
       receivedAt: Date.now(),
     });
@@ -311,7 +305,7 @@ describe("applyTakedown", () => {
       return { corpus, user, other };
     });
     const takedownId = await t.mutation(internal.revert.applyTakedown, {
-      artworkId: seeded.corpus.artworkId,
+      target: { kind: "artwork", artworkId: seeded.corpus.artworkId },
       requester: "estate@example.org",
     });
     const artwork = await get("artworks", seeded.corpus.artworkId);
@@ -324,7 +318,7 @@ describe("applyTakedown", () => {
     }
     await finish();
     expect(await get("takedowns", takedownId)).toMatchObject({
-      artworkId: seeded.corpus.artworkId,
+      target: { kind: "artwork", artworkId: seeded.corpus.artworkId },
       requester: "estate@example.org",
       appliedAt: Date.now(),
     });
@@ -350,7 +344,7 @@ describe("applyTakedown", () => {
     const { t, alice, venueId, get, finish } = await fixture();
     const { objectId, artworkId } = await t.run((ctx) => seedUserObject(ctx, { venueId, deviceIds: [alice.deviceId] }));
     const takedownId = await t.mutation(internal.revert.applyTakedown, {
-      objectId,
+      target: { kind: "object", objectId },
       requester: "estate@example.org",
     });
     expect(await get("objects", objectId)).toMatchObject({
@@ -360,20 +354,24 @@ describe("applyTakedown", () => {
     expect((await get("takedowns", takedownId))?.appliedAt).toBeUndefined();
     await finish();
     expect(await get("takedowns", takedownId)).toMatchObject({
-      objectId,
+      target: { kind: "object", objectId },
       appliedAt: Date.now(),
     });
     expect((await get("artworks", artworkId))?.factSheetNeedsReview).toBeUndefined();
-    await expect(t.mutation(internal.revert.applyTakedown, { requester: "x" })).rejects.toMatchObject({
-      data: { code: "takedown_target" },
-    });
+    await expect(
+      t.mutation(
+        internal.revert.applyTakedown,
+        // @ts-expect-error runtime validation rejects a missing target
+        { requester: "x" },
+      ),
+    ).rejects.toThrow(/target|Validator/);
     await expect(
       t.mutation(internal.revert.applyTakedown, {
-        objectId,
-        artworkId,
+        // @ts-expect-error targets cannot contain two kinds of identity
+        target: { kind: "object", objectId, artworkId },
         requester: "x",
       }),
-    ).rejects.toMatchObject({ data: { code: "takedown_target" } });
+    ).rejects.toThrow(/target|Validator/);
   });
 });
 
@@ -445,6 +443,7 @@ describe("object cleanup resumption", () => {
     }
     await t.run((ctx) =>
       ctx.db.insert("ingestCounters", {
+        shard: 0,
         museums: 1,
         artworks: 1,
         objects: 1,
@@ -611,7 +610,7 @@ it("removes a taken-down object from a previously identified scan card", async (
     }),
   );
   const requestId = await t.mutation(internal.revert.applyTakedown, {
-    objectId: work.objectId,
+    target: { kind: "object", objectId: work.objectId },
     requester: "owner",
   });
   expect((await user.as.query(api.scans.get, { scanId }))?.best).toBeUndefined();

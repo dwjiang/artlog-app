@@ -34,6 +34,7 @@ import {
   factSheetEntry,
   feedbackResolution,
   labelFlow,
+  labelReading,
   matchOutcome,
   multiplicity,
   objectSource,
@@ -41,6 +42,8 @@ import {
   proposalKind,
   proposalStatus,
   rightNowCard,
+  orbReference,
+  takedownTarget,
   rightsStatus,
   scanStatus,
   seedSource,
@@ -48,10 +51,6 @@ import {
 } from "./lib/validators";
 
 const rightsRequest = {
-  identityArtworkId: v.optional(v.id("artworks")),
-  venueId: v.optional(v.id("museums")),
-  artworkId: v.optional(v.id("artworks")),
-  objectId: v.optional(v.id("objects")),
   requester: v.string(),
   receivedAt: v.number(),
   appliedAt: v.optional(v.number()),
@@ -62,6 +61,9 @@ export default defineSchema({
 
   files: defineTable({
     state: v.union(v.literal("pending"), v.literal("ready"), v.literal("deleting")),
+    refCount: v.number(),
+    ownerPhoto: v.boolean(),
+    contributionCrop: v.boolean(),
     contentType: v.string(),
     size: v.number(),
     sha256: v.optional(v.string()),
@@ -80,10 +82,10 @@ export default defineSchema({
     guideModel: v.string(),
     speechModel: v.string(),
     voice: v.string(),
-    storageId: v.optional(v.string()),
+    storageId: v.optional(v.id("files")),
     sentences: v.optional(v.array(docentSentence)),
     // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
-    segments: v.optional(v.array(v.object({ storageId: v.string(), duration: v.number() }))),
+    segments: v.optional(v.array(v.object({ storageId: v.id("files"), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),
   museumDownloads: defineTable({
     venueId: v.id("museums"),
@@ -116,8 +118,7 @@ export default defineSchema({
     factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index("by_key", ["key"])
-    .index("by_wikidataId", ["wikidataId"])
-    .index("by_factSheetUpdatedAt", ["factSheetUpdatedAt"]),
+    .index("by_wikidataId", ["wikidataId"]),
 
   artworkContent: defineTable({
     factSheet: v.optional(v.array(factSheetEntry)),
@@ -130,12 +131,23 @@ export default defineSchema({
     imageRef: v.optional(v.string()),
     pageUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
-    thumbnailStorageId: v.optional(v.string()),
+    thumbnailStorageId: v.optional(v.id("files")),
+    orb: v.optional(orbReference),
   }),
+
+  objectContributionState: defineTable({
+    objectId: v.id("objects"),
+    groupKey: v.optional(v.string()),
+    flaggedForReview: v.boolean(),
+    userCreated: v.boolean(),
+  })
+    .index("by_objectId", ["objectId"])
+    .index("by_groupKey", ["groupKey"])
+    .index("by_flaggedForReview", ["flaggedForReview"])
+    .index("by_userCreated", ["userCreated"]),
 
   objects: defineTable({
     identityStatus,
-    groupKey: v.optional(v.string()),
     sourceContributionId: v.optional(v.id("contributions")),
     sourceProposalId: v.optional(v.id("placementProposals")),
     supportRevision: v.optional(v.number()),
@@ -151,7 +163,6 @@ export default defineSchema({
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
     rejectionPenalty: v.optional(v.number()),
-    flaggedForReview: v.optional(v.boolean()),
     mergedInto: v.optional(v.id("objects")),
     provenance: v.optional(
       v.object({
@@ -165,13 +176,9 @@ export default defineSchema({
     revertCompletedAt: v.optional(v.number()),
   })
     .index("by_key", ["key"])
-    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- docent.load and artworks.enrichment take the oldest eligible object's page and thumbnail
     .index("by_artworkId", ["artworkId"])
-    .index("by_artworkId_ownerId", ["artworkId", "ownerId"])
-    .index("by_owner_accession", ["ownerId", "accession"])
-    .index("by_source", ["source"])
-    .index("by_flaggedForReview", ["flaggedForReview"])
-    .index("by_groupKey", ["groupKey"]),
+    .index("by_owner_artwork", ["ownerId", "artworkId"])
+    .index("by_owner_accession", ["ownerId", "accession"]),
 
   placements: defineTable({
     identityStatus,
@@ -188,9 +195,7 @@ export default defineSchema({
     closedByProposalId: v.optional(v.id("placementProposals")),
     exhibition: v.optional(v.object({ ...checklistExhibition.fields, timeZone: v.string() })),
   })
-    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- loadCurrentPlacement and enrich onView let the oldest placement win ties
     .index("by_objectId", ["objectId"])
-    .index("by_object_venue_source", ["objectId", "venueId", "source"])
     .index("by_venueId", ["venueId"]),
 
   placementProposals: defineTable({
@@ -231,27 +236,24 @@ export default defineSchema({
     .index("by_recordId", ["recordId"])
     .index("by_state_availableAt", ["state", "availableAt"]),
   // Independent evidence lifetimes can share the same immutable R2 archive.
-  scanEmbeddings: defineTable({ ...embeddingArchive.fields, expiresAt: v.optional(v.number()) })
-    .index("by_archiveId", ["archiveId"])
-    .index("by_expiresAt", ["expiresAt"]),
+  scanEmbeddings: defineTable({ ...embeddingArchive.fields, expiresAt: v.optional(v.number()) }).index("by_expiresAt", [
+    "expiresAt",
+  ]),
 
   savedRecognition: defineTable({
     saveId: v.id("collections"),
     sourceLocalId: v.string(),
     modelVersion: v.string(),
     ...embeddingArchive.fields,
-    orbStorageId: v.string(),
+    orbStorageId: v.id("files"),
     keypointCount: v.number(),
     attempt: v.number(),
     saveUpdatedAt: v.optional(v.number()),
     candidateIds: v.array(v.id("objects")),
-  })
-    .index("by_saveId", ["saveId"])
-    .index("by_archiveId", ["archiveId"])
-    .index("by_orbStorageId", ["orbStorageId"]),
+  }).index("by_saveId", ["saveId"]),
 
   vectors: defineTable({
-    archiveId: v.string(),
+    archiveId: v.id("files"),
     contentHash: v.string(),
     partition: v.string(),
     contributionId: v.optional(v.id("contributions")),
@@ -263,24 +265,10 @@ export default defineSchema({
     source: vectorSource,
     viewKey: v.optional(v.string()),
   })
-    .index("by_archiveId", ["archiveId"])
     .index("by_objectId_modelVersion_source", ["objectId", "modelVersion", "source"])
     .index("by_modelVersion_source_viewKey", ["modelVersion", "source", "viewKey"])
     .index("by_contributionId", ["contributionId"])
     .index("by_scanId", ["scanId"]),
-
-  descriptors: defineTable({
-    contributionId: v.optional(v.id("contributions")),
-    proposalId: v.optional(v.id("placementProposals")),
-    objectId: v.id("objects"),
-    storageId: v.string(),
-    sha256: v.string(),
-    keypointCount: v.number(),
-    inputSize: v.number(),
-    extractedFrom: v.string(),
-  })
-    .index("by_objectId", ["objectId"])
-    .index("by_storageId", ["storageId"]),
 
   museums: defineTable({
     key: v.string(),
@@ -301,7 +289,6 @@ export default defineSchema({
     contributionRevision: v.optional(v.number()),
   })
     .index("by_key", ["key"])
-    .index("by_wikidataId", ["wikidataId"])
     .index("by_lat", ["lat"]),
 
   // One row per venue changed since the log began; venues without one are in every exported table.
@@ -312,15 +299,16 @@ export default defineSchema({
     .index("by_venueId", ["venueId"])
     .index("by_changeVersion", ["changeVersion"]),
 
-  // Singleton maintained by convex/ingest.ts; counting large tables per query is too expensive.
+  // Independent shards keep parallel ingest batches from contending on one document.
   ingestCounters: defineTable({
+    shard: v.number(),
     museums: v.number(),
     artworks: v.number(),
     objects: v.number(),
     placements: v.number(),
     vectors: v.number(),
     descriptors: v.number(),
-  }),
+  }).index("by_shard", ["shard"]),
 
   // "Right now" cache keyed by artist and region. A row with `pendingAt` set is being fetched; the
   // scans listed in `waiting` receive the card when it lands, so concurrent misses spend one credit.
@@ -363,12 +351,12 @@ export default defineSchema({
     scanId: v.optional(v.id("scans")),
     embeddingId: v.id("scanEmbeddings"),
     modelVersion: v.string(),
-    orbStorageId: v.optional(v.string()),
+    orbStorageId: v.optional(v.id("files")),
     orbSha256: v.optional(v.string()),
     keypointCount: v.number(),
-    cropStorageId: v.optional(v.string()),
+    cropStorageId: v.optional(v.id("files")),
     displayMediaRevokedAt: v.optional(v.number()),
-    rawOcr: v.optional(v.any()),
+    rawOcr: v.optional(labelReading),
     sourceUrl: v.optional(v.string()),
     fields: v.object({
       title: contributionField,
@@ -388,15 +376,13 @@ export default defineSchema({
     // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- revert pages every row while removal rewrites status
     .index("by_deviceId", ["deviceId"])
     .index("by_scanId", ["scanId"])
-    .index("by_cropStorageId", ["cropStorageId"])
-    .index("by_orbStorageId", ["orbStorageId"])
-    .index("by_device_status", ["deviceId", "status"])
     .index("by_device_venue_model", ["deviceId", "venueId", "modelVersion"])
     .index("by_status", ["status"])
     .index("by_object_device", ["indexedObjectId", "deviceId", "status"])
     .index("by_object_status_created", ["indexedObjectId", "status", "createdAt"]),
 
   feedback: defineTable({
+    expiresAt: v.optional(v.number()),
     scanId: v.id("scans"),
     deviceId: v.id("devices"),
     embeddingId: v.id("scanEmbeddings"),
@@ -423,8 +409,8 @@ export default defineSchema({
     ),
     createdAt: v.number(),
   })
+    .index("by_expiresAt", ["expiresAt"])
     .index("by_rejectedObjectId", ["rejectedObjectId"])
-    .index("by_device_object", ["deviceId", "rejectedObjectId"])
     .index("by_scan_object", ["scanId", "rejectedObjectId"])
     .index("by_venueId", ["venueId"])
     .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId", "createdAt"])
@@ -442,6 +428,7 @@ export default defineSchema({
   }).index("by_object", ["objectId"]),
 
   feedbackEvents: defineTable({
+    expiresAt: v.optional(v.number()),
     kind: v.union(v.literal("confirmation"), v.literal("rejection")),
     deviceId: v.id("devices"),
     scanId: v.id("scans"),
@@ -450,6 +437,7 @@ export default defineSchema({
     feedbackId: v.optional(v.id("feedback")),
     createdAt: v.number(),
   })
+    .index("by_expiresAt", ["expiresAt"])
     .index("by_object_created", ["objectId", "createdAt"])
     .index("by_device", ["deviceId"])
     .index("by_save", ["saveId"]),
@@ -484,6 +472,7 @@ export default defineSchema({
   }).index("by_job", ["jobId"]),
 
   deviceRemovals: defineTable({
+    expiresAt: v.optional(v.number()),
     deviceId: v.id("devices"),
     reason: v.string(),
     phase: v.union(
@@ -504,7 +493,9 @@ export default defineSchema({
     resumeRevision: v.number(),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
-  }).index("by_device", ["deviceId"]),
+  })
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_device", ["deviceId"]),
 
   museumWorkIdentities: defineTable({
     venueId: v.id("museums"),
@@ -513,6 +504,7 @@ export default defineSchema({
   }).index("by_venue_identity", ["venueId", "identity"]),
 
   scans: defineTable({
+    expiresAt: v.optional(v.number()),
     deviceId: v.id("devices"),
     localId: v.string(),
     generation: v.number(),
@@ -551,12 +543,14 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_device_localId", ["deviceId", "localId"]),
+  })
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_device_localId", ["deviceId", "localId"]),
 
   devices: defineTable({
     // Set by attestDevice once Apple has verified the key; absent until then.
     appAttestKeyId: v.optional(v.string()),
-    authUserId: v.optional(v.string()),
+    authUserId: v.optional(v.id("users")),
     firstSeenAt: v.number(),
     trustWeight: v.number(),
     banned: v.boolean(),
@@ -581,15 +575,16 @@ export default defineSchema({
     .index("by_accountId", ["accountId"]),
 
   attestChallenges: defineTable({
+    expiresAt: v.optional(v.number()),
     deviceId: v.optional(v.id("devices")),
-    authUserId: v.string(),
+    authUserId: v.id("users"),
     nonce: v.string(),
     purpose: challengePurpose,
     createdAt: v.number(),
     usedAt: v.optional(v.number()),
   })
-    .index("by_nonce", ["nonce"])
-    .index("by_authUserId", ["authUserId"]),
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_nonce", ["nonce"]),
 
   dailySpend: defineTable({
     day: v.string(),
@@ -601,7 +596,6 @@ export default defineSchema({
   accounts: defineTable({
     appleUserId: v.string(),
     email: v.optional(v.string()),
-    deviceIds: v.array(v.id("devices")),
     createdAt: v.number(),
   }).index("by_appleUserId", ["appleUserId"]),
 
@@ -623,7 +617,7 @@ export default defineSchema({
   collections: defineTable({
     ...journalSave.fields,
     owner: journalOwner,
-    cropStorageId: v.optional(v.string()),
+    cropStorageId: v.optional(v.id("files")),
     photoUpdatedAt: v.optional(v.number()),
     visitId: v.optional(v.id("visits")),
     scanId: v.optional(v.id("scans")),
@@ -636,14 +630,13 @@ export default defineSchema({
     .index("by_owner_savedAt", ["owner", "deletedAt", "savedAt", "localId"])
     .index("by_owner_artwork_savedAt", ["owner", "artworkId", "deletedAt", "savedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"])
-    .index("by_visitId", ["visitId"])
-    .index("by_cropStorageId_deletedAt", ["cropStorageId", "deletedAt"]),
+    .index("by_visitId", ["visitId"]),
 
   artworkPhotos: defineTable({
     ...albumPhoto.fields,
     owner: journalOwner,
     saveId: v.id("collections"),
-    storageId: v.optional(v.string()),
+    storageId: v.optional(v.id("files")),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     updatedAt: v.number(),
@@ -651,8 +644,7 @@ export default defineSchema({
   })
     .index("by_owner_localId", ["owner", "localId"])
     .index("by_save_deletedAt", ["saveId", "deletedAt"])
-    .index("by_owner_changeVersion", ["owner", "changeVersion"])
-    .index("by_storageId", ["storageId"]),
+    .index("by_owner_changeVersion", ["owner", "changeVersion"]),
   artworkEncounters: defineTable({
     ...albumEncounter.fields,
     owner: journalOwner,
@@ -683,9 +675,11 @@ export default defineSchema({
   leaderboardScores: defineTable({
     accountId: v.id("accounts"),
     metric: leaderboardMetric,
-    period: v.string(),
     score: v.number(),
-  }).index("by_account_metric_period", ["accountId", "metric", "period"]),
+    visibility: leaderboardVisibility,
+  })
+    .index("by_account_metric", ["accountId", "metric"])
+    .index("by_metric_visibility_score", ["metric", "visibility", "score"]),
   profiles: defineTable({
     leaderboardVisibility,
     removal: v.optional(removal),
@@ -693,7 +687,7 @@ export default defineSchema({
     username: v.string(),
     name: v.string(),
     bio: v.optional(v.string()),
-    photoStorageId: v.optional(v.string()),
+    photoStorageId: v.optional(v.id("files")),
     searchText: v.string(),
     active: v.boolean(),
     publishedWallCount: v.number(),
@@ -703,7 +697,6 @@ export default defineSchema({
     .index("by_accountId", ["accountId"])
     .index("by_username", ["username"])
     .index("by_active", ["active"])
-    .index("by_leaderboard", ["leaderboardVisibility"])
     .searchIndex("search_text", {
       searchField: "searchText",
       filterFields: ["active"],
@@ -779,7 +772,6 @@ export default defineSchema({
     highlighted: v.optional(v.boolean()),
   })
     .index("by_publication_position", ["publicationId", "position"])
-    .index("by_publication_save", ["publicationId", "saveId"])
     .index("by_saveId", ["saveId"]),
   visitEngagement: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -805,7 +797,7 @@ export default defineSchema({
   mediaAssets: defineTable({
     saveId: v.id("collections"),
     source: mediaSource,
-    storageId: v.optional(v.string()),
+    storageId: v.optional(v.id("files")),
     provenance: v.union(
       v.object({
         kind: v.literal("catalog"),
@@ -815,14 +807,13 @@ export default defineSchema({
       v.object({
         kind: v.literal("contribution"),
         contributionId: v.id("contributions"),
-        sourceStorageId: v.string(),
+        sourceStorageId: v.id("files"),
       }),
     ),
     createdAt: v.number(),
     revokedAt: v.optional(v.number()),
   })
     .index("by_save_kind", ["saveId", "source.kind"])
-    .index("by_storageId", ["storageId"])
     .index("by_contribution_revoked", ["provenance.contributionId", "revokedAt"]),
   reports: defineTable({
     reporter: v.optional(journalOwner),
@@ -836,13 +827,15 @@ export default defineSchema({
   })
     .index("by_reporter_createdAt", ["reporter", "createdAt"])
     .index("by_status_createdAt", ["status", "createdAt"])
-    .index("by_target", ["target"])
     .index("by_reporter_target_status", ["reporter", "target", "status"]),
 
-  optOuts: defineTable(rightsRequest).index("by_venueId", ["venueId"]),
+  optOuts: defineTable({
+    ...rightsRequest,
+    target: v.object({ kind: v.literal("venue"), venueId: v.id("museums") }),
+  }).index("by_venueId", ["target.venueId"]),
 
-  takedowns: defineTable(rightsRequest)
-    .index("by_artworkId", ["artworkId"])
-    .index("by_objectId", ["objectId"])
-    .index("by_identity_artwork_venue", ["identityArtworkId", "venueId"]),
+  takedowns: defineTable({ ...rightsRequest, target: takedownTarget })
+    .index("by_artworkId", ["target.artworkId"])
+    .index("by_objectId", ["target.objectId"])
+    .index("by_identity_artwork_venue", ["target.identityArtworkId", "target.venueId"]),
 });

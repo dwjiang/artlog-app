@@ -4,7 +4,7 @@ import model from "../../shared/model/model-version.json";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
-import { fileHash, fileStorage, retainFile } from "./fileStorage";
+import { fileHash, fileStorage } from "./fileStorage";
 import { validateVector } from "./modelVersion";
 import type { EmbeddingArchive } from "./validators";
 import { queueVectorSync, searchRecordId } from "./vectorSyncQueue";
@@ -40,7 +40,11 @@ export async function readVector(ctx: Pick<ActionCtx, "runQuery">, row: Embeddin
   return vector;
 }
 
-export async function retainVectorArchive(ctx: MutationCtx, archiveId: string, contentHash: string): Promise<void> {
+export async function retainVectorArchive(
+  ctx: MutationCtx,
+  archiveId: Id<"files">,
+  contentHash: string,
+): Promise<void> {
   const file = await fileStorage.getMetadata(ctx, archiveId);
   if (
     !file
@@ -50,27 +54,11 @@ export async function retainVectorArchive(ctx: MutationCtx, archiveId: string, c
   ) {
     throw new ConvexError({ code: "vector_archive_invalid" });
   }
-  await retainFile(ctx, archiveId);
 }
 
-export async function expireVectorArchiveIfUnreferenced(ctx: MutationCtx, archiveId: string): Promise<void> {
-  const reference = await ctx.db
-    .query("vectors")
-    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
-    .first();
-  if (reference) return;
-  const evidence = await ctx.db
-    .query("scanEmbeddings")
-    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
-    .first();
-  if (evidence) return;
-  const saved = await ctx.db
-    .query("savedRecognition")
-    .withIndex("by_archiveId", (q) => q.eq("archiveId", archiveId))
-    .first();
-  if (saved) return;
+export async function expireVectorArchiveIfUnreferenced(ctx: MutationCtx, archiveId: Id<"files">): Promise<void> {
   const file = await fileStorage.getMetadata(ctx, archiveId);
-  if (file) await ctx.db.patch("files", file._id, { expiresAt: Date.now() + VECTOR_ARCHIVE_GRACE_MS });
+  if (file?.refCount === 0) await ctx.db.patch("files", file._id, { expiresAt: Date.now() + VECTOR_ARCHIVE_GRACE_MS });
 }
 
 export async function insertVector(ctx: MutationCtx, input: VectorInput): Promise<Id<"vectors">> {
@@ -121,11 +109,11 @@ export async function deleteVector(ctx: MutationCtx, row: Doc<"vectors">): Promi
 
 export async function withVectorArchives<T>(
   ctx: Pick<ActionCtx, "runMutation">,
-  vectors: { vector: number[]; archiveId?: string }[],
-  commit: (archiveIds: string[]) => Promise<T>,
+  vectors: { vector: number[]; archiveId?: Id<"files"> }[],
+  commit: (archiveIds: Id<"files">[]) => Promise<T>,
 ): Promise<T> {
-  const uploaded: string[] = [];
-  const archiveIds: string[] = [];
+  const uploaded: Id<"files">[] = [];
+  const archiveIds: Id<"files">[] = [];
   try {
     for (let start = 0; start < vectors.length; start += 8) {
       const results = await Promise.allSettled(

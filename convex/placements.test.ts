@@ -6,12 +6,13 @@ import { makeSyntheticPair } from "../shared/orb/test-fixtures";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
-import { fileStorage } from "./lib/fileStorage";
 import { runPipeline } from "./lib/identifyPipeline";
+import { patchObjectDetails } from "./lib/objectDetails";
 import { loadOrb } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { r2 } from "./lib/r2";
 import {
+  readTestOrb,
   readTestEmbedding,
   seedEmbedding,
   seedArtworkWithObject,
@@ -335,12 +336,7 @@ it.each(["multiple", "unknown"] as const)(
       scores: [0.99],
       now: NOW + DAY,
     });
-    const reference = await t.run((ctx) =>
-      ctx.db
-        .query("descriptors")
-        .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-        .unique(),
-    );
+    const reference = await t.run((ctx) => readTestOrb(ctx, objectId));
     expect(candidates[0].orbStorageId).toBe(reference!.storageId);
     const hydrated = await t.run(async (ctx) =>
       Promise.all(
@@ -380,12 +376,9 @@ it.each(["row", "file"])("refuses to index a new physical object without its ref
   const { t, ready, objectId } = await fixture("multiple");
   const p = await ready();
   await t.run(async (ctx) => {
-    const reference = (await ctx.db
-      .query("descriptors")
-      .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
-      .unique())!;
-    if (missing === "row") await ctx.db.delete("descriptors", reference._id);
-    else await fileStorage.delete(ctx, reference.storageId);
+    const reference = (await readTestOrb(ctx, objectId))!;
+    if (missing === "row") await patchObjectDetails(ctx, { _id: objectId }, { orb: undefined });
+    else await ctx.db.patch("files", reference.storageId, { state: "deleting" });
   });
   await expect(
     t.action(internal.placements.reviewPlacement, {

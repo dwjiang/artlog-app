@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 
 import { decodeOrbFeatures, DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../../shared/orb/features";
+import type { Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
 
@@ -30,7 +31,7 @@ export async function storeOrb(ctx: Pick<ActionCtx, "runMutation">, descriptors:
   };
 }
 
-export async function loadOrb(ctx: Parameters<typeof fileStorage.get>[0], storageId: string, count: number) {
+export async function loadOrb(ctx: Parameters<typeof fileStorage.get>[0], storageId: Id<"files">, count: number) {
   const file = await fileStorage.get(ctx, storageId);
   if (!file) throw new ConvexError({ code: "orb_file_missing", storageId });
   if (
@@ -48,20 +49,6 @@ export async function loadOrb(ctx: Parameters<typeof fileStorage.get>[0], storag
   return { descriptors, keypoints };
 }
 
-export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: string) {
-  const descriptor = await ctx.db
-    .query("descriptors")
-    .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
-    .first();
-  const contribution = await ctx.db
-    .query("contributions")
-    .withIndex("by_orbStorageId", (q) => q.eq("orbStorageId", storageId))
-    .first();
-  const saved = await ctx.db
-    .query("savedRecognition")
-    .withIndex("by_orbStorageId", (q) => q.eq("orbStorageId", storageId))
-    .first();
-  if (!descriptor && !contribution && !saved && (await fileStorage.getMetadata(ctx, storageId))) {
-    await fileStorage.delete(ctx, storageId);
-  }
+export async function deleteOrbIfUnreferenced(ctx: MutationCtx, storageId: Id<"files">) {
+  await fileStorage.delete(ctx, storageId);
 }

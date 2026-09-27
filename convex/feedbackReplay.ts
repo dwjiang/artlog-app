@@ -2,7 +2,9 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalMutation, type MutationCtx } from "./_generated/server";
+import { type MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
+import { patchContributionState } from "./lib/objectContributionState";
 import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
 
 export async function feedbackChanged(ctx: MutationCtx, objectId: Id<"objects">, rebuild = true) {
@@ -86,7 +88,9 @@ export const rebuildPage = internalMutation({
       }
     }
     if (page.isDone) {
-      await ctx.db.patch("objects", object._id, state);
+      const { flaggedForReview, ...counts } = state;
+      await ctx.db.patch("objects", object._id, counts);
+      await patchContributionState(ctx, object._id, { flaggedForReview });
       await ctx.db.delete("feedbackRebuilds", jobId);
     } else {
       await ctx.db.patch("feedbackRebuilds", jobId, {

@@ -15,6 +15,7 @@ export function EmptyState({
   footnote,
   compact = false,
   inset = true,
+  centered = false,
 }: {
   title: string;
   detail?: string;
@@ -23,23 +24,29 @@ export function EmptyState({
   footnote?: string;
   compact?: boolean;
   inset?: boolean;
+  centered?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   return (
-    <View style={[styles.root, inset && !compact && styles.inset, compact && styles.compact]}>
+    <View
+      style={[styles.root, inset && !compact && styles.inset, compact && styles.compact, centered && styles.centered]}
+    >
       {visual}
-      <View style={styles.copy}>
+      <View style={[styles.copy, centered && styles.centered]}>
         <Text
           variant="display"
           accessibilityRole="header"
-          style={compact || !visual ? styles.smallTitle : fontScale > 1.3 ? styles.largeTextTitle : styles.title}
+          style={[
+            compact || !visual ? styles.smallTitle : fontScale > 1.3 ? styles.largeTextTitle : styles.title,
+            centered && styles.centeredText,
+          ]}
         >
           {title}
         </Text>
-        {detail && <Text style={styles.detail}>{detail}</Text>}
+        {detail && <Text style={[styles.detail, centered && styles.centeredText]}>{detail}</Text>}
       </View>
-      {children && <View style={styles.actions}>{children}</View>}
-      {footnote && <Text style={styles.footnote}>{footnote}</Text>}
+      {children && <View style={[styles.actions, centered && styles.stretch]}>{children}</View>}
+      {footnote && <Text style={[styles.footnote, centered && styles.centeredText]}>{footnote}</Text>}
     </View>
   );
 }
@@ -83,6 +90,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   copy: { gap: 10 },
+  centered: { alignItems: "center" },
+  centeredText: { textAlign: "center" },
+  stretch: { alignSelf: "stretch" },
   title: { fontSize: 40, lineHeight: 46, maxWidth: 330 },
   largeTextTitle: { fontSize: 32, lineHeight: 40 },
   smallTitle: { fontSize: 26, lineHeight: 32 },

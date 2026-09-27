@@ -1,6 +1,6 @@
 import { type Infer, v } from "convex/values";
 
-export const embeddingArchive = v.object({ archiveId: v.string(), contentHash: v.string() });
+export const embeddingArchive = v.object({ archiveId: v.id("files"), contentHash: v.string() });
 export type EmbeddingArchive = Infer<typeof embeddingArchive>;
 
 export const rightsStatus = v.union(v.literal("public_domain"), v.literal("in_copyright"), v.literal("unknown"));
@@ -185,6 +185,23 @@ export const labelWarning = v.union(
 );
 export type LabelWarning = Infer<typeof labelWarning>;
 
+export const labelReading = v.object({
+  title: v.union(v.string(), v.null()),
+  artist: v.union(v.string(), v.null()),
+  artist_dates: v.union(v.string(), v.null()),
+  work_date: v.union(v.string(), v.null()),
+  medium: v.union(v.string(), v.null()),
+  accession: v.union(v.string(), v.null()),
+  credit_line: v.union(v.string(), v.null()),
+  confidence: v.object({
+    title: v.number(),
+    artist: v.number(),
+    work_date: v.number(),
+    medium: v.number(),
+    accession: v.number(),
+  }),
+});
+
 export const labelFlow = v.object({
   stage: v.union(v.literal("qr"), v.literal("read"), v.literal("verified")),
   fields: labelFields,
@@ -192,7 +209,7 @@ export const labelFlow = v.object({
   warnings: v.array(labelWarning),
   moderation: v.union(v.literal("clear"), v.literal("flagged"), v.literal("unchecked")),
   promptVersion: v.optional(v.string()),
-  rawOcr: v.optional(v.any()),
+  rawOcr: v.optional(labelReading),
   sourceUrl: v.optional(v.string()),
   wikidataId: v.optional(v.string()),
   imageUrls: v.optional(v.array(v.string())),
@@ -211,3 +228,23 @@ export const imageCheck = v.object({
   homographyValid: v.boolean(),
 });
 export type ImageCheck = Infer<typeof imageCheck>;
+
+export const orbReference = v.object({
+  contributionId: v.optional(v.id("contributions")),
+  proposalId: v.optional(v.id("placementProposals")),
+  storageId: v.id("files"),
+  sha256: v.string(),
+  keypointCount: v.number(),
+  inputSize: v.number(),
+  extractedFrom: v.string(),
+});
+
+export const takedownTarget = v.union(
+  v.object({ kind: v.literal("artwork"), artworkId: v.id("artworks") }),
+  v.object({
+    kind: v.literal("object"),
+    objectId: v.id("objects"),
+    identityArtworkId: v.id("artworks"),
+    venueId: v.optional(v.id("museums")),
+  }),
+);

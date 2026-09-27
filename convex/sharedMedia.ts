@@ -31,15 +31,8 @@ export const authorize = internalQuery({
       throw new ConvexError({ code: "not_found" });
     }
     // A media row must never turn a reusable owner photo into a social derivative.
-    const crop = await ctx.db
-      .query("collections")
-      .withIndex("by_cropStorageId_deletedAt", (q) => q.eq("cropStorageId", asset.storageId))
-      .first();
-    const album = await ctx.db
-      .query("artworkPhotos")
-      .withIndex("by_storageId", (q) => q.eq("storageId", asset.storageId))
-      .first();
-    if (crop || album) throw new ConvexError({ code: "not_found" });
+    const file = await fileStorage.getMetadata(ctx, asset.storageId);
+    if (!file || file.ownerPhoto) throw new ConvexError({ code: "not_found" });
     return asset.storageId;
   },
 });

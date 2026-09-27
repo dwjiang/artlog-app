@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
-import { mutation } from "./_generated/server";
 import { clearDocent } from "./docent";
+import { mutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { limitDevice } from "./lib/rateLimits";

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import type { JournalSave } from "../shared/journal/contracts";
 import { rankScores } from "../shared/social/leaderboard";
@@ -14,9 +14,37 @@ import {
 } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
+afterEach(() => vi.useRealTimers());
+
+it("keeps lifetime scores and zero-score participants across months and years", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-26T12:00:00Z"));
+  const t = harness();
+  const ada = await socialUser(t, "Ada");
+  await socialUser(t, "Ben");
+  await ada.as.mutation(api.sync.syncJournal, {
+    scope: ada.scope,
+    since: 0,
+    visits: [],
+    saves: [artworkSave(Date.UTC(2020, 0, 1)), artworkSave()],
+  });
+  for (const date of ["2026-09-26T12:00:00Z", "2026-10-01T12:00:00Z", "2027-01-01T12:00:00Z"]) {
+    vi.setSystemTime(new Date(date));
+    const board = await t.query(api.leaderboards.list, { audience: "global", metric: "artworks" });
+    expect(board.rows.map(({ profile, score }) => [profile.name, score])).toEqual([
+      ["Ada", 2],
+      ["Ben", 0],
+    ]);
+    const visits = await t.query(api.leaderboards.list, { audience: "global", metric: "visits" });
+    expect(visits.rows.map(({ profile, score }) => [profile.name, score])).toEqual([
+      ["Ada", 0],
+      ["Ben", 0],
+    ]);
+  }
+});
+
 const artworkQuery = {
   audience: "global",
-  period: "all",
   metric: "artworks",
 } as const;
 const artworkSave = (savedAt = Date.now()) => ({
@@ -87,7 +115,7 @@ it("keeps different catalog artworks and unidentified entries separate despite i
   expect((await user.as.query(api.leaderboards.list, artworkQuery)).rows[0].score).toBe(4);
 });
 
-it("uses the earliest remaining save month, including out-of-order sync and duplicate deletions", async () => {
+it("counts each artwork once across out-of-order saves and duplicate deletions", async () => {
   const t = harness();
   const user = await socialUser(t, "Ada");
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
@@ -101,35 +129,24 @@ it("uses the earliest remaining save month, including out-of-order sync and dupl
       visits: [],
       saves,
     });
-  const totals = async () =>
-    Promise.all(
-      (["all", "month"] as const).map(
-        async (period) =>
-          (
-            await user.as.query(api.leaderboards.list, {
-              ...artworkQuery,
-              period,
-            })
-          ).rows[0].score,
-      ),
-    );
+  const total = async () => (await user.as.query(api.leaderboards.list, artworkQuery)).rows[0].score;
   await sync([current, duplicate]);
-  expect(await totals()).toEqual([1, 1]);
+  expect(await total()).toBe(1);
   await sync([older]);
-  expect(await totals()).toEqual([1, 0]);
+  expect(await total()).toBe(1);
   await user.as.mutation(api.collections.remove, {
     scope: user.scope,
     localId: duplicate.localId,
   });
-  expect(await totals()).toEqual([1, 0]);
+  expect(await total()).toBe(1);
   await sync([{ ...older, deletedAt: Date.now() }]);
-  expect(await totals()).toEqual([1, 1]);
+  expect(await total()).toBe(1);
   await sync([older]);
   await user.as.mutation(api.collections.remove, {
     scope: user.scope,
     localId: current.localId,
   });
-  expect(await totals()).toEqual([0, 0]);
+  expect(await total()).toBe(0);
 });
 
 it("keeps the artwork point when duplicate entries are merged and removes it with the last entry", async () => {
@@ -192,14 +209,6 @@ it("deduplicates guest saves against the account journal when claiming another d
   while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
   await device.as.mutation(api.journalClaims.resume, { scope });
   expect((await user.as.query(api.leaderboards.list, artworkQuery)).rows[0].score).toBe(1);
-  expect(
-    (
-      await user.as.query(api.leaderboards.list, {
-        ...artworkQuery,
-        period: "month",
-      })
-    ).rows[0].score,
-  ).toBe(0);
 });
 
 it("rejects an artwork identity that conflicts with the saved object", async () => {
@@ -224,7 +233,7 @@ it("rejects an artwork identity that conflicts with the saved object", async () 
   expect((await user.as.query(api.leaderboards.list, artworkQuery)).rows[0].score).toBe(0);
 });
 
-it("counts saved artworks once across retries and edits, using the original save month", async () => {
+it("counts lifetime saved artworks once across retries and edits", async () => {
   const t = harness();
   const user = await socialUser(t, "Ada");
   const current = artworkSave();
@@ -242,14 +251,6 @@ it("counts saved artworks once across retries and edits, using the original save
   const board = await user.as.query(api.leaderboards.list, artworkQuery);
   expect(board.rows[0].score).toBe(2);
   expect(JSON.stringify(board)).not.toMatch(/PRIVATE|snapshot|savedAt|note|localId/);
-  expect(
-    (
-      await user.as.query(api.leaderboards.list, {
-        ...artworkQuery,
-        period: "month",
-      })
-    ).rows[0].score,
-  ).toBe(1);
   await user.as.mutation(api.collections.remove, {
     scope: user.scope,
     localId: current.localId,
@@ -260,14 +261,6 @@ it("counts saved artworks once across retries and edits, using the original save
   });
   await sync([current]);
   expect((await user.as.query(api.leaderboards.list, artworkQuery)).rows[0].score).toBe(1);
-  expect(
-    (
-      await user.as.query(api.leaderboards.list, {
-        ...artworkQuery,
-        period: "month",
-      })
-    ).rows[0].score,
-  ).toBe(0);
 });
 
 it("updates artwork totals for sync deletions and album merges without counting extra photos", async () => {
@@ -365,7 +358,6 @@ it("joins both boards by default and enforces opt-out, friends-only, and block v
   const c = await socialUser(t, "Cam");
   const query = {
     metric: "visits" as const,
-    period: "all" as const,
     audience: "friends" as const,
   };
   expect(await a.as.query(api.leaderboards.preference, {})).toBe("global");
@@ -402,7 +394,6 @@ it("lets guests browse only opted-in Global profiles without exposing private ac
   });
   const query = {
     metric: "visits" as const,
-    period: "all" as const,
     audience: "global" as const,
   };
   const board = await t.query(api.leaderboards.list, query);
@@ -435,7 +426,6 @@ it("continues to hide blocked, inactive, and removed profiles from Global", asyn
   await t.run((ctx) => ctx.db.patch("profiles", inactive.profileId, { active: false }));
   const query = {
     metric: "visits" as const,
-    period: "all" as const,
     audience: "global" as const,
   };
   expect((await viewer.as.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(["Viewer"]);
@@ -443,13 +433,12 @@ it("continues to hide blocked, inactive, and removed profiles from Global", asyn
   expect((await t.query(api.leaderboards.list, query)).rows.map((row) => row.profile.name)).toEqual(["Viewer"]);
 });
 
-it("deduplicates museum days and moves backdated totals to the visit’s month", async () => {
+it("deduplicates museum days across backdated visits and venue changes", async () => {
   const t = harness();
   const a = await socialUser(t, "Ada");
   const venueId = await t.run(seedMuseum);
   await a.as.mutation(api.leaderboards.setPreference, { visibility: "global" });
-  const month = new Date().toISOString().slice(0, 7);
-  const day = `${month}-01`;
+  const day = "2026-09-01";
   const first = {
     visibility: "public" as const,
     localId: crypto.randomUUID(),
@@ -465,23 +454,20 @@ it("deduplicates museum days and moves backdated totals to the visit’s month",
   await upsert(first);
   const query = {
     metric: "visits" as const,
-    period: "month" as const,
     audience: "global" as const,
   };
   const board = await a.as.query(api.leaderboards.list, query);
   expect(board.rows[0].score).toBe(1);
   expect(JSON.stringify(board)).not.toMatch(/PRIVATE|venueId|visitedOn/);
   await upsert({ ...first, visitedOn: "2020-01-01" });
-  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(1);
-  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(2);
+  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(2);
   await upsert({ ...second, visitedOn: "2020-01-01" });
-  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(0);
-  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(1);
+  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(1);
   const otherVenue = await t.run(seedMuseum);
   await upsert({ ...second, venueId: otherVenue, visitedOn: "2020-01-01" });
-  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(2);
+  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(2);
   await upsert({ ...first, venueId: otherVenue, visitedOn: "2020-01-01" });
-  expect((await a.as.query(api.leaderboards.list, { ...query, period: "all" })).rows[0].score).toBe(1);
+  expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(1);
 });
 
 it("keeps shared index activity separate from artwork totals", async () => {
@@ -502,9 +488,44 @@ it("keeps shared index activity separate from artwork totals", async () => {
     (
       await a.as.query(api.leaderboards.list, {
         audience: "global",
-        period: "all",
         metric: "artworks",
       })
     ).rows[0].score,
   ).toBe(0);
 });
+
+it(
+  "finds the highest scores beyond the first 1,000 profiles with a bounded top-100 read",
+  { timeout: 60_000 },
+  async () => {
+    const t = harness({ transactionLimits: { documentsRead: 500 } });
+    const viewer = await socialUser(t, "Viewer");
+    const template = (await t.run((ctx) => ctx.db.get("profiles", viewer.profileId)))!;
+    const { _id, _creationTime, ...profile } = template;
+    for (let start = 0; start < 1005; start += 20) {
+      await t.run(async (ctx) => {
+        for (let i = start; i < Math.min(start + 20, 1005); i++) {
+          const accountId = await ctx.db.insert("accounts", { appleUserId: `rank-${i}`, createdAt: Date.now() });
+          await ctx.db.insert("profiles", { ...profile, accountId, username: `rank_${i}`, name: `Rank ${i}` });
+          const score = (await ctx.db
+            .query("leaderboardScores")
+            .withIndex("by_account_metric", (q) => q.eq("accountId", accountId).eq("metric", "visits"))
+            .unique())!;
+          await ctx.db.patch("leaderboardScores", score._id, { score: i + 1 });
+        }
+      });
+    }
+    const query = { metric: "visits" as const, audience: "global" as const };
+    const result = await viewer.as.query(api.leaderboards.list, query);
+    expect(result.rows).toHaveLength(100);
+    expect(result.rows[0]).toMatchObject({ profile: { name: "Rank 1004" }, score: 1005, rank: 1 });
+    await t.run(async (ctx) => {
+      const leader = (await ctx.db
+        .query("profiles")
+        .withIndex("by_username", (q) => q.eq("username", "rank_1004"))
+        .unique())!;
+      await ctx.db.patch("profiles", leader._id, { leaderboardVisibility: "off" });
+    });
+    expect((await viewer.as.query(api.leaderboards.list, query)).rows[0]).toMatchObject({ score: 1004 });
+  },
+);

@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 
 import { journalVisit, pageArgs, pagination } from "../shared/journal/contracts";
-import { mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
+import { mutation } from "./functions";
 import { upsertJournalVisit } from "./lib/journal";
 import { findOwnedVisit, requireJournalOwner, requireMembership } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";

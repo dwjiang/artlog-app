@@ -3,8 +3,10 @@ import { ConvexError, type Infer, v } from "convex/values";
 import moment from "moment-timezone";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, type QueryCtx } from "./_generated/server";
+import { type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
+import { matchingPlacements } from "./lib/placements";
 import { checklistExhibition } from "./lib/validators";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 
@@ -72,13 +74,11 @@ async function resolveWork(ctx: QueryCtx, input: ChecklistWork): Promise<Resolut
     if (input.accession && !owner) {
       return { reason: "accession_requires_owner" };
     }
-    const rows = await ctx.db
-      .query("objects")
-      .withIndex("by_artworkId_ownerId", (q) =>
-        owner ? q.eq("artworkId", artworkId).eq("ownerId", owner._id) : q.eq("artworkId", artworkId),
-      )
-      .take(MAX_MATCHES + 1);
-    return selectObject(rows);
+    const objects = ctx.db.query("objects");
+    const matches = owner
+      ? objects.withIndex("by_owner_artwork", (q) => q.eq("ownerId", owner._id).eq("artworkId", artworkId))
+      : objects.withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId));
+    return selectObject(await matches.take(MAX_MATCHES + 1));
   }
   if (owner && input.accession) {
     return selectObject(
@@ -155,12 +155,7 @@ export const ingestChecklist = internalMutation({
       }
       const objectId = resolved.object._id;
       if (placed.has(objectId)) continue;
-      const rows = await ctx.db
-        .query("placements")
-        .withIndex("by_object_venue_source", (q) =>
-          q.eq("objectId", objectId).eq("venueId", venue._id).eq("source", "checklist"),
-        )
-        .take(MAX_MATCHES + 1);
+      const rows = await matchingPlacements(ctx, objectId, venue._id, "checklist");
       if (rows.length > MAX_MATCHES) {
         throw new ConvexError({
           code: "too_many_checklist_placements",

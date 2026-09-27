@@ -8,7 +8,7 @@ const BATCH = 50;
 export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts">): Promise<boolean> {
   const scores = await ctx.db
     .query("leaderboardScores")
-    .withIndex("by_account_metric_period", (q) => q.eq("accountId", accountId))
+    .withIndex("by_account_metric", (q) => q.eq("accountId", accountId))
     .take(BATCH);
   if (scores.length > 0) {
     for (const row of scores) await ctx.db.delete("leaderboardScores", row._id);
