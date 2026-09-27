@@ -84,7 +84,7 @@ async function setup() {
   const { archiveId } = (await t.run((ctx) => ctx.db.get("vectors", vectorId)))!;
   const files = () =>
     t.run(async (ctx) =>
-      (await ctx.db.query("files").collect()).filter((file) => file.state === "ready" && file.key !== archiveId),
+      (await ctx.db.query("files").collect()).filter((file) => file.state === "ready" && file._id !== archiveId),
     );
   // Plays through the live playlist, then waits for the whole file to be stored.
   const render = async (as: typeof device.as = device.as) => {

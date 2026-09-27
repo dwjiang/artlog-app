@@ -55,7 +55,28 @@ it.each([undefined, { readUnits: "1" }, { readUnits: -1 }])(
   },
 );
 
-it.each([{}, { matches: [{}] }, { matches: [{ id: "x", score: 1.1 }] }, { matches: [{ id: "x", score: "0.9" }] }])(
+it.each([
+  [1.00010204, 1],
+  [-1.00010204, -1],
+])("clamps approximate cosine score %s before calibration", async (score, expected) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof globalThis.fetch>().mockResolvedValue(Response.json({ matches: [{ id: "x", score }] })),
+  );
+  expect(await queryPinecone(testVector(), "partition", 3)).toEqual([{ id: "x", score: expected }]);
+});
+
+it("rejects numeric overflow in provider scores", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response('{"matches":[{"id":"x","score":1e999}]}')),
+  );
+  await expect(queryPinecone(testVector(), "partition", 3)).rejects.toMatchObject({
+    data: { code: "search_error", reason: "bad_response" },
+  });
+});
+
+it.each([{}, { matches: [{}] }, { matches: [{ id: "x", score: null }] }, { matches: [{ id: "x", score: "0.9" }] }])(
   "refuses malformed search results",
   async (body) => {
     vi.stubGlobal("fetch", vi.fn<typeof globalThis.fetch>().mockResolvedValue(Response.json(body)));

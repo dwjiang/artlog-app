@@ -1,8 +1,10 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { api } from "./_generated/api";
 import { socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { harness } from "./test.helpers";
+
+afterEach(() => vi.useRealTimers());
 
 async function fixture() {
   const t = harness();
@@ -61,6 +63,7 @@ it("rejects foreign parents and never returns another owner’s album", async ()
 });
 
 it("serves each private photo only to its owner and revokes bytes when the artwork is deleted", async () => {
+  vi.useFakeTimers();
   const { t, owner, outsider, first, photos, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
   const path = (scope: string) =>
@@ -93,13 +96,14 @@ it("serves each private photo only to its owner and revokes bytes when the artwo
   });
   expect(deleted.photos.every((row) => row.deletedAt !== undefined)).toBe(true);
   expect(deleted.encounters.every((row) => row.deletedAt !== undefined)).toBe(true);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
 });
 
 it("publishes only explicitly selected photos, permits repeated wall placements, and revokes deleted photos", async () => {
   const { t, owner, first, photos, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
   for (const photo of photos) {
-    await owner.as.fetch(
+    const response = await owner.as.fetch(
       `/collection-photo?scope=${encodeURIComponent(owner.scope)}&localId=${photo.savedLocalId}&photoId=${photo.localId}&kind=photo`,
       {
         method: "POST",
@@ -107,6 +111,7 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
         headers: { "Content-Type": "image/jpeg" },
       },
     );
+    expect(response.status).toBe(200);
   }
   const items = photos.slice(0, 2).map((photo, i) => ({
     placementId: crypto.randomUUID(),

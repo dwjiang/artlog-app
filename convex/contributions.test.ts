@@ -359,7 +359,7 @@ describe("contribute", () => {
         .then((files) => files.filter((file) => file.state === "ready")),
     );
     const evidence = await t.run((ctx) => ctx.db.get("scanEmbeddings", row.embeddingId));
-    expect(archives.map((file) => file.key).sort()).toEqual(
+    expect(archives.map((file) => file._id).sort()).toEqual(
       [evidence!.archiveId, (await t.run((ctx) => ctx.db.get("vectors", original.vectorId)))!.archiveId].sort(),
     );
     expect(
@@ -1406,10 +1406,13 @@ describe("R2 contribution uploads", () => {
   it("verifies the uploaded bytes before accepting a pending crop and retains the file on commit", async () => {
     const { t, user, contribute } = await fixture();
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
-    const { storageId } = await user.as.mutation(api.contributions.requestCropUpload, { size: bytes.length });
+    const { storageId, uploadUrl } = await user.as.mutation(api.contributions.requestCropUpload, {
+      size: bytes.length,
+    });
     const file = (await t.query(internal.files.metadata, { id: storageId }))!;
-    expect(file.state).toBe("pending");
-    await r2.put(file.key, new Blob([bytes], { type: "image/jpeg" }));
+    expect(file).toMatchObject({ _id: storageId, state: "pending" });
+    expect(uploadUrl).toBe(`https://r2.test/upload/${storageId}`);
+    await r2.put(file._id, new Blob([bytes], { type: "image/jpeg" }));
     expect(await contribute({ cropStorageId: storageId })).toMatchObject({ status: "tentative" });
     expect(await t.query(internal.files.metadata, { id: storageId })).toMatchObject({
       state: "ready",
@@ -1434,7 +1437,7 @@ describe("R2 contribution uploads", () => {
       const file = (await t.query(internal.files.metadata, { id: storageId }))!;
       if (kind !== "missing") {
         await r2.put(
-          file.key,
+          file._id,
           new Blob([kind === "wrong-size" ? new Uint8Array([0xff, 0xd8, 0xff]) : new Uint8Array(4)], {
             type: "image/jpeg",
           }),

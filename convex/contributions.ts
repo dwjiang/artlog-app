@@ -443,7 +443,7 @@ export const contribute = action({
         throw new ConvexError({ code: "bad_crop" });
       }
       if (crop.state === "pending") {
-        const blob = await r2.get(crop.key);
+        const blob = await r2.get(crop._id);
         const header = blob ? new Uint8Array(await blob.slice(0, 3).arrayBuffer()) : null;
         if (
           !blob

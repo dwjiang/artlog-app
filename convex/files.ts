@@ -9,7 +9,7 @@ import schema from "./schema";
 
 export const reserve = internalMutation({
   args: { contentType: v.string(), size: v.number() },
-  returns: v.string(),
+  returns: v.id("files"),
   handler: (ctx, args) => reserveFile(ctx, args.contentType, args.size),
 });
 
@@ -54,9 +54,9 @@ export const expire = internalMutation({
       if (file.state === "deleting") {
         // Recover a deletion action terminated before it could schedule its retry.
         await ctx.db.patch("files", file._id, { expiresAt: Date.now() + 60 * 60 * 1000 });
-        await ctx.scheduler.runAfter(0, internal.files.deleteRemote, { id: file.key });
+        await ctx.scheduler.runAfter(0, internal.files.deleteRemote, { id: file._id });
       } else {
-        await queueFileDeletion(ctx, file.key);
+        await queueFileDeletion(ctx, file._id);
       }
     }
     if (files.length === 100) await ctx.scheduler.runAfter(0, internal.files.expire, {});
@@ -91,7 +91,7 @@ export const deleteRemote = internalAction({
       if (file?.state !== "deleting") return null;
       let success = false;
       try {
-        await r2.remove(file.key);
+        await r2.remove(file._id);
         success = true;
       } catch (error) {
         await reportBackendError(error, "files.delete");
@@ -116,9 +116,9 @@ export const download = httpAction(async (ctx, request) => {
 
 export const downloadable = internalQuery({
   args: { id: v.string() },
-  returns: v.union(v.string(), v.null()),
+  returns: v.union(v.id("files"), v.null()),
   handler: async (ctx, { id }) => {
     const file = await fileStorage.getMetadata(ctx, id);
-    return file?.publicDownload ? file.key : null;
+    return file?.publicDownload ? file._id : null;
   },
 });
