@@ -1162,6 +1162,35 @@ describe("immediate tentative recognition", () => {
 });
 
 describe("precise contribution removal", () => {
+  it.each([false, true])(
+    "revokes a withdrawn photo before the entry rebuild runs (surviving contribution: %s)",
+    async (survivingContribution) => {
+      vi.useFakeTimers();
+      const { t, user, contribute, venueId, cropStorageId } = await fixture();
+      const { contributionId } = await contribute();
+      const bob = survivingContribution ? await shareAs(t, venueId) : null;
+      const path = `/file?id=${cropStorageId}`;
+      const remainingPath = `/file?id=${bob?.cropStorageId ?? cropStorageId}`;
+      const remainingStatus = survivingContribution ? 302 : 404;
+      expect((await t.fetch(path)).status).toBe(302);
+
+      await user.as.mutation(api.contributions.withdraw, { contributionId });
+
+      // The old thumbnail still holds a reference until the scheduled rebuild completes.
+      expect(await r2.get(cropStorageId)).not.toBeNull();
+      const response = await t.fetch(path);
+      expect(response.status).toBe(404);
+      expect(response.headers.get("Location")).toBeNull();
+      expect(await t.run((ctx) => fileStorage.getUrl(ctx, cropStorageId))).toBeNull();
+      expect((await t.fetch(remainingPath)).status).toBe(remainingStatus);
+
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(await r2.get(cropStorageId)).toBeNull();
+      expect((await t.fetch(path)).status).toBe(404);
+      expect((await t.fetch(remainingPath)).status).toBe(remainingStatus);
+    },
+  );
+
   it.each(["withdraw", "ban"] as const)(
     "%s removes Alice’s exact material and rebuilds the entry from Bob’s complete reference",
     async (kind) => {

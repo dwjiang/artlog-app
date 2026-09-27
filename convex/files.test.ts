@@ -139,8 +139,10 @@ it("counts shared references atomically and releases a file only after the last 
     await ctx.db.insert("objectDetails", { thumbnailStorageId: id }),
     await ctx.db.insert("objectDetails", { thumbnailStorageId: id }),
   ]);
+  await t.run((ctx) => retainFile(ctx, id, true));
   expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 2 });
   await t.mutation(internal.files.discard, { id });
+  expect((await t.fetch(`/file?id=${id}`)).status).toBe(302);
   await t.run((ctx) => ctx.db.delete("objectDetails", first));
   expect(await t.query(internal.files.metadata, { id })).toMatchObject({ refCount: 1, state: "ready" });
   await t.run((ctx) => ctx.db.patch("objectDetails", second, { medium: "changed without touching the file" }));

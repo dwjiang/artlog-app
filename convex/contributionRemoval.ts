@@ -7,7 +7,7 @@ import { internalMutation } from "./functions";
 import { bumpCounter } from "./ingest";
 import { verifiedAccession } from "./lib/agreement";
 import { revokeContributionMedia } from "./lib/displayMedia";
-import { fileStorage } from "./lib/fileStorage";
+import { fileStorage, revokeFileDownload } from "./lib/fileStorage";
 import { readObjectOrb, patchObjectDetails } from "./lib/objectDetails";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { eligibleContribution } from "./lib/recognitionEligibility";
@@ -52,7 +52,9 @@ export async function removeContribution(
     orbSha256: undefined,
   });
   await revokeContributionMedia(ctx, row._id);
-  if (row.cropStorageId && (await fileStorage.getMetadata(ctx, row.cropStorageId))) {
+  if (row.cropStorageId) {
+    // Public consent ends now, even if a thumbnail reference survives until the entry rebuild.
+    await revokeFileDownload(ctx, row.cropStorageId);
     await fileStorage.delete(ctx, row.cropStorageId);
   }
   if (row.orbStorageId) await deleteOrbIfUnreferenced(ctx, row.orbStorageId);

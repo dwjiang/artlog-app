@@ -45,6 +45,11 @@ export async function retainFile(ctx: MutationCtx, id: Id<"files">, publicDownlo
   });
 }
 
+export async function revokeFileDownload(ctx: MutationCtx, id: Id<"files">) {
+  const file = await findFile(ctx, id);
+  if (file?.publicDownload) await ctx.db.patch("files", id, { publicDownload: false });
+}
+
 export async function queueFileDeletion(ctx: MutationCtx, id: Id<"files">) {
   const file = await findFile(ctx, id);
   if (!file || file.state === "deleting" || file.refCount > 0) return;
