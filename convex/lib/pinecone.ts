@@ -104,10 +104,10 @@ export async function queryPinecone(
       || typeof match.id !== "string"
       || typeof match.score !== "number"
       || !Number.isFinite(match.score)
-      || Math.abs(match.score) > 1.00001
     ) {
       throw new ConvexError({ code: "search_error", reason: "bad_response" });
     }
+    // Approximate search can return cosine scores outside their mathematical bounds.
     return { id: match.id, score: Math.max(-1, Math.min(1, match.score)) };
   });
 }

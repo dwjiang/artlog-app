@@ -61,7 +61,6 @@ export default defineSchema({
   ...authTables,
 
   files: defineTable({
-    key: v.string(),
     state: v.union(v.literal("pending"), v.literal("ready"), v.literal("deleting")),
     contentType: v.string(),
     size: v.number(),
@@ -70,9 +69,7 @@ export default defineSchema({
     publicDownload: v.boolean(),
     expiresAt: v.optional(v.number()),
     deleteAttempts: v.number(),
-  })
-    .index("by_key", ["key"])
-    .index("by_expiresAt", ["expiresAt"]),
+  }).index("by_expiresAt", ["expiresAt"]),
 
   narrationAudio: defineTable({
     artworkId: v.id("artworks"),

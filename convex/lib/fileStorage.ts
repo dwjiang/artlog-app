@@ -18,9 +18,7 @@ export async function fileHash(blob: Blob): Promise<string> {
 }
 
 export async function reserveFile(ctx: MutationCtx, contentType: string, size: number, uploadOwner?: Id<"devices">) {
-  const key = crypto.randomUUID();
-  await ctx.db.insert("files", {
-    key,
+  return ctx.db.insert("files", {
     contentType,
     size,
     uploadOwner,
@@ -29,14 +27,11 @@ export async function reserveFile(ctx: MutationCtx, contentType: string, size: n
     expiresAt: Date.now() + FILE_LEASE_MS,
     deleteAttempts: 0,
   });
-  return key;
 }
 
-export async function findFile(ctx: Pick<QueryCtx, "db">, key: string): Promise<Doc<"files"> | null> {
-  return ctx.db
-    .query("files")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .unique();
+export async function findFile(ctx: Pick<QueryCtx, "db">, id: string): Promise<Doc<"files"> | null> {
+  const fileId = ctx.db.normalizeId("files", id);
+  return fileId ? ctx.db.get("files", fileId) : null;
 }
 
 export async function retainFile(ctx: MutationCtx, id: string, publicDownload = false) {
@@ -68,7 +63,7 @@ export const fileStorage = {
     const file = "db" in ctx ? await findFile(ctx, id) : await ctx.runQuery(internal.files.metadata, { id });
     return file?.state === "ready" ? file : null;
   },
-  async store(ctx: Pick<ActionCtx, "runMutation">, blob: Blob): Promise<string> {
+  async store(ctx: Pick<ActionCtx, "runMutation">, blob: Blob): Promise<Id<"files">> {
     return withErrorReporting("files.store", async () => {
       if (!blob.type) blob = new Blob([blob], { type: "application/octet-stream" });
       const id = await ctx.runMutation(internal.files.reserve, { contentType: blob.type, size: blob.size });
@@ -86,7 +81,7 @@ export const fileStorage = {
   async get(ctx: Reader, id: string): Promise<Blob | null> {
     const file = await fileStorage.getMetadata(ctx, id);
     if (!file) return null;
-    return withErrorReporting("files.get", () => r2.get(file.key));
+    return withErrorReporting("files.get", () => r2.get(file._id));
   },
   async getUrl(ctx: Reader, id: string): Promise<string | null> {
     const file = await fileStorage.getMetadata(ctx, id);

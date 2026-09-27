@@ -1,10 +1,11 @@
 # R2 file storage
 
 File bytes live in a private Cloudflare R2 Standard bucket. Convex's `files` table
-holds immutable object keys, metadata, upload ownership, and cleanup state. The
-app's `storageId` fields hold opaque object keys, resolved through the `by_key`
-index. Existing Convex file IDs can remain as keys when their bytes move to R2;
-new files receive UUID keys. Neither requires a Convex storage record.
+holds metadata, upload ownership, and cleanup state. Each R2 object's key is its
+`files` document ID (`_id`), returned when the upload is reserved. The app's
+`storageId` and archive references use that same ID, so lookups read the document
+directly without a separate key field or index. These are `files` table IDs, not
+Convex `_storage` IDs; file bytes never enter Convex storage.
 
 Embedding archives are private binary objects containing 512 little-endian float64
 values. Vector metadata stores their SHA-256 and file key. Offline package builds,
@@ -61,24 +62,12 @@ entry and queues an idempotent R2 deletion. Failures report through Sentry and
 retry with backoff; the hourly sweep recovers interrupted deletion actions. Direct
 uploads defer physical deletion until their upload URL has expired.
 
-## Preserving an existing deployment
+## Deploying this schema
 
-Export a snapshot with `npx convex export --include-file-storage --path snapshot.zip`.
-Copy each exported file to R2 under its original `_storage` ID and verify its byte
-size, content type, and SHA-256 against the snapshot. Populate `files` with ready
-metadata under those keys before deploying the R2 backend. Keep the snapshot until
-the cutover and file deletion are verified.
-
-Preserve upload ownership for contribution crops. Mark only contribution thumbnails,
-profile photos, narration, and museum-package chunks for public download; private
-collection photos, derivatives, and ORB descriptors keep authenticated delivery.
-Imported files have no expiry lease, so the cutover cannot expire existing content.
-
-Existing artwork, descriptor, and vector records retain their IDs and file references.
-Pinecone remains the search provider. Verify corpus counts, unchanged records, and
-any files created since the snapshot before removing the old Convex bytes. There is
-no runtime fallback to Convex storage.
+This pre-release schema requires a fresh database and R2 bucket, or a reset and
+reseed of the previous deployment and its file references. Existing UUID object
+keys and Convex `_storage` IDs are not valid `files` references; removing the old
+`key` field alone does not convert them. There is no legacy lookup or storage fallback.
 
 After deployment, verify uploads, authenticated photos, public redirects, narration,
-museum packages, and file deletion. A schema accepting string object keys permits
-both existing references and newly generated UUIDs through the same storage path.
+museum packages, and file deletion.
