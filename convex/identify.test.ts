@@ -12,14 +12,16 @@ import { patchObjectDetails } from "./lib/objectDetails";
 import { storeOrb } from "./lib/orbStorage";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
 import {
-  readTestOrb,
+  proposalWithEvidence,
+  readSpend,
   readTestEmbedding,
+  readTestOrb,
   seedArtworkWithObject,
   seedDevice,
-  seedMuseum,
   seedJournalVisit,
-  testVector,
+  seedMuseum,
   seedVector,
+  testVector,
 } from "./lib/testFactories";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness, signIn } from "./test.helpers";
@@ -466,7 +468,9 @@ describe("identify action", () => {
         scope: (await user.as.query(api.accounts.me, {})).scope,
       });
       await propose(user.as, another.scanId);
-      const before = await t.run((ctx) => ctx.db.query("placementProposals").collect());
+      const before = await t.run(async (ctx) =>
+        Promise.all((await ctx.db.query("placementProposals").collect()).map((row) => proposalWithEvidence(ctx, row))),
+      );
       expect(before).toHaveLength(1);
       expect(before[0]).toMatchObject({
         kind: multiplicity === "unique" ? "move" : "new_object",
@@ -480,7 +484,9 @@ describe("identify action", () => {
         scope: (await other.as.query(api.accounts.me, {})).scope,
       });
       await propose(other.as, otherScan.scanId);
-      const proposal = await t.run((ctx) => ctx.db.get("placementProposals", before[0]._id));
+      const proposal = await t.run(async (ctx) =>
+        proposalWithEvidence(ctx, (await ctx.db.get("placementProposals", before[0]._id))!),
+      );
       expect(proposal).toMatchObject({
         readyForReview: false,
         deviceIds: [user.deviceId, other.deviceId],
@@ -600,9 +606,7 @@ describe("enrichment after identification", () => {
       sourceUrl: "https://www.sfmoma.org/press/monet-water-lilies-returns",
       sourceLabel: "sfmoma.org",
     });
-    expect(await t.run((ctx) => ctx.db.query("dailySpend").collect())).toMatchObject([
-      { tokenFactoryCalls: 2, tavilyCredits: 2 },
-    ]);
+    expect(await readSpend(t)).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 2 });
   });
 
   it("schedules nothing for a soft result", async () => {

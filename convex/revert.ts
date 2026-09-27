@@ -13,6 +13,7 @@ import { revokeContributionMedia } from "./lib/displayMedia";
 import { fileStorage } from "./lib/fileStorage";
 import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
+import { evidenceDeviceIds, loadProposalEvidence } from "./lib/proposalEvidence";
 import { deleteVector } from "./lib/vectorStore";
 import { readyForReview, reassessProposal } from "./placements";
 import { queueMultiView } from "./promotion";
@@ -366,7 +367,11 @@ export const cleanupDevicePage = internalMutation({
           const proposal = await ctx.db.get("placementProposals", dependency.proposalId);
           if (
             proposal?.status === "promoted"
-            && !readyForReview(proposal.deviceIds, proposal.firstSeenAt, proposal.lastSeenAt)
+            && !readyForReview(
+              evidenceDeviceIds(await loadProposalEvidence(ctx, proposal._id)),
+              proposal.firstSeenAt,
+              proposal.lastSeenAt,
+            )
           ) {
             if (proposal.revertedAt === undefined) {
               if (retry) await reassessProposal(ctx, proposal._id);

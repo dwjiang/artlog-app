@@ -9,7 +9,7 @@ registerFileReferences(databaseTriggers);
 
 databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {
-    await ctx.db.patch("attestChallenges", newDoc._id, { expiresAt: newDoc.createdAt + CHALLENGE_RETENTION_MS });
+    await ctx.db.patch("attestChallenges", newDoc._id, { expiresAt: newDoc._creationTime + CHALLENGE_RETENTION_MS });
   }
 });
 databaseTriggers.register("scans", async (ctx, { newDoc, oldDoc }) => {
@@ -19,12 +19,12 @@ databaseTriggers.register("scans", async (ctx, { newDoc, oldDoc }) => {
 });
 databaseTriggers.register("feedback", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {
-    await ctx.db.patch("feedback", newDoc._id, { expiresAt: newDoc.createdAt + EVIDENCE_RETENTION_MS });
+    await ctx.db.patch("feedback", newDoc._id, { expiresAt: newDoc._creationTime + EVIDENCE_RETENTION_MS });
   }
 });
 databaseTriggers.register("feedbackEvents", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {
-    await ctx.db.patch("feedbackEvents", newDoc._id, { expiresAt: newDoc.createdAt + EVIDENCE_RETENTION_MS });
+    await ctx.db.patch("feedbackEvents", newDoc._id, { expiresAt: newDoc._creationTime + EVIDENCE_RETENTION_MS });
   }
 });
 databaseTriggers.register("deviceRemovals", async (ctx, { newDoc, oldDoc }) => {

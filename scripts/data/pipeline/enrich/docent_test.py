@@ -1,7 +1,7 @@
 import json
 import re
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import httpx
 import pytest
@@ -73,9 +73,10 @@ def test_docent_json_request_validation_and_token_accounting(factory):
     }
     assert provider.usage.prompt_tokens == 100 and provider.usage.completion_tokens == 50
     assert provider.usage.estimated_model_usd == pytest.approx(0.000018)
-    provider.writer.mutation.assert_called_once_with(
-        "spend:reserve", {"kind": "tokenFactory", "amount": 1}
-    )
+    assert provider.writer.mock_calls == [
+        call.query("spend:assertCap", {"kind": "tokenFactory", "amount": 1}),
+        call.mutation("spend:add", {"kind": "tokenFactory", "amount": 1}),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -127,9 +128,10 @@ def test_paid_timeout_is_not_retried_or_refunded(factory):
     with pytest.raises(httpx.ReadTimeout):
         provider.search("painting")
     assert provider.usage.tavily_credits == 1
-    provider.writer.mutation.assert_called_once_with(
-        "spend:reserve", {"kind": "tavily", "amount": 1}
-    )
+    assert provider.writer.mock_calls == [
+        call.query("spend:assertCap", {"kind": "tavily", "amount": 1}),
+        call.mutation("spend:add", {"kind": "tavily", "amount": 1}),
+    ]
 
 
 def test_search_request_and_reported_credit_reconciliation(factory):
@@ -149,16 +151,18 @@ def test_search_request_and_reported_credit_reconciliation(factory):
     )
 
 
-def test_atomic_cap_rejection_never_dispatches(factory):
+def test_cap_rejection_never_charges_or_dispatches(factory):
     respond = Mock()
     provider = factory(respond)
     # The Python client reports application errors with a generic message and the data on `.data`.
-    provider.writer.mutation.side_effect = ConvexError(
+    provider.writer.query.side_effect = ConvexError(
         "Convex error", {"code": "spend_cap", "kind": "tokenFactory", "spent": 2000, "cap": 2000}
     )
     with pytest.raises(SpendCap, match="tokenFactory daily cap reached \\(2000/2000\\)"):
         docent.generate(provider, [{"id": "f1"}])
     respond.assert_not_called()
+    provider.writer.mutation.assert_not_called()
+    provider.writer.query.side_effect = None
     provider.writer.mutation.side_effect = ConvexError("Convex error", {"code": "invalid_spend"})
     with pytest.raises(ConvexError):
         docent.generate(provider, [{"id": "f1"}])

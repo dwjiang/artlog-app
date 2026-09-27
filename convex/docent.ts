@@ -23,6 +23,7 @@ import { gatherSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
 import { readObjectDetails } from "./lib/objectDetails";
 import { limitDevice } from "./lib/rateLimits";
+import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
 import {
   docentSentence,
@@ -47,7 +48,7 @@ export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): P
   await ctx.db.patch("artworks", artwork._id, {
     docentUpdatedAt: undefined,
     enrichClaimedAt: undefined,
-    enrichGeneration: (artwork.enrichGeneration ?? 0) + 1,
+    enrichGeneration: artwork.enrichGeneration + 1,
   });
 }
 
@@ -103,7 +104,7 @@ export const claim = internalMutation({
     if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) {
       return null;
     }
-    const generation = (artwork.enrichGeneration ?? 0) + 1;
+    const generation = artwork.enrichGeneration + 1;
     await ctx.db.patch("artworks", artworkId, {
       enrichClaimedAt: now,
       enrichGeneration: generation,
@@ -237,10 +238,7 @@ async function generate(
       return sources.failures ? null : { factSheet: [], docentEn: [] };
     }
   }
-  const day = await ctx.runMutation(internal.spend.reserve, {
-    kind: "tokenFactory",
-    amount: MAX_MODEL_CALLS,
-  });
+  const day = await reserveSpend(ctx, "tokenFactory", MAX_MODEL_CALLS);
   let calls = 0;
   try {
     let factSheet = cached;

@@ -157,13 +157,7 @@ describe("challenges and attested writes", () => {
     ).rejects.toMatchObject({ data: { code: "challenge_invalid" } });
 
     const staleNonce = await challenge(user);
-    await t.run(async (ctx) => {
-      const row = await ctx.db
-        .query("attestChallenges")
-        .withIndex("by_nonce", (q) => q.eq("nonce", staleNonce))
-        .unique();
-      await ctx.db.patch("attestChallenges", row!._id, { createdAt: Date.now() - 6 * 60 * 1000 });
-    });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6 * 60 * 1000);
     await expect(
       assertWrite(user, {
         nonce: staleNonce,
@@ -171,6 +165,7 @@ describe("challenges and attested writes", () => {
         payload: "{}",
       }),
     ).rejects.toMatchObject({ data: { code: "challenge_invalid" } });
+    clock.mockRestore();
 
     const other = await registered(t, "simulator");
     const foreignNonce = await challenge(user);

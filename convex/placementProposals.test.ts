@@ -8,7 +8,7 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { sha256 } from "./lib/appAttest";
 import { authenticatorData, makeSigner, signAssertion } from "./lib/appAttest.fixtures";
-import { seedArtworkWithObject, seedMuseum, testVector } from "./lib/testFactories";
+import { proposalWithEvidence, seedArtworkWithObject, seedMuseum, testVector } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const APP_ID = "TEAMID.app.artlog.ios";
@@ -85,20 +85,20 @@ it("verifies scan-bound signatures, rejects nonce replays, and deduplicates fres
   const { t, user, deviceId, work, venueId, scan, sign } = await fixture();
   const args = await sign(scan.scanId);
   await user.as.mutation(api.identify.proposeFromScan, args);
-  expect(await t.run((ctx) => ctx.db.query("placementProposals").collect())).toMatchObject([
-    {
-      objectId: work.objectId,
-      proposedVenueId: venueId,
-      deviceIds: [deviceId],
-      scanIds: [scan.scanId],
-      readyForReview: false,
-    },
-  ]);
+  const proposal = () =>
+    t.run(async (ctx) => proposalWithEvidence(ctx, (await ctx.db.query("placementProposals").unique())!));
+  expect(await proposal()).toMatchObject({
+    objectId: work.objectId,
+    proposedVenueId: venueId,
+    deviceIds: [deviceId],
+    scanIds: [scan.scanId],
+    readyForReview: false,
+  });
   await expect(user.as.mutation(api.identify.proposeFromScan, args)).rejects.toMatchObject({
     data: { code: "challenge_invalid" },
   });
   await user.as.mutation(api.identify.proposeFromScan, await sign(scan.scanId, 2));
-  expect((await t.run((ctx) => ctx.db.query("placementProposals").unique()))?.scanIds).toEqual([scan.scanId]);
+  expect((await proposal()).scanIds).toEqual([scan.scanId]);
   expect((await t.run((ctx) => ctx.db.get("devices", deviceId)))?.attestCounter).toBe(2);
 });
 

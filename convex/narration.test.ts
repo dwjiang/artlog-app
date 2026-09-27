@@ -5,7 +5,7 @@ import { api, internal } from "./_generated/api";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
-import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
+import { readSpend, seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const sentences = [{ sentence: "A short written docent.", factIds: ["f1"] }];
@@ -142,8 +142,7 @@ it("streams Shimmer with the museum instructions as a live playlist, then shares
   const authoring = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
   expect(authoring.model).toBe("nvidia/Nemotron-3-Ultra-550b-a55b");
   expect(JSON.parse(authoring.messages[1].content).research).toEqual(researchFixture);
-  const spend = await t.run((ctx) => ctx.db.query("dailySpend").take(1));
-  expect(spend[0].tokenFactoryCalls).toBe(1);
+  expect((await readSpend(t))?.tokenFactoryCalls).toBe(1);
   expect(JSON.stringify(first)).not.toContain("test-only-secret");
 });
 
@@ -435,7 +434,7 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   expect(request(0).chat_template_kwargs).toEqual({ enable_thinking: false });
   expect(retry.chat_template_kwargs).toEqual({ enable_thinking: false });
   expect(retry.response_format.json_schema.schema.properties.story.minItems).toBe(5);
-  expect((await t.run((ctx) => ctx.db.query("dailySpend").take(1)))[0].tokenFactoryCalls).toBe(2);
+  expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
 });
 
 it("asks for the thin-research length, not the full one, when a script from thin research is too short", async () => {

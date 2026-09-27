@@ -41,7 +41,7 @@ export async function removeContribution(
       await bumpCounter(ctx, "descriptors", -1);
     }
     await ctx.db.patch("objects", object._id, {
-      supportRevision: (object.supportRevision ?? 0) + 1,
+      supportRevision: object.supportRevision + 1,
     });
   }
   await ctx.db.patch("contributions", row._id, {
@@ -61,7 +61,7 @@ export async function removeContribution(
   const venue = await ctx.db.get("museums", row.venueId);
   if (venue) {
     await ctx.db.patch("museums", venue._id, {
-      contributionRevision: (venue.contributionRevision ?? 0) + 1,
+      contributionRevision: venue.contributionRevision + 1,
     });
   }
   if (object?.identityStatus === "tentative" && !object.reverted) {
@@ -79,7 +79,7 @@ export async function queueEntryRebuild(ctx: MutationCtx, objectId: Id<"objects"
     if (!object || object.reverted) return;
     const jobId = await ctx.db.insert("entryRebuilds", {
       objectId,
-      revision: object.supportRevision ?? 0,
+      revision: object.supportRevision,
       cursor: null,
     });
     await ctx.scheduler.runAfter(0, internal.contributionRemoval.rebuildPage, {
@@ -99,13 +99,13 @@ export const rebuildPage = internalMutation({
       await ctx.db.delete("entryRebuilds", jobId);
       return null;
     }
-    const restart = job.revision !== (object.supportRevision ?? 0);
+    const restart = job.revision !== object.supportRevision;
     let source = !restart && job.sourceId ? await ctx.db.get("contributions", job.sourceId) : null;
     let accessionSource =
       !restart && job.accessionSourceId ? await ctx.db.get("contributions", job.accessionSourceId) : null;
     const page = await ctx.db
       .query("contributions")
-      .withIndex("by_object_status_created", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
+      .withIndex("by_object_status", (q) => q.eq("indexedObjectId", object._id).eq("status", "tentative"))
       .paginate({
         cursor: restart ? null : job.cursor,
         numItems: 25,
@@ -123,7 +123,7 @@ export const rebuildPage = internalMutation({
       || (accessionSource && !(await eligibleContribution(ctx, accessionSource)));
     if (invalid || !page.isDone) {
       await ctx.db.patch("entryRebuilds", jobId, {
-        revision: object.supportRevision ?? 0,
+        revision: object.supportRevision,
         cursor: invalid ? null : page.continueCursor,
         sourceId: invalid ? undefined : source?._id,
         accessionSourceId: invalid ? undefined : accessionSource?._id,

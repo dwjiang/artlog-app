@@ -7,7 +7,7 @@ import type { Id } from "./_generated/dataModel";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
-import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
+import { readSpend, seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 const TOKEN_FACTORY = "https://api.tokenfactory.nebius.com/v1/chat/completions";
@@ -290,7 +290,7 @@ async function fixture(
     }),
   );
   const artwork = () => readArtwork(t, work.artworkId);
-  const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
+  const spend = () => readSpend(t);
   const ensure = () => t.action(internal.docent.ensure, { artworkId: work.artworkId, deviceId });
   return { t, deviceId, museumId, work, artwork, spend, ensure };
 }

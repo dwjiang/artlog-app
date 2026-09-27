@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { BatchCursor } from "./enrich";
 import { patchContributionState } from "./lib/objectContributionState";
+import { newObjectCounters } from "./lib/objectCounters";
 import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
@@ -156,6 +157,7 @@ describe("enrich.claimBatch", () => {
               rightsStatus: "unknown",
               multiplicity: "unique",
               factSheetUpdatedAt: 1,
+              enrichGeneration: 0,
             });
             const objectId = await ctx.db.insert("objects", {
               identityStatus: "established" as const,
@@ -163,9 +165,7 @@ describe("enrich.claimBatch", () => {
               artworkId,
               source: "user",
               sourceId: key,
-              confirmCount: 0,
-              rejectCount: 0,
-              calibratorPenalty: 0,
+              ...newObjectCounters,
               reverted: false,
             });
             await patchContributionState(ctx, objectId, {});
@@ -194,7 +194,7 @@ it("previews pending work without claims or generations and resolves object keys
   const { t, ids } = await fixture();
   const page = await t.query(internal.enrich.previewBatch, { limit: 100 });
   expect(claimed(page.artworks)).toEqual([ids.contribution, ids.staleClaim]);
-  expect((await t.run((ctx) => ctx.db.get("artworks", ids.contribution)))?.enrichGeneration).toBeUndefined();
+  expect((await t.run((ctx) => ctx.db.get("artworks", ids.contribution)))?.enrichGeneration).toBe(0);
   expect((await t.run((ctx) => ctx.db.get("artworks", ids.contribution)))?.enrichClaimedAt).toBeUndefined();
   const object = await t.run((ctx) =>
     ctx.db

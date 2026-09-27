@@ -1,5 +1,6 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { evidenceDeviceIds, loadProposalEvidence } from "./proposalEvidence";
 
 export type PlacementLike = {
   venueId: string;
@@ -42,7 +43,8 @@ export async function loadCurrentPlacement(
     if (row.proposalId) {
       const proposal = await ctx.db.get("placementProposals", row.proposalId);
       if (!proposal || proposal.revertedAt !== undefined) continue;
-      const devices = await Promise.all(proposal.deviceIds.map((id) => ctx.db.get("devices", id)));
+      const deviceIds = evidenceDeviceIds(await loadProposalEvidence(ctx, proposal._id));
+      const devices = await Promise.all(deviceIds.map((id) => ctx.db.get("devices", id)));
       if (devices.some((device) => !device || device.banned)) continue;
     }
     placement = currentPlacement(placement ? [placement, row] : [row], now);

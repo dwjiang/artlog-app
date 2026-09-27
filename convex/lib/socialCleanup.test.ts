@@ -37,7 +37,6 @@ it("revokes immediately, purges social references in batches, and deletes files 
           saveId: draft.saves[0].id,
           storageId,
           provenance: asset.provenance,
-          createdAt: i,
           source: {
             kind: "derivative",
             rights: "contributor_consent",

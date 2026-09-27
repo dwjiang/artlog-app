@@ -6,7 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import { jsonResponse } from "./lib/labelFixtures";
 import { regionDomains } from "./lib/regions";
 import { FIXTURE_NOW, rawTavily, rightNowFixtures, type RightNowFixture } from "./lib/rightNowFixtures";
-import { seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import { readSpend, seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 const TAVILY = "https://api.tavily.com/search";
@@ -74,7 +74,6 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
       capturedAt: now,
       status: "identified",
       outcome: "confident",
-      createdAt: now,
       updatedAt: now,
     }),
   );
@@ -103,7 +102,7 @@ async function fixture(region: string | null = "sf-bay-area") {
     });
   const scan = (id: Id<"scans"> = scanId) => t.run((ctx) => ctx.db.get("scans", id));
   const rows = () => t.run((ctx) => ctx.db.query("artistContext").collect());
-  const spend = async () => (await t.run((ctx) => ctx.db.query("dailySpend").collect()))[0];
+  const spend = () => readSpend(t);
   return { t, deviceId, venueId, scanId, run, scan, rows, spend };
 }
 

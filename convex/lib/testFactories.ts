@@ -8,8 +8,10 @@ import { patchArtworkContent, type ArtworkContentFields } from "./artworkContent
 import { fileStorage } from "./fileStorage";
 import { registerMuseumObject } from "./museumWorkIdentity";
 import { patchContributionState } from "./objectContributionState";
+import { newObjectCounters } from "./objectCounters";
 import { readObjectDetails, patchObjectDetails, type ObjectDetailsFields } from "./objectDetails";
 import { storeOrb } from "./orbStorage";
+import { evidenceDeviceIds, loadProposalEvidence } from "./proposalEvidence";
 import { groupAnchor, publishContribution } from "./tentativeEntries";
 import { insertVector, packVector, readVector, vectorHash } from "./vectorStore";
 import { searchRecordId } from "./vectorSyncQueue";
@@ -76,6 +78,7 @@ export async function seedDevice(t: Harness): Promise<SignedIn & { deviceId: Id<
       banned: false,
       platform: "simulator",
       attestCounter: 0,
+      scopeRevision: 0,
     }),
   );
   return { ...user, deviceId, scope: `device:${deviceId}:0` };
@@ -93,6 +96,7 @@ export async function seedMuseum(
     seedSource: "manual",
     region: "US",
     optOut: false,
+    contributionRevision: 0,
     ...overrides,
   });
 }
@@ -119,6 +123,7 @@ export async function seedArtworkWithObject(
     date: "1916",
     rightsStatus: "public_domain",
     multiplicity: "unique",
+    enrichGeneration: 0,
     ...options.artwork,
   });
   const objectId = await ctx.db.insert("objects", {
@@ -128,9 +133,7 @@ export async function seedArtworkWithObject(
     ownerId: options.placement?.venueId,
     source: "corpus",
     sourceId: key,
-    confirmCount: 0,
-    rejectCount: 0,
-    calibratorPenalty: 0,
+    ...newObjectCounters,
     reverted: false,
     ...options.object,
   });
@@ -201,7 +204,6 @@ export async function seedScan(
     status: "identified",
     outcome: "miss",
     calibratorVersion: "lr-v1",
-    createdAt: now,
     updatedAt: now,
     ...fields,
   });
@@ -233,7 +235,6 @@ export async function seedContribution(
     keypointCount: 0,
     evidence: ["wikidata"],
     status: "tentative",
-    createdAt: Date.now(),
     fields: {
       title: { value: "Water Lilies", edited: false, evidence: "wikidata" },
       artist: { value: "Claude Monet", edited: false, evidence: "wikidata" },
@@ -261,6 +262,25 @@ export async function seedJournalVisit(
     changeVersion: 1,
     ...overrides,
   });
+}
+
+// A proposal with the scans and devices its evidence links currently name, in link order.
+export async function proposalWithEvidence(ctx: MutationCtx, proposal: Doc<"placementProposals">) {
+  const links = await loadProposalEvidence(ctx, proposal._id);
+  return { ...proposal, scanIds: links.map((link) => link.scanId), deviceIds: evidenceDeviceIds(links) };
+}
+
+// Today's spend summed over its shards, or undefined when nothing was recorded.
+export async function readSpend(t: Harness) {
+  const rows = await t.run((ctx) => ctx.db.query("dailySpend").collect());
+  if (rows.length === 0) return undefined;
+  return rows.reduce(
+    (sum, row) => ({
+      tokenFactoryCalls: sum.tokenFactoryCalls + row.tokenFactoryCalls,
+      tavilyCredits: sum.tavilyCredits + row.tavilyCredits,
+    }),
+    { tokenFactoryCalls: 0, tavilyCredits: 0 },
+  );
 }
 
 export async function readTestOrb(ctx: MutationCtx, objectId: Id<"objects">) {

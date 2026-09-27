@@ -35,12 +35,18 @@ npx convex run vectorSync:retryFailed
 cd scripts/data && uv run python -m pipeline.vector_sync
 ```
 
-Each vector mutation atomically writes an outbox job. Imports, rebuilds, and new
-contributions wake workers once per batch; workers process up to 100 records at a
-time. A one-minute cron drains deletions and recovers stranded jobs. Failed/abandoned writes
-wait 31 minutes before retry, longer than a Convex action can remain alive; after
-eight failed attempts, jobs remain in `failed` state for operator repair. Errors
-use the shared Sentry helper without sending vectors, credentials, or provider bodies.
+Each vector mutation appends an outbox job; producers never read the outbox, so
+import batches cannot conflict with worker claims. Imports, rebuilds, and new
+contributions schedule a drain once per batch; a drain examines up to 100 jobs and
+chains the next page even when every job on its page is waiting on a lease. A job
+syncs its remote record to the current `vectors` row, so a vector deleted before
+its job runs turns into a delete.
+Workers hold one lease per record and drop duplicate jobs for a record they claim;
+a job behind a lease for the same record waits for the one-minute cron, which also
+recovers stranded jobs. Failed/abandoned writes wait 31 minutes before retry, longer
+than a Convex action can remain alive; after eight failed attempts, jobs remain in
+`failed` state for operator repair. Errors use the shared Sentry helper without
+sending vectors, credentials, or provider bodies.
 
 Pinecone is eventually consistent. A successful queue drain means writes were
 acknowledged; sampled import readback retries briefly for visibility. Recognition

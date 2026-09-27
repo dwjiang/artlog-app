@@ -202,7 +202,6 @@ it("deduplicates guest saves against the account journal when claiming another d
       deviceId: device.deviceId,
       accountId: user.accountId,
       phase: "saves",
-      createdAt: Date.now(),
     });
   });
   const scope = `account:${user.accountId}:0`;
@@ -320,7 +319,6 @@ it("counts device artworks once when claimed, excluding deleted entries and resp
       deviceId: device.deviceId,
       accountId: user.accountId,
       phase: "visits",
-      createdAt: Date.now(),
     });
   });
   const scope = `account:${user.accountId}:0`;
@@ -505,7 +503,7 @@ it(
     for (let start = 0; start < 1005; start += 20) {
       await t.run(async (ctx) => {
         for (let i = start; i < Math.min(start + 20, 1005); i++) {
-          const accountId = await ctx.db.insert("accounts", { appleUserId: `rank-${i}`, createdAt: Date.now() });
+          const accountId = await ctx.db.insert("accounts", { appleUserId: `rank-${i}` });
           await ctx.db.insert("profiles", { ...profile, accountId, username: `rank_${i}`, name: `Rank ${i}` });
           const score = (await ctx.db
             .query("leaderboardScores")

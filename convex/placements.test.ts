@@ -12,6 +12,7 @@ import { loadOrb } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { r2 } from "./lib/r2";
 import {
+  proposalWithEvidence,
   readTestOrb,
   readTestEmbedding,
   seedEmbedding,
@@ -88,7 +89,11 @@ async function fixture(multiplicity: Doc<"artworks">["multiplicity"] = "unique")
       return scanId;
     });
   };
-  const proposal = () => t.run((ctx) => ctx.db.query("placementProposals").unique());
+  const proposal = () =>
+    t.run(async (ctx) => {
+      const row = await ctx.db.query("placementProposals").unique();
+      return row && (await proposalWithEvidence(ctx, row));
+    });
   const ready = async () => {
     await propose(0);
     await propose(1, NOW + DAY);
@@ -475,7 +480,6 @@ it("keeps approval within transaction limits after 2100 repeat scans", async () 
           deviceId: users[0].deviceId,
           venueId,
           outcome: "confident",
-          createdAt: NOW + i,
           best: {
             identityStatus: "established" as const,
             objectId,
@@ -719,7 +723,7 @@ it("venue opt-out rolls back every move across placement pages", async () => {
         .query("placements")
         .withIndex("by_objectId", (q) => q.eq("objectId", objectId))
         .unique())!;
-      const { _id, _creationTime, ...fields } = evidence;
+      const { _id, _creationTime, scanIds: _scanIds, deviceIds: _deviceIds, ...fields } = evidence;
       const proposalId = await ctx.db.insert("placementProposals", {
         ...fields,
         objectId,
@@ -826,7 +830,6 @@ it("replaces a rejected scan with fresh independent evidence in a ready pending 
       venueMismatch: true,
       penaltyAdded: 0,
       resolution: { kind: "unresolved" },
-      createdAt: NOW,
     });
   });
   const args = {
@@ -1040,7 +1043,6 @@ it("approves valid runner-up resolutions and refuses them after the resolution i
           venueMismatch: true,
           penaltyAdded: 0,
           resolution: { kind: "runner_up", objectId },
-          createdAt: NOW,
         }),
       );
     }
@@ -1075,8 +1077,6 @@ it("pages through a full review queue without skipping rows", async () => {
         objectId: p.objectId,
         proposedVenueId: p.proposedVenueId,
         kind: p.kind,
-        deviceIds: p.deviceIds,
-        scanIds: p.scanIds,
         firstSeenAt: p.firstSeenAt,
         lastSeenAt: p.lastSeenAt,
         status: "pending",

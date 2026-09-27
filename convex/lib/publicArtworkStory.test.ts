@@ -33,6 +33,7 @@ async function addStory(
       artist: "Artist",
       rightsStatus: "public_domain",
       multiplicity: "unique",
+      enrichGeneration: 0,
       contentId,
       ...patch,
     });

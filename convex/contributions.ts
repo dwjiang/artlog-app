@@ -360,7 +360,7 @@ export const commit = internalMutation({
       throw new ConvexError({ code: "bad_orb_file" });
     }
     const venue = (await ctx.db.get("museums", scan.venueId))!;
-    if ((venue.contributionRevision ?? 0) !== args.venueRevision) {
+    if (venue.contributionRevision !== args.venueRevision) {
       throw new ConvexError({ code: "contributions_changed" });
     }
     const own = args.group?.objectId
@@ -397,7 +397,6 @@ export const commit = internalMutation({
       wikidataId: fields.title.edited || fields.artist.edited ? undefined : flow.wikidataId,
       status: duplicate ? "rejected" : "tentative",
       rejectedReason: duplicate ? "duplicate" : undefined,
-      createdAt: Date.now(),
     });
     if (!duplicate) {
       await retainFile(ctx, cropStorageId, true);
@@ -405,7 +404,7 @@ export const commit = internalMutation({
       await publishContribution(ctx, (await ctx.db.get("contributions", contributionId))!, args.group);
     }
     await ctx.db.patch("museums", venue._id, {
-      contributionRevision: (venue.contributionRevision ?? 0) + 1,
+      contributionRevision: venue.contributionRevision + 1,
     });
     await ctx.db.patch("devices", device._id, { lastContributionId: contributionId });
     return duplicate

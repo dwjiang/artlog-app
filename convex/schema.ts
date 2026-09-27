@@ -112,7 +112,7 @@ export default defineSchema({
     docentUpdatedAt: v.optional(v.number()),
     // Set while a docent run owns the artwork; stale claims are reclaimed by docent.claim and enrich.claimBatch.
     enrichClaimedAt: v.optional(v.number()),
-    enrichGeneration: v.optional(v.number()),
+    enrichGeneration: v.number(),
     // Set when the latest docent run ended without writing, so the card can offer a retry.
     docentFailedAt: v.optional(v.number()),
     factSheetNeedsReview: v.optional(v.boolean()),
@@ -150,8 +150,8 @@ export default defineSchema({
     identityStatus,
     sourceContributionId: v.optional(v.id("contributions")),
     sourceProposalId: v.optional(v.id("placementProposals")),
-    supportRevision: v.optional(v.number()),
-    feedbackRevision: v.optional(v.number()),
+    supportRevision: v.number(),
+    feedbackRevision: v.number(),
     key: v.string(),
     artworkId: v.id("artworks"),
     detailsId: v.optional(v.id("objectDetails")),
@@ -162,7 +162,7 @@ export default defineSchema({
     confirmCount: v.number(),
     rejectCount: v.number(),
     calibratorPenalty: v.number(),
-    rejectionPenalty: v.optional(v.number()),
+    rejectionPenalty: v.number(),
     mergedInto: v.optional(v.id("objects")),
     provenance: v.optional(
       v.object({
@@ -202,8 +202,6 @@ export default defineSchema({
     objectId: v.id("objects"),
     proposedVenueId: v.id("museums"),
     kind: proposalKind,
-    scanIds: v.array(v.id("scans")),
-    deviceIds: v.array(v.id("devices")),
     firstSeenAt: v.number(),
     lastSeenAt: v.number(),
     status: proposalStatus,
@@ -223,11 +221,11 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_status_readyForReview", ["status", "readyForReview"]),
 
+  // Producers only insert here, so imports never conflict with worker claims. A job syncs its remote
+  // record to the current vectors row; workers hold one lease per record and drop duplicate jobs.
   vectorSyncJobs: defineTable({
     vectorId: v.id("vectors"),
     recordId: v.string(),
-    operation: v.union(v.literal("upsert"), v.literal("delete")),
-    revision: v.number(),
     attempts: v.number(),
     state: v.union(v.literal("pending"), v.literal("failed")),
     availableAt: v.number(),
@@ -286,7 +284,7 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
-    contributionRevision: v.optional(v.number()),
+    contributionRevision: v.number(),
   })
     .index("by_key", ["key"])
     .index("by_lat", ["lat"]),
@@ -331,7 +329,6 @@ export default defineSchema({
     message: v.string(),
     contact: v.optional(v.string()),
     deviceId: v.id("devices"),
-    createdAt: v.number(),
     status: v.union(v.literal("open"), v.literal("resolved")),
   })
     .index("by_status", ["status"])
@@ -342,7 +339,6 @@ export default defineSchema({
     message: v.string(),
     appVersion: v.string(),
     osVersion: v.string(),
-    createdAt: v.number(),
   }).index("by_owner", ["owner"]),
 
   contributions: defineTable({
@@ -371,7 +367,6 @@ export default defineSchema({
     status: contributionStatus,
     rejectedReason: v.optional(contributionRejectedReason),
     indexedObjectId: v.optional(v.id("objects")),
-    createdAt: v.number(),
   })
     // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- revert pages every row while removal rewrites status
     .index("by_deviceId", ["deviceId"])
@@ -379,7 +374,7 @@ export default defineSchema({
     .index("by_device_venue_model", ["deviceId", "venueId", "modelVersion"])
     .index("by_status", ["status"])
     .index("by_object_device", ["indexedObjectId", "deviceId", "status"])
-    .index("by_object_status_created", ["indexedObjectId", "status", "createdAt"]),
+    .index("by_object_status", ["indexedObjectId", "status"]),
 
   feedback: defineTable({
     expiresAt: v.optional(v.number()),
@@ -407,13 +402,13 @@ export default defineSchema({
         secondDeviceId: v.id("devices"),
       }),
     ),
-    createdAt: v.number(),
   })
     .index("by_expiresAt", ["expiresAt"])
     .index("by_rejectedObjectId", ["rejectedObjectId"])
     .index("by_scan_object", ["scanId", "rejectedObjectId"])
     .index("by_venueId", ["venueId"])
-    .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId", "createdAt"])
+    // oxlint-disable-next-line @convex-dev/no-duplicate-indexes -- promotion pages agreements by creation time
+    .index("by_resolution_object_venue", ["resolution.kind", "resolution.objectId", "venueId"])
     .index("by_resolution_object_venue_multiView", ["resolution.kind", "resolution.objectId", "venueId", "multiViewAt"])
     .index("by_multiViewFirstDevice", ["multiViewAgreement.firstDeviceId"])
     .index("by_multiViewDuplicateVectorId", ["multiViewDuplicateVectorId"])
@@ -435,10 +430,9 @@ export default defineSchema({
     objectId: v.id("objects"),
     saveId: v.optional(v.id("collections")),
     feedbackId: v.optional(v.id("feedback")),
-    createdAt: v.number(),
   })
     .index("by_expiresAt", ["expiresAt"])
-    .index("by_object_created", ["objectId", "createdAt"])
+    .index("by_object", ["objectId"])
     .index("by_device", ["deviceId"])
     .index("by_save", ["saveId"]),
 
@@ -541,7 +535,6 @@ export default defineSchema({
     rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
     error: v.optional(v.string()),
-    createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_expiresAt", ["expiresAt"])
@@ -556,7 +549,7 @@ export default defineSchema({
     banned: v.boolean(),
     bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id("accounts")),
-    scopeRevision: v.optional(v.number()),
+    scopeRevision: v.number(),
     appleLinkProof: v.optional(
       v.object({
         sub: v.string(),
@@ -580,23 +573,24 @@ export default defineSchema({
     authUserId: v.id("users"),
     nonce: v.string(),
     purpose: challengePurpose,
-    createdAt: v.number(),
     usedAt: v.optional(v.number()),
   })
     .index("by_expiresAt", ["expiresAt"])
     .index("by_nonce", ["nonce"]),
 
+  // One row per UTC day and shard: paid calls add to a random shard and check the cap from a query, so
+  // concurrent callers never serialise on one document.
   dailySpend: defineTable({
     day: v.string(),
+    shard: v.number(),
     tokenFactoryCalls: v.number(),
     tavilyCredits: v.number(),
     updatedAt: v.number(),
-  }).index("by_day", ["day"]),
+  }).index("by_day", ["day", "shard"]),
 
   accounts: defineTable({
     appleUserId: v.string(),
     email: v.optional(v.string()),
-    createdAt: v.number(),
   }).index("by_appleUserId", ["appleUserId"]),
 
   visits: defineTable({
@@ -666,7 +660,6 @@ export default defineSchema({
     deviceId: v.id("devices"),
     accountId: v.id("accounts"),
     phase: v.union(v.literal("visits"), v.literal("saves"), v.literal("complete")),
-    createdAt: v.number(),
     completedAt: v.optional(v.number()),
   })
     .index("by_deviceId", ["deviceId"])
@@ -691,7 +684,6 @@ export default defineSchema({
     searchText: v.string(),
     active: v.boolean(),
     publishedWallCount: v.number(),
-    createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_accountId", ["accountId"])
@@ -810,7 +802,6 @@ export default defineSchema({
         sourceStorageId: v.id("files"),
       }),
     ),
-    createdAt: v.number(),
     revokedAt: v.optional(v.number()),
   })
     .index("by_save_kind", ["saveId", "source.kind"])
@@ -822,11 +813,9 @@ export default defineSchema({
     details: v.optional(v.string()),
     evidence: reportEvidence,
     review: v.optional(reportReview),
-    createdAt: v.number(),
     status: v.union(v.literal("open"), v.literal("resolved")),
   })
-    .index("by_reporter_createdAt", ["reporter", "createdAt"])
-    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_status", ["status"])
     .index("by_reporter_target_status", ["reporter", "target", "status"]),
 
   optOuts: defineTable({

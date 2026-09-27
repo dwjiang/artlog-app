@@ -51,7 +51,6 @@ export const linkAccount = mutation({
       ?? (await ctx.db.insert("accounts", {
         appleUserId,
         email: proof.email,
-        createdAt: Date.now(),
       }));
     if (existing && proof.email) await ctx.db.patch("accounts", existing._id, { email: proof.email });
     const trustWeight = Math.max(...members.map((member) => member.trustWeight));
@@ -70,7 +69,6 @@ export const linkAccount = mutation({
         deviceId: device._id,
         accountId,
         phase: "visits" as const,
-        createdAt: Date.now(),
       };
       if (claim) await ctx.db.delete("journalClaims", claim._id);
       await ctx.db.insert("journalClaims", fields);
@@ -78,7 +76,7 @@ export const linkAccount = mutation({
     await ctx.db.patch("devices", device._id, {
       accountId,
       appleLinkProof: undefined,
-      scopeRevision: (device.scopeRevision ?? 0) + 1,
+      scopeRevision: device.scopeRevision + 1,
     });
     return accountId;
   },
@@ -98,7 +96,7 @@ export const unlink = mutation({
     await ctx.db.patch("devices", device._id, {
       accountId: undefined,
       appleLinkProof: undefined,
-      scopeRevision: (device.scopeRevision ?? 0) + 1,
+      scopeRevision: device.scopeRevision + 1,
     });
     return null;
   },
@@ -127,7 +125,7 @@ export const deleteAccount = mutation({
         await ctx.db.patch("devices", id, {
           accountId: undefined,
           appleLinkProof: undefined,
-          scopeRevision: (member.scopeRevision ?? 0) + 1,
+          scopeRevision: member.scopeRevision + 1,
         });
       }
     }

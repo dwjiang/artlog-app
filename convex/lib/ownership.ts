@@ -14,7 +14,7 @@ export async function ownerForDevice(ctx: ReadCtx, device: Doc<"devices">): Prom
   return { kind: "device", deviceId: device._id };
 }
 export const deviceScope = (device: Doc<"devices">, owner: JournalOwner) =>
-  `${ownerKey(owner)}:${device.scopeRevision ?? 0}`;
+  `${ownerKey(owner)}:${device.scopeRevision}`;
 export async function resolveOwner(ctx: ReadCtx, scope?: string) {
   const device = await requireDevice(ctx);
   const owner = await ownerForDevice(ctx, device);

@@ -53,7 +53,6 @@ export const create = mutation({
       active: true,
       publishedWallCount: 0,
       leaderboardVisibility: "global",
-      createdAt: Date.now(),
       updatedAt: Date.now(),
     });
     return projectProfile(ctx, (await ctx.db.get("profiles", profileId))!);

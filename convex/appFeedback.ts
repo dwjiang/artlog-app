@@ -27,7 +27,7 @@ export const submit = mutation({
       throw new ConvexError({ code: "invalid_feedback" });
     }
     await limitKey(ctx, "appFeedback", ownerKey(owner));
-    await ctx.db.insert("appFeedback", { owner, message, appVersion, osVersion, createdAt: Date.now() });
+    await ctx.db.insert("appFeedback", { owner, message, appVersion, osVersion });
     return null;
   },
 });

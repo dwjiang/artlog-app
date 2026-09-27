@@ -16,7 +16,6 @@ export async function socialUser(t: Harness, name = `user${++users}`): Promise<S
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("accounts", {
       appleUserId: name,
-      createdAt: 1,
     });
     await ctx.db.patch("devices", device.deviceId, { accountId: id });
     return id;
@@ -148,7 +147,6 @@ export async function socialDerivative(t: Harness, user: SocialUser, saveId: Id<
       saveId,
       storageId,
       provenance,
-      createdAt: 1,
       source: {
         kind: "derivative",
         rights: "contributor_consent",

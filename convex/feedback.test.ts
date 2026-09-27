@@ -7,6 +7,7 @@ import { labelField } from "./lib/labelVerify";
 import { readContributionState } from "./lib/objectContributionState";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import {
+  proposalWithEvidence,
   seedArtworkWithObject,
   seedContribution,
   seedDevice,
@@ -96,7 +97,10 @@ async function fixture() {
   const object = (id: Id<"objects">) => t.run((ctx) => ctx.db.get("objects", id));
   const feedback = (id: Id<"feedback">) => t.run((ctx) => ctx.db.get("feedback", id));
   const feedbackRows = () => t.run((ctx) => ctx.db.query("feedback").collect());
-  const proposals = () => t.run((ctx) => ctx.db.query("placementProposals").collect());
+  const proposals = () =>
+    t.run(async (ctx) =>
+      Promise.all((await ctx.db.query("placementProposals").collect()).map((row) => proposalWithEvidence(ctx, row))),
+    );
   return {
     t,
     user,

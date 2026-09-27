@@ -172,7 +172,7 @@ it.each([false, true])("resumes an interrupted scan on retry (expired=%s)", asyn
     }),
   ).resolves.toMatchObject({ scanId: scan._id, status: "identified" });
   const retried = (await t.run((ctx) => ctx.db.get("scans", scan._id)))!;
-  expect(retried).toMatchObject({ capturedAt: NOW, createdAt: NOW });
+  expect(retried).toMatchObject({ capturedAt: NOW, _creationTime: scan._creationTime });
   expect(await t.run((ctx) => readTestEmbedding(ctx, retried.embeddingId))).toEqual(args.vector);
 });
 

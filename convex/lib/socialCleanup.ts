@@ -17,7 +17,7 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
   const owner = { kind: "account" as const, accountId };
   const reports = await ctx.db
     .query("reports")
-    .withIndex("by_reporter_createdAt", (q) => q.eq("reporter", owner))
+    .withIndex("by_reporter_target_status", (q) => q.eq("reporter", owner))
     .take(BATCH);
   if (reports.length > 0) {
     for (const report of reports) {

@@ -26,7 +26,7 @@ const contributionReview = v.object({
   status: contributionFields.status,
   rejectedReason: contributionFields.rejectedReason,
   indexedObjectId: contributionFields.indexedObjectId,
-  createdAt: contributionFields.createdAt,
+  _creationTime: v.number(),
 });
 
 // Flagged works and agreed proposals land in a review queue read from the dashboard, e.g.
@@ -73,7 +73,7 @@ export const listContributions = internalQuery({
         status: row.status,
         rejectedReason: row.rejectedReason,
         indexedObjectId: row.indexedObjectId,
-        createdAt: row.createdAt,
+        _creationTime: row._creationTime,
       })),
       cursor: page.isDone ? null : page.continueCursor,
     };
@@ -152,7 +152,7 @@ const reportSummary = v.object({
   reportId: v.id("reports"),
   target: reportFields.target,
   reason: reportFields.reason,
-  createdAt: v.number(),
+  _creationTime: v.number(),
   status: reportFields.status,
   review: reportFields.review,
 });
@@ -168,7 +168,7 @@ export const listReports = internalQuery({
     }
     const result = await ctx.db
       .query("reports")
-      .withIndex("by_status_createdAt", (q) => q.eq("status", status ?? "open"))
+      .withIndex("by_status", (q) => q.eq("status", status ?? "open"))
       .order("desc")
       .paginate({
         cursor: cursor ?? null,
@@ -180,7 +180,7 @@ export const listReports = internalQuery({
         reportId: report._id,
         target: report.target,
         reason: report.reason,
-        createdAt: report.createdAt,
+        _creationTime: report._creationTime,
         status: report.status,
         review: report.review,
       })),

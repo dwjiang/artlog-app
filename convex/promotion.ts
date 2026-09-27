@@ -42,7 +42,7 @@ async function readAgreementPage(
         .eq("resolution.kind", "runner_up")
         .eq("resolution.objectId", objectId)
         .eq("venueId", venueId)
-        .gte("createdAt", since),
+        .gte("_creationTime", since),
     )
     .paginate({ cursor, numItems: PAGE_ITEMS, maximumBytesRead: PAGE_BYTES });
   const rows = [];
@@ -100,7 +100,7 @@ async function applyMultiView(
     || takedown
     || !device
     || device.banned
-    || row.createdAt < since
+    || row._creationTime < since
   ) {
     await ctx.db.patch("feedback", row._id, { multiViewAt: now });
     return done;
@@ -119,7 +119,7 @@ async function applyMultiView(
       || partner.resolution.kind !== "runner_up"
       || partner.resolution.objectId !== object._id
       || partner.venueId !== row.venueId
-      || partner.createdAt < since
+      || partner._creationTime < since
     ) {
       return stale;
     }
@@ -416,7 +416,7 @@ export const replaceWitnesses = internalMutation({
         && partner.resolution.kind === "runner_up"
         && partner.resolution.objectId === row.resolution.objectId
         && partner.venueId === row.venueId
-        && partner.createdAt >= Date.now() - MULTI_VIEW_WINDOW_MS
+        && partner._creationTime >= Date.now() - MULTI_VIEW_WINDOW_MS
       ) {
         witnesses.add(partner.deviceId);
       }

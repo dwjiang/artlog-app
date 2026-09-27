@@ -73,7 +73,7 @@ export async function insertArchivedVector(
 ): Promise<Id<"vectors">> {
   await retainVectorArchive(ctx, fields.archiveId, fields.contentHash);
   const id = await ctx.db.insert("vectors", fields);
-  await queueVectorSync(ctx, { ...fields, _id: id }, "upsert");
+  await queueVectorSync(ctx, { ...fields, _id: id });
   return id;
 }
 
@@ -91,8 +91,8 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
   ) {
     await ctx.db.replace("vectors", row._id, fields);
     if (searchRecordId(row) !== searchRecordId({ ...fields, _id: row._id })) {
-      await queueVectorSync(ctx, row, "delete");
-      await queueVectorSync(ctx, { ...fields, _id: row._id }, "upsert");
+      await queueVectorSync(ctx, row);
+      await queueVectorSync(ctx, { ...fields, _id: row._id });
     }
     if (row.archiveId !== archiveId) await expireVectorArchiveIfUnreferenced(ctx, row.archiveId);
   }
@@ -103,7 +103,7 @@ export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input
 
 export async function deleteVector(ctx: MutationCtx, row: Doc<"vectors">): Promise<void> {
   await ctx.db.delete("vectors", row._id);
-  await queueVectorSync(ctx, row, "delete");
+  await queueVectorSync(ctx, row);
   await expireVectorArchiveIfUnreferenced(ctx, row.archiveId);
 }
 

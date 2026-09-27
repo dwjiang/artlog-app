@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { fileStorage } from "./lib/fileStorage";
 import { seedArtworkWithObject, testVector } from "./lib/testFactories";
-import { deleteVector, packVector, readVector, replaceVector } from "./lib/vectorStore";
+import { deleteVector, insertArchivedVector, packVector, readVector, replaceVector } from "./lib/vectorStore";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { harness } from "./test.helpers";
 
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 function receipt(job: Doc<"vectorSyncJobs">) {
-  return { id: job._id, lease: job.lease!, revision: job.revision };
+  return { id: job._id, lease: job.lease! };
 }
 
 it("finishes healthy upserts when a claimed vector is deleted before its archive is read", async () => {
@@ -43,7 +43,7 @@ it("finishes healthy upserts when a claimed vector is deleted before its archive
     expect.arrayContaining([expect.objectContaining({ id: healthy.recordId, values: testVector() })]),
   );
   const jobs = await t.run((ctx) => ctx.db.query("vectorSyncJobs").collect());
-  expect(jobs).toMatchObject([{ vectorId: removed.vectorId, operation: "delete", availableAt: Date.now() }]);
+  expect(jobs).toMatchObject([{ vectorId: removed.vectorId, recordId: removed.recordId, availableAt: Date.now() }]);
   await t.action(internal.vectorSync.drain, {});
   expect(JSON.parse(fetch.mock.calls[1][1]!.body as string).ids).toEqual([removed.recordId]);
   expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
@@ -61,7 +61,6 @@ it("keeps a delete queued when it arrives during an upsert, and rejects the stal
   ).toEqual([]);
   await t.mutation(internal.vectorSync.acknowledge, { receipts: [receipt(claimed.job)], success: true });
   const [deleted] = await t.mutation(internal.vectorSync.claim, {});
-  expect(deleted.job.operation).toBe("delete");
   expect(deleted.row).toBeNull();
   await t.mutation(internal.vectorSync.acknowledge, { receipts: [receipt(deleted.job)], success: true });
   expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
@@ -90,7 +89,7 @@ it("rejects old embedding revisions, preserves new ones, and skips unchanged rei
   expect(candidates).toHaveLength(1);
   expect(candidates[0].similarity).toBe(0.7);
   const batch = await t.mutation(internal.vectorSync.claim, {});
-  expect(batch.map(({ job }) => job.operation).sort()).toEqual(["delete", "upsert"]);
+  expect(batch.map(({ row }) => (row ? "upsert" : "delete")).sort()).toEqual(["delete", "upsert"]);
 });
 
 it("retries a lost write response after its lease, retaining work through an unavailable provider", async () => {
@@ -161,14 +160,14 @@ it.each(["upsert", "delete"] as const)(
     }
     expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ failed: true });
     expect(await t.mutation(internal.vectorSync.retryFailed, {})).toBe(1);
-    if (operation === "delete") {
-      await t.run(async (ctx) => deleteVector(ctx, (await ctx.db.get("vectors", work.vectorId))!));
-    }
     expect(await t.query(internal.vectorSync.status, {})).toMatchObject({
       pending: true,
       failed: false,
       nextAttemptAt: availableAt,
     });
+    if (operation === "delete") {
+      await t.run(async (ctx) => deleteVector(ctx, (await ctx.db.get("vectors", work.vectorId))!));
+    }
     vi.setSystemTime(availableAt - 1);
     expect(await t.mutation(internal.vectorSync.claim, {})).toEqual([]);
     vi.stubEnv("PINECONE_API_KEY", "secret");
@@ -198,7 +197,51 @@ it("holds a replacement delete behind an ambiguous failed upsert until its lease
   expect(await t.mutation(internal.vectorSync.claim, {})).toEqual([]);
   vi.setSystemTime(Date.now() + 31 * 60_000);
   const [deleted] = await t.mutation(internal.vectorSync.claim, {});
-  expect(deleted.job.operation).toBe("delete");
+  expect(deleted.row).toBeNull();
+  expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").collect())).toHaveLength(1);
+});
+
+it("drains unrelated records past a full page waiting on failed write leases", async () => {
+  vi.stubEnv("PINECONE_API_KEY", "secret");
+  vi.stubEnv("PINECONE_INDEX_HOST", "test.svc.us-east-1.pinecone.io");
+  const t = harness({ vectorSync: true, transactionLimits: true });
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx));
+  await t.run(async (ctx) => {
+    const { _id, _creationTime, ...fields } = (await ctx.db.get("vectors", work.vectorId))!;
+    for (let i = 1; i < 100; i++) await insertArchivedVector(ctx, fields);
+  });
+  const failed = await t.mutation(internal.vectorSync.claim, {});
+  expect(failed).toHaveLength(100);
+  await t.mutation(internal.vectorSync.acknowledge, {
+    receipts: failed.map(({ job }) => receipt(job)),
+    success: false,
+  });
+  vi.setSystemTime(Date.now() + 1000);
+  await t.mutation(internal.vectorSync.rebuild, { cursor: null });
+  vi.setSystemTime(Date.now() + 1000);
+  const healthy = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (_url, options) => {
+    const { vectors } = JSON.parse(options!.body as string);
+    return Response.json({ upsertedCount: vectors.length });
+  });
+  vi.stubGlobal("fetch", fetch);
+
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetch.mock.calls[0][1]!.body as string).vectors).toEqual([
+    expect.objectContaining({ id: healthy.recordId }),
+  ]);
+  vi.setSystemTime(failed[0].job.availableAt - 1);
+  expect(await t.mutation(internal.vectorSync.claim, {})).toEqual([]);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).toHaveBeenCalledTimes(1);
+
+  vi.setSystemTime(failed[0].job.availableAt);
+  await t.action(internal.vectorSync.drain, {});
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(fetch.mock.calls[1][1]!.body as string).vectors).toHaveLength(100);
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
 });
 
 it("rebuilds Pinecone from archives using only references in the outbox", async () => {

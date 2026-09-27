@@ -141,7 +141,6 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
     for (let i = 0; i < 199; i++) {
       const accountId = await ctx.db.insert("accounts", {
         appleUserId: `cap-${i}`,
-        createdAt: 1,
       });
       const other = await ctx.db.insert("profiles", {
         accountId,
@@ -151,7 +150,6 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
         active: true,
         publishedWallCount: 0,
         leaderboardVisibility: "global",
-        createdAt: 1,
         updatedAt: 1,
       });
       const [firstProfileId, secondProfileId] = canonicalPair(a.profileId, other);
