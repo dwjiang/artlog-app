@@ -73,9 +73,9 @@ export async function prepareWidgetArtwork(
 }
 
 export async function prepareWidgetFont() {
-  const font = new File(directory(), "anton-regular.ttf");
+  const font = new File(directory(), "space-grotesk-semibold.ttf");
   if (font.exists) return;
-  const asset = await Asset.fromModule(require("../../../assets/fonts/anton-regular.ttf")).downloadAsync();
+  const asset = await Asset.fromModule(require("../../../assets/fonts/space-grotesk-semibold.ttf")).downloadAsync();
   if (!asset.localUri) throw new Error("Widget font is unavailable");
   await new File(asset.localUri).copy(font);
 }

@@ -158,7 +158,7 @@ function SavedArtwork({
           )}
         </ArtworkAlbum>
         {wall.signedIn && !work.syncedAt && (
-          <View style={{ padding: 14, gap: 12, backgroundColor: "#EEF2FF" }}>
+          <View style={{ padding: 14, gap: 12, backgroundColor: Gallery.highlight }}>
             <Text style={{ fontSize: 14, lineHeight: 21 }}>
               Saved on this iPhone. Waiting to sync before this artwork can appear on your public wall.
             </Text>

@@ -1,5 +1,7 @@
+import { Gallery } from "@/constants/theme";
+
 export const widgetColors = [
-  { value: "paper", name: "Paper", color: "#FCFCF9" },
+  { value: "paper", name: "Paper", color: Gallery.paper },
   { value: "sand", name: "Sand", color: "#F0E5D3" },
   { value: "sage", name: "Sage", color: "#DFE8DD" },
   { value: "sky", name: "Sky", color: "#DFEAF4" },

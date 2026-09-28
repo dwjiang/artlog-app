@@ -476,7 +476,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
             style={{
               alignSelf: "flex-start",
               padding: 6,
-              backgroundColor: "#EEF2FF",
+              backgroundColor: Gallery.highlight,
               color: Gallery.accent,
             }}
           >

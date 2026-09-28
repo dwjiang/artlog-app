@@ -9,7 +9,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from "@/components/visits/visit-gallery";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
-import { Fonts, Gallery, Typography } from "@/constants/theme";
+import { Gallery, Typography } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { visitDate } from "@/lib/social/presentation";
 import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
@@ -350,9 +350,7 @@ const styles = StyleSheet.create({
   museum: { ...Typography.pageTitle, color: Gallery.ink, marginBottom: 8 },
   meta: { fontSize: 13, lineHeight: 20, color: Gallery.muted },
   reflection: {
-    fontFamily: Fonts.serif,
-    fontSize: 26,
-    lineHeight: 34,
+    ...Typography.body,
     color: Gallery.ink,
     marginBottom: 20,
   },

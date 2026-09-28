@@ -1,7 +1,7 @@
 ---
 version: alpha
-name: Artlog Graphic Index
-description: A personal art journal on paper, with black typography, cobalt actions, lime selections, and artwork-led layouts.
+name: Artlog Index
+description: A personal art journal with Space Grotesk headings, native SF Pro body text, and ultramarine actions on white.
 omitted:
   - section: colors
     reason: "Token values are defined in src/constants/theme.ts"
@@ -15,14 +15,13 @@ omitted:
     reason: "Component styling and behavior are defined in code under src/components"
 ---
 
-# Artlog Graphic Index
+# Artlog Index
 
 ## Overview
 
 Artlog records artworks and visits in a personal collection. It is an iPhone
-portrait app in light mode only. The interface reads as paper: calm, spacious,
-and typographic, with strong black headings, cobalt for actions, and lime for
-selection. Artwork supplies the visual detail, so chrome stays quiet: content
+portrait app in light mode only. The interface is calm, spacious, and typographic, with dark ink on white,
+ultramarine actions, and pale blue selection accents. Artwork supplies the visual detail, so chrome stays quiet: content
 rows and thin dividers give structure, and white cards appear only where content
 needs grouping. Native navigation, dialogs, Apple sign-in, menus, and sharing
 keep their platform behavior.
@@ -32,11 +31,11 @@ this document explains how to apply them. Dimensions are logical points.
 
 ## Colors
 
-- **Primary (cobalt `#0A46F3`)**: actions, links, back buttons, header text
+- **Primary (ultramarine)**: actions, links, back buttons, header text
   actions, the tab bar, and focus borders. Filled buttons carry white labels.
-- **Highlight (lime `#DFF64D`)**: editorial labels, selected segments, status and
-  step chips, and completion marks. Always with black text.
-- **Neutral (ink `#111111` on paper `#FCFCF9`)**: ink for text, header icons, and
+- **Highlight (pale blue)**: selected items, status and step chips, and completion
+  marks. Segmented controls use white selections and ultramarine labels on a cool gray track.
+- **Neutral (dark ink on white)**: ink for text, header icons, and
   structural symbols; muted ink for metadata; white for inputs and cards; fill
   for placeholders, never behind a shown photo; separators and soft borders for
   structure.
@@ -44,17 +43,17 @@ this document explains how to apply them. Dimensions are logical points.
   symbol. Uncertain, queued, and rejected identification stays distinct from
   verified.
 
-Selection carries a weight, border, checkmark, or accessibility state; lime
-never signals selection alone and never carries body text on paper. Ordinary
+Selection carries a weight, border, checkmark, or accessibility state; color
+never signals selection alone. Ordinary
 text meets 4.5:1 against its background, including through opacity.
 
 ## Typography
 
-- **Headlines**: Anton Regular for the wordmark, page titles, prominent names,
-  artist and note headings, and short editorial labels. Never synthesize bold
-  for Anton; its license and attribution appear in About.
-- **Body and labels**: system sans-serif for navigation, body text, forms,
-  controls, and metadata.
+- **Headlines**: Space Grotesk Semibold for the wordmark, page titles, artwork
+  titles, prominent names, and section headings. Use the bundled face without
+  synthesizing a weight; its license and attribution appear in About.
+- **Body and labels**: native SF Pro for navigation, body text, notes, forms,
+  controls, and metadata. Use Regular for reading and Semibold for actions.
 
 Token sizes are defaults, not ceilings. Dynamic Type stays live in React Native
 and SwiftUI. At large text scales, wordmark and page-title headings fall back to
@@ -72,7 +71,7 @@ positioning controls.
 ## Elevation & Depth
 
 Flat by default: hierarchy comes from type weight, ink versus muted, separators,
-and white on paper. Interface surfaces carry no gradients. Soft paper shadows
+and cool gray grouping surfaces. Notes use plain text and quiet separators. Interface surfaces carry no gradients. Soft paper shadows
 lift prints, postcards, empty-state papers, and the visit bar. Material finishes
 stay on decorative wall frames, functional camera scrims, and the globe. Toasts
 are opaque ink pills with white text. Reduce Transparency replaces camera glass
@@ -80,7 +79,7 @@ with an opaque backing; reduced-motion settings govern animated transitions.
 
 ## Shapes
 
-Artwork stays square. Thumbnails round 2 points, buttons and inputs 8, cards 12,
+Artwork stays square. Thumbnails round 2 points, buttons and inputs 6, cards 12,
 and in-content sheets 16; avatars are circular. Native controls keep their
 platform geometry. Every control offers at least a 44 × 44-point target.
 

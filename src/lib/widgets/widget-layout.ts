@@ -1,5 +1,7 @@
-import anton from "./metrics/anton.json";
-import helvetica from "./metrics/helvetica.json";
+import { Fonts, Gallery } from "@/constants/theme";
+
+import sfPro from "./metrics/sf-pro.json";
+import spaceGrotesk from "./metrics/space-grotesk-semibold.json";
 import { widgetArtworkUrl, widgetVisitDate, type PreparedWidgetArtwork } from "./widget-collection";
 import { widgetColors, widgetFrames, type WidgetSettings, type WidgetSize } from "./widget-settings";
 
@@ -7,7 +9,7 @@ type Bounds = { x: number; y: number; width: number; height: number };
 export type WidgetText = Bounds & {
   text: string;
   size: number;
-  family: string;
+  family?: string;
   color: string;
 };
 export type WidgetLayout = {
@@ -26,13 +28,13 @@ export type WidgetPresentation = {
 };
 
 const metrics: Record<string, Record<string, number>> = {
-  Anton: anton,
-  Helvetica: helvetica,
+  [Fonts.display]: spaceGrotesk,
+  [Fonts.sans]: sfPro,
 };
-function measure(value: string, size: number, family: string) {
+function measure(value: string, size: number, family: string = Fonts.sans) {
   return Array.from(value).reduce((total, char) => total + (metrics[family][char] ?? metrics[family]["?"]), 0) * size;
 }
-function wrap(value: string, size: number, family: string, width: number, limit: number): string[] {
+function wrap(value: string, size: number, family: string | undefined, width: number, limit: number): string[] {
   const lines: string[] = [];
   let current = "";
   for (const word of value.trim().split(/\s+/u)) {
@@ -68,7 +70,7 @@ function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic
   function compose(size: number, limit: number) {
     let height = 0;
     const rows: WidgetText[] = [];
-    function append(value: string, size: number, family: string, gap: number, maxLines: number) {
+    function append(value: string, size: number, family: string | undefined, gap: number, maxLines: number) {
       const lines = wrap(value, size, family, width, maxLines);
       if (lines.length === 0) return;
       height += gap;
@@ -78,22 +80,22 @@ function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic
           x: 0,
           y: height,
           width,
-          height: size + 3,
+          height: Math.ceil(size * 1.28),
           size,
           family,
-          color: family === "Anton" ? "#111111" : "#51565B",
+          color: family === Fonts.display ? Gallery.ink : Gallery.widgetCaption,
         });
-        height += size + 3;
+        height += Math.ceil(size * 1.28);
       }
     }
-    append(art.title, size, "Anton", 0, limit);
-    append(art.artist, 11, "Helvetica", 4, 2);
+    append(art.title, size, Fonts.display, 0, limit);
+    append(art.artist, 11, undefined, 4, 2);
     if (settings.caption === "visit") {
       if (panoramic) {
-        append([art.museum, date && `Visited ${date}`].filter(Boolean).join(" · "), 10.5, "Helvetica", 8, 2);
+        append([art.museum, date && `Visited ${date}`].filter(Boolean).join(" · "), 10.5, undefined, 8, 2);
       } else {
-        append(art.museum ?? "", 11, "Helvetica", 10, 2);
-        append(date && `Visited ${date}`, 11, "Helvetica", 3, 2);
+        append(art.museum ?? "", 11, undefined, 10, 2);
+        append(date && `Visited ${date}`, 11, undefined, 3, 2);
       }
     }
     return { rows, height };
@@ -112,7 +114,7 @@ function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic
       ]) {
     const value = compose(size, limit);
     const wholeTitle = value.rows
-      .filter((row) => row.family === "Anton")
+      .filter((row) => row.family === Fonts.display)
       .map((row) => row.text)
       .join(" ");
     if (value.height <= maxHeight && wholeTitle === art.title.trim().replaceAll(/\s+/g, " ")) {
@@ -246,9 +248,9 @@ export function widgetPresentation(
         width: width - 40,
         height: 32,
         text: "Your art here",
-        size: 22,
-        family: "Anton",
-        color: "#111111",
+        size: width < 200 ? 18 : 22,
+        family: Fonts.display,
+        color: Gallery.ink,
       },
       {
         x: 20,
@@ -257,8 +259,8 @@ export function widgetPresentation(
         height: 20,
         text: "Open Artlog to choose",
         size: 11,
-        family: "Helvetica",
-        color: "#51565B",
+        family: undefined,
+        color: Gallery.widgetCaption,
       },
       {
         x: 20,
@@ -267,8 +269,8 @@ export function widgetPresentation(
         height: 20,
         text: "saved paintings.",
         size: 11,
-        family: "Helvetica",
-        color: "#51565B",
+        family: undefined,
+        color: Gallery.widgetCaption,
       },
     ],
   });

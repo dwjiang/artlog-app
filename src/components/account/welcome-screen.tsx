@@ -230,6 +230,6 @@ const styles = StyleSheet.create({
   stage: { overflow: "hidden", borderRadius: Radius.sheet },
   prompt: { minHeight: 300, padding: Spacing.three, alignItems: "center", justifyContent: "center" },
   art: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  title: { ...Typography.display, fontSize: 40, lineHeight: 44, color: Gallery.ink },
+  title: { ...Typography.display, fontSize: 36, lineHeight: 47, color: Gallery.ink },
   actions: { gap: Spacing.compact, paddingHorizontal: Spacing.content, paddingTop: Spacing.three },
 });

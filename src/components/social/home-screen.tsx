@@ -99,7 +99,7 @@ export function HomeScreen() {
                   marginBottom: 16,
                   paddingLeft: 12,
                   paddingVertical: 6,
-                  backgroundColor: "#EEF2FF",
+                  backgroundColor: Gallery.highlight,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 8,

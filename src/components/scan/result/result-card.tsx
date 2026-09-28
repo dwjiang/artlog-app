@@ -112,7 +112,7 @@ export function ResultCard({
       >
         {header}
         <View style={styles.identity}>
-          <ThemedText type="title" style={{ fontSize: 36, lineHeight: 42 }}>
+          <ThemedText type="title">
             {view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
           </ThemedText>
           {!editingDetails && (

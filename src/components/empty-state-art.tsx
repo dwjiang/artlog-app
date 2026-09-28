@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#0A46F318",
+    backgroundColor: Gallery.highlight,
     alignItems: "center",
     justifyContent: "center",
   },
