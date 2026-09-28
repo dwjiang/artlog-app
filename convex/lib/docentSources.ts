@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 
+import { normalizePassage } from "../../shared/audio/guide";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { wikidataScore, type SourceDoc } from "./docentPrompts";
@@ -23,6 +24,12 @@ import {
 const MIN_PAGE_CHARS = 80;
 const SEARCH_RESULTS = 8;
 const MAX_SOURCE_CHARS = 24_000;
+// One owner page plus eight full search results can run past fifty thousand tokens; the fact sheet
+// caps at twenty facts, so the best-scored sources fill a fixed budget and the rest are cut.
+const TOTAL_SOURCE_CHARS = 40_000;
+// Search pages quote one another: an article repeats the museum's description, a press page its
+// collection entry. Lines shorter than this stay everywhere; headings and label-value rows recur by nature.
+const MIN_PASSAGE_CHARS = 80;
 
 const SUMMARY_PROPERTIES: {
   property: string;
@@ -147,6 +154,28 @@ function plainMarkdown(text: string): string {
     .replaceAll(/\n{3,}/g, "\n\n");
 }
 
+// Sources arrive best first. A passage stays only in the first source that carries it, and the text
+// sent stops at the budget; a fact is checked against the text the model saw, so cuts are safe.
+export function trimSources(sources: SourceDoc[]): SourceDoc[] {
+  const seen = new Set<string>();
+  const trimmed: SourceDoc[] = [];
+  let remaining = TOTAL_SOURCE_CHARS;
+  for (const source of sources) {
+    const lines = source.text.split("\n").filter((line) => {
+      const key = normalizePassage(line);
+      if (key.length < MIN_PASSAGE_CHARS) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const text = lines.join("\n").trim().slice(0, Math.max(0, remaining));
+    if (!text) continue;
+    remaining -= text.length;
+    trimmed.push({ ...source, text });
+  }
+  return trimmed;
+}
+
 // The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
 // are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
@@ -212,9 +241,10 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       continue;
     }
     const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
-    // Search can return the owner's page again. Facts resolve their source by URL, so keep one
-    // source per URL: the longer text, under the first label and score.
-    const existing = sources.find((source) => source.url === result.url);
+    // Search can return the owner's page again, often under a language or tracking parameter. Keep
+    // one source per page: the longer text, under the first URL, label and score.
+    const identity = sourceIdentity(result.url);
+    const existing = sources.find((source) => sourceIdentity(source.url) === identity);
     if (!existing) {
       sources.push({
         url: result.url,
@@ -226,5 +256,5 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       existing.text = text;
     }
   }
-  return { sources: sources.sort((a, b) => b.score - a.score), failures };
+  return { sources: trimSources(sources.sort((a, b) => b.score - a.score)), failures };
 }

@@ -66,6 +66,28 @@ describe("Token Factory chatJson", () => {
     });
   });
 
+  it("returns the provider's token counts and logs them without the content", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        choices: [{ message: { content: JSON.stringify({ ok: true }) }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 673, completion_tokens: 124, total_tokens: 797 },
+      }),
+    );
+    await expect(chatJson(request)).resolves.toEqual({
+      value: { ok: true },
+      calls: 1,
+      usage: { promptTokens: 673, completionTokens: 124 },
+    });
+    expect(log).toHaveBeenCalledWith(
+      "tokenFactory usage",
+      expect.stringContaining(
+        '"model":"nvidia/Nemotron-3_5-Lightning","schema":"probe","promptTokens":673,"completionTokens":124',
+      ),
+    );
+    expect(log.mock.calls[0][1]).not.toContain("usr");
+  });
+
   it("retries once on 429 honoring Retry-After capped at five seconds, then counts both calls", async () => {
     vi.useFakeTimers();
     fetchMock

@@ -74,10 +74,11 @@ export default defineSchema({
     deleteAttempts: v.number(),
   }).index("by_expiresAt", ["expiresAt"]),
 
+  // Without a claim the row holds only a script, kept for the next render (narrationCache.ts).
   narrationAudio: defineTable({
     artworkId: v.id("artworks"),
-    claim: v.string(),
-    claimedAt: v.number(),
+    claim: v.optional(v.string()),
+    claimedAt: v.optional(v.number()),
     factSheetUpdatedAt: v.optional(v.number()),
     opening: v.string(),
     guideModel: v.string(),

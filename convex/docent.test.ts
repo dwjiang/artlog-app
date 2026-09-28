@@ -15,7 +15,7 @@ const TAVILY = "https://api.tavily.com/search";
 const WIKIDATA = "https://www.wikidata.org/w/api.php";
 const PAGE = "https://www.metmuseum.org/art/collection/search/436535";
 const WIKIDATA_PAGE = "https://www.wikidata.org/wiki/Q18689458";
-const SEARCH_HIT = "https://www.metmuseum.org/art/collection/search/436535?lang=it";
+const SEARCH_HIT = "https://www.metmuseum.org/perspectives/wheat-field-cypresses-acquired";
 const FACT_SHEET_MODEL = "nvidia/nemotron-3-super-120b-a12b";
 const DOCENT_MODEL = "nvidia/Nemotron-3_5-Lightning";
 
@@ -93,7 +93,8 @@ const searchResponse = {
       url: SEARCH_HIT,
       title: "Wheat Field with Cypresses",
       content: "Short snippet.",
-      raw_content: "The painting was acquired in 1993. The lively brushwork conveys wind through the wheat field.",
+      raw_content:
+        "The painting was acquired in 1993. The lively brushwork conveys wind through the wheat field. See [the painting](/art/collection/search/436535).",
       score: 0.9,
     },
     {
@@ -136,42 +137,14 @@ const searchResponse = {
   usage: { credits: 1 },
 };
 
-const facts = [
-  {
-    id: "f1",
-    text: "Vincent van Gogh painted Wheat Field with Cypresses in 1889.",
-    sourceUrl: PAGE,
-    sourceLabel: "x",
-    sourceScore: 0.1,
-  },
-  {
-    id: "f2",
-    text: "The painting was acquired in 1993.",
-    sourceUrl: SEARCH_HIT,
-    sourceLabel: "x",
-    sourceScore: 0.1,
-  },
-  {
-    id: "f3",
-    text: "Inventory number: 1993.132",
-    sourceUrl: WIKIDATA_PAGE,
-    sourceLabel: "x",
-    sourceScore: 0.1,
-  },
-  {
-    id: "f4",
-    text: "It hung in a Paris salon.",
-    sourceUrl: "https://invented.example/salon",
-    sourceLabel: "x",
-    sourceScore: 1,
-  },
-  {
-    id: "f5",
-    text: "The painting was acquired in 1993.",
-    sourceUrl: PAGE,
-    sourceLabel: "x",
-    sourceScore: 1,
-  },
+// Mock sheets cite URLs for readability; `models` turns them into the ids the request numbered.
+type MockFact = { text: string; sourceUrl: string };
+const facts: MockFact[] = [
+  { text: "Vincent van Gogh painted Wheat Field with Cypresses in 1889.", sourceUrl: PAGE },
+  { text: "The painting was acquired in 1993.", sourceUrl: SEARCH_HIT },
+  { text: "Inventory number: 1993.132", sourceUrl: WIKIDATA_PAGE },
+  { text: "It hung in a Paris salon.", sourceUrl: "https://invented.example/salon" },
+  { text: "The painting was acquired in 1993.", sourceUrl: PAGE },
 ];
 const prose = [
   {
@@ -234,11 +207,18 @@ function tavily(response: unknown = searchResponse, status = 200) {
     url.href === TAVILY ? (status === 200 ? jsonResponse(response) : new Response("down", { status })) : undefined,
   );
 }
-function models(sheet: unknown = facts, sentences: unknown = prose) {
+function models(sheet: MockFact[] = facts, sentences: unknown = prose) {
   routes.push((url, init) => {
     if (url.href !== TOKEN_FACTORY) return undefined;
     const body = JSON.parse(String(init?.body));
-    return completion(body.model === FACT_SHEET_MODEL ? sheet : sentences);
+    if (body.model !== FACT_SHEET_MODEL) return completion(sentences);
+    const sources: { id: string; url: string }[] = JSON.parse(body.messages[1].content).input.sources;
+    return completion(
+      sheet.map(({ text, sourceUrl }) => ({
+        text,
+        source: sources.find((source) => source.url === sourceUrl)?.id ?? "s99",
+      })),
+    );
   });
 }
 function everything() {
@@ -797,11 +777,8 @@ it("sends markdown search pages as plain prose, so a fact copied from an essay s
   const { ensure, artwork } = await fixture();
   const essay = "https://www.metmuseum.org/perspectives/van-gogh-cypresses";
   const quoted = {
-    id: "f1",
     text: "He described the cypresses in Wheat Field with Cypresses as a splash of black.",
     sourceUrl: essay,
-    sourceLabel: "x",
-    sourceScore: 1,
   };
   page(PAGE, ownerPage);
   wikidata();
@@ -828,30 +805,31 @@ it("sends markdown search pages as plain prose, so a fact copied from an essay s
 });
 
 it.each([
-  ["a shorter", "Wheat Field with Cypresses, a painting.", "Saint-Rémy"],
+  ["a shorter", PAGE, "Wheat Field with Cypresses, a painting.", "Saint-Rémy"],
   [
     "a fuller",
+    PAGE,
     `Vincent van Gogh (Dutch, 1853–1890). ${"The lively brushwork conveys wind through the wheat field. ".repeat(20)}`,
     "lively brushwork",
   ],
+  [
+    "a translated",
+    `${PAGE}?lang=it`,
+    "Vincent van Gogh (Dutch, 1853–1890). Campo di grano con cipressi.",
+    "Saint-Rémy",
+  ],
 ])(
   "sends the owner page once when search returns %s copy of it, and keeps facts quoted from the text sent",
-  async (_, rawContent, kept) => {
+  async (_, url, rawContent, kept) => {
     const { ensure, artwork } = await fixture();
-    const quoted = {
-      id: "f1",
-      text: "Vincent van Gogh (Dutch, 1853–1890).",
-      sourceUrl: PAGE,
-      sourceLabel: "x",
-      sourceScore: 1,
-    };
+    const quoted = { text: "Vincent van Gogh (Dutch, 1853–1890).", sourceUrl: PAGE };
     page(PAGE, ownerPage);
     wikidata();
     models([quoted]);
     tavily({
       results: [
         {
-          url: PAGE,
+          url,
           title: "Wheat Field with Cypresses",
           content: "Snippet",
           raw_content: rawContent,

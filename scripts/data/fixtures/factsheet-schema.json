@@ -4,25 +4,14 @@
   "items": {
     "type": "object",
     "properties": {
-      "id": {
-        "type": "string"
-      },
       "text": {
         "type": "string"
       },
-      "sourceUrl": {
+      "source": {
         "type": "string"
-      },
-      "sourceLabel": {
-        "type": "string"
-      },
-      "sourceScore": {
-        "type": "number",
-        "minimum": 0,
-        "maximum": 1
       }
     },
-    "required": ["id", "text", "sourceUrl", "sourceLabel", "sourceScore"],
+    "required": ["text", "source"],
     "additionalProperties": false
   }
 }

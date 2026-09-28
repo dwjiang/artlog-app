@@ -13,27 +13,33 @@ export type RenderedNarration = {
   live: boolean;
 };
 
-// What a narration is rendered from. One row per artwork; a mismatch on play re-renders it,
-// and `narration.clear` re-renders everything after a prompt or delivery change worth hearing.
-export function narrationProvenance(artwork: Doc<"artworks">) {
+// What a script is written from. One row per artwork; a script whose research, opening and model are
+// current is spoken again rather than rewritten, and `narration.clear` re-renders everything after a
+// prompt or delivery change worth hearing.
+export function scriptProvenance(artwork: Doc<"artworks">) {
   return {
     factSheetUpdatedAt: artwork.factSheetUpdatedAt,
     opening: guideOpening(artwork),
     guideModel: GUIDE_MODEL,
-    speechModel: SPEECH_MODEL,
-    voice: SPEECH_VOICE,
   };
 }
 
-export function narrationCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
-  const provenance = narrationProvenance(artwork);
+// What the audio is rendered from: the script and the voice that speaks it.
+export function narrationProvenance(artwork: Doc<"artworks">) {
+  return { ...scriptProvenance(artwork), speechModel: SPEECH_MODEL, voice: SPEECH_VOICE };
+}
+
+export function scriptCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
+  const provenance = scriptProvenance(artwork);
   return (
     entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt
     && entry.opening === provenance.opening
     && entry.guideModel === provenance.guideModel
-    && entry.speechModel === provenance.speechModel
-    && entry.voice === provenance.voice
   );
+}
+
+export function narrationCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
+  return scriptCurrent(entry, artwork) && entry.speechModel === SPEECH_MODEL && entry.voice === SPEECH_VOICE;
 }
 
 export function narrationEntry(ctx: QueryCtx, artworkId: Id<"artworks">) {
@@ -49,7 +55,7 @@ export function narrationFiles(entry: Doc<"narrationAudio">) {
 
 export async function renderedNarration(ctx: QueryCtx, artwork: Doc<"artworks">): Promise<RenderedNarration | null> {
   const entry = await narrationEntry(ctx, artwork._id);
-  if (!entry?.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) {
+  if (!entry?.claim || !entry.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) {
     return null;
   }
   const uri = await fileStorage.getUrl(ctx, entry.storageId);
@@ -57,7 +63,13 @@ export async function renderedNarration(ctx: QueryCtx, artwork: Doc<"artworks">)
 }
 
 export function liveNarration(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): RenderedNarration | null {
-  if (entry.storageId || !entry.sentences || !entry.segments?.length || !narrationCurrent(entry, artwork)) {
+  if (
+    !entry.claim
+    || entry.storageId
+    || !entry.sentences
+    || !entry.segments?.length
+    || !narrationCurrent(entry, artwork)
+  ) {
     return null;
   }
   const params = new URLSearchParams({ artworkId: artwork._id, render: entry.claim });
