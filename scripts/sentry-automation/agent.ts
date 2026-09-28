@@ -36,9 +36,13 @@ Keep changes focused. Schema/signature changes requiring unavailable Convex code
 Return JSON matching the supplied schema. Use concise technical Markdown in body; no machine-state markers.`;
 
 type SandboxMode = "workspace-write" | "read-only";
-// Codex 0.153.4's Bubblewrap loopback setup fails on the hosted runner. Landlock keeps
-// filesystem restrictions and seccomp network blocking without that namespace setup.
-const sandboxConfig = ["-c", "features.use_legacy_landlock=true", "-c", "sandbox_workspace_write.network_access=false"];
+// Codex 0.153.4's workspace metadata protections require Bubblewrap; legacy Landlock rejects them.
+const sandboxConfig = [
+  "-c",
+  "features.use_legacy_landlock=false",
+  "-c",
+  "sandbox_workspace_write.network_access=false",
+];
 
 // Checks execute candidate code outside an agent session. Unsandboxed, that code could send runner
 // credentials out or rewrite the trusted tools a later step runs with the secret-write token.
