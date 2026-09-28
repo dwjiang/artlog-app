@@ -288,6 +288,7 @@ export function CollectionWallContent({
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEnabled={!wall.pending}
         stickyHeaderIndices={[header && !editing ? 1 : 0]}
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.fill,
   },
   blankWall: {
-    flex: 1,
+    flexGrow: 1,
     minHeight: 360,
     borderTopWidth: 0.5,
     borderTopColor: Gallery.separator,
