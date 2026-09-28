@@ -43,15 +43,25 @@ export function HomeScreen() {
   const tab =
     chosenTab ?? (session.status === "ready" ? "friends" : session.status === "loading" ? undefined : "global");
   // Friends needs a profile; Global is open to guests and to accounts that have not created one yet.
-  const canBrowse =
-    session.status === "ready" || (tab === "global" && (guest || session.status === "profile-required"));
-  const feed = useCursorPages(
-    tab === "global" ? api.sharedVisits.listPublic : api.sharedVisits.listFeed,
-    canBrowse ? {} : "skip",
+  const canBrowseFriends = session.status === "ready";
+  const canBrowseGlobal = canBrowseFriends || guest || session.status === "profile-required";
+  const canBrowse = tab === "global" ? canBrowseGlobal : canBrowseFriends;
+  // Keep both subscriptions alive so switching feeds retains loaded pages instead of flashing the skeleton.
+  const friendsFeed = useCursorPages(
+    api.sharedVisits.listFeed,
+    canBrowseFriends ? {} : "skip",
     session.key,
     feedPage,
     visitId,
   );
+  const globalFeed = useCursorPages(
+    api.sharedVisits.listPublic,
+    canBrowseGlobal ? {} : "skip",
+    session.key,
+    feedPage,
+    visitId,
+  );
+  const feed = tab === "global" ? globalFeed : friendsFeed;
   const router = useRouter();
   return (
     <>
@@ -82,7 +92,7 @@ export function HomeScreen() {
                 <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
               </View>
             </View>
-            {guest && canBrowse && !dismissedPrompt && (
+            {guest && !dismissedPrompt && (
               <View
                 style={{
                   marginHorizontal: 20,

@@ -164,6 +164,20 @@ it("keeps the selected visit for new photos and offers the complete album", asyn
   expect(screen.queryByText("No photos from this visit yet.")).toBeNull();
 });
 
+it("keeps photo-scope controls ahead of changing photo content and mounted for an empty visit", async () => {
+  mockPhotosUpdatedAt = new Date();
+  await render(<ArtworkAlbum work={work} visitId="visit-a" />);
+  const visit = screen.getByRole("button", { name: "This visit" });
+  const all = screen.getByRole("button", { name: "All photos" });
+  expect(screen.getAllByRole("button").slice(0, 2)).toEqual([visit, all]);
+  await fireEvent.press(all);
+  expect(screen.getByText("Museum view 1")).toBeOnTheScreen();
+  expect(screen.getAllByRole("button").slice(0, 2)).toEqual([visit, all]);
+  await fireEvent.press(visit);
+  expect(screen.getByText("No photos from this visit yet.")).toBeOnTheScreen();
+  expect(screen.getAllByRole("button").slice(0, 2)).toEqual([visit, all]);
+});
+
 it("shows the museum on its own line under the medium, falling back to the visit venue", async () => {
   const view = await render(
     <ArtworkAlbum work={{ ...work, medium: "Oil on canvas", institution: "Musée d'Orsay", venueName: "The Met" }} />,
