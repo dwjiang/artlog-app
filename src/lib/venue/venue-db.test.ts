@@ -9,6 +9,12 @@ const mockConnections = new Set<Database.Database>();
 let mockRoot: string;
 let mockBundled: string;
 const mockQuery = jest.fn();
+const mockReportError = jest.fn();
+
+jest.mock("@/lib/observability", () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
+  addBreadcrumb: jest.fn(),
+}));
 
 jest.mock("@/lib/venue-asset", () => ({ bundledVenueAsset: 1 }));
 jest.mock("@/db/repos/settings", () => ({
@@ -122,6 +128,7 @@ beforeEach(() => {
   mockBundled = path.join(mockRoot, "bundle.db");
   table(mockBundled, 1);
   mockSettings.clear();
+  mockReportError.mockClear();
   mockQuery.mockResolvedValue({ venues: [], checkpoint: 1, hasMore: false });
   loadModules();
 });
@@ -187,6 +194,7 @@ it.each(["city", "country", "cityKey"])(
     loadModules();
 
     const reopened = await venueDb.openVenueDb();
+    expect(mockReportError).not.toHaveBeenCalled();
     expect(await venueDb.nearest(reopened, { lat: 40, lng: -73 }, 400)).toEqual([
       expect.objectContaining({
         id: "museum-1",
@@ -204,6 +212,16 @@ it("replaces an installed table from before change versions even when the asset 
   await live.closeAsync();
   loadModules();
   expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({ changeVersion: 1 });
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("reports a corrupt installed database and recovers using the bundled table", async () => {
+  const live = await venueDb.openVenueDb();
+  await live.closeAsync();
+  fs.writeFileSync(path.join(mockRoot, "SQLite", venueDb.VENUE_DB_NAME), "not a SQLite database");
+  loadModules();
+  expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({ changeVersion: 1 });
+  expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), "venue.table.validate", { level: "warning" });
 });
 
 it("drops fetched changes with a replaced bundled table and fetches them again on its first launch", async () => {

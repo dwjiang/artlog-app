@@ -55,7 +55,7 @@ beforeEach(() => {
 it("preserves medium settings while previewing the small widget", async () => {
   await render(<WidgetsScreen />);
   await fireEvent.press(screen.getByRole("button", { name: /^Caption,/ }));
-  await fireEvent.press(screen.getByRole("button", { name: /^Title \+ artist,/ }));
+  await fireEvent.press(screen.getByRole("button", { name: "Title + artist" }));
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   await fireEvent.press(screen.getByRole("button", { name: "Small" }));
   expect(screen.queryByRole("button", { name: /^Painting frame,/ })).toBeNull();
@@ -80,7 +80,7 @@ it("selects the actual visit or artwork and returns to the editor", async () => 
   expect(mockUpdate).toHaveBeenLastCalledWith({
     source: { kind: "artwork", id: "monet" },
   });
-  expect(screen.getByText("Keeps this painting on your Home Screen.")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Artwork source, One artwork · Water Lilies" })).toBeOnTheScreen();
 });
 
 it("updates the preset color and frame, disabling width when unframed", async () => {

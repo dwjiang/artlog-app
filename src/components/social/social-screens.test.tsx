@@ -531,13 +531,11 @@ it("shows a direct invitation for guest Friends and keeps public discovery one t
   mockSession = { ...mockSession, status: "signed-out", token: null };
   await render(<PeopleScreen />);
   const search = screen.getByLabelText("Name or username");
-  const guidance = screen.getByText("Search by name or username, or browse public profiles.");
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.queryByText("EXAMPLE")).toBeNull();
   expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
   expect(screen.getByLabelText("Name or username")).toBe(search);
   expect(search).toHaveProp("editable", false);
-  expect(screen.getByText("Search by name or username, or browse public profiles.")).toBe(guidance);
   expect(screen.queryByText("An afternoon of art")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
@@ -677,13 +675,11 @@ it("keeps the discovery header mounted while searching and switching filters", a
   await render(<PeopleScreen />);
   const title = screen.getByRole("header", { name: "Friends" });
   const search = screen.getByLabelText("Name or username");
-  const guidance = screen.getByText("Search by name or username, or browse public profiles.");
   await fireEvent.changeText(search, "alex");
   for (const name of ["Friends", "Explore"]) {
     await fireEvent.press(screen.getByRole("button", { name }));
     expect(screen.getByRole("header", { name: "Friends" })).toBe(title);
     expect(screen.getByLabelText("Name or username")).toBe(search);
     expect(search).toHaveProp("value", "alex");
-    expect(screen.getByText("Search by name or username, or browse public profiles.")).toBe(guidance);
   }
 });

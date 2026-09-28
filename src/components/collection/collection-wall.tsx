@@ -401,13 +401,13 @@ export function CollectionWallContent({
             ]}
           >
             <EmptyState
-              title="Add artworks to your wall."
-              detail={`You have ${works.length} ${works.length === 1 ? "artwork" : "artworks"} saved. Pick the ones you’d like to hang on your ${wall.signedIn ? "public wall" : "wall"}.`}
-              footnote={
-                wall.signedIn
-                  ? "Only the pieces you choose appear here."
-                  : "Your wall stays private on this iPhone until you sign in."
+              title="No artworks on your wall yet."
+              detail={
+                hasSavedArt
+                  ? `Choose saved artworks for your ${wall.signedIn ? "public wall" : "wall"}.`
+                  : "Scan an artwork to add it to your collection."
               }
+              footnote={wall.signedIn ? undefined : "Your wall stays private on this iPhone until you sign in."}
               visual={<ArtworkCollage />}
             >
               <GalleryButton
@@ -467,7 +467,7 @@ export function CollectionWallContent({
                   <View style={styles.empty}>
                     {!opening && (
                       <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>
-                        Add artworks to your wall.
+                        No artworks on your wall yet.
                       </Text>
                     )}
                     {!opening && (

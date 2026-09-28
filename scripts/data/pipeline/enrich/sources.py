@@ -11,9 +11,15 @@ from bs4 import BeautifulSoup, Tag
 from pipeline.model_version import REPO_ROOT
 from pipeline.polite_http import PoliteClient, RetryLater, RobotsDisallowed
 
+from .validator import source_passage
+
 log = logging.getLogger(__name__)
 SCORES = json.loads((REPO_ROOT / "shared/sources/source-scores.json").read_text())
 MAX_CHARS = 24_000
+# Mirrors convex/lib/docentSources.ts: the best-scored sources fill a fixed budget, a passage stays
+# only in the first source that carries it, and lines shorter than a passage stay everywhere.
+TOTAL_CHARS = 40_000
+MIN_PASSAGE_CHARS = 80
 PROPERTIES = {
     "P1476": "Title",
     "P170": "Creator",
@@ -108,6 +114,29 @@ def source_score(url: str) -> float | None:
         SCORES["default"],
     )
     return score if score >= SCORES["threshold"] else None
+
+
+def trim_sources(sources: list[SourceDoc]) -> list[SourceDoc]:
+    seen: set[str] = set()
+    trimmed: list[SourceDoc] = []
+    remaining = TOTAL_CHARS
+    for source in sources:
+        lines = []
+        for line in source["text"].split("\n"):
+            key = source_passage(line)
+            if len(key) >= MIN_PASSAGE_CHARS:
+                if key in seen:
+                    continue
+                seen.add(key)
+            lines.append(line)
+        text = "\n".join(lines).strip()[: max(0, remaining)]
+        if not text:
+            continue
+        remaining -= len(text)
+        trimmed.append(
+            SourceDoc(url=source["url"], label=source["label"], score=source["score"], text=text)
+        )
+    return trimmed
 
 
 def page_text(html: str) -> str:
@@ -272,15 +301,17 @@ class SourceGatherer:
 
         def add(url, label, text, score=None):
             score = source_score(url) if score is None else score
-            previous = sources.get(url)
+            # One source per page, whatever language or tracking parameter search found it under.
+            key = source_identity(url)
+            previous = sources.get(key)
             if (
                 score is not None
                 and text.strip()
                 and (not previous or len(text.strip()) > len(previous["text"]))
             ):
-                # The longer text wins; the owner's page keeps its label and score.
-                sources[url] = SourceDoc(
-                    url=url,
+                # The longer text wins; the owner's page keeps its URL, label and score.
+                sources[key] = SourceDoc(
+                    url=previous["url"] if previous else url,
                     label=previous["label"] if previous else label,
                     score=previous["score"] if previous else score,
                     text=text.strip()[:MAX_CHARS],
@@ -329,4 +360,4 @@ class SourceGatherer:
                 ):
                     continue
                 add(url, host(url), f"{result.get('title', '')}\n{plain_markdown(content)}")
-        return sorted(sources.values(), key=lambda s: -s["score"])
+        return trim_sources(sorted(sources.values(), key=lambda s: -s["score"]))

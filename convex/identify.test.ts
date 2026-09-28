@@ -513,15 +513,7 @@ describe("enrichment after identification", () => {
       if (url === TOKEN_FACTORY) {
         return completion(
           body.model === "super"
-            ? [
-                {
-                  id: "f1",
-                  text: "Claude Monet painted this canvas in 1916.",
-                  sourceUrl: SOURCE,
-                  sourceLabel: "x",
-                  sourceScore: 1,
-                },
-              ]
+            ? [{ text: "Claude Monet painted this canvas in 1916.", source: "s1" }]
             : [
                 {
                   sentence: "Claude Monet painted these water lilies in 1916.",

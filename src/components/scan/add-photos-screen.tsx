@@ -365,6 +365,7 @@ function PhotoSession({
     );
   }
   const photoCount = photos.length + (savedId ? 0 : 1);
+  const artist = target?.artist || input?.draft.artist;
   const shares = !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return (
     <ScrollView
@@ -386,9 +387,11 @@ function PhotoSession({
           <ThemedText style={{ fontSize: 16, fontWeight: "600" }}>
             {target?.title || title || "Unidentified artwork"}
           </ThemedText>
-          <ThemedText type="small" style={styles.hint}>
-            {target?.artist || input?.draft.artist || "Full views, details, and labels stay together."}
-          </ThemedText>
+          {artist && (
+            <ThemedText type="small" style={styles.hint}>
+              {artist}
+            </ThemedText>
+          )}
         </View>
       </View>
       <CaptureContextButton

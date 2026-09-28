@@ -97,9 +97,6 @@ export function SettingsScreen() {
               </ThemedText>
             </View>
           </View>
-          <ThemedText variant="display" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 34 }}>
-            Share your collection
-          </ThemedText>
           <ThemedText variant="body" themeColor="textSecondary">
             Sign in to share your wall and connect with friends.
           </ThemedText>

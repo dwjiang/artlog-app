@@ -70,7 +70,7 @@ export function SharePhotoPicker({
             {work.title}
           </Text>
           <Text style={visitStyles.fine}>
-            {`${selected.length} of ${photos.length} ${photos.length === 1 ? "photo" : "photos"} shared`}
+            {`${selected.length} of ${photos.length} ${photos.length === 1 ? "photo" : "photos"} selected`}
           </Text>
         </View>
         {photos.length > 0 && (

@@ -353,7 +353,7 @@ it("chooses an artwork's shared photos on its own screen, all at once or one by 
   mockSharing.draft = { ...mockSharing.draft!, photoSelections: [{ saveLocalId: "save", photoLocalIds: ["full"] }] };
   const view = await render(<VisitShareLayout />);
   expect(screen.getByRole("header", { name: "Water Lilies" })).toBeOnTheScreen();
-  expect(screen.getByText("1 of 2 photos shared")).toBeOnTheScreen();
+  expect(screen.getByText("1 of 2 photos selected")).toBeOnTheScreen();
   expect(screen.queryByText("Full artwork")).toBeNull();
   expect(screen.queryByText("Mine")).toBeNull();
   expect(screen.queryByText(/stay private/)).toBeNull();

@@ -34,9 +34,11 @@ export function CollectionEmptyState({ kind }: { kind: "artworks" | "visits" }) 
         fullWidth
         onPress={() => (visits ? router.push("/visit-create") : router.navigate("/scan"))}
       />
-      <Text variant="metadata" themeColor="textSecondary">
-        {visits ? "Your visits stay private until you share them." : "No account needed to start."}
-      </Text>
+      {visits && (
+        <Text variant="metadata" themeColor="textSecondary">
+          Your visits stay private until you share them.
+        </Text>
+      )}
     </View>
   );
 }

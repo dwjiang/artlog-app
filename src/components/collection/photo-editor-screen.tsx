@@ -189,7 +189,6 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
         {moving && (
           <WallSheet title="Move photo" onDismiss={() => setMoving(false)}>
             <View style={{ padding: 20, gap: 16 }}>
-              <Text style={{ color: Gallery.muted }}>Choose the artwork this photo belongs to.</Text>
               {works.error ? (
                 <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                   Couldn’t load your artworks. Close and reopen this photo to try again.
