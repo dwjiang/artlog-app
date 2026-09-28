@@ -23,10 +23,8 @@ export type ResultViewState = {
   error?: string;
 };
 
-/** What the user did on the card: a runner-up they picked and the works they said were not right. */
 export type ResultSelection = {
   chosenObjectId?: Id<"objects">;
-  rejectedObjectIds?: Id<"objects">[];
 };
 
 function dedupe(candidates: ResultCandidate[]): ResultCandidate[] {
@@ -36,6 +34,20 @@ function dedupe(candidates: ResultCandidate[]): ResultCandidate[] {
     seen.add(candidate.objectId);
     return true;
   });
+}
+
+export function selectResultCandidates(
+  result: Pick<NonNullable<ScanResult>, "best" | "runnerUps" | "outcome">,
+  chosenObjectId?: Id<"objects">,
+) {
+  const candidates = dedupe([...(result.best ? [result.best] : []), ...(result.runnerUps ?? [])]);
+  const chosen = candidates.find((candidate) => candidate.objectId === chosenObjectId);
+  // A miss keeps its low-probability best among the suggestions rather than naming it.
+  const primary = chosen ?? (result.outcome === "miss" ? undefined : result.best);
+  return {
+    primary,
+    runnerUps: candidates.filter((candidate) => candidate.objectId !== primary?.objectId),
+  };
 }
 
 export function toResultViewState(
@@ -81,15 +93,12 @@ export function toResultViewState(
     };
   }
 
-  const rejected = new Set(selection.rejectedObjectIds ?? []);
-  const candidates = dedupe([...(scan.best ? [scan.best] : []), ...(scan.runnerUps ?? [])]);
-  const chosen = candidates.find((candidate) => candidate.objectId === selection.chosenObjectId);
-  // A miss keeps its low-probability best among the suggestions rather than naming it.
-  const primary = chosen ?? (scan.outcome === "miss" ? undefined : scan.best);
-  const runnerUps = candidates.filter((candidate) => candidate !== primary && !rejected.has(candidate.objectId));
+  const { primary, runnerUps } = selectResultCandidates(scan, selection.chosenObjectId);
   const kind: ResultKind = !primary
     ? "unidentified"
-    : chosen || primary.identityStatus === "tentative" || scan.outcome !== "confident"
+    : primary.objectId === selection.chosenObjectId
+        || primary.identityStatus === "tentative"
+        || scan.outcome !== "confident"
       ? "soft"
       : "confident";
   return {

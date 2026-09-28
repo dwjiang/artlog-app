@@ -228,7 +228,7 @@ it("opens the server result once the queue identifies a capture that already sho
   });
 });
 
-it("drops a picked runner-up from the other possibilities of a cached recognition", async () => {
+it("keeps every other painting available when switching cached matches", async () => {
   await enqueuePendingScan(row("offline-pick", { status: "queued" }));
   await cacheOfflineResult("offline-pick", confidentScan);
   await render(<LocalScanScreen localId="offline-pick" />);
@@ -239,12 +239,19 @@ it("drops a picked runner-up from the other possibilities of a cached recognitio
     }),
   );
   expect(screen.getByText("Could this be The Japanese Footbridge?")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(
     screen.queryByRole("button", {
       name: /^The Japanese Footbridge, Claude Monet/,
     }),
   ).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ }));
+  expect(screen.getByText("Could this be Haystacks?")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet/ })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ }));
+  expect(screen.getByText("Could this be Water Lilies?")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
 });
 
 it("keeps a manual draft on completion, then saves it before opening the result", async () => {

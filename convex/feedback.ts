@@ -36,7 +36,7 @@ export const rejectMatch = mutation({
     nonce: v.string(),
     assertionBase64: v.string(),
   },
-  returns: v.object({ feedbackId: v.id("feedback") }),
+  returns: v.object({ feedbackId: v.id("feedback"), canResolve: v.boolean() }),
   handler: async (ctx, args) => {
     const { scanId, objectId } = args;
     const device = await requireAttestedWrite(ctx, {
@@ -61,7 +61,9 @@ export const rejectMatch = mutation({
       .query("feedback")
       .withIndex("by_scan_object", (q) => q.eq("scanId", scanId).eq("rejectedObjectId", objectId))
       .unique();
-    if (existing) return { feedbackId: existing._id };
+    if (existing) {
+      return { feedbackId: existing._id, canResolve: existing.resolution.kind === "unresolved" };
+    }
     await limitDevice(ctx, "rejectPerWork", device._id, objectId);
     const now = Date.now();
     const placement = await loadCurrentPlacement(ctx, objectId, now);
@@ -104,7 +106,7 @@ export const rejectMatch = mutation({
         : {}),
     });
     if (flagged) await patchContributionState(ctx, objectId, { flaggedForReview: true });
-    return { feedbackId };
+    return { feedbackId, canResolve: true };
   },
 });
 

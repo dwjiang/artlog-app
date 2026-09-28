@@ -56,25 +56,30 @@ it("leaves a miss unidentified with every candidate offered as a suggestion", ()
   expect(view.editable).toBe(true);
 });
 
-it("promotes a chosen runner-up to a maybe and drops rejected works from the suggestions", () => {
+it("promotes a chosen runner-up to a maybe and restores the original match among the suggestions", () => {
   const view = toResultViewState(confidentScan, {
     chosenObjectId: bridge.objectId,
-    rejectedObjectIds: [lilies.objectId],
   });
   expect(view).toMatchObject({
     kind: "soft",
     primary: bridge,
-    runnerUps: [haystacks],
+    runnerUps: [lilies, haystacks],
   });
   expect(view.docent).toBeUndefined();
 });
 
-it("keeps the primary while a rejection is unresolved and only hides it from the suggestions", () => {
-  const view = toResultViewState(confidentScan, {
-    rejectedObjectIds: [lilies.objectId, bridge.objectId],
-  });
-  expect(view.primary).toEqual(lilies);
-  expect(view.runnerUps).toEqual([haystacks]);
+it("keeps every other candidate in its original order across repeated selections", () => {
+  for (const chosen of [bridge, haystacks, lilies, bridge]) {
+    const view = toResultViewState(confidentScan, { chosenObjectId: chosen.objectId });
+    expect(view.primary).toEqual(chosen);
+    expect(view.runnerUps).toEqual([lilies, bridge, haystacks].filter((candidate) => candidate !== chosen));
+  }
+});
+
+it("shows each candidate once even when the primary also appears in the runner-ups", () => {
+  const scan = { ...confidentScan, runnerUps: [{ ...lilies }, bridge, { ...bridge }, haystacks] };
+  expect(toResultViewState(scan).runnerUps).toEqual([bridge, haystacks]);
+  expect(toResultViewState(scan, { chosenObjectId: bridge.objectId }).runnerUps).toEqual([lilies, haystacks]);
 });
 
 it("ignores a chosen id that is not among the candidates", () => {
