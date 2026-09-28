@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { EmptyState } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -144,7 +143,14 @@ export function ArtworkEncounterList({
     }
   }
   return (
-    <View>
+    <View style={styles.context}>
+      <NoteHeading title="Visits">
+        <GalleryButton
+          label="Link visit"
+          icon="plus"
+          onPress={() => router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })}
+        />
+      </NoteHeading>
       {encounters.map(({ visit }) => (
         <Pressable
           key={visit.localId}
@@ -184,22 +190,7 @@ export function ArtworkEncounterList({
         ) : loading ? (
           <LoadingRing accessibilityLabel="Loading artwork visits…" />
         ) : (
-          <EmptyState
-            compact
-            title="No linked visits."
-            detail="This artwork was saved without a visit. Link one to remember where you saw it."
-          >
-            <GalleryButton
-              label="Link a visit"
-              icon="plus"
-              onPress={() =>
-                router.push({
-                  pathname: "/link-artwork",
-                  params: { savedId: work.localId },
-                })
-              }
-            />
-          </EmptyState>
+          <Text style={styles.caption}>No linked visits.</Text>
         ))}
       {current && (
         <GalleryButton

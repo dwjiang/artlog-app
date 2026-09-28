@@ -64,9 +64,9 @@ it("keeps only the latest crop under concurrent uploads and validates content an
   expect((await upload(outsider)).status).toBe(404);
   expect((await upload(owner, "kind=crop", new Uint8Array())).status).toBe(400);
   expect((await upload(owner, "kind=crop", jpeg, { "Content-Length": "20000000" })).status).toBe(413);
-  // The full photo is an album row: kind=photo needs its photoId and the crop never takes one.
+  // Crops may name their source photo, but only a live photo owned by this save.
   expect((await upload(owner, "kind=photo")).status).toBe(400);
-  expect((await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status).toBe(400);
+  expect((await upload(owner, `kind=crop&photoId=${crypto.randomUUID()}`)).status).toBe(404);
   expect((await upload(owner, `kind=photo&photoId=${crypto.randomUUID()}`)).status).toBe(404);
   const responses = await Promise.all([upload(), upload()]);
   const ids = await Promise.all(responses.map((r) => r.json()));

@@ -1,0 +1,1 @@
+ALTER TABLE `savedWorks` ADD `cropPhotoLocalId` text;

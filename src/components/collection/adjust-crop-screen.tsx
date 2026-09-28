@@ -25,12 +25,12 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
   const album = photos.data.filter(
     (row) => row.owner === owner && row.savedLocalId === savedId && row.deletedAt === null && row.kind !== "label",
   );
-  const source = photoId
-    ? album.find((row) => row.localId === photoId)?.path
-    : (album.find((row) => row.path === work?.photoPath)?.path
-      ?? album.find((row) => row.kind === "full" && row.path)?.path
-      ?? album.find((row) => row.path)?.path
-      ?? work?.photoPath);
+  const photo = photoId
+    ? album.find((row) => row.localId === photoId)
+    : (album.find((row) => row.localId === work?.cropPhotoLocalId && row.path)
+      ?? album.find((row) => row.kind === "full" && row.path)
+      ?? album.find((row) => row.path));
+  const source = photo?.path ?? (!photoId ? work?.photoPath : undefined);
   if (!work || !source) {
     return (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 24, gap: 16 }}>
@@ -47,7 +47,7 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
     <CropEditor
       key={`${owner}:${savedId}:${source}`}
       photoPath={source}
-      initialCorners={source === work.photoPath ? work.cropCorners : null}
+      initialCorners={photo?.localId === work.cropPhotoLocalId ? work.cropCorners : null}
       onCancel={() => router.back()}
       onSave={async (crop, isCurrent) => {
         await saveEditedArtworkCrop(savedId, crop, owner, isCurrent);

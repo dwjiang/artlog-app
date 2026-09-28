@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
-import { AccessibilityInfo, DeviceEventEmitter, ScrollView } from "react-native";
+import { AccessibilityInfo, DeviceEventEmitter, Dimensions, ScrollView } from "react-native";
 
 import type { SharedArtwork } from "@/lib/social/types";
 
@@ -19,6 +19,7 @@ jest.mock("@/lib/social/use-social-session", () => ({
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
 }));
+jest.mock("./report-toolbar", () => ({ ReportToolbar: () => null }));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
@@ -30,7 +31,7 @@ jest.mock("expo-image", () => ({
   },
 }));
 
-const media = (photoLocalId: string): NonNullable<SharedArtwork["photos"]>[number] => ({
+const media = (photoLocalId: string): Extract<NonNullable<SharedArtwork["photos"]>[number], { kind: "photo" }> => ({
   kind: "photo",
   width: 200,
   height: 400,
@@ -71,12 +72,13 @@ beforeEach(() => {
 it("navigates only the selected shared photos and preserves authenticated media scope", async () => {
   await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
   expect(screen.getByText("1 / 2")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Previous photo" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Next photo" }));
-  expect(screen.getByText("2 / 2")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Next photo" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Previous photo" }));
-  expect(screen.getByText("1 / 2")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Add photos" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Adjust crop/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Show photo 1" })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
+  expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Show photo 1" }));
+  expect(screen.getByRole("button", { name: "Show photo 1" })).toBeSelected();
   const photos = [1, 2].map((index) => screen.getByRole("image", { name: `Starry Night, photo ${index}` }));
   expect(photos.map((photo) => new URL(photo.props.source.uri).searchParams.get("photoLocalId"))).toEqual([
     "selected-a",
@@ -90,17 +92,17 @@ it("navigates only the selected shared photos and preserves authenticated media 
 
 it("resets the gallery when a shared photo is removed and hides it when the session becomes unavailable", async () => {
   const view = await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Next photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
   artwork = { ...artwork, photos: [media("selected-a")] };
   await view.rerender(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
   expect(screen.queryByText("1 / 1")).toBeNull();
   expect(screen.queryByRole("image", { name: "Starry Night, photo 2" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Next photo" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Show photo 2" })).toBeNull();
   expect(screen.getByRole("image", { name: "Starry Night, photo 1" })).toBeOnTheScreen();
   mockSession = { ...mockSession, key: "new-account", status: "loading" };
   await view.rerender(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
   expect(screen.queryByText("Vincent van Gogh")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Next photo" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Show photo 2" })).toBeNull();
 });
 
 it("does not replace an empty shared-photo selection with another artwork image", async () => {
@@ -108,7 +110,7 @@ it("does not replace an empty shared-photo selection with another artwork image"
   await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
   expect(screen.getByText("No photos shared for this artwork.")).toBeOnTheScreen();
   expect(screen.queryByRole("image", { name: "Starry Night, photo 1" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Next photo" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Show photo 2" })).toBeNull();
 });
 
 it("respects a live Reduce Motion change when navigating shared photos", async () => {
@@ -120,13 +122,59 @@ it("respects a live Reduce Motion change when navigating shared photos", async (
   try {
     await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
     await act(() => DeviceEventEmitter.emit("reduceMotionChanged", true));
-    await fireEvent.press(screen.getByRole("button", { name: "Next photo" }));
-    expect(scroll).toHaveBeenLastCalledWith(expect.objectContaining({ animated: false }));
+    await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
+    expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ animated: false }));
+    scroll.mockClear();
     await act(() => DeviceEventEmitter.emit("reduceMotionChanged", false));
-    await fireEvent.press(screen.getByRole("button", { name: "Previous photo" }));
-    expect(scroll).toHaveBeenLastCalledWith(expect.objectContaining({ animated: true }));
+    await fireEvent.press(screen.getByRole("button", { name: "Show photo 1" }));
+    expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ animated: true }));
     await screen.unmount();
   } finally {
     jest.restoreAllMocks();
   }
+});
+
+it("opens full photos from a public wall instead of reusing its cropped preview", async () => {
+  const wallPhoto = (photoLocalId: string) => ({
+    ...media(photoLocalId),
+    reference: { kind: "wallItem", itemId: "wall-item", photoLocalId },
+  });
+  const full = wallPhoto("original");
+  mockQuery.mockImplementation((query, args) => ({
+    data:
+      args !== "skip" && getFunctionName(query) === "walls:getArtwork"
+        ? {
+            ...artwork,
+            profileId: "owner",
+            layout: { frame: "gilt" },
+            artwork: { ...artwork.artwork, media: { ...full, reference: { ...full.reference, variant: "crop" } } },
+            photos: [full, wallPhoto("shared-detail")],
+          }
+        : undefined,
+    refresh: jest.fn(),
+  }));
+  await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
+  const original = screen.getByRole("image", { name: "Starry Night, photo 1" });
+  expect(new URL(original.props.source.uri).searchParams.get("variant")).toBeNull();
+  expect(new URL(original.props.source.uri).searchParams.get("photoLocalId")).toBe("original");
+  await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
+  expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
+});
+
+it("keeps shared-photo thumbnails just below landscape and portrait images", async () => {
+  artwork = {
+    ...artwork,
+    photos: [
+      { ...media("landscape"), width: 1500, height: 1000 },
+      { ...media("portrait"), width: 800, height: 1200 },
+    ],
+  };
+  await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+  const { width, height } = Dimensions.get("window");
+  expect(screen.getByLabelText("Photo thumbnails")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({ height: (width - 40) / 1.5 });
+  await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
+  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({
+    height: Math.min((width - 40) * 1.5, width * 1.2, height * 0.52),
+  });
 });

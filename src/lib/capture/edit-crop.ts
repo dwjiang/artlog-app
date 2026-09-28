@@ -85,8 +85,7 @@ export async function saveEditedArtworkCrop(savedId: string, crop: EditedCrop, o
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }
-    // The editor places stored corners on `photoPath` only, so a crop cut from another album photo keeps none.
-    replaceSavedCrop(savedId, path, crop.photoPath === work.photoPath ? crop.corners : null, owner);
+    replaceSavedCrop(savedId, path, crop.corners, crop.photoPath, owner);
   } catch (error) {
     removePhotoFile(path);
     throw error;

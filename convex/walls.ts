@@ -1,7 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { isRevision, LIMITS } from "../shared/journal/limits";
-import { validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shared/social/contracts";
+import { displayMedia, validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -9,10 +9,16 @@ import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
-import { activeProfile, requireClaimComplete, requireOwnedSave, requireProfile } from "./lib/ownership";
+import {
+  activeProfile,
+  optionalProfile,
+  requireClaimComplete,
+  requireOwnedSave,
+  requireProfile,
+} from "./lib/ownership";
 import { projectWallArtwork } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
-import { requirePublicWallItem } from "./lib/publicationAccess";
+import { requirePublicWallItem, requireSharedVisitItem } from "./lib/publicationAccess";
 
 const selection = v.object({
   placementId: v.string(),
@@ -64,6 +70,27 @@ async function currentProjection(ctx: QueryCtx, item: Doc<"wallItems">) {
         kind: "wallItem",
         itemId: item._id,
       });
+      const { save } = current;
+      if (
+        save.cropPhotoLocalId === item.photoLocalId
+        && save.cropStorageId
+        && save.cropWidth
+        && save.cropHeight
+        && save.photoUpdatedAt
+      ) {
+        projection.artwork.media = {
+          kind: "photo",
+          width: save.cropWidth,
+          height: save.cropHeight,
+          reference: {
+            kind: "wallItem",
+            itemId: item._id,
+            photoLocalId: item.photoLocalId,
+            variant: "crop",
+            cropRevision: save.photoUpdatedAt,
+          },
+        };
+      }
     }
     return { ...current, projection };
   } catch (error) {
@@ -152,6 +179,7 @@ export const getArtwork = query({
     v.object({
       ...wallArtwork.fields,
       profileId: v.id("profiles"),
+      photos: v.array(displayMedia),
       enrichment: v.optional(publicArtworkStory),
     }),
     v.null(),
@@ -160,8 +188,60 @@ export const getArtwork = query({
     const item = await ctx.db.get("wallItems", itemId);
     const current = item ? await currentProjection(ctx, item) : null;
     if (!current) return null;
+    const viewer = await optionalProfile(ctx);
+    const photos = new Map<string, Infer<typeof displayMedia>>();
+    const placements = await ctx.db
+      .query("wallItems")
+      .withIndex("by_save_active", (q) => q.eq("saveId", current.save._id).eq("active", true))
+      .take(LIMITS.wallItems);
+    // Keep the tapped full photo first; each additional photo retains its own live access boundary.
+    for (const placement of [current.item, ...placements.filter((row) => row._id !== itemId)]) {
+      if (!placement.photoLocalId || photos.has(placement.photoLocalId)) continue;
+      try {
+        await requirePublicWallItem(ctx, placement._id);
+        photos.set(
+          placement.photoLocalId,
+          await selectedPhotoMedia(ctx, current.save, placement.photoLocalId, {
+            kind: "wallItem",
+            itemId: placement._id,
+          }),
+        );
+      } catch (error) {
+        if (!(error instanceof ConvexError && error.data.code === "not_found")) throw error;
+      }
+    }
+    const selections = await ctx.db
+      .query("sharedVisitItems")
+      .withIndex("by_saveId", (q) => q.eq("saveId", current.save._id))
+      .take(101);
+    for (const selection of selections) {
+      const publication = await ctx.db.get("sharedVisits", selection.publicationId);
+      if (!publication) continue;
+      try {
+        await requireSharedVisitItem(ctx, publication.postId, selection._id, viewer?._id);
+        for (const localId of selection.photoLocalIds ?? []) {
+          if (!photos.has(localId)) {
+            photos.set(
+              localId,
+              await selectedPhotoMedia(ctx, current.save, localId, {
+                kind: "sharedVisit",
+                postId: publication.postId,
+                itemId: selection._id,
+              }),
+            );
+          }
+        }
+      } catch (error) {
+        if (!(error instanceof ConvexError && error.data.code === "not_found")) throw error;
+      }
+    }
     const enrichment = await projectArtworkStory(ctx, current.save);
-    return { ...current.projection, profileId: current.profile._id, ...(enrichment ? { enrichment } : {}) };
+    return {
+      ...current.projection,
+      profileId: current.profile._id,
+      photos: photos.size > 0 ? [...photos.values()] : [current.projection.artwork.media],
+      ...(enrichment ? { enrichment } : {}),
+    };
   },
 });
 const sameLayout = (a: Infer<typeof wallLayout>, b: Infer<typeof wallLayout>) =>

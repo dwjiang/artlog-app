@@ -166,16 +166,6 @@ function SavedArtwork({
             <GalleryButton label="Back" onPress={() => router.back()} />
           </View>
         )}
-        <GalleryButton
-          label="Adjust crop"
-          icon="crop"
-          onPress={() =>
-            router.push({
-              pathname: "/adjust-crop",
-              params: { savedId: work.localId },
-            })
-          }
-        />
         <Divider />
         <ArtworkEncounterList
           work={work}

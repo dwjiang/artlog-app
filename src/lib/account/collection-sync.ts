@@ -4,7 +4,7 @@ import { addNetworkStateListener } from "expo-network";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 
-import { albumMediaPending } from "@/db/repos/artwork-album";
+import { albumMediaPending, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { createJournalRepository } from "@/db/repos/journal";
 import { claimLocalJournal } from "@/db/repos/journal-claim";
 import * as savedWorks from "@/db/repos/saved-works";
@@ -94,7 +94,16 @@ const transfers: Queue = {
           savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
         listDeletedPhotoFiles: () => savedWorks.listDeletedPhotoFiles(context.owner),
         clearDeletedPhotoPaths: (id) => savedWorks.clearDeletedPhotoPaths(id, context.owner),
-        upload: (localId, kind, path) => uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent),
+        upload: async (localId, kind, path) => {
+          const work = await savedWorks.getSavedWork(localId, context.owner);
+          const original =
+            work?.cropPath === path && work.cropPhotoLocalId
+              ? selectArtworkPhotos(localId, context.owner)
+                  .all()
+                  .find((photo) => photo.localId === work.cropPhotoLocalId)
+              : undefined;
+          return uploadCollectionPhoto(token, context.scope, localId, kind, path, isCurrent, original?.localId);
+        },
         download: (localId, kind, storageId) => downloadCollectionPhoto(token, context.scope, localId, kind, storageId),
         removeFile: removePhotoFile,
       },
