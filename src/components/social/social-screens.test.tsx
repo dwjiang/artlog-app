@@ -466,8 +466,10 @@ it("loads public visits for guests and opens their details without signing in", 
   mockSession = { ...mockSession, status: "signed-out", token: null };
   mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: "public" }] }));
   await render(<HomeScreen />);
-  expect(getFunctionName(mockPages.mock.calls[0][0])).toBe("sharedVisits:listPublic");
-  expect(mockPages.mock.calls[0][1]).toEqual({});
+  expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
+    ["sharedVisits:listFeed", "skip"],
+    ["sharedVisits:listPublic", {}],
+  ]);
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "View visit" }));
@@ -482,7 +484,10 @@ it("loads public visits for guests and opens their details without signing in", 
 
 it("switches a signed-in Home between friends’ visits and Global public visits", async () => {
   await render(<HomeScreen />);
-  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listFeed");
+  expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
+    ["sharedVisits:listFeed", {}],
+    ["sharedVisits:listPublic", {}],
+  ]);
   expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
@@ -490,7 +495,7 @@ it("switches a signed-in Home between friends’ visits and Global public visits
   expect(mockPages.mock.lastCall[1]).toEqual({});
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listFeed");
+  expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
 });
 
 it.each([
@@ -504,8 +509,12 @@ it.each([
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: gate })).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Dismiss sign-in invitation" })).toBeNull();
-  expect(mockPages.mock.lastCall[1]).toBe("skip");
+  expect(screen.queryByRole("button", { name: "Dismiss sign-in invitation" }) !== null).toBe(status === "signed-out");
+  expect(
+    mockPages.mock.calls
+      .filter(([query]) => getFunctionName(query) === "sharedVisits:listFeed")
+      .map(([, args]) => args),
+  ).toEqual(["skip", "skip"]);
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
 });
@@ -521,17 +530,22 @@ it("offers public walls while the public visit feed is empty", async () => {
 it("shows a direct invitation for guest Friends and keeps public discovery one tap away", async () => {
   mockSession = { ...mockSession, status: "signed-out", token: null };
   await render(<PeopleScreen />);
+  const search = screen.getByLabelText("Name or username");
+  const guidance = screen.getByText("Search by name or username, or browse public profiles.");
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.queryByText("EXAMPLE")).toBeNull();
   expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
-  expect(screen.queryByLabelText("Name or username")).toBeNull();
+  expect(screen.getByLabelText("Name or username")).toBe(search);
+  expect(search).toHaveProp("editable", false);
+  expect(screen.getByText("Search by name or username, or browse public profiles.")).toBe(guidance);
   expect(screen.queryByText("An afternoon of art")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(screen.getByRole("button", { name: "Explore" })).toBeSelected();
-  expect(screen.getByLabelText("Name or username")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Name or username")).toBe(search);
+  expect(search).toHaveProp("editable", true);
   expect(screen.queryByText("EXAMPLE")).toBeNull();
 });
 
@@ -649,11 +663,27 @@ it("renders Explore rows from the relationship embedded in each page instead of 
 it("keeps discovery search available when a member has no friends", async () => {
   mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
   await render(<PeopleScreen />);
-  expect(screen.getByLabelText("Name or username")).toBeOnTheScreen();
+  const search = screen.getByLabelText("Name or username");
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: "No friends added yet." })).toBeOnTheScreen();
-  expect(screen.queryByLabelText("Name or username")).toBeNull();
+  expect(screen.getByLabelText("Name or username")).toBe(search);
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(screen.getByLabelText("Name or username")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Explore" })).toBeSelected();
+});
+
+it("keeps the discovery header mounted while searching and switching filters", async () => {
+  mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
+  await render(<PeopleScreen />);
+  const title = screen.getByRole("header", { name: "Friends" });
+  const search = screen.getByLabelText("Name or username");
+  const guidance = screen.getByText("Search by name or username, or browse public profiles.");
+  await fireEvent.changeText(search, "alex");
+  for (const name of ["Friends", "Explore"]) {
+    await fireEvent.press(screen.getByRole("button", { name }));
+    expect(screen.getByRole("header", { name: "Friends" })).toBe(title);
+    expect(screen.getByLabelText("Name or username")).toBe(search);
+    expect(search).toHaveProp("value", "alex");
+    expect(screen.getByText("Search by name or username, or browse public profiles.")).toBe(guidance);
+  }
 });

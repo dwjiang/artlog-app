@@ -138,21 +138,18 @@ export function PeopleScreen() {
             <Text variant="pageTitle" accessibilityRole="header">
               Friends
             </Text>
-            {!text.trim() && filter === "all" && (
-              <Text style={{ color: Gallery.muted, fontSize: 15 }}>
-                Search by name or username, or browse public profiles.
-              </Text>
-            )}
-            {!guestFriends && !emptyFriends && (
-              <SearchField
-                filled
-                label="Name or username"
-                value={text}
-                onChange={setText}
-                onClear={() => setText("")}
-                showLabel={false}
-              />
-            )}
+            <Text style={{ color: Gallery.muted, fontSize: 15 }}>
+              Search by name or username, or browse public profiles.
+            </Text>
+            <SearchField
+              filled
+              label="Name or username"
+              value={text}
+              onChange={setText}
+              onClear={() => setText("")}
+              showLabel={false}
+              editable={filter === "all" || session.status === "ready"}
+            />
             <NativeSegmentedPicker
               label="Friends filter"
               value={filter}

@@ -44,6 +44,7 @@ export function LeaderboardScreen() {
   const guest = session.status === "signed-out" || session.status === "profile-required";
   const canBrowse = ready || (audience === "global" && guest);
   const board = useSocialQuery(api.leaderboards.list, canBrowse ? choice : "skip", session.key);
+  const participation = useSocialQuery(api.leaderboards.preference, ready ? {} : "skip", session.key);
   const [participationOpen, setParticipationOpen] = useState(false);
   function manageParticipation() {
     if (guest) {
@@ -54,7 +55,7 @@ export function LeaderboardScreen() {
     }
   }
   const rows = board.data?.rows ?? [];
-  const visibility = board.data?.visibility ?? "off";
+  const visibility = participation.data ?? "off";
   const unit = metric === "visits" ? "visit" : "artwork";
   const filter = (update: Partial<LeaderboardChoice>) => {
     changeChoice(update);
@@ -68,7 +69,7 @@ export function LeaderboardScreen() {
           accessibilityLabel={visibility === "off" ? "Join the leaderboard" : "Manage participation"}
           tintColor={Gallery.ink}
           hidesSharedBackground
-          hidden={!canBrowse}
+          hidden={!ready && !guest}
           onPress={manageParticipation}
         />
       </Stack.Toolbar>
@@ -90,19 +91,17 @@ export function LeaderboardScreen() {
                 { value: "global", label: "Global" },
               ]}
             />
-            {canBrowse && (
-              <View style={styles.filterRow}>
-                <ChoiceMenu
-                  label="Rank by"
-                  value={metric}
-                  onChange={(value) => filter({ metric: value })}
-                  options={[
-                    { value: "visits", label: "Museum visits" },
-                    { value: "artworks", label: "Artworks" },
-                  ]}
-                />
-              </View>
-            )}
+            <View style={styles.filterRow}>
+              <ChoiceMenu
+                label="Rank by"
+                value={metric}
+                onChange={(value) => filter({ metric: value })}
+                options={[
+                  { value: "visits", label: "Museum visits" },
+                  { value: "artworks", label: "Artworks" },
+                ]}
+              />
+            </View>
           </View>
         }
         data={rows}

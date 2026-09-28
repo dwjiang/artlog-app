@@ -71,6 +71,21 @@ export function ArtworkAlbum({
   };
   return (
     <View style={{ gap: 8 }}>
+      {!!visitId && (
+        <NativeSegmentedPicker
+          label="Photo scope"
+          value={scope}
+          onChange={(value) => {
+            setScope(value);
+            setPage(0);
+            gallery.current?.scrollTo({ x: 0, animated: false });
+          }}
+          options={[
+            { value: "visit", label: "This visit" },
+            { value: "all", label: "All photos" },
+          ]}
+        />
+      )}
       {rows.length === 0 && !photos.updatedAt && !photos.error ? (
         <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
       ) : (
@@ -272,21 +287,6 @@ export function ArtworkAlbum({
         <Text selectable style={styles.secondary}>
           {selectedPhoto.caption}
         </Text>
-      )}
-      {!!visitId && (
-        <NativeSegmentedPicker
-          label="Photo scope"
-          value={scope}
-          onChange={(value) => {
-            setScope(value);
-            setPage(0);
-            gallery.current?.scrollTo({ x: 0, animated: false });
-          }}
-          options={[
-            { value: "visit", label: "This visit" },
-            { value: "all", label: "All photos" },
-          ]}
-        />
       )}
       {rows.length === 0 && !!photos.updatedAt && !photos.error && (
         <EmptyState
