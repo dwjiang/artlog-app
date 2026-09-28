@@ -1,4 +1,5 @@
 from pipeline.enrich.factsheet import build_fact_sheet
+from pipeline.enrich.prompts import fact_sheet_schema, source_id
 
 
 def test_grounding_sort_dedupe_ids_and_cap():
@@ -16,11 +17,11 @@ def test_grounding_sort_dedupe_ids_and_cap():
             "text": " ".join(f"Fact {i}" for i in range(1, 20, 2)),
         },
     ]
-    raw = [{"text": "Unsupported claim", "sourceUrl": "https://invented.test"}]
-    raw += [{"text": f"Fact {i}", "sourceUrl": sources[i % 2]["url"]} for i in range(20)]
+    raw = [{"text": "Unsupported claim", "source": "s9"}]
+    raw += [{"text": f"Fact {i}", "source": source_id(i % 2)} for i in range(20)]
     raw += [
-        {"text": "  Fact   1 ", "sourceUrl": sources[1]["url"]},
-        {"text": " ", "sourceUrl": sources[1]["url"]},
+        {"text": "  Fact   1 ", "source": " s2 "},
+        {"text": " ", "source": "s2"},
     ]
     facts = build_fact_sheet(raw, sources)
     assert len(facts) == 20
@@ -31,7 +32,7 @@ def test_grounding_sort_dedupe_ids_and_cap():
     assert all(f["sourceLabel"] == ("Met" if f["sourceScore"] == 1 else "Wikipedia") for f in facts)
 
 
-def test_rejects_invented_details_even_with_a_valid_source_url():
+def test_rejects_invented_details_even_when_they_cite_a_real_source():
     sources = [
         {
             "url": "https://metmuseum.org/art/1",
@@ -41,9 +42,16 @@ def test_rejects_invented_details_even_with_a_valid_source_url():
         }
     ]
     raw = [
-        {"sourceUrl": sources[0]["url"], "text": "Visible brushwork conveys wind."},
-        {"sourceUrl": sources[0]["url"], "text": "The artist was feeling hopeful."},
+        {"source": "s1", "text": "Visible brushwork conveys wind."},
+        {"source": "s1", "text": "The artist was feeling hopeful."},
     ]
     assert [fact["text"] for fact in build_fact_sheet(raw, sources)] == [
         "Visible brushwork conveys wind."
     ]
+
+
+def test_schema_lets_a_fact_cite_only_the_sources_sent():
+    assert fact_sheet_schema(2)["items"]["properties"]["source"] == {
+        "type": "string",
+        "enum": ["s1", "s2"],
+    }

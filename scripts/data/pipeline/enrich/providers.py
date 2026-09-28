@@ -132,7 +132,12 @@ class Providers:
                     {"role": "system", "content": prompt},
                     {
                         "role": "user",
-                        "content": json.dumps({"input": inputs, "schema": request_schema}),
+                        # The grammar carries the schema; json_object mode has none, so its prompt does.
+                        "content": json.dumps(
+                            {"input": inputs, "schema": request_schema}
+                            if fallback
+                            else {"input": inputs}
+                        ),
                     },
                 ],
                 "response_format": (

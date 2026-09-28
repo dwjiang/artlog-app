@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 # Match ECMAScript whitespace and UTF-16 length, including non-BMP characters.
 WHITESPACE = re.compile(
@@ -8,6 +9,12 @@ WHITESPACE = re.compile(
 
 def normalize(text: str) -> str:
     return WHITESPACE.sub(" ", text).strip(" ")
+
+
+# Quote marks, case and spacing vary between a page and its copy; the words must not
+# (shared/audio/guide.ts normalizePassage).
+def source_passage(text: str) -> str:
+    return normalize(re.sub(r"[\"'‘’“”]", "", unicodedata.normalize("NFKC", text).lower()))
 
 
 def validate(sentences: list[dict], fact_ids_on_sheet: set[str]) -> list[dict]:
