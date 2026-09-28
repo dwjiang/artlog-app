@@ -40,6 +40,26 @@ await test("deduplication includes human, closed and escalated work without conf
   assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [{ title: "Sentry ARTLOG-APP-B: fix skipped", body: null }]), true);
 });
 
+await test("bot escalations caused by the runner sandbox can be retried without ignoring other tracked work", () => {
+  const blocked = {
+    title: "Sentry ARTLOG-APP-B: automatic fix skipped — Investigation blocked",
+    body: "The fixer found no supported fix.\nLocal commands failed with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`.",
+    user: { login: "github-actions[bot]" },
+    labels: [{ name: "agent-generated" }, { name: "sentry-fix" }],
+  };
+  assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [blocked]), false);
+  assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [blocked, pull]), true);
+  for (const tracked of [
+    { ...blocked, user: { login: "human" } },
+    { ...blocked, labels: [] },
+    { ...blocked, pull_request: { url: "https://api.github.com/repos/dwjiang/artlog-app/pulls/1" } },
+    { ...blocked, title: "Investigate ARTLOG-APP-B" },
+    { ...blocked, body: "The fixer found no supported fix. Insufficient production evidence." },
+  ]) {
+    assert.equal(issueAlreadyTracked("ARTLOG-APP-B", [tracked]), true);
+  }
+});
+
 const now = Date.parse("2026-09-24T12:00:00Z");
 const event = {
   eventID: "e".repeat(32),

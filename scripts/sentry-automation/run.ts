@@ -194,10 +194,10 @@ async function prepare(): Promise<void> {
     save(
       empty(
         mainSha,
-        "Dry run passed: subscription model access, GitHub reads and production Sentry queries. No PR changes.",
+        "Dry run passed: Codex read/write and read-only sandboxes, subscription model access, GitHub reads and production Sentry queries. No PR changes.",
       ),
     );
-    summary("Dry run passed. No pull requests were changed.");
+    summary("Dry run passed, including Codex sandbox preflights. No pull requests were changed.");
     return;
   }
 

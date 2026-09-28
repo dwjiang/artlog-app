@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Verify subscription, Sentry and GitHub access without changing PRs
+        description: Verify Codex sandbox, subscription, Sentry and GitHub access without changing PRs
         type: boolean
         default: true
 
