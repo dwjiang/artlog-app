@@ -24,7 +24,7 @@ export function MiniPlayer() {
       : audio.phase === "error"
         ? "Couldn’t play · Tap to retry"
         : audio.waiting
-          ? "Ready when you are"
+          ? "Ready to play"
           : `${audio.playing ? "Playing" : "Paused"}${audio.duration ? ` · ${audioTime(audio.duration - audio.position)} left` : ""}`;
   return (
     <View style={styles.container}>

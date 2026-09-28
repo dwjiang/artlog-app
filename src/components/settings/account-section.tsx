@@ -40,7 +40,7 @@ export function AccountSection() {
   return (
     <>
       {account.email && (
-        <GroupedSection footer={<GroupedFooter>Your account is connected with Apple.</GroupedFooter>}>
+        <GroupedSection>
           <ValueRow label="Apple ID" value={account.email} />
         </GroupedSection>
       )}

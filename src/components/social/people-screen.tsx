@@ -138,11 +138,6 @@ export function PeopleScreen() {
             <Text variant="pageTitle" accessibilityRole="header">
               Friends
             </Text>
-            {!text.trim() && filter === "all" && (
-              <Text style={{ color: Gallery.muted, fontSize: 15 }}>
-                Search by name or username, or browse public profiles.
-              </Text>
-            )}
             {!guestFriends && !emptyFriends && (
               <SearchField
                 filled

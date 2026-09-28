@@ -17,7 +17,6 @@ import { socialStyles } from "./social-styles";
 export function PublishedArtwork({
   artwork,
   photos,
-  shared = false,
   frame = "none",
   token,
   note,
@@ -25,7 +24,6 @@ export function PublishedArtwork({
 }: {
   artwork: SharedArtwork["artwork"];
   photos: SharedArtwork["artwork"]["media"][];
-  shared?: boolean;
   frame?: Frame;
   token?: string | null;
   note?: string;
@@ -74,16 +72,13 @@ export function PublishedArtwork({
             <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" />
           </>
         )}
-        <View style={styles.divider} />
-        <Text style={styles.caption}>
-          {shared
-            ? "Shared from this visit. Other visits and private notes are not included."
-            : "Selected for this public wall. Only the displayed wall photo is included."}
-        </Text>
         {artwork.media.kind !== "placeholder" && artwork.media.credit && (
-          <Text selectable style={styles.caption}>
-            {artwork.media.credit}
-          </Text>
+          <>
+            <View style={styles.divider} />
+            <Text selectable style={styles.caption}>
+              {artwork.media.credit}
+            </Text>
+          </>
         )}
       </View>
     </>

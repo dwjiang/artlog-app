@@ -198,13 +198,9 @@ export function PageFooter({
           paddingHorizontal: 20,
           paddingTop: 26,
           paddingBottom: 8,
-          gap: 2,
         }}
       >
         <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>All visits shown.</Text>
-        <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
-          Tap a name to view their public wall.
-        </Text>
       </View>
     );
   }

@@ -127,11 +127,7 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
           </View>
         </Pressable>
       )}
-      ListEmptyComponent={
-        likes.done && !likes.loading && !likes.error ? (
-          <Empty title="No likes yet." detail="Be the first to like this visit." />
-        ) : null
-      }
+      ListEmptyComponent={likes.done && !likes.loading && !likes.error ? <Empty title="No likes yet." /> : null}
       ListFooterComponent={
         !likes.done || likes.loading || likes.error ? (
           <PageFooter {...likes} count={likes.items.length} noun="likes" />
@@ -303,9 +299,7 @@ function Comments({
           </View>
         )}
         ListEmptyComponent={
-          comments.done && !comments.loading && !comments.error ? (
-            <Empty title="No comments yet." detail="Start the conversation about this visit." />
-          ) : null
+          comments.done && !comments.loading && !comments.error ? <Empty title="No comments yet." /> : null
         }
         ListFooterComponent={
           !comments.done || comments.loading || comments.error ? (
@@ -372,9 +366,7 @@ function Comments({
         ) : (
           <View style={styles.join}>
             <Text style={[styles.body, { flex: 1 }]}>
-              {session.status === "profile-required"
-                ? "Create a profile to join the conversation."
-                : "Sign in to join the conversation."}
+              {session.status === "profile-required" ? "Create a profile to comment." : "Sign in to comment."}
             </Text>
             <GalleryButton
               label={session.status === "profile-required" ? "Create profile" : "Sign in"}
@@ -387,11 +379,10 @@ function Comments({
   );
 }
 
-function Empty({ title, detail }: { title: string; detail: string }) {
+function Empty({ title }: { title: string }) {
   return (
     <View style={styles.empty}>
       <Text style={styles.name}>{title}</Text>
-      <Text style={styles.meta}>{detail}</Text>
     </View>
   );
 }

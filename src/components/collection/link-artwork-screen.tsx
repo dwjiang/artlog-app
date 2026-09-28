@@ -156,7 +156,7 @@ function LinkPicker({
             )}
             {rows.length > 0 && (
               <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 20 }}>
-                Keep the artwork and its photos together across visits. Linking doesn’t copy or share photos.
+                Linking doesn’t copy or share photos.
               </Text>
             )}
             {savedId && rows.length > 0 && (

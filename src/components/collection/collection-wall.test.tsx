@@ -846,7 +846,7 @@ it("shows a blank wall and opens Scan when there is no saved art", async () => {
   await render(<CollectionWall works={[]} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Scan artwork" }));
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
-  expect(screen.getByText("Add artworks to your wall.")).toBeOnTheScreen();
+  expect(screen.getByText("No artworks on your wall yet.")).toBeOnTheScreen();
   expect(screen.queryByText("No saved artworks yet.")).toBeNull();
   let settle: (wall: OwnerWall) => void = () => {};
   mockTransport.getMine.mockImplementation(

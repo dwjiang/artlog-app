@@ -74,8 +74,8 @@ it("does not claim a queued guide is ready while it is still generating", async 
   mockAudio.waiting = true;
   const { rerender } = await render(<NowPlayingScreen />);
   expect(screen.getByText("Preparing audio")).toBeOnTheScreen();
-  expect(screen.queryByText("Ready when you are")).toBeNull();
+  expect(screen.queryByText("Ready to play")).toBeNull();
   mockAudio.phase = "ready";
   await rerender(<NowPlayingScreen />);
-  expect(screen.getByText("Ready when you are")).toBeOnTheScreen();
+  expect(screen.getByText("Ready to play")).toBeOnTheScreen();
 });
