@@ -156,7 +156,7 @@ afterEach(() => dismissToast());
 it("lets a guest move from the Friends prompt to Global rankings and open a public profile", async () => {
   await render(<LeaderboardScreen />);
   expect(screen.getByRole("header", { name: "Sign in to see friends’ rankings." })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Join the leaderboard" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "global",
@@ -171,6 +171,19 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
     params: { profileId: "global-person" },
   });
   expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBeOnTheScreen();
+});
+
+it("keeps the title, ranking filter, and participation action mounted across audiences", async () => {
+  await render(<LeaderboardScreen />);
+  const title = screen.getByRole("header", { name: "Leaderboards" });
+  const metric = screen.getByRole("checkbox", { name: "Artworks" });
+  const participation = screen.getByRole("button", { name: "Join the leaderboard" });
+  for (const name of ["Global", "Friends", "Global"]) {
+    await fireEvent.press(screen.getByRole("button", { name }));
+    expect(screen.getByRole("header", { name: "Leaderboards" })).toBe(title);
+    expect(screen.getByRole("checkbox", { name: "Artworks" })).toBe(metric);
+    expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBe(participation);
+  }
 });
 
 it("changes the ranking metric without time-period controls", async () => {

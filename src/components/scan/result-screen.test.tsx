@@ -234,7 +234,7 @@ beforeEach(async () => {
   }));
   jest.spyOn(client, "mutation").mockImplementation(async (...[fn]: Parameters<ConvexReactClient["mutation"]>) => {
     if (getFunctionName(fn) === "feedback:rejectMatch") {
-      return { feedbackId: "fb-1" };
+      return { feedbackId: "fb-1", canResolve: true };
     }
     return null;
   });
@@ -680,9 +680,79 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
   expect(screen.queryByText("About this work")).toBeNull();
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Water Lilies, Claude Monet" })).toBeNull();
+  expect(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
 });
+
+it("restores previous matches after repeated picks through Not right", async () => {
+  await render(result());
+  for (const candidate of [bridge, haystacks, lilies]) {
+    await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+    const matches = screen.getAllByRole("button", { name: new RegExp(`^${candidate.title},`) });
+    await fireEvent.press(matches[matches.length - 1]);
+    expect(screen.getByText(`Could this be ${candidate.title}?`)).toBeOnTheScreen();
+    for (const other of [lilies, bridge, haystacks].filter((work) => work !== candidate)) {
+      expect(screen.getByRole("button", { name: new RegExp(`^${other.title},`) })).toBeOnTheScreen();
+    }
+    expect(screen.queryByRole("button", { name: new RegExp(`^${candidate.title},`) })).toBeNull();
+  }
+});
+
+it.each([false, true])("keeps the first correction when revisiting a rejected match (pending: %s)", async (pending) => {
+  jest
+    .mocked(client.mutation)
+    .mockImplementation(async (...[fn, args]: Parameters<ConvexReactClient["mutation"]>) =>
+      getFunctionName(fn) === "feedback:rejectMatch"
+        ? { feedbackId: `fb-${(args as { objectId: string }).objectId}`, canResolve: true }
+        : null,
+    );
+  let finishSigning = () => {};
+  if (pending) {
+    const gate = new Promise<void>((resolve) => {
+      finishSigning = resolve;
+    });
+    mockSign.mockImplementation(async () => {
+      await gate;
+      return { nonce: "nonce-1", assertionBase64: "", payloadJson: "p" };
+    });
+  }
+  await render(result());
+  for (const candidate of [bridge, lilies, haystacks]) {
+    await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+    const matches = screen.getAllByRole("button", { name: new RegExp(`^${candidate.title},`) });
+    await fireEvent.press(matches[matches.length - 1]);
+    expect(screen.getByText(`Could this be ${candidate.title}?`)).toBeOnTheScreen();
+  }
+  expect(mockSign).toHaveBeenCalledTimes(2);
+  await act(async () => finishSigning());
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(4));
+  const resolutions = jest
+    .mocked(client.mutation)
+    .mock.calls.filter(([fn]) => getFunctionName(fn) === "feedback:resolveRejection")
+    .map(([, args]) => args);
+  expect(resolutions).toEqual([
+    { feedbackId: `fb-${lilies.objectId}`, resolution: { kind: "runner_up", objectId: bridge.objectId } },
+    { feedbackId: `fb-${bridge.objectId}`, resolution: { kind: "runner_up", objectId: lilies.objectId } },
+  ]);
+});
+
+it.each(["pick", "label"])(
+  "does not resolve feedback completed in an earlier visit when choosing %s",
+  async (action) => {
+    jest.mocked(client.mutation).mockResolvedValue({ feedbackId: "fb-1", canResolve: false });
+    await render(result());
+    await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+    await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
+    if (action === "pick") {
+      await fireEvent.press(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
+    } else {
+      await fireEvent.press(screen.getByRole("button", { name: "Scan the museum label" }));
+      await act(async () => resolveWithLabel(client, SCAN_ID, "contrib-1" as Id<"contributions">));
+    }
+    expect(screen.queryByText("This device can’t send feedback yet.")).toBeNull();
+    expect(client.mutation).toHaveBeenCalledTimes(1);
+  },
+);
 
 it("routes to the label from the sheet and keeps the choices when feedback cannot be sent", async () => {
   mockSign.mockResolvedValue(null);
@@ -715,6 +785,21 @@ it("hands a recorded rejection to the label screen so a verified label can resol
       resolution: { kind: "label", contributionId: "contrib-1" },
     }),
   );
+});
+
+it("can still resolve a rejection after returning from label capture without a contribution", async () => {
+  await render(result());
+  await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Scan the museum label" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not right?" }));
+  await fireEvent.press(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(2));
+  expect(jest.mocked(client.mutation).mock.calls[1][1]).toEqual({
+    feedbackId: "fb-1",
+    resolution: { kind: "runner_up", objectId: bridge.objectId },
+  });
+  await act(async () => resolveWithLabel(client, SCAN_ID, "contrib-1" as Id<"contributions">));
+  expect(client.mutation).toHaveBeenCalledTimes(2);
 });
 
 it("opens the label while the rejection challenge waits for network", async () => {

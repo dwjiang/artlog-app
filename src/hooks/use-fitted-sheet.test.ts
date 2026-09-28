@@ -29,3 +29,22 @@ it("stops at the tallest sheet the screen allows so long content scrolls", async
   await act(() => result.current.onContentSizeChange(390, 5000));
   expect(result.current.height).toBe(Dimensions.get("window").height);
 });
+
+it("does not count the header and footer twice when they move into the scroll content", async () => {
+  const { result, rerender } = await renderHook(
+    ({ scrollAll }: { scrollAll: boolean }) => useFittedSheetHeight({ scrollAll }),
+    { initialProps: { scrollAll: false } },
+  );
+  await act(() => {
+    result.current.onHeaderLayout(layout(60));
+    result.current.onContentSizeChange(390, 120);
+    result.current.onFooterLayout(layout(90));
+  });
+  expect(result.current.height).toBe(270);
+  await rerender({ scrollAll: true });
+  await act(() => result.current.onContentSizeChange(390, 270));
+  expect(result.current.height).toBe(270);
+  await rerender({ scrollAll: false });
+  await act(() => result.current.onContentSizeChange(390, 120));
+  expect(result.current.height).toBe(270);
+});

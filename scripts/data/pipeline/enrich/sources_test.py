@@ -6,6 +6,7 @@ from pipeline.enrich.sources import (
     links_to_artwork,
     source_identity,
     source_score,
+    trim_sources,
     wikipedia_lead,
 )
 from pipeline.polite_http import PoliteClient
@@ -50,6 +51,10 @@ def test_owner_text_search_filter_and_character_limits():
                 },
                 {"url": "https://pinterest.com/a", "content": "Bad"},
                 {"url": "https://www.metmuseum.org/art/1", "content": "duplicate"},
+                {
+                    "url": "https://www.metmuseum.org/art/1?lang=it",
+                    "content": "same page, translated",
+                },
             ],
         )
         sources = gatherer.gather(
@@ -65,6 +70,41 @@ def test_owner_text_search_filter_and_character_limits():
     assert all(len(s["text"]) <= 24000 for s in sources)
     assert "Buy tickets" not in sources[0]["text"]
     assert "TRACKING" not in sources[0]["text"]
+
+
+def test_repeated_passages_stay_in_the_best_source_and_the_budget_caps_the_request():
+    quoted = (
+        "Van Gogh painted this wheat field with cypresses in late June 1889 "
+        "while at the asylum in Saint-Rémy."
+    )
+    remark = (
+        "Critics admired it when it was first shown in Paris, "
+        "and the museum bought it a century later."
+    )
+    owner = {
+        "url": "https://museum.example/work",
+        "label": "Museum",
+        "score": 1.0,
+        "text": f"Title\n{quoted}\nBought in 1993 with a gift.",
+    }
+    article = {
+        "url": "https://en.wikipedia.org/wiki/Work",
+        "label": "Wikipedia",
+        "score": 0.7,
+        "text": f"Title\n“{quoted}”\n{remark}",
+    }
+    mirror = {"url": "https://mirror.example/work", "label": "mirror", "score": 0.6, "text": quoted}
+    assert trim_sources([owner, article, mirror]) == [
+        owner,
+        {**article, "text": f"Title\n{remark}"},
+    ]
+    trimmed = trim_sources(
+        [
+            {"url": u, "label": u, "score": s, "text": u * 30_000}
+            for u, s in (("a", 1), ("b", 0.9), ("c", 0.8))
+        ]
+    )
+    assert [(s["url"], len(s["text"])) for s in trimmed] == [("a", 30_000), ("b", 10_000)]
 
 
 def test_owner_page_is_canonical_regardless_of_domain_score():

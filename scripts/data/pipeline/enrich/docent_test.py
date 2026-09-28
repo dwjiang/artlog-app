@@ -67,10 +67,8 @@ def test_docent_json_request_validation_and_token_accounting(factory):
     assert body["temperature"] == 0
     assert body["response_format"]["json_schema"]["strict"]
     assert body["chat_template_kwargs"] == {"enable_thinking": False}
-    assert json.loads(body["messages"][1]["content"]) == {
-        "input": facts,
-        "schema": prompts.DOCENT_SCHEMA,
-    }
+    # The grammar carries the schema; the prompt carries only the data.
+    assert json.loads(body["messages"][1]["content"]) == {"input": facts}
     assert provider.usage.prompt_tokens == 100 and provider.usage.completion_tokens == 50
     assert provider.usage.estimated_model_usd == pytest.approx(0.000018)
     assert provider.writer.mock_calls == [
@@ -92,13 +90,7 @@ def test_malformed_or_truncated_output_is_rejected_without_retry(factory, value,
 
 def test_fact_schema_rejection_falls_back_and_validates(factory):
     requests = []
-    fact = {
-        "id": "f1",
-        "text": "A sourced fact",
-        "sourceUrl": "https://metmuseum.org/art",
-        "sourceLabel": "Forged label",
-        "sourceScore": 0.1,
-    }
+    fact = {"text": "A sourced fact", "source": "s1"}
 
     def respond(request):
         body = json.loads(request.content)
@@ -108,14 +100,29 @@ def test_fact_schema_rejection_falls_back_and_validates(factory):
         return completion({"facts": [fact]})
 
     provider = factory(respond)
+    source = {
+        "url": "https://metmuseum.org/art",
+        "label": "Met",
+        "score": 1,
+        "text": "A sourced fact",
+    }
     result = factsheet.generate(
         provider,
-        [{"url": fact["sourceUrl"], "label": "Met", "score": 1, "text": "A sourced fact"}],
+        [source],
         {"title": "Sunflowers", "artist": "Vincent van Gogh", "date": "1887"},
     )
-    target = json.loads(requests[0]["messages"][1]["content"])["input"]["target"]
-    assert target == {"title": "Sunflowers", "artist": "Vincent van Gogh", "date": "1887"}
+    first = json.loads(requests[0]["messages"][1]["content"])
+    assert first == {
+        "input": {
+            "target": {"title": "Sunflowers", "artist": "Vincent van Gogh", "date": "1887"},
+            "sources": [{"id": "s1", **source}],
+        }
+    }
+    assert requests[0]["response_format"]["json_schema"]["schema"] == prompts.fact_sheet_schema(1)
+    # Without a grammar the fallback prompt has to carry the wrapped schema itself.
     assert requests[1]["response_format"] == {"type": "json_object"}
+    assert "schema" in json.loads(requests[1]["messages"][1]["content"])
+    assert result[0]["sourceUrl"] == source["url"]
     assert result[0]["sourceLabel"] == "Met" and result[0]["sourceScore"] == 1
     assert provider.schema_fallbacks == 1 and provider.usage.token_factory_calls == 2
 
@@ -178,8 +185,23 @@ def test_versioned_system_prompts_match_convex():
 
 
 @pytest.mark.parametrize(
-    "name,filename", [("FACT_SHEET_SCHEMA", "factsheet"), ("DOCENT_SCHEMA", "docent")]
+    "schema,filename",
+    [(prompts.fact_sheet_schema(2), "factsheet"), (prompts.DOCENT_SCHEMA, "docent")],
 )
-def test_schemas_match_the_evaluated_model_contract(name, filename):
-    schema = json.loads((REPO_ROOT / f"scripts/data/fixtures/{filename}-schema.json").read_text())
-    assert getattr(prompts, name) == schema
+def test_schemas_match_the_evaluated_model_contract(schema, filename):
+    retained = json.loads((REPO_ROOT / f"scripts/data/fixtures/{filename}-schema.json").read_text())
+    # The retained contract names no sources; the live schema lets a fact cite only those sent.
+    source = schema["items"]["properties"].get("source")
+    if source:
+        schema = {
+            **schema,
+            "items": {
+                **schema["items"],
+                "properties": {
+                    **schema["items"]["properties"],
+                    "source": {k: v for k, v in source.items() if k != "enum"},
+                },
+            },
+        }
+        assert source["enum"] == ["s1", "s2"]
+    assert schema == retained

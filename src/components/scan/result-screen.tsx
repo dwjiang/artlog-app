@@ -16,7 +16,13 @@ import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
-import { handOffLabelRejection, rejectMatch, resolveWithRunnerUp } from "@/lib/result/feedback";
+import {
+  consumeRejection,
+  handOffLabelRejection,
+  rejectMatch,
+  resolveWithRunnerUp,
+  type Rejection,
+} from "@/lib/result/feedback";
 import { draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import {
   toResultViewState,
@@ -88,8 +94,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
   const { saving, savedId, completion, error: saveError, save } = useSaveResult();
-  // The latest "Not right?" rejection, so a pick made before the server answers still resolves it.
-  const rejection = useRef<Promise<Id<"feedback"> | null>>(undefined);
+  // Consume feedback before awaiting the network so revisiting a match cannot submit another resolution.
+  const rejections = useRef(new Map<Id<"objects">, Rejection>());
+  const rejection = useRef<Rejection>(undefined);
   const view: ResultViewState = manual
     ? { kind: "unidentified", editable: true, runnerUps: [] }
     : toResultViewState(scan, selection);
@@ -126,21 +133,29 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
   function notRight() {
     const { primary } = view;
     if (!primary) return;
-    setSelection((current) => ({
-      ...current,
-      rejectedObjectIds: [...(current.rejectedObjectIds ?? []), primary.objectId],
-    }));
     setSheet({ open: true });
-    rejection.current = rejectMatch(client, scanId, primary.objectId).then(
-      (feedbackId) => {
-        if (!feedbackId) {
+    const existing = rejections.current.get(primary.objectId);
+    if (existing) {
+      rejection.current = existing;
+      return;
+    }
+    const pending = rejectMatch(client, scanId, primary.objectId).then(
+      (feedback) => {
+        if (!feedback) {
+          rejections.current.delete(primary.objectId);
           setSheet((current) =>
             current.open ? { ...current, notice: "This device can’t send feedback yet." } : current,
           );
+          return null;
         }
-        return feedbackId;
+        if (!feedback.canResolve) {
+          entry.consumed = true;
+          return null;
+        }
+        return feedback.feedbackId;
       },
       (error: unknown) => {
+        rejections.current.delete(primary.objectId);
         reportError(error, "result.reject_match");
         console.warn("Could not record the rejection", error);
         setSheet((current) =>
@@ -154,6 +169,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
         return null;
       },
     );
+    const entry = { pending, consumed: false };
+    rejections.current.set(primary.objectId, entry);
+    rejection.current = entry;
   }
 
   function pickRunnerUp(candidate: ResultCandidate) {
@@ -162,9 +180,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       chosenObjectId: candidate.objectId,
     }));
     setSheet({ open: false });
-    const pending = rejection.current;
-    if (!pending) return;
+    const pending = consumeRejection(rejection.current);
     rejection.current = undefined;
+    if (!pending) return;
     void pending
       .then((feedbackId) => feedbackId && resolveWithRunnerUp(client, feedbackId, candidate.objectId))
       .catch((error: unknown) => {

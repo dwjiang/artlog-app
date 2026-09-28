@@ -36,7 +36,7 @@ Patches are limited to `src/`, `convex/`, `shared/` and `modules/`, with at most
 
 ## Credentials and evidence
 
-The workflow installs dependencies before restoring Codex credentials. Agents have no GitHub write token, Sentry token or refresh-token-management token in their environment. Shell network access, apps, plugins, hooks, project MCP servers and nested agents are disabled. Codex 0.153.4 uses its explicit `features.use_legacy_landlock` backend because Bubblewrap's loopback setup fails on the hosted runner; filesystem restrictions and seccomp network blocking remain enabled. Each agent session first proves shell access in its sandbox. Tests, lint and typechecking execute candidate code, so they run in the same no-network workspace sandbox via `codex sandbox`. Codex authentication remains accessible to the Codex client on the trusted private runner, as required by the subscription approach.
+The workflow installs dependencies and verifies the real Codex sandbox before restoring credentials. On Ubuntu 24.04 it installs Bubblewrap and loads the distribution’s `bwrap-userns-restrict` AppArmor profile, following [OpenAI’s sandbox prerequisites](https://learn.chatgpt.com/docs/sandboxing#prerequisites). The credential-free check exercises both sandbox modes: permitted reads/writes, rejected writes outside the workspace and to protected metadata, and blocked network connections. Agents have no GitHub write token, Sentry token or refresh-token-management token in their environment. Shell network access, apps, plugins, hooks, project MCP servers and nested agents are disabled. Codex 0.153.4 uses Bubblewrap with filesystem restrictions and seccomp network blocking enabled; its legacy Landlock backend cannot enforce workspace metadata protections and must remain disabled. Each agent session first proves shell access in its sandbox. Tests, lint and typechecking execute candidate code, so they run in the same no-network workspace sandbox via `codex sandbox`. Codex authentication remains accessible to the Codex client on the trusted private runner, as required by the subscription approach.
 
 Sentry evidence contains event identifiers, timestamps, exception types and stack locations. It omits free-text exception messages, user objects, requests, breadcrumbs and local variables. This deliberately makes some issues unsuitable for an automatic fix; the agent must skip unsupported diagnoses. Logs and the evidence payload are not uploaded as artifacts. Only the validated publication plan and patch are transferred between jobs, with one-day retention.
 
@@ -46,6 +46,8 @@ Credentials are restored from the Actions secret and saved back after the run, e
 
 ```bash
 npm run test:sentry-automation
+# Requires the pinned Codex CLI and, on Linux, the sandbox prerequisites above.
+CODEX_SANDBOX_TESTS=true node --test scripts/sentry-automation/sandbox.test.ts
 npx tsc --noEmit
 npm run lint
 ```

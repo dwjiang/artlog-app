@@ -58,8 +58,7 @@ async function installBundledTable(target: File): Promise<{ assetKey: string; ca
 async function installedTableIsValid(): Promise<boolean> {
   const db = await openDatabaseAsync(VENUE_DB_NAME, { useNewConnection: true });
   try {
-    await validateVenueTable(db);
-    return true;
+    return (await missingVenueColumn(db)) === undefined;
   } catch (error) {
     reportError(error, "venue.table.validate", { level: "warning" });
     // The installed hash only records which bundle was copied, not that the copy landed intact.
@@ -86,9 +85,15 @@ async function journalVenueRows(): Promise<VenueRow[]> {
 
 let opening: Promise<SQLiteDatabase> | undefined;
 
-async function validateVenueTable(db: SQLiteDatabase): Promise<void> {
-  await db.getAllAsync(`SELECT ${VENUE_COLUMNS} FROM venues LIMIT 0`);
-  await db.getAllAsync("SELECT changeVersion, generatedAt FROM meta LIMIT 0");
+async function missingVenueColumn(db: SQLiteDatabase): Promise<string | undefined> {
+  for (const [table, required] of [
+    ["venues", VENUE_COLUMNS.split(", ")],
+    ["meta", ["changeVersion", "generatedAt"]],
+  ] as const) {
+    const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    const missing = required.find((name) => !columns.some((column) => column.name === name));
+    if (missing) return `${table}.${missing}`;
+  }
 }
 
 /** The writable venue table, installed from the app's bundled asset when that changes. */
@@ -98,7 +103,8 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
     const installed = await installBundledTable(target);
     const db = await openDatabaseAsync(VENUE_DB_NAME);
     try {
-      await validateVenueTable(db);
+      const missing = await missingVenueColumn(db);
+      if (missing) throw new Error(`The bundled venue table is missing ${missing}`);
       await db.execAsync("CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)");
       if (installed) {
         for (const venue of installed.carried) {

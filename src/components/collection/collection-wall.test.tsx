@@ -219,7 +219,13 @@ it("gives signed-out owners a private wall on this iPhone without contacting the
     "device:private-wall",
   );
   await render(<CollectionWall works={[{ localId: "guest-save" } as SavedWork]} />);
-  expect(await screen.findByText("Your wall stays private on this iPhone until you sign in.")).toBeOnTheScreen();
+  const footnote = await screen.findByText("Your wall stays private on this iPhone until you sign in.");
+  expect(footnote).toBeOnTheScreen();
+  // Native tab bars and their accessories contribute insets; the final action must scroll above them.
+  expect(screen.root?.queryAll((node) => node.type === "RCTScrollView")[0].props.contentInsetAdjustmentBehavior).toBe(
+    "automatic",
+  );
+  expect(footnote.parent?.parent).toHaveStyle({ flexGrow: 1 });
   await fireEvent.press(screen.getByRole("button", { name: "Choose artworks" }));
   expect(await screen.findByText("0 selected · Your wall is private")).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole("checkbox", { name: "Water Lilies" }));
@@ -846,7 +852,7 @@ it("shows a blank wall and opens Scan when there is no saved art", async () => {
   await render(<CollectionWall works={[]} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Scan artwork" }));
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
-  expect(screen.getByText("Add artworks to your wall.")).toBeOnTheScreen();
+  expect(screen.getByText("No artworks on your wall yet.")).toBeOnTheScreen();
   expect(screen.queryByText("No saved artworks yet.")).toBeNull();
   let settle: (wall: OwnerWall) => void = () => {};
   mockTransport.getMine.mockImplementation(

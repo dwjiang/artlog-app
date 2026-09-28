@@ -7,7 +7,7 @@ import { ThemedView } from "@/components/themed-view";
 import type { PendingScan } from "@/db/schema";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { draftFromCandidate } from "@/lib/result/snapshot";
-import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
+import { selectResultCandidates, type ResultCandidate, type ResultViewState } from "@/lib/result/state";
 import { useSaveResult } from "@/lib/result/use-save-result";
 import type { OfflineResult } from "@/shared/offline/types";
 
@@ -38,8 +38,7 @@ export function OfflineResultScreen({
     ? { kind: "unidentified", editable: true, runnerUps: [] }
     : {
         kind: chosen ? "soft" : "confident",
-        primary: chosen ?? result.best,
-        runnerUps: (result.runnerUps ?? []).filter((candidate) => candidate.objectId !== chosen?.objectId),
+        ...selectResultCandidates(result, chosen?.objectId),
         docent: chosen ? undefined : result.docent,
         factSheet: chosen ? undefined : result.factSheet,
         editable: true,

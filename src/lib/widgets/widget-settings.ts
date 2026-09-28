@@ -48,11 +48,10 @@ export const widgetFrames = [
 ] as const;
 
 export const widgetCaptions = [
-  { value: "none", name: "None", description: "Show only the painting." },
+  { value: "none", name: "None" },
   {
     value: "artwork",
     name: "Title + artist",
-    description: "Keep the artwork information.",
   },
   {
     value: "visit",

@@ -10,8 +10,6 @@ export function PrivacySection() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
-      <ThemedText themeColor="textSecondary">Here’s how Artlog uses your photos and information.</ThemedText>
-      <ThemedText variant="section">How your data is used</ThemedText>
       {[
         [
           "Identifying art",

@@ -308,6 +308,23 @@ describe("rejectMatch", () => {
 });
 
 describe("resolveRejection", () => {
+  it("marks a repeated rejection as complete after the first correction", async () => {
+    const { scanId, user, best, runnerUp, reject, feedback, object, feedbackRows } = await fixture();
+    const initial = await reject(best.objectId);
+    expect(initial.canResolve).toBe(true);
+    await user.as.mutation(api.feedback.resolveRejection, {
+      feedbackId: initial.feedbackId,
+      resolution: { kind: "runner_up", objectId: runnerUp.objectId },
+    });
+    expect(await reject(best.objectId)).toEqual({ feedbackId: initial.feedbackId, canResolve: false });
+    expect(await feedback(initial.feedbackId)).toMatchObject({
+      scanId,
+      resolution: { kind: "runner_up", objectId: runnerUp.objectId },
+    });
+    expect(await object(best.objectId)).toMatchObject({ rejectCount: 1 });
+    expect(await feedbackRows()).toHaveLength(1);
+  });
+
   it("keeps a completed resolution immutable while allowing identical retries", async () => {
     const { t, user, scanId, venueId, best, runnerUp, other, reject, feedback, proposals } = await fixture();
     await t.run((ctx) =>

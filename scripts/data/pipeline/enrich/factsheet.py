@@ -1,34 +1,31 @@
-import re
-import unicodedata
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
-
-from .prompts import FACT_SHEET_MAX_TOKENS, FACT_SHEET_PROMPT, FACT_SHEET_SCHEMA, MAX_FACTS
-from .validator import normalize
+from .prompts import (
+    FACT_SHEET_MAX_TOKENS,
+    FACT_SHEET_PROMPT,
+    MAX_FACTS,
+    fact_sheet_schema,
+    source_id,
+)
+from .validator import normalize, source_passage
 
 
 class RawFact(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    id: str
     text: str
-    sourceUrl: str
-    sourceLabel: str
-    sourceScore: float = Field(ge=0, le=1)
+    source: str
 
 
 FACTS = TypeAdapter(list[RawFact])
 
 
-def source_passage(text: str) -> str:
-    return normalize(re.sub(r"[\"'‘’“”]", "", unicodedata.normalize("NFKC", text)))
-
-
+# A fact keeps only the source it cited, and only when its text is verbatim in that source.
 def build_fact_sheet(raw: list[dict], sources: list[dict]) -> list[dict]:
-    by_url = {source["url"]: source for source in sources}
+    by_id = {source_id(index): source for index, source in enumerate(sources)}
     seen = set()
     facts = []
     for fact in raw:
-        source = by_url.get(fact["sourceUrl"].strip())
+        source = by_id.get(fact["source"].strip())
         text = normalize(fact["text"])
         if (
             not source
@@ -58,9 +55,9 @@ def generate(provider, sources: list[dict], artwork: dict) -> list[dict]:
             "target": {
                 k: artwork[k] for k in ("title", "artist", "date", "wikidataId") if k in artwork
             },
-            "sources": sources,
+            "sources": [{"id": source_id(index), **source} for index, source in enumerate(sources)],
         },
-        schema=FACT_SHEET_SCHEMA,
+        schema=fact_sheet_schema(len(sources)),
         max_tokens=FACT_SHEET_MAX_TOKENS,
     )
     try:

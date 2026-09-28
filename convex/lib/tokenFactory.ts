@@ -19,8 +19,11 @@ export type ChatJsonRequest<T> = {
   timeoutMs?: number;
 };
 
-// `calls` counts every request sent, including the retry, for spend reconciliation.
-export type ChatJsonResponse<T> = { value: T; calls: number };
+export type TokenUsage = { promptTokens: number; completionTokens: number };
+
+// `calls` counts every request sent, including the retry, for spend reconciliation; `usage` is what
+// the provider reported for the request that answered.
+export type ChatJsonResponse<T> = { value: T; calls: number; usage?: TokenUsage };
 
 export function retryDelayMs(retryAfter: string | null, now = Date.now()): number {
   if (retryAfter) {
@@ -40,13 +43,14 @@ function modelError(reason: string, calls: number): ConvexError<{ code: string; 
   return new ConvexError({ code: "model_error", reason, calls });
 }
 
-function parseCompletion<T>(body: string, parse: (value: unknown) => T | null, calls: number): T {
-  let json: unknown;
-  try {
-    json = JSON.parse(body);
-  } catch {
-    throw modelError("bad_response", calls);
-  }
+function tokenUsage(json: unknown): TokenUsage | undefined {
+  const { usage } = json as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } };
+  return typeof usage?.prompt_tokens === "number" && typeof usage.completion_tokens === "number"
+    ? { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens }
+    : undefined;
+}
+
+function parseCompletion<T>(json: unknown, parse: (value: unknown) => T | null, calls: number): T {
   const choice = (
     json as {
       choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
@@ -100,6 +104,7 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
   let calls = 0;
   for (;;) {
     calls++;
+    const started = Date.now();
     let page;
     try {
       page = await fetchText(`${BASE_URL}/chat/completions`, init, {
@@ -117,6 +122,19 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
       throw modelError(`http_${page.status}`, calls);
     }
     if (page.status !== 200) throw modelError(`http_${page.status}`, calls);
-    return { value: parseCompletion(page.body, request.parse, calls), calls };
+    let json: unknown;
+    try {
+      json = JSON.parse(page.body);
+    } catch {
+      throw modelError("bad_response", calls);
+    }
+    const usage = tokenUsage(json);
+    // Tokens are what the bill counts and the spend table only counts calls; one line per answer,
+    // before the content is checked, keeps every model's cost measurable from the logs.
+    console.log(
+      "tokenFactory usage",
+      JSON.stringify({ model: request.model, schema: request.schemaName, ...usage, ms: Date.now() - started, calls }),
+    );
+    return { value: parseCompletion(json, request.parse, calls), calls, usage };
   }
 }

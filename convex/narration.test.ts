@@ -285,18 +285,23 @@ it("re-renders from corrected artwork metadata even when the research is unchang
   expect(speech.input.startsWith(`${opening} ${guideBodyFixture[0].sentence}`)).toBe(true);
 });
 
-it("re-renders audio that was made with another voice or model", async () => {
+it("speaks the kept script again for a new voice and rewrites it only for a new guide model", async () => {
   const { t, fetcher, rows, render } = await setup();
   const first = await render();
   const entry = (await rows())[0];
   await t.run((ctx) => ctx.db.patch("narrationAudio", entry._id, { voice: "previous-voice" }));
-  expect((await render()).renderId).not.toBe(first.renderId);
+  const respoken = await render();
+  expect(respoken.renderId).not.toBe(first.renderId);
+  expect(respoken.sentences).toEqual(first.sentences);
+  // Speech only: the voice change costs no Token Factory call.
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(fetcher.mock.calls.filter(([url]) => String(url).includes("tokenfactory"))).toHaveLength(1);
   await t.run(async (ctx) => {
     const row = (await ctx.db.query("narrationAudio").take(1))[0];
     await ctx.db.patch("narrationAudio", row._id, { guideModel: "previous-model" });
   });
   await render();
-  expect(fetcher).toHaveBeenCalledTimes(6);
+  expect(fetcher).toHaveBeenCalledTimes(5);
 });
 
 it("tells the client which render is current only once its file is stored and while it is fresh", async () => {
@@ -325,7 +330,7 @@ it("clears every rendering and its audio so the next play renders again", async 
   expect(fetcher).toHaveBeenCalledTimes(4);
 });
 
-it("releases failed generations, hides provider response details, and permits retry", async () => {
+it("keeps the script when speech fails, hides provider response details, and speaks it on retry", async () => {
   const { t, as, args, fetcher, rows, render } = await setup();
   fetcher.mockResolvedValueOnce(completion());
   fetcher.mockResolvedValueOnce(new Response("Sensitive provider error", { status: 429 }));
@@ -333,9 +338,14 @@ it("releases failed generations, hides provider response details, and permits re
   expect(failure).toMatchObject({ data: { code: "narration_provider_failed" } });
   expect(JSON.stringify(failure)).not.toContain("Sensitive");
   await t.finishInProgressScheduledFunctions();
-  expect(await rows()).toHaveLength(0);
+  const [kept] = await rows();
+  expect(kept).toMatchObject({ sentences: guideFixture });
+  expect(kept).not.toHaveProperty("claim");
+  expect(kept).not.toHaveProperty("segments");
   expect((await render()).uri).toBeTruthy();
-  expect(fetcher).toHaveBeenCalledTimes(4);
+  // The retry paid for speech only.
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect((await readSpend(t))?.tokenFactoryCalls).toBe(1);
 });
 
 it("releases a stream that drops midway and deletes the segments it already stored", async () => {
@@ -347,7 +357,9 @@ it("releases a stream that drops midway and deletes the segments it already stor
   expect(await files()).toHaveLength(1);
   held.release();
   await t.finishInProgressScheduledFunctions();
-  expect(await rows()).toHaveLength(0);
+  expect((await rows()).map((row) => [row.claim, row.segments, row.sentences?.length])).toEqual([
+    [undefined, undefined, guideFixture.length],
+  ]);
   expect(await files()).toEqual([]);
   expect((await t.fetch(path(live.uri))).status).toBe(404);
 });

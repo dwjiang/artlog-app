@@ -101,7 +101,7 @@ for (const role of ["fix", "review", "probe"] as const) {
     assert.ok(calls.slice(0, -1).every((args) => args[0] === "sandbox"));
     assert.ok(calls.length > 1);
     for (const args of calls) {
-      assert.ok(args.includes("features.use_legacy_landlock=true"));
+      assert.ok(args.includes("features.use_legacy_landlock=false"));
       assert.ok(args.includes("sandbox_workspace_write.network_access=false"));
       assert.ok(!args.includes("danger-full-access"));
     }

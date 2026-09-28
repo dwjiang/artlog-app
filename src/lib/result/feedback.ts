@@ -7,9 +7,17 @@ import { rejectionPayload } from "@/shared/attestation/attested-payloads";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
-const labelRejections = new Map<Id<"scans">, Promise<Id<"feedback"> | null>>();
+export type Rejection = { pending: Promise<Id<"feedback"> | null>; consumed: boolean };
 
-export function handOffLabelRejection(scanId: Id<"scans">, rejection: Promise<Id<"feedback"> | null>): void {
+const labelRejections = new Map<Id<"scans">, Rejection>();
+
+export function consumeRejection(rejection: Rejection | undefined) {
+  if (!rejection || rejection.consumed) return;
+  rejection.consumed = true;
+  return rejection.pending;
+}
+
+export function handOffLabelRejection(scanId: Id<"scans">, rejection: Rejection): void {
   labelRejections.set(scanId, rejection);
 }
 
@@ -18,10 +26,10 @@ export function resolveWithLabel(
   scanId: Id<"scans">,
   contributionId: Id<"contributions">,
 ): void {
-  const rejection = labelRejections.get(scanId);
+  const pending = consumeRejection(labelRejections.get(scanId));
   labelRejections.delete(scanId);
   // Feedback may still be waiting for signal; neither navigation nor sharing waits on it.
-  void rejection
+  void pending
     ?.then(
       (feedbackId) =>
         feedbackId
@@ -41,16 +49,15 @@ export async function rejectMatch(
   client: Pick<ConvexReactClient, "mutation">,
   scanId: Id<"scans">,
   objectId: Id<"objects">,
-): Promise<Id<"feedback"> | null> {
+) {
   const signed = await signPayload(rejectionPayload(scanId, objectId));
   if (!signed) return null;
-  const { feedbackId } = await client.mutation(api.feedback.rejectMatch, {
+  return client.mutation(api.feedback.rejectMatch, {
     scanId,
     objectId,
     nonce: signed.nonce,
     assertionBase64: signed.assertionBase64,
   });
-  return feedbackId;
 }
 
 export function resolveWithRunnerUp(

@@ -111,6 +111,8 @@ Interface writing:
 
 Behavior and privacy:
 
+- Do keep shared headers and controls mounted in the same layout across tabs and
+  filters. Put changing content below them; retain unavailable controls as disabled.
 - Do keep available content visible during refresh, pagination, and recoverable
   failures; show an empty state only after loading completes.
 - Do keep busy actions labeled and in place, block duplicate activation, and

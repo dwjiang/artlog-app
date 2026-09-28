@@ -15,7 +15,15 @@ import {
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, env, httpAction, internalAction, internalQuery, type MutationCtx } from "./_generated/server";
+import {
+  action,
+  env,
+  httpAction,
+  internalAction,
+  internalQuery,
+  type ActionCtx,
+  type MutationCtx,
+} from "./_generated/server";
 import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -28,13 +36,14 @@ import {
   narrationFiles,
   narrationProvenance,
   renderedNarration,
+  scriptCurrent,
   type RenderedNarration,
 } from "./lib/narrationCache";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitDevice, limitKey } from "./lib/rateLimits";
 import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
-import { docentSentence, factSheetEntry, type DocentSentence } from "./lib/validators";
+import { docentSentence, factSheetEntry, type DocentSentence, type FactSheetEntry } from "./lib/validators";
 
 const audio = v.object({
   uri: v.string(),
@@ -62,6 +71,7 @@ export const claim = internalMutation({
     audio: v.union(audio, v.null()),
     facts: v.array(factSheetEntry),
     opening: v.string(),
+    sentences: v.optional(v.array(docentSentence)),
   }),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
@@ -76,18 +86,20 @@ export const claim = internalMutation({
     const audio = await renderedNarration(ctx, artwork);
     if (audio) return { facts, opening, owned: false, audio };
     const entry = await narrationEntry(ctx, artwork._id);
-    if (entry && narrationCurrent(entry, artwork) && Date.now() - entry.claimedAt < LEASE_MS) {
+    if (entry?.claimedAt !== undefined && narrationCurrent(entry, artwork) && Date.now() - entry.claimedAt < LEASE_MS) {
       return { facts, opening, owned: false, audio: liveNarration(entry, artwork) };
     }
     await limitDevice(ctx, "narration", device._id);
     await limitKey(ctx, "narrationDaily", "global");
+    // A script written from this research and opening is spoken again; only its audio is replaced.
+    const sentences = entry && scriptCurrent(entry, artwork) ? entry.sentences : undefined;
     const fields = {
       artworkId: artwork._id,
       claim: args.claim,
       claimedAt: Date.now(),
       ...narrationProvenance(artwork),
       storageId: undefined,
-      sentences: undefined,
+      sentences,
       segments: undefined,
     };
     if (entry) {
@@ -96,7 +108,7 @@ export const claim = internalMutation({
     } else {
       await ctx.db.insert("narrationAudio", fields);
     }
-    return { facts, opening, owned: true, audio: null };
+    return { facts, opening, owned: true, audio: null, sentences };
   },
 });
 
@@ -132,7 +144,8 @@ export const appendSegment = internalMutation({
   },
 });
 
-// With the finished file, completes the claim; without it, or once stale, releases the claim and its files.
+// With the finished file, completes the claim; without it, or once stale, releases the claim and its
+// files, keeping the script while the research and opening it was written from are current.
 export const finish = internalMutation({
   args: {
     artworkId: v.id("artworks"),
@@ -151,7 +164,17 @@ export const finish = internalMutation({
     }
     if (storageId) await fileStorage.delete(ctx, storageId);
     if (entry?.claim === claim) {
-      await ctx.db.delete("narrationAudio", entry._id);
+      // The row must drop its references before the files can go; the reference count holds them.
+      if (artwork && entry.sentences && scriptCurrent(entry, artwork)) {
+        await ctx.db.patch("narrationAudio", entry._id, {
+          claim: undefined,
+          claimedAt: undefined,
+          storageId: undefined,
+          segments: undefined,
+        });
+      } else {
+        await ctx.db.delete("narrationAudio", entry._id);
+      }
       await deleteFiles(ctx, entry);
     }
     return null;
@@ -237,6 +260,96 @@ export const clear = internalMutation({
   },
 });
 
+// Writes the stop from the research and returns the whole script, opening first.
+async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: string): Promise<DocentSentence[]> {
+  const day = await reserveSpend(ctx, "tokenFactory", 2);
+  let calls = 0;
+  const factIds = new Set(facts.map((fact) => fact.id));
+  let problems: string[] = [];
+  const parse = (value: unknown) => {
+    problems = [];
+    const lines = parseGuideLines(value);
+    if (!lines) {
+      problems.push(
+        "The response was not a thread, a quote and hook, look, story and takeaway lists of sentence, fact_ids and support.",
+      );
+      return null;
+    }
+    problems = unsupportedLines(lines, facts).map(
+      (line) => `The support "${line.support}" is not verbatim in the facts cited for "${line.sentence}".`,
+    );
+    if (problems.length > 0) return null;
+    const guide = validateGuide(
+      [
+        { sentence: opening, factIds: [] },
+        ...lines.map(({ sentence, fact_ids }) => ({
+          sentence,
+          factIds: fact_ids,
+        })),
+      ],
+      factIds,
+      opening,
+    );
+    if (!guide) {
+      problems.push(
+        `The script broke a format rule: ${guideWordFloor(facts.length)} to ${GUIDE_MAX_WORDS} words after the opening, only real fact ids, every sentence ending in punctuation, no repeated sentence.`,
+      );
+    }
+    return guide;
+  };
+  // One pass without reasoning: about 3 seconds against 15 to 35 with low-effort thinking, the same
+  // pass rate and fewer invented claims on the 2026-09-25 eval, and no runaway thinking that hits the cap.
+  const schema = guideSchema(facts.length);
+  const write = (previousAttemptProblems?: string) =>
+    chatJson({
+      model: GUIDE_MODEL,
+      system: GUIDE_PROMPT,
+      // The schema stays in the prompt here: without it 4 of 12 scripts broke the length rules on the
+      // 2026-09-28 check and the retry cost more than the 500 tokens saved.
+      user: JSON.stringify({
+        task: "Write the continuation of this audio guide stop from the research. Do not repeat the opening.",
+        ...(previousAttemptProblems ? { previousAttemptProblems } : {}),
+        opening,
+        research: facts,
+        schema,
+      }),
+      schemaName: "audioGuide",
+      schema,
+      maxTokens: 12_000,
+      timeoutMs: 60_000,
+      parse,
+    });
+  try {
+    let script;
+    try {
+      script = await write();
+    } catch (error) {
+      // One more attempt, with the rejected sentences named; pointed feedback lands better than the rules did.
+      if (!(error instanceof ConvexError && error.data.reason === "schema")) {
+        throw error;
+      }
+      calls += error.data.calls;
+      script = await write(
+        `Your previous script was rejected. ${problems.join(" ")} Fix these and return the whole script again.`,
+      );
+    }
+    calls += script.calls;
+    return script.value;
+  } catch (error) {
+    if (error instanceof ConvexError && typeof error.data.calls === "number") {
+      calls += error.data.calls;
+    }
+    throw error;
+  } finally {
+    await ctx.runMutation(internal.spend.reconcile, {
+      kind: "tokenFactory",
+      day,
+      reserved: 2,
+      actual: calls,
+    });
+  }
+}
+
 export const render = action({
   args: { artworkId: v.id("artworks") },
   returns: audio,
@@ -257,97 +370,13 @@ export const render = action({
         claim: claimId,
       });
     }
-    const { audio, facts, opening } = claimed;
+    const { audio, facts, opening, sentences: cached } = claimed;
     if (audio) return audio;
     try {
       if (!env.OPENAI_API_KEY || !env.NEBIUS_API_KEY) {
         throw new ConvexError({ code: "narration_not_configured" });
       }
-      const day = await reserveSpend(ctx, "tokenFactory", 2);
-      let calls = 0;
-      let sentences: DocentSentence[];
-      const factIds = new Set(facts.map((fact) => fact.id));
-      let problems: string[] = [];
-      const parse = (value: unknown) => {
-        problems = [];
-        const lines = parseGuideLines(value);
-        if (!lines) {
-          problems.push(
-            "The response was not a thread, a quote and hook, look, story and takeaway lists of sentence, fact_ids and support.",
-          );
-          return null;
-        }
-        problems = unsupportedLines(lines, facts).map(
-          (line) => `The support "${line.support}" is not verbatim in the facts cited for "${line.sentence}".`,
-        );
-        if (problems.length > 0) return null;
-        const guide = validateGuide(
-          [
-            { sentence: opening, factIds: [] },
-            ...lines.map(({ sentence, fact_ids }) => ({
-              sentence,
-              factIds: fact_ids,
-            })),
-          ],
-          factIds,
-          opening,
-        );
-        if (!guide) {
-          problems.push(
-            `The script broke a format rule: ${guideWordFloor(facts.length)} to ${GUIDE_MAX_WORDS} words after the opening, only real fact ids, every sentence ending in punctuation, no repeated sentence.`,
-          );
-        }
-        return guide;
-      };
-      // One pass without reasoning: about 3 seconds against 15 to 35 with low-effort thinking, the same
-      // pass rate and fewer invented claims on the 2026-09-25 eval, and no runaway thinking that hits the cap.
-      const schema = guideSchema(facts.length);
-      const write = (previousAttemptProblems?: string) =>
-        chatJson({
-          model: GUIDE_MODEL,
-          system: GUIDE_PROMPT,
-          user: JSON.stringify({
-            task: "Write the continuation of this audio guide stop from the research. Do not repeat the opening.",
-            ...(previousAttemptProblems ? { previousAttemptProblems } : {}),
-            opening,
-            research: facts,
-            schema,
-          }),
-          schemaName: "audioGuide",
-          schema,
-          maxTokens: 12_000,
-          timeoutMs: 60_000,
-          parse,
-        });
-      try {
-        let script;
-        try {
-          script = await write();
-        } catch (error) {
-          // One more attempt, with the rejected sentences named; pointed feedback lands better than the rules did.
-          if (!(error instanceof ConvexError && error.data.reason === "schema")) {
-            throw error;
-          }
-          calls += error.data.calls;
-          script = await write(
-            `Your previous script was rejected. ${problems.join(" ")} Fix these and return the whole script again.`,
-          );
-        }
-        calls += script.calls;
-        sentences = script.value;
-      } catch (error) {
-        if (error instanceof ConvexError && typeof error.data.calls === "number") {
-          calls += error.data.calls;
-        }
-        throw error;
-      } finally {
-        await ctx.runMutation(internal.spend.reconcile, {
-          kind: "tokenFactory",
-          day,
-          reserved: 2,
-          actual: calls,
-        });
-      }
+      const sentences = cached ?? (await authorScript(ctx, facts, opening));
       if (!(await ctx.runMutation(internal.narration.scripted, { artworkId, claim: claimId, sentences }))) {
         throw new ConvexError({ code: "narration_unavailable" });
       }

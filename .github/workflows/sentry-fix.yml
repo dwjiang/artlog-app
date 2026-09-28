@@ -21,7 +21,7 @@ permissions:
 jobs:
   prepare:
     if: github.repository == 'dwjiang/artlog-app' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
       contents: read
@@ -45,6 +45,21 @@ jobs:
           npm install --global @openai/codex@0.153.4
           cp -R scripts/sentry-automation "$RUNNER_TEMP/sentry-automation-tools"
           printf 'CODEX_HOME=%s/sentry-codex-home\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Configure Ubuntu sandbox prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap apparmor-profiles apparmor-utils
+          sudo install -m 0644 \
+            /usr/share/apparmor/extra-profiles/bwrap-userns-restrict \
+            /etc/apparmor.d/bwrap-userns-restrict
+          sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+      - name: Verify real sandbox isolation before restoring credentials
+        env:
+          CODEX_SANDBOX_TESTS: "true"
+        run: |
+          codex --version
+          bwrap --version
+          node --test scripts/sentry-automation/sandbox.test.ts
       - name: Restore current subscription login
         env:
           GH_TOKEN: ${{ github.token }}

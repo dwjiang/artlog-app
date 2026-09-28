@@ -301,6 +301,27 @@ it("enforces record, byte, note, timestamp and authentication bounds", async () 
   }
 });
 
+it("restarts an ahead-of-server checkpoint and accepts pending edits without losing remote changes", async () => {
+  const { user, other, visit, sync } = await fixture();
+  const original = save();
+  await sync(user, { visits: [visit], saves: [original] });
+  const foreign = save();
+  await sync(other, { saves: [foreign] });
+  const pending = save();
+  const recovered = await sync(user, { since: Date.now(), saves: [pending] });
+  expect(recovered.acceptedSaves.map((row) => row.localId)).toEqual([pending.localId]);
+  expect(recovered.saves.map((row) => row.localId).sort()).toEqual([original.localId, pending.localId].sort());
+  expect(recovered.visits.map((row) => row.localId)).toEqual([visit.localId]);
+  expect(recovered.checkpoint).toBeGreaterThan(0);
+  expect(recovered.checkpoint).toBeLessThan(100);
+  expect(await sync(user, { since: recovered.checkpoint })).toMatchObject({ visits: [], saves: [], hasMore: false });
+});
+
+it("resets an ahead-of-server checkpoint to zero when the journal is empty", async () => {
+  const { user, sync } = await fixture();
+  expect(await sync(user, { since: 42 })).toMatchObject({ visits: [], saves: [], checkpoint: 0, hasMore: false });
+});
+
 it("carries canonical venue geography to another device through the combined journal sync", async () => {
   const { t, user, other, visit, sync, link, claim } = await fixture();
   await t.run((ctx) =>

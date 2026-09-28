@@ -99,11 +99,6 @@ function QueueContent() {
         </ThemedText>
         <GalleryButton label="Close" onPress={() => router.dismiss()} />
       </View>
-      {items.some((item) => item.status === "queued") && (
-        <View style={{ padding: 14, backgroundColor: Gallery.highlight, borderRadius: 8 }}>
-          <ThemedText type="small">Waiting for a connection. Your photos are safely saved on this iPhone.</ThemedText>
-        </View>
-      )}
       {loading && !error && items.length === 0 && <ListSkeleton label="Loading scans…" rows={3} />}
       {error && (
         <>
@@ -164,12 +159,9 @@ function QueueContent() {
         </ThemedText>
       )}
       {items.length > 0 && (
-        <View style={{ padding: 16, backgroundColor: Gallery.fill, gap: 6 }}>
-          <ThemedText type="smallBold">On this iPhone</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Your photos are kept here. {QUEUE_FOOTER}
-          </ThemedText>
-        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          Photos stay on this iPhone. {items.some((item) => item.status === "queued") ? QUEUE_FOOTER : null}
+        </ThemedText>
       )}
       {items.length > 0 && (
         <GalleryButton
