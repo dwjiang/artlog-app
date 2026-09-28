@@ -44,3 +44,42 @@ it("reports failed transfers without putting signed URLs or credentials in the e
   expect(await r2.get("missing")).toBeNull();
   await expect(r2.remove("missing")).resolves.toBeUndefined();
 });
+
+it("binds direct corpus uploads to their checksum and archive hash", async () => {
+  configure();
+  const sha256 = "a".repeat(64);
+  const url = new URL(
+    await r2.uploadUrl("file-id", "application/octet-stream", 48, {
+      md5: "AAAAAAAAAAAAAAAAAAAAAA==",
+      sha256,
+    }),
+  );
+  expect(url.searchParams.get("X-Amz-SignedHeaders")?.split(";")).toEqual(
+    expect.arrayContaining(["content-md5", "x-amz-meta-sha256"]),
+  );
+  expect(url.searchParams.has("x-amz-meta-sha256")).toBe(false);
+});
+
+it("verifies uploaded metadata with HEAD without fetching the file body", async () => {
+  configure();
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    new Response(null, {
+      headers: {
+        "content-length": "48",
+        "content-type": "application/octet-stream",
+        etag: '"abc"',
+        "x-amz-meta-sha256": "hash",
+      },
+    }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  expect(await r2.head("file-id")).toEqual({
+    size: 48,
+    contentType: "application/octet-stream",
+    etag: "abc",
+    sha256: "hash",
+  });
+  expect(fetcher.mock.calls[0][1]).toEqual({ method: "HEAD" });
+  fetcher.mockResolvedValueOnce(new Response(null, { status: 503 }));
+  await expect(r2.head("file-id")).rejects.toThrow("R2 metadata read failed (503)");
+});

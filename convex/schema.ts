@@ -67,6 +67,7 @@ export default defineSchema({
     contentType: v.string(),
     size: v.number(),
     sha256: v.optional(v.string()),
+    uploadMd5: v.optional(v.string()),
     uploadOwner: v.optional(v.id("devices")),
     publicDownload: v.boolean(),
     expiresAt: v.optional(v.number()),

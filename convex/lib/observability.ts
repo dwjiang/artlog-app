@@ -78,6 +78,7 @@ const expectedCodes = new Set([
   "batch_too_large",
   "duplicate_descriptor_keys",
   "bad_descriptors",
+  "invalid_import_file",
   "unknown_key",
   "bad_dimension",
   "thumbnail_rights",
@@ -93,6 +94,7 @@ const diagnosticCodes = new Set([
   "apple_unconfigured",
   "orb_file_missing",
   "vector_payload_missing",
+  "import_upload_mismatch",
   "bad_candidates",
 ]);
 const errorTypes = new Set([

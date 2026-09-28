@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env } from "../_generated/server";
@@ -22,7 +28,12 @@ function client() {
 }
 
 export const r2 = {
-  async uploadUrl(key: string, contentType: string, size: number): Promise<string> {
+  async uploadUrl(
+    key: string,
+    contentType: string,
+    size: number,
+    checksum?: { md5: string; sha256: string },
+  ): Promise<string> {
     const { s3, bucket } = client();
     return getSignedUrl(
       s3,
@@ -32,12 +43,28 @@ export const r2 = {
         ContentType: contentType,
         ContentLength: size,
         IfNoneMatch: "*",
+        ...(checksum ? { ContentMD5: checksum.md5, Metadata: { sha256: checksum.sha256 } } : {}),
       }),
       {
         expiresIn: UPLOAD_LIFETIME_SECONDS,
-        signableHeaders: new Set(["content-type", "content-length", "if-none-match"]),
+        signableHeaders: new Set(["content-type", "content-length", "if-none-match", "content-md5"]),
+        // R2 stores custom metadata only when it arrives as a header, not a signed query parameter.
+        unhoistableHeaders: new Set(["x-amz-meta-sha256"]),
       },
     );
+  },
+  async head(key: string) {
+    const { s3, bucket } = client();
+    const url = await getSignedUrl(s3, new HeadObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 60 });
+    const response = await fetch(url, { method: "HEAD" });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`R2 metadata read failed (${response.status})`);
+    return {
+      size: Number(response.headers.get("content-length") ?? NaN),
+      contentType: response.headers.get("content-type"),
+      etag: response.headers.get("etag")?.replaceAll('"', ""),
+      sha256: response.headers.get("x-amz-meta-sha256"),
+    };
   },
   async downloadUrl(key: string): Promise<string> {
     const { s3, bucket } = client();

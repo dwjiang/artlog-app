@@ -80,6 +80,15 @@ export async function insertArchivedVector(
 export async function replaceVector(ctx: MutationCtx, row: Doc<"vectors">, input: VectorInput): Promise<void> {
   const { vector, ...identity } = input;
   const contentHash = await vectorHash(vector);
+  return replaceArchivedVector(ctx, row, { ...identity, contentHash });
+}
+
+export async function replaceArchivedVector(
+  ctx: MutationCtx,
+  row: Doc<"vectors">,
+  input: Omit<Doc<"vectors">, "_id" | "_creationTime">,
+): Promise<void> {
+  const { contentHash, ...identity } = input;
   const archiveId = row.contentHash === contentHash ? row.archiveId : identity.archiveId;
   if (archiveId !== row.archiveId) await retainVectorArchive(ctx, archiveId, contentHash);
   const fields = { ...identity, archiveId, contentHash };

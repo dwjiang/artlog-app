@@ -5,11 +5,13 @@ import logging
 import math
 import time
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from itertools import zip_longest
 from pathlib import Path
 
 from .config import Settings, get_settings, setup_logging
-from .convex_writer import ConvexWriter, is_size_rejection
+from .convex_writer import UPLOAD_BATCH_ROWS, ConvexWriter, is_size_rejection
 from .features import Features, file_hash, read_jsonl
 from .model_version import EMBEDDING_DIM, MODEL_VERSION
 from .orb import DESCRIPTOR_BYTES, KEYPOINT_BYTES
@@ -31,7 +33,10 @@ FUNCTIONS = dict(
         strict=True,
     )
 )
-BATCH_SIZES = dict.fromkeys(STAGES, 500) | {"vectors": 250, "descriptors": 200}
+BATCH_SIZES = dict.fromkeys(STAGES, 500) | dict.fromkeys(
+    ("vectors", "descriptors"), UPLOAD_BATCH_ROWS
+)
+PREFLIGHT_WORKERS = 4
 DEFAULT_CORPUS_LIMIT = 1000
 
 
@@ -230,6 +235,9 @@ def verify_sample(corpus: Corpus, writer: ConvexWriter, fraction: float) -> dict
             for wanted, stored in zip(expected, actual, strict=True):
                 if wanted != stored:
                     mismatches.append(corpus.identity(stage, wanted))
+            log.info(
+                "Readback %s: %d/%d checked", stage, min(start + 32, len(indices)), len(indices)
+            )
         report["stages"][stage] = {"checked": len(indices), "mismatches": mismatches}
         report["matches"] &= not mismatches
     audit = {"mode": "sample", "checked": 0, "violations": 0}
@@ -270,42 +278,113 @@ def run(
             )
     else:
         baseline = writer.query("ingest:counts")
-        expected = dict(baseline)
-        # Resolve overlaps before any write. Persist this target before the first mutation so
-        # a lost response can be safely replayed without changing the expected final counts.
-        for stage in STAGES[:-1]:
-            rows = corpus.rows[stage]
-            existing = 0
-            for start in range(0, len(rows), 500):
-                existing += writer.query(
-                    "ingest:countExisting",
-                    {
-                        "table": stage,
-                        "rows": [corpus.identity(stage, row) for row in rows[start : start + 500]],
-                    },
-                )
-            expected[stage] = baseline[stage] + len(rows) - existing
-            log.info("Preflight %s: %d input, %d existing", stage, len(rows), existing)
         state = {
             "fingerprint": corpus.fingerprint,
             "deployment": deployment_url,
             "searchIndex": search_index,
             "baseline": baseline,
-            "expected": expected,
+            "expected": dict(baseline),
+            "preflight": {},
             "stages": {},
             "batchSizes": dict(BATCH_SIZES),
         }
         write_json(checkpoint, state)
+    if "preflight" in state:
+        # No writes are allowed until every overlap is known. A resumed read phase must
+        # still describe the same baseline, or its final-count calculation is invalid.
+        if writer.query("ingest:counts") != state["baseline"]:
+            raise ValueError(
+                "Preflight baseline changed; review the deployment and use a new checkpoint"
+            )
+        with ThreadPoolExecutor(max_workers=PREFLIGHT_WORKERS) as pool:
+            for stage in STAGES[:-1]:
+                rows = corpus.rows[stage]
+                progress = state["preflight"].setdefault(stage, {"offset": 0, "existing": 0})
+                while progress["offset"] < len(rows):
+                    start = progress["offset"]
+                    batches = [
+                        rows[offset : offset + 500]
+                        for offset in range(
+                            start, min(start + 500 * PREFLIGHT_WORKERS, len(rows)), 500
+                        )
+                    ]
+                    futures = [
+                        pool.submit(
+                            writer.query,
+                            "ingest:countExisting",
+                            {
+                                "table": stage,
+                                "rows": [corpus.identity(stage, row) for row in batch],
+                            },
+                        )
+                        for batch in batches
+                    ]
+                    for batch, future in zip(batches, futures, strict=True):
+                        existing = future.result()
+                        if (
+                            not isinstance(existing, (int, float))
+                            or not math.isfinite(existing)
+                            or existing != int(existing)
+                            or not 0 <= existing <= len(batch)
+                        ):
+                            raise RuntimeError("Preflight returned an invalid overlap count")
+                        progress["existing"] += int(existing)
+                        progress["offset"] += len(batch)
+                        write_json(checkpoint, state)
+                    log.info(
+                        "Preflight %s: %d/%d checked, %d existing",
+                        stage,
+                        progress["offset"],
+                        len(rows),
+                        progress["existing"],
+                    )
+                if progress["existing"] > state["baseline"][stage]:
+                    raise RuntimeError("Preflight overlap exceeds baseline count")
+                state["expected"][stage] = (
+                    state["baseline"][stage] + len(rows) - progress["existing"]
+                )
+        if writer.query("ingest:counts") != state["baseline"]:
+            raise ValueError(
+                "Preflight baseline changed; review the deployment and use a new checkpoint"
+            )
+        del state["preflight"]
+        write_json(checkpoint, state)
     for stage in STAGES:
         progress = state["stages"].setdefault(stage, {"offset": 0, "seconds": 0.0})
         total = len(corpus.rows[stage])
+        features = stage in {"descriptors", "vectors"}
+        if features:
+            state["batchSizes"][stage] = min(state["batchSizes"][stage], UPLOAD_BATCH_ROWS)
         while progress["offset"] < total:
             size = state["batchSizes"][stage]
-            rows = corpus.batch(stage, progress["offset"], size)
+            batches = (
+                corpus.batch(stage, offset, size)
+                for offset in range(progress["offset"], total, size)
+            )
             started = time.monotonic()
             try:
-                call = writer.action if stage in {"descriptors", "vectors"} else writer.mutation
-                response = call(f"ingest:{FUNCTIONS[stage]}", {"rows": rows})
+                responses = (
+                    writer.ingest_feature_batches(f"ingest:{FUNCTIONS[stage]}", batches)
+                    if features
+                    else (
+                        (len(batch), writer.mutation(f"ingest:{FUNCTIONS[stage]}", {"rows": batch}))
+                        for batch in batches
+                    )
+                )
+                with closing(responses):
+                    for count, response in responses:
+                        if (
+                            count != min(size, total - progress["offset"])
+                            or len(response["ids"]) != count
+                        ):
+                            raise RuntimeError(
+                                f"{stage} upsert did not acknowledge every unique row"
+                            )
+                        progress["offset"] += count
+                        progress["seconds"] += time.monotonic() - started
+                        write_json(checkpoint, state)
+                        log.info("%s: %d/%d", stage, progress["offset"], total)
+                        started = time.monotonic()
             except Exception as error:
                 size_rejection = is_size_rejection(error)
                 operation_limit = "timed out performing too many system operations" in str(error)
@@ -325,12 +404,6 @@ def run(
                     f"STOP: {stage} write-size rejection; batch reduced from {size} "
                     f"to {state['batchSizes'][stage]}. Resume after reviewing the error."
                 ) from error
-            if len(response["ids"]) != len(rows):
-                raise RuntimeError(f"{stage} upsert did not acknowledge every unique row")
-            progress["offset"] += len(rows)
-            progress["seconds"] += time.monotonic() - started
-            write_json(checkpoint, state)
-            log.info("%s: %d/%d", stage, progress["offset"], total)
     from .vector_sync import wait_for_sync
 
     wait_for_sync(writer)
@@ -410,18 +483,15 @@ def main(argv: list[str] | None = None):
     setup_logging(settings)
     path = args.checkpoint or args.directory / checkpoint_name(limit)
     log.info("Import target: %s", settings.convex_url)
-    print(
-        json.dumps(
-            run(
-                corpus,
-                ConvexWriter(settings),
-                checkpoint=path,
-                deployment_url=settings.convex_url,
-                verify_fraction=args.verify_fraction,
-            ),
-            indent=2,
+    with ConvexWriter(settings) as writer:
+        report = run(
+            corpus,
+            writer,
+            checkpoint=path,
+            deployment_url=settings.convex_url,
+            verify_fraction=args.verify_fraction,
         )
-    )
+    print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":
