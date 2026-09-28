@@ -134,7 +134,7 @@ beforeEach(async () => {
 afterEach(() => jest.restoreAllMocks());
 
 it("uploads the 256 px crop, signs the exact fields and contributes the capture’s own features", async () => {
-  handOffLabelRejection(scanId, Promise.resolve(feedbackId));
+  handOffLabelRejection(scanId, { pending: Promise.resolve(feedbackId), consumed: false });
   const result = await contributeLabel({
     scanId,
     capture,
@@ -216,7 +216,7 @@ it("needs a title and an artist, an attestable device and a successful upload", 
 });
 
 it("keeps the contribution when resolving the rejection fails", async () => {
-  handOffLabelRejection(scanId, Promise.resolve(feedbackId));
+  handOffLabelRejection(scanId, { pending: Promise.resolve(feedbackId), consumed: false });
   mockMutation.mockImplementation(async (name: string) => {
     if (name === "contributions:requestCropUpload") {
       return { uploadUrl: "https://upload.example/crop", storageId: "st-1" };

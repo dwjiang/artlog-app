@@ -9,7 +9,7 @@ type SheetPart = "header" | "content" | "footer";
  * that height, up to the large detent's. Give the sheet's root view the same height: presented content lays out at
  * its own height rather than the sheet's, so only an explicit height makes an overflowing scroll view scroll.
  */
-export function useFittedSheetHeight() {
+export function useFittedSheetHeight({ scrollAll = false } = {}) {
   const { height: windowHeight } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
   const [parts, setParts] = useState<Record<SheetPart, number>>({ header: 0, content: 0, footer: 0 });
@@ -17,7 +17,7 @@ export function useFittedSheetHeight() {
     setParts((current) => (current[part] === height ? current : { ...current, [part]: height }));
   return {
     height: parts.content
-      ? Math.min(parts.header + parts.content + parts.footer, windowHeight - top - bottom)
+      ? Math.min(parts.content + (scrollAll ? 0 : parts.header + parts.footer), windowHeight - top - bottom)
       : undefined,
     onHeaderLayout: (event: LayoutChangeEvent) => measure("header", event.nativeEvent.layout.height),
     onContentSizeChange: (_width: number, height: number) => measure("content", height),
