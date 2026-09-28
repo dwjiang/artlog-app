@@ -42,6 +42,17 @@ it("imports metadata and notes without a photo, then deduplicates a replay", asy
   expect(await repo.listUnsynced()).toEqual([]);
 });
 
+it("imports the crop source before its album photo is downloaded and clears a removed source", async () => {
+  const crop = { ...remote, cropStorageId: "crop" as Id<"files">, cropPhotoLocalId: "source-photo", photoUpdatedAt: 1 };
+  await repo.upsertFromRemote([crop]);
+  expect(await repo.getSavedWork("work")).toMatchObject({ cropPhotoLocalId: "source-photo", cropPath: null });
+  await repo.updatePhotoTransfer("work", { cropPath: "crop.jpg" });
+  await repo.upsertFromRemote([
+    { ...crop, cropStorageId: "unlinked-crop" as Id<"files">, cropPhotoLocalId: undefined, photoUpdatedAt: 2 },
+  ]);
+  expect(await repo.getSavedWork("work")).toMatchObject({ cropPhotoLocalId: null, cropPath: null });
+});
+
 it("keeps local photos while receiving artwork details edited on another device", async () => {
   await repo.insertSavedWork({
     localId: "work",
@@ -267,11 +278,15 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
     savedAt: 1,
     cropPath: "old.jpg",
     cropStorageId: "old" as Id<"files">,
+    photoPath: "source.jpg",
   });
-  repo.replaceSavedCrop("work", "edited.jpg", null);
-  await repo.upsertFromRemote([{ ...remote, cropStorageId: "old" as Id<"files">, photoUpdatedAt: 100 }]);
+  repo.replaceSavedCrop("work", "edited.jpg", null, "source.jpg");
+  await repo.upsertFromRemote([
+    { ...remote, cropStorageId: "old" as Id<"files">, cropPhotoLocalId: "other-photo", photoUpdatedAt: 100 },
+  ]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     cropPath: "edited.jpg",
+    cropPhotoLocalId: "work",
     cropStorageId: null,
   });
 });

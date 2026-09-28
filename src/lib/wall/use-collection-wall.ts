@@ -171,21 +171,27 @@ export function useCollectionWall(works: SavedWork[]) {
           (row) => row.owner === owner && row.savedLocalId === saveLocalId && row.localId === photoLocalId,
         )
       : undefined;
+  const wallPhotoPath = (saveLocalId: string, photoLocalId?: string) => {
+    const work = works.find((row) => row.owner === owner && row.localId === saveLocalId);
+    const photo = albumPhoto(saveLocalId, photoLocalId);
+    if (work?.cropPath && (!photoLocalId || photoLocalId === work.cropPhotoLocalId)) return work.cropPath;
+    return photo?.path;
+  };
   const photoPaths = JSON.stringify(
     (draft?.items ?? []).flatMap((item) => {
-      const photo = albumPhoto(item.saveLocalId, item.photoLocalId);
-      return photo?.path ? [{ id: photo.localId, path: photo.path }] : [];
+      const path = wallPhotoPath(item.saveLocalId, item.photoLocalId);
+      return path ? [path] : [];
     }),
   );
   useEffect(() => {
     let active = true;
     void Promise.all(
-      (JSON.parse(photoPaths) as { id: string; path: string }[]).map(async ({ id, path }) => {
+      [...new Set(JSON.parse(photoPaths) as string[])].map(async (path) => {
         try {
           const size = await Image.getSize(captureFileUri(path));
-          return [id, size.width / size.height] as const;
+          return [path, size.width / size.height] as const;
         } catch {
-          return [id, 1] as const;
+          return [path, 1] as const;
         }
       }),
     ).then((entries) => {
@@ -202,7 +208,7 @@ export function useCollectionWall(works: SavedWork[]) {
     const work = works.find((item) => item.localId === saveLocalId);
     const snapshot = selection?.snapshot ?? work;
     if (!publishedItem && !snapshot) return [];
-    const photo = albumPhoto(saveLocalId, photoLocalId);
+    const path = wallPhotoPath(saveLocalId, photoLocalId);
     return [
       {
         localId: placementId,
@@ -220,8 +226,8 @@ export function useCollectionWall(works: SavedWork[]) {
             height: 1 as const,
           },
         },
-        cropPath: photo?.path ?? (!publishedItem ? work?.cropPath : undefined),
-        cropAspectRatio: photo ? photoAspects[photo.localId] : !publishedItem ? selection?.cropAspectRatio : undefined,
+        cropPath: path,
+        cropAspectRatio: path ? photoAspects[path] : !publishedItem ? selection?.cropAspectRatio : undefined,
       },
     ];
   });

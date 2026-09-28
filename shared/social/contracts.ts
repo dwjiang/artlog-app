@@ -51,6 +51,8 @@ export const wallItemMediaContext = v.object({
   kind: v.literal("wallItem"),
   itemId: v.id("wallItems"),
   photoLocalId: v.optional(v.string()),
+  variant: v.optional(v.literal("crop")),
+  cropRevision: v.optional(v.number()),
 });
 export const displayMediaContext = v.union(wallItemMediaContext, sharedVisitMediaContext);
 export const mediaContext = v.union(

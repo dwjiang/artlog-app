@@ -4,7 +4,13 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
 
-import { addArtworkPhoto, editArtworkPhoto, editEncounter, linkArtworkVisit } from "@/db/repos/artwork-album";
+import {
+  addArtworkPhoto,
+  editArtworkPhoto,
+  editEncounter,
+  linkArtworkVisit,
+  selectArtworkPhotos,
+} from "@/db/repos/artwork-album";
 import { getNote, setNote } from "@/db/repos/notes";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
@@ -434,10 +440,21 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
 
 it("opens crop adjustment from the saved artwork while keeping its album photo available", async () => {
   await render(detail("lilies"));
-  await fireEvent.press(await screen.findByRole("button", { name: "Adjust crop" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Adjust crop for full photo 1" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/adjust-crop",
-    params: { savedId: "lilies" },
+    params: { savedId: "lilies", photoId: selectArtworkPhotos("lilies").all()[0].localId },
   });
   expect(screen.getByLabelText("full photo 1 of Water Lilies")).toBeOnTheScreen();
+});
+
+it("offers visit linking from its section without a large empty-state card", async () => {
+  await render(detail("plain"));
+  expect(await screen.findByRole("header", { name: "Visits" })).toBeOnTheScreen();
+  expect(screen.getByText("No linked visits.")).toBeOnTheScreen();
+  expect(
+    screen.queryByText("This artwork was saved without a visit. Link one to remember where you saw it."),
+  ).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Link visit" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/link-artwork", params: { savedId: "plain" } });
 });

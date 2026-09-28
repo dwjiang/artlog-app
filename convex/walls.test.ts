@@ -1,8 +1,11 @@
 import { expect, it, vi } from "vitest";
 
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { fileStorage } from "./lib/fileStorage";
 import { upsertJournalSave } from "./lib/journal";
 import { clearEmptyNoteVisibility } from "./lib/publicationAccess";
+import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
 import { wallFixture } from "./lib/wallFixtures";
 import { harness } from "./test.helpers";
@@ -318,6 +321,7 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
   expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toEqual({
     ...publicWall!.items[0],
     profileId: a.profile.profileId,
+    photos: [publicWall!.items[0].artwork.media],
   });
 });
 
@@ -475,4 +479,170 @@ it("sorts layers and rejects simultaneous replacements based on the same revisio
     "Validator error: Unexpected field `note` in object",
   );
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
+});
+
+async function galleryFixture() {
+  const t = harness();
+  const owner = await socialUser(t);
+  const viewer = await socialUser(t);
+  const visit = await socialVisit(t, owner, 1);
+  const save = visit.saves[0];
+  const photos = await t.run(async (ctx) => {
+    const rows: { id: Id<"artworkPhotos">; localId: string; storageId: Id<"files"> }[] = [];
+    for (const kind of ["full", "detail", "label"] as const) {
+      const localId = crypto.randomUUID();
+      const storageId = await fileStorage.store(ctx, new Blob([kind], { type: "image/jpeg" }));
+      const id = await ctx.db.insert("artworkPhotos", {
+        owner: { kind: "account", accountId: owner.accountId },
+        saveId: save.id,
+        savedLocalId: save.localId,
+        localId,
+        kind,
+        visitLocalId: visit.visit.localId,
+        capturedAt: rows.length + 1,
+        storageId,
+        width: 400,
+        height: 600,
+        updatedAt: 1,
+        changeVersion: 1,
+      });
+      rows.push({ id, localId, storageId });
+    }
+    return rows;
+  });
+  const input = {
+    scope: owner.scope,
+    revision: 0,
+    color: "#FCFCF9",
+    items: [
+      {
+        placementId: crypto.randomUUID(),
+        saveLocalId: save.localId,
+        photoLocalId: photos[0].localId,
+        layout: { x: 0, y: 0, width: 0.4, layer: 0, frame: "none" as const },
+      },
+    ],
+  };
+  const wall = await owner.as.mutation(api.walls.setLayout, input);
+  return { t, owner, viewer, visit, save, photos, wall, input, itemId: wall.items[0].itemId };
+}
+
+it("shows the linked crop on the public wall and opens the full photo without publishing the rest of the album", async () => {
+  const f = await galleryFixture();
+  const cropStorageId = await f.t.run((ctx) =>
+    fileStorage.store(ctx, new Blob(["cropped painting"], { type: "image/jpeg" })),
+  );
+  const { photoUpdatedAt } = await f.owner.as.mutation(internal.collectionPhotos.attach, {
+    scope: f.owner.scope,
+    localId: f.save.localId,
+    kind: "crop",
+    photoId: f.photos[0].localId,
+    storageId: cropStorageId,
+    width: 300,
+    height: 200,
+  });
+  const wall = await f.t.query(api.walls.getPublic, { profileId: f.owner.profileId });
+  expect(wall?.items[0].artwork.media).toMatchObject({
+    kind: "photo",
+    width: 300,
+    height: 200,
+    reference: { photoLocalId: f.photos[0].localId, variant: "crop" },
+  });
+  const detail = await f.t.query(api.walls.getArtwork, { itemId: f.itemId });
+  expect(detail?.photos).toEqual([
+    {
+      kind: "photo",
+      width: 400,
+      height: 600,
+      reference: { kind: "wallItem", itemId: f.itemId, photoLocalId: f.photos[0].localId },
+    },
+  ]);
+  const path = `/display-media?kind=wallItem&itemId=${f.itemId}&photoLocalId=${f.photos[0].localId}`;
+  const cropPath = `${path}&variant=crop&cropRevision=${photoUpdatedAt}`;
+  expect(await (await f.t.fetch(cropPath)).text()).toBe("cropped painting");
+  expect(await (await f.t.fetch(path)).text()).toBe("full");
+  expect((await f.t.fetch(cropPath.replace(f.photos[0].localId, f.photos[1].localId))).status).toBe(404);
+  await f.owner.as.mutation(api.walls.setLayout, { ...f.input, revision: 1, items: [] });
+  expect((await f.t.fetch(cropPath)).status).toBe(404);
+});
+
+it("includes only photos already shared with this viewer and revokes them when visit access changes", async () => {
+  const f = await galleryFixture();
+  await f.owner.as.mutation(api.sharedVisits.publish, {
+    ...f.visit.selection,
+    photoSelections: [{ saveLocalId: f.save.localId, photoLocalIds: [f.photos[0].localId, f.photos[1].localId] }],
+  });
+  const read = () => f.t.query(api.walls.getArtwork, { itemId: f.itemId });
+  const shared = await read();
+  expect(shared?.photos).toHaveLength(2);
+  expect(shared?.photos[1]).toMatchObject({ reference: { kind: "sharedVisit", photoLocalId: f.photos[1].localId } });
+  expect(JSON.stringify(shared)).not.toContain(f.photos[2].localId);
+  const media = shared!.photos[1];
+  if (media.kind !== "photo" || media.reference.kind !== "sharedVisit") throw new Error("Expected shared visit photo");
+  const ref = media.reference;
+  const path = `/display-media?kind=sharedVisit&postId=${ref.postId}&itemId=${ref.itemId}&photoLocalId=${ref.photoLocalId}`;
+  expect((await f.t.fetch(path)).status).toBe(200);
+  await setVisitVisibility(f.t, f.owner, f.visit.visit._id, "friends");
+  expect((await read())?.photos).toHaveLength(1);
+  expect((await f.t.fetch(path)).status).toBe(404);
+  await befriend(f.owner, f.viewer);
+  expect((await f.viewer.as.query(api.walls.getArtwork, { itemId: f.itemId }))?.photos).toHaveLength(2);
+  expect((await f.viewer.as.fetch(path)).status).toBe(200);
+  await setVisitVisibility(f.t, f.owner, f.visit.visit._id, "private");
+  expect((await f.viewer.as.query(api.walls.getArtwork, { itemId: f.itemId }))?.photos).toHaveLength(1);
+  expect((await f.viewer.as.fetch(path)).status).toBe(404);
+});
+
+it("includes other live wall placements of the artwork once and drops removed photos", async () => {
+  const f = await galleryFixture();
+  const items = [
+    ...f.input.items,
+    ...[1, 1].map((photoIndex, index) => ({
+      ...f.input.items[0],
+      placementId: crypto.randomUUID(),
+      photoLocalId: f.photos[photoIndex].localId,
+      layout: { ...f.input.items[0].layout, layer: index + 1 },
+    })),
+  ];
+  const wall = await f.owner.as.mutation(api.walls.setLayout, { ...f.input, revision: 1, items });
+  expect((await f.t.query(api.walls.getArtwork, { itemId: f.itemId }))?.photos).toHaveLength(2);
+  await f.owner.as.mutation(api.walls.setLayout, { ...f.input, revision: wall.revision });
+  expect((await f.t.query(api.walls.getArtwork, { itemId: f.itemId }))?.photos).toHaveLength(1);
+});
+
+it("versions replacement crops and refuses stale or malformed crop references", async () => {
+  const f = await galleryFixture();
+  async function uploadCrop(bytes: string) {
+    const storageId = await f.t.run((ctx) => fileStorage.store(ctx, new Blob([bytes], { type: "image/jpeg" })));
+    const { photoUpdatedAt } = await f.owner.as.mutation(internal.collectionPhotos.attach, {
+      scope: f.owner.scope,
+      localId: f.save.localId,
+      kind: "crop",
+      photoId: f.photos[0].localId,
+      storageId,
+      width: 300,
+      height: 200,
+    });
+    const { media } = (await f.t.query(api.walls.getPublic, { profileId: f.owner.profileId }))!.items[0].artwork;
+    expect(media).toMatchObject({ reference: { variant: "crop", cropRevision: photoUpdatedAt } });
+    return { media, revision: photoUpdatedAt };
+  }
+  const previous = await uploadCrop("old crop");
+  const current = await uploadCrop("new crop");
+  expect(current.revision).toBeGreaterThan(previous.revision);
+  expect(current.media).not.toEqual(previous.media);
+  const path = `/display-media?kind=wallItem&itemId=${f.itemId}&photoLocalId=${f.photos[0].localId}`;
+  const cropPath = `${path}&variant=crop`;
+  expect(await (await f.t.fetch(`${cropPath}&cropRevision=${current.revision}`)).text()).toBe("new crop");
+  for (const suffix of [
+    "",
+    `&cropRevision=${previous.revision}`,
+    "&cropRevision=NaN",
+    "&cropRevision=0",
+    "&cropRevision=1.5",
+  ]) {
+    expect((await f.t.fetch(cropPath + suffix)).status).toBe(404);
+  }
+  expect((await f.t.fetch(`${path}&cropRevision=${current.revision}`)).status).toBe(404);
+  expect(await (await f.t.fetch(path)).text()).toBe("full");
 });

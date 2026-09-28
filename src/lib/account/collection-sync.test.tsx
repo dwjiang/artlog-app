@@ -14,6 +14,14 @@ import { captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { requestCollectionSync } from "./sync-events";
 
 const mockRecognition = jest.fn();
+const mockGetSavedWork = jest.fn();
+const mockSelectPhotos = jest.fn();
+const mockUploadPhoto = jest.fn();
+jest.mock("./photo-transfer", () => ({
+  uploadCollectionPhoto: (...args: unknown[]) => mockUploadPhoto(...args),
+  downloadCollectionPhoto: jest.fn(),
+  removePhotoFile: jest.fn(),
+}));
 jest.mock("./recognition-sync", () => ({ syncSavedRecognition: (...args: unknown[]) => mockRecognition(...args) }));
 jest.mock("./album-sync", () => ({ syncArtworkAlbums: async () => {} }));
 
@@ -48,9 +56,11 @@ let mockPending = false;
 let mockJournalPending = false;
 jest.mock("@/db/repos/artwork-album", () => ({
   albumMediaPending: (...args: unknown[]) => mockAlbumPending(...args),
+  selectArtworkPhotos: (...args: unknown[]) => ({ all: () => mockSelectPhotos(...args) }),
 }));
 const mockAlbumPending = jest.fn((..._args: unknown[]) => mockPending);
 jest.mock("@/db/repos/saved-works", () => ({
+  getSavedWork: (...args: unknown[]) => mockGetSavedWork(...args),
   listUnsynced: async () => (mockJournalPending ? [{}] : []),
 }));
 jest.mock("@/db/repos/settings", () => ({
@@ -286,6 +296,39 @@ it("uploads saved scans on their own queue, so media flushes never wait for them
   await act(() => jest.advanceTimersByTimeAsync(1_000));
   expect(mockRecognition).toHaveBeenCalledTimes(2);
 });
+
+it.each([false, true])(
+  "links an uploaded crop only to its source in the current album (changed: %s)",
+  async (changed) => {
+    mockGetSavedWork.mockResolvedValue({
+      photoPath: "old-source.jpg",
+      cropPhotoLocalId: "source-photo",
+      cropPath: changed ? "new-crop.jpg" : "crop.jpg",
+    });
+    mockSelectPhotos.mockReturnValue([
+      { localId: "source-photo", path: "source.jpg" },
+      { localId: "private-photo", path: "other.jpg" },
+    ]);
+    mockUploadPhoto.mockClear();
+    mockPhotos.mockImplementationOnce(
+      async (deps: { upload: (id: string, kind: string, path: string) => Promise<unknown> }) => {
+        await deps.upload("artwork", "crop", "crop.jpg");
+      },
+    );
+    await render(<CollectionSync />);
+    await tick();
+    await tick();
+    expect(mockUploadPhoto).toHaveBeenCalledWith(
+      "token",
+      "account:a,b",
+      "artwork",
+      "crop",
+      "crop.jpg",
+      expect.any(Function),
+      changed ? undefined : "source-photo",
+    );
+  },
+);
 
 it("keeps a linked scope across a token refresh but suspends it again when the account scope changes", async () => {
   const screen = await render(<CollectionSync />);

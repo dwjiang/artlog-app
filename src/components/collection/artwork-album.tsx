@@ -1,17 +1,17 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 
+import { PhotoGallery } from "@/components/artwork/photo-gallery";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 
@@ -36,11 +36,8 @@ export function ArtworkAlbum({
   const [scope, setScope] = useState<"all" | "visit">(visitId ? "visit" : "all");
   const [requestedPhoto, setRequestedPhoto] = useState(photoId);
   const [page, setPage] = useState(0);
-  const [ratios, setRatios] = useState<Record<string, number>>({});
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
-  const reduceMotion = useReducedMotion();
-  const gallery = useRef<ScrollView>(null);
-  const { width, fontScale } = useWindowDimensions();
+  const [photoSizes, setPhotoSizes] = useState<Record<string, { width: number; height: number }>>({});
   const rows = photos.data.filter(
     (row) =>
       row.owner === work.owner
@@ -59,16 +56,18 @@ export function ArtworkAlbum({
   } else if (page > lastPage) {
     setPage(lastPage);
   }
-  const selectedPhoto = rows[Math.min(page, lastPage)];
   const museum = work.institution || work.venueName;
-  const imageHeight =
-    selectedPhoto?.path && !failedPhotos[selectedPhoto.path]
-      ? Math.max(44, Math.min((width - 40) * 1.2, (width - 40) / (ratios[selectedPhoto.localId] || 1)))
-      : 180 * fontScale;
-  const goTo = (next: number) => {
-    setPage(next);
-    gallery.current?.scrollTo({ x: next * width, animated: !reduceMotion });
-  };
+  function addPhotos() {
+    router.push({
+      pathname: "/add-photos",
+      params: {
+        draftId: `saved:${work.localId}`,
+        savedId: work.localId,
+        title: work.title,
+        visitId: scope === "visit" ? visitId : undefined,
+      },
+    });
+  }
   return (
     <View style={{ gap: 8 }}>
       {!!visitId && (
@@ -78,7 +77,6 @@ export function ArtworkAlbum({
           onChange={(value) => {
             setScope(value);
             setPage(0);
-            gallery.current?.scrollTo({ x: 0, animated: false });
           }}
           options={[
             { value: "visit", label: "This visit" },
@@ -110,74 +108,95 @@ export function ArtworkAlbum({
       )}
       {rows.length > 0 && (
         <View style={{ marginHorizontal: -20 }}>
-          <ScrollView
-            ref={gallery}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={{ height: imageHeight }}
-            onContentSizeChange={() =>
-              gallery.current?.scrollTo({
-                x: Math.min(page, lastPage) * width,
-                animated: false,
-              })
-            }
-            onMomentumScrollEnd={({ nativeEvent }) => setPage(Math.round(nativeEvent.contentOffset.x / width))}
-          >
-            {rows.map((photo, i) => (
-              <View key={photo.localId} style={{ width, paddingHorizontal: 20 }}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${photo.kind} photo ${i + 1}`}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/photo-details",
-                      params: { savedId: work.localId, photoId: photo.localId },
-                    })
-                  }
-                  style={{ height: imageHeight, justifyContent: "center" }}
-                >
-                  {photo.path && !failedPhotos[photo.path] ? (
-                    <LoadingImage
-                      uri={captureFileUri(photo.path)}
-                      label={`${photo.kind} photo ${i + 1} of ${work.title}`}
-                      onError={() =>
-                        setFailedPhotos((previous) => ({
-                          ...previous,
-                          [photo.path!]: true,
-                        }))
-                      }
-                      onLoad={({ source }) => {
-                        if (source.width > 0 && source.height > 0) {
-                          setRatios((previous) => ({
-                            ...previous,
-                            [photo.localId]: source.width / source.height,
-                          }));
+          <PhotoGallery
+            photos={rows.map((photo, index) => ({
+              ...photo,
+              ...photoSizes[photo.path ?? ""],
+              id: photo.localId,
+              label: `${photo.kind} photo ${index + 1}`,
+            }))}
+            page={page}
+            onPageChange={setPage}
+            onAddPhotos={addPhotos}
+            renderPhoto={(photo, index, size) => {
+              const imageWidth =
+                photo.width && photo.height
+                  ? Math.min(size.width, (size.height * photo.width) / photo.height)
+                  : size.width;
+              return (
+                <View style={size}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${photo.kind} photo ${index + 1}`}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/photo-details",
+                        params: { savedId: work.localId, photoId: photo.localId },
+                      })
+                    }
+                    style={size}
+                  >
+                    {photo.path && !failedPhotos[photo.path] ? (
+                      <LoadingImage
+                        uri={captureFileUri(photo.path)}
+                        label={`${photo.kind} photo ${index + 1} of ${work.title}`}
+                        onLoad={({ source: { width, height } }) =>
+                          setPhotoSizes((previous) =>
+                            previous[photo.path!]?.width === width && previous[photo.path!]?.height === height
+                              ? previous
+                              : { ...previous, [photo.path!]: { width, height } },
+                          )
                         }
-                      }}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit="contain"
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        minHeight: 180,
-                        backgroundColor: Gallery.fill,
-                        padding: 16,
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text style={styles.secondary}>
-                        {photo.path
-                          ? `Image unavailable · ${work.title}`
-                          : `Photo unavailable on this iPhone · ${work.title}`}
-                      </Text>
+                        onError={() => setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))}
+                        style={size}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <View style={[size, styles.unavailable]}>
+                        <Text style={styles.secondary}>
+                          {photo.path
+                            ? `Image unavailable · ${work.title}`
+                            : `Photo unavailable on this iPhone · ${work.title}`}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                  {index === page && photo.kind !== "label" && !!photo.path && !failedPhotos[photo.path] && (
+                    <View style={[styles.cropAction, { right: (size.width - imageWidth) / 2 + 8 }]}>
+                      <GalleryButton
+                        label={`Adjust crop for ${photo.kind} photo ${index + 1}`}
+                        icon="crop"
+                        iconOnly
+                        tone="ink"
+                        fullWidth={false}
+                        cornerRadius={Radius.full}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/adjust-crop",
+                            params: { savedId: work.localId, photoId: photo.localId },
+                          })
+                        }
+                      />
                     </View>
                   )}
-                </Pressable>
-              </View>
-            ))}
-          </ScrollView>
+                </View>
+              );
+            }}
+            renderThumbnail={(photo, index) =>
+              photo.path && !failedPhotos[photo.path] ? (
+                <LoadingImage
+                  uri={captureFileUri(photo.path)}
+                  label={`${photo.kind} thumbnail ${index + 1}`}
+                  contentFit="cover"
+                  style={{ width: "100%", height: "100%" }}
+                />
+              ) : (
+                <View style={[{ flex: 1 }, styles.unavailable]}>
+                  <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
+                </View>
+              )
+            }
+          />
         </View>
       )}
       <View style={{ gap: 4 }}>
@@ -208,81 +227,6 @@ export function ArtworkAlbum({
         )}
       </View>
       {children}
-      {rows.length > 1 && (
-        <View style={styles.thumbnails}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 6 }}
-            style={{ flex: 1 }}
-          >
-            {rows.map((photo, index) => (
-              <Pressable
-                key={photo.localId}
-                accessibilityRole="button"
-                accessibilityLabel={`Show ${photo.kind} photo ${index + 1}`}
-                accessibilityState={{ selected: index === page }}
-                onPress={() => goTo(index)}
-                style={[
-                  styles.thumbnail,
-                  !(photo.path && !failedPhotos[photo.path]) && styles.missingThumbnail,
-                  index === page && { borderColor: Gallery.accent },
-                ]}
-              >
-                {photo.path && !failedPhotos[photo.path] ? (
-                  <LoadingImage
-                    uri={captureFileUri(photo.path)}
-                    label={`${photo.kind} thumbnail ${index + 1}`}
-                    contentFit="cover"
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                ) : (
-                  <Image source="sf:photo" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
-                )}
-              </Pressable>
-            ))}
-          </ScrollView>
-          <GalleryButton
-            label="Photo"
-            accessibilityLabel="Add photos"
-            icon="plus"
-            onPress={() =>
-              router.push({
-                pathname: "/add-photos",
-                params: {
-                  draftId: `saved:${work.localId}`,
-                  savedId: work.localId,
-                  title: work.title,
-                  visitId,
-                },
-              })
-            }
-          />
-        </View>
-      )}
-      {rows.length === 1 && (
-        <GalleryButton
-          label="Photo"
-          accessibilityLabel="Add photos"
-          icon="plus"
-          onPress={() =>
-            router.push({
-              pathname: "/add-photos",
-              params: {
-                draftId: `saved:${work.localId}`,
-                savedId: work.localId,
-                title: work.title,
-                visitId,
-              },
-            })
-          }
-        />
-      )}
-      {!!selectedPhoto?.caption && (
-        <Text selectable style={styles.secondary}>
-          {selectedPhoto.caption}
-        </Text>
-      )}
       {rows.length === 0 && !!photos.updatedAt && !photos.error && (
         <EmptyState
           inset={false}
@@ -293,22 +237,7 @@ export function ArtworkAlbum({
               : "Add photos of the artwork, its details, or its wall label."
           }
         >
-          <GalleryButton
-            label="Add photos"
-            variant="filled"
-            fullWidth
-            onPress={() =>
-              router.push({
-                pathname: "/add-photos",
-                params: {
-                  draftId: `saved:${work.localId}`,
-                  savedId: work.localId,
-                  title: work.title,
-                  visitId: scope === "visit" ? visitId : undefined,
-                },
-              })
-            }
-          />
+          <GalleryButton label="Add photos" variant="filled" fullWidth onPress={addPhotos} />
           {scope === "visit" && (
             <GalleryButton
               label="View all photos"
@@ -324,17 +253,15 @@ export function ArtworkAlbum({
   );
 }
 const styles = StyleSheet.create({
-  thumbnails: { flexDirection: "row", alignItems: "center", gap: 12 },
-  thumbnail: {
-    width: 84,
-    height: 54,
-    padding: 3,
-    borderWidth: 2,
-    borderColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
+  cropAction: {
+    position: "absolute",
+    bottom: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Gallery.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Gallery.separator,
   },
-  missingThumbnail: { backgroundColor: Gallery.fill },
+  unavailable: { backgroundColor: Gallery.fill, alignItems: "center", justifyContent: "center", padding: 8 },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   title: {
     fontSize: 18,

@@ -36,7 +36,10 @@ async function target(
   photoId?: string,
 ) {
   const save = await requireCollection(ctx, scope, localId);
-  if (kind === "crop") return { save, photo: undefined };
+  if (kind === "crop") {
+    if (photoId) await ownedAlbumPhoto(ctx, save, photoId);
+    return { save, photo: undefined };
+  }
   if (!photoId) throw new ConvexError({ code: "invalid_photo" });
   return { save, photo: await ownedAlbumPhoto(ctx, save, photoId) };
 }
@@ -82,6 +85,9 @@ export const attach = internalMutation({
     } else {
       await ctx.db.patch("collections", save._id, {
         cropStorageId: storageId,
+        cropPhotoLocalId: photoId,
+        cropWidth: width,
+        cropHeight: height,
         photoUpdatedAt,
         changeVersion,
       });
@@ -107,7 +113,7 @@ function parameters(request: Request): {
     throw new ConvexError({ code: "invalid_photo" });
   }
   const photoId = url.searchParams.get("photoId") ?? undefined;
-  if (kind === "photo" ? !photoId || !isUuid(photoId) : photoId !== undefined) {
+  if ((kind === "photo" && !photoId) || (photoId !== undefined && !isUuid(photoId))) {
     throw new ConvexError({ code: "invalid_photo" });
   }
   return { scope, localId, kind, photoId };

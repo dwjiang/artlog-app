@@ -65,7 +65,8 @@ export const savedWorks = sqliteTable(
     scanId: text().$type<Id<"scans">>(),
     photoPath: text(),
     cropPath: text(),
-    /** Where the crop sits in `photoPath`, normalized; null when the crop came from another photo or another device. */
+    cropPhotoLocalId: text(),
+    /** Where the crop sits in its source photo, normalized; null when unavailable on this device. */
     cropCorners: text({ mode: "json" }).$type<Quad>(),
     cropStorageId: text().$type<string>(),
     photoUpdatedAt: integer().notNull().default(0),

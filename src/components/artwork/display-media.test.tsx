@@ -64,6 +64,35 @@ it("serves derivatives through the context route from memory only", async () => 
   expect(image.props.source.uri).toBe("https://test.convex.site/display-media?kind=wallItem&itemId=item-a");
 });
 
+it("reloads a replaced wall crop even when its dimensions stay the same", async () => {
+  const media = {
+    kind: "photo" as const,
+    width: 300,
+    height: 200,
+    reference: {
+      kind: "wallItem" as const,
+      itemId: "item-a" as never,
+      photoLocalId: "photo-a",
+      variant: "crop" as const,
+      cropRevision: 1,
+    },
+  };
+  const view = await render(<DisplayMedia media={media} label="Painting" width={200} />);
+  const previousUri = screen.getByRole("image").props.source.uri;
+  await fireEvent(screen.getByRole("image"), "load");
+  await view.rerender(
+    <DisplayMedia
+      media={{ ...media, reference: { ...media.reference, cropRevision: 2 } }}
+      label="Painting"
+      width={200}
+    />,
+  );
+  const image = screen.getByRole("image");
+  expect(image.props.source.uri).not.toBe(previousUri);
+  expect(new URL(image.props.source.uri).searchParams.get("cropRevision")).toBe("2");
+  expect(screen.getByRole("progressbar", { name: "Loading image: Painting" })).toBeOnTheScreen();
+});
+
 it("renders accessible square placeholders for absent and broken images and recovers for a new source", async () => {
   const view = await render(
     <DisplayMedia media={{ kind: "placeholder", width: 1, height: 1 }} label="Saved title" width={100} />,

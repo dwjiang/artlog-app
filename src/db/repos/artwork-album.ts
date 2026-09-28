@@ -450,7 +450,15 @@ export function saveArtworkSession(
   db.transaction((tx) => {
     if (newWork) {
       tx.insert(savedWorks)
-        .values({ ...newWork, owner })
+        .values({
+          ...newWork,
+          owner,
+          cropPhotoLocalId:
+            newWork.cropPhotoLocalId
+            ?? (newWork.cropPath
+              ? photos.find((photo) => photo.path === (newWork.photoPath ?? newWork.cropPath))?.localId
+              : undefined),
+        })
         .run();
     }
     for (const photo of photos) {

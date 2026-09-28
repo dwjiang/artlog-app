@@ -69,8 +69,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
           <PublishedArtwork
             key={`${session.key}:${itemId}`}
             artwork={data.artwork}
-            photos={shared ? (visit.data?.photos ?? []) : [data.artwork.media]}
-            frame={shared ? "none" : (wall.data?.layout.frame ?? "none")}
+            photos={data.photos ?? []}
             token={session.token}
             enrichment={data.enrichment}
             note={shared ? undefined : wall.data?.note}

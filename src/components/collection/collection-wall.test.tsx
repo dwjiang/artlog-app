@@ -4,7 +4,13 @@ import type { ComponentProps, ReactNode } from "react";
 import { Image, ScrollView } from "react-native";
 
 import { addArtworkPhoto } from "@/db/repos/artwork-album";
-import { insertSavedWork } from "@/db/repos/saved-works";
+import {
+  insertSavedWork,
+  getSavedWork,
+  replaceSavedCrop,
+  upsertFromRemote,
+  updatePhotoTransfer,
+} from "@/db/repos/saved-works";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import type { SavedWork } from "@/db/schema";
 import { switchOwner } from "@/lib/account/owner-store";
@@ -884,4 +890,176 @@ it("opens the editor from an empty wall when saved art is available", async () =
     }),
     expect.anything(),
   );
+});
+
+it("uses the crop and its proportions on the wall while preserving the full photo to open", async () => {
+  const owner = "device:cropped-wall";
+  switchOwner(owner, "crop-scope");
+  mockToken = null;
+  const work = {
+    owner,
+    localId: "cropped-work",
+    title: "Water Lilies",
+    artist: "Monet",
+    savedAt: 1,
+    photoPath: "full-capture.jpg",
+    cropPath: "painting-crop.jpg",
+    cropPhotoLocalId: "cropped-work",
+  } as SavedWork;
+  await insertSavedWork(work, owner);
+  addArtworkPhoto(
+    { savedLocalId: work.localId, localId: "chosen-detail", path: "detail.jpg", kind: "detail", capturedAt: 2 },
+    owner,
+  );
+  const getSize = jest.spyOn(Image, "getSize").mockImplementation(async () => ({ width: 600, height: 400 }));
+  try {
+    const { result } = await renderHook(() => useCollectionWall([work]));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() =>
+      result.current.repository.setLayoutDraft({
+        color: "#FCFCF9",
+        items: [
+          {
+            placementId: "crop-placement",
+            saveLocalId: work.localId,
+            photoLocalId: work.localId,
+            layout: published.items[0].layout,
+          },
+        ],
+      }),
+    );
+    await waitFor(() => expect(result.current.pieces[0].cropAspectRatio).toBe(1.5));
+    expect(result.current.pieces[0]).toMatchObject({ cropPath: "painting-crop.jpg", photoLocalId: work.localId });
+    expect(getSize).toHaveBeenCalledWith("file:///documents/painting-crop.jpg");
+    await act(() =>
+      result.current.repository.setLayoutDraft({
+        color: "#FCFCF9",
+        items: [
+          {
+            placementId: "crop-placement",
+            saveLocalId: work.localId,
+            photoLocalId: "chosen-detail",
+            layout: published.items[0].layout,
+          },
+        ],
+      }),
+    );
+    await waitFor(() => expect(result.current.pieces[0].cropPath).toBe("detail.jpg"));
+  } finally {
+    getSize.mockRestore();
+  }
+});
+
+it("keeps the old wall photo full after the crop source changes locally", async () => {
+  const owner = "account:review-local";
+  switchOwner(owner, "scope-a");
+  await insertSavedWork(
+    {
+      localId: "review-work",
+      title: "Painting",
+      artist: "Artist",
+      savedAt: 1,
+      photoPath: "a.jpg",
+      cropPath: "crop-a.jpg",
+    },
+    owner,
+  );
+  addArtworkPhoto(
+    { savedLocalId: "review-work", localId: "photo-b", kind: "detail", path: "b.jpg", capturedAt: 2 },
+    owner,
+  );
+  const item = {
+    ...published.items[0],
+    saveLocalId: "review-work",
+    photoLocalId: "review-work",
+    artwork: {
+      ...published.items[0].artwork,
+      media: {
+        kind: "photo",
+        width: 100,
+        height: 100,
+        reference: { kind: "wallItem", itemId: "item-a", photoLocalId: "review-work", variant: "crop" },
+      },
+    },
+  };
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [item] });
+  const getSize = jest.spyOn(Image, "getSize").mockImplementation(async () => ({ width: 100, height: 100 }));
+  try {
+    let work = (await getSavedWork("review-work", owner))!;
+    const view = await renderHook(() => useCollectionWall([work]));
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(view.result.current.pieces[0].cropPath).toBe("crop-a.jpg");
+    replaceSavedCrop("review-work", "crop-b.jpg", null, "b.jpg", owner);
+    work = (await getSavedWork("review-work", owner))!;
+    await view.rerender(undefined);
+    expect(view.result.current.pieces[0].cropPath).toBe("a.jpg");
+  } finally {
+    getSize.mockRestore();
+  }
+});
+
+it("keeps photo A full after photo B is cropped on another device", async () => {
+  const owner = "account:review-remote";
+  switchOwner(owner, "scope-a");
+  await insertSavedWork(
+    {
+      localId: "remote-work",
+      title: "Painting",
+      artist: "Artist",
+      savedAt: 1,
+      photoPath: "a.jpg",
+      cropPath: "crop-a.jpg",
+      cropStorageId: "old-storage",
+      photoUpdatedAt: 1,
+    },
+    owner,
+  );
+  addArtworkPhoto(
+    { savedLocalId: "remote-work", localId: "remote-b", kind: "detail", path: "b.jpg", capturedAt: 2 },
+    owner,
+  );
+  await upsertFromRemote(
+    [
+      {
+        localId: "remote-work",
+        snapshot: { title: "Painting", artist: "Artist" },
+        savedAt: 1,
+        updatedAt: 2,
+        updatedBy: "another-device",
+        cropStorageId: "new-storage",
+        cropPhotoLocalId: "remote-b",
+        photoUpdatedAt: 2,
+      } as never,
+    ],
+    owner,
+  );
+  await updatePhotoTransfer("remote-work", { cropPath: "crop-b.jpg" }, owner);
+  mockTransport.getMine.mockResolvedValue({
+    ...published,
+    items: [
+      {
+        ...published.items[0],
+        saveLocalId: "remote-work",
+        photoLocalId: "remote-work",
+        artwork: {
+          ...published.items[0].artwork,
+          media: {
+            kind: "photo",
+            width: 100,
+            height: 100,
+            reference: { kind: "wallItem", itemId: "item-a", photoLocalId: "remote-work" },
+          },
+        },
+      },
+    ],
+  });
+  const getSize = jest.spyOn(Image, "getSize").mockImplementation(async () => ({ width: 100, height: 100 }));
+  try {
+    const work = (await getSavedWork("remote-work", owner))!;
+    const view = await renderHook(() => useCollectionWall([work]));
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(view.result.current.pieces[0].cropPath).toBe("a.jpg");
+  } finally {
+    getSize.mockRestore();
+  }
 });

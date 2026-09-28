@@ -168,6 +168,24 @@ it("rolls back a whole capture session when a photo belongs to another artwork",
   expect(selectArtworkPhotos("new").all()).toEqual([]);
 });
 
+it("links a new saved crop to its capture photo even when their local IDs differ", () => {
+  saveArtworkSession(
+    "new-crop-work",
+    {
+      localId: "new-crop-work",
+      title: "Painting",
+      artist: "",
+      savedAt: 1,
+      photoPath: "capture.jpg",
+      cropPath: "crop.jpg",
+    },
+    [{ localId: "capture-photo", savedLocalId: "new-crop-work", path: "capture.jpg", kind: "full", capturedAt: 1 }],
+    undefined,
+    owner,
+  );
+  expect(selectSavedWork("new-crop-work").get()).toMatchObject({ cropPhotoLocalId: "capture-photo" });
+});
+
 it("moves photos and their visit link atomically and reuses deleted capacity", async () => {
   const visitLocalId = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3341";
   await insertSavedWork({

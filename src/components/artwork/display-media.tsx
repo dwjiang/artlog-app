@@ -37,6 +37,12 @@ export function DisplayMedia(props: Props) {
       if (reference.photoLocalId) {
         url.searchParams.set("photoLocalId", reference.photoLocalId);
       }
+      if (reference.kind === "wallItem" && reference.variant) {
+        url.searchParams.set("variant", reference.variant);
+        if (reference.cropRevision !== undefined) {
+          url.searchParams.set("cropRevision", String(reference.cropRevision));
+        }
+      }
       uri = url.href;
     }
   }

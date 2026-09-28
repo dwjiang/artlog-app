@@ -235,7 +235,7 @@ it("does not acknowledge an old upload over a crop edited during transfer", asyn
     cropPath: "old.jpg",
   });
   upload.mockImplementationOnce(async () => {
-    repo.replaceSavedCrop("a", "new.jpg", null);
+    repo.replaceSavedCrop("a", "new.jpg", null, null);
     return { storageId: "old-storage", photoUpdatedAt: 1 };
   });
   upload.mockResolvedValueOnce({ storageId: "new-storage", photoUpdatedAt: 2 });
@@ -260,7 +260,7 @@ it("discards an old download when the user edits the crop during transfer", asyn
     cropStorageId,
   });
   download.mockImplementationOnce(async () => {
-    repo.replaceSavedCrop("a", "edited.jpg", null);
+    repo.replaceSavedCrop("a", "edited.jpg", null, null);
     return "obsolete.jpg";
   });
   await syncCollectionPhotos(deps);

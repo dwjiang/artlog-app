@@ -1,4 +1,5 @@
 import { db } from "@/db/client";
+import { addArtworkPhoto } from "@/db/repos/artwork-album";
 import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from "@/db/repos/pending-scans";
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
 import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
@@ -125,14 +126,19 @@ it("updates only the collection crop and its corners, preserves the original alb
   });
   await saveEditedArtworkCrop("work", crop, owner);
   const work = await getSavedWork("work");
-  expect(work).toMatchObject({ photoPath: "full.jpg", cropCorners: crop.corners, cropStorageId: null });
+  expect(work).toMatchObject({
+    photoPath: "full.jpg",
+    cropPhotoLocalId: "work",
+    cropCorners: crop.corners,
+    cropStorageId: null,
+  });
   expect(work?.cropPath).not.toBe("old.preview.jpg");
   expect(mockFiles.has(`file:///documents/${work?.cropPath}`)).toBe(true);
   expect(mockFiles.has("file:///documents/full.jpg")).toBe(true);
   expect(db.select().from(artworkPhotos).all()[0].path).toBe("full.jpg");
 });
 
-it("keeps no corners for a crop cut from another album photo", async () => {
+it("keeps a crop linked to its source when it is cut from another album photo", async () => {
   await insertSavedWork({
     localId: "work",
     title: "Painting",
@@ -142,8 +148,16 @@ it("keeps no corners for a crop cut from another album photo", async () => {
     cropPath: "old.preview.jpg",
     cropCorners: crop.corners,
   });
+  addArtworkPhoto(
+    { localId: "detail-photo", savedLocalId: "work", path: "detail.jpg", kind: "detail", capturedAt: 2 },
+    owner,
+  );
   await saveEditedArtworkCrop("work", { ...crop, photoPath: "detail.jpg" }, owner);
-  expect((await getSavedWork("work"))?.cropCorners).toBeNull();
+  expect(await getSavedWork("work")).toMatchObject({
+    photoPath: "detail.jpg",
+    cropPhotoLocalId: "detail-photo",
+    cropCorners: crop.corners,
+  });
 });
 
 it("keeps the previous saved crop if writing the new file fails, and can retry the same preview", async () => {

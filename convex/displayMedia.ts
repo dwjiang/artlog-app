@@ -182,8 +182,17 @@ export const findForWallItem = internalQuery({
       if (context.photoLocalId !== item.photoLocalId) {
         throw new ConvexError({ code: "not_found" });
       }
-      return (await ownedAlbumPhoto(ctx, save, context.photoLocalId)).storageId ?? null;
+      const photo = await ownedAlbumPhoto(ctx, save, context.photoLocalId);
+      if (context.variant === "crop") {
+        if (save.cropPhotoLocalId !== photo.localId || context.cropRevision !== save.photoUpdatedAt) {
+          throw new ConvexError({ code: "not_found" });
+        }
+        return save.cropStorageId ?? null;
+      }
+      if (context.cropRevision !== undefined) throw new ConvexError({ code: "not_found" });
+      return photo.storageId ?? null;
     }
+    if (context.variant || context.cropRevision !== undefined) throw new ConvexError({ code: "not_found" });
     const asset = await resolveDisplayAsset(ctx, save);
     return asset?.source.kind === "derivative" && (await isCurrentAsset(ctx, save, asset))
       ? (asset.storageId ?? null)
@@ -206,9 +215,19 @@ export const download = httpAction(async (ctx, request) => {
       kind && Object.hasOwn(PARAMS, kind) ? PARAMS[kind as keyof typeof PARAMS] : null;
     if (
       !keys
-      || [...params.keys()].some((key) => key !== "kind" && key !== "photoLocalId" && !keys.includes(key))
+      || [...params.keys()].some(
+        (key) =>
+          key !== "kind"
+          && key !== "photoLocalId"
+          && !(kind === "wallItem" && (key === "variant" || key === "cropRevision"))
+          && !keys.includes(key),
+      )
       || keys.some((key) => !params.get(key))
     ) {
+      throw new ConvexError({ code: "invalid_media" });
+    }
+    const cropRevision = params.has("cropRevision") ? Number(params.get("cropRevision")) : undefined;
+    if (cropRevision !== undefined && (!Number.isSafeInteger(cropRevision) || cropRevision <= 0)) {
       throw new ConvexError({ code: "invalid_media" });
     }
     // The internal queries validate table-specific IDs before any lookup.
@@ -216,6 +235,8 @@ export const download = httpAction(async (ctx, request) => {
       kind,
       ...Object.fromEntries(keys.map((key) => [key, params.get(key)!])),
       ...(params.get("photoLocalId") ? { photoLocalId: params.get("photoLocalId") } : {}),
+      ...(params.get("variant") ? { variant: params.get("variant") } : {}),
+      ...(cropRevision !== undefined ? { cropRevision } : {}),
     } as never;
     if (kind !== "wallItem") return await serveSharedMedia(ctx, context);
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });

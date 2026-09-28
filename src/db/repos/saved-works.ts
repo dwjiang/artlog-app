@@ -14,7 +14,7 @@ import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
 
 import type { Doc } from "../../../convex/_generated/dataModel";
-import { saveArtworkSession } from "./artwork-album";
+import { saveArtworkSession, selectArtworkPhotos } from "./artwork-album";
 import { requireVisitMembership } from "./visit-membership";
 
 /** A save with its capture as the first album photo; the scan flow builds the same session in saveResult. */
@@ -153,6 +153,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
           tx.update(savedWorks)
             .set({
               cropStorageId: row.cropStorageId,
+              cropPhotoLocalId: row.cropPhotoLocalId ?? null,
               photoUpdatedAt: row.photoUpdatedAt ?? 0,
               ...(replaced ? { cropPath: null, cropCorners: null } : {}),
             })
@@ -211,6 +212,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
             syncedBy: row.updatedBy,
             deletedAt: row.deletedAt,
             cropStorageId: row.cropStorageId,
+            cropPhotoLocalId: row.cropPhotoLocalId,
             photoUpdatedAt: row.photoUpdatedAt ?? 0,
           })
           .run();
@@ -280,12 +282,18 @@ export function replaceSavedCrop(
   localId: string,
   cropPath: string,
   cropCorners: SavedWork["cropCorners"],
+  photoPath: SavedWork["photoPath"],
   owner = getLocalOwner(),
 ) {
   const work = selectSavedWork(localId, owner).get();
   if (!work || work.deletedAt !== null) throw new Error("Artwork unavailable");
+  const source = photoPath
+    ? selectArtworkPhotos(localId, owner)
+        .all()
+        .find((photo) => photo.path === photoPath)
+    : undefined;
   db.update(savedWorks)
-    .set({ cropPath, cropCorners, cropStorageId: null })
+    .set({ cropPath, cropCorners, photoPath, cropPhotoLocalId: source?.localId ?? null, cropStorageId: null })
     .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)))
     .run();
   requestCollectionSync();
