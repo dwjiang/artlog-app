@@ -76,6 +76,7 @@ function requiresNewKey(code: string | undefined): boolean {
     || code === "invalid_attestation"
     || code === "challenge_invalid"
     || code === "ERR_APP_INTEGRITY_INVALID_KEY"
+    || code === "ERR_APP_INTEGRITY_INVALID_INPUT"
   );
 }
 

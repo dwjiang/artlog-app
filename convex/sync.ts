@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 
 import { journalSave, journalVisit, validateBatch } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
@@ -41,9 +41,8 @@ export const syncJournal = mutation({
       .query("journalSyncState")
       .withIndex("by_owner", (q) => q.eq("owner", owner))
       .unique();
-    if (args.since > (state?.version ?? 0)) {
-      throw new ConvexError({ code: "invalid_sync" });
-    }
+    // A checkpoint ahead of the server cannot resume; replay the owner's journal after a reset.
+    const since = args.since > (state?.version ?? 0) ? 0 : args.since;
     const acceptedVisits = [];
     const acceptedSaves = [];
     for (const input of args.visits) {
@@ -66,11 +65,11 @@ export const syncJournal = mutation({
     }
     const visitChanges = await ctx.db
       .query("visits")
-      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", args.since))
+      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", since))
       .take(LIMITS.batchRecords + 1);
     const saveChanges = await ctx.db
       .query("collections")
-      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", args.since))
+      .withIndex("by_owner_changeVersion", (q) => q.eq("owner", owner).gt("changeVersion", since))
       .take(LIMITS.batchRecords + 1);
     const changes = [
       ...visitChanges.map((row) => ({ kind: "visit" as const, row })),
@@ -80,7 +79,7 @@ export const syncJournal = mutation({
     const saves: Doc<"collections">[] = [];
     const venues = new Map<string, JournalVenue>();
     let bytes = utf8Bytes({ acceptedVisits, acceptedSaves });
-    let checkpoint = args.since;
+    let checkpoint = since;
     let processed = 0;
     for (const change of changes) {
       const parent =

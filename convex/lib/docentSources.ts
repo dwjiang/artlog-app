@@ -170,7 +170,12 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       if (!(error instanceof ConvexError && error.data.code === "qr_host_not_allowed")) {
         failures++;
       }
-      await reportBackendError(error, "docent.ownerPage");
+      // Museum bot protection is an expected refusal; the search sources below remain usable.
+      if (
+        !(error instanceof ConvexError && error.data.code === "page_unavailable" && error.data.reason === "http_403")
+      ) {
+        await reportBackendError(error, "docent.ownerPage");
+      }
       console.warn("Owner page unavailable for the fact sheet", error);
     }
   }
