@@ -36,12 +36,25 @@ export function eligiblePull(pull: Pull): boolean {
   );
 }
 
-export type GithubItem = Pick<Pull, "title" | "body">;
+export type GithubItem = Pick<Pull, "title" | "body">
+  & Partial<Pick<Pull, "user" | "labels">> & {
+    pull_request?: { url: string };
+  };
 
 export function issueAlreadyTracked(issue: string, items: GithubItem[]): boolean {
   if (!ISSUE.test(issue)) throw new Error("Invalid Sentry issue identifier");
   const pattern = new RegExp(`\\b${issue}\\b`);
-  return items.some((item) => pattern.test(`${item.title}\n${item.body ?? ""}`));
+  return items.some((item) => {
+    // Earlier runs misclassified this sandbox startup failure as an investigated dead end.
+    const failedSandboxAttempt =
+      !item.pull_request
+      && item.user?.login === "github-actions[bot]"
+      && LABELS.every((label) => item.labels?.some(({ name }) => name === label))
+      && item.title.startsWith(`Sentry ${issue}: automatic fix skipped`)
+      && item.body?.includes("The fixer found no supported fix.")
+      && item.body.includes("bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted");
+    return !failedSandboxAttempt && pattern.test(`${item.title}\n${item.body ?? ""}`);
+  });
 }
 
 export function stateMarker(state: State): string {
