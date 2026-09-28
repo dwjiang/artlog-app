@@ -58,7 +58,10 @@ overwriting a newer vector or partition.
 Pinecone holds searchable embeddings. Private R2 archives hold the exact float64
 payloads for offline museum packages, training exports, and rebuilding the index.
 Convex keeps vector identities, hashes, archive references, and sync state.
-Corpus imports and scan captures upload to R2 before committing their metadata.
+Corpus imports upload directly from the Python job to R2, reserving and completing
+100 files per batch. Signed MD5 and SHA-256 metadata headers bind each upload;
+Convex checks HEAD metadata before committing references. Scan captures also
+upload to R2 before committing their metadata.
 Contributions, feedback promotions, and placement approvals reuse the scan's archive
 when publishing a searchable vector and a reference-only sync job. Failed or
 superseded commits expire unreferenced uploads after a 31-minute reader grace period.

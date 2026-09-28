@@ -65,6 +65,13 @@ class Writer:
         assert name not in {"ingest:upsertDescriptors", "ingest:upsertVectors"}
         return self._write(name, args)
 
+    def ingest_features(self, name, args):
+        return self.action(name, args)
+
+    def ingest_feature_batches(self, name, batches):
+        for batch in batches:
+            yield len(batch), self.action(name, {"rows": batch})
+
     def _write(self, name, args):
         stage = next(s for s in STAGES if name == f"ingest:{FUNCTIONS[s]}")
         self.calls.append((stage, args["rows"]))
@@ -242,7 +249,7 @@ def test_order_batches_metadata_without_vectors_and_multiview(merged_corpus):
     result = push(directory, writer)
     assert list(dict.fromkeys(s for s, _ in writer.calls)) == list(STAGES)
     assert all(len(rows) <= BATCH_SIZES[stage] for stage, rows in writer.calls)
-    assert max(len(rows) for stage, rows in writer.calls if stage == "vectors") == 250
+    assert max(len(rows) for stage, rows in writer.calls if stage == "vectors") == 100
     assert result["countsMatch"]
     assert result["actual"] == {
         "museums": 1,
@@ -334,10 +341,10 @@ def test_size_error_halves_persisted_batch_and_stops(merged_corpus):
         return original(name, args)
 
     writer.action = action
-    with pytest.raises(BatchSizeReduced, match="250 to 125"):
+    with pytest.raises(BatchSizeReduced, match="100 to 50"):
         push(directory, writer)
     state = json.loads((directory / "push.json").read_text())
-    assert state["batchSizes"]["vectors"] == 125
+    assert state["batchSizes"]["vectors"] == 50
     assert state["stages"]["vectors"]["offset"] == 0
     writer.action = original
     assert push(directory, writer)["countsMatch"]
@@ -385,6 +392,34 @@ def test_system_operation_timeout_reduces_batch_and_replays_without_skipping(mer
     assert attempts == [500, 250, 250, 3]
     assert result["countsMatch"]
     assert result["stages"]["objects"]["batchSize"] == 250
+
+
+@pytest.mark.parametrize("stage", ["vectors", "descriptors"])
+def test_stream_checkpoints_each_commit_and_resumes_at_the_first_unacknowledged_row(
+    merged_corpus, stage
+):
+    directory = merged_corpus(502)
+    writer = Writer()
+    original = writer.action
+    batches = 0
+
+    def action(name, args):
+        nonlocal batches
+        if name == f"ingest:{FUNCTIONS[stage]}":
+            batches += 1
+            if batches == 3:
+                raise RuntimeError("connection lost")
+        return original(name, args)
+
+    writer.action = action
+    with pytest.raises(RuntimeError, match="connection lost"):
+        push(directory, writer)
+    state = json.loads((directory / "push.json").read_text())
+    assert state["stages"][stage]["offset"] == len(writer.stored[stage]) == 200
+    before = len(writer.calls)
+    writer.action = original
+    assert push(directory, writer)["countsMatch"]
+    assert writer.calls[before] == (stage, Corpus(directory).batch(stage, 200, 100))
 
 
 def test_readback_samples_each_source_and_does_not_repeat_on_resume(merged_corpus):
@@ -452,3 +487,83 @@ def test_pinecone_sync_failure_does_not_complete_import(merged_corpus):
     )
     with pytest.raises(RuntimeError, match="failed jobs"):
         push(directory, writer)
+
+
+def test_preflight_overlaps_reads_and_finishes_before_first_write(merged_corpus):
+    from threading import Barrier, Lock
+
+    directory = merged_corpus(2002)
+    writer = Writer()
+    original = writer.query
+    ready = Barrier(4, timeout=3)
+    lock = Lock()
+    queries = []
+
+    def query(name, args=None):
+        if name == "ingest:countExisting" and args["table"] == "artworks":
+            with lock:
+                queries.append(args["rows"])
+                first_window = len(queries) <= 4
+            if first_window:
+                ready.wait()
+            assert writer.calls == [], "Import started before preflight completed"
+        return original(name, args)
+
+    writer.query = query
+    assert push(directory, writer)["countsMatch"]
+    assert len(queries) == 5
+
+
+def test_preflight_failure_checkpoints_only_contiguous_success_and_resumes(merged_corpus):
+    directory = merged_corpus(2002)
+    corpus = Corpus(directory)
+    writer = Writer()
+    original = writer.query
+    failed_key = corpus.rows["artworks"][500]["key"]
+
+    def fail(name, args=None):
+        if (
+            name == "ingest:countExisting"
+            and args["table"] == "artworks"
+            and args["rows"][0]["key"] == failed_key
+        ):
+            raise RuntimeError("preflight interrupted")
+        return original(name, args)
+
+    writer.query = fail
+    with pytest.raises(RuntimeError, match="preflight interrupted"):
+        push(directory, writer)
+    assert writer.calls == []
+    state = json.loads((directory / "push.json").read_text())
+    assert state["preflight"]["artworks"] == {"offset": 500, "existing": 0}
+    resumed = []
+
+    def query(name, args=None):
+        if name == "ingest:countExisting" and args["table"] == "artworks":
+            resumed.extend(row["key"] for row in args["rows"])
+        return original(name, args)
+
+    writer.query = query
+    assert push(directory, writer)["countsMatch"]
+    assert set(resumed) == {row["key"] for row in corpus.rows["artworks"][500:]}
+    assert "preflight" not in json.loads((directory / "push.json").read_text())
+
+
+def test_preflight_resume_refuses_changed_baseline_before_any_write(merged_corpus):
+    directory = merged_corpus()
+    writer = Writer()
+    original = writer.query
+
+    def fail(name, args=None):
+        if name == "ingest:countExisting":
+            raise RuntimeError("preflight interrupted")
+        return original(name, args)
+
+    writer.query = fail
+    with pytest.raises(RuntimeError, match="preflight interrupted"):
+        push(directory, writer)
+    writer.query = original
+    writer.stored["artworks"].add("unrelated new row")
+    with pytest.raises(ValueError, match="baseline changed"):
+        push(directory, writer)
+    assert writer.calls == []

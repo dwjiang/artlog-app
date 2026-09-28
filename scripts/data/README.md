@@ -154,16 +154,37 @@ Use `--verify-fraction 1` for an explicit full readback, or another fraction in
 `(0, 1]`. A failed readback is not cached. Counts must still match the full
 baseline plus input overlap calculation.
 
-Vector imports use an action to archive payloads in R2 before committing small
-`vectors` metadata rows and queuing Pinecone writes. Training vector exports also
-use actions to read the archives. Configure R2 and Pinecone on the deployment.
+The Python writer uploads vector and ORB bytes directly to private R2 using signed
+URLs. It prepares up to four 100-file batches concurrently with a shared pool of
+32 upload workers, reusing HTTP connections between batches. The full importer
+continuously refills preparation while committing earlier batches in order,
+holding at most four prepared batches plus the committing batch. It checkpoints
+every acknowledged batch of up to 100 rows. Convex verifies size, MIME type, MD5,
+and signed SHA-256 metadata with up to 32 concurrent HEAD requests per batch
+before accepting archive references; bytes are checked again during sampled
+readback. Retries reuse existing matching archives, and uncommitted files expire
+through the normal lease cleanup. Feature ingestion actions accept archive
+references, so callers with raw feature rows use `ConvexWriter.ingest_features`,
+`ConvexWriter.upsert`, or `ConvexWriter.ingest_feature_batches` for a lazy stream
+of batches. Close a partially consumed stream to wait for pending uploads without
+committing later rows. Configure R2 and Pinecone on the deployment.
+
+Preflight checks four read batches concurrently and saves contiguous progress
+before writes begin. Resume validates the input fingerprint, deployment, search
+index, and unchanged baseline counts. Keep one importer per checkpoint; a changed
+baseline during preflight requires review and a new checkpoint. Python callers
+can use `with ConvexWriter(settings) as writer` to close its upload connections.
+
+Vector metadata commits queue Pinecone writes. Training vector exports use
+actions to read the archives.
 Deploy to a fresh database, or reset and reseed the pre-release vector data and
 remove its old Pinecone records; the old embedding tables and remote IDs are
 incompatible. Start a new import checkpoint after a reset.
 
 Full imports use `push --in "$SCRATCH_DIR/merged" --full` and require every shard
 from a full build; pilots and exported subsets are refused. The
-[full production upload](../../docs/todos/production-upload/README.md) remains deferred.
+[full production upload](../../docs/todos/production-upload/README.md) was resumed
+on 2026-09-27; its checkpoint and verification reports determine completion.
 
 ## Exhibition checklists
 

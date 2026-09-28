@@ -1,398 +1,207 @@
 # Full corpus upload to production
 
-> **Deferred by the user on 2026-09-13. Do not execute production operations
-> until the user explicitly resumes this upload.** The data relocation is complete.
->
-> Follow the steps and their verification gates in order. Do not mark this plan
-> done when an upload is merely running. Record completion in this todo.
->
-> **Drift check:** run `git diff -M --stat 1fe0c14..HEAD -- jobs/artlog_jobs jobs/scripts scripts/data/pipeline
-scripts/data/letterbox-parity.py convex shared/model/model-version.json docs/operations/production.md docs/todos/release/README.md`
-> (1fe0c14 predates the move of `jobs/` to `scripts/data/`; `-M` with both paths pairs the renames) and
-> `git diff --stat -- scripts/data/pipeline convex shared/model/model-version.json`.
-> This plan was written against an already dirty working tree. HEAD alone does
-> not identify its importer: compare the
-> [recorded fingerprints](../../operations/corpus.md#file-fingerprints) and review
-> changes before running anything. Preserve unrelated work and do not rename the branch.
+**Completed on 2026-09-27 at 22:58 PDT.** Full counts, 46,412 sampled record
+checks, 8,201 sampled thumbnail checks, and all five public recognition API
+checks passed. Usage was recorded and the temporary import credentials were
+revoked and removed. Physical iPhone acceptance remains separate.
 
-## Status
+The optimized importer is deployed to
+production `admired-goldfinch-660` in `daniel-jiang/artlog`. The production job
+started at 10:52 PDT with museum restoration and a 30-object pilot, followed by
+the full preflight. At 11:29 PDT it restarted with four concurrent preflight reads,
+four feature-preparation batches, 32 R2 upload workers, and pooled connections.
+A 1,000-object speed pilot gates the resumed full run. A running process is not a completed import: consult the durable
+status, checkpoint, and verification reports below.
 
-- **Status:** DEFERRED by the user on 2026-09-13 to reduce costs during development
-- **Priority:** P1 when production expansion resumes
-- **Effort:** L operationally; budget hours, not an unattended completion claim
-- **Risk:** MED: wrong deployment, incomplete references, storage cost, and changed recognition competition
-- **Depends on:** user resumption; current production cost/capacity preflight
-- **Category:** release operations
-- **Planned at:** commit `1fe0c14`, dirty working tree, 2026-09-13
-- **Target:** project `daniel-jiang/artlog`, production `admired-goldfinch-660`
+The first speed pilot passed at 11:32 PDT. Its 400-row batches measured
+about 10–11 seconds for vectors versus
+29 seconds sequentially, and 11 seconds for ORB versus 28 seconds sequentially.
+Its initial 10–13 hour estimate included preflight and verification. Evidence is in
+`upload-speed-benchmark.json` and `eta-after-speedup.json` in the run directory.
 
-The [release todo](../release/README.md) owns TestFlight distribution. This
-upload remains separately deferred to reduce costs during development.
+At 14:42 PDT, an R2 verification connection closed and stopped the job at
+53,200 vectors. The importer now retries that specific transport failure against
+the same file IDs, without relaxing checksum checks. It resumed from the saved
+checkpoint at 15:47 PDT; `transport-retry-resume.json` records the recovery.
 
-## Why this matters
+At 16:06 PDT the full job resumed with continuous preparation, ordered 100-row
+commits/checkpoints, and 32 concurrent verification requests per batch. A real
+production benchmark advanced 3,200 vectors and 3,200 descriptors, with 128
+sampled feature payloads matching. The 2,400-row continuous portions measured
+69.6 vectors/s and 73.0 descriptors/s; 2 vectors and 249 descriptors reused files.
+The descriptor estimate conservatively uses 65.4 new uploads/s. The remaining
+4.5–6 hour estimate includes verification and is not a completion claim.
+`continuous-benchmark.json` and `continuous-start.json` record the comparison,
+resume offsets, process, checks, and estimate. The reference batches also used
+the faster verification and reused some files, so they are not pure fresh-file
+comparisons with the earlier pilot.
 
-Production currently has the verified 10,000-painting development sample. The
-full locally built corpus has 397,047 canonical objects with recognition
-features. Importing it later expands coverage without repeating downloads,
-embedding extraction, or ORB extraction. The user deliberately postponed the
-associated production usage and storage costs while developing.
+All six upload stages reached their full input counts at 20:25 PDT. Pinecone
+sync is ready. At 20:40 PDT, sampled vector readback stopped on the same R2 TLS
+disconnect; the bounded, sanitized retry now also covers the two idempotent
+readback actions. Verification resumed at 20:47 PDT from the completed upload
+checkpoint; `readback-retry-resume.json` records the process and passing checks.
+The user separately added museums to match development, bringing the museum
+count to 42,452. `museum-count-reconciliation.json` records the live unique-key
+check and the adjustment to the museum expectation; corpus counts and the
+original baseline remain unchanged.
 
-## Reference and working directory
+Full sampled readback finished at 22:26 PDT with zero mismatches or thumbnail
+violations. The public recognition check initially stopped because the
+operational script still expected `lr-v2`, although the PCA512 calibrator had
+already adopted `lr-v3` in commit `9679d665` before this import. Correcting that
+expectation required no production code or data changes. The 22:58 PDT resume
+reused the passing readback and passed exact-reference recognition for AIC, Met,
+and Wikidata, plus missing-geometry and unsupported-model checks. Evidence is in
+`calibrator-check-fix-resume.json`, `recognition-audit.json`, and
+`credential-cleanup.json`.
 
-The dated [corpus inventory and import baseline](../../operations/corpus.md)
-records the completed relocation, artifact locations, counts, payload
-estimates, implementation observations, and file fingerprints.
+## Scope and cost
 
-Run repository commands from the active checkout's root; commands explicitly
-labeled `scripts/data/` run from that subdirectory. Use the absolute corpus path in Step 1
-so execution does not depend on a particular workspace or symlink.
+The user requested batched file registration, direct-to-R2 feature uploads, and
+the full production import. File reservation/completion uses batches of 100;
+feature bytes travel from the Mac to R2. Matching existing archives are reused
+on resume. Preparation refills continuously during ordered metadata commits,
+holding at most four preparing/prepared batches plus the committing batch.
+Preflight progress is also resumable; its
+baseline must remain unchanged until writes begin. The production Pinecone index is `artlog-prod-512`, a separate
+512-dimensional cosine index on Starter in AWS `us-east-1`.
 
-## Scope and conventions
+The existing Convex team monthly shutdown threshold remains **$10**. The earlier
+proposal to raise it to $25 and allow a $20 import was not accepted. No plan
+upgrade or limit change is part of this run. The two optimizations avoid roughly
+1.58 million file-registration mutations and 11 GB of upload relay traffic;
+actual savings depend on shared free allowances and total database I/O. Monitor
+usage and preserve the checkpoint if the existing threshold stops the job.
 
-This is an import into the existing production deployment. Keep dev
-`usable-owl-256` and the current phone's dev URL intact. No table replacement,
-counter reset, schema migration, model retraining, hub scoring, enrichment,
-paid plan upgrade, usage-limit change, EAS build, or submission is included.
-Do not rerun the old empty-database setup helper or reuse its 10k checkpoint.
+Development remains `usable-owl-256`. Model training, hub scoring, enrichment,
+EAS builds, submissions, and physical iPhone release acceptance are separate.
 
-Future implementation may add `scripts/data/audit-production-corpus.py` and
-`scripts/data/audit-production-corpus_test.py` for the bounded verification
-described below. Operational outputs belong in the durable run directory.
-Update [the deployment state](../../operations/production.md), [the jobs guide](../../../scripts/data/README.md),
-and this todo after verification. Backend/app changes are not expected; investigate and
-revise this plan if they become necessary.
+## Inputs and evidence
 
-The project uses Python 3.12+ with uv/pytest/Ruff, and TypeScript with Convex
-1.45, Expo SDK 57, Vitest, and Jest. Match the fake-writer patterns in
-`scripts/data/pipeline/push_test.py` and script tests in
-`scripts/data/letterbox-parity_test.py`. New script filenames use kebab case.
-Read the current applicable guides and exact Expo v57 docs before code edits.
-No installs are needed if the existing `scripts/data/.venv` is intact; a new checkout
-uses `uv sync` from `scripts/data/` and the repository's locked Node dependencies.
+All paths below are relative to `/Users/dwjiang/Documents/Artlog Data/`:
 
-Keep the existing branch name. No commits, pushes, or PRs are required by this
-plan; if separately requested, use `origin/main` / PR base `main` and include
-only the authorized changes.
+- Corpus: `jobs/scratch/merged-pca512/`
+- Run: `jobs/out/production-full-2026-09-26/`
+- Museum source: `jobs/out/06-01-2026-09-13-production/museums.jsonl`
 
-## Step 1: Revalidate the durable corpus locally
+The current model is `c-radiov3-b-int8-512-dinov2-pca512-v1`. The full input
+fingerprint is
+`b98c65f2d65aeae12544424baf37aab508572d575bfc303388ee821b9d3f0753`.
+The original 1,536-dimensional fingerprint is historical; only PCA vectors and
+feature manifests changed, with 129 other input hashes checked unchanged.
 
-From the repository root, choose a new run directory for a new import. On
-resume, reuse the same directory, input fingerprint, and deployment.
+| Stage       | Full input rows |
+| ----------- | --------------: |
+| artworks    |         404,653 |
+| objects     |         409,973 |
+| placements  |         296,344 |
+| vectors     |         402,139 |
+| descriptors |         397,047 |
+| penalties   |         409,973 |
 
-```sh
-export ARTLOG_DATA="$HOME/Documents/Artlog Data"
-export ARTLOG_CORPUS="$ARTLOG_DATA/jobs/scratch/merged"
-export ARTLOG_RUN="$ARTLOG_DATA/jobs/out/production-full-$(date +%Y-%m-%d)"
-mkdir -p "$ARTLOG_RUN"
-cd scripts/data
-uv run python -m pipeline.push --in "$ARTLOG_CORPUS" --full --dry-run > "$ARTLOG_RUN/dry-run.json"
-```
+There are 397,047 indexed surviving objects across AIC, Met, and Wikidata.
+Production was empty after the pre-release backend reset; the September 13
+10k sample is historical. The import initially restored the 3,924 required museum
+rows from the verified saved directory; the user subsequently added the full
+42,452-museum directory. Source SHA-256:
+`544ba6a7e57c01bcbd8c2ed3885b1dc7cd47ea7679d7cec971c89a191e07ed33`.
+No coordinates were invented, and no counters or unrelated tables are reset.
 
-**Verify** from `scripts/data/`:
+Key run artifacts:
 
-```sh
-uv run python - <<'PY'
-import json, os
-from pathlib import Path
-p = json.loads((Path(os.environ['ARTLOG_RUN']) / 'dry-run.json').read_text())
-assert p['limit'] is None and p['hubPenalty'] == 0
-assert p['fingerprint'] == 'ba7aa0f8539903ac1d0933d327875ca3b3db68f9d9b2506cde802f11cee62565'
-assert p['inputCounts'] == dict(artworks=404653, objects=409973, placements=296344, vectors=402139, descriptors=397047, penalties=409973)
-assert len(p['selectedSurvivors']) == 397047 and len(p['requiredVenueKeys']) == 3924
-print('Full local corpus verified')
-PY
-```
+- `run-status.json` and `upload.log`: current phase, process ID, progress/errors.
+- `museum-preflight.json`: unique live keys and zero missing required museums.
+- `push-prod-pilot-30.report.json`: pilot counts and 100% readback.
+- `push-prod-speed-1000.report.json` and `upload-speed-benchmark.json`: larger
+  pilot verification and sequential/pipelined real-file timings.
+- `push-prod-full.json` / `.report.json`: resumable offsets, expected counts,
+  deterministic 2% readback by source/stage, thumbnail audit, and Pinecone checks.
+- `recognition-audit.json`, `usage-after.json`, `credential-cleanup.json`:
+  final API checks, observed usage, and import-token cleanup, written only when reached.
 
-Expected: exit 0 and `Full local corpus verified`. Changed inputs require an
-intentional new reviewed plan/fingerprint, not editing these assertions to pass.
-Do not rerun dedupe, downloads, or feature extraction for an unchanged corpus.
+`capacity-before.json` retains the original, more expensive import estimate and
+unaccepted proposed envelope. `optimized-start.json` records the resumed scope.
+The reports explicitly distinguish sampled full-corpus verification from the
+pilot's complete readback and from independent camera accuracy.
 
-## Step 2: Confirm the production target and current cost envelope
+## Running and resuming
 
-Announce production `admired-goldfinch-660` before any deployment operation.
-The workspace `.env.local` contains a **dev** deploy key, which takes precedence
-over ordinary deployment selection. Never source or change that file for this job.
-Use the authenticated Convex account with the dev key explicitly suppressed.
+The active workspace stores the operational runner at
+`.context/run-production-corpus.py` and its non-secret credential-file locator at
+`.context/production-full-2026-09-26/auth-location.json`. It runs under
+`caffeinate -i`, with output redirected to the durable `upload.log`.
+Do not launch a second writer while that process is alive. The Mac must remain
+powered and connected; its job is not hosted in Convex.
 
-From the repository root, read current usage and configured limits:
+On failure, inspect the error before resuming. Preserve the input fingerprint,
+production URL, Pinecone index, and checkpoint. The normal Python importer can
+resume `push-prod-full.json` using explicit production settings:
 
-```sh
-env CONVEX_DEPLOY_KEY= CONVEX_DEPLOYMENT_TOKEN= CONVEX_DEPLOYMENT=prod:admired-goldfinch-660 npx convex deployment usage --deployment daniel-jiang:artlog:prod --json > "$ARTLOG_RUN/usage-before.json"
-env CONVEX_DEPLOY_KEY= CONVEX_DEPLOYMENT_TOKEN= CONVEX_DEPLOYMENT=prod:admired-goldfinch-660 npx convex deployment usage-limits list --deployment daniel-jiang:artlog:prod --json > "$ARTLOG_RUN/usage-limits.json"
-```
-
-**Verify:** both commands exit 0, target metadata resolves to the intended
-project/deployment, and the JSON outputs are valid. If authentication fails,
-restore account authentication; never fall back to the dev key.
-
-Read the current subscription, remaining allowances, DB storage, search storage,
-file storage, and deployment class from the Convex dashboard. Check current
-official pricing and limits at execution time. Save `capacity-before.json` with
-these observations, their timestamps/sources, projected upload and readback
-usage, ongoing storage estimate, and the operator's accepted spend envelope.
-Allowances are shared; raw feature bytes and CLI activity counters are not
-instantaneous billed storage. Do not infer a hard Free-plan limit from the old
-Starter spike, or treat its Pro assumptions as established capacity.
-
-**Gate:** proceed only within the user's accepted cost envelope. Prepare concrete
-costs before requesting any additional paid plan/limit change. Never purchase an
-upgrade or raise limits silently. Stop if current capacity cannot support the
-import, sampled readback, and continued serving within that envelope.
-
-Create an import-only production key after this gate. Keep it in a private
-temporary directory outside the durable data archive; do not print it or use
-`--save-env` without an explicit path:
-
-```sh
-umask 077
-export ARTLOG_AUTH_DIR="$(mktemp -d "${TMPDIR:-/tmp}/artlog-prod.XXXXXX")"
-export ARTLOG_PROD_ENV="$ARTLOG_AUTH_DIR/production.env"
-env CONVEX_DEPLOY_KEY= CONVEX_DEPLOYMENT_TOKEN= CONVEX_DEPLOYMENT=prod:admired-goldfinch-660 npx convex deployment token create "artlog-full-$(date +%Y%m%d-%H%M%S)" --deployment daniel-jiang:artlog:prod --save-env "$ARTLOG_PROD_ENV"
-chmod 600 "$ARTLOG_PROD_ENV"
-```
-
-The CLI syntax above was checked with the installed version's `--help` during
-planning. Recheck if the CLI has changed. Verify the key against the fixed prod
-URL with an admin query in the next step; a filename is not proof of its target.
-
-## Step 3: Build bounded verification and run the museum preflight
-
-Implement the scoped audit script with `--mode preflight|readback|smoke`, `--in`,
-`--run-dir`, and `--credentials` arguments. Use the fixed production URL, load
-the key with `dotenv.dotenv_values`, and pass explicit `Settings` constructor
-values with `_env_file=None`. Never log credentials, auth response tokens,
-private key contents, or signed upload URLs. The first two modes must be
-read-only against production. Smoke intentionally creates a test session/scans.
-
-For `preflight`, use `ConvexWriter.query('ingest:exportVenues', ...)` to paginate
-the live museum mapping; assert unique keys, advancing cursors, and zero missing
-`Corpus.plan()['requiredVenueKeys']`. Save the mapping and `ingest:counts` as
-`museum-preflight.json` and `baseline.json`. Last known production counts are in
-the [corpus inventory](../../operations/corpus.md#corpus-and-production-counts); report and reconcile any drift
-instead of assuming an empty DB.
-
-All 3,924 required keys existed in the saved 42,452-museum mapping. No museum
-upload is expected. If any are now missing, stop and identify exact keys and
-verified source metadata before proposing a seed. Do not invent coordinates,
-reimport all museums, or reset `ingestCounters`. If an approved repair changes
-the directory, phones fetch the changed venues on their next check; re-export the
-bundled SQLite with `export_asset` for the next build and verify its **production** IDs.
-
-For `readback`, reuse `pipeline.push.verify_sample` and the internal
-`ingest:readSample` action. Default to fraction `0.02`, sampled deterministically
-by natural identity within each source and stage. Do not export the entire
-vector index or every ORB file for routine verification.
-
-1. Revalidate local corpus fingerprints, deployment selection, baseline/overlap,
-   expected counters, and completed import offsets before issuing sample requests.
-2. Request only selected identities, at most 32 per batch. Compare metadata,
-   resolved natural-key references, every coordinate of selected vector views,
-   and both selected ORB byte arrays against the local shards. Missing or
-   mismatched samples fail the audit. Multi-view identities include `viewKey`.
-3. Check `ingest:counts` against the checkpoint's full expected totals. The sample
-   includes zero penalties and targeted thumbnail-rights auditing; it does not
-   claim an independent full-table count or prove every row is correct.
-4. Write `readback-audit.json` with deployment, input fingerprint, sampling
-   fraction, verification timestamp, per-stage checked counts and mismatches,
-   actual/expected counters, and `complete: true` only when all selected checks
-   pass. Mark `coverage: sampled`; retain failures with `complete: false`.
-5. A new readback audit runs the sample once. A resumed importer may reuse its
-   completed checkpoint's timestamped verification. On a failed sample,
-   investigate the affected source/stage; an explicit `--verify-fraction 1`
-   requests a full readback. Re-estimate traffic before increasing coverage.
-
-Use existing `push_test.py` fake-writer fixtures for the new script's tests.
-Cover a valid multiview/alias corpus, an omitted alternate view, a dangling
-museum/object reference, a corrupt vector/ORB byte, count drift, repeated cursors,
-and preservation of unrelated baseline rows. Assert preflight/readback make no
-mutations and a wrong target is rejected before any request. The importer already implements sampled readback; reuse its contract instead
-of creating a second all-corpus export path.
-
-**Verify** from `scripts/data/`:
-
-```sh
-uv run pytest -q audit-production-corpus_test.py pipeline/push_test.py pipeline/convex_writer_test.py
-uv run ruff check audit-production-corpus.py audit-production-corpus_test.py
-uv run python audit-production-corpus.py --mode preflight --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
-```
-
-Expected: tests/checks exit 0; preflight targets production and reports
-`missingMuseumKeys: []`. A failed preflight blocks the upload.
-
-## Step 4: Import once with a production-specific checkpoint
-
-Do not parallelize stage order or raise batch sizes speculatively. The importer
-upserts artworks → canonical objects then aliases → placements → all vector
-views → selected ORB references/files → neutral penalties. It accounts for the
-existing 10k sample before writing, so final expected counts come from
-`baseline + input - existing`, not blind addition or a counter reset.
-
-From `scripts/data/`, run under `caffeinate`. Redirect logs to the durable run directory
-and monitor progress regularly; lower noisy HTTP client log levels so signed
-URLs cannot appear. This command intentionally writes production:
-
-```sh
-caffeinate -i uv run python - > "$ARTLOG_RUN/import.log" 2>&1 <<'PY'
-import json, logging, os
+```python
 from pathlib import Path
 from dotenv import dotenv_values
-from pipeline.config import Settings, setup_logging
+from pipeline.config import Settings
 from pipeline.convex_writer import ConvexWriter
 from pipeline.push import Corpus, run
 
-prod = 'https://admired-goldfinch-660.convex.cloud'
-out = Path(os.environ['ARTLOG_RUN'])
-values = dotenv_values(os.environ['ARTLOG_PROD_ENV'])
-settings = Settings(_env_file=None, convex_url=prod,
-                    convex_deploy_key=values['CONVEX_DEPLOY_KEY'])
-setup_logging(settings)
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-corpus = Corpus(Path(os.environ['ARTLOG_CORPUS']), limit=None)
-plan = json.loads((out / 'dry-run.json').read_text())
-assert corpus.fingerprint == plan['fingerprint']
-preflight = json.loads((out / 'museum-preflight.json').read_text())
-assert preflight['deployment'] == prod and preflight['missingMuseumKeys'] == []
-print(f'Import target: {prod}', flush=True)
-report = run(corpus, ConvexWriter(settings), checkpoint=out / 'push-prod-full.json', deployment_url=prod)
-assert report['countsMatch'] and report['thumbnailAudit']['violations'] == 0
-print(json.dumps(report, indent=2), flush=True)
-PY
+url = "https://admired-goldfinch-660.convex.cloud"
+key = dotenv_values(credentials_path)["CONVEX_DEPLOY_KEY"]
+settings = Settings(_env_file=None, convex_url=url, convex_deploy_key=key)
+report = run(
+    Corpus(Path(corpus_path)),
+    ConvexWriter(settings),
+    checkpoint=Path(run_path) / "push-prod-full.json",
+    deployment_url=url,
+    verify_fraction=0.02,
+)
 ```
 
-On a dropped connection or process interruption, keep the checkpoint and resume
-this same command after checking the error. A lost response can be replayed:
-upserts use natural keys and ORB storage uses content hashes. Do not delete the
-checkpoint, start a second importer, or claim the partial index is complete.
-`BatchSizeReduced` persists a smaller batch and deliberately stops for review.
-If paused between vector and ORB stages, recognition may be soft/incomplete for
-new objects; record the active stage and finish before production acceptance.
+Run from `scripts/data/` with `uv run python`. Set `credentials_path` to the
+private temporary production credential file, and `corpus_path` / `run_path`
+to the absolute paths above. Never source or alter dev `.env.local` for this job.
+The deployment key must be validated against the fixed production URL before
+writes. A filename does not prove its target.
 
-**Verify** from `scripts/data/`:
+For account-authenticated production CLI commands, suppress local dev keys:
 
 ```sh
-uv run python - <<'PY'
-import json, os
-from pathlib import Path
-out = Path(os.environ['ARTLOG_RUN'])
-p = json.loads((out / 'dry-run.json').read_text())
-c = json.loads((out / 'push-prod-full.json').read_text())
-r = json.loads((out / 'push-prod-full.report.json').read_text())
-assert c['deployment'] == r['deployment'] == 'https://admired-goldfinch-660.convex.cloud'
-assert c['fingerprint'] == p['fingerprint']
-assert all(c['stages'][stage]['offset'] == count for stage, count in p['inputCounts'].items())
-assert r['countsMatch'] and r['actual'] == r['expected']
-assert r['thumbnailAudit']['violations'] == 0
-print('All import stages complete; counts and thumbnail audit pass')
-PY
+env CONVEX_DEPLOY_KEY= CONVEX_DEPLOYMENT_TOKEN= CONVEX_DEPLOYMENT=prod:admired-goldfinch-660 npx convex deployment usage --deployment daniel-jiang:artlog:prod --json
 ```
 
-## Step 5: Verify the database, search index, and recognition
+An expired/revoked import token requires a new production-scoped token saved to
+a private temporary file. Never print its value. Delete the named token and
+remove that file after import and verification finish; retain all checkpoints.
 
-Run the deterministic 2% readback once; include its traffic in the cost estimate.
-Do not expand it to a multi-GB readback without a changed input, failure, or
-specific unresolved concern.
+## Verification and completion
 
-```sh
-# From scripts/data/:
-uv run python audit-production-corpus.py --mode readback --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
-```
+The batching/direct-upload change passed TypeScript, lint, 56 Python tests,
+and the 1,156-test backend suite (two opt-in tests skipped). The final R2 header
+fix also passed focused tests and a real development upload/checksum/reuse probe.
+The backend was successfully deployed to both intended targets.
+The Python concurrency/resume and verification-retry changes passed 75 importer
+tests, Ruff, TypeScript, and lint. Faster verification passed 39 focused backend
+tests and was deployed to development and production before the continuous pilot.
 
-Expected: exit 0, `complete: true`, `coverage: sampled`, fraction `0.02`, no
-sampled metadata/vector/ORB/penalty/rights mismatches, and full expected counters
-equal the importer totals. Unsampled payloads have not been read back.
+The 30-object production pilot passed all counts and 100% feature readback,
+including Pinecone, with zero thumbnail violations. The full run now uses
+the existing importer's full counters, 2% sampled readback, thumbnail audit,
+and Pinecone sync verification. It subsequently checks the authenticated public
+recognition API using exact reference features from each source, missing geometry,
+and an unsupported model. App Attest remains required; those API checks do not
+prove camera accuracy or device attestation.
 
-Confirm the live vector index is ready in the dashboard and save its state in
-`index-status.json`; committed rows alone do not prove search is ready. Record
-current DB, search, and file storage plus usage in `capacity-after.json`. Respect
-the cost envelope throughout the import; do not wait until the end to notice a
-limit. Missing/delayed metrics are unknown, not zero.
+- [x] User resumed the import with cost optimizations and the existing $10 threshold.
+- [x] Full PCA512 input hashes/counts and verified museum source recorded.
+- [x] Production backend, private R2 configuration, and separate Pinecone index deployed.
+- [x] Required museums restored; pilot counts and 100% readback pass.
+- [x] Full import offsets reach every input count.
+- [x] Full report has `countsMatch: true`, zero thumbnail violations, and passing sampled readback.
+- [x] Search is ready and public recognition API checks pass with `lr-v3`.
+- [x] Actual usage recorded; import credentials revoked and removed.
+- [x] Deployment reference records verified final counts; production iPhone/TestFlight acceptance remains pending.
 
-Implement/run the script's `smoke` mode with a fresh anonymous session using
-`auth:signIn`, `devices:registerDevice` (`platform: 'ios'`), and the public
-`identify:identify` action. Resolve expected object IDs by corpus keys on prod.
-Send the selected view's vector, descriptors, keypoints, model version,
-`capturedAt`, and a new `localId` per query. Verify persisted outcomes through
-`scans:get`, then call `auth:signOut`; never archive session tokens.
-
-Use Roses (`met:436534`), Wheat Field with Cypresses (`met:436535`), and The
-Bedroom (`aic:28560`), resolving aliases first. All three exact references should
-be correct/confident with `lr-v2`. Add at least one deterministic feature-bearing
-object present in the full corpus but absent from the old 10k package. A Roses
-query without ORB should be soft; an unsupported model should return
-`unsupported_version`. Check production still requires App Attest and rejects
-development attestations; do not weaken settings to make validation pass.
-
-```sh
-uv run python audit-production-corpus.py --mode smoke --in "$ARTLOG_CORPUS" --run-dir "$ARTLOG_RUN" --credentials "$ARTLOG_PROD_ENV"
-```
-
-Expected: `recognition-audit.json` has the intended production URL, passing
-positive/negative cases, recorded timings, and `method: 'exact-reference-api'`.
-This verifies import/search wiring, not independent camera accuracy.
-
-Full-index candidate competition can change v2 probabilities. Keep the trained
-weights unchanged for this import; if recognition gates regress, report the
-examples and propose full-index evaluation/recalibration separately. Do not
-reuse the old 10k precision figures as evidence for the full corpus. Likewise,
-paintings previously outside the sample may now be indexed: check corpus
-membership before choosing new outside-index camera tests.
-
-## Step 6: Record completion and release work still pending
-
-Update the scoped runbooks/status files with the actual counts, fingerprint,
-timings, measured usage/storage, and paths to completed audits. Mark the full
-production import complete only after steps 1–5 pass. Keep production iPhone
-camera/App Attest/Apple sign-in/save/contribution testing and TestFlight visibly
-pending until independently performed under the [release todo](../release/README.md). Do not trigger
-an EAS build or submission as part of this DB import.
-
-Remove the temporary credentials file after the job and readback have exited,
-and revoke the import-only token created in step 2 using the current CLI or
-dashboard. Record its name and revocation outcome without its value. Preserve
-the source corpus and durable checkpoint even after success.
-
-**Verify** from the repository root for the new audit code and docs:
-
-```sh
-npx tsc --noEmit
-npm run lint
-git diff --check
-```
-
-The Python test/Ruff commands in step 3 must pass. If backend code changes become
-necessary after revising this plan, run relevant Vitest tests (`npm run
-test:convex -- convex/ingest.test.ts convex/lib/orbStorage.test.ts`) and Convex
-codegen after any schema/signature change. Existing app behavior is unchanged by
-this operational plan; any later app changes require an iOS light-mode build
-with `npm run ios`. No extra app build is needed for documentation alone.
-
-## Done criteria
-
-- [ ] User resumed the upload and the current spend envelope is recorded.
-- [ ] Local full-corpus fingerprint and counts match step 1.
-- [ ] Live production preflight has zero missing museum keys.
-- [ ] Every stage offset equals its full input count; the report has `countsMatch: true` and zero thumbnail violations.
-- [ ] Deterministic 2% readback passes for every source/stage, including sampled metadata/references/vector/ORB payloads; full expected counters match and the report explicitly records sampled coverage.
-- [ ] Search index is ready; known and newly added objects pass the public API smoke checks with `lr-v2`.
-- [ ] Actual DB/search/file storage and usage are recorded within the accepted envelope.
-- [ ] Focused verification-script tests, Ruff, TypeScript, lint, and diff checks pass.
-- [ ] Import-only credentials are removed/revoked; checkpoint and evidence remain in Documents.
-- [ ] Status/runbook distinguish completed DB import from pending production camera/TestFlight acceptance.
-
-## STOP conditions and maintenance
-
-Stop and report the concrete discrepancy if inputs or deployment drift without
-explanation, required museums are missing, model dimensions/version disagree,
-authentication only works on dev, capacity exceeds the accepted envelope, an
-unreviewed write-size rejection persists, references/features fail readback,
-search remains unavailable, or smoke recognition returns the wrong painting.
-Do not reset data or relax assertions to force completion. For ordinary
-transient interruptions, preserve and resume the same checkpoint.
-
-The corpus identity, ingestion contract, and model version jointly determine
-whether a checkpoint can be reused. Audit changes to natural keys, descriptor
-storage layout, merge rules, or export pagination before future imports. The
-10k setup reports remain historical evidence and must not be overwritten by
-the full run. Hub scoring, calibrator retraining, and physical-camera release
-acceptance remain separate work unless the user expands the scope.
+Stop on input/target drift, missing references, persistent write limits, failed
+readback, exhausted capacity, failed search sync, or wrong recognition. Diagnose
+and resume the same checkpoint for ordinary interruptions; do not reset data,
+weaken assertions, raise spending limits, or retrain the calibrator to force a pass.

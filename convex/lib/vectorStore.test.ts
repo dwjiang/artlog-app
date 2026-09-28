@@ -6,6 +6,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { loadCandidates } from "../identify";
+import { importTestVectors } from "../ingest.test.helpers";
 import { deleteEmbedding, insertEmbedding } from "../scanEmbeddings";
 import { harness } from "../test.helpers";
 import { fileStorage } from "./fileStorage";
@@ -19,6 +20,7 @@ import {
   replaceVector,
   VECTOR_ARCHIVE_GRACE_MS,
   withVectorArchives,
+  vectorHash,
 } from "./vectorStore";
 import { searchRecordId } from "./vectorSyncQueue";
 
@@ -35,7 +37,7 @@ it("archives imported vectors without a persistent or queued corpus payload in C
       vector: testVector(0.8),
     },
   ];
-  const { ids } = await t.action(internal.ingest.upsertVectors, { rows });
+  const { ids } = await importTestVectors(t, { rows });
   const id = Object.values(ids)[0];
   const row = (await t.run((ctx) => ctx.db.get("vectors", id)))!;
   expect(row.archiveId).toEqual(expect.any(String));
@@ -49,7 +51,7 @@ it("archives imported vectors without a persistent or queued corpus payload in C
   );
   expect(job).not.toHaveProperty("pendingVector");
   const putCount = vi.mocked(r2.put).mock.calls.length;
-  expect(await t.action(internal.ingest.upsertVectors, { rows })).toEqual({ ids });
+  expect(await importTestVectors(t, { rows })).toEqual({ ids });
   expect(vi.mocked(r2.put).mock.calls.length).toBe(putCount);
   await t.run((ctx) => deleteVector(ctx, row));
   expect(await t.run((ctx) => fileStorage.getMetadata(ctx, row.archiveId))).toMatchObject({
@@ -147,7 +149,7 @@ it("discards unused uploads after a failed commit and preserves an ambiguously c
               modelVersion: model.modelVersion,
               viewKey: "committed",
               archiveId: id,
-              vector: testVector(0.8),
+              contentHash: await vectorHash(testVector(0.8)),
             },
           ],
         });

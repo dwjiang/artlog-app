@@ -1,10 +1,9 @@
-import { getFunctionName, type FunctionArgs, type FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
-import type { ActionCtx, MutationCtx } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import {
   upsertArtworks,
   upsertObjects,
@@ -13,8 +12,8 @@ import {
   EXPORT_PAGE_SIZE,
   MAX_BATCH_ROWS,
   TRAINING_EXPORT_PAGE_SIZE,
-  upsertDescriptors,
 } from "./ingest";
+import { importTestVectors, importTestDescriptors } from "./ingest.test.helpers";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { readObjectDetails, patchObjectDetails } from "./lib/objectDetails";
@@ -22,15 +21,6 @@ import { loadOrb } from "./lib/orbStorage";
 import { readTestOrb, seedVector } from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
-
-const runDescriptorImport = (
-  upsertDescriptors as unknown as {
-    _handler: (
-      ctx: ActionCtx,
-      args: FunctionArgs<typeof internal.ingest.upsertDescriptors>,
-    ) => Promise<FunctionReturnType<typeof internal.ingest.upsertDescriptors>>;
-  }
-)._handler;
 
 const orbRow = {
   objectKey: "met:436535",
@@ -142,8 +132,8 @@ it("reads only requested sample identities, including actual vector and ORB byte
     viewKey: "met:alternate",
     vector: vector(1),
   };
-  await t.action(internal.ingest.upsertVectors, { rows: [row] });
-  await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
+  await importTestVectors(t, { rows: [row] });
+  await importTestDescriptors(t, { rows: [orbRow] });
   expect(
     await t.action(internal.ingest.readSample, {
       table: "artworks",
@@ -256,7 +246,7 @@ describe("calibrator training exports", () => {
 
   it("preserves descriptor bytes and zero counts, excluding superseded references", async () => {
     const { t, objectId } = await seeded();
-    await t.action(internal.ingest.upsertDescriptors, {
+    await importTestDescriptors(t, {
       rows: [
         {
           objectKey: metObject.key,
@@ -501,8 +491,8 @@ describe("placements, vectors and descriptors", () => {
       viewKey: "primary",
       vector: vector(1),
     };
-    await t.action(internal.ingest.upsertVectors, { rows: [row] });
-    await t.action(internal.ingest.upsertVectors, {
+    await importTestVectors(t, { rows: [row] });
+    await importTestVectors(t, {
       rows: [
         { ...row, vector: vector(2) },
         { ...row, viewKey: "second-view", vector: vector(3) },
@@ -531,14 +521,12 @@ describe("placements, vectors and descriptors", () => {
 
     expect(
       await errorData(
-        t.action(internal.ingest.upsertVectors, {
+        importTestVectors(t, {
           rows: [{ ...row, vector: [0.1, 0.2] }],
         }),
       ),
     ).toMatchObject({
-      code: "bad_dimension",
-      expected: model.embeddingDim,
-      actual: 2,
+      code: "bad_vector",
     });
   });
 
@@ -561,11 +549,11 @@ describe("placements, vectors and descriptors", () => {
       viewKey: key,
       vector: vector(1),
     }));
-    const original = await t.action(internal.ingest.upsertVectors, {
+    const original = await importTestVectors(t, {
       rows,
     });
     for (const view of ["second", "third"]) {
-      await t.action(internal.ingest.upsertVectors, {
+      await importTestVectors(t, {
         rows: rows.map((row) => ({
           ...row,
           viewKey: `${row.viewKey}:${view}`,
@@ -573,7 +561,7 @@ describe("placements, vectors and descriptors", () => {
       });
     }
 
-    const updated = await t.action(internal.ingest.upsertVectors, {
+    const updated = await importTestVectors(t, {
       rows: rows.map((row) => ({ ...row, vector: vector(2) })),
     });
     expect(updated.ids).toEqual(original.ids);
@@ -625,8 +613,8 @@ describe("placements, vectors and descriptors", () => {
       inputSize: model.inputSize,
       extractedFrom: metObject.imageRef,
     };
-    await t.action(internal.ingest.upsertDescriptors, { rows: [row] });
-    await t.action(internal.ingest.upsertDescriptors, {
+    await importTestDescriptors(t, { rows: [row] });
+    await importTestDescriptors(t, {
       rows: [{ ...row, extractedFrom: "contribution:abc" }],
     });
 
@@ -639,23 +627,23 @@ describe("placements, vectors and descriptors", () => {
 
     expect(
       await errorData(
-        t.action(internal.ingest.upsertDescriptors, {
+        importTestDescriptors(t, {
           rows: [{ ...row, keypointCount: 3 }],
         }),
       ),
-    ).toMatchObject({ code: "bad_descriptors" });
+    ).toMatchObject({ code: "bad_orb_file" });
   });
 });
 
 describe("ORB file imports", () => {
   it("reuses identical bytes on replay and deletes the previous file when the bytes change", async () => {
     const { t } = await seeded();
-    const first = await t.action(internal.ingest.upsertDescriptors, {
+    const first = await importTestDescriptors(t, {
       rows: [orbRow],
     });
     const before = (await t.run((ctx) => readTestOrb(ctx, first.ids[orbRow.objectKey])))!;
     expect(
-      await t.action(internal.ingest.upsertDescriptors, {
+      await importTestDescriptors(t, {
         rows: [{ ...orbRow, extractedFrom: "new URL" }],
       }),
     ).toEqual(first);
@@ -672,7 +660,7 @@ describe("ORB file imports", () => {
       ...orbRow,
       descriptors: new Uint8Array(64).fill(8).buffer,
     };
-    expect(await t.action(internal.ingest.upsertDescriptors, { rows: [changed] })).toEqual(first);
+    expect(await importTestDescriptors(t, { rows: [changed] })).toEqual(first);
     const after = (await t.run((ctx) => readTestOrb(ctx, first.ids[orbRow.objectKey])))!;
     expect(after.storageId).not.toBe(before.storageId);
     expect(await t.run((ctx) => fileStorage.getMetadata(ctx, before.storageId))).toBeNull();
@@ -684,82 +672,9 @@ describe("ORB file imports", () => {
     });
   });
 
-  it.each([false, true])(
-    "cleans up safely when a commit fails (response lost after commit: %s)",
-    async (afterCommit) => {
-      const { t } = await seeded();
-      await expect(
-        t.action((ctx) =>
-          runDescriptorImport(
-            {
-              ...ctx,
-              runMutation: async (reference, args) => {
-                if (getFunctionName(reference) !== "ingest:commitDescriptors") {
-                  return ctx.runMutation(reference, args);
-                }
-                if (afterCommit) await ctx.runMutation(reference, args);
-                throw new Error("connection lost");
-              },
-            },
-            { rows: [orbRow] },
-          ),
-        ),
-      ).rejects.toThrow("connection lost");
-      const beforeRetry = await t.run(async (ctx) =>
-        (await ctx.db.query("files").collect()).filter((file) => file.state === "ready"),
-      );
-      expect(beforeRetry).toHaveLength(afterCommit ? 1 : 0);
-      await t.action(internal.ingest.upsertDescriptors, { rows: [orbRow] });
-      const files = await t.run(async (ctx) =>
-        (await ctx.db.query("files").collect()).filter((file) => file.state === "ready"),
-      );
-      expect(files).toHaveLength(1);
-      expect(files.map((file) => file._id)).toEqual(expect.arrayContaining(beforeRetry.map((file) => file._id)));
-      expect(await t.query(internal.ingest.counts, {})).toMatchObject({
-        descriptors: 1,
-      });
-    },
-  );
-
-  it("waits for concurrent file writes before cleaning up a failed batch", async () => {
-    const { t } = await seeded();
-    await t.mutation(internal.ingest.upsertObjects, {
-      rows: [{ ...metObject, key: "met:second" }],
-    });
-    const originalStore = fileStorage.store;
-    let writes = 0;
-    const store = vi.spyOn(fileStorage, "store").mockImplementation(async (ctx, blob) => {
-      if (++writes === 1) throw new Error("storage unavailable");
-      return originalStore(ctx, blob);
-    });
-    await expect(
-      t.action((ctx) =>
-        runDescriptorImport(ctx, {
-          rows: [orbRow, { ...orbRow, objectKey: "met:second" }],
-        }),
-      ),
-    ).rejects.toThrow("storage unavailable");
-    store.mockRestore();
-    expect(writes).toBe(2);
-    expect(
-      await t.run(async (ctx) => (await ctx.db.query("files").collect()).filter((file) => file.state === "ready")),
-    ).toEqual([]);
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query("objectDetails")
-          .collect()
-          .then((rows) => rows.flatMap((row) => (row.orb ? [row.orb] : []))),
-      ),
-    ).toEqual([]);
-    expect(await t.query(internal.ingest.counts, {})).toMatchObject({
-      descriptors: 0,
-    });
-  });
-
   it("bounds exported file bytes even though the database references are small", async () => {
     const { t, objectId } = await seeded();
-    await t.action(internal.ingest.upsertDescriptors, {
+    await importTestDescriptors(t, {
       rows: [
         {
           ...orbRow,
@@ -883,8 +798,8 @@ describe("corpus import invariants", () => {
       viewKey,
       vector: vector(i),
     }));
-    const first = await t.action(internal.ingest.upsertVectors, { rows });
-    const second = await t.action(internal.ingest.upsertVectors, {
+    const first = await importTestVectors(t, { rows });
+    const second = await importTestVectors(t, {
       rows: [{ ...rows[1], vector: vector(9) }],
     });
     expect(Object.values(first.ids)).toContain(Object.values(second.ids)[0]);
@@ -950,10 +865,10 @@ describe("rebuilding corpus views", () => {
       viewKey: metObject.key,
       vector: vector(1),
     };
-    const first = await t.action(internal.ingest.upsertVectors, {
+    const first = await importTestVectors(t, {
       rows: [row],
     });
-    const second = await t.action(internal.ingest.upsertVectors, {
+    const second = await importTestVectors(t, {
       rows: [{ ...row, objectKey: "met:survivor" }],
     });
     expect(second).toEqual(first);

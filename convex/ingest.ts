@@ -16,12 +16,12 @@ import { patchContributionState } from "./lib/objectContributionState";
 import { newObjectCounters } from "./lib/objectCounters";
 import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
-import { deleteOrbIfUnreferenced, loadOrb, orbHash, ORB_CONTENT_TYPE, packOrb } from "./lib/orbStorage";
+import { deleteOrbIfUnreferenced, loadOrb, ORB_CONTENT_TYPE } from "./lib/orbStorage";
 import { findPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
 import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
-import { insertVector, readVector, replaceVector, vectorHash, withVectorArchives } from "./lib/vectorStore";
+import { insertArchivedVector, readVector, replaceArchivedVector } from "./lib/vectorStore";
 import schema from "./schema";
 import { recordVenueChanges } from "./venueChanges";
 
@@ -90,16 +90,8 @@ const vectorRow = v.object({
   modelVersion: v.string(),
   source: v.literal("corpus"),
   viewKey: v.string(),
-  vector: v.array(v.float64()),
-});
-
-const descriptorRow = v.object({
-  objectKey: v.string(),
-  descriptors: v.bytes(),
-  keypoints: v.bytes(),
-  keypointCount: v.number(),
-  inputSize: v.number(),
-  extractedFrom: v.string(),
+  archiveId: v.id("files"),
+  contentHash: v.string(),
 });
 
 const penaltyRow = v.object({
@@ -406,57 +398,23 @@ export const upsertVectors = internalAction({
   handler: (ctx, { rows }): Promise<Infer<typeof vectorIds>> =>
     withErrorReporting("ingest.upsertVectors", async () => {
       checkBatch(rows);
-      for (const row of rows) {
-        if (row.vector.length !== model.embeddingDim) {
-          throw new ConvexError({
-            code: "bad_dimension",
-            objectKey: row.objectKey,
-            expected: model.embeddingDim,
-            actual: row.vector.length,
-          });
-        }
+      const ids: Record<string, Id<"vectors">> = {};
+      for (let start = 0; start < rows.length; start += 100) {
+        const result = await ctx.runMutation(internal.ingest.commitVectors, { rows: rows.slice(start, start + 100) });
+        Object.assign(ids, result.ids);
       }
-      const hashes = await Promise.all(rows.map((row) => vectorHash(row.vector)));
-      const existing = await ctx.runQuery(internal.ingest.existingVectors, {
-        rows: rows.map(({ modelVersion, viewKey }) => ({ modelVersion, viewKey })),
-      });
-      return withVectorArchives(
-        ctx,
-        rows.map((row, index) => ({
-          vector: row.vector,
-          archiveId: existing[index]?.contentHash === hashes[index] ? existing[index]?.archiveId : undefined,
-        })),
-        async (archiveIds) => {
-          const ids: Record<string, Id<"vectors">> = {};
-          const archived = rows.map((row, index) => ({ ...row, archiveId: archiveIds[index] }));
-          for (let start = 0; start < archived.length; start += 100) {
-            const result = await ctx.runMutation(internal.ingest.commitVectors, {
-              rows: archived.slice(start, start + 100),
-            });
-            Object.assign(ids, result.ids);
-          }
-          return { ids };
-        },
-      );
+      return { ids };
     }),
 });
 
 export const commitVectors = internalMutation({
-  args: { rows: v.array(vectorRow.extend({ archiveId: v.id("files") })) },
+  args: { rows: v.array(vectorRow) },
   returns: v.object({ ids: v.record(v.string(), v.id("vectors")) }),
   handler: async (ctx, { rows }) => {
     checkBatch(rows);
     const ids: Record<string, Id<"vectors">> = {};
     let inserted = 0;
     for (const row of rows) {
-      if (row.vector.length !== model.embeddingDim) {
-        throw new ConvexError({
-          code: "bad_dimension",
-          objectKey: row.objectKey,
-          expected: model.embeddingDim,
-          actual: row.vector.length,
-        });
-      }
       const object = await requireByKey(ctx, "objects", row.objectKey);
       const doc = {
         objectId: object._id,
@@ -464,7 +422,7 @@ export const commitVectors = internalMutation({
         modelVersion: row.modelVersion,
         source: row.source,
         viewKey: row.viewKey,
-        vector: row.vector,
+        contentHash: row.contentHash,
         archiveId: row.archiveId,
       };
       const existing = await ctx.db
@@ -475,10 +433,10 @@ export const commitVectors = internalMutation({
         .unique();
       const naturalKey = `${row.modelVersion}|${row.source}|${row.viewKey}`;
       if (existing) {
-        await replaceVector(ctx, existing, doc);
+        await replaceArchivedVector(ctx, existing, doc);
         ids[naturalKey] = existing._id;
       } else {
-        ids[naturalKey] = await insertVector(ctx, doc);
+        ids[naturalKey] = await insertArchivedVector(ctx, doc);
         inserted += 1;
       }
     }
@@ -536,7 +494,16 @@ export const commitDescriptors = internalMutation({
     let inserted = 0;
     for (const { objectKey, ...reference } of rows) {
       const file = await fileStorage.getMetadata(ctx, reference.storageId);
-      if (!file || file.size !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)) {
+      if (
+        !Number.isInteger(reference.keypointCount)
+        || reference.keypointCount < 0
+        || reference.keypointCount > MAX_KEYPOINTS
+        || reference.inputSize !== model.inputSize
+        || !file
+        || file.contentType !== ORB_CONTENT_TYPE
+        || file.sha256 !== reference.sha256
+        || file.size !== reference.keypointCount * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
+      ) {
         throw new ConvexError({
           code: "bad_orb_file",
           storageId: reference.storageId,
@@ -562,72 +529,22 @@ export const commitDescriptors = internalMutation({
 });
 
 export const upsertDescriptors = internalAction({
-  args: { rows: v.array(descriptorRow) },
+  args: { rows: v.array(descriptorReference) },
   returns: descriptorIds,
-  handler: async (ctx, { rows }): Promise<Infer<typeof descriptorIds>> =>
+  handler: (ctx, { rows }): Promise<Infer<typeof descriptorIds>> =>
     withErrorReporting("ingest.upsertDescriptors", async () => {
       checkBatch(rows);
       if (new Set(rows.map((row) => row.objectKey)).size !== rows.length) {
         throw new ConvexError({ code: "duplicate_descriptor_keys" });
       }
-      // Validate the entire batch before creating files, including the preserved zero-keypoint case.
-      const packed = rows.map((row) => {
-        if (
-          !Number.isInteger(row.keypointCount)
-          || row.keypointCount < 0
-          || row.keypointCount > MAX_KEYPOINTS
-          || row.inputSize !== model.inputSize
-          || row.descriptors.byteLength !== row.keypointCount * DESCRIPTOR_BYTES
-          || row.keypoints.byteLength !== row.keypointCount * KEYPOINT_BYTES
-        ) {
-          throw new ConvexError({
-            code: "bad_descriptors",
-            objectKey: row.objectKey,
-          });
-        }
-        return packOrb(row.descriptors, row.keypoints);
-      });
-      const existing = await ctx.runQuery(internal.ingest.existingDescriptors, {
-        objectKeys: rows.map((row) => row.objectKey),
-      });
-      const created: Id<"files">[] = [];
-      const references: Infer<typeof descriptorReference>[] = [];
-      try {
-        for (let start = 0; start < rows.length; start += 8) {
-          const results = await Promise.allSettled(
-            rows.slice(start, start + 8).map(async (row, offset) => {
-              const i = start + offset;
-              const sha256 = await orbHash(packed[i]);
-              let storageId = existing[i]?.sha256 === sha256 ? existing[i]!.storageId : undefined;
-              if (!storageId) {
-                storageId = await fileStorage.store(ctx, new Blob([packed[i]], { type: ORB_CONTENT_TYPE }));
-                created.push(storageId);
-              }
-              return {
-                objectKey: row.objectKey,
-                storageId,
-                sha256,
-                keypointCount: row.keypointCount,
-                inputSize: row.inputSize,
-                extractedFrom: row.extractedFrom,
-              };
-            }),
-          );
-          for (const result of results) {
-            if (result.status === "rejected") throw result.reason;
-            references.push(result.value);
-          }
-        }
-        return await ctx.runMutation(internal.ingest.commitDescriptors, {
-          rows: references,
+      const ids: Record<string, Id<"objects">> = {};
+      for (let start = 0; start < rows.length; start += 100) {
+        const result = await ctx.runMutation(internal.ingest.commitDescriptors, {
+          rows: rows.slice(start, start + 100),
         });
-      } finally {
-        if (created.length > 0) {
-          await ctx.runMutation(internal.orbFiles.discard, {
-            storageIds: created,
-          });
-        }
+        Object.assign(ids, result.ids);
       }
+      return { ids };
     }),
 });
 
@@ -989,7 +906,7 @@ const storedSample = v.array(
     artworkRow,
     objectRow,
     placementRow,
-    vectorRow.omit("vector").extend({ reference: schema.doc("vectors") }),
+    vectorRow.omit("archiveId", "contentHash").extend({ reference: schema.doc("vectors") }),
     descriptorReference,
     penaltyRow,
   ),
@@ -1075,7 +992,24 @@ export const readSampleRows = internalQuery({
   },
 });
 
-const readback = v.array(v.union(v.null(), artworkRow, objectRow, placementRow, vectorRow, descriptorRow, penaltyRow));
+const vectorSampleRow = v.object({
+  objectKey: v.string(),
+  modelVersion: v.string(),
+  source: v.literal("corpus"),
+  viewKey: v.string(),
+  vector: v.array(v.float64()),
+});
+const descriptorSampleRow = v.object({
+  objectKey: v.string(),
+  descriptors: v.bytes(),
+  keypoints: v.bytes(),
+  keypointCount: v.number(),
+  inputSize: v.number(),
+  extractedFrom: v.string(),
+});
+const readback = v.array(
+  v.union(v.null(), artworkRow, objectRow, placementRow, vectorSampleRow, descriptorSampleRow, penaltyRow),
+);
 export const readSample = internalAction({
   args: sampleArgs,
   returns: readback,

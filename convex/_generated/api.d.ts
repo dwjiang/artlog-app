@@ -37,6 +37,7 @@ import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as identify from "../identify.js";
 import type * as ingest from "../ingest.js";
+import type * as ingestFiles from "../ingestFiles.js";
 import type * as journalClaims from "../journalClaims.js";
 import type * as label from "../label.js";
 import type * as leaderboards from "../leaderboards.js";
@@ -187,6 +188,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   identify: typeof identify;
   ingest: typeof ingest;
+  ingestFiles: typeof ingestFiles;
   journalClaims: typeof journalClaims;
   label: typeof label;
   leaderboards: typeof leaderboards;
