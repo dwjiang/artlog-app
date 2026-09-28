@@ -29,15 +29,6 @@ const sheetTitles: Record<Sheet, string> = {
   color: "Widget color",
   help: "Add to Home Screen",
 };
-const sheetDescriptions: Record<Sheet, string> = {
-  source: "Choose what your widget displays.",
-  visit: "Only artwork from this visit will appear.",
-  artwork: "This painting stays until you change it.",
-  caption: "Choose what appears with the painting.",
-  frame: "Preview your medium widget.",
-  color: "Choose a background for both sizes.",
-  help: "Four steps on your iPhone.",
-};
 
 export function WidgetsScreen() {
   const collection = useWidgetCollection();
@@ -99,12 +90,6 @@ export function WidgetsScreen() {
       ),
     }))
     .filter((option) => option.works.length > 0);
-  const rotationCopy =
-    preferences.source.kind === "artwork"
-      ? "Keeps this painting on your Home Screen."
-      : preferences.source.kind === "visit"
-        ? "Shows artwork saved during this visit."
-        : "Rotates through your saved paintings.";
 
   return (
     <>
@@ -122,12 +107,9 @@ export function WidgetsScreen() {
           <Text
             variant={fontScale > 1.4 ? "display" : "pageTitle"}
             accessibilityRole="header"
-            style={fontScale > 1.4 ? undefined : { fontSize: 42, lineHeight: 54 }}
+            style={[{ marginBottom: 24 }, fontScale > 1.4 ? undefined : { fontSize: 42, lineHeight: 54 }]}
           >
             Widgets
-          </Text>
-          <Text variant="secondary" themeColor="textSecondary" style={{ marginTop: 5, marginBottom: 24 }}>
-            Choose what appears on your Home Screen.
           </Text>
           {preview(size)}
           <View
@@ -165,7 +147,6 @@ export function WidgetsScreen() {
                 <WidgetSettingRow title="Caption" subtitle={caption.name} onPress={() => open("caption")} />
                 <WidgetSettingRow
                   title="Painting frame"
-                  subtitle="Medium widget"
                   detail={
                     finish.name
                     + (finish.value === "none" ? "" : ` · ${preferences.frameWidth === "slim" ? "Slim" : "Wide"}`)
@@ -201,11 +182,8 @@ export function WidgetsScreen() {
               <GalleryButton label="Retry" onPress={retry} />
             </View>
           )}
-          <View style={{ paddingTop: 20, gap: 16 }}>
+          <View style={{ paddingTop: 20 }}>
             <GalleryButton label="How to add the widget" variant="filled" fullWidth onPress={() => open("help")} />
-            <Text variant="metadata" themeColor="textSecondary">
-              {rotationCopy}
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -224,7 +202,6 @@ export function WidgetsScreen() {
                 paddingHorizontal: 20,
                 paddingTop: sheet === "help" ? 30 : 22,
                 paddingBottom: 16,
-                gap: sheet === "help" ? 0 : 8,
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -250,9 +227,6 @@ export function WidgetsScreen() {
                   />
                 </Pressable>
               </View>
-              <Text variant="secondary" themeColor="textSecondary">
-                {sheetDescriptions[sheet]}
-              </Text>
             </View>
             {sheet === "visit" ? (
               <FlatList
@@ -345,7 +319,7 @@ export function WidgetsScreen() {
                     />
                     <WidgetSettingRow
                       title="A visit"
-                      subtitle="Artwork from one museum visit."
+                      subtitle="Rotates through this visit’s artworks."
                       selected={preferences.source.kind === "visit"}
                       onPress={() => setSheet("visit")}
                     />
@@ -355,9 +329,6 @@ export function WidgetsScreen() {
                       selected={preferences.source.kind === "artwork"}
                       onPress={() => setSheet("artwork")}
                     />
-                    <Text variant="metadata" themeColor="textSecondary" style={{ paddingTop: 20 }}>
-                      Your frame and color stay the same.
-                    </Text>
                   </View>
                 )}
                 {sheet === "caption" && (
@@ -366,7 +337,7 @@ export function WidgetsScreen() {
                       <WidgetSettingRow
                         key={option.value}
                         title={option.name}
-                        subtitle={option.description}
+                        subtitle={"description" in option ? option.description : undefined}
                         selected={preferences.caption === option.value}
                         onPress={() => update({ caption: option.value })}
                       />

@@ -70,17 +70,9 @@ export function NowPlayingScreen() {
   );
   const metadata = (
     <View style={styles.metadata}>
-      <View style={styles.guideLabel}>
-        <View style={styles.badge}>
-          <AudioIcon name="headphones" size={12} />
-          <Text variant="metadata" style={styles.badgeText}>
-            AUDIO GUIDE
-          </Text>
-        </View>
-        <Text variant="metadata" themeColor="textSecondary">
-          AI-generated voice
-        </Text>
-      </View>
+      <Text variant="metadata" themeColor="textSecondary">
+        AI-generated voice
+      </Text>
       <Text selectable variant="display" style={styles.title}>
         {work.title}
       </Text>
@@ -113,7 +105,7 @@ export function NowPlayingScreen() {
       variant="secondary"
       style={{ color: audio.error ? Gallery.destructive : Gallery.muted }}
     >
-      {audio.error ?? "Ready when you are"}
+      {audio.error ?? "Ready to play"}
     </Text>
   );
   const transport = <PlayerTransport view={view} onView={setView} />;
@@ -167,7 +159,6 @@ export function NowPlayingScreen() {
           }}
         >
           <Text variant="display">{work.title}</Text>
-          <Text themeColor="textSecondary">Audio guide · Transcript & sources</Text>
           {audio.sentences ? (
             <DocentSection docent={audio.sentences} factSheet={work.facts} />
           ) : (
@@ -206,26 +197,6 @@ const styles = StyleSheet.create({
   details: { paddingHorizontal: Spacing.content, gap: Spacing.two },
   metadata: { gap: Spacing.two, paddingBottom: Spacing.two },
   title: { fontSize: 30, lineHeight: 36 },
-  guideLabel: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: Spacing.two,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    backgroundColor: Gallery.highlight,
-  },
-  badgeText: {
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-  },
   footer: {
     backgroundColor: Gallery.paper,
     borderTopWidth: StyleSheet.hairlineWidth,
