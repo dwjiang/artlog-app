@@ -7,7 +7,7 @@ import { Gallery, Radius } from "@/constants/theme";
 
 import { VisitSymbol } from "./visit-ui";
 
-/** A square share choice: an ink border and a lime badge mark it chosen; a veil fades it when left out. */
+// A border and checkmark distinguish selection without relying on color.
 export function ShareTileImage({
   size,
   selected,

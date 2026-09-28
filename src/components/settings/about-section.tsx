@@ -12,7 +12,7 @@ import { showErrorToast } from "@/lib/ui/toast";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
-const ANTON_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/anton/OFL.txt";
+const SPACE_GROTESK_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/spacegrotesk/OFL.txt";
 
 export function AboutSection() {
   async function open(url: string) {
@@ -30,7 +30,7 @@ export function AboutSection() {
       contentContainerStyle={{ padding: 20, gap: 24 }}
     >
       <View style={{ gap: 6, paddingTop: 18 }}>
-        <ThemedText variant="wordmark" style={{ fontSize: 64, lineHeight: 76 }} accessibilityRole="header">
+        <ThemedText variant="wordmark" style={{ fontSize: 48, lineHeight: 62 }} accessibilityRole="header">
           Artlog
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -108,10 +108,10 @@ export function AboutSection() {
             },
           },
           {
-            label: "Anton font and license",
+            label: "Space Grotesk font and license",
             icon: "info.circle",
             action: () => {
-              void open(ANTON_LICENSE_URL);
+              void open(SPACE_GROTESK_LICENSE_URL);
             },
           },
         ].map(({ label, icon, detail, action }, index) => (
@@ -155,8 +155,8 @@ export function AboutSection() {
         Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0. Displayed cropped.
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Anton by Vernon Adams. Copyright 2020 The Anton Project Authors. Licensed under the SIL Open Font License,
-        Version 1.1.
+        Space Grotesk by Florian Karsten. Copyright 2020 The Space Grotesk Project Authors. Licensed under the SIL Open
+        Font License, Version 1.1.
       </ThemedText>
     </ScrollView>
   );

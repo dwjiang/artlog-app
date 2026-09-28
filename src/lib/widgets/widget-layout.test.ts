@@ -63,7 +63,7 @@ it("wraps long titles, places panoramic captions below the painting, and honors 
   );
   expect(
     portrait.texts
-      .filter((row) => row.family === "Anton")
+      .filter((row) => row.family !== undefined)
       .map((row) => row.text)
       .join(" "),
   ).toBe("Girl with a Pearl Earring");

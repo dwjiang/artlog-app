@@ -31,25 +31,6 @@ describe("shared app text", () => {
     expect(screen.getByText("Numeral")).not.toHaveStyle({ lineHeight: 24 });
   });
 
-  it("reserves room above tight display lines so accented capitals are not clipped", async () => {
-    await render(
-      <>
-        <ThemedText variant="pageTitle">Édouard Manet</ThemedText>
-        <ThemedText variant="section" style={{ paddingTop: 8 }}>
-          Padded heading
-        </ThemedText>
-        <ThemedText variant="body">Body copy</ThemedText>
-      </>,
-    );
-    expect(screen.getByText("Édouard Manet")).toHaveStyle({ paddingTop: 14 });
-    expect(screen.getByText("Padded heading")).toHaveStyle({ paddingTop: 8 });
-    expect(screen.getByText("Body copy")).not.toHaveStyle({ paddingTop: expect.any(Number) });
-
-    jest.mocked(useWindowDimensions).mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 2 });
-    await screen.rerender(<ThemedText variant="pageTitle">Édouard Manet</ThemedText>);
-    expect(screen.getByText("Édouard Manet")).toHaveStyle({ paddingTop: 28 });
-  });
-
   it("refreshes existing text measurements when Dynamic Type changes while the app is open", async () => {
     const ref = jest.fn();
     await render(

@@ -2,7 +2,7 @@ import { Button, Host } from "@expo/ui/swift-ui";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { NotePaper } from "@/components/note-paper";
@@ -45,11 +45,12 @@ function persist(note: NoteDraft | undefined): void {
   });
 }
 
-/** The lime swatch and heading shared by every note block, so private and shared notes read the same way. */
 export function NoteHeading({ title, children }: { title: string; children?: React.ReactNode }) {
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= 1.5;
   return (
-    <View style={styles.heading}>
-      <ThemedText accessibilityRole="header" style={styles.title}>
+    <View style={[styles.heading, stacked && { flexDirection: "column", alignItems: "stretch" }]}>
+      <ThemedText accessibilityRole="header" style={[styles.title, stacked && { flex: 0 }]}>
         {title}
       </ThemedText>
       {children}
@@ -216,7 +217,7 @@ function WorkNoteEditor({
               onBlur={() => persist(latest.current)}
               style={styles.input}
             />
-            <View style={{ padding: 12, backgroundColor: "#EEF2FF" }}>
+            <View style={{ padding: 12, backgroundColor: Gallery.highlight }}>
               <ThemedText variant="metadata">Private note. You can choose to show it on your wall later.</ThemedText>
             </View>
             {draft?.length === MAX_NOTE_LENGTH && (
@@ -285,12 +286,12 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: Fonts.display,
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 22,
     color: Gallery.ink,
   },
-  body: { fontSize: 15, lineHeight: 21 },
+  body: { fontSize: 16, lineHeight: 24 },
   input: {
     minHeight: 110,
     padding: Spacing.three,

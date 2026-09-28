@@ -10,7 +10,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
-import { Gallery, Fonts } from "@/constants/theme";
+import { Gallery, Typography } from "@/constants/theme";
 import {
   downloadProgress,
   formatDownloadSize,
@@ -485,9 +485,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 34,
-    lineHeight: 39,
+    ...Typography.pageTitle,
     color: Gallery.ink,
   },
   searchRow: {

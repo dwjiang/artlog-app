@@ -100,7 +100,7 @@ function QueueContent() {
         <GalleryButton label="Close" onPress={() => router.dismiss()} />
       </View>
       {items.some((item) => item.status === "queued") && (
-        <View style={{ padding: 14, backgroundColor: "#EEF2FF", borderRadius: 8 }}>
+        <View style={{ padding: 14, backgroundColor: Gallery.highlight, borderRadius: 8 }}>
           <ThemedText type="small">Waiting for a connection. Your photos are safely saved on this iPhone.</ThemedText>
         </View>
       )}

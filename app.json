@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FCFCF9",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96
         }
@@ -78,7 +78,7 @@
         "expo-font",
         {
           "ios": {
-            "fonts": ["./assets/fonts/anton-regular.ttf"]
+            "fonts": ["./assets/fonts/space-grotesk-semibold.ttf"]
           }
         }
       ],

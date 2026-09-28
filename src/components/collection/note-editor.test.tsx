@@ -123,11 +123,11 @@ it("explains the note limit when reached and saves a note at the limit", async (
 it("distinguishes a public wall note from a private note", async () => {
   const view = await render(<NoteEditor savedLocalId="work" sharedOnWall />);
   expect(await screen.findByText("Shared on your public wall")).toBeOnTheScreen();
-  expect(screen.getByText("PUBLIC NOTE")).toBeOnTheScreen();
+  expect(screen.getByText("Public note")).toBeOnTheScreen();
   expect(screen.queryByText("Only you")).toBeNull();
   await view.rerender(<NoteEditor savedLocalId="work" sharedOnWall={false} />);
   expect(screen.getByText("Only you")).toBeOnTheScreen();
-  expect(screen.getByText("PRIVATE NOTE")).toBeOnTheScreen();
+  expect(screen.getByText("Private note")).toBeOnTheScreen();
 });
 
 it("opens Notes when an existing artwork screen receives a note-edit request", async () => {

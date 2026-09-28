@@ -61,12 +61,12 @@ function WallChoice({
           <NativeText
             modifiers={[
               padding({ horizontal: 6, vertical: 2 }),
-              background(selected ? Gallery.segmentSelection : "transparent"),
+              background(selected ? Gallery.highlight : "transparent"),
             ]}
             textStyle={{
               fontSize: 13 * fontScale,
               fontWeight: selected ? "600" : "400",
-              color: selected ? Gallery.ink : Gallery.muted,
+              color: selected ? Gallery.accent : Gallery.muted,
             }}
           >{`${label}${selected ? " ✓" : ""}`}</NativeText>
         </Column>

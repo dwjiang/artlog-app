@@ -166,12 +166,7 @@ export function ArtworkAlbum({
         </View>
       )}
       <View style={{ gap: 4 }}>
-        <Text
-          variant="display"
-          accessibilityRole="header"
-          selectable
-          style={{ color: Gallery.ink, fontSize: 40, lineHeight: 46 }}
-        >
+        <Text variant="display" accessibilityRole="header" selectable>
           {work.title}
         </Text>
         <Text selectable style={styles.title}>

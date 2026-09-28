@@ -57,14 +57,14 @@ private struct ArtlogEntryView: View {
 
   init(entry: ArtlogEntry) {
     self.entry = entry
-    if let font = sharedDirectory?.appendingPathComponent("anton-regular.ttf") {
+    if let font = sharedDirectory?.appendingPathComponent("space-grotesk-semibold.ttf") {
       CTFontManagerRegisterFontsForURL(font as CFURL, .process, nil)
     }
   }
 
   private var background: Color {
-    let value = entry.props?["background"] as? String ?? "#FCFCF9"
-    let rgb = UInt64(value.dropFirst(), radix: 16) ?? 0xFCFCF9
+    let value = entry.props?["background"] as? String ?? "#FFFFFF"
+    let rgb = UInt64(value.dropFirst(), radix: 16) ?? 0xFFFFFF
     return Color(red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255)
   }
 
@@ -87,10 +87,10 @@ private struct ArtlogEntryView: View {
         Text("Your art here").font(.headline)
         Text("Open Artlog to choose saved paintings.").font(.caption)
       }
-      .foregroundStyle(Color(red: 17/255, green: 17/255, blue: 17/255))
+      .foregroundStyle(Color(red: 27/255, green: 37/255, blue: 49/255))
       .padding(20)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-      .containerBackground(Color(red: 252/255, green: 252/255, blue: 249/255), for: .widget)
+      .containerBackground(Color.white, for: .widget)
       .widgetURL(URL(string: "artlog://widgets"))
     }
   }
