@@ -10,11 +10,12 @@ import { Camera, usePhotoOutput } from "react-native-vision-camera";
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText } from "@/components/themed-text";
-import { BottomTabInset, Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
 import { reportError } from "@/lib/observability";
+import { useLiftToasts } from "@/lib/ui/toast";
 
 import { CameraPermission } from "./camera-permission";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
@@ -37,14 +38,17 @@ export function ScanScreen() {
   const [cameraError, setCameraError] = useState<string>();
   const [preview, setPreview] = useState({ width: 0, height: 0 });
   const [controls, setControls] = useState({ top: 0, bottom: 0 });
+  // Native tabs give each tab its own safe area, which already ends above the tab bar and any bottom accessory.
   const { top, bottom } = useSafeAreaInsets();
+  const controlsBottom = bottom + Spacing.three;
   const revealInsets = useMemo(
     () => ({
       top: top + Spacing.three + controls.top + Spacing.four,
-      bottom: bottom + BottomTabInset + audioInset + Spacing.three + controls.bottom + Spacing.four,
+      bottom: controlsBottom + controls.bottom + Spacing.four,
     }),
-    [top, bottom, controls, audioInset],
+    [top, controlsBottom, controls],
   );
+  useLiftToasts(controls.bottom ? controlsBottom + controls.bottom : undefined, isFocused);
   const active = isFocused && appState === "active";
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
   const capture = useCapture({
@@ -141,15 +145,7 @@ export function ScanScreen() {
           }}
         />
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.overlay,
-            {
-              paddingBottom: bottom + BottomTabInset + audioInset + Spacing.three,
-            },
-          ]}
-        >
+        <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: controlsBottom }]}>
           <View
             pointerEvents="box-none"
             style={styles.bottom}

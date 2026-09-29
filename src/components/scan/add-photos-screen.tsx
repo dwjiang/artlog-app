@@ -104,7 +104,7 @@ function PhotoSession({
     () => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? "",
   );
   const [removed, setRemoved] = useState<DraftPhoto>();
-  const [operation, setOperation] = useState<"adding" | "saving" | "separating">();
+  const [operation, setOperation] = useState<"camera" | "library" | "saving" | "separating">();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string>();
   const busy = operation !== undefined;
@@ -129,6 +129,7 @@ function PhotoSession({
   const active = focused && appState === "active";
   const output = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
   const currentPhoto = photos.find((photo) => photo.localId === selected);
+  const addingLabel = photos.some((photo) => photo.review === "checking") ? "Checking added photos…" : "Adding photos…";
   function update(next: DraftPhoto[]) {
     writePhotoDraft(owner, draftId, next);
     setPhotos(next);
@@ -137,7 +138,7 @@ function PhotoSession({
     if (busyRef.current) return;
     busyRef.current = true;
     const session = captureOwner();
-    setOperation("adding");
+    setOperation(source);
     setError(undefined);
     try {
       const sources: { uri: string; capturedAt: number }[] = [];
@@ -555,6 +556,8 @@ function PhotoSession({
             icon="camera"
             variant="filled"
             fullWidth
+            busy={operation === "camera"}
+            busyLabel={addingLabel}
             disabled={!ready || busy || photos.length >= 99}
             onPress={() => {
               void acquire("camera");
@@ -565,6 +568,8 @@ function PhotoSession({
             icon="photo"
             variant="outlined"
             fullWidth
+            busy={operation === "library"}
+            busyLabel={addingLabel}
             disabled={busy || photos.length >= 99}
             onPress={() => {
               void acquire("library");
@@ -609,13 +614,6 @@ function PhotoSession({
           </Pressable>
         ))}
       </ScrollView>
-      {operation === "adding" && currentPhoto?.review !== "checking" && (
-        <LoadingRing
-          accessibilityLabel={
-            photos.some((photo) => photo.review === "checking") ? "Checking added photos…" : "Adding photos…"
-          }
-        />
-      )}
       {photos.length >= 99 && (
         <ThemedText themeColor="warning">Photo limit reached. Remove a photo to add another.</ThemedText>
       )}

@@ -86,6 +86,16 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
+it("shows sign-in progress inside the chosen provider button", async () => {
+  const view = await render(<SignInScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
+  mockAccount = { ...mockAccount, busy: true };
+  await view.rerender(<SignInScreen />);
+  expect(screen.getByRole("button", { name: "Continue with Google", busy: true })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Continue with Apple", busy: false })).toBeDisabled();
+  expect(screen.queryByText("Signing in…")).toBeNull();
+});
+
 it("starts Google independently of Apple availability", async () => {
   mockAccount.available = false;
   await render(<SignInScreen />);
@@ -136,9 +146,10 @@ it("explains unavailable sign-in without preventing dismissal", async () => {
 it("continues to the visit editor only after the linked account has its local journal", async () => {
   const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
   expect(screen.getByRole("header", { name: "Sign in to share this visit" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   mockAccount.account.linked = true;
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByLabelText("Syncing your journal…")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Continue with Apple", busy: true })).toBeDisabled();
   expect(mockReplace).not.toHaveBeenCalled();
   mockOwner = "account:account-a";
   await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);

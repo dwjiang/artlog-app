@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, TextInput, View } from "react-native";
 
-import { LoadingRing } from "@/components/loading-ring";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -56,9 +55,10 @@ function Editor({ work }: { work: SavedWork }) {
   const [medium, setMedium] = useState(work.medium ?? "");
   const [search, setSearch] = useState("");
   const [choosing, setChoosing] = useState(false);
-  const [merging, setBusy] = useState(false);
+  const [mergingInto, setMergingInto] = useState<string>();
   const [error, setError] = useState<string>();
   const [recognizing, setRecognizing] = useState(false);
+  const merging = mergingInto !== undefined;
   const busy = merging || recognizing;
   const works = useLiveQuery(listSavedWorks(work.owner), [work.owner]);
   useEffect(() => {
@@ -79,7 +79,7 @@ function Editor({ work }: { work: SavedWork }) {
       setError("Connect to the internet to merge artworks.");
       return;
     }
-    setBusy(true);
+    setMergingInto(target.localId);
     setError(undefined);
     try {
       await flushCollectionMedia({
@@ -104,7 +104,7 @@ function Editor({ work }: { work: SavedWork }) {
         "Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.",
       );
     } finally {
-      setBusy(false);
+      setMergingInto(undefined);
     }
   }
   return (
@@ -187,6 +187,8 @@ function Editor({ work }: { work: SavedWork }) {
               <GalleryButton
                 key={target.localId}
                 label={`${target.title} · ${target.artist}`}
+                busy={mergingInto === target.localId}
+                busyLabel="Combining artworks…"
                 disabled={busy}
                 onPress={() =>
                   Alert.alert(
@@ -207,7 +209,6 @@ function Editor({ work }: { work: SavedWork }) {
             ))}
           </View>
         )}
-        {merging && <LoadingRing accessibilityLabel="Combining artworks…" />}
       </View>
       <GalleryButton
         label="Save details"

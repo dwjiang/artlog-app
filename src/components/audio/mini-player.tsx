@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { audioTime } from "@/lib/audio/narration";
@@ -9,7 +10,6 @@ import { useListening } from "@/lib/audio/use-listening";
 
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
-import { NarrationWaveform } from "./narration-waveform";
 
 export const MINI_PLAYER_HEIGHT = 48;
 export function openPlayer(view: "player" | "queue" = "player") {
@@ -45,15 +45,7 @@ export function MiniPlayer() {
         </View>
       </Pressable>
       {audio.phase === "loading" ? (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={subtitle}
-          accessibilityState={{ busy: true }}
-          style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
-        >
-          <NarrationWaveform />
-        </View>
+        <LoadingRing accessibilityLabel={subtitle} size={22} style={{ minWidth: 44, minHeight: 44 }} />
       ) : (
         <AudioIconButton
           name={audio.playing ? "pause.fill" : "play.fill"}

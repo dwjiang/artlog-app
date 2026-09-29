@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { CONTRIBUTION_MESSAGES, contributionMessage } from "./contribute-result";
@@ -35,6 +36,17 @@ it("keeps a saved artwork available and offers retry after sharing fails", async
   expect(screen.getByRole("alert")).toHaveTextContent(/Your artwork is saved/);
   await fireEvent.press(screen.getByRole("button", { name: SHARE_BUTTON }));
   expect(handlers.onShare).toHaveBeenCalledTimes(1);
+});
+
+it("shows a sharing retry's progress inside the retry button", async () => {
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+  await render(
+    <LabelActions canSave saving={false} sharing savedId="saved-1" shareError="No connection" {...handlers} />,
+  );
+  expect(screen.getByRole("button", { name: SHARE_BUTTON })).toBeDisabled();
+  expect(announce).toHaveBeenCalledWith(`${SHARE_BUTTON}. In progress.`);
+  expect(screen.queryByRole("progressbar")).toBeNull();
+  announce.mockRestore();
 });
 
 it("replaces the buttons with the saved link and the contribution outcome", async () => {

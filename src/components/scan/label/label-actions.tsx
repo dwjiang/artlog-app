@@ -88,13 +88,20 @@ export function ContributionStatus({
   return (
     <>
       {shared && <ContributeResult result={shared} />}
-      {sharing && <LoadingRing accessibilityLabel="Saving to the shared index…" />}
+      {sharing && !shareError && <LoadingRing accessibilityLabel="Saving to the shared index…" />}
       {shareError && (
         <>
           <ThemedText type="small" themeColor="error" accessibilityRole="alert">
             {shareError}. Your artwork is saved to your collection.
           </ThemedText>
-          <GalleryButton label={SHARE_BUTTON} variant="outlined" fullWidth disabled={sharing} onPress={onShare} />
+          <GalleryButton
+            label={SHARE_BUTTON}
+            variant="outlined"
+            fullWidth
+            busy={sharing}
+            busyLabel="Saving to the shared index…"
+            onPress={onShare}
+          />
         </>
       )}
     </>

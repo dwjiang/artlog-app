@@ -5,7 +5,6 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkStrip } from "@/components/guest/artwork-preview";
-import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
@@ -69,13 +68,8 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
         </Text>
         <Text style={styles.detail}>{copy.detail}</Text>
         <View style={styles.actions}>
-          {waitingForJournal && !busy ? (
-            <View style={styles.preparing}>
-              <LoadingRing accessibilityLabel="Syncing your journal…" color={Gallery.accent} />
-            </View>
-          ) : (
-            <SignInActions state={state} />
-          )}
+          {/* The chosen provider keeps its progress until the linked journal is ready to open. */}
+          <SignInActions state={{ ...state, busy: busy || waitingForJournal }} />
           <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
         </View>
       </ScrollView>
@@ -110,5 +104,4 @@ const styles = StyleSheet.create({
   },
   detail: { ...Typography.body, color: Gallery.muted },
   actions: { gap: 8, paddingTop: 8 },
-  preparing: { minHeight: 50, alignItems: "center", gap: 8 },
 });
