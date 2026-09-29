@@ -2,6 +2,7 @@ import Slider from "@react-native-community/slider";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { audioTime } from "@/lib/audio/narration";
@@ -10,7 +11,6 @@ import { useListening } from "@/lib/audio/use-listening";
 
 import { SystemVolumeSlider } from "../../../modules/system-volume/src";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
-import { NarrationWaveform } from "./narration-waveform";
 
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
@@ -100,7 +100,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           style={({ pressed }) => [styles.play, { opacity: pressed ? 0.75 : 1 }]}
         >
           {preparing ? (
-            <NarrationWaveform color={Gallery.surface} size={40} />
+            <LoadingRing color={Gallery.surface} size={36} accessible={false} />
           ) : (
             <AudioIcon
               name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
