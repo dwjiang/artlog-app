@@ -29,7 +29,7 @@ export function useSaveResult() {
   async function trackContribution(attempt: Promise<ContributionAttempt>) {
     sharingNow.current = true;
     setSharing(true);
-    setShareError(undefined);
+    // A retry keeps the previous error, and with it the Retry button, until this attempt settles.
     try {
       const outcome = await attempt;
       setShared(outcome.result);

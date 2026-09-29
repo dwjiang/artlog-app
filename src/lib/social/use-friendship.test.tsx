@@ -109,7 +109,7 @@ it("prevents double submission while a friendship request is in flight", async (
     void result.current.act("request");
   });
   expect(mockMutation).toHaveBeenCalledTimes(1);
-  expect(result.current.busy).toBe(true);
+  expect(result.current.pending).toBe("request");
   await act(() =>
     resolve(
       relationship({
@@ -119,7 +119,7 @@ it("prevents double submission while a friendship request is in flight", async (
       }),
     ),
   );
-  expect(result.current.busy).toBe(false);
+  expect(result.current.pending).toBeUndefined();
 });
 
 it("refreshes conflicts without replaying the mutation", async () => {

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, AppState, type AlertButton } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { AccessibilityInfo, Alert, AppState, type AlertButton } from "react-native";
 
 import { db } from "@/db/client";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -51,6 +52,7 @@ jest.mock("react-native-vision-camera", () => ({
   usePhotoOutput: () => ({}),
 }));
 jest.mock("./camera-permission", () => ({ CameraPermission: () => null }));
+jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("@/components/collection/native-segmented-picker", () => ({
   NativeSegmentedPicker: () => null,
 }));
@@ -172,6 +174,18 @@ beforeEach(async () => {
   updatePhotoSession(owner, mockParams.draftId, {
     photos: [{ localId: "detail", path: "detail.jpg", kind: "detail", capturedAt: 2 }],
   });
+});
+
+it("shows photo import progress inside the import button", async () => {
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+  jest.mocked(ImagePicker.launchImageLibraryAsync).mockReturnValue(new Promise(() => {}));
+  await render(<AddPhotosScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Import a photo" }));
+  expect(screen.getByRole("button", { name: "Import a photo" })).toBeDisabled();
+  expect(announce).toHaveBeenCalledWith("Import a photo. In progress.");
+  expect(announce).not.toHaveBeenCalledWith("Take photo. In progress.");
+  expect(screen.queryByRole("progressbar", { name: "Adding photos…" })).toBeNull();
+  announce.mockRestore();
 });
 
 it("retains an edited visit after leaving the session and saves only new photos to it", async () => {

@@ -1,13 +1,21 @@
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import { Menu, Button, Spacer } from "@expo/ui/swift-ui";
-import { accessibilityLabel, buttonStyle, contentShape, frame, shapes } from "@expo/ui/swift-ui/modifiers";
+import {
+  accessibilityLabel,
+  accessibilityValue,
+  buttonStyle,
+  contentShape,
+  disabled,
+  frame,
+  shapes,
+} from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 import type { ReactElement, ReactNode } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
+import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -76,7 +84,8 @@ function CompactFriendshipAction({
   session: SocialSession;
   relationship?: RelationshipSource;
 }) {
-  const { state, busy, error, act, refresh } = useFriendship(profileId, session, relationship);
+  const { state, pending, error, act, refresh } = useFriendship(profileId, session, relationship);
+  const busy = pending !== undefined;
   const action =
     state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
   return (
@@ -87,6 +96,7 @@ function CompactFriendshipAction({
         <GalleryButton
           variant="outlined"
           label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
+          busy={busy}
           disabled={busy || !state || state.blocked}
           onPress={() => {
             void act(action).then((changed) => {
@@ -127,7 +137,7 @@ export function ProfileActionRow({
   );
 }
 
-function FriendsMenu({ onRemove }: { onRemove: () => void }) {
+function FriendsMenu({ removing, onRemove }: { removing: boolean; onRemove: () => void }) {
   return (
     <Host
       matchContents={{ vertical: true }}
@@ -135,7 +145,12 @@ function FriendsMenu({ onRemove }: { onRemove: () => void }) {
       style={{ width: "100%", borderWidth: 1, borderColor: Gallery.accentBorder, borderRadius: Radius.button }}
     >
       <Menu
-        modifiers={[accessibilityLabel("Friends"), buttonStyle("plain")]}
+        modifiers={[
+          accessibilityLabel("Friends"),
+          accessibilityValue(removing ? "In progress" : ""),
+          buttonStyle("plain"),
+          disabled(removing),
+        ]}
         label={
           <Row
             alignment="center"
@@ -144,8 +159,9 @@ function FriendsMenu({ onRemove }: { onRemove: () => void }) {
             {/* Balances the chevron so the label centers on the whole button. */}
             <Spacer modifiers={[frame({ width: 32 })]} />
             <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}>
-              <Icon name="checkmark" size={17} color={Gallery.ink} />
-              <NativeText textStyle={{ color: Gallery.ink, fontSize: 17 }}>Friends</NativeText>
+              {removing && <NativeLoadingRing label="Removing friend" color={Gallery.ink} />}
+              {!removing && <Icon name="checkmark" size={17} color={Gallery.ink} />}
+              {!removing && <NativeText textStyle={{ color: Gallery.ink, fontSize: 17 }}>Friends</NativeText>}
             </Row>
             <Icon name="chevron.down" size={12} color={Gallery.ink} modifiers={[frame({ width: 32 })]} />
           </Row>
@@ -166,8 +182,9 @@ export function FriendshipControls({
   session: SocialSession;
   trailing?: ReactNode;
 }) {
-  const { state, busy, error, act, refresh } = useFriendship(profileId, session);
+  const { state, pending, error, act, refresh } = useFriendship(profileId, session);
   if (profileId === session.profileId) return null;
+  const busy = pending !== undefined;
   const ready = session.status === "ready";
   const actionButton = (action: FriendshipAction) => {
     const primary = action === "request" || action === "accept";
@@ -178,6 +195,7 @@ export function FriendshipControls({
         icon={action === "cancel" ? "checkmark" : undefined}
         fullWidth
         minHeight={44}
+        busy={pending === action}
         disabled={busy}
         variant={primary ? "filled" : "outlined"}
         tone={primary ? "accent" : "ink"}
@@ -205,6 +223,7 @@ export function FriendshipControls({
           ? [
               <FriendsMenu
                 key="friends"
+                removing={pending === "remove"}
                 onRemove={() => {
                   if (!busy) {
                     Alert.alert(
@@ -240,7 +259,6 @@ export function FriendshipControls({
         secondary={available.includes("decline") && actionButton("decline")}
         trailing={trailing}
       />
-      {busy && <LoadingRing accessibilityLabel="Updating friendship…" />}
       {error && (
         <>
           <Text selectable accessibilityRole="alert" style={socialStyles.body}>

@@ -18,6 +18,8 @@ type SignInState = Pick<
 export function SignInActions({ state }: { state: SignInState }) {
   const network = useNetworkState();
   const [buttonHeight, setButtonHeight] = useState(SIGN_IN_BUTTON_HEIGHT);
+  const [provider, setProvider] = useState<"apple" | "google">();
+  const signingIn = state.busy ? provider : undefined;
   // Offline, the device never becomes ready, so say so instead of spinning until the sheet is dismissed.
   const offline = isOffline(network);
   const disabled = state.busy || !state.ready || offline;
@@ -28,9 +30,12 @@ export function SignInActions({ state }: { state: SignInState }) {
         <ProviderSignInButton
           provider="apple"
           disabled={disabled}
-          busy={state.busy}
+          busy={signingIn === "apple"}
           minHeight={buttonHeight}
-          onPress={() => void state.signInWithApple()}
+          onPress={() => {
+            setProvider("apple");
+            void state.signInWithApple();
+          }}
         />
       ) : state.ready ? (
         <Text style={styles.footnote}>Apple sign-in is unavailable on this device.</Text>
@@ -40,16 +45,14 @@ export function SignInActions({ state }: { state: SignInState }) {
         <ProviderSignInButton
           provider="google"
           disabled={googleDisabled}
-          busy={state.busy}
-          onPress={() => void state.signInWithGoogle()}
+          busy={signingIn === "google"}
+          onPress={() => {
+            setProvider("google");
+            void state.signInWithGoogle();
+          }}
         />
       </View>
-      {state.busy ? (
-        <View style={styles.progress}>
-          <LoadingRing accessibilityLabel="Signing in…" color={Gallery.accent} />
-          <Text style={styles.footnote}>Signing in…</Text>
-        </View>
-      ) : offline ? (
+      {state.busy ? null : offline ? (
         <Text style={styles.footnote}>Connect to the internet to sign in.</Text>
       ) : !state.ready ? (
         <View style={styles.progress}>
@@ -67,7 +70,7 @@ export function SignInActions({ state }: { state: SignInState }) {
 
 const styles = StyleSheet.create({
   root: { gap: Spacing.two, width: "100%" },
-  progress: { minHeight: 50, gap: Spacing.two, alignItems: "center", justifyContent: "center" },
+  progress: { minHeight: 50, alignItems: "center", justifyContent: "center" },
   footnote: {
     fontSize: 13,
     lineHeight: 18,

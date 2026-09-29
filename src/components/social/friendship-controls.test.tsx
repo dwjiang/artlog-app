@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { AccessibilityInfo, Alert } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -13,10 +13,11 @@ jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
 let mockState: object | undefined;
+let mockPending: string | undefined;
 jest.mock("@/lib/social/use-friendship", () => ({
   useFriendship: (...args: unknown[]) => {
     mockUseFriendship(...args);
-    return { act: mockAct, state: mockState };
+    return { act: mockAct, state: mockState, pending: mockPending };
   },
 }));
 const guest: SocialSession = {
@@ -34,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockAct.mockResolvedValue(true);
   mockState = undefined;
+  mockPending = undefined;
 });
 
 it("lets guests request sign-in from the friend action without sending a request", async () => {
@@ -117,6 +119,24 @@ it("labels the answers to a received request as accepting or ignoring a friend",
   expect(mockAct).toHaveBeenCalledWith("decline");
   await fireEvent.press(screen.getByRole("button", { name: "Accept friend" }));
   expect(mockAct).toHaveBeenCalledWith("accept");
+});
+
+it("shows progress inside the answer being sent", async () => {
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+  mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 1 };
+  mockPending = "accept";
+  await render(
+    <FriendshipControls
+      profileId={"friend" as never}
+      session={{ ...guest, status: "ready", profileId: "me" as never }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Accept friend" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Ignore" })).toBeDisabled();
+  expect(announce).toHaveBeenCalledWith("Accept friend. In progress.");
+  expect(announce).not.toHaveBeenCalledWith("Ignore. In progress.");
+  expect(screen.queryByRole("progressbar")).toBeNull();
+  announce.mockRestore();
 });
 
 it("keeps the trailing action beside every friendship state", async () => {
