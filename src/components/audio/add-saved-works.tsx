@@ -60,7 +60,6 @@ export function AddSavedWorks() {
   }
   return (
     <ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
-      <Text variant="display">Add saved works</Text>
       {error && (
         <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
           {error}

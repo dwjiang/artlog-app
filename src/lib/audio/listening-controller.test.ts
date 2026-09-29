@@ -126,15 +126,21 @@ it("deduplicates queued versions, reorders and removes without interrupting play
   controller.enqueue(track("b"));
   controller.enqueue(track("b"));
   controller.enqueue(track("c"));
-  controller.move(trackKey(track("c")), -1);
-  expect(controller.snapshot().queue.map((item) => item.work.title)).toEqual(["c", "b"]);
+  controller.enqueue(track("d"));
+  const titles = () => controller.snapshot().queue.map((item) => item.work.title);
+  controller.move(2, 0);
+  expect(titles()).toEqual(["d", "b", "c"]);
+  controller.move(0, 2);
+  expect(titles()).toEqual(["b", "c", "d"]);
+  controller.move(2, 3);
+  expect(titles()).toEqual(["b", "c", "d"]);
   controller.remove(trackKey(track("b")));
   expect(controller.snapshot().current?.work.title).toBe("a");
   expect(player.pause).not.toHaveBeenCalled();
   controller.dispose();
 });
 
-it("waits at the next artwork by default and autoplays only when enabled", async () => {
+it("plays the next artwork as soon as the current one finishes", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
   controller.enqueue(track("b"));
@@ -145,17 +151,31 @@ it("waits at the next artwork by default and autoplays only when enabled", async
   second.emit();
   await Promise.resolve();
   expect(controller.snapshot().current?.work.title).toBe("b");
-  expect(controller.snapshot().waiting).toBe(true);
-  expect(second.play).not.toHaveBeenCalled();
-  controller.setPauseBetween(false);
-  controller.enqueue(track("c"));
-  second.emit({ currentTime: 100, didJustFinish: true });
+  expect(controller.snapshot().queue).toEqual([]);
+  expect(controller.snapshot().waiting).toBe(false);
+  expect(second.play).toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("keeps works that stop playing in history, most recent last, until cleared", async () => {
+  const { controller, play, players } = setup();
+  const first = await play(track("a"));
+  controller.enqueue(track("b"));
+  first.emit({ currentTime: 100, didJustFinish: true });
   await Promise.resolve();
   await Promise.resolve();
-  const third = players.at(-1)!;
-  third.emit();
-  await Promise.resolve();
-  expect(third.play).toHaveBeenCalled();
+  players.at(-1)!.emit();
+  await play(track("c"));
+  const titles = () => controller.snapshot().history.map((item) => item.work.title);
+  expect(titles()).toEqual(["a", "b"]);
+  await play(track("a"));
+  expect(titles()).toEqual(["b", "c"]);
+  controller.restart();
+  expect(titles()).toEqual(["b", "c"]);
+  controller.stop();
+  expect(titles()).toEqual(["b", "c", "a"]);
+  controller.clearHistory();
+  expect(titles()).toEqual([]);
   controller.dispose();
 });
 

@@ -1,200 +1,296 @@
-import { Host, Switch } from "@expo/ui";
-import { accessibilityHint, font } from "@expo/ui/swift-ui/modifiers";
-import { useState } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { useRef, useState, type ReactNode } from "react";
+import { type AccessibilityActionEvent, Pressable, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
+import Sortable from "react-native-sortables";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
-import { durationLabel, trackKey } from "@/lib/audio/narration";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { trackKey, type ListeningTrack } from "@/lib/audio/narration";
 import { useListening } from "@/lib/audio/use-listening";
 
 import { ArtworkThumbnail } from "./artwork-thumbnail";
-import { AudioIconButton } from "./audio-icon";
+import { AudioIcon } from "./audio-icon";
 
-export function ListeningQueue() {
+export function ListeningQueue({ onAdd }: { onAdd: () => void }) {
   const audio = useListening();
-  const [editing, setEditing] = useState(false);
   if (!audio.current) return null;
-  return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 12 }}>
-      <Text variant="metadata" style={{ color: Gallery.muted, marginVertical: 12 }}>
-        {audio.playing ? "NOW PLAYING" : audio.waiting ? "READY WHEN YOU ARE" : "PAUSED"}
-      </Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          paddingBottom: 18,
-          borderBottomWidth: 0.5,
-          borderColor: Gallery.separator,
-        }}
-      >
-        <ArtworkThumbnail uri={audio.current.work.imageUri} size={54} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ fontWeight: "600", fontSize: 16 }}>{audio.current.work.title}</Text>
-          <Text variant="metadata" themeColor="textSecondary">
-            {["Audio guide", durationLabel(audio.duration)].filter(Boolean).join(" · ")}
-          </Text>
-        </View>
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingTop: 12,
-        }}
-      >
-        <Text variant="display" style={{ fontSize: 30 }}>
-          Up next
-        </Text>
-        <GalleryButton
-          label={editing ? "Done" : "Edit"}
-          onPress={() => setEditing(!editing)}
-          disabled={audio.queue.length === 0}
-        />
-      </View>
-      {audio.queue.length === 0 && (
-        <Text themeColor="textSecondary" style={{ fontSize: 14, paddingVertical: 16 }}>
-          Nothing queued. Add an artwork from your collection.
-        </Text>
-      )}
-      {audio.queue.map((track, index) => (
-        <View
-          key={trackKey(track)}
-          style={{
-            paddingVertical: 12,
-            borderBottomWidth: 0.5,
-            borderColor: Gallery.softBorder,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Play ${track.work.title}`}
-              onPress={() => void audio.controller.play(track)}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <ArtworkThumbnail uri={track.work.imageUri} size={46} />
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={{ fontSize: 14, fontWeight: "600" }}>{track.work.title}</Text>
-                <Text variant="metadata" themeColor="textSecondary">
-                  {track.work.artist}
-                </Text>
-                <Text variant="metadata" themeColor="textSecondary">
-                  {["Audio guide", durationLabel(audio.controller.progressFor(track)?.duration)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              </View>
-            </Pressable>
-            {!editing && (
-              <AudioIconButton
-                name="line.3.horizontal"
-                label={`Reorder ${track.work.title}`}
-                color={Gallery.muted}
-                onPress={() => setEditing(true)}
-              />
-            )}
-          </View>
-          {editing && (
-            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-              <AudioIconButton
-                name="arrow.up"
-                label={`Move ${track.work.title} earlier`}
-                disabled={index === 0}
-                onPress={() => audio.controller.move(trackKey(track), -1)}
-              />
-              <AudioIconButton
-                name="arrow.down"
-                label={`Move ${track.work.title} later`}
-                disabled={index === audio.queue.length - 1}
-                onPress={() => audio.controller.move(trackKey(track), 1)}
-              />
-              <AudioIconButton
-                name="trash"
-                label={`Remove ${track.work.title}`}
-                color={Gallery.destructive}
-                onPress={() => audio.controller.remove(trackKey(track))}
-              />
-            </View>
-          )}
-        </View>
-      ))}
-    </ScrollView>
-  );
+  // A new work remounts the list so it opens on that work again, with history above and out of view.
+  return <QueueList key={trackKey(audio.current)} current={audio.current} onAdd={onAdd} />;
 }
-export function QueueOptions({ onAdd }: { onAdd: () => void }) {
+
+function QueueList({ current, onAdd }: { current: ListeningTrack; onAdd: () => void }) {
   const audio = useListening();
-  const { height, fontScale } = useWindowDimensions();
-  if (height < 720 && fontScale <= 1.4) {
-    return (
-      <View
-        style={{
-          paddingHorizontal: 24,
-          borderTopWidth: 0.5,
-          borderColor: Gallery.softBorder,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 18,
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add saved works"
-          onPress={onAdd}
-          style={{ minHeight: 48, justifyContent: "center" }}
-        >
-          <Text style={{ fontSize: 12, color: Gallery.accent }}>+ Add saved works</Text>
-        </Pressable>
-        <Host
-          matchContents={{ vertical: true }}
-          style={{ flex: 1 }}
-          colorScheme="light"
-          seedColor={Gallery.accent}
-          ignoreSafeArea="all"
-        >
-          <Switch
-            label="Pause between artworks"
-            value={audio.pauseBetween}
-            onValueChange={audio.controller.setPauseBetween}
-            modifiers={[
-              font({ textStyle: "caption" }),
-              accessibilityHint(
-                audio.pauseBetween ? "Tap Play when you reach the next work." : "Play the next work automatically.",
-              ),
-            ]}
-          />
-        </Host>
-      </View>
-    );
+  const scroll = useAnimatedRef<Animated.ScrollView>();
+  // React Native still delivers a press after a row is swiped or dragged; that row's touch must not play it.
+  const unplayable = useRef<string>(undefined);
+  const blockPress = (key?: string) => {
+    unplayable.current = key;
+  };
+  const hasHistory = audio.history.length > 0;
+  const [anchored, setAnchored] = useState(!hasHistory);
+  const [space, setSpace] = useState({ viewport: 0, history: 0 });
+  const measured = useRef({ ...space, content: 0 });
+  // Layout and content size arrive in any order; scroll past history once the list is tall enough to hold it.
+  function measure(patch: Partial<typeof measured.current>) {
+    const next = { ...measured.current, ...patch };
+    measured.current = next;
+    if (patch.content === undefined) setSpace({ viewport: next.viewport, history: next.history });
+    if (anchored || !next.history || !next.viewport || next.content + 1 < next.history + next.viewport) return;
+    scroll.current?.scrollTo({ y: next.history, animated: false });
+    setAnchored(true);
   }
   return (
-    <View
-      style={{
-        paddingHorizontal: 24,
-        borderTopWidth: 0.5,
-        borderColor: Gallery.softBorder,
-      }}
-    >
-      <GalleryButton label="Add saved works" icon="plus" onPress={onAdd} />
-      <Host matchContents={{ vertical: true }} colorScheme="light" seedColor={Gallery.accent} ignoreSafeArea="all">
-        <Switch
-          label="Pause between artworks"
-          value={audio.pauseBetween}
-          onValueChange={audio.controller.setPauseBetween}
-        />
-      </Host>
-      <Text variant="metadata" themeColor="textSecondary" style={{ paddingBottom: 8 }}>
-        {audio.pauseBetween ? "Tap Play when you reach the next work." : "Play the next work automatically."}
+    <GestureHandlerRootView style={styles.root}>
+      <Animated.ScrollView
+        ref={scroll}
+        onLayout={(event) => measure({ viewport: event.nativeEvent.layout.height })}
+        onContentSizeChange={(_, content) => measure({ content })}
+        // Room below the playing work lets it sit at the top even when little is queued.
+        contentContainerStyle={{ minHeight: (hasHistory ? space.history : 0) + space.viewport }}
+        style={{ opacity: anchored ? 1 : 0 }}
+      >
+        {hasHistory && (
+          <View onLayout={(event) => measure({ history: event.nativeEvent.layout.height })}>
+            <Heading title="History">
+              <GalleryButton label="Clear" onPress={audio.controller.clearHistory} />
+            </Heading>
+            {audio.history.map((track, index) => (
+              <TrackRow
+                key={trackKey(track)}
+                track={track}
+                last={index === audio.history.length - 1}
+                onPress={() => void audio.controller.play(track)}
+              />
+            ))}
+          </View>
+        )}
+        <View accessible style={styles.current}>
+          <ArtworkThumbnail uri={current.work.imageUri} size={56} />
+          <View style={styles.text}>
+            <Text style={styles.currentTitle}>{current.work.title}</Text>
+            <Text variant="secondary" themeColor="textSecondary">
+              {current.work.artist}
+            </Text>
+          </View>
+        </View>
+        <Heading title="Up next">
+          {audio.queue.length > 0 && (
+            <GalleryButton label="Add" accessibilityLabel="Add saved works" icon="plus" onPress={onAdd} />
+          )}
+        </Heading>
+        {audio.queue.length === 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onAdd}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+          >
+            <View style={styles.addTile}>
+              <AudioIcon name="plus" size={20} color={Gallery.accent} />
+            </View>
+            <Text variant="button" style={{ color: Gallery.accent }}>
+              Add saved works
+            </Text>
+          </Pressable>
+        ) : (
+          <Sortable.Grid
+            data={audio.queue}
+            keyExtractor={trackKey}
+            scrollableRef={scroll}
+            hapticsEnabled
+            onDragStart={({ key }) => blockPress(key)}
+            onDragEnd={({ fromIndex, toIndex }) => audio.controller.move(fromIndex, toIndex)}
+            renderItem={({ item, index }) => (
+              <QueuedRow
+                track={item}
+                index={index}
+                count={audio.queue.length}
+                blockPress={blockPress}
+                pressBlocked={(key) => unplayable.current === key}
+              />
+            )}
+          />
+        )}
+      </Animated.ScrollView>
+    </GestureHandlerRootView>
+  );
+}
+
+function Heading({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <View style={styles.heading}>
+      <Text variant="section" accessibilityRole="header">
+        {title}
       </Text>
+      {children}
     </View>
   );
 }
+
+function QueuedRow({
+  track,
+  index,
+  count,
+  blockPress,
+  pressBlocked,
+}: {
+  track: ListeningTrack;
+  index: number;
+  count: number;
+  blockPress: (key?: string) => void;
+  pressBlocked: (key: string) => boolean;
+}) {
+  const audio = useListening();
+  const key = trackKey(track);
+  const open = useRef(false);
+  const remove = () => audio.controller.remove(key);
+  function act({ nativeEvent }: AccessibilityActionEvent) {
+    if (nativeEvent.actionName === "remove") remove();
+    else audio.controller.move(index, index + (nativeEvent.actionName === "earlier" ? -1 : 1));
+  }
+  return (
+    <ReanimatedSwipeable
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+      onSwipeableOpenStartDrag={() => blockPress(key)}
+      onSwipeableCloseStartDrag={() => blockPress(key)}
+      onSwipeableWillOpen={() => (open.current = true)}
+      onSwipeableClose={() => (open.current = false)}
+      renderRightActions={() => (
+        // VoiceOver reaches Remove through the row's actions instead of this hidden button.
+        <Pressable
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onPress={remove}
+          style={styles.remove}
+        >
+          <AudioIcon name="trash" size={18} color={Gallery.surface} />
+          <Text variant="metadata" style={styles.removeText}>
+            Remove
+          </Text>
+        </Pressable>
+      )}
+    >
+      <TrackRow
+        track={track}
+        last={index === count - 1}
+        reorderable
+        // A tap on an open row only closes it.
+        onPressIn={() => blockPress(open.current ? key : undefined)}
+        onPress={() => {
+          if (!pressBlocked(key)) void audio.controller.play(track);
+        }}
+        accessibilityActions={[
+          { name: "remove", label: "Remove" },
+          ...(index > 0 ? [{ name: "earlier", label: "Move earlier" }] : []),
+          ...(index < count - 1 ? [{ name: "later", label: "Move later" }] : []),
+        ]}
+        onAccessibilityAction={act}
+      />
+    </ReanimatedSwipeable>
+  );
+}
+
+function TrackRow({
+  track,
+  last,
+  reorderable = false,
+  onPressIn,
+  onPress,
+  accessibilityActions,
+  onAccessibilityAction,
+}: {
+  track: ListeningTrack;
+  last: boolean;
+  reorderable?: boolean;
+  onPressIn?: () => void;
+  onPress: () => void;
+  accessibilityActions?: { name: string; label: string }[];
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Play ${track.work.title}, ${track.work.artist}`}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
+      onPressIn={onPressIn}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <ArtworkThumbnail uri={track.work.imageUri} size={44} />
+      <View style={[styles.rowBody, !last && styles.separator]}>
+        <View style={styles.text}>
+          <Text numberOfLines={2} style={styles.rowTitle}>
+            {track.work.title}
+          </Text>
+          <Text numberOfLines={1} style={styles.rowArtist}>
+            {track.work.artist}
+          </Text>
+        </View>
+        {reorderable && <AudioIcon name="line.3.horizontal" size={18} color={Gallery.muted} />}
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  heading: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: Spacing.content,
+    paddingRight: Spacing.two,
+    marginTop: Spacing.compact,
+  },
+  current: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.compact,
+    paddingHorizontal: Spacing.content,
+    paddingVertical: Spacing.two,
+  },
+  currentTitle: { fontSize: 17, lineHeight: 22, fontWeight: "600" },
+  text: { flex: 1, gap: Spacing.half },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.compact,
+    paddingLeft: Spacing.content,
+    backgroundColor: Gallery.paper,
+  },
+  pressed: { backgroundColor: Gallery.fill },
+  rowBody: {
+    flex: 1,
+    minHeight: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.compact,
+    paddingRight: Spacing.content,
+  },
+  separator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
+  rowTitle: { fontSize: 15, lineHeight: 20, fontWeight: "500" },
+  rowArtist: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  addTile: {
+    width: 44,
+    height: 44,
+    marginVertical: Spacing.two,
+    borderRadius: Radius.thumbnail,
+    backgroundColor: Gallery.highlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  remove: {
+    width: 92,
+    backgroundColor: Gallery.destructive,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.one,
+  },
+  removeText: { color: Gallery.surface, fontWeight: "600" },
+});

@@ -58,13 +58,14 @@ export type ListeningState = {
   sentences?: DocentSentence[];
   current?: ListeningTrack;
   queue: ListeningTrack[];
+  // Works that stopped being current, oldest first.
+  history: ListeningTrack[];
   phase: "idle" | "loading" | "ready" | "error";
   preparationStage?: NarrationPreparationStage;
   playing: boolean;
   position: number;
   duration: number;
   waiting: boolean;
-  pauseBetween: boolean;
   rate: number;
   revision: number;
 };
@@ -82,12 +83,12 @@ export type ListeningDependencies = {
 export class ListeningController {
   private state: ListeningState = {
     queue: [],
+    history: [],
     phase: "idle",
     playing: false,
     position: 0,
     duration: 0,
     waiting: false,
-    pauseBetween: true,
     rate: 1,
     revision: 0,
   };
@@ -121,6 +122,14 @@ export class ListeningController {
         text: researchKey(this.state.current),
       };
     }
+  }
+  private historyAfter(next?: ListeningTrack) {
+    const { current, history } = this.state;
+    const leaving = current && current.work.artworkId !== next?.work.artworkId ? current : undefined;
+    const kept = history.filter(
+      (item) => item.work.artworkId !== next?.work.artworkId && item.work.artworkId !== leaving?.work.artworkId,
+    );
+    return leaving ? [...kept, leaving] : kept;
   }
   isPlaybackRequested = () => (this.state.phase === "loading" ? this.desiredPlaying : this.state.playing);
   progressFor(track: ListeningTrack) {
@@ -171,6 +180,7 @@ export class ListeningController {
       current: track,
       sentences: undefined,
       queue: this.state.queue.filter((item) => item.work.artworkId !== track.work.artworkId),
+      history: this.historyAfter(track),
       phase: "loading",
       preparationStage: "preparing",
       playing: false,
@@ -254,7 +264,7 @@ export class ListeningController {
           clearInterval(this.progressWatch);
           const next = this.state.queue[0];
           if (next) {
-            void this.play(next, !this.state.pauseBetween, this.state.pauseBetween);
+            void this.play(next);
           } else {
             this.desiredPlaying = false;
             this.update({ playing: false, position: this.state.duration });
@@ -328,15 +338,13 @@ export class ListeningController {
     this.update({
       queue: this.state.queue.filter((track) => trackKey(track) !== key),
     });
-  move = (key: string, offset: number) => {
+  move = (from: number, to: number) => {
+    if (from === to || !this.state.queue[from] || to < 0 || to >= this.state.queue.length) return;
     const queue = [...this.state.queue];
-    const from = queue.findIndex((track) => trackKey(track) === key);
-    const to = from + offset;
-    if (from < 0 || to < 0 || to >= queue.length) return;
-    [queue[from], queue[to]] = [queue[to], queue[from]];
+    queue.splice(to, 0, ...queue.splice(from, 1));
     this.update({ queue });
   };
-  setPauseBetween = (pauseBetween: boolean) => this.update({ pauseBetween });
+  clearHistory = () => this.update({ history: [] });
   setRate = (rate: number) => {
     if (!this.awaitingLength) this.player?.setPlaybackRate(rate);
     this.update({ rate });
@@ -350,6 +358,7 @@ export class ListeningController {
       current: undefined,
       sentences: undefined,
       queue: [],
+      history: this.historyAfter(),
       phase: "idle",
       preparationStage: undefined,
       playing: false,
