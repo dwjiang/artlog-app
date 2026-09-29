@@ -5,9 +5,10 @@ linking flow. The button stays disabled until both public client IDs are configu
 
 1. In [Google Auth Platform](https://console.cloud.google.com/auth/clients), select
    or create a project. Configure Branding with the Artlog name and contact emails,
-   choose an External audience, and add your Google account under Audience → Test
-   users while testing. Artlog only needs basic identity scopes: `openid`, `email`,
-   and `profile`. Create two OAuth clients in this same project: **iOS** with bundle
+   choose an External audience. Test users are optional for Artlog's basic identity
+   scopes (`openid`, `email`, and `profile`), including while the project is in Testing;
+   see [Google's audience rules](https://support.google.com/cloud/answer/15549945?hl=en).
+   Create two OAuth clients in this same project: **iOS** with bundle
    ID `app.artlog.ios` (Apple Team ID `J4UW2CVVY4` if requested), and **Web application**
    for the backend token audience. Firebase is not required.
    No web redirect URI or client secret is needed for this native token flow.
