@@ -39,8 +39,14 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
 }));
 jest.mock("./listening-queue", () => ({
-  ListeningQueue: () => null,
-  QueueOptions: () => null,
+  ListeningQueue: ({ onAdd }: { onAdd: () => void }) => {
+    const { Pressable, Text } = jest.requireActual("react-native");
+    return (
+      <Pressable accessibilityRole="button" onPress={onAdd}>
+        <Text>Add saved works</Text>
+      </Pressable>
+    );
+  },
 }));
 jest.mock("./add-saved-works", () => ({ AddSavedWorks: () => null }));
 jest.mock("./player-transport", () => ({
@@ -48,9 +54,14 @@ jest.mock("./player-transport", () => ({
   PlayerTransport: ({ onView }: { onView: (view: string) => void }) => {
     const { Pressable, Text } = jest.requireActual("react-native");
     return (
-      <Pressable accessibilityRole="button" onPress={() => onView("transcript")}>
-        <Text>Transcript and sources</Text>
-      </Pressable>
+      <>
+        <Pressable accessibilityRole="button" onPress={() => onView("transcript")}>
+          <Text>Transcript and sources</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => onView("queue")}>
+          <Text>Up next</Text>
+        </Pressable>
+      </>
     );
   },
 }));
@@ -61,6 +72,16 @@ it("shows the exact spoken script with its sources rather than the artwork card 
   expect(screen.getByText("Take a moment to notice the lilies.")).toBeOnTheScreen();
   expect(screen.getByText("Museum")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
+});
+
+it("returns from choosing saved works to Up next", async () => {
+  await render(<NowPlayingScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Up next" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add saved works" }));
+  expect(screen.getByText("Add saved works")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByRole("button", { name: "Add saved works" })).toBeOnTheScreen();
+  expect(screen.getByText("Now playing")).toBeOnTheScreen();
 });
 
 it("shows preparation status until the spoken transcript is available", async () => {

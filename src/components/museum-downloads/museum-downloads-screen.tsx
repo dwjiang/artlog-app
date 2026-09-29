@@ -3,10 +3,12 @@ import * as Location from "expo-location";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type FlatList } from "react-native";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
@@ -51,7 +53,7 @@ export function MuseumDownloadsScreen() {
   const [location, setLocation] = useState<Coordinate>();
   const [selected, setSelected] = useState<string>();
   const sortChosen = useRef(false);
-  const list = useRef<FlatList<MuseumSummary>>(null);
+  const list = useAnimatedRef<FlatList<MuseumSummary>>();
   const scrollOffset = useRef(0);
   const all = new Map(state.catalog.map((m) => [m.id, m]));
   for (const row of Object.values(state.downloads)) {
@@ -123,6 +125,15 @@ export function MuseumDownloadsScreen() {
       });
     }
   }
+  const pull = usePullToRefresh(list, {
+    enabled: !museum,
+    onRefresh: () =>
+      perform(async () => {
+        await museumDownloads.refresh();
+        const { error } = museumDownloads.getSnapshot();
+        if (error) showErrorToast(error);
+      }),
+  });
   const close = () => {
     void perform(async () => {
       await museumDownloads.pauseAll();
@@ -149,7 +160,7 @@ export function MuseumDownloadsScreen() {
           <View style={styles.nav}>
             <IconAction label="Close museum downloads" icon="xmark" onPress={close} />
           </View>
-          <FlatList
+          <Animated.FlatList
             ref={list}
             data={museums}
             keyExtractor={(museum) => museum.id}
@@ -169,11 +180,11 @@ export function MuseumDownloadsScreen() {
             contentInsetAdjustmentBehavior="never"
             contentContainerStyle={{
               paddingHorizontal: 20,
-              paddingTop: 12,
               paddingBottom: 20,
             }}
+            refreshControl={pull.refreshControl}
             ListHeaderComponent={
-              <>
+              <Animated.View style={[{ paddingTop: 12 }, pull.headerStyle]} onLayout={pull.onHeaderLayout}>
                 <ThemedText
                   accessibilityRole="header"
                   style={[styles.title, fontScale > 1.4 && { fontSize: 28, lineHeight: 34 }]}
@@ -206,10 +217,10 @@ export function MuseumDownloadsScreen() {
                     }}
                   />
                 </View>
-              </>
+              </Animated.View>
             }
             ListEmptyComponent={
-              state.loading || !state.loaded ? (
+              (state.loading && !pull.refreshing) || !state.loaded ? (
                 <LoadingRing accessibilityLabel="Loading museums" />
               ) : (
                 <View style={{ paddingVertical: 24, gap: 12 }}>

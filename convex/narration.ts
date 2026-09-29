@@ -299,8 +299,7 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
   };
   // One pass without reasoning: about 3 seconds against 15 to 35 with low-effort thinking, the same
   // pass rate and fewer invented claims on the 2026-09-25 eval, and no runaway thinking that hits the cap.
-  const schema = guideSchema(facts.length);
-  const write = (previousAttemptProblems?: string) =>
+  const write = (schema: ReturnType<typeof guideSchema>, previousAttemptProblems?: string) =>
     chatJson({
       model: GUIDE_MODEL,
       system: GUIDE_PROMPT,
@@ -315,23 +314,30 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
       }),
       schemaName: "audioGuide",
       schema,
-      maxTokens: 12_000,
+      // A script runs 700 to 1,100 tokens; the cap only decides how long a stall runs (under 10 seconds).
+      maxTokens: 3000,
       timeoutMs: 60_000,
       parse,
     });
   try {
     let script;
     try {
-      script = await write();
+      script = await write(guideSchema(facts.length));
     } catch (error) {
-      // One more attempt, with the rejected sentences named; pointed feedback lands better than the rules did.
-      if (!(error instanceof ConvexError && error.data.reason === "schema")) {
+      if (!(error instanceof ConvexError && (error.data.reason === "schema" || error.data.reason === "truncated"))) {
         throw error;
       }
       calls += error.data.calls;
-      script = await write(
-        `Your previous script was rejected. ${problems.join(" ")} Fix these and return the whole script again.`,
-      );
+      // A stall means the research ran out before a section's minimum: 6 of 20 attempts for a sheet with
+      // three story facts on 2026-09-29, 0 of 10 relaxed. A rejection is retried with the rejected
+      // sentences named; pointed feedback lands better than the rules did.
+      script =
+        error.data.reason === "truncated"
+          ? await write(guideSchema(facts.length, { relaxed: true }))
+          : await write(
+              guideSchema(facts.length),
+              `Your previous script was rejected. ${problems.join(" ")} Fix these and return the whole script again.`,
+            );
     }
     calls += script.calls;
     return script.value;

@@ -47,8 +47,11 @@ const guideLine = (minLength: number, maxLength: number) => ({
   additionalProperties: false,
 });
 export const GUIDE_SECTIONS = ["hook", "look", "story", "takeaway"] as const;
-export function guideSchema(factCount: number) {
+// A section minimum the research cannot fill stalls the model: the grammar masks the closing bracket,
+// so it emits whitespace until the token cap. `relaxed` lets every section end after one sentence.
+export function guideSchema(factCount: number, { relaxed = false } = {}) {
   const thin = factCount < THIN_RESEARCH_FACTS;
+  const atLeast = (count: number) => (relaxed ? 1 : count);
   return {
     type: "object",
     properties: {
@@ -65,8 +68,8 @@ export function guideSchema(factCount: number) {
         ],
       },
       hook: { type: "array", minItems: 1, maxItems: 2, items: guideLine(20, 170) },
-      look: { type: "array", minItems: 2, maxItems: 4, items: guideLine(8, 140) },
-      story: { type: "array", minItems: thin ? 5 : 6, maxItems: 7, items: guideLine(30, 170) },
+      look: { type: "array", minItems: atLeast(2), maxItems: 4, items: guideLine(8, 140) },
+      story: { type: "array", minItems: atLeast(thin ? 5 : 6), maxItems: 7, items: guideLine(30, 170) },
       takeaway: { type: "array", minItems: 1, maxItems: 2, items: guideLine(8, 170) },
     },
     required: ["thread", "quote", ...GUIDE_SECTIONS],

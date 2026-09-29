@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
+import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { dismissToast } from "@/lib/ui/toast";
 
@@ -22,6 +23,7 @@ const mockSession = {
   profileId: undefined as Id<"profiles"> | undefined,
 };
 let mockVisibility = "off";
+let mockRefreshing = false;
 let mockRows = [
   {
     profile: {
@@ -119,7 +121,8 @@ jest.mock("@/lib/social/use-social-query", () => ({
           : name === "leaderboards:preference"
             ? mockVisibility
             : { visibility: mockVisibility, rows: mockRows },
-      loading: false,
+      loading: mockRefreshing,
+      refreshing: mockRefreshing,
       refresh: mockRefresh,
     };
   },
@@ -138,6 +141,7 @@ beforeEach(() => {
   mockSession.key = "guest";
   mockSession.profileId = undefined;
   mockVisibility = "off";
+  mockRefreshing = false;
   mockRows = [
     {
       profile: {
@@ -323,4 +327,17 @@ it("offers creation for the selected metric while preserving actual participatio
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith("/scan");
   expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
+});
+
+it("refreshes the board when pulled and keeps an empty board's message while it reloads", async () => {
+  mockSession.status = "ready";
+  mockRows = [];
+  const view = await render(<LeaderboardScreen />);
+  await act(() => lastRefreshControl().onRefresh?.());
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+  mockRefreshing = true;
+  await view.rerender(<LeaderboardScreen />);
+  expect(lastRefreshControl().refreshing).toBe(true);
+  expect(screen.getByText("No friends on this leaderboard yet.")).toBeOnTheScreen();
+  expect(screen.queryByLabelText("Opening leaderboard…")).toBeNull();
 });

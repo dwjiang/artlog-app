@@ -449,6 +449,24 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
 });
 
+it("retries a script that stalled at the token cap with sections that may end after one sentence", async () => {
+  const { t, fetcher, render } = await setup();
+  fetcher.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({ choices: [{ message: { content: '{"story": [\n \n \n' }, finish_reason: "length" }] }),
+    ),
+  );
+  expect((await render()).sentences).toEqual(guideFixture);
+  const request = (call: number) =>
+    JSON.parse((fetcher.mock.calls[call] as unknown as [string, RequestInit])[1].body as string);
+  const retry = request(1);
+  const { properties } = retry.response_format.json_schema.schema;
+  expect(["hook", "look", "story", "takeaway"].map((section) => properties[section].minItems)).toEqual([1, 1, 1, 1]);
+  expect(properties.story.maxItems).toBe(7);
+  expect(JSON.parse(retry.messages[1].content)).not.toHaveProperty("previousAttemptProblems");
+  expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
+});
+
 it("asks for the thin-research length, not the full one, when a script from thin research is too short", async () => {
   const { as, args, fetcher } = await setup();
   fetcher.mockResolvedValueOnce(completion(script.slice(0, 2)));

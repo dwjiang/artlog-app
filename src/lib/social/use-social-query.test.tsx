@@ -169,6 +169,35 @@ it("ignores a stale refresh failure after changing the query scope", async () =>
   expect(reportError).not.toHaveBeenCalled();
 });
 
+it("keeps a delivered result on screen through a pull-to-refresh until the fresh subscription answers", async () => {
+  const alex = page("alex", null, true).page[0];
+  mockResults.first = alex;
+  let finish!: () => void;
+  mockHttpQuery.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const view = await renderHook(() =>
+    useSocialQuery(api.profiles.getPublic, { profileId: "alex" as never }, "account-a"),
+  );
+  expect(view.result.current.refreshing).toBe(false);
+  await act(() => view.result.current.refresh());
+  expect(mockRequests).toEqual({});
+  expect(view.result.current.data).toEqual(alex);
+  expect(view.result.current.refreshing).toBe(true);
+  mockResults = {};
+  await act(() => finish());
+  expect(Object.keys(mockRequests)).toHaveLength(1);
+  expect(view.result.current.data).toEqual(alex);
+  expect(view.result.current.refreshing).toBe(true);
+  mockResults.first = { ...alex, name: "Alex Chen" };
+  await view.rerender(undefined);
+  expect(view.result.current.data).toMatchObject({ name: "Alex Chen" });
+  expect(view.result.current.refreshing).toBe(false);
+});
+
 it("restores the live subscription when arguments return during a refresh", async () => {
   mockResults.first = page("alex", null, true).page[0];
   mockHttpQuery.mockImplementation(() => new Promise(() => {}));

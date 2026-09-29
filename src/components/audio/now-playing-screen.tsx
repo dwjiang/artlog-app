@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
@@ -15,7 +16,7 @@ import { useListening } from "@/lib/audio/use-listening";
 
 import { AddSavedWorks } from "./add-saved-works";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
-import { ListeningQueue, QueueOptions } from "./listening-queue";
+import { ListeningQueue } from "./listening-queue";
 import { PlayerTransport, type PlayerView, transportStacks } from "./player-transport";
 
 export function NowPlayingScreen() {
@@ -131,24 +132,15 @@ export function NowPlayingScreen() {
       <View style={styles.header}>
         <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
         <Text variant="secondary" style={{ fontWeight: "600", flex: 1, textAlign: "center" }}>
-          {view === "player"
-            ? audio.phase === "loading"
-              ? "Preparing audio"
-              : "Now playing"
-            : view === "transcript"
-              ? "Transcript"
-              : "Audio guide"}
+          {view === "transcript"
+            ? "Transcript"
+            : view === "saved"
+              ? "Add saved works"
+              : audio.phase === "loading"
+                ? "Preparing audio"
+                : "Now playing"}
         </Text>
-        {view === "player" ? (
-          options
-        ) : (
-          <AudioIconButton
-            name="waveform"
-            label="Back to Now Playing"
-            color={Gallery.accent}
-            onPress={() => setView("player")}
-          />
-        )}
+        {view === "saved" ? <GalleryButton label="Done" onPress={() => setView("queue")} /> : options}
       </View>
       {view === "player"
         && (scrolls ? (
@@ -158,12 +150,7 @@ export function NowPlayingScreen() {
         ) : (
           <View style={styles.scroll}>{player}</View>
         ))}
-      {view === "queue" && (
-        <>
-          <ListeningQueue />
-          <QueueOptions onAdd={() => setView("saved")} />
-        </>
-      )}
+      {view === "queue" && <ListeningQueue onAdd={() => setView("saved")} />}
       {view === "saved" && <AddSavedWorks />}
       {view === "transcript" && (
         <ScrollView
