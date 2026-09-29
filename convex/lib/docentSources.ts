@@ -101,6 +101,11 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
 
 function sourceIdentity(value: string): string {
   const url = new URL(value);
+  if (bareHost(value) === "artic.edu") {
+    // Chicago's numeric collection URLs and title-suffixed URLs identify the same object.
+    const objectId = url.pathname.match(/^\/artworks\/(\d+)(?:\/[^/]+)?\/?$/)?.[1];
+    if (objectId) return `artic.edu/artworks/${objectId}`;
+  }
   if (bareHost(value) === "metmuseum.org") {
     const objectId =
       url.pathname.match(/^\/(?:[a-z]{2}\/)?art\/collection\/search\/(\d+)\/?$/)?.[1]

@@ -11,7 +11,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
 import { useCapturePhotos } from "@/components/scan/capture-photos-button";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
@@ -22,7 +22,7 @@ import { DocentSection } from "./docent-section";
 import { FieldsForm } from "./fields-form";
 import { RightNowSection } from "./right-now-section";
 import { RunnerUps } from "./runner-ups";
-import { SaveBar } from "./save-bar";
+import { LABEL_BUTTON, SaveBar } from "./save-bar";
 import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
@@ -91,7 +91,11 @@ export function ResultCard({
           tintColor={Gallery.ink}
           hidesSharedBackground
         >
-          <Stack.Toolbar.MenuAction disabled={!editable} onPress={() => setEditingDetails((value) => !value)}>
+          <Stack.Toolbar.MenuAction
+            icon={editingDetails ? "checkmark" : "pencil"}
+            disabled={!editable}
+            onPress={() => setEditingDetails((value) => !value)}
+          >
             {editingDetails ? "Done editing" : "Edit details"}
           </Stack.Toolbar.MenuAction>
           {view.kind === "confident" && (
@@ -124,16 +128,24 @@ export function ResultCard({
                 </ThemedText>
               )}
               {view.kind === "confident" && !!draft.medium && (
-                <ThemedText variant="metadata" themeColor="textSecondary">
-                  {draft.medium}
-                </ThemedText>
+                <View style={styles.metadata}>
+                  <Image
+                    source="sf:paintbrush.pointed"
+                    tintColor={Gallery.muted}
+                    style={styles.metadataIcon}
+                    accessible={false}
+                  />
+                  <ThemedText variant="metadata" themeColor="textSecondary" style={{ flexShrink: 1 }}>
+                    {draft.medium}
+                  </ThemedText>
+                </View>
               )}
               {view.kind === "confident" && !!draft.institution && (
-                <View style={styles.museum}>
+                <View style={styles.metadata}>
                   <Image
                     source="sf:building.columns"
                     tintColor={Gallery.muted}
-                    style={styles.museumIcon}
+                    style={styles.metadataIcon}
                     accessible={false}
                   />
                   <ThemedText variant="metadata" themeColor="textSecondary" style={{ flexShrink: 1 }}>
@@ -144,52 +156,29 @@ export function ResultCard({
             </>
           )}
         </View>
-        {view.kind === "confident" && view.primary && (
-          <ListenActions
-            artworkId={view.primary.artworkId}
-            title={draft.title}
-            artist={draft.artist}
-            scanId={captureInput?.scanId}
-            savedId={savedId}
-            imageUri={
-              captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
-            }
-          />
-        )}
-        {!view.primary && !editingDetails && (
-          <ThemedText themeColor="textSecondary">
-            We couldn’t identify this artwork yet. Keep the photo and add what you know.
-          </ThemedText>
-        )}
-        {view.kind === "soft" && (
-          <>
+        {view.kind !== "confident" && !manual && (
+          <View style={styles.recovery}>
             <ThemedText themeColor="textSecondary">
-              The image looks similar, but we’re not sure. Scan the museum label to confirm the details.
+              {view.primary
+                ? "This match needs a closer look. Scan the museum label to check the details, or keep your photo for later."
+                : "No match yet. Scan the museum label, or save the photo and add details later."}
             </ThemedText>
-            <ThemedText variant="metadata" themeColor="textSecondary">
-              Possible artist · {draft.artist || "Unknown"}
-            </ThemedText>
-          </>
-        )}
-        {view.primary?.identityStatus === "tentative" && <TentativeOriginNotice />}
-        {!editingDetails && view.kind === "unidentified" && (
-          <View
-            style={{
-              borderWidth: 0.5,
-              borderColor: Gallery.separator,
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
-          >
+            {view.kind === "soft" && (
+              <ThemedText variant="secondary" themeColor="textSecondary">
+                Possible artist · {draft.artist || "Unknown"}
+              </ThemedText>
+            )}
             <GalleryButton
-              label="Enter details myself"
-              icon="pencil"
+              label={LABEL_BUTTON}
+              icon="text.viewfinder"
               fullWidth
+              variant="outlined"
               disabled={!editable}
-              onPress={() => setEditingDetails(true)}
+              onPress={onLabel}
             />
           </View>
         )}
+        {view.primary?.identityStatus === "tentative" && <TentativeOriginNotice />}
         {editingDetails && (
           <FieldsForm
             draft={draft}
@@ -200,15 +189,8 @@ export function ResultCard({
             }}
           />
         )}
-        {suggestions.length > 0 && (
-          <View style={styles.section}>
-            <HighlightHeading>Other possibilities</HighlightHeading>
-            <RunnerUps candidates={suggestions} onPick={onPick} />
-          </View>
-        )}
-        {view.kind !== "confident" && context}
         {view.kind === "confident" && (
-          <>
+          <View style={styles.about}>
             <DocentSection
               title="About this work"
               docent={view.docent}
@@ -216,11 +198,31 @@ export function ResultCard({
               status={view.docentStatus}
               onRetry={onRetryDocent}
             />
-            {view.primary && <GuideTranscript artworkId={view.primary.artworkId} />}
+            {view.primary && (
+              <>
+                <ListenActions
+                  artworkId={view.primary.artworkId}
+                  title={draft.title}
+                  artist={draft.artist}
+                  scanId={captureInput?.scanId}
+                  savedId={savedId}
+                  imageUri={
+                    captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
+                  }
+                />
+                <GuideTranscript artworkId={view.primary.artworkId} />
+              </>
+            )}
             <RightNowSection rightNow={view.rightNow} />
-            {context}
-          </>
+          </View>
         )}
+        {suggestions.length > 0 && (
+          <View style={styles.section}>
+            <HighlightHeading>Other possibilities</HighlightHeading>
+            <RunnerUps candidates={suggestions} onPick={onPick} />
+          </View>
+        )}
+        {context}
       </ScrollView>
       <View
         onLayout={(event) => setSaveBarHeight(event.nativeEvent.layout.height)}
@@ -238,9 +240,7 @@ export function ResultCard({
                 ? "Save to collection"
                 : "Save with these details"
           }
-          labelFirst={view.kind !== "confident"}
           onSave={() => (savePhotoOnly ? onSavePhoto() : onSave(draft))}
-          onLabel={view.kind === "confident" ? undefined : onLabel}
           onViewSaved={onViewSaved}
           visit={visit}
         />
@@ -251,17 +251,19 @@ export function ResultCard({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 16,
-    gap: Spacing.two,
+    paddingHorizontal: Spacing.content,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
+    gap: Spacing.three,
   },
-  identity: { gap: 2 },
-  workTitle: { fontSize: 20, lineHeight: 24, fontWeight: "600" },
-  museum: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
+  identity: { gap: Spacing.two },
+  workTitle: { fontSize: 18, lineHeight: 26 },
+  metadata: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
   // Centers the icon on the first text line so it stays put when a long name wraps.
-  museumIcon: { width: 12, height: 12, marginTop: 3 },
-  section: { gap: 4 },
+  metadataIcon: { width: 12, height: 12, marginTop: 3 },
+  section: { gap: Spacing.compact, paddingTop: Spacing.two },
+  recovery: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.card, backgroundColor: Gallery.fill },
+  about: { gap: Spacing.three },
   save: {
     paddingHorizontal: 20,
     borderTopWidth: StyleSheet.hairlineWidth,

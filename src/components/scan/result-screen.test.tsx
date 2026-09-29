@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import * as SQLite from "expo-sqlite";
@@ -252,7 +252,7 @@ function publish(scan: unknown) {
 }
 
 async function openDetails() {
-  const edit = screen.queryByRole("button", { name: "Edit details" });
+  const edit = within(screen.getByLabelText("Scan options")).queryByRole("button", { name: "Edit details" });
   if (edit) await fireEvent.press(edit);
 }
 
@@ -317,7 +317,7 @@ it.each([
   expect(await inRecentScans(localId)).toBe(true);
 });
 
-it("shows the audio guide transcript on a confident match once the narration exists", async () => {
+it("shows listen controls and the audio guide transcript inline once narration exists", async () => {
   results.set("artworks:enrichment", {
     rightsStatus: "public_domain",
     narrationOpening: "Water Lilies, by Claude Monet.",
@@ -328,6 +328,9 @@ it("shows the audio guide transcript on a confident match once the narration exi
     ],
   });
   await render(result());
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Listen to this work" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Add to queue" })).toBeEnabled();
   expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
@@ -344,7 +347,7 @@ it("shows a confident match with its fields, chip, prose, sources and news", asy
   expect(screen.getByLabelText("Date").props.defaultValue).toBe("1916");
   expect(screen.getByLabelText("Medium").props.defaultValue).toBe("Oil on canvas");
   expect(screen.getByLabelText("Institution").props.defaultValue).toBe("Metropolitan Museum of Art");
-  expect(screen.getByText("About this work")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
   expect(screen.getByText("From the web")).toBeOnTheScreen();
@@ -453,7 +456,7 @@ it.each([softScan, missScan, failedScan])(
     });
     expect(screen.queryByLabelText("Title")).toBeNull();
     await fireEvent.press(save);
-    expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
+    expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
     expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
       title: "Unidentified artwork",
       artist: "",
@@ -534,7 +537,7 @@ it("saves an untouched confident card locally, tells the server the suggestion w
     ),
   );
   expect(screen.queryByLabelText("Title")).toBeNull();
-  expect(screen.getByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/saved/[savedId]",
@@ -963,4 +966,28 @@ it("opens a fresh manual form when recovery returns to the same scan", async () 
   expect(screen.queryByText("About this work")).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("Title"), "My own entry");
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("My own entry");
+});
+
+it("opens and finishes editing from Scan options without losing the draft", async () => {
+  await render(result());
+  expect(await screen.findByText("Water Lilies")).toBeOnTheScreen();
+  expect(screen.queryByLabelText("Title")).toBeNull();
+  await openDetails();
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Nymphéas");
+  await fireEvent.press(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Done editing" }));
+  expect(screen.queryByLabelText("Title")).toBeNull();
+  expect(screen.getByText("Nymphéas")).toBeOnTheScreen();
+  await openDetails();
+  expect(screen.getByLabelText("Title").props.defaultValue).toBe("Nymphéas");
+});
+
+it("shows About this work inline while keeping the save action available", async () => {
+  await render(result());
+  expect(await screen.findByText("Water Lilies")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "About this work" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "About this work" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Save to collection" })).toBeEnabled();
 });

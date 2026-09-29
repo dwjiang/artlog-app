@@ -75,9 +75,10 @@ const feedback = (props: Partial<{ detecting: boolean; busy: boolean }>) => (
 );
 
 describe("capture caption", () => {
-  it("names the framing problem while a visible painting does not qualify, and says nothing otherwise", async () => {
+  it("explains automatic capture before detection and then names the framing problem", async () => {
     const view = await render(feedback({}));
-    expect(screen.queryByRole("text")).toBeNull();
+    expect(screen.getByText("Point at an artwork")).toBeOnTheScreen();
+    expect(screen.getByText("Hold steady to scan automatically")).toBeOnTheScreen();
     mockFeedback = { quad, progress: 0, guidance: "move-closer" };
     await view.rerender(feedback({}));
     expect(screen.getByText("Move closer")).toBeOnTheScreen();

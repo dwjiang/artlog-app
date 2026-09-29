@@ -2,10 +2,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingRing } from "@/components/loading-ring";
-import { CaptureCompletion } from "@/components/scan/capture-completion";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import type { ContributionOutcome } from "@/lib/label/contribute";
 
 import { ContributeResult } from "./contribute-result";
@@ -21,7 +19,6 @@ export type LabelActionsProps = {
   saving: boolean;
   sharing: boolean;
   savedId?: string;
-  completion?: Completion;
   shared?: ContributionOutcome;
   saveError?: string;
   shareError?: string;
@@ -36,7 +33,6 @@ export function LabelActions({
   saving,
   sharing,
   savedId,
-  completion,
   shared,
   saveError,
   shareError,
@@ -46,9 +42,7 @@ export function LabelActions({
 }: LabelActionsProps) {
   return (
     <View style={styles.bar}>
-      {completion ? (
-        <CaptureCompletion completion={completion} sharedToIndex={shared?.status === "tentative"} inline />
-      ) : savedId ? (
+      {savedId ? (
         <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
           <ThemedText themeColor="accent">Saved · View in collection</ThemedText>
         </Pressable>

@@ -1,49 +1,21 @@
 import { Button, Host } from "@expo/ui/swift-ui";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { NotePaper } from "@/components/note-paper";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
-import { getNote, setNote } from "@/db/repos/notes";
 import { selectSavedWork } from "@/db/repos/saved-works";
+import { useArtworkNote } from "@/hooks/use-artwork-note";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { reportError } from "@/lib/observability";
 import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "@/shared/collection/collection-limits";
 
 import { GalleryButton } from "./gallery-button";
 import { SavedWorkImage } from "./saved-work-image";
 import { WallSheet } from "./wall-sheet";
-
-type NoteDraft = {
-  owner: string;
-  savedLocalId: string;
-  text: string;
-  saved: string;
-  writes: Promise<void>;
-  onSaveResult: (failed: boolean) => void;
-};
-
-function persist(note: NoteDraft | undefined): void {
-  if (!note) return;
-  const { text } = note;
-  // Serialize blur and close writes so an earlier save cannot overwrite a newer draft.
-  note.writes = note.writes.then(async () => {
-    try {
-      if (text !== note.saved) {
-        await setNote(note.savedLocalId, text, Date.now(), note.owner);
-        note.saved = text;
-      }
-      note.onSaveResult(false);
-    } catch (error) {
-      reportError(error, "collection.note.save");
-      note.onSaveResult(true);
-    }
-  });
-}
 
 export function NoteHeading({ title, children }: { title: string; children?: React.ReactNode }) {
   const { fontScale } = useWindowDimensions();
@@ -92,47 +64,8 @@ function WorkNoteEditor({
   initiallyEditing: boolean;
 }) {
   const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
-  const [draft, setDraft] = useState<string>();
-  const [savedText, setSavedText] = useState("");
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const { draft, savedText, saveFailed, loadFailed, setDraft, save } = useArtworkNote(savedLocalId, owner);
   const [editing, setEditing] = useState(initiallyEditing);
-  const latest = useRef<NoteDraft>(undefined);
-
-  useEffect(() => {
-    let active = true;
-    const note: NoteDraft = {
-      owner,
-      savedLocalId,
-      text: "",
-      saved: "",
-      writes: Promise.resolve(),
-      onSaveResult: (failed) => {
-        if (active) {
-          setSaveFailed(failed);
-          if (!failed) setSavedText(note.saved);
-        }
-      },
-    };
-    getNote(savedLocalId, owner).then(
-      (row) => {
-        if (!active) return;
-        note.text = note.saved = row?.text ?? "";
-        latest.current = note;
-        setDraft(note.text);
-        setSavedText(note.saved);
-      },
-      (cause) => {
-        reportError(cause, "collection.note.load");
-        if (active) setLoadFailed(true);
-      },
-    );
-    return () => {
-      active = false;
-      persist(note);
-      latest.current = undefined;
-    };
-  }, [savedLocalId, owner]);
 
   return (
     <View style={styles.section}>
@@ -142,7 +75,7 @@ function WorkNoteEditor({
             label="Done"
             accessibilityLabel="Done editing note"
             onPress={() => {
-              persist(latest.current);
+              void save();
               setEditing(false);
             }}
           />
@@ -167,7 +100,7 @@ function WorkNoteEditor({
           title="Notes"
           size="large"
           onDismiss={() => {
-            persist(latest.current);
+            void save();
             setEditing(false);
           }}
         >
@@ -209,12 +142,8 @@ function WorkNoteEditor({
               maxLength={MAX_NOTE_LENGTH}
               editable={draft !== undefined}
               value={draft ?? ""}
-              onChangeText={(text) => {
-                if (!latest.current) return;
-                latest.current.text = text;
-                setDraft(text);
-              }}
-              onBlur={() => persist(latest.current)}
+              onChangeText={setDraft}
+              onBlur={() => void save()}
               style={styles.input}
             />
             <View style={{ padding: 12, backgroundColor: Gallery.highlight }}>
@@ -232,7 +161,7 @@ function WorkNoteEditor({
                   ? "Saved on this iPhone"
                   : "Saves when you close"}
             </ThemedText>
-            {saveFailed && <GalleryButton label="Retry save" onPress={() => persist(latest.current)} />}
+            {saveFailed && <GalleryButton label="Retry save" onPress={() => void save()} />}
           </ScrollView>
         </WallSheet>
       )}
@@ -268,7 +197,7 @@ function WorkNoteEditor({
         <View>
           <ThemedText themeColor="textSecondary">Your note couldn’t be saved. Try again.</ThemedText>
           <Host matchContents colorScheme="light">
-            <Button label="Retry save" onPress={() => persist(latest.current)} />
+            <Button label="Retry save" onPress={() => void save()} />
           </Host>
         </View>
       ) : null}

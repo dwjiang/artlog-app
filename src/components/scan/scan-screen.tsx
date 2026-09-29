@@ -27,7 +27,7 @@ import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
 import { VenuePill } from "./venue-pill";
 
-const IMPORT_SIZE = 56;
+const IMPORT_SIZE = 64;
 
 export function ScanScreen() {
   const audioInset = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + 16 : 0;
@@ -192,6 +192,9 @@ export function ScanScreen() {
                     style={({ pressed }) => [styles.importContent, (pressed || busy) && styles.dimmed]}
                   >
                     <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
+                    <ThemedText variant="metadata" themeColor="overlayText">
+                      Photos
+                    </ThemedText>
                   </Pressable>
                 </GlassSurface>
                 <CaptureShutter
@@ -204,20 +207,25 @@ export function ScanScreen() {
                     void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}));
                   }}
                 />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Camera tips"
-                  disabled={busy}
-                  accessibilityState={{ disabled: busy }}
-                  onPress={() => setHelp("open")}
-                  style={({ pressed }) => [styles.tips, (pressed || busy) && styles.dimmed]}
-                >
-                  <Image
-                    source="sf:info.circle"
-                    tintColor={Colors.light.overlayText}
-                    style={{ width: 26, height: 26 }}
-                  />
-                </Pressable>
+                <GlassSurface isInteractive style={styles.importButton}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Camera tips"
+                    disabled={busy}
+                    accessibilityState={{ disabled: busy }}
+                    onPress={() => setHelp("open")}
+                    style={({ pressed }) => [styles.tips, (pressed || busy) && styles.dimmed]}
+                  >
+                    <Image
+                      source="sf:info.circle"
+                      tintColor={Colors.light.overlayText}
+                      style={{ width: 26, height: 26 }}
+                    />
+                    <ThemedText variant="metadata" themeColor="overlayText">
+                      Tips
+                    </ThemedText>
+                  </Pressable>
+                </GlassSurface>
               </View>
             )}
           </View>
@@ -312,14 +320,14 @@ const styles = StyleSheet.create({
   importButton: {
     width: IMPORT_SIZE,
     height: IMPORT_SIZE,
-    borderRadius: IMPORT_SIZE / 2,
+    borderRadius: 12,
     overflow: "hidden",
   },
-  importContent: { flex: 1, alignItems: "center", justifyContent: "center" },
+  importContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: Spacing.one },
   importIcon: { width: 24, height: 24 },
   tips: {
-    width: 56,
-    height: 56,
+    flex: 1,
+    gap: Spacing.one,
     alignItems: "center",
     justifyContent: "center",
   },

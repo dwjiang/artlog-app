@@ -55,6 +55,10 @@ jest.mock("@/db/repos/pending-scans", () => ({
 jest.mock("@/db/repos/offline-scan-results", () => ({
   offlineResultQuery: jest.fn(),
 }));
+jest.mock("@/db/repos/notes", () => ({
+  getNote: jest.fn(),
+  setNote: jest.fn(),
+}));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
   captureFileUri: (path: string) => `file:///documents/${path}`,

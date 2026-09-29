@@ -29,14 +29,14 @@ export function SourceLink({
     }
   }
   return (
-    <View>
+    <View style={styles.container}>
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
         onPress={() => {
           void openSource();
         }}
-        style={style}
+        style={({ pressed }) => [style, pressed && styles.pressed]}
       >
         {children}
       </Pressable>
@@ -61,6 +61,8 @@ export function SourceChip({ label, url }: { label: string; url: string }) {
 }
 
 const styles = StyleSheet.create({
+  container: { maxWidth: "100%", flexShrink: 1 },
+  pressed: { opacity: 0.65 },
   chip: {
     alignSelf: "flex-start",
     minHeight: 44,

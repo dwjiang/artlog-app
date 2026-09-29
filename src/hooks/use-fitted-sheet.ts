@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import { useEffect, useState } from "react";
+import { Keyboard, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type SheetPart = "header" | "content" | "footer";
@@ -12,12 +12,26 @@ type SheetPart = "header" | "content" | "footer";
 export function useFittedSheetHeight({ scrollAll = false } = {}) {
   const { height: windowHeight } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
+  const [keyboardTop, setKeyboardTop] = useState(() => Keyboard.metrics()?.screenY ?? Infinity);
+  useEffect(() => {
+    const frame = Keyboard.addListener("keyboardWillChangeFrame", (event) =>
+      setKeyboardTop(event.endCoordinates.screenY),
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardTop(Infinity));
+    return () => {
+      frame.remove();
+      hide.remove();
+    };
+  }, []);
   const [parts, setParts] = useState<Record<SheetPart, number>>({ header: 0, content: 0, footer: 0 });
   const measure = (part: SheetPart, height: number) =>
     setParts((current) => (current[part] === height ? current : { ...current, [part]: height }));
   return {
     height: parts.content
-      ? Math.min(parts.content + (scrollAll ? 0 : parts.header + parts.footer), windowHeight - top - bottom)
+      ? Math.min(
+          parts.content + (scrollAll ? 0 : parts.header + parts.footer),
+          Math.min(windowHeight - bottom, keyboardTop) - top,
+        )
       : undefined,
     onHeaderLayout: (event: LayoutChangeEvent) => measure("header", event.nativeEvent.layout.height),
     onContentSizeChange: (_width: number, height: number) => measure("content", height),
