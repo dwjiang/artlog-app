@@ -7,7 +7,7 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
 
-/** Opens profile setup after an inline Apple sign-in; the sign-in sheet hands off to setup itself. */
+/** Opens profile setup after an inline sign-in; the sign-in sheet hands off to setup itself. */
 export function ProfileSetupPrompt() {
   const offer = useProfileSetupOffer();
   const pathname = usePathname();

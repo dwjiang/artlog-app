@@ -3,7 +3,7 @@ import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { type CSSAnimationProperties } from "react-native-reanimated";
 
-import { AppleSignInAction } from "@/components/account/apple-sign-in-action";
+import { SignInActions } from "@/components/account/sign-in-actions";
 import { ChoiceMenu } from "@/components/choice-menu";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -247,7 +247,7 @@ function LeaderboardSkeleton() {
 
 function LeaderboardSignIn() {
   const account = useAccount();
-  return <AppleSignInAction state={account} />;
+  return <SignInActions state={account} />;
 }
 
 const styles = StyleSheet.create({

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 export type ProfileSetupOffer = { name?: string };
 
-// Apple shares a person's name only on their first authorization, so it waits here until profile setup opens.
+// Keep the sign-in provider’s suggested name until profile setup opens; Apple shares it only once.
 let offer: ProfileSetupOffer | undefined;
 const listeners = new Set<() => void>();
 

@@ -38,11 +38,12 @@ async function fixture() {
   async function link(device = user, sub = "apple-owner") {
     await t.run((ctx) =>
       ctx.db.patch("devices", device.deviceId, {
-        appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
+        accountLinkProof: { provider: "apple", sub, expiresAt: Date.now() + 10000 },
       }),
     );
     return device.as.mutation(api.accounts.linkAccount, {
-      appleUserId: sub,
+      provider: "apple",
+      providerUserId: sub,
       nonce: (
         await device.as.mutation(api.devices.createChallenge, {
           purpose: "assert",
@@ -122,7 +123,8 @@ it("requires verified Apple proof and resumes bounded claiming after interruptio
   const { t, user, visit, sync, link, claim } = await fixture();
   await expect(
     user.as.mutation(api.accounts.linkAccount, {
-      appleUserId: "forged",
+      provider: "apple",
+      providerUserId: "forged",
       nonce: (
         await user.as.mutation(api.devices.createChallenge, {
           purpose: "assert",
@@ -130,7 +132,7 @@ it("requires verified Apple proof and resumes bounded claiming after interruptio
       ).nonce,
       assertionBase64: "",
     }),
-  ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
+  ).rejects.toMatchObject({ data: { code: "sign_in_required" } });
   const work = {
     ...save(),
     visitLocalId: visit.localId,

@@ -13,7 +13,7 @@ const feedback = {
 async function seedAccountUser(t: Harness) {
   const user = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
-    const id = await ctx.db.insert("accounts", { appleUserId: "alex" });
+    const id = await ctx.db.insert("accounts", { provider: "apple", providerUserId: "alex" });
     await ctx.db.patch("devices", user.deviceId, { accountId: id });
     return id;
   });

@@ -1,5 +1,12 @@
 import { initializeOwner, switchOwner } from "./src/lib/account/owner-store";
 
+jest.mock("@react-native-google-signin/google-signin", () => {
+  return {
+    GoogleSignin: { configure: jest.fn(), signIn: jest.fn(), signOut: jest.fn() },
+    isCancelledResponse: (result: { type: string }) => result.type === "cancelled",
+  };
+});
+
 jest.mock("@sentry/react-native", () => ({
   init: jest.fn(),
   wrap: (component: unknown) => component,

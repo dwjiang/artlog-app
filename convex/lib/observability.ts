@@ -92,6 +92,7 @@ const diagnosticCodes = new Set([
   "page_unavailable",
   "attest_unconfigured",
   "apple_unconfigured",
+  "google_unconfigured",
   "orb_file_missing",
   "vector_payload_missing",
   "import_upload_mismatch",

@@ -96,7 +96,7 @@ it("requires a linked profile, completed claim and current owner scope", async (
       ...a.input,
       scope: anonymous.scope,
     }),
-  ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
+  ).rejects.toMatchObject({ data: { code: "sign_in_required" } });
   await expect(b.as.mutation(api.walls.setLayout, a.input)).rejects.toMatchObject({
     data: { code: "sync_scope_changed" },
   });

@@ -20,6 +20,7 @@ import {
 import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
 import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
 import {
+  accountProvider,
   candidateSignal,
   challengePurpose,
   checklistExhibition,
@@ -552,8 +553,9 @@ export default defineSchema({
     bannedReason: v.optional(v.string()),
     accountId: v.optional(v.id("accounts")),
     scopeRevision: v.number(),
-    appleLinkProof: v.optional(
+    accountLinkProof: v.optional(
       v.object({
+        provider: accountProvider,
         sub: v.string(),
         email: v.optional(v.string()),
         expiresAt: v.number(),
@@ -591,9 +593,10 @@ export default defineSchema({
   }).index("by_day", ["day", "shard"]),
 
   accounts: defineTable({
-    appleUserId: v.string(),
+    provider: accountProvider,
+    providerUserId: v.string(),
     email: v.optional(v.string()),
-  }).index("by_appleUserId", ["appleUserId"]),
+  }).index("by_provider_userId", ["provider", "providerUserId"]),
 
   visits: defineTable({
     ...journalVisit.fields,

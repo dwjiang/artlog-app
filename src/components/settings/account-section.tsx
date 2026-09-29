@@ -41,7 +41,7 @@ export function AccountSection() {
     <>
       {account.email && (
         <GroupedSection>
-          <ValueRow label="Apple ID" value={account.email} />
+          <ValueRow label="Email" value={account.email} />
         </GroupedSection>
       )}
       <GroupedSection footer={status}>

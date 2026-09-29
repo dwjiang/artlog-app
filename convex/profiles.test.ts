@@ -22,11 +22,12 @@ async function fixture() {
     const device = await seedDevice(t);
     await t.run((ctx) =>
       ctx.db.patch("devices", device.deviceId, {
-        appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
+        accountLinkProof: { provider: "apple", sub, expiresAt: Date.now() + 10000 },
       }),
     );
     const accountId = await device.as.mutation(api.accounts.linkAccount, {
-      appleUserId: sub,
+      provider: "apple",
+      providerUserId: sub,
       nonce: (
         await device.as.mutation(api.devices.createChallenge, {
           purpose: "assert",
@@ -51,7 +52,7 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
       username: "reader",
       name: "Reader",
     }),
-  ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
+  ).rejects.toMatchObject({ data: { code: "sign_in_required" } });
   await account("a");
   expect(await t.run((ctx) => ctx.db.query("profiles").collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);

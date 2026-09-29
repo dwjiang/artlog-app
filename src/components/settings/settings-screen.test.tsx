@@ -34,18 +34,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
-jest.mock("expo-apple-authentication", () => ({
-  AppleAuthenticationButtonType: { SIGN_IN: 0 },
-  AppleAuthenticationButtonStyle: { BLACK: 0 },
-  AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => {
-    const { Pressable, Text } = jest.requireActual("react-native");
-    return (
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Text>Sign in with Apple</Text>
-      </Pressable>
-    );
-  },
-}));
+
 jest.mock("@/lib/account/use-account", () => ({
   useAccount: () => ({
     account: mockAccount,

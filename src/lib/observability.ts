@@ -26,7 +26,7 @@ const expectedCodes = new Set([
   "invalid_venue",
   "invalid_relationship",
   "invalid_report",
-  "apple_sign_in_required",
+  "sign_in_required",
   "already_linked",
   "account_device_limit",
   "nothing_read",

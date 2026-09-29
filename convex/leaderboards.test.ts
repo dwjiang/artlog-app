@@ -402,7 +402,7 @@ it("lets guests browse only opted-in Global profiles without exposing private ac
   expect(await guest.as.query(api.leaderboards.list, query)).toEqual(board);
   await expect(t.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow("unauthenticated");
   await expect(guest.as.query(api.leaderboards.list, { ...query, audience: "friends" })).rejects.toThrow(
-    "apple_sign_in_required",
+    "sign_in_required",
   );
 });
 
@@ -503,7 +503,7 @@ it(
     for (let start = 0; start < 1005; start += 20) {
       await t.run(async (ctx) => {
         for (let i = start; i < Math.min(start + 20, 1005); i++) {
-          const accountId = await ctx.db.insert("accounts", { appleUserId: `rank-${i}` });
+          const accountId = await ctx.db.insert("accounts", { provider: "apple", providerUserId: `rank-${i}` });
           await ctx.db.insert("profiles", { ...profile, accountId, username: `rank_${i}`, name: `Rank ${i}` });
           const score = (await ctx.db
             .query("leaderboardScores")
