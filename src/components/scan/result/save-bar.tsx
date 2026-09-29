@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
@@ -15,8 +15,6 @@ export type SaveBarProps = {
   savedId?: string;
   error?: string;
   onSave: () => void;
-  onLabel?: () => void;
-  labelFirst?: boolean;
   onViewSaved: () => void;
   visit?: ReactNode;
 };
@@ -28,21 +26,17 @@ export function SaveBar({
   savedId,
   error,
   onSave,
-  onLabel,
-  labelFirst = false,
   onViewSaved,
   visit,
 }: SaveBarProps) {
   return (
     <View>
       {savedId ? (
-        <View style={{ gap: 12 }}>
-          <ThemedText type="title">Saved to collection</ThemedText>
-          <Pressable accessibilityRole="link" onPress={onViewSaved} style={styles.saved}>
-            <ThemedText themeColor="accent">View artwork</ThemedText>
-          </Pressable>
+        <View style={{ gap: Spacing.one }}>
           <GalleryButton
             label="Scan next artwork"
+            icon="arrow.right"
+            iconPosition="trailing"
             variant="filled"
             fullWidth
             onPress={() => {
@@ -50,18 +44,16 @@ export function SaveBar({
               router.navigate("/(tabs)/(scan)/scan");
             }}
           />
+          <GalleryButton label="View artwork" fullWidth onPress={onViewSaved} />
         </View>
       ) : (
         <>
-          {/* The visit row's 44-point target already spaces it from the actions. */}
           {visit}
           <View style={styles.actions}>
-            {onLabel && labelFirst && (
-              <GalleryButton label={LABEL_BUTTON} variant="filled" fullWidth disabled={saving} onPress={onLabel} />
-            )}
             <GalleryButton
               label={saveLabel}
-              variant={labelFirst ? "outlined" : "filled"}
+              icon="bookmark"
+              variant="filled"
               fullWidth
               busy={saving}
               busyLabel="Saving…"
@@ -78,9 +70,6 @@ export function SaveBar({
                 {error}
               </ThemedText>
             )}
-            {onLabel && !labelFirst && (
-              <GalleryButton label={LABEL_BUTTON} fullWidth disabled={saving} onPress={onLabel} />
-            )}
           </View>
         </>
       )}
@@ -90,9 +79,4 @@ export function SaveBar({
 
 const styles = StyleSheet.create({
   actions: { gap: Spacing.two },
-  saved: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingVertical: Spacing.two,
-  },
 });

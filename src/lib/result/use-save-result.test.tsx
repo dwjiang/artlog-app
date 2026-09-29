@@ -63,8 +63,7 @@ const saved = {
   completion: {
     savedId: "saved-1",
     title: "Water Lilies",
-    wasExisting: false,
-    photoPaths: [],
+    previewPath: null,
     visitLabel: "The Met",
   },
 };

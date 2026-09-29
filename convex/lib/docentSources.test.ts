@@ -47,6 +47,42 @@ it("keeps a blocked source retryable if search provides no usable evidence", asy
   expect(await gatherSources({} as ActionCtx, input)).toEqual({ sources: [], failures: 1 });
 });
 
+it.each(["https://www.artic.edu/artworks/16568", "https://www.artic.edu/artworks/16568/water-lilies"])(
+  "uses Chicago search evidence for the same artwork number when the owner URL is %s",
+  async (ownerUrl) => {
+    vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+    const matchingUrl = "https://www.artic.edu/artworks/16568/water-lilies?utm_source=search";
+    const articleUrl = "https://www.artic.edu/articles/862/color-chemistry-and-creativity-in-monets-water-lilies";
+    vi.mocked(searchWithCredit).mockResolvedValue({
+      images: [],
+      results: [
+        { url: matchingUrl, title: "Water Lilies", content: "Description of this painting.", score: 1, images: [] },
+        {
+          url: "https://www.artic.edu/artworks/16569/water-lilies",
+          title: "Water Lilies",
+          content: "A different painting with the same title.",
+          score: 1,
+          images: [],
+        },
+        {
+          url: articleUrl,
+          title: "Conservation",
+          content: "Research about [this painting](/artworks/16568/water-lilies).",
+          score: 1,
+          images: [],
+        },
+      ],
+    });
+    const result = await gatherSources({} as ActionCtx, {
+      artwork: { title: "Water Lilies", artist: "Claude Monet" },
+      owner: { name: "Art Institute of Chicago", website: "https://www.artic.edu" },
+      pageUrl: ownerUrl,
+    });
+    expect(result.sources.map(({ url }) => url)).toEqual([matchingUrl, articleUrl]);
+    expect(result.failures).toBe(1);
+  },
+);
+
 it.each([new ConvexError({ code: "page_unavailable", reason: "http_503" }), new TypeError("unexpected failure")])(
   "reports unexpected owner-page failures while still using search evidence: %s",
   async (error) => {

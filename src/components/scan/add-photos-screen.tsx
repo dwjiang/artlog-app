@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
@@ -12,7 +12,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingImage } from "@/components/loading-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { getSavedWork, listSavedWorks } from "@/db/repos/saved-works";
@@ -42,6 +42,7 @@ import type { PhotoKind } from "@/shared/collection/album";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CameraPermission } from "./camera-permission";
+import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
 import { ContributionStatus, SHARING_NOTICE } from "./label/label-actions";
@@ -74,7 +75,8 @@ function PhotoSession({
   objectId?: string;
   owner: string;
 }) {
-  const { fontScale } = useWindowDimensions();
+  const router = useRouter();
+  const { fontScale, height } = useWindowDimensions();
   const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
@@ -257,10 +259,12 @@ function PhotoSession({
         void keepPhotos(photos);
         setCompletion({
           savedId,
-          title: title || "Unidentified artwork",
-          wasExisting: true,
-          photoPaths: photos.map((photo) => photo.path),
-          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : "No visit · Collection only",
+          title: target?.title || title || "Unidentified artwork",
+          artist: target?.artist,
+          date: target?.date,
+          medium: target?.medium,
+          previewPath: target?.cropPath ?? photos[0]?.path ?? null,
+          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : undefined,
         });
       } else {
         const input = readPhotoSession(owner, draftId).saveInput;
@@ -344,24 +348,43 @@ function PhotoSession({
     }
   }
   if (completion) {
+    const status = (
+      <ContributionStatus
+        sharing={newArtwork.sharing}
+        shared={newArtwork.shared}
+        shareError={newArtwork.shareError}
+        onShare={() => {
+          void newArtwork.retrySharing();
+        }}
+      />
+    );
     return (
-      <ScrollView
-        style={{ flex: 1, backgroundColor: Gallery.paper }}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+      <CaptureCompletion
+        completion={completion}
+        sharedToIndex={newArtwork.shared?.status === "tentative"}
+        status={status}
       >
-        <CaptureCompletion completion={completion} inline sharedToIndex={newArtwork.shared?.status === "tentative"} />
-        <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: Spacing.two }}>
-          <ContributionStatus
-            sharing={newArtwork.sharing}
-            shared={newArtwork.shared}
-            shareError={newArtwork.shareError}
-            onShare={() => {
-              void newArtwork.retrySharing();
-            }}
+        <ScrollView
+          style={{ flex: 1, backgroundColor: Gallery.paper }}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.page}
+        >
+          <SavedWorkImage
+            path={completion.previewPath}
+            title={completion.title}
+            contain
+            style={{ width: "100%", height: Math.min(360, height * 0.36) }}
           />
-        </View>
-      </ScrollView>
+          <ThemedText type="title">{completion.title}</ThemedText>
+          <CaptureArtworkMetadata completion={completion} />
+          <GalleryButton
+            label="View artwork"
+            fullWidth
+            onPress={() => router.navigate({ pathname: "/saved/[savedId]", params: { savedId: completion.savedId } })}
+          />
+          {status}
+        </ScrollView>
+      </CaptureCompletion>
     );
   }
   const photoCount = photos.length + (savedId ? 0 : 1);

@@ -195,7 +195,7 @@ async function complete(localId: string) {
   });
 }
 
-it("shows cached recognition and reading immediately, preserves it when reception returns, and saves normally", async () => {
+it("shows cached recognition with inline background information, preserves it when reception returns, and saves normally", async () => {
   await enqueuePendingScan(row("offline-result", { status: "queued" }));
   await cacheOfflineResult("offline-result", confidentScan);
   await render(<LocalScanScreen localId="offline-result" />);
@@ -206,7 +206,7 @@ it("shows cached recognition and reading immediately, preserves it when receptio
   await complete("offline-result");
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
-  expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
+  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Water Lilies",
     artist: "Claude Monet",
@@ -227,6 +227,34 @@ it("opens the server result once the queue identifies a capture that already sho
     params: { scanId: "scan-offline-online" },
   });
 });
+
+it.each([false, true])(
+  "keeps the online result available after saving and closing confirmation (edited: %s)",
+  async (edited) => {
+    const localId = `saved-offline-online-${edited}`;
+    const alert = jest.spyOn(Alert, "alert");
+    await enqueuePendingScan(row(localId, { status: "queued" }));
+    await cacheOfflineResult(localId, confidentScan);
+    await render(<LocalScanScreen localId={localId} />);
+    if (edited) {
+      await fireEvent.press(screen.getByRole("button", { name: "Edit details" }));
+      await fireEvent.changeText(screen.getByLabelText("Title"), "My saved title");
+    }
+    await fireEvent.press(await screen.findByRole("button", { name: "Save to collection" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "Close confirmation" }));
+    await complete(localId);
+    expect(mockReplace).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole("button", { name: "View the online result" }));
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/result/[scanId]",
+      params: { scanId: `scan-${localId}` },
+    });
+    expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+      title: edited ? "My saved title" : "Water Lilies",
+    });
+  },
+);
 
 it("keeps every other painting available when switching cached matches", async () => {
   await enqueuePendingScan(row("offline-pick", { status: "queued" }));
@@ -355,7 +383,7 @@ it("saves a queued photo without asking for details", async () => {
   await enqueuePendingScan(row("photo-only", { status: "queued" }));
   await render(<LocalScanScreen localId="photo-only" />);
   await fireEvent.press(await screen.findByRole("button", { name: "Save photo for later" }));
-  expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
+  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Title")).toBeNull();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Unidentified artwork",

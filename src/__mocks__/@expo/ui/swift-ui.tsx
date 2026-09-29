@@ -3,6 +3,7 @@ import { Children, useEffect, useRef, type ComponentProps, type ReactElement, ty
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 export { Text };
+export { useNativeState } from "../ui";
 export function Label({ title }: { title?: string }) {
   return <Text>{title}</Text>;
 }

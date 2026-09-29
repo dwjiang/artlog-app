@@ -1,104 +1,243 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useRef, useState, type ReactNode } from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { NotePaper } from "@/components/note-paper";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { WallSheet } from "@/components/collection/wall-sheet";
+import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useArtworkNote } from "@/hooks/use-artwork-note";
+import { useLocalOwner } from "@/lib/account/owner-store";
 import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
-import { captureFileUri } from "@/lib/files/photos";
+import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "@/shared/collection/collection-limits";
 
-export function CaptureCompletion({
-  completion,
-  onViewResult,
-  inline = false,
-  sharedToIndex = false,
-}: {
-  completion: Completion;
+import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
+import { FieldInput, type FieldInputRef } from "./field-input";
+
+type Props = {
+  completion?: Completion;
+  children?: ReactNode;
+  status?: ReactNode;
   onViewResult?: () => void;
-  inline?: boolean;
   sharedToIndex?: boolean;
-}) {
-  const router = useRouter();
-  const content = (
-    <>
-      {!!completion.photoPaths[0] && (
-        <Image
-          cachePolicy="memory"
-          source={{ uri: captureFileUri(completion.photoPaths[0]) }}
-          contentFit="contain"
-          style={{ width: "100%", height: 220 }}
-          accessibilityLabel="Saved photo preview"
+};
+
+export function CaptureCompletion({ children, completion, ...props }: Props) {
+  const owner = useLocalOwner();
+  const [dismissedId, setDismissedId] = useState<string>();
+  const showing = !!completion && completion.savedId !== dismissedId;
+  return (
+    <View style={styles.page}>
+      <View style={styles.page} accessibilityElementsHidden={showing}>
+        {children}
+      </View>
+      {completion && (
+        <CompletionSheet
+          key={`${owner}:${completion.savedId}`}
+          {...props}
+          owner={owner}
+          completion={completion}
+          onDismissed={() => setDismissedId(completion.savedId)}
         />
       )}
-      <View
-        style={{
-          alignSelf: "flex-start",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-          backgroundColor: Gallery.highlight,
-          padding: 6,
-        }}
-      >
-        <Image source="sf:checkmark" style={{ width: 14, height: 14 }} tintColor={Gallery.ink} />
-        <ThemedText type="small">Saved to your collection</ThemedText>
-      </View>
-      <ThemedText style={styles.copy}>{completion.title}</ThemedText>
-      <ThemedText style={styles.copy}>{completion.visitLabel}</ThemedText>
-      <NotePaper label="Private note">
-        <GalleryButton
-          label="Add a private note"
-          icon="square.and.pencil"
-          fullWidth
-          onPress={() =>
-            router.navigate({
-              pathname: "/saved/[savedId]",
-              params: { savedId: completion.savedId, editNote: "1" },
-            })
-          }
-        />
-      </NotePaper>
-      <GalleryButton
-        label="Scan next artwork"
-        icon="arrow.right"
-        iconPosition="trailing"
-        variant="filled"
-        fullWidth
-        onPress={() => {
-          router.dismissAll();
-          router.navigate("/(tabs)/(scan)/scan");
-        }}
-      />
-      <GalleryButton
-        label="View artwork"
-        fullWidth
-        onPress={() =>
-          router.navigate({
-            pathname: "/saved/[savedId]",
-            params: { savedId: completion.savedId },
-          })
-        }
-      />
-      {onViewResult && <GalleryButton label="View result" fullWidth onPress={onViewResult} />}
-      <ThemedText type="small" style={styles.note}>
-        {sharedToIndex ? "An artwork crop was saved to the shared index." : "New photos are private."} Your wall and
-        shared visits haven’t changed.
-      </ThemedText>
-    </>
-  );
-  return inline ? (
-    <View style={styles.content}>{content}</View>
-  ) : (
-    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      {content}
-    </ScrollView>
+    </View>
   );
 }
+
+function CompletionSheet({
+  completion,
+  onViewResult,
+  sharedToIndex = false,
+  status,
+  onDismissed,
+  owner,
+}: Props & { completion: Completion; onDismissed: () => void; owner: string }) {
+  const router = useRouter();
+  const { fontScale } = useWindowDimensions();
+  const [presented, setPresented] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const note = useArtworkNote(completion.savedId, owner);
+  const noteInput = useRef<FieldInputRef>(null);
+  const pendingAction = useRef<(() => void) | undefined>(undefined);
+  const closing = useRef(false);
+  const dismissed = useRef(false);
+  const openArtwork = () => router.navigate({ pathname: "/saved/[savedId]", params: { savedId: completion.savedId } });
+
+  async function dismiss(action?: () => void) {
+    if (closing.current) return;
+    closing.current = true;
+    // SwiftUI's value can be ahead of its JavaScript change event when a save is tapped.
+    const text = noteInput.current?.getText();
+    if (text !== undefined) note.setDraft(text);
+    setSaving(true);
+    if (!(await note.save())) {
+      closing.current = false;
+      setSaving(false);
+      return;
+    }
+    pendingAction.current = action;
+    setPresented(false);
+  }
+
+  return (
+    <WallSheet
+      title="Saved to collection"
+      presented={presented}
+      scrollAll={fontScale > 1.4}
+      dismissDisabled={saving || (note.draft !== undefined && note.draft !== note.savedText)}
+      onDismiss={() => void dismiss()}
+      onDismissed={() => {
+        if (dismissed.current) return;
+        dismissed.current = true;
+        onDismissed();
+        // Navigate only after the native presentation has fully ended.
+        pendingAction.current?.();
+      }}
+      header={
+        <View style={styles.header} accessibilityLiveRegion="polite">
+          <View style={styles.check}>
+            <Image source="sf:checkmark" style={styles.checkIcon} tintColor={Gallery.accent} />
+          </View>
+          <ThemedText variant="section" accessibilityRole="header" style={styles.heading}>
+            Saved to collection
+          </ThemedText>
+          <GalleryButton
+            label="Close confirmation"
+            icon="xmark"
+            iconOnly
+            fullWidth={false}
+            tone="ink"
+            disabled={saving}
+            onPress={() => void dismiss()}
+          />
+        </View>
+      }
+      footer={
+        <View style={styles.actions}>
+          <GalleryButton
+            label="Scan next artwork"
+            icon="arrow.right"
+            iconPosition="trailing"
+            variant="filled"
+            fullWidth
+            busy={saving}
+            busyLabel="Saving note…"
+            onPress={() =>
+              void dismiss(() => {
+                router.dismissAll();
+                router.navigate("/(tabs)/(scan)/scan");
+              })
+            }
+          />
+          <GalleryButton label="View artwork" fullWidth disabled={saving} onPress={() => void dismiss(openArtwork)} />
+          {onViewResult && (
+            <GalleryButton label="View result" fullWidth disabled={saving} onPress={() => void dismiss(onViewResult)} />
+          )}
+        </View>
+      }
+    >
+      <View style={styles.content}>
+        <View style={[styles.summary, fontScale > 1.4 && styles.stacked]}>
+          <SavedWorkImage path={completion.previewPath} title={completion.title} contain style={styles.thumbnail} />
+          <View style={styles.identity}>
+            <ThemedText variant="section" selectable>
+              {completion.title}
+            </ThemedText>
+            <CaptureArtworkMetadata completion={completion} />
+          </View>
+        </View>
+        <View style={styles.noteSection}>
+          <ThemedText variant="secondary" accessibilityRole="header" style={styles.noteTitle}>
+            Note
+          </ThemedText>
+          {note.loadFailed ? (
+            <ThemedText accessibilityRole="alert" themeColor="error">
+              Your note could not load. Reopen this artwork to try again.
+            </ThemedText>
+          ) : note.draft === undefined ? (
+            <ParagraphSkeleton label="Loading your note…" />
+          ) : (
+            <FieldInput
+              ref={noteInput}
+              label="Private note"
+              placeholder="Add a note…"
+              variant="filled"
+              icon={note.draft ? undefined : "pencil"}
+              defaultValue={note.draft}
+              editable={!saving}
+              autoCapitalize="sentences"
+              maxLength={MAX_NOTE_LENGTH}
+              numberOfLines={3}
+              onChangeText={note.setDraft}
+              onBlur={() => void note.save()}
+            />
+          )}
+        </View>
+        {note.draft?.length === MAX_NOTE_LENGTH && (
+          <ThemedText variant="metadata" style={styles.muted}>
+            {NOTE_LENGTH_MESSAGE}
+          </ThemedText>
+        )}
+        {note.saveFailed && (
+          <View>
+            <ThemedText accessibilityRole="alert" themeColor="error">
+              Couldn’t save. Your draft is still here.
+            </ThemedText>
+            <GalleryButton label="Retry save" onPress={() => void note.save()} />
+          </View>
+        )}
+        {sharedToIndex && (
+          <View style={styles.sharedNotice}>
+            <Image source="sf:person.2" tintColor={Gallery.muted} style={styles.sharedNoticeIcon} />
+            <ThemedText variant="metadata" style={[styles.muted, styles.noteLabel]}>
+              An artwork crop was saved to the shared index.
+            </ThemedText>
+          </View>
+        )}
+        {status}
+      </View>
+    </WallSheet>
+  );
+}
+
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: Gallery.paper },
-  content: { flexGrow: 1, padding: 20, gap: 16 },
-  copy: { color: Gallery.muted },
-  note: { color: Gallery.muted, textAlign: "center" },
+  page: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.content,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.compact,
+  },
+  heading: { flex: 1 },
+  check: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    backgroundColor: Gallery.highlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkIcon: { width: 18, height: 18 },
+  content: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.two, gap: Spacing.two },
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+    paddingBottom: Spacing.content,
+  },
+  stacked: { flexDirection: "column", alignItems: "flex-start" },
+  thumbnail: { width: 76, height: 76, borderRadius: Radius.thumbnail },
+  identity: { flex: 1, gap: Spacing.one },
+  noteLabel: { flex: 1 },
+  noteSection: { gap: Spacing.two },
+  noteTitle: { fontWeight: "600" },
+  sharedNotice: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
+  sharedNoticeIcon: { width: 12, height: 12 },
+  actions: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.one },
+  muted: { color: Gallery.muted },
 });

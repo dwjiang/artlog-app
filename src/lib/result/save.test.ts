@@ -215,11 +215,17 @@ beforeEach(() => {
 
 it("saves an untouched confident card locally and passes the suggestion to the server", async () => {
   const view = toResultViewState(confidentScan);
-  const { localId, synced } = await saveResult({
+  const { localId, synced, completion } = await saveResult({
     scanId: SCAN_ID,
     capture,
     view,
     draft: draftFromCandidate(lilies),
+  });
+  expect(completion).toMatchObject({
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    date: "1916",
+    medium: "Oil on canvas",
   });
   const row = await getSavedWork(localId);
   expect(row).toMatchObject({
@@ -330,7 +336,7 @@ it("saves a venue-only capture with no visit but its museum after the person end
     venueId: "museum-met",
     venueName: "The Met",
   });
-  expect(completion.visitLabel).toBe("No visit · Collection only");
+  expect(completion.visitLabel).toBeUndefined();
   expect(mockMutation).toHaveBeenCalledWith(
     "collections:saveToCollection",
     expect.objectContaining({
@@ -541,6 +547,8 @@ it("keeps the capture under the scan id so a second save of the same scan reuses
   expect(db.select().from(savedWorks).all()).toHaveLength(1);
   expect(selectArtworkPhotos(first.localId).all()).toHaveLength(1);
   expect(mockKeepPhotos).toHaveBeenLastCalledWith([]);
+  expect(again.completion.previewPath).toBe(first.completion.previewPath);
+  expect(again.completion.previewPath).toBe("crops/c1.preview.jpg");
   expect(mockMutation).toHaveBeenCalledTimes(1);
 });
 
@@ -690,8 +698,7 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
   );
   expect(next.completion).toMatchObject({
     savedId: first.localId,
-    wasExisting: true,
-    photoPaths: ["next.jpg", "detail.jpg"],
+    previewPath: "next-crop.preview.jpg",
     visitLabel: "Other museum · 2 Jan 1970",
   });
 });
@@ -716,7 +723,7 @@ it("can explicitly save a scan without its originally selected visit", async () 
     venueId: null,
   });
   expect(selectArtworkPhotos(result.localId).all()[0].visitLocalId).toBeNull();
-  expect(result.completion.visitLabel).toBe("No visit · Collection only");
+  expect(result.completion.visitLabel).toBeUndefined();
 });
 
 it("stops confirming a scan when saving a venue-only capture without its venue", async () => {

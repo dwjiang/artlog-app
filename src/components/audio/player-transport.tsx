@@ -16,6 +16,7 @@ export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();
   const { fontScale } = useWindowDimensions();
+  const actionStyle = [styles.action, fontScale <= 1.4 && styles.actionColumn];
   const [scrubbing, setScrubbing] = useState(false);
   const dragging = useRef(false);
   const [draft, setDraft] = useState(audio.position);
@@ -133,7 +134,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             const rates = [1, 1.25, 1.5, 2];
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
-          style={styles.action}
+          style={actionStyle}
         >
           <Text
             style={{
@@ -151,7 +152,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           accessibilityLabel="Transcript and sources"
           accessibilityState={{ selected: view === "transcript" }}
           onPress={() => onView(view === "transcript" ? "player" : "transcript")}
-          style={[styles.action, view === "transcript" && styles.selected]}
+          style={[actionStyle, view === "transcript" && styles.selected]}
         >
           <AudioIcon name="text.alignleft" size={18} />
           <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>Transcript</Text>
@@ -163,7 +164,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             selected: view === "queue" || view === "saved",
           }}
           onPress={() => onView(view === "queue" || view === "saved" ? "player" : "queue")}
-          style={[styles.action, (view === "queue" || view === "saved") && styles.selected]}
+          style={[actionStyle, (view === "queue" || view === "saved") && styles.selected]}
         >
           <AudioIcon name="list.bullet" size={20} />
           <Text style={[styles.actionText, (view === "queue" || view === "saved") && styles.selectedText]}>
@@ -212,14 +213,14 @@ const styles = StyleSheet.create({
   bottom: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: Spacing.one,
     marginTop: Spacing.two,
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Gallery.softBorder,
   },
-  stacked: { flexWrap: "wrap", justifyContent: "center" },
+  stacked: { flexDirection: "column", alignItems: "stretch" },
+  actionColumn: { flex: 1 },
   action: {
     minHeight: 44,
     minWidth: 44,
@@ -232,5 +233,5 @@ const styles = StyleSheet.create({
   },
   selected: { backgroundColor: Gallery.highlight },
   selectedText: { fontWeight: "600" },
-  actionText: { fontSize: 12, lineHeight: 18, color: Gallery.ink },
+  actionText: { flexShrink: 1, textAlign: "center", fontSize: 12, lineHeight: 18, color: Gallery.ink },
 });

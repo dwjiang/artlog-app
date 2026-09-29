@@ -1,8 +1,37 @@
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Pressable, Text, TextInput as RNTextInput, View } from "react-native";
 
 export const Host = View;
 export const RNHostView = View;
+export function useNativeState<T>(initialValue: T) {
+  const [state] = useState(() => {
+    let current = initialValue;
+    let notifying = false;
+    return {
+      get value() {
+        return current;
+      },
+      set value(value: T) {
+        current = value;
+        if (notifying) return;
+        notifying = true;
+        try {
+          this.onChange?.(value);
+        } finally {
+          notifying = false;
+        }
+      },
+      onChange: null as ((value: T) => void) | null,
+      get() {
+        return this.value;
+      },
+      set(value: T) {
+        this.value = value;
+      },
+    };
+  });
+  return state;
+}
 export function ListItem({
   children,
   onPress,
@@ -83,6 +112,7 @@ export function TextInput({
   modifiers,
   placeholder,
   defaultValue,
+  value,
   onChangeText,
   autoCapitalize,
   autoCorrect,
@@ -90,18 +120,26 @@ export function TextInput({
   editable,
   multiline,
   numberOfLines,
+  onFocus,
+  onBlur,
 }: ComponentProps<typeof import("@expo/ui").TextInput>) {
   return (
     <RNTextInput
       placeholder={placeholder}
-      defaultValue={defaultValue}
-      onChangeText={onChangeText}
+      defaultValue={defaultValue ?? value?.value}
+      onChangeText={(text) => {
+        // oxlint-disable-next-line react/immutability -- Native TextInput updates its bound observable state.
+        if (value) value.value = text;
+        onChangeText?.(value?.value ?? text);
+      }}
       autoCapitalize={autoCapitalize}
       autoCorrect={autoCorrect}
       maxLength={maxLength}
       editable={editable}
       multiline={multiline}
       numberOfLines={numberOfLines}
+      onFocus={onFocus}
+      onBlur={onBlur}
       accessibilityLabel={
         modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label as string | undefined
       }

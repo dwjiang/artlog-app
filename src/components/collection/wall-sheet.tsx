@@ -1,6 +1,7 @@
 import { BottomSheet, Group, Host, RNHostView } from "@expo/ui/swift-ui";
 import {
   frame,
+  interactiveDismissDisabled,
   presentationBackground,
   presentationDetents,
   presentationDragIndicator,
@@ -17,6 +18,7 @@ import { GalleryButton } from "./gallery-button";
 
 export function WallSheet({
   title,
+  header,
   children,
   footer,
   onDismiss,
@@ -24,8 +26,11 @@ export function WallSheet({
   presented = true,
   size = "fit",
   dismissLabel = "Done",
+  scrollAll = false,
+  dismissDisabled = false,
 }: {
   title: string;
+  header?: ReactNode;
   children: ReactNode;
   /** Stays pinned below the children, which scroll once the sheet outgrows the screen. */
   footer?: ReactNode;
@@ -36,9 +41,24 @@ export function WallSheet({
   /** `presented={false}` animates the sheet out while it stays mounted; `onDismissed` fires once the presentation has fully ended. */
   presented?: boolean;
   onDismissed?: () => void;
+  scrollAll?: boolean;
+  dismissDisabled?: boolean;
 }) {
-  const fitted = useFittedSheetHeight();
+  const fitted = useFittedSheetHeight({ scrollAll });
   const fit = size === "fit";
+  const heading = (
+    <View onLayout={fitted.onHeaderLayout}>
+      {header ?? (
+        <View style={styles.sheetHeader}>
+          <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
+            {title}
+          </Text>
+          <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
+        </View>
+      )}
+    </View>
+  );
+  const actions = footer && <View onLayout={fitted.onFooterLayout}>{footer}</View>;
   return (
     <Host style={{ position: "absolute" }} pointerEvents="none">
       <BottomSheet
@@ -54,25 +74,28 @@ export function WallSheet({
             presentationDragIndicator("visible"),
             presentationDetents([!fit ? "large" : fitted.height ? { height: fitted.height } : "medium"]),
             presentationBackground(Gallery.paper),
+            interactiveDismissDisabled(dismissDisabled),
           ]}
         >
           {/* Presented content needs its own React Native touch and measurement root. */}
           <RNHostView>
             <View style={fit ? { height: fitted.height } : { flex: 1 }}>
-              <View style={styles.sheetHeader} onLayout={fitted.onHeaderLayout}>
-                <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
-                  {title}
-                </Text>
-                <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
-              </View>
+              {(!fit || !scrollAll) && heading}
               {fit ? (
-                <ScrollView alwaysBounceVertical={false} onContentSizeChange={fitted.onContentSizeChange}>
+                <ScrollView
+                  accessibilityLabel={title}
+                  alwaysBounceVertical={false}
+                  keyboardShouldPersistTaps="handled"
+                  onContentSizeChange={fitted.onContentSizeChange}
+                >
+                  {scrollAll && heading}
                   {children}
+                  {scrollAll && actions}
                 </ScrollView>
               ) : (
                 children
               )}
-              {footer && <View onLayout={fitted.onFooterLayout}>{footer}</View>}
+              {(!fit || !scrollAll) && actions}
               <ToastLayer offset={0} />
             </View>
           </RNHostView>
