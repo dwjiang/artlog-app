@@ -69,7 +69,8 @@ backend import.
 | `DOCENT_MODEL`, `MODERATION_MODEL` | `nvidia/Nemotron-3_5-Lightning`             |
 
 Production has independent `JWT_PRIVATE_KEY` and `JWKS` plus provider credentials
-`NEBIUS_API_KEY` and `TAVILY_API_KEY`, all outside source control. The import adds
+`NEBIUS_API_KEY`, `TAVILY_API_KEY`, and `OPENAI_API_KEY` (narration speech; without it
+every Listen fails with `narration_not_configured`), all outside source control. The import adds
 `PINECONE_API_KEY`, `PINECONE_INDEX_HOST`, `R2_BUCKET`,
 `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` without changing
 authentication or provider settings. The September 13 anonymous sign-in, device

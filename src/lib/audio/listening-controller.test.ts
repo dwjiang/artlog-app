@@ -1,6 +1,8 @@
+import { ConvexError } from "convex/values";
 import { getNetworkStateAsync } from "expo-network";
 
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
 
 import {
@@ -13,6 +15,7 @@ import { trackKey, type ListeningTrack } from "./narration";
 
 jest.mock("expo-network", () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/ui/toast", () => ({ showErrorToast: jest.fn() }));
 
 const liveAudio = {
   uri: "https://example.convex.site/narration-playlist",
@@ -213,6 +216,31 @@ it("shows a retryable error on synthesis failure without dropping the remaining 
   controller.dispose();
 });
 
+it("reports an unavailable narration in a toast whose Retry replays the failed track", async () => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_not_configured" }));
+  await controller.play(track("a"));
+  expect(showErrorToast).toHaveBeenCalledWith("Narration is unavailable right now.", expect.any(Function));
+  const retry = jest.mocked(showErrorToast).mock.calls[0][1]!;
+  retry();
+  await Promise.resolve();
+  expect(deps.render).toHaveBeenCalledTimes(2);
+  expect(controller.snapshot()).toMatchObject({ phase: "loading", current: track("a") });
+  controller.dispose();
+});
+
+it("ignores a stale toast Retry once another track has started", async () => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new Error("No voice"));
+  await controller.play(track("a"));
+  const retry = jest.mocked(showErrorToast).mock.calls[0][1]!;
+  await controller.play(track("b"));
+  retry();
+  expect(deps.render).toHaveBeenCalledTimes(2);
+  expect(controller.snapshot().current).toEqual(track("b"));
+  controller.dispose();
+});
+
 it("resets progress when the research changes", async () => {
   const { controller, play } = setup();
   const original = track("a");
@@ -334,8 +362,8 @@ it("offers Retry for a stalled playlist even when the native player stops emitti
   expect(controller.snapshot()).toMatchObject({
     phase: "error",
     playing: false,
-    error: expect.stringContaining("Retry"),
   });
+  expect(showErrorToast).toHaveBeenCalledWith("Audio stopped responding.", expect.any(Function));
   expect(controller.snapshot().queue).toEqual([track("b")]);
   expect(player.remove).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback");

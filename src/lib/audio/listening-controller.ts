@@ -2,6 +2,7 @@ import { getNetworkStateAsync } from "expo-network";
 
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import type { DocentSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
@@ -28,9 +29,9 @@ function preparationError(error: unknown) {
     case "narration_provider_failed":
     case "model_error":
     case "narration_unavailable":
-      return "Narration is unavailable right now. Try again shortly.";
+      return "Narration is unavailable right now.";
     default:
-      return "Narration couldn’t be prepared. Check your connection and tap Retry.";
+      return "Couldn’t prepare narration. Check your connection.";
   }
 }
 
@@ -62,7 +63,6 @@ export type ListeningState = {
   playing: boolean;
   position: number;
   duration: number;
-  error?: string;
   waiting: boolean;
   pauseBetween: boolean;
   rate: number;
@@ -153,7 +153,7 @@ export class ListeningController {
       } else if (Date.now() - progressedAt >= 15_000) {
         this.update({ position: status.currentTime, duration: status.duration || this.state.duration });
         this.remember();
-        this.fail("Audio stopped responding. Tap Retry.");
+        this.fail("Audio stopped responding.");
         void reportStalledPlayback();
       }
     }, 1000);
@@ -176,7 +176,6 @@ export class ListeningController {
       playing: false,
       position,
       duration: saved?.duration ?? 0,
-      error: undefined,
       waiting,
     });
     try {
@@ -200,7 +199,7 @@ export class ListeningController {
       let finished = false;
       this.loadTimeout = setTimeout(() => {
         if (generation === this.generation && !started) {
-          this.fail("Audio couldn’t load. Tap Retry.");
+          this.fail("Couldn’t load audio.");
         }
       }, 15000);
       this.update({
@@ -211,7 +210,7 @@ export class ListeningController {
       this.subscription = player.addListener("playbackStatusUpdate", (status) => {
         if (generation !== this.generation) return;
         if (status.playbackState === "error") {
-          this.fail("Audio couldn’t play. Tap Retry.");
+          this.fail("Couldn’t play audio.");
           return;
         }
         if (!status.isLoaded) return;
@@ -232,7 +231,7 @@ export class ListeningController {
             })
             .catch(() => {
               if (generation === this.generation) {
-                this.fail("Audio couldn’t start. Tap Retry.");
+                this.fail("Couldn’t start audio.");
               }
             });
         }
@@ -266,10 +265,13 @@ export class ListeningController {
       if (generation === this.generation) this.fail(preparationError(error));
     }
   }
-  private fail(error: string) {
-    this.generation++;
+  private fail(message: string) {
+    const generation = ++this.generation;
     this.release();
-    this.update({ phase: "error", preparationStage: undefined, playing: false, error });
+    this.update({ phase: "error", preparationStage: undefined, playing: false });
+    showErrorToast(message, () => {
+      if (generation === this.generation && this.state.current) void this.play(this.state.current);
+    });
   }
   toggle = () => {
     if (!this.state.current) return;
@@ -304,7 +306,7 @@ export class ListeningController {
       }
     } catch {
       if (generation === this.generation) {
-        this.fail("Couldn’t change position. Tap Retry.");
+        this.fail("Couldn’t change position.");
       }
     }
   };
@@ -353,7 +355,6 @@ export class ListeningController {
       playing: false,
       position: 0,
       duration: 0,
-      error: undefined,
       waiting: false,
     });
   };
