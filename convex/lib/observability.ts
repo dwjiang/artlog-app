@@ -86,6 +86,7 @@ const expectedCodes = new Set([
 const diagnosticCodes = new Set([
   "model_error",
   "model_unconfigured",
+  "narration_not_configured",
   "search_error",
   "search_unconfigured",
   "wikidata_error",

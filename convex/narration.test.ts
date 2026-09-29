@@ -487,6 +487,21 @@ it("rejects invented citations before generating speech and releases the claim f
   expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
 });
 
+it("reports a missing speech key to Sentry and releases the claim before spending", async () => {
+  const { as, args, fetcher, rows } = await setup();
+  vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
+    data: { code: "narration_not_configured" },
+  });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toContain("ingest.sentry.io");
+  expect(String(init.body)).toContain('"operation":"narration.render"');
+  expect(String(init.body)).toContain('"value":"narration_not_configured"');
+  expect(await rows()).toHaveLength(0);
+});
+
 it("observes the existing Token Factory spend cap before authoring or speaking", async () => {
   const { as, args, fetcher } = await setup();
   vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "0");

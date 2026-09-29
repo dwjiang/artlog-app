@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useListening } from "@/lib/audio/use-listening";
 
@@ -99,13 +100,9 @@ export function NowPlayingScreen() {
       )}
     </View>
   );
-  const status = (audio.error || (audio.waiting && audio.phase === "ready")) && (
-    <Text
-      accessibilityRole={audio.error ? "alert" : undefined}
-      variant="secondary"
-      style={{ color: audio.error ? Gallery.destructive : Gallery.muted }}
-    >
-      {audio.error ?? "Ready to play"}
+  const status = audio.waiting && audio.phase === "ready" && (
+    <Text variant="secondary" style={{ color: Gallery.muted }}>
+      Ready to play
     </Text>
   );
   const transport = <PlayerTransport view={view} onView={setView} />;
@@ -172,6 +169,7 @@ export function NowPlayingScreen() {
           {transport}
         </View>
       )}
+      <ToastLayer offset={0} />
     </View>
   );
 }

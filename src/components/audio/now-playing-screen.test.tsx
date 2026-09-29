@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+
+import { dismissToast, showErrorToast } from "@/lib/ui/toast";
 
 import { NowPlayingScreen } from "./now-playing-screen";
 
@@ -78,4 +80,17 @@ it("does not claim a queued guide is ready while it is still generating", async 
   mockAudio.phase = "ready";
   await rerender(<NowPlayingScreen />);
   expect(screen.getByText("Ready to play")).toBeOnTheScreen();
+});
+
+it("shows narration failures as a toast above the modal player", async () => {
+  mockAudio.phase = "error";
+  mockAudio.waiting = false;
+  const retry = jest.fn();
+  await render(<NowPlayingScreen />);
+  await act(() => showErrorToast("Narration is unavailable right now.", retry));
+  expect(screen.getByRole("alert")).toHaveTextContent("Narration is unavailable right now.");
+  await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("Narration is unavailable right now.")).toBeNull();
+  dismissToast();
 });

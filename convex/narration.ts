@@ -381,6 +381,7 @@ export const render = action({
         throw new ConvexError({ code: "narration_unavailable" });
       }
     } catch (error) {
+      await reportBackendError(error, "narration.render");
       await ctx.runMutation(internal.narration.finish, {
         artworkId,
         claim: claimId,
