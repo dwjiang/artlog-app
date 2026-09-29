@@ -90,6 +90,7 @@ const diagnosticCodes = new Set([
   "search_error",
   "search_unconfigured",
   "wikidata_error",
+  "artic_error",
   "page_unavailable",
   "attest_unconfigured",
   "apple_unconfigured",

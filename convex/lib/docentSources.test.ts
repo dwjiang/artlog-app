@@ -2,16 +2,25 @@ import { ConvexError } from "convex/values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { ActionCtx } from "../_generated/server";
+import { articDescription } from "./artic";
 import { gatherSources, trimSources } from "./docentSources";
 import { reportBackendError } from "./observability";
 import { searchWithCredit } from "./tavilySpend";
 import { fetchVenuePage } from "./venueFetch";
+import { findEntityByStatement, getEntity, wikipediaArticle } from "./wikidata";
 
+vi.mock("./artic", () => ({ articDescription: vi.fn<typeof articDescription>() }));
 vi.mock("./observability", () => ({ reportBackendError: vi.fn<typeof reportBackendError>() }));
 vi.mock("./tavilySpend", () => ({ searchWithCredit: vi.fn<typeof searchWithCredit>() }));
 vi.mock("./venueFetch", async (original) => ({
   ...(await original<typeof import("./venueFetch")>()),
   fetchVenuePage: vi.fn<typeof fetchVenuePage>(),
+}));
+vi.mock("./wikidata", async (original) => ({
+  ...(await original<typeof import("./wikidata")>()),
+  findEntityByStatement: vi.fn<typeof findEntityByStatement>(),
+  getEntity: vi.fn<typeof getEntity>(),
+  wikipediaArticle: vi.fn<typeof wikipediaArticle>(),
 }));
 
 const pageUrl = "https://www.metmuseum.org/art/collection/search/1";
@@ -24,6 +33,10 @@ const input = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.mocked(findEntityByStatement).mockResolvedValue(null);
+  vi.mocked(getEntity).mockResolvedValue(null);
+  vi.mocked(wikipediaArticle).mockResolvedValue("");
+  vi.mocked(articDescription).mockResolvedValue("");
   vi.mocked(searchWithCredit).mockResolvedValue({
     images: [],
     results: [{ url: pageUrl, title: "Painting", content: "Verified museum description", score: 1, images: [] }],
@@ -82,6 +95,150 @@ it.each(["https://www.artic.edu/artworks/16568", "https://www.artic.edu/artworks
     expect(result.failures).toBe(1);
   },
 );
+
+const found = (url: string, content: string) => ({ url, title: "", content, score: 1, images: [] });
+// Wikidata-sourced objects link their Wikidata item, which the owner-page fetch refuses.
+const wikidataWork = (wikidataId: string) => ({
+  artwork: { title: "Painting", artist: "Artist", wikidataId },
+  owner: { name: "Museum", website: "https://museum.example" },
+  pageUrl: `https://www.wikidata.org/wiki/${wikidataId}`,
+});
+
+it("reads the English Wikipedia article Wikidata links to the work and keeps its own summary", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q185372",
+    labels: { en: { value: "Girl with a Pearl Earring" } },
+    sitelinks: { enwiki: { title: "Girl with a Pearl Earring" } },
+  });
+  vi.mocked(wikipediaArticle).mockResolvedValue("It is signed IVMeer but not dated.");
+  const article = "https://en.wikipedia.org/wiki/Girl_with_a_Pearl_Earring";
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [
+      found(
+        article,
+        `It is signed IVMeer[[1]](${article}#cite_note-1) but not dated.\n${"Jump to content. ".repeat(20)}`,
+      ),
+      found("https://www.wikidata.org/wiki/Q185372", "| depicts | girl |\n".repeat(50)),
+      found("https://en.wikipedia.org/wiki/Girl_with_a_Pearl_Earring_(film)", "A 2003 film."),
+      found("https://www.metmuseum.org/art/collection/search/437879", "Study of a Young Woman, another tronie."),
+    ],
+  });
+  expect(await gatherSources({} as ActionCtx, wikidataWork("Q185372"))).toEqual({
+    failures: 0,
+    sources: [
+      {
+        url: "https://www.wikidata.org/wiki/Q185372",
+        label: "Wikidata",
+        score: 0.8,
+        text: "Label: Girl with a Pearl Earring",
+      },
+      { url: article, label: "Wikipedia", score: 0.7, text: "It is signed IVMeer but not dated." },
+    ],
+  });
+  expect(wikipediaArticle).toHaveBeenCalledWith("Girl with a Pearl Earring");
+});
+
+it("keeps the sheet retryable when the linked Wikipedia article can't be read", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
+  vi.mocked(getEntity).mockResolvedValue({ id: "Q1", sitelinks: { enwiki: { title: "Painting" } } });
+  const error = new ConvexError({ code: "wikidata_error", reason: "http_503" });
+  vi.mocked(wikipediaArticle).mockRejectedValue(error);
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  expect(await gatherSources({} as ActionCtx, wikidataWork("Q1"))).toEqual({ sources: [], failures: 1 });
+  expect(reportBackendError).toHaveBeenCalledWith(error, "docent.wikipedia");
+});
+
+it("keeps search's copy of the linked Wikipedia article when the direct read has no text", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
+  vi.mocked(getEntity).mockResolvedValue({ id: "Q1", sitelinks: { enwiki: { title: "Painting" } } });
+  const article = "https://en.wikipedia.org/wiki/Painting";
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [found(article, "Painted in oil.")] });
+  const result = await gatherSources({} as ActionCtx, wikidataWork("Q1"));
+  expect(result.sources.map(({ url, text }) => [url, text])).toEqual([[article, "Painted in oil."]]);
+});
+
+it.each([
+  [
+    "P3634",
+    "437881",
+    "https://www.metmuseum.org/art/collection/search/437881?lang=en",
+    "/art/collection/search/437880",
+  ],
+  ["P4610", "28560", "https://www.artic.edu/artworks/28560/the-bedroom", "/artworks/28561/the-bedroom"],
+])("uses the collection page for the work's %s object id", async (property, objectId, page, otherPath) => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q1",
+    claims: { [property]: [{ mainsnak: { snaktype: "value", datavalue: { value: objectId } } }] },
+  });
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [
+      found(page, "This painting."),
+      found(new URL(otherPath, page).href, "Another painting with the same title."),
+    ],
+  });
+  const result = await gatherSources({} as ActionCtx, wikidataWork("Q1"));
+  expect(result.sources.map(({ url }) => url)).toEqual([page]);
+});
+
+const chicagoWork = {
+  artwork: { title: "The Bedroom", artist: "Vincent van Gogh" },
+  owner: { name: "Art Institute of Chicago", website: "https://www.artic.edu" },
+  pageUrl: "https://www.artic.edu/artworks/28560",
+};
+
+it("finds the Wikidata item of a Chicago work by its object id and reads the museum's API text", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  vi.mocked(findEntityByStatement).mockResolvedValue("Q18713076");
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q18713076",
+    labels: { en: { value: "The Bedroom" } },
+    sitelinks: { enwiki: { title: "Bedroom in Arles" } },
+  });
+  vi.mocked(wikipediaArticle).mockResolvedValue("Van Gogh painted three versions.");
+  vi.mocked(articDescription).mockResolvedValue("Perhaps the most famous depiction of a bedroom.");
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  const result = await gatherSources({} as ActionCtx, chicagoWork);
+  expect(result.sources.map(({ url, label, text }) => [url, label, text])).toEqual([
+    [
+      "https://www.artic.edu/artworks/28560",
+      "Art Institute of Chicago",
+      "Perhaps the most famous depiction of a bedroom.",
+    ],
+    ["https://www.wikidata.org/wiki/Q18713076", "Wikidata", "Label: The Bedroom"],
+    ["https://en.wikipedia.org/wiki/Bedroom_in_Arles", "Wikipedia", "Van Gogh painted three versions."],
+  ]);
+  expect(findEntityByStatement).toHaveBeenCalledWith("P4610", "28560");
+  expect(articDescription).toHaveBeenCalledWith("28560");
+});
+
+it("finds the Wikidata item of a Met work by its object id", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_429" }));
+  vi.mocked(findEntityByStatement).mockResolvedValue("Q18689458");
+  vi.mocked(getEntity).mockResolvedValue({ id: "Q18689458", labels: { en: { value: "Wheat Field with Cypresses" } } });
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" },
+    owner: { name: "The Met", website: "https://www.metmuseum.org" },
+    pageUrl: "https://www.metmuseum.org/art/collection/search/436535",
+  });
+  expect(result.sources.map(({ url }) => url)).toEqual(["https://www.wikidata.org/wiki/Q18689458"]);
+  expect(findEntityByStatement).toHaveBeenCalledWith("P3634", "436535");
+  expect(articDescription).not.toHaveBeenCalled();
+});
+
+it("keeps the sheet retryable when Chicago's API can't be read", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  vi.mocked(findEntityByStatement).mockResolvedValue(null);
+  const error = new ConvexError({ code: "artic_error", reason: "http_503" });
+  vi.mocked(articDescription).mockRejectedValue(error);
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  expect(await gatherSources({} as ActionCtx, chicagoWork)).toEqual({ sources: [], failures: 2 });
+  expect(reportBackendError).toHaveBeenCalledWith(error, "docent.artic");
+});
 
 it.each([new ConvexError({ code: "page_unavailable", reason: "http_503" }), new TypeError("unexpected failure")])(
   "reports unexpected owner-page failures while still using search evidence: %s",

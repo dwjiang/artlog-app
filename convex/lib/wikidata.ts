@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import { fetchText, userAgent } from "./politeFetch";
 
 const API = "https://www.wikidata.org/w/api.php";
+const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 const TIMEOUT_MS = 8000;
 // Prolific artists carry hundreds of claims; Monet's entity alone is several megabytes.
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -30,12 +31,13 @@ export type WikidataEntity = {
   missing?: string;
   labels?: Record<string, { value: string }>;
   claims?: Record<string, Claim[]>;
+  sitelinks?: Record<string, { title: string }>;
 };
 
 export type SearchHit = { id: string; label?: string; description?: string };
 
-async function call(params: Record<string, string>): Promise<unknown> {
-  const url = `${API}?${new URLSearchParams({ ...params, format: "json" })}`;
+async function call(params: Record<string, string>, api = API): Promise<unknown> {
+  const url = `${api}?${new URLSearchParams({ ...params, format: "json" })}`;
   let page;
   try {
     page = await fetchText(
@@ -97,6 +99,8 @@ export async function getEntities(ids: string[], props = "labels|claims"): Promi
       ids: unique.slice(offset, offset + MAX_IDS).join("|"),
       props,
       languages: "en",
+      // A famous painting links hundreds of wikis; only the English article is read.
+      sitefilter: "enwiki",
     })) as { entities?: Record<string, WikidataEntity> };
     for (const [id, entity] of Object.entries(json.entities ?? {})) {
       if (entity && typeof entity === "object" && entity.missing === undefined) {
@@ -107,8 +111,38 @@ export async function getEntities(ids: string[], props = "labels|claims"): Promi
   return entities;
 }
 
-export async function getEntity(id: string): Promise<WikidataEntity | null> {
-  return (await getEntities([id]))[id] ?? null;
+export async function getEntity(id: string, props?: string): Promise<WikidataEntity | null> {
+  return (await getEntities([id], props))[id] ?? null;
+}
+
+// The item that carries this identifier, when exactly one does.
+export async function findEntityByStatement(property: string, value: string): Promise<string | null> {
+  const json = (await call({
+    action: "query",
+    list: "search",
+    srsearch: `haswbstatement:${property}=${value}`,
+    srlimit: "2",
+  })) as { query?: { search?: { title?: unknown }[] } };
+  const hits = json.query?.search ?? [];
+  return hits.length === 1 && typeof hits[0].title === "string" ? hits[0].title : null;
+}
+
+// Plain text keeps the article's sentences quotable; empty when there is no such article.
+export async function wikipediaArticle(title: string): Promise<string> {
+  const json = (await call(
+    {
+      action: "query",
+      prop: "extracts",
+      explaintext: "1",
+      exsectionformat: "plain",
+      redirects: "1",
+      titles: title,
+      formatversion: "2",
+    },
+    WIKIPEDIA_API,
+  )) as { query?: { pages?: { extract?: unknown }[] } };
+  const extract = json.query?.pages?.[0]?.extract;
+  return typeof extract === "string" ? extract.trim() : "";
 }
 
 export function entityLabel(entity: WikidataEntity, language = "en"): string | undefined {
