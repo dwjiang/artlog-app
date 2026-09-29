@@ -50,12 +50,12 @@ beforeEach(() => {
   mockCachedDuration = undefined;
   mockAudio = {
     queue: [],
+    history: [],
     phase: "idle",
     playing: false,
     position: 0,
     duration: 0,
     waiting: false,
-    pauseBetween: true,
     rate: 1,
     revision: 0,
   };

@@ -2,11 +2,11 @@ export function useListening() {
   return {
     current: undefined,
     queue: [],
+    history: [],
     phase: "idle",
     playing: false,
     position: 0,
     duration: 0,
-    pauseBetween: true,
     rate: 1,
     controller: {
       progressFor: () => undefined,
