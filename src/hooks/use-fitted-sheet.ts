@@ -13,11 +13,13 @@ export function useFittedSheetHeight({ scrollAll = false } = {}) {
   const { height: windowHeight } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
   const [parts, setParts] = useState<Record<SheetPart, number>>({ header: 0, content: 0, footer: 0 });
+  const maxHeight = windowHeight - top - bottom;
   const measure = (part: SheetPart, height: number) =>
     setParts((current) => (current[part] === height ? current : { ...current, [part]: height }));
   return {
+    maxHeight,
     height: parts.content
-      ? Math.min(parts.content + (scrollAll ? 0 : parts.header + parts.footer), windowHeight - top - bottom)
+      ? Math.min(parts.content + (scrollAll ? 0 : parts.header + parts.footer), maxHeight)
       : undefined,
     onHeaderLayout: (event: LayoutChangeEvent) => measure("header", event.nativeEvent.layout.height),
     onContentSizeChange: (_width: number, height: number) => measure("content", height),

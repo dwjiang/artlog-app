@@ -7,6 +7,7 @@ export type Wallpaper = Pick<WallDraft, "color" | "pattern">;
 export type WallPattern = NonNullable<Wallpaper["pattern"]>;
 export type WallLayout = LayoutInput["items"][number]["layout"];
 export type WallFrame = WallLayout["frame"];
+export type WallCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type WallPiece = {
   localId: string;
   saveLocalId?: string;
@@ -38,6 +39,32 @@ export function constrainLayout(layout: WallLayout, patch: Partial<WallLayout>):
     width,
     x: Math.max(0.025, Math.min(0.975 - width, next.x)),
     y: Math.max(0.04, Math.min(99, next.y)),
+  };
+}
+
+export function resizeWallLayout(
+  layout: WallLayout,
+  corner: WallCorner,
+  translation: { x: number; y: number },
+  aspect: number,
+): WallLayout {
+  "worklet";
+  const left = corner.endsWith("left");
+  const top = corner.startsWith("top");
+  const anchorX = layout.x + (left ? layout.width : 0);
+  const anchorY = layout.y + (top ? layout.width / aspect : 0);
+  // Project the finger's movement onto the artwork's diagonal to preserve its proportions.
+  const delta =
+    ((left ? -translation.x : translation.x) + (top ? -translation.y : translation.y) / aspect)
+    / (1 + 1 / (aspect * aspect));
+  const maxWidth = Math.min(0.9, left ? anchorX - 0.025 : 0.975 - anchorX, top ? (anchorY - 0.04) * aspect : 0.9);
+  const minWidth = Math.max(0.16, top ? (anchorY - 99) * aspect : 0.16);
+  const width = Math.max(minWidth, Math.min(maxWidth, layout.width + delta));
+  return {
+    ...layout,
+    width,
+    x: left ? anchorX - width : anchorX,
+    y: top ? anchorY - width / aspect : anchorY,
   };
 }
 

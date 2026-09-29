@@ -21,11 +21,12 @@ it("revokes immediately, purges social references in batches, and deletes files 
     const asset = await socialDerivative(t, a, draft.saves[0].id);
     const storageId = await t.run(async (ctx) => {
       const storageId = await fileStorage.store(ctx, new Blob(["derivative"]));
-      const wallId = await ctx.db.insert("walls", {
-        profileId: a.profileId,
-        layoutRevision: 1,
-        color: "#fff",
-      });
+      const wall = await ctx.db
+        .query("walls")
+        .withIndex("by_profileId", (q) => q.eq("profileId", a.profileId))
+        .unique();
+      const wallId = wall!._id;
+      await ctx.db.patch("walls", wallId, { layoutRevision: 1, color: "#fff" });
       await ctx.db.insert("leaderboardScores", {
         visibility: "global",
         accountId: a.accountId,
@@ -79,7 +80,6 @@ it("revokes immediately, purges social references in batches, and deletes files 
       "sharedVisits",
       "sharedVisitItems",
       "wallItems",
-      "walls",
       "friendships",
       "blocks",
       "mediaAssets",
@@ -88,6 +88,22 @@ it("revokes immediately, purges social references in batches, and deletes files 
     ] as const) {
       expect(await t.run((ctx) => ctx.db.query(table).collect())).toEqual([]);
     }
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("walls")
+          .withIndex("by_profileId", (q) => q.eq("profileId", a.profileId))
+          .collect(),
+      ),
+    ).toEqual([]);
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("walls")
+          .withIndex("by_profileId", (q) => q.eq("profileId", b.profileId))
+          .collect(),
+      ),
+    ).toHaveLength(1);
     expect(
       await t.run((ctx) =>
         ctx.db

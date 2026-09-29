@@ -113,6 +113,9 @@ function OwnedCollection({
     <CollectionSection key="collection" shown={mode === "collection"}>
       <CollectionWall
         works={data.works}
+        visits={data.visits}
+        collectionLoading={data.loading}
+        collectionError={data.error ? "Your collection could not load. Close the library and try again." : undefined}
         hiddenIds={data.hiddenIds}
         onEditingChange={setEditing}
         header={header}

@@ -1,7 +1,7 @@
 import { addArtworkPhoto, editArtworkPhoto } from "@/db/repos/artwork-album";
 import { insertSavedWork, softDeleteSavedWork } from "@/db/repos/saved-works";
 import { switchOwner } from "@/lib/account/owner-store";
-import { DEFAULT_WALL_COLOR } from "@/shared/wall/defaults";
+import { DEFAULT_WALL_COLOR, STARTER_WALLS } from "@/shared/wall/defaults";
 
 import { createLocalWallRepository } from "./local-wall-repository";
 
@@ -27,7 +27,15 @@ it("starts a signed-out wall empty and keeps saved layouts on this iPhone", asyn
   await insertSavedWork({ localId: "save-a", savedAt: 1, title: "The Milkmaid", artist: "Johannes Vermeer" });
   const first = open();
   await first.refresh();
-  expect(first.getSnapshot().acknowledged).toEqual({ color: DEFAULT_WALL_COLOR, items: [] });
+  const initial = first.getSnapshot().acknowledged!;
+  expect(initial.items).toEqual([]);
+  expect(STARTER_WALLS).toContainEqual({ color: initial.color, pattern: initial.pattern });
+  await first.refresh();
+  expect(first.getSnapshot().acknowledged).toEqual(initial);
+  const concurrent = open();
+  await concurrent.refresh();
+  expect(concurrent.getSnapshot().acknowledged).toEqual(initial);
+  concurrent.dispose();
 
   first.setLayoutDraft({
     color: "#6C2F2B",
@@ -75,25 +83,6 @@ it("drops placements whose artwork or photo the owner no longer has", async () =
   expect(repository.getSnapshot().acknowledged?.items.map((item) => item.placementId)).toEqual(["a", "c"]);
 });
 
-it("offers only the current owner's saved artworks to hang", async () => {
-  const other = guest();
-  await insertSavedWork({ localId: "other", savedAt: 1, title: "Other", artist: "Someone" }, other);
-  guest();
-  await insertSavedWork({
-    localId: "mine",
-    savedAt: 1,
-    title: "Sunflowers",
-    artist: "Vincent van Gogh",
-    date: "1888",
-  });
-  const result = await open().listSelections();
-  expect(result).toEqual({
-    page: [{ localId: "mine", snapshot: { title: "Sunflowers", artist: "Vincent van Gogh", date: "1888" } }],
-    cursor: null,
-    isDone: true,
-  });
-});
-
 it("clears the wall when the owner changes and keeps each owner's wall separate", async () => {
   const first = guest();
   await insertSavedWork({ localId: "save-a", savedAt: 1, title: "Title", artist: "Artist" });
@@ -108,7 +97,9 @@ it("clears the wall when the owner changes and keeps each owner's wall separate"
   guest();
   expect(repository.getSnapshot().acknowledged).toBeNull();
   await repository.refresh();
-  expect(repository.getSnapshot().acknowledged).toEqual({ color: DEFAULT_WALL_COLOR, items: [] });
+  const other = repository.getSnapshot().acknowledged!;
+  expect(other.items).toEqual([]);
+  expect(STARTER_WALLS).toContainEqual({ color: other.color, pattern: other.pattern });
 
   switchOwner(first, "guest-scope");
   await repository.refresh();

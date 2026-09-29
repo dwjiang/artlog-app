@@ -4,6 +4,7 @@ import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
+import { randomWallStyle } from "../shared/wall/defaults";
 import type { Doc } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
@@ -54,6 +55,11 @@ export const create = mutation({
       publishedWallCount: 0,
       leaderboardVisibility: "global",
       updatedAt: Date.now(),
+    });
+    await ctx.db.insert("walls", {
+      profileId,
+      ...randomWallStyle(),
+      layoutRevision: 0,
     });
     return projectProfile(ctx, (await ctx.db.get("profiles", profileId))!);
   },

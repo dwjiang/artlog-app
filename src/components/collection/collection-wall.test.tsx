@@ -1,7 +1,7 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
-import type { ComponentProps, ReactNode } from "react";
-import { Image, ScrollView } from "react-native";
+import type { ReactNode } from "react";
+import { Image, ScrollView, Text } from "react-native";
 
 import { addArtworkPhoto } from "@/db/repos/artwork-album";
 import {
@@ -17,7 +17,7 @@ import { switchOwner } from "@/lib/account/owner-store";
 import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-removals";
 import { createLocalWallRepository } from "@/lib/wall/local-wall-repository";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
-import { wallAspect } from "@/lib/wall/wall-layout";
+import { wallAspect, type WallPiece, type WallLayout } from "@/lib/wall/wall-layout";
 import type { OwnerWall, WallTransport } from "@/lib/wall/wall-transport";
 
 import { CollectionWall } from "./collection-wall";
@@ -36,7 +36,6 @@ let mockToken: string | null = "token";
 const mockTransport = {
   getMine: jest.fn(),
   setLayout: jest.fn(),
-  listMine: jest.fn(),
   setNoteVisibility: jest.fn(),
 } satisfies WallTransport;
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
@@ -62,15 +61,37 @@ jest.mock("./wall-gallery", () => {
     WallGallery: ({
       pieces,
       onSelect,
+      onMove,
+      onDeselect,
+      selectedId,
+      editing,
       children,
     }: {
-      pieces: { localId: string; artwork: { title: string } }[];
+      pieces: WallPiece[];
+      onMove: (id: string, layout: WallLayout) => void;
+      onDeselect: () => void;
+      selectedId?: string;
+      editing: boolean;
       onSelect: (piece: unknown) => void;
       children: ReactNode;
     }) => (
       <View>
+        {editing && selectedId && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Deselect artwork" onPress={onDeselect} />
+        )}
         {pieces.map((piece) => (
-          <Pressable key={piece.localId} accessibilityRole="button" onPress={() => onSelect(piece)}>
+          <Pressable
+            key={piece.localId}
+            accessibilityRole="button"
+            onPress={() => onSelect(piece)}
+            onAccessibilityAction={({ nativeEvent: { actionName } }: { nativeEvent: { actionName: string } }) => {
+              if (!editing) return;
+              onMove(piece.localId, {
+                ...piece.layout,
+                ...(actionName === "increment" ? { width: piece.layout.width + 0.04 } : { x: piece.layout.x + 0.025 }),
+              });
+            }}
+          >
             <Text>{piece.artwork.title}</Text>
           </Pressable>
         ))}
@@ -90,23 +111,6 @@ jest.mock("@expo/ui", () => ({
   Picker: Object.assign(() => null, { Item: () => null }),
   Slider: () => null,
 }));
-jest.mock("@expo/ui/swift-ui", () => {
-  const { View } = jest.requireActual("react-native");
-  return {
-    ...jest.requireActual("@/__mocks__/@expo/ui/swift-ui"),
-    Slider: ({ modifiers, ...props }: ComponentProps<typeof import("@expo/ui/swift-ui").Slider>) => (
-      <View
-        {...props}
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel="Artwork size"
-        accessibilityState={{
-          disabled: modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled),
-        }}
-      />
-    ),
-  };
-});
 let mockFocus: (() => void) | undefined;
 jest.mock("expo-router", () => {
   const { View, Pressable, Text } = jest.requireActual("react-native");
@@ -172,16 +176,6 @@ beforeEach(() => {
   mockToken = "token";
   switchOwner("account:a", "scope-a");
   mockTransport.getMine.mockResolvedValue(published);
-  mockTransport.listMine.mockResolvedValue({
-    page: [
-      {
-        localId: "save-b",
-        snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" },
-      },
-    ],
-    cursor: null,
-    isDone: true,
-  });
   mockTransport.setLayout.mockImplementation(async (input: Parameters<WallTransport["setLayout"]>[0]) => ({
     ...published,
     ...input,
@@ -204,12 +198,30 @@ beforeEach(() => {
 async function chooseWallColor(name: string) {
   await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
   await fireEvent.press(screen.getByRole("button", { name }));
-  // The sheet's Done follows the editor's own Done button.
-  await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
 }
 
+async function addSunflowers() {
+  await fireEvent.press(screen.getByRole("button", { name: "Add art" }));
+  await fireEvent.press(await screen.findByRole("checkbox", { name: "Sunflowers" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
+}
+
+const libraryWorks = [
+  {
+    owner: "account:a",
+    localId: "save-b",
+    title: "Sunflowers",
+    artist: "Vincent van Gogh",
+    savedAt: 2,
+    deletedAt: null,
+    syncedBy: "device-a",
+    cropPath: null,
+  },
+] as SavedWork[];
+
 async function openWall() {
-  const view = await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
+  const view = await render(<CollectionWall works={libraryWorks} onEditingChange={jest.fn()} />);
   await fireEvent(screen.getByLabelText("Collection wall"), "layout", {
     nativeEvent: { layout: { width: 393, height: 440, y: 60 } },
   });
@@ -224,7 +236,7 @@ it("gives signed-out owners a private wall on this iPhone without contacting the
     { localId: "guest-save", savedAt: 1, title: "Water Lilies", artist: "Claude Monet" },
     "device:private-wall",
   );
-  await render(<CollectionWall works={[{ localId: "guest-save" } as SavedWork]} />);
+  await render(<CollectionWall works={[(await getSavedWork("guest-save"))!]} />);
   const footnote = await screen.findByText("Your wall stays private on this iPhone until you sign in.");
   expect(footnote).toBeOnTheScreen();
   // Native tab bars and their accessories contribute insets; the final action must scroll above them.
@@ -233,87 +245,22 @@ it("gives signed-out owners a private wall on this iPhone without contacting the
   );
   expect(footnote.parent?.parent).toHaveStyle({ flexGrow: 1 });
   await fireEvent.press(screen.getByRole("button", { name: "Choose artworks" }));
-  expect(await screen.findByText("0 selected · Your wall is private")).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole("checkbox", { name: "Water Lilies" }));
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
   await fireEvent(await screen.findByLabelText("Collection wall"), "layout", {
     nativeEvent: { layout: { width: 393, height: 440, y: 60 } },
   });
   expect(await screen.findByRole("button", { name: "Water Lilies" })).toBeOnTheScreen();
-  expect(screen.getByText("Changes saved")).toBeOnTheScreen();
+  expect(screen.queryByText(/Changes saved|Private wall/)).toBeNull();
   expect(mockTransport.getMine).not.toHaveBeenCalled();
-  expect(mockTransport.listMine).not.toHaveBeenCalled();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
-});
-
-it("chooses the photo before adding a second public placement and publishes on confirmation", async () => {
-  const imageSize = jest.spyOn(Image, "getSize").mockImplementation(async () => ({ width: 640, height: 480 }));
-  mockTransport.getMine.mockResolvedValue({
-    ...published,
-    items: published.items.map((item) => ({
-      ...item,
-      layout: { ...item.layout, frame: "black" },
-    })),
-  });
-  await insertSavedWork(
-    {
-      localId: "save-a",
-      savedAt: 1,
-      title: "The Milkmaid",
-      artist: "Johannes Vermeer",
-    },
-    "account:a",
-  );
-  addArtworkPhoto(
-    {
-      localId: "wall-full",
-      savedLocalId: "save-a",
-      capturedAt: 1,
-      kind: "full",
-      path: "full.jpg",
-    },
-    "account:a",
-  );
-  addArtworkPhoto(
-    {
-      localId: "wall-detail",
-      savedLocalId: "save-a",
-      capturedAt: 2,
-      kind: "detail",
-      path: "detail.jpg",
-    },
-    "account:a",
-  );
-  await openWall();
-  await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Hang another photo" }));
-  expect(screen.getByText(/This selected image will be visible on your public wall/)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Hang selected photo" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Use detail photo 2 on wall" }));
-  expect(mockTransport.setLayout).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Hang selected photo" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
-  expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
-  const [input] = mockTransport.setLayout.mock.calls[0] as Parameters<WallTransport["setLayout"]>;
-  expect(input.items).toHaveLength(2);
-  expect(input.items[1]).toMatchObject({
-    saveLocalId: "save-a",
-    photoLocalId: "wall-detail",
-    layout: { frame: "black" },
-  });
-  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
-  expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
-  imageSize.mockRestore();
 });
 
 it("saves removals and additions immediately and Done only exits the editor", async () => {
   await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Take off wall" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Remove artwork from wall" }));
   expect(screen.queryByRole("button", { name: "The Milkmaid" })).toBeNull();
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   expect(mockTransport.setLayout).toHaveBeenNthCalledWith(
@@ -321,7 +268,7 @@ it("saves removals and additions immediately and Done only exits the editor", as
     expect.objectContaining({ revision: 3, items: [] }),
     expect.anything(),
   );
-  await fireEvent.press(await screen.findByRole("button", { name: "Hang Sunflowers" }));
+  await addSunflowers();
   expect(screen.getByRole("button", { name: "Sunflowers" })).toBeOnTheScreen();
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   expect(mockTransport.setLayout).toHaveBeenNthCalledWith(
@@ -337,7 +284,7 @@ it("saves removals and additions immediately and Done only exits the editor", as
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(2);
 });
 
-it("previews wallpaper choices while the sheet is open and saves them in one change when it closes", async () => {
+it("previews wallpaper on the canvas and saves one change only when Done is pressed", async () => {
   await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
@@ -350,8 +297,7 @@ it("previews wallpaper choices while the sheet is open and saves them in one cha
   expect(screen.getByRole("button", { name: "Sage" })).not.toBeSelected();
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
 
-  // The sheet's Done follows the editor's own Done button.
-  await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(screen.queryByRole("button", { name: "Stripe" })).toBeNull();
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
@@ -362,13 +308,13 @@ it("previews wallpaper choices while the sheet is open and saves them in one cha
 
   await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
   expect(screen.getByRole("button", { name: "Stripe" })).toBeSelected();
-  await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
 });
 
 it("hides pending deletions from the wall immediately and restores them on Undo", async () => {
   const view = await openWall();
-  await view.rerender(<CollectionWall works={[]} hiddenIds={["save-a"]} />);
+  await view.rerender(<CollectionWall works={libraryWorks} hiddenIds={["save-a"]} />);
   expect(screen.queryByRole("button", { name: "The Milkmaid" })).toBeNull();
   await view.rerender(<CollectionWall works={[]} hiddenIds={[]} />);
   expect(screen.getByRole("button", { name: "The Milkmaid" })).toBeOnTheScreen();
@@ -412,7 +358,7 @@ it("keeps the wall mounted and the artwork hidden when its Undo window expires",
 
 it("does not republish deleted artworks from an older wall response", async () => {
   const view = await openWall();
-  await view.rerender(<CollectionWall works={[]} hiddenIds={["save-a"]} />);
+  await view.rerender(<CollectionWall works={libraryWorks} hiddenIds={["save-a"]} />);
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await chooseWallColor("Burgundy");
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
@@ -421,33 +367,26 @@ it("does not republish deleted artworks from an older wall response", async () =
 
 it("normalizes placement layers while saving with an artwork hidden for deletion", async () => {
   const view = await openWall();
-  await view.rerender(<CollectionWall works={[]} hiddenIds={["save-a"]} />);
+  await view.rerender(<CollectionWall works={libraryWorks} hiddenIds={["save-a"]} />);
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await fireEvent.press(await screen.findByRole("button", { name: "Hang Sunflowers" }));
+  await addSunflowers();
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   const [input] = mockTransport.setLayout.mock.calls[0] as Parameters<WallTransport["setLayout"]>;
   expect(input.items.map((item) => [item.saveLocalId, item.layout.layer])).toEqual([["save-b", 0]]);
 });
 
-it("reloads the synced collection each time editing begins", async () => {
-  await openWall();
+it("reflects collection updates when opening the library again", async () => {
+  const view = await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await screen.findByRole("button", { name: "Hang Sunflowers" });
+  await fireEvent.press(screen.getByRole("button", { name: "Add art" }));
+  await screen.findByRole("checkbox", { name: "Sunflowers" });
+  await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
-  expect(mockTransport.setLayout).not.toHaveBeenCalled();
-  mockTransport.listMine.mockResolvedValue({
-    page: [
-      {
-        localId: "save-c",
-        snapshot: { title: "Irises", artist: "Vincent van Gogh" },
-      },
-    ],
-    cursor: null,
-    isDone: true,
-  });
+  await view.rerender(<CollectionWall works={[{ ...libraryWorks[0], localId: "save-c", title: "Irises" }]} />);
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  expect(await screen.findByRole("button", { name: "Hang Irises" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Hang Sunflowers" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Add art" }));
+  expect(await screen.findByRole("checkbox", { name: "Irises" })).toBeOnTheScreen();
+  expect(screen.queryByRole("checkbox", { name: "Sunflowers" })).toBeNull();
 });
 
 it("saves each color, frame, and placement edit using the latest acknowledged revision", async () => {
@@ -456,12 +395,14 @@ it("saves each color, frame, and placement edit using the latest acknowledged re
   await chooseWallColor("Burgundy");
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
   await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Right" })).toBeEnabled());
-  await fireEvent.press(screen.getByRole("button", { name: "Right" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Right" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Baroque" })).toBeEnabled());
   await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
+  await fireEvent(screen.getByRole("button", { name: "The Milkmaid" }), "accessibilityAction", {
+    nativeEvent: { actionName: "moveRight" },
+  });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   await screen.findByRole("button", { name: "Edit wall" });
   expect(mockTransport.setLayout.mock.calls.map(([input]) => input.revision)).toEqual([3, 4, 5]);
@@ -490,7 +431,7 @@ it("retains a failed edit until an explicit retry saves it", async () => {
   await chooseWallColor("Burgundy");
   expect(await screen.findByRole("alert")).toHaveTextContent(/Your wall change was not saved/);
   expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Hang Sunflowers" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add art" })).toBeDisabled();
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole("button", { name: "Retry saving" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
@@ -514,7 +455,7 @@ it("discards a failed change without publishing and restores the saved wall", as
   await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
   expect(screen.getByRole("button", { name: "Sage" })).toBeSelected();
   await fireEvent.press(screen.getByRole("button", { name: "Burgundy" }));
-  await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(2));
 });
 
@@ -545,14 +486,13 @@ it("keeps editor controls visible and locked during a save", async () => {
   );
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Right" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole("header", { name: "Edit artwork" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Right" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Take off wall" })).toBeDisabled();
+  expect(screen.getByRole("header", { name: "Edit frame" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Baroque" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Done", disabled: true })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Right" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
   await act(async () =>
     resolveSave({
@@ -560,11 +500,11 @@ it("keeps editor controls visible and locked during a save", async () => {
       revision: 4,
       items: published.items.map((item) => ({
         ...item,
-        layout: { ...item.layout, x: 0.125 },
+        layout: { ...item.layout, frame: "baroque" },
       })),
     }),
   );
-  expect(screen.getByRole("button", { name: "Right" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Baroque" })).toBeEnabled();
 });
 
 it("cancels an in-flight save when its owner changes without retaining a stale wall or error", async () => {
@@ -589,57 +529,31 @@ it("cancels an in-flight save when its owner changes without retaining a stale w
   expect(screen.queryByRole("button", { name: "The Milkmaid" })).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.queryByRole("button", { name: "Retry saving" })).toBeNull();
-  // The screen remounts on an owner change in the app; here the editor is closed by hand to reach the guest wall.
-  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(await screen.findByRole("button", { name: "Scan artwork" })).toBeOnTheScreen();
 });
 
-it("saves the final size only after a slider drag ends", async () => {
+it("persists resizing directly from the wall without opening a sheet", async () => {
   await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
-  const slider = screen.getByRole("adjustable", { name: "Artwork size" });
-  await fireEvent(slider, "editingChanged", true);
-  await fireEvent(slider, "valueChange", 0.5);
-  await fireEvent(slider, "valueChange", 0.6);
-  expect(mockTransport.setLayout).not.toHaveBeenCalled();
-  await fireEvent(slider, "editingChanged", false);
+  await fireEvent(screen.getByRole("button", { name: "The Milkmaid" }), "accessibilityAction", {
+    nativeEvent: { actionName: "increment" },
+  });
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(mockTransport.setLayout).toHaveBeenCalledWith(
     expect.objectContaining({
       items: [
-        expect.objectContaining({
-          layout: expect.objectContaining({ width: 0.6 }),
-        }),
+        expect.objectContaining({ layout: expect.objectContaining({ width: published.items[0].layout.width + 0.04 }) }),
       ],
     }),
     expect.anything(),
   );
-});
-
-it("saves an accessible slider adjustment without requiring a drag gesture", async () => {
-  await openWall();
-  await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Frame & photo" }));
-  await fireEvent(screen.getByRole("adjustable", { name: "Artwork size" }), "valueChange", 0.41);
-  await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
-  expect(mockTransport.setLayout).toHaveBeenCalledWith(
-    expect.objectContaining({
-      items: [
-        expect.objectContaining({
-          layout: expect.objectContaining({ width: 0.41 }),
-        }),
-      ],
-    }),
-    expect.anything(),
-  );
+  expect(screen.queryByRole("header", { name: "Edit frame" })).toBeNull();
 });
 
 it("shows the empty wall instead of a spinner while the account scope is still missing", async () => {
   switchOwner("account:a");
-  await render(<CollectionWall works={[]} onEditingChange={jest.fn()} />);
+  await render(<CollectionWall works={libraryWorks} onEditingChange={jest.fn()} />);
   expect(screen.queryByText("Opening your wall…")).toBeNull();
   expect(screen.getByRole("button", { name: "Load wall" })).toBeOnTheScreen();
   expect(mockTransport.getMine).not.toHaveBeenCalled();
@@ -669,7 +583,13 @@ it("re-reads the wall each time the screen regains focus after the first load", 
 it("re-reads a signed-out wall on focus after another screen changed it", async () => {
   mockToken = null;
   switchOwner("device:refocused-wall", "guest-scope");
-  const work = { localId: "refocus-save", savedAt: 1, title: "Water Lilies", artist: "Claude Monet" };
+  const work = {
+    owner: "device:refocused-wall",
+    localId: "refocus-save",
+    savedAt: 1,
+    title: "Water Lilies",
+    artist: "Claude Monet",
+  };
   await insertSavedWork(work, "device:refocused-wall");
   await render(<CollectionWall works={[work as SavedWork]} />);
   expect(await screen.findByText("Your wall stays private on this iPhone until you sign in.")).toBeOnTheScreen();
@@ -738,10 +658,9 @@ it("shows a blank wall to an account without a profile until it has art to hang"
 
 it("asks an account without a profile to create one before choosing artworks", async () => {
   mockTransport.getMine.mockRejectedValue(new ConvexError({ code: "profile_required" }));
-  await render(<CollectionWall works={[{ localId: "save-b" } as SavedWork]} />);
+  await render(<CollectionWall works={libraryWorks} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Choose artworks" }));
   expect(screen.getByRole("header", { name: "Your public wall" })).toBeOnTheScreen();
-  expect(mockTransport.listMine).not.toHaveBeenCalled();
 });
 
 it("clears a rendered wall immediately when its owner changes", async () => {
@@ -762,6 +681,7 @@ it.each([false, true])("loads local draft artwork proportions, tolerating a miss
   try {
     const works = [
       {
+        owner: "account:a",
         localId: "save-b",
         cropPath: "crops/sunflowers.jpg",
         title: "Sunflowers",
@@ -770,7 +690,6 @@ it.each([false, true])("loads local draft artwork proportions, tolerating a miss
     ] as SavedWork[];
     const { result } = await renderHook(() => useCollectionWall(works));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    await act(() => result.current.loadSelections());
     await act(() =>
       result.current.repository.setLayoutDraft({
         color: "#CDD0CA",
@@ -784,7 +703,7 @@ it.each([false, true])("loads local draft artwork proportions, tolerating a miss
       }),
     );
     expect(result.current.pieces[0].artwork.title).toBe("Sunflowers");
-    expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900);
+    await waitFor(() => expect(wallAspect(result.current.pieces[0])).toBeCloseTo(missing ? 1 : 600 / 900));
     expect(mockTransport.setLayout).not.toHaveBeenCalled();
   } finally {
     getSize.mockRestore();
@@ -812,45 +731,56 @@ it("scrolls a newly hung artwork into view", async () => {
   try {
     await openWall();
     await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-    await fireEvent.press(await screen.findByRole("button", { name: "Hang Sunflowers" }));
-    await waitFor(() =>
-      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ animated: false, y: expect.any(Number) })),
-    );
-    const call = scrollTo.mock.calls.find(([options]) => typeof options === "object" && options && "y" in options);
-    expect((call?.[0] as { y: number } | undefined)?.y).toBeGreaterThan(0);
+    await addSunflowers();
+    await waitFor(() => {
+      const call = scrollTo.mock.calls.find(
+        ([options]) => typeof options === "object" && options && "y" in options && (options.y ?? 0) > 0,
+      );
+      expect((call?.[0] as { y: number } | undefined)?.y).toBeGreaterThan(0);
+    });
     expect(screen.getByRole("button", { name: "Sunflowers" })).toBeOnTheScreen();
   } finally {
     scrollTo.mockRestore();
   }
 });
 
-it("keeps the horizontal artwork selector available after selecting and hanging art", async () => {
-  mockTransport.listMine.mockResolvedValue({
-    page: [
-      {
-        localId: "save-a",
-        snapshot: { title: "The Milkmaid", artist: "Johannes Vermeer" },
-      },
-      {
-        localId: "save-b",
-        snapshot: { title: "Sunflowers", artist: "Vincent van Gogh" },
-      },
-    ],
-    cursor: null,
-    isDone: true,
-  });
+it("keeps artwork tools contextual and lets the picker add artwork without reselecting hung pieces", async () => {
   await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await fireEvent.press(await screen.findByRole("button", { name: "Select The Milkmaid" }));
-  expect(screen.getByRole("button", { name: "Select The Milkmaid" })).toBeSelected();
-  expect(screen.getByRole("button", { name: "Hang Sunflowers" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Frame" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
+  expect(screen.getByRole("button", { name: "Frame" })).toBeEnabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Deselect artwork" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add art" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
   expect(mockTransport.setLayout).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Hang Sunflowers" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
-  expect(screen.getByRole("button", { name: "Select Sunflowers" })).toBeSelected();
-  await fireEvent.press(screen.getByRole("button", { name: "Select The Milkmaid" }));
-  expect(screen.getByRole("button", { name: "Select The Milkmaid" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Sunflowers" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Deselect artwork" }));
+  expect(screen.queryByRole("button", { name: "Frame" })).toBeNull();
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
+});
+
+it("saves an empty wall’s wallpaper with Done and has no separate apply or cancel controls", async () => {
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await render(<CollectionWall works={[]} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Edit wall" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Burgundy" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Trellis" }));
+  expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Wallpaper" })).toBeEnabled());
+  expect(mockTransport.setLayout).toHaveBeenCalledWith(
+    expect.objectContaining({ color: "#6C2F2B", pattern: "trellis", items: [] }),
+    expect.anything(),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
+  expect(screen.getByRole("button", { name: "Burgundy" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Trellis" })).toBeSelected();
 });
 
 it("shows a blank wall and opens Scan when there is no saved art", async () => {
@@ -879,7 +809,7 @@ it("shows a blank wall and opens Scan when there is no saved art", async () => {
 
 it("opens the editor from an empty wall when saved art is available", async () => {
   mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
-  await render(<CollectionWall works={[{ localId: "save-b" } as SavedWork]} />);
+  await render(<CollectionWall works={libraryWorks} />);
   await fireEvent.press(await screen.findByRole("button", { name: "Choose artworks" }));
   await fireEvent.press(await screen.findByRole("checkbox", { name: "Sunflowers" }));
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
@@ -1062,4 +992,86 @@ it("keeps photo A full after photo B is cropped on another device", async () => 
   } finally {
     getSize.mockRestore();
   }
+});
+
+it("publishes a reviewed multi-artwork selection in one wall update", async () => {
+  const works = [...libraryWorks, { ...libraryWorks[0], localId: "save-c", title: "Irises", savedAt: 1 }];
+  await render(<CollectionWall works={works} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Edit wall" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add art" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
+  await fireEvent.changeText(screen.getByLabelText("Search artworks"), "Irises");
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Irises" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Review selected artworks" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add 2 artworks to wall" }));
+  await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
+  const [input] = mockTransport.setLayout.mock.calls[0] as Parameters<WallTransport["setLayout"]>;
+  expect(input.items.map((item) => item.saveLocalId)).toEqual(["save-a", "save-b", "save-c"]);
+  expect(screen.queryByRole("header", { name: "Selected artworks" })).toBeNull();
+});
+
+it("releases a cancelled artwork addition and lets the same owner retry in a new session", async () => {
+  let resolveSize!: (size: { width: number; height: number }) => void;
+  const measurement = new Promise<{ width: number; height: number }>((resolve) => {
+    resolveSize = resolve;
+  });
+  const getSize = jest.spyOn(Image, "getSize").mockImplementation(() => measurement);
+  try {
+    await render(<CollectionWall works={[{ ...libraryWorks[0], cropPath: "sunflowers.jpg" }]} />);
+    await fireEvent.press(await screen.findByRole("button", { name: "Edit wall" }));
+    await addSunflowers();
+    expect(getSize).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Wall" })).toBeDisabled();
+
+    mockTransport.getMine.mockResolvedValue({ ...published, scope: "scope-b" });
+    await act(() => switchOwner("account:a", "scope-b"));
+    await act(async () => {
+      resolveSize({ width: 600, height: 800 });
+      await measurement;
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Wall" })).toBeEnabled());
+    expect(mockTransport.setLayout).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
+    await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
+    expect(mockTransport.setLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "scope-b",
+        items: expect.arrayContaining([expect.objectContaining({ saveLocalId: "save-b" })]),
+      }),
+      expect.anything(),
+    );
+  } finally {
+    getSize.mockRestore();
+  }
+});
+
+it("keeps Done outside the scrolling wall when the collection header is hidden for editing", async () => {
+  await render(<CollectionWall works={libraryWorks} header={<Text>Collection header</Text>} />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Edit wall" }));
+  const canvasScroll = screen.root!.queryAll((node) => node.type === "RCTScrollView")[0];
+  expect(within(canvasScroll).queryByRole("button", { name: "Done" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
+  expect(screen.queryByText("Collection header")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("Collection header")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Edit wall" })).toBeEnabled();
+});
+
+it("keeps only Frame and Remove in the selected palette and only frame choices in the frame sheet", async () => {
+  await openWall();
+  await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
+  await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
+  expect(screen.getByRole("button", { name: "Remove artwork from wall" })).toBeEnabled();
+  for (const name of ["Photo", "Arrange", "Close"]) {
+    expect(screen.queryByRole("button", { name })).toBeNull();
+  }
+  await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
+  expect(screen.getByRole("header", { name: "Edit frame" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Oak" })).toBeOnTheScreen();
+  for (const name of ["Photo", "Arrange", "Take off wall", "Choose photo"]) {
+    expect(screen.queryByRole("button", { name })).toBeNull();
+  }
+  expect(screen.queryByRole("adjustable", { name: "Artwork size" })).toBeNull();
 });

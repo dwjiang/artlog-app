@@ -58,7 +58,7 @@ export function WallSheet({
         >
           {/* Presented content needs its own React Native touch and measurement root. */}
           <RNHostView>
-            <View style={fit ? { height: fitted.height } : { flex: 1 }}>
+            <View style={{ height: fit ? fitted.height : fitted.maxHeight }}>
               <View style={styles.sheetHeader} onLayout={fitted.onHeaderLayout}>
                 <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
                   {title}

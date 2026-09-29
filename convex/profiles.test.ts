@@ -9,6 +9,7 @@ import {
   validateProfile,
   validateGeography,
 } from "../shared/social/contracts";
+import { STARTER_WALLS } from "../shared/wall/defaults";
 import { api, internal } from "./_generated/api";
 import { projectArtwork, projectSharedVisitCard, projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
@@ -55,6 +56,40 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
   expect(await t.run((ctx) => ctx.db.query("profiles").collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual([]);
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
+});
+
+it("persists a random starter color and design once when a profile is created", async () => {
+  const { t, account } = await fixture();
+  const owner = await account("starter-wall");
+  const input = { username: "starter_wall", name: "Starter" };
+  const profile = await owner.as.mutation(api.profiles.create, input);
+  const first = await owner.as.query(api.walls.getMine, {});
+  expect(first.items).toEqual([]);
+  expect(first.revision).toBe(0);
+  expect(STARTER_WALLS).toContainEqual({ color: first.color, pattern: first.pattern });
+  expect(await t.query(api.walls.getPublic, { profileId: profile.profileId })).toMatchObject({
+    color: first.color,
+    pattern: first.pattern,
+    items: [],
+    artworkCount: 0,
+  });
+  await owner.as.mutation(api.walls.setLayout, {
+    scope: owner.scope,
+    revision: 0,
+    color: "#6C2F2B",
+    pattern: "grid",
+    items: [],
+  });
+  await owner.as.mutation(api.profiles.create, input);
+  expect(await owner.as.query(api.walls.getMine, {})).toMatchObject({ color: "#6C2F2B", pattern: "grid", revision: 1 });
+  expect(
+    await t.run((ctx) =>
+      ctx.db
+        .query("walls")
+        .withIndex("by_profileId", (q) => q.eq("profileId", profile.profileId))
+        .collect(),
+    ),
+  ).toHaveLength(1);
 });
 
 it("has one winner for simultaneous username requests and never replaces an existing profile username", async () => {
@@ -279,11 +314,12 @@ it("invalidates reverse save references, consent and revisions while keeping the
       updatedBy: user.deviceId,
       changeVersion: 2,
     });
-    const wallId = await ctx.db.insert("walls", {
-      profileId: profile.profileId,
-      color: "#fff",
-      layoutRevision: 3,
-    });
+    const wall = await ctx.db
+      .query("walls")
+      .withIndex("by_profileId", (q) => q.eq("profileId", profile.profileId))
+      .unique();
+    const wallId = wall!._id;
+    await ctx.db.patch("walls", wallId, { color: "#fff", layoutRevision: 3 });
     const itemId = await ctx.db.insert("wallItems", {
       wallId,
       profileId: profile.profileId,

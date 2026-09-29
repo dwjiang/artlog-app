@@ -75,7 +75,6 @@ async function signIn(serverWall: OwnerWall) {
   const transport = {
     getMine: jest.fn().mockResolvedValue(serverWall),
     setLayout: jest.fn().mockResolvedValue({ ...serverWall, revision: 2, color: guestWall.color }),
-    listMine: jest.fn(),
     setNoteVisibility: jest.fn(),
   } satisfies WallTransport;
   const repository = createWallRepository({

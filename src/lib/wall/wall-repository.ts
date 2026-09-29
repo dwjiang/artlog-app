@@ -196,17 +196,6 @@ export function createWallRepository(deps: Dependencies) {
     },
     publishLayout: () => publish("layout"),
     publishNotes: () => publish("notes"),
-    listSelections: async (cursor?: string | null) => {
-      const current = request();
-      try {
-        await current.ready();
-        const result = await deps.transport.listMine({ scope: current.scope, cursor }, current.context);
-        current.check();
-        return result;
-      } finally {
-        current.finish();
-      }
-    },
     discardDrafts: () =>
       update({
         layoutDraft: null,

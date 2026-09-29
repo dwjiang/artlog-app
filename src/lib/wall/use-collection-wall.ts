@@ -9,15 +9,12 @@ import { captureOwner, useLocalOwner, useOwnerGeneration, useServerScope } from 
 import { captureFileUri } from "@/lib/files/photos";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
-import type { JournalSave } from "@/shared/journal/contracts";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { publishClaimedWall } from "./claimed-wall";
 import { useWallRepository } from "./use-wall-repository";
 import type { WallDraft, WallPiece } from "./wall-layout";
 import type { OwnerWall } from "./wall-transport";
-
-type Selection = Pick<JournalSave, "localId" | "snapshot"> & { cropAspectRatio?: number };
 
 // Only an account's wall is published; a signed-out wall stays on this iPhone.
 function isPublished(wall: OwnerWall | WallDraft | null): wall is OwnerWall {
@@ -52,9 +49,6 @@ export function useCollectionWall(works: SavedWork[]) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();
   const [profileRequired, setProfileRequired] = useState(false);
-  const [selections, setSelections] = useState<Selection[]>([]);
-  const [cursor, setCursor] = useState<string | null>();
-  const [loadingSelections, setLoadingSelections] = useState(false);
 
   useEffect(() => {
     if (!loadKey) return;
@@ -119,48 +113,6 @@ export function useCollectionWall(works: SavedWork[]) {
         }
       : null);
 
-  async function loadSelections(reset = false) {
-    if (loadingSelections || (!reset && cursor === null)) return;
-    const session = captureOwner();
-    const from = reset ? undefined : cursor;
-    setLoadingSelections(true);
-    setError(undefined);
-    if (reset) setCursor(undefined);
-    try {
-      const result = await state.repository.listSelections(from);
-      const page: Selection[] = await Promise.all(
-        result.page.map(async (item) => {
-          const path = works.find((work) => work.localId === item.localId)?.cropPath;
-          if (!path) return item;
-          try {
-            const { width, height } = await Image.getSize(captureFileUri(path));
-            return {
-              ...item,
-              cropAspectRatio: width > 0 && height > 0 ? width / height : undefined,
-            };
-          } catch {
-            return item;
-          }
-        }),
-      );
-      if (!session.isCurrent()) return;
-      // Hung selections supply the draft's snapshots, so a reset keeps them and replaces the rest.
-      const hung = new Set(draft?.items.map((item) => item.saveLocalId));
-      setSelections((previous) => {
-        const kept = reset ? previous.filter((item) => hung.has(item.localId)) : previous;
-        return [...kept, ...page.filter((item) => !kept.some((old) => old.localId === item.localId))];
-      });
-      setCursor(result.isDone ? null : result.cursor);
-    } catch (cause) {
-      if (session.isCurrent()) reportError(cause, "wall.selections.load");
-      if (session.isCurrent()) {
-        setError(socialErrorMessage(cause) ?? "Artworks could not load. Try again.");
-      }
-    } finally {
-      if (session.isCurrent()) setLoadingSelections(false);
-    }
-  }
-
   const albumPhotos = useLiveQuery(selectAllArtworkPhotos(owner), [owner]);
   useEffect(() => {
     if (albumPhotos.error) reportError(albumPhotos.error, "wall.photos.load");
@@ -204,9 +156,8 @@ export function useCollectionWall(works: SavedWork[]) {
 
   const pieces: WallPiece[] = (draft?.items ?? []).flatMap(({ placementId, photoLocalId, saveLocalId, layout }) => {
     const publishedItem = published?.items.find((item) => item.placementId === placementId);
-    const selection = selections.find((item) => item.localId === saveLocalId);
-    const work = works.find((item) => item.localId === saveLocalId);
-    const snapshot = selection?.snapshot ?? work;
+    const work = works.find((item) => item.owner === owner && item.localId === saveLocalId);
+    const snapshot = work;
     if (!publishedItem && !snapshot) return [];
     const path = wallPhotoPath(saveLocalId, photoLocalId);
     return [
@@ -227,7 +178,7 @@ export function useCollectionWall(works: SavedWork[]) {
           },
         },
         cropPath: path,
-        cropAspectRatio: path ? photoAspects[path] : !publishedItem ? selection?.cropAspectRatio : undefined,
+        cropAspectRatio: path ? photoAspects[path] : undefined,
       },
     ];
   });
@@ -241,10 +192,6 @@ export function useCollectionWall(works: SavedWork[]) {
     setError,
     profileRequired,
     refresh,
-    selections,
-    cursor,
-    loadingSelections,
-    loadSelections,
     draft,
     pieces,
   };
