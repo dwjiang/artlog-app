@@ -33,7 +33,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   const saveProfile = useAction(api.profilePhotos.save);
   const [step, setStep] = useState(0);
   const [name, setName] = useState(suggestedName.slice(0, LIMITS.name));
-  // Undefined follows the suggestion from Apple's name until the person types a username.
+  // Undefined follows the suggestion from the sign-in name until the person types a username.
   const [username, setUsername] = useState<string>();
   const [photo, setPhoto] = useState<string>();
   const [operation, setOperation] = useState<"username" | "name" | "choose" | "photo">();
@@ -51,10 +51,10 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
     };
   }, []);
   const trimmedName = name.trim();
-  const appleName = suggestedName.trim().slice(0, LIMITS.name);
+  const suggestedDisplayName = suggestedName.trim().slice(0, LIMITS.name);
   const suggestion = useSocialQuery(
     api.profiles.suggestUsername,
-    username === undefined && appleName ? { name: appleName } : "skip",
+    username === undefined && suggestedDisplayName ? { name: suggestedDisplayName } : "skip",
     session.key,
   );
   const chosenUsername = username ?? suggestion.data ?? "";
@@ -79,8 +79,9 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   async function claimUsername() {
     if (busy || session.status !== "profile-required" || (check !== "available" && check !== "unchecked")) return;
     const owner = captureOwner();
-    // This step can't edit the name, so a disallowed Apple name is left for the name step to refuse.
-    const initialName = appleName && isAllowedIdentity(appleName) ? appleName : chosenUsername;
+    // This step can't edit the name, so a disallowed suggested name is left for the name step to refuse.
+    const initialName =
+      suggestedDisplayName && isAllowedIdentity(suggestedDisplayName) ? suggestedDisplayName : chosenUsername;
     setOperation("username");
     setError(undefined);
     try {

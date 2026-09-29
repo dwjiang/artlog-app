@@ -116,7 +116,7 @@ export async function consumeChallenge(
   ctx: MutationCtx,
   device: Doc<"devices">,
   nonce: string,
-  purpose: "attest" | "assert" | "apple",
+  purpose: "attest" | "assert" | "apple" | "google",
 ): Promise<void> {
   const now = Date.now();
   const challenge = await ctx.db

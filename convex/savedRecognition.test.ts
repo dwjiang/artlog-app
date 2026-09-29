@@ -169,7 +169,8 @@ it("lets another device on the same account retry a saved scan without the captu
   const second = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const accountId = await ctx.db.insert("accounts", {
-      appleUserId: "same-owner",
+      provider: "apple",
+      providerUserId: "same-owner",
     });
     await ctx.db.patch("devices", user.deviceId, { accountId });
     await ctx.db.patch("devices", second.deviceId, { accountId });

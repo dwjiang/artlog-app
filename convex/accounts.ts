@@ -10,31 +10,33 @@ import { deleteUnreferencedCollectionPhotos } from "./lib/collectionPhotos";
 import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
 import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
+import { accountProvider } from "./lib/validators";
 
 const MAX_DEVICES = 20;
 const PURGE_BATCH = 50;
 
 export const linkAccount = mutation({
   args: {
-    appleUserId: v.string(),
+    provider: accountProvider,
+    providerUserId: v.string(),
     nonce: v.string(),
     assertionBase64: v.string(),
   },
   returns: v.id("accounts"),
-  handler: async (ctx, { appleUserId, ...assertion }) => {
+  handler: async (ctx, { provider, providerUserId, ...assertion }) => {
     const device = await requireAttestedWrite(ctx, {
       ...assertion,
-      payload: stableStringify({ action: "linkAccount", appleUserId }),
+      payload: stableStringify({ action: "linkAccount", provider, providerUserId }),
     });
     const existing = await ctx.db
       .query("accounts")
-      .withIndex("by_appleUserId", (q) => q.eq("appleUserId", appleUserId))
+      .withIndex("by_provider_userId", (q) => q.eq("provider", provider).eq("providerUserId", providerUserId))
       .unique();
     if (device.accountId === existing?._id && existing) return existing._id;
     if (device.accountId) throw new ConvexError({ code: "already_linked" });
-    const proof = device.appleLinkProof;
-    if (!proof || proof.sub !== appleUserId || proof.expiresAt <= Date.now()) {
-      throw new ConvexError({ code: "apple_sign_in_required" });
+    const proof = device.accountLinkProof;
+    if (!proof || proof.provider !== provider || proof.sub !== providerUserId || proof.expiresAt <= Date.now()) {
+      throw new ConvexError({ code: "sign_in_required" });
     }
     const members = existing
       ? await ctx.db
@@ -49,7 +51,8 @@ export const linkAccount = mutation({
     const accountId =
       existing?._id
       ?? (await ctx.db.insert("accounts", {
-        appleUserId,
+        provider,
+        providerUserId,
         email: proof.email,
       }));
     if (existing && proof.email) await ctx.db.patch("accounts", existing._id, { email: proof.email });
@@ -75,7 +78,7 @@ export const linkAccount = mutation({
     }
     await ctx.db.patch("devices", device._id, {
       accountId,
-      appleLinkProof: undefined,
+      accountLinkProof: undefined,
       scopeRevision: device.scopeRevision + 1,
     });
     return accountId;
@@ -95,7 +98,7 @@ export const unlink = mutation({
     if (claim) await ctx.db.delete("journalClaims", claim._id);
     await ctx.db.patch("devices", device._id, {
       accountId: undefined,
-      appleLinkProof: undefined,
+      accountLinkProof: undefined,
       scopeRevision: device.scopeRevision + 1,
     });
     return null;
@@ -124,7 +127,7 @@ export const deleteAccount = mutation({
       if (member?.accountId === account._id) {
         await ctx.db.patch("devices", id, {
           accountId: undefined,
-          appleLinkProof: undefined,
+          accountLinkProof: undefined,
           scopeRevision: member.scopeRevision + 1,
         });
       }
@@ -132,7 +135,7 @@ export const deleteAccount = mutation({
     const authAccount = await ctx.db
       .query("authAccounts")
       .withIndex("providerAndAccountId", (q) =>
-        q.eq("provider", "apple-native").eq("providerAccountId", account.appleUserId),
+        q.eq("provider", `${account.provider}-native`).eq("providerAccountId", account.providerUserId),
       )
       .unique();
     if (authAccount) await ctx.db.delete("authAccounts", authAccount._id);

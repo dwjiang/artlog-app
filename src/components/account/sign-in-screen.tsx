@@ -14,7 +14,7 @@ import { profileSetupRoute, takeProfileSetupOffer, useProfileSetupOffer } from "
 import { signInContexts, type SignInContext } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 
-import { AppleSignInAction } from "./apple-sign-in-action";
+import { SignInActions } from "./sign-in-actions";
 
 export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
   const state = useAccount();
@@ -74,7 +74,7 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
               <LoadingRing accessibilityLabel="Syncing your journal…" color={Gallery.accent} />
             </View>
           ) : (
-            <AppleSignInAction state={state} />
+            <SignInActions state={state} />
           )}
           <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
         </View>

@@ -40,7 +40,7 @@ export async function requireJournalOwner(ctx: ReadCtx, scope: string) {
 export async function requireAccount(ctx: ReadCtx) {
   const resolved = await resolveOwner(ctx);
   if (resolved.owner.kind !== "account") {
-    throw new ConvexError({ code: "apple_sign_in_required" });
+    throw new ConvexError({ code: "sign_in_required" });
   }
   return { ...resolved, accountId: resolved.owner.accountId };
 }

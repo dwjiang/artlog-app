@@ -17,7 +17,7 @@ it("derives the actor and restricts each pending transition to its participant",
       profileId: a.profileId,
       revision: 0,
     }),
-  ).rejects.toMatchObject({ data: { code: "apple_sign_in_required" } });
+  ).rejects.toMatchObject({ data: { code: "sign_in_required" } });
   await expect(
     a.as.mutation(api.friendships.request, {
       profileId: a.profileId,
@@ -140,7 +140,8 @@ it("enforces the 200-friend cap for both participants and concurrent acceptances
   await t.run(async (ctx) => {
     for (let i = 0; i < 199; i++) {
       const accountId = await ctx.db.insert("accounts", {
-        appleUserId: `cap-${i}`,
+        provider: "apple",
+        providerUserId: `cap-${i}`,
       });
       const other = await ctx.db.insert("profiles", {
         accountId,

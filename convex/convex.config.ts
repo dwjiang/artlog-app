@@ -18,6 +18,7 @@ const app = defineApp({
     FACT_SHEET_MODEL: optional,
     FLAG_LABEL_FLOW: optional,
     FLAG_RIGHT_NOW: optional,
+    GOOGLE_WEB_CLIENT_ID: optional,
     LABEL_MODEL: optional,
     MINIMUM_IOS_BUILD: optional,
     MODERATION_BLOCKLIST: optional,

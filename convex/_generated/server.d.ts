@@ -41,6 +41,7 @@ type Env = {
   readonly FACT_SHEET_MODEL: string | undefined;
   readonly FLAG_LABEL_FLOW: string | undefined;
   readonly FLAG_RIGHT_NOW: string | undefined;
+  readonly GOOGLE_WEB_CLIENT_ID: string | undefined;
   readonly LABEL_MODEL: string | undefined;
   readonly MINIMUM_IOS_BUILD: string | undefined;
   readonly MODERATION_BLOCKLIST: string | undefined;

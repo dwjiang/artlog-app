@@ -31,18 +31,7 @@ jest.mock("@/lib/account/use-account", () => ({
     signInWithApple: mockSignIn,
   }),
 }));
-jest.mock("expo-apple-authentication", () => ({
-  AppleAuthenticationButtonType: { SIGN_IN: 0 },
-  AppleAuthenticationButtonStyle: { BLACK: 0 },
-  AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => {
-    const { Pressable, Text } = jest.requireActual("react-native");
-    return (
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Text>Sign in with Apple</Text>
-      </Pressable>
-    );
-  },
-}));
+
 let mockSession: SocialSession;
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
@@ -537,7 +526,7 @@ it("shows a direct invitation for guest Friends and keeps public discovery one t
   expect(screen.getByLabelText("Name or username")).toBe(search);
   expect(search).toHaveProp("editable", false);
   expect(screen.queryByText("An afternoon of art")).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));

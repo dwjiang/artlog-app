@@ -4,11 +4,13 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
 import { fileStorage } from "./lib/fileStorage";
+import { verifyGoogleIdentityToken } from "./lib/googleToken";
 import { limitDevice } from "./lib/rateLimits";
 import { seedDevice } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn<typeof verifyAppleIdentityToken>() }));
+vi.mock("./lib/googleToken", () => ({ verifyGoogleIdentityToken: vi.fn<typeof verifyGoogleIdentityToken>() }));
 let privateKey: string;
 beforeAll(async () => {
   privateKey = await exportPKCS8((await generateKeyPair("RS256", { extractable: true })).privateKey);
@@ -21,6 +23,7 @@ beforeEach(() => {
     sub: "apple-user",
     email: "me@example.com",
   });
+  vi.mocked(verifyGoogleIdentityToken).mockResolvedValue({ sub: "google-user", email: "me@example.com" });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -34,16 +37,104 @@ async function appleSignIn(device: Awaited<ReturnType<typeof seedDevice>>) {
   });
 }
 
-async function link(device: Awaited<ReturnType<typeof seedDevice>>, appleUserId = "apple-user") {
+async function link(
+  device: Awaited<ReturnType<typeof seedDevice>>,
+  providerUserId = "apple-user",
+  provider: "apple" | "google" = "apple",
+) {
   const { nonce } = await device.as.mutation(api.devices.createChallenge, {
     purpose: "assert",
   });
   return device.as.mutation(api.accounts.linkAccount, {
-    appleUserId,
+    provider,
+    providerUserId,
     nonce,
     assertionBase64: "",
   });
 }
+
+async function googleSignIn(device: Awaited<ReturnType<typeof seedDevice>>) {
+  const { nonce } = await device.as.mutation(api.devices.createChallenge, { purpose: "google" });
+  return device.as.action(api.auth.signIn, {
+    provider: "google-native",
+    params: { identityToken: "google-token", nonce },
+  });
+}
+
+it("links two Google devices to one journal while preserving their device sessions", async () => {
+  const t = harness();
+  const devices = [await seedDevice(t), await seedDevice(t)];
+  for (const device of [...devices, devices[0]]) {
+    const result = await googleSignIn(device);
+    expect(decodeJwt(result.tokens!.token).sub?.split("|")[0]).toBe(device.userId);
+    await link(device, "google-user", "google");
+  }
+  const a = await devices[0].as.query(api.accounts.me, {});
+  expect(await devices[1].as.query(api.accounts.me, {})).toMatchObject({
+    accountId: a.accountId,
+    deviceCount: 2,
+    linked: true,
+    email: "me@example.com",
+  });
+  expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(1);
+});
+
+it("keeps Apple and Google accounts separate even with matching subjects and emails", async () => {
+  const t = harness();
+  vi.mocked(verifyGoogleIdentityToken).mockResolvedValueOnce({ sub: "apple-user", email: "me@example.com" });
+  const apple = await seedDevice(t);
+  const google = await seedDevice(t);
+  await appleSignIn(apple);
+  await googleSignIn(google);
+  const appleId = await link(apple);
+  const googleId = await link(google, "apple-user", "google");
+  expect(googleId).not.toBe(appleId);
+  expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(2);
+});
+
+it("rejects invalid Google tokens, forged subjects and proofs from another provider", async () => {
+  const t = harness();
+  const device = await seedDevice(t);
+  await expect(
+    t.action(api.auth.signIn, { provider: "google-native", params: { identityToken: "token", nonce: "nonce" } }),
+  ).rejects.toThrow("unauthenticated");
+  vi.mocked(verifyGoogleIdentityToken).mockRejectedValueOnce(new Error("wrong audience"));
+  await expect(googleSignIn(device)).rejects.toThrow("wrong audience");
+  await expect(link(device, "google-user", "google")).rejects.toThrow("sign_in_required");
+  await googleSignIn(device);
+  await expect(link(device, "forged", "google")).rejects.toThrow("sign_in_required");
+  await expect(link(device, "google-user", "apple")).rejects.toThrow("sign_in_required");
+  expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
+});
+
+it("rejects Google challenge replay, another device's challenge and a challenge for Apple", async () => {
+  const t = harness();
+  const a = await seedDevice(t);
+  const b = await seedDevice(t);
+  const { nonce } = await a.as.mutation(api.devices.createChallenge, { purpose: "google" });
+  const args = { provider: "google" as const, sub: "google-user", nonce };
+  await expect(b.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
+  await a.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args);
+  await expect(a.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
+  const apple = await a.as.mutation(api.devices.createChallenge, { purpose: "apple" });
+  await expect(
+    a.as.mutation(internal.nativeLogin.recordVerifiedIdentity, { ...args, nonce: apple.nonce }),
+  ).rejects.toThrow("challenge_invalid");
+});
+
+it("deletes Google's auth association and unlinks every device after the journal claims complete", async () => {
+  const t = harness();
+  const devices = [await seedDevice(t), await seedDevice(t)];
+  for (const device of devices) {
+    await googleSignIn(device);
+    await link(device, "google-user", "google");
+    const { scope } = await device.as.query(api.accounts.me, {});
+    while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+  }
+  await devices[0].as.mutation(api.accounts.deleteAccount, {});
+  for (const device of devices) expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
+  expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(0);
+});
 
 async function pair(t: Harness) {
   const a = await seedDevice(t);
@@ -82,14 +173,14 @@ it("requires a device session and a valid Apple token", async () => {
   const device = await seedDevice(t);
   vi.mocked(verifyAppleIdentityToken).mockRejectedValueOnce(new Error("wrong audience"));
   await expect(appleSignIn(device)).rejects.toThrow("wrong audience");
-  await expect(link(device)).rejects.toThrow("apple_sign_in_required");
+  await expect(link(device)).rejects.toThrow("sign_in_required");
 });
 
 it("rejects a forged Apple subject even with a valid device assertion", async () => {
   const t = harness();
   const device = await seedDevice(t);
   await appleSignIn(device);
-  await expect(link(device, "someone-else")).rejects.toThrow("apple_sign_in_required");
+  await expect(link(device, "someone-else")).rejects.toThrow("sign_in_required");
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
 });
 
@@ -100,16 +191,16 @@ it("consumes Apple challenges and rejects replay, expiration and another deviceâ
   const { nonce } = await a.as.mutation(api.devices.createChallenge, {
     purpose: "apple",
   });
-  const args = { sub: "apple-user", nonce };
-  await expect(b.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
-  await a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args);
-  await expect(a.as.mutation(internal.appleLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
+  const args = { provider: "apple" as const, sub: "apple-user", nonce };
+  await expect(b.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
+  await a.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args);
+  await expect(a.as.mutation(internal.nativeLogin.recordVerifiedIdentity, args)).rejects.toThrow("challenge_invalid");
   await t.run((ctx) =>
     ctx.db.patch("devices", a.deviceId, {
-      appleLinkProof: { sub: "apple-user", expiresAt: 0 },
+      accountLinkProof: { provider: "apple", sub: "apple-user", expiresAt: 0 },
     }),
   );
-  await expect(link(a)).rejects.toThrow("apple_sign_in_required");
+  await expect(link(a)).rejects.toThrow("sign_in_required");
 });
 
 it("links idempotently and reports two devices without exposing the Apple subject", async () => {
@@ -122,7 +213,7 @@ it("links idempotently and reports two devices without exposing the Apple subjec
     deviceCount: 2,
     email: "me@example.com",
   });
-  expect(me).not.toHaveProperty("appleUserId");
+  expect(me).not.toHaveProperty("providerUserId");
 });
 
 it("aggregates trust on linking while leaving rate limits per device", async () => {
@@ -166,7 +257,7 @@ it("unlink removes only this device and clears pending proof so it cannot silent
     linked: true,
     deviceCount: 1,
   });
-  await expect(link(a)).rejects.toThrow("apple_sign_in_required");
+  await expect(link(a)).rejects.toThrow("sign_in_required");
   expect(await t.run((ctx) => ctx.db.get("devices", a.deviceId))).toMatchObject({
     authUserId: a.userId,
   });

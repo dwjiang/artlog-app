@@ -8,11 +8,12 @@ export async function wallFixture(t: Harness, sub = String(++readers)) {
   const device = await seedDevice(t);
   await t.run((ctx) =>
     ctx.db.patch("devices", device.deviceId, {
-      appleLinkProof: { sub, expiresAt: Date.now() + 10000 },
+      accountLinkProof: { provider: "apple", sub, expiresAt: Date.now() + 10000 },
     }),
   );
   const accountId = await device.as.mutation(api.accounts.linkAccount, {
-    appleUserId: sub,
+    provider: "apple",
+    providerUserId: sub,
     nonce: (
       await device.as.mutation(api.devices.createChallenge, {
         purpose: "assert",

@@ -8,6 +8,7 @@ const mockSignIn = jest.fn();
 const mockEndSession = jest.fn();
 const mockAnonymous = jest.fn();
 const mockApple = jest.fn();
+const mockGoogle = jest.fn();
 const mockSignPayload = jest.fn();
 const mockPause = jest.fn();
 const mockResume = jest.fn();
@@ -36,6 +37,10 @@ jest.mock("expo-apple-authentication", () => ({
 }));
 jest.mock("expo-image", () => ({
   Image: { clearMemoryCache: () => mockClearImages() },
+}));
+jest.mock("./google-sign-in", () => ({
+  googleSignInAvailable: true,
+  googleSignIn: () => mockGoogle(),
 }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
@@ -71,6 +76,7 @@ beforeEach(() => {
     identityToken: "apple-token",
     user: "apple-user",
   });
+  mockGoogle.mockResolvedValue({ identityToken: "google-token", user: "google-user", name: "Alex Morgan" });
   mockSignPayload.mockResolvedValue({
     nonce: "assertion-nonce",
     assertionBase64: "assertion",
@@ -91,10 +97,12 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   });
   expect(mockSignPayload).toHaveBeenCalledWith({
     action: "linkAccount",
-    appleUserId: "apple-user",
+    provider: "apple",
+    providerUserId: "apple-user",
   });
   expect(mockMutation).toHaveBeenLastCalledWith("accounts:linkAccount", {
-    appleUserId: "apple-user",
+    provider: "apple",
+    providerUserId: "apple-user",
     nonce: "assertion-nonce",
     assertionBase64: "assertion",
   });
@@ -102,6 +110,73 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   expect(mockResume).toHaveBeenCalledTimes(1);
   expect(mockBreadcrumb.mock.calls).toEqual([["auth.apple_sign_in.start"], ["auth.apple_sign_in.success"]]);
   expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("verifies Google before linking its attested identity and offering profile setup", async () => {
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithGoogle());
+  expect(mockMutation).toHaveBeenCalledWith("devices:createChallenge", { purpose: "google" });
+  expect(mockSignIn).toHaveBeenCalledWith("google-native", { identityToken: "google-token", nonce: "apple-nonce" });
+  expect(mockSignPayload).toHaveBeenCalledWith({
+    action: "linkAccount",
+    provider: "google",
+    providerUserId: "google-user",
+  });
+  expect(mockMutation).toHaveBeenLastCalledWith("accounts:linkAccount", {
+    provider: "google",
+    providerUserId: "google-user",
+    nonce: "assertion-nonce",
+    assertionBase64: "assertion",
+  });
+  expect(takeProfileSetupOffer()).toEqual({ name: "Alex Morgan" });
+  expect(mockSignIn.mock.invocationCallOrder[0]).toBeLessThan(mockSignPayload.mock.invocationCallOrder[0]);
+  expect(mockResume).toHaveBeenCalledTimes(1);
+});
+
+it("dismisses Google cancellation without an error or success event", async () => {
+  mockGoogle.mockResolvedValueOnce(null);
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithGoogle());
+  expect(result.current.error).toBeUndefined();
+  expect(result.current.busy).toBe(false);
+  expect(mockSignIn).not.toHaveBeenCalled();
+  expect(mockSignPayload).not.toHaveBeenCalled();
+  expect(mockReportError).not.toHaveBeenCalled();
+  expect(mockBreadcrumb).not.toHaveBeenCalledWith("auth.google_sign_in.success");
+  expect(mockResume).toHaveBeenCalledTimes(1);
+});
+
+it("reports rejected Google verification without linking or offering a profile", async () => {
+  const error = new Error("wrong audience");
+  mockSignIn.mockRejectedValueOnce(error);
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithGoogle());
+  expect(mockSignPayload).not.toHaveBeenCalled();
+  expect(mockReportError).toHaveBeenCalledWith(error, "auth.google_sign_in");
+  expect(result.current.error).toContain("try again");
+  expect(takeProfileSetupOffer()).toBeUndefined();
+});
+
+it("prevents another provider from starting while Google sign-in is pending", async () => {
+  let cancel: (value: null) => void = () => {};
+  mockGoogle.mockReturnValueOnce(
+    new Promise((resolve) => {
+      cancel = resolve;
+    }),
+  );
+  const { result } = await renderHook(useAccount);
+  let pending: Promise<void>;
+  await act(() => {
+    pending = result.current.signInWithGoogle();
+  });
+  await act(() => result.current.signInWithApple());
+  expect(result.current.busy).toBe(true);
+  expect(mockApple).not.toHaveBeenCalled();
+  await act(async () => {
+    cancel(null);
+    await pending;
+  });
+  expect(result.current.busy).toBe(false);
 });
 
 it("offers profile setup with the name Apple shares only on first authorization", async () => {

@@ -15,7 +15,8 @@ export async function socialUser(t: Harness, name = `user${++users}`): Promise<S
   const device = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("accounts", {
-      appleUserId: name,
+      provider: "apple",
+      providerUserId: name,
     });
     await ctx.db.patch("devices", device.deviceId, { accountId: id });
     return id;

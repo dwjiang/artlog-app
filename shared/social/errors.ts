@@ -22,7 +22,7 @@ export const ERROR_MESSAGES = {
   sync_scope_changed: "Your account changed. Try again.",
   claim_required: "Your journal is still linking. Try again shortly.",
   ownership_collision: "These journal records conflict. Your originals have been kept.",
-  apple_sign_in_required: "Sign in with Apple to continue.",
+  sign_in_required: "Sign in to continue.",
   already_linked: "Sign out before linking another account.",
   account_device_limit: "This account has reached its device limit.",
 } as const;

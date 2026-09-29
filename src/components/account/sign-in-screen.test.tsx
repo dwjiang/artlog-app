@@ -7,16 +7,19 @@ import { SignInScreen } from "./sign-in-screen";
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockSignIn = jest.fn();
+const mockGoogleSignIn = jest.fn();
 const mockRouter = { back: mockBack, replace: mockReplace };
 let mockOwner = "device:guest";
 let mockOnline = true;
 let mockAccount = {
   account: { linked: false, accountId: "account-a", hasProfile: false },
   available: true,
+  googleAvailable: true,
   busy: false,
   error: undefined as string | undefined,
   ready: true,
   signInWithApple: mockSignIn,
+  signInWithGoogle: mockGoogleSignIn,
 };
 jest.mock("@/lib/account/owner-store", () => ({
   useLocalOwner: () => mockOwner,
@@ -37,18 +40,7 @@ jest.mock("expo-network", () => ({
     isInternetReachable: mockOnline,
   }),
 }));
-jest.mock("expo-apple-authentication", () => ({
-  AppleAuthenticationButtonType: { SIGN_IN: 0 },
-  AppleAuthenticationButtonStyle: { BLACK: 0 },
-  AppleAuthenticationButton: ({ onPress }: { onPress: () => void }) => {
-    const { Pressable, Text } = jest.requireActual("react-native");
-    return (
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Text>Sign in with Apple</Text>
-      </Pressable>
-    );
-  },
-}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   takeProfileSetupOffer();
@@ -60,6 +52,7 @@ beforeEach(() => {
     busy: false,
     ready: true,
     available: true,
+    googleAvailable: true,
     error: undefined,
   };
 });
@@ -67,7 +60,7 @@ beforeEach(() => {
 it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => {
   await render(<SignInScreen context="wall" />);
   expect(screen.getByRole("header", { name: "Sign in to share your wall" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Sign in with Apple" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockBack).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
@@ -85,11 +78,34 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
   };
   await view.rerender(<SignInScreen />);
   expect(screen.getByRole("button", { name: "Not now" })).toBeDisabled();
-  expect(screen.queryByRole("button", { name: "Sign in with Apple" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
   expect(mockBack).not.toHaveBeenCalled();
   mockAccount.busy = false;
   await view.rerender(<SignInScreen />);
   expect(mockBack).toHaveBeenCalledTimes(1);
+});
+
+it("starts Google independently of Apple availability", async () => {
+  mockAccount.available = false;
+  await render(<SignInScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
+  expect(mockGoogleSignIn).toHaveBeenCalledTimes(1);
+  expect(mockSignIn).not.toHaveBeenCalled();
+});
+
+it("keeps Google disabled until configured while Apple stays usable", async () => {
+  mockAccount.googleAvailable = false;
+  await render(<SignInScreen />);
+  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeEnabled();
+});
+
+it("disables both providers offline even if the device was already ready", async () => {
+  mockOnline = false;
+  await render(<SignInScreen />);
+  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeDisabled();
 });
 
 it("returns to the previous activity when the close button is pressed", async () => {

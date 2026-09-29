@@ -14,6 +14,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from "./collection-sync";
+import { googleSignIn, googleSignInAvailable } from "./google-sign-in";
 import { anonymousOwner, switchOwner } from "./owner-store";
 import { offerProfileSetup } from "./profile-setup-offer";
 
@@ -38,8 +39,8 @@ export function useAccount() {
   }, []);
 
   async function perform(
-    name: "auth.apple_sign_in" | "auth.sign_out" | "auth.delete_account",
-    operation: () => Promise<void>,
+    name: "auth.apple_sign_in" | "auth.google_sign_in" | "auth.sign_out" | "auth.delete_account",
+    operation: () => Promise<void | false>,
   ) {
     if (inFlight.current || !ready) return;
     inFlight.current = true;
@@ -48,8 +49,7 @@ export function useAccount() {
     addBreadcrumb(`${name}.start`);
     try {
       pauseCollectionSync();
-      await operation();
-      addBreadcrumb(`${name}.success`);
+      if ((await operation()) !== false) addBreadcrumb(`${name}.success`);
     } catch (cause) {
       if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED")) {
         reportError(cause, name);
@@ -60,6 +60,18 @@ export function useAccount() {
       setBusy(false);
       resumeCollectionSync();
     }
+  }
+
+  async function linkIdentity(provider: "apple" | "google", providerUserId: string, name?: string) {
+    const identity = { provider, providerUserId };
+    const signed = await signPayload({ action: "linkAccount", ...identity });
+    if (!signed) throw new Error("Device attestation is not ready");
+    await convex.mutation(api.accounts.linkAccount, {
+      ...identity,
+      nonce: signed.nonce,
+      assertionBase64: signed.assertionBase64,
+    });
+    offerProfileSetup(name ? { name } : {});
   }
 
   const signInWithApple = () =>
@@ -81,18 +93,17 @@ export function useAccount() {
         identityToken: credential.identityToken,
         nonce,
       });
-      const signed = await signPayload({
-        action: "linkAccount",
-        appleUserId: credential.user,
-      });
-      if (!signed) throw new Error("Device attestation is not ready");
-      await convex.mutation(api.accounts.linkAccount, {
-        appleUserId: credential.user,
-        nonce: signed.nonce,
-        assertionBase64: signed.assertionBase64,
-      });
       const name = credential.fullName ? AppleAuthentication.formatFullName(credential.fullName).trim() : "";
-      offerProfileSetup(name ? { name } : {});
+      await linkIdentity("apple", credential.user, name);
+    });
+
+  const signInWithGoogle = () =>
+    perform("auth.google_sign_in", async () => {
+      const credential = await googleSignIn();
+      if (!credential) return false;
+      const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: "google" });
+      await signIn("google-native", { identityToken: credential.identityToken, nonce });
+      await linkIdentity("google", credential.user, credential.name);
     });
 
   const disconnect = (remove: boolean) =>
@@ -109,10 +120,12 @@ export function useAccount() {
   return {
     account,
     available,
+    googleAvailable: googleSignInAvailable,
     busy,
     error,
     ready,
     signInWithApple,
+    signInWithGoogle,
     signOut: () => disconnect(false),
     deleteAccount: () => disconnect(true),
   };

@@ -13,7 +13,8 @@ async function fixture() {
   const outsider = await seedDevice(t);
   await t.run(async (ctx) => {
     const accountId = await ctx.db.insert("accounts", {
-      appleUserId: "owner",
+      provider: "apple",
+      providerUserId: "owner",
     });
     for (const device of [owner, sibling]) {
       await ctx.db.patch("devices", device.deviceId, { accountId });
