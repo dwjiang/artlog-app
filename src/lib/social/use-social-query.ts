@@ -40,11 +40,21 @@ export function useSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q> 
   useEffect(() => {
     if (result instanceof Error) reportError(result, `social.query.${name}`);
   }, [result, name]);
+  const data = result instanceof Error ? undefined : result;
+  // A refresh drops the live subscription, so the last result stays on screen until the new subscription answers.
+  const [held, setHeld] = useState<{ key: string; data: FunctionReturnType<Q> }>();
+  const stale = held !== undefined && (held.key !== key || args === "skip" || result !== undefined);
+  if (stale) setHeld(undefined);
+  const holding = held && !stale ? held : undefined;
   return {
-    data: result instanceof Error ? undefined : result,
+    data: holding ? holding.data : data,
     error: result instanceof Error ? result : undefined,
     loading: args !== "skip" && (retry.refreshing || result === undefined),
-    refresh: retry.refresh,
+    refreshing: retry.refreshing || holding !== undefined,
+    refresh: () => {
+      if (!retry.refreshing && data !== undefined) setHeld({ key, data });
+      retry.refresh();
+    },
   };
 }
 

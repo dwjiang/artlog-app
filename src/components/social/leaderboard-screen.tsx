@@ -1,7 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
-import Animated, { type CSSAnimationProperties } from "react-native-reanimated";
+import { Pressable, StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
+import Animated, { useAnimatedRef, type CSSAnimationProperties } from "react-native-reanimated";
 
 import { SignInActions } from "@/components/account/sign-in-actions";
 import { ChoiceMenu } from "@/components/choice-menu";
@@ -10,6 +10,7 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPodium } from "@/components/empty-state-art";
 import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -55,6 +56,12 @@ export function LeaderboardScreen() {
     }
   }
   const rows = board.data?.rows ?? [];
+  const list = useAnimatedRef<FlatList<(typeof rows)[number]>>();
+  const pull = usePullToRefresh(list, {
+    enabled: canBrowse,
+    refreshing: board.refreshing,
+    onRefresh: board.refresh,
+  });
   const visibility = participation.data ?? "off";
   const unit = metric === "visits" ? "visit" : "artwork";
   const filter = (update: Partial<LeaderboardChoice>) => {
@@ -73,12 +80,14 @@ export function LeaderboardScreen() {
           onPress={manageParticipation}
         />
       </Stack.Toolbar>
-      <FlatList
+      <Animated.FlatList
+        ref={list}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 24 }}
         initialNumToRender={REVEALED_ROWS}
+        refreshControl={pull.refreshControl}
         ListHeaderComponent={
-          <View style={styles.filters}>
+          <Animated.View style={[styles.filters, pull.headerStyle]} onLayout={pull.onHeaderLayout}>
             <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>
               Leaderboards
             </Text>
@@ -102,7 +111,7 @@ export function LeaderboardScreen() {
                 ]}
               />
             </View>
-          </View>
+          </Animated.View>
         }
         data={rows}
         keyExtractor={(row) => row.profile.profileId}
@@ -166,11 +175,11 @@ export function LeaderboardScreen() {
             ) : (
               <SocialGate session={session} />
             )
-          ) : board.loading && !board.error ? (
-            <LeaderboardSkeleton />
           ) : board.error ? (
             <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} centered />
-          ) : board.data ? (
+          ) : !board.data ? (
+            <LeaderboardSkeleton />
+          ) : (
             <EmptyState
               title={audience === "friends" ? "No friends on this leaderboard yet." : "No rankings yet."}
               detail={
@@ -201,7 +210,7 @@ export function LeaderboardScreen() {
                 <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
               )}
             </EmptyState>
-          ) : null
+          )
         }
         ListFooterComponent={
           <View style={styles.explainer}>

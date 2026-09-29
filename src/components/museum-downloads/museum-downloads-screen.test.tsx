@@ -1,7 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
 
+import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import type { DownloadSnapshot } from "@/lib/museum-downloads/controller";
+import { showErrorToast } from "@/lib/ui/toast";
 import type { MuseumSummary } from "@/shared/offline/types";
 
 import { MuseumDownloadsScreen } from "./museum-downloads-screen";
@@ -32,6 +34,7 @@ const mockStart = jest.fn();
 const mockPause = jest.fn();
 const mockRemove = jest.fn();
 const mockCancel = jest.fn();
+const mockRefresh = jest.fn();
 jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({
   useMuseumDownloads: () => mockState,
 }));
@@ -42,6 +45,7 @@ jest.mock("@/lib/museum-downloads/storage", () => ({
     pause: (...args: unknown[]) => mockPause(...args),
     remove: (...args: unknown[]) => mockRemove(...args),
     cancel: (...args: unknown[]) => mockCancel(...args),
+    refresh: (...args: unknown[]) => mockRefresh(...args),
     getSnapshot: () => mockState,
     pauseAll: async () => {},
   },
@@ -93,7 +97,7 @@ beforeEach(() => {
     loaded: true,
     loading: false,
   };
-  for (const fn of [mockStart, mockPause, mockRemove, mockCancel]) {
+  for (const fn of [mockStart, mockPause, mockRemove, mockCancel, mockRefresh]) {
     fn.mockResolvedValue(undefined);
   }
 });
@@ -176,4 +180,18 @@ it("labels the cached previews of a downloaded package even after the catalog ad
   await fireEvent.press(screen.getByRole("button", { name: "View Art Institute of Chicago" }));
   expect(screen.getByLabelText("Water Lilies")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Haystacks")).toBeNull();
+});
+
+it("reloads the museum list when pulled and reports a failed reload", async () => {
+  mockRefresh.mockImplementation(async () => {
+    mockState = { ...mockState, error: "Couldn’t load museums. Try again." };
+  });
+  await render(<MuseumDownloadsScreen />);
+  await act(async () => {
+    lastRefreshControl().onRefresh?.();
+  });
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(showErrorToast).toHaveBeenCalledWith("Couldn’t load museums. Try again."));
+  expect(lastRefreshControl().refreshing).toBe(false);
+  expect(screen.getByText("Art Institute of Chicago")).toBeOnTheScreen();
 });

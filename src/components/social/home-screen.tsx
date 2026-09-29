@@ -1,14 +1,16 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
-import { LoadingRing } from "@/components/loading-ring";
 import { FeedSkeleton } from "@/components/loading-skeleton";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -63,10 +65,18 @@ export function HomeScreen() {
   );
   const feed = tab === "global" ? globalFeed : friendsFeed;
   const router = useRouter();
+  const list = useAnimatedRef<FlatList<SharedVisit>>();
+  const pull = usePullToRefresh(list, {
+    enabled: canBrowse,
+    refreshing: feed.refreshing,
+    onRefresh: feed.refresh,
+    restInset: useSafeAreaInsets().top,
+  });
   return (
     <>
       <WelcomePrompt />
-      <FlatList
+      <Animated.FlatList
+        ref={list}
         style={socialStyles.root}
         contentContainerStyle={[socialStyles.content, { paddingBottom: 28 }]}
         contentInsetAdjustmentBehavior="automatic"
@@ -75,19 +85,14 @@ export function HomeScreen() {
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         renderItem={({ item }) => <VisitCard visit={item} token={session.token} viewerProfileId={session.profileId} />}
-        refreshControl={
-          canBrowse ? (
-            <RefreshControl refreshing={feed.refreshing} tintColor="transparent" onRefresh={feed.refresh} />
-          ) : undefined
-        }
+        refreshControl={pull.refreshControl}
         ListHeaderComponent={
-          <>
+          <Animated.View style={pull.headerStyle} onLayout={pull.onHeaderLayout}>
             <View style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}>
               <Text variant={fontScale > 1.4 ? "display" : "wordmark"} accessibilityRole="header">
                 Artlog
               </Text>
               <View style={styles.headerActions}>
-                {feed.refreshing && <LoadingRing accessibilityLabel="Refreshing visits" />}
                 <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
                 <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
               </View>
@@ -135,7 +140,7 @@ export function HomeScreen() {
                 ]}
               />
             </View>
-          </>
+          </Animated.View>
         }
         ListEmptyComponent={
           !canBrowse ? (

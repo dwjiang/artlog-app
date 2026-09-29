@@ -1,14 +1,16 @@
 import { randomUUID } from "expo-crypto";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { Image, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View, type ScrollView } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/empty-state";
 import { ArtworkCollage } from "@/components/guest/artwork-preview";
 import { LoadingRing } from "@/components/loading-ring";
 import { LoadingSkeleton, Ghost } from "@/components/loading-skeleton";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -86,7 +88,7 @@ export function CollectionWallContent({
   const addingRef = useRef(false);
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useAnimatedRef<ScrollView>();
   const wallTop = useRef(0);
   const controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
@@ -102,6 +104,12 @@ export function CollectionWallContent({
   const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
   const hasSavedArt = works.some((work) => work.owner === owner && !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
+  // The gap a pull opens under the controls shows the wall color, so the spinner takes the wall's ink.
+  const pull = usePullToRefresh(scroll, {
+    enabled: wall.signedIn && !editing,
+    onRefresh: () => wall.refresh(),
+    tintColor: wallInk,
+  });
   const available = works.filter((item) => item.owner === owner && !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave || adding;
@@ -116,7 +124,7 @@ export function CollectionWallContent({
       revealId.current = undefined;
     });
     return () => cancelAnimationFrame(frame);
-  }, [pieces, width, editing]);
+  }, [pieces, width, editing, scroll]);
   // Detail screens edit the wall through their own repository, so each return to this screen re-reads it. The memoized
   // callback reads the repository and a ref so the first load (owned by the hook) and edits in progress are skipped
   // without re-running.
@@ -299,7 +307,7 @@ export function CollectionWallContent({
           />
         </View>
       )}
-      <ScrollView
+      <Animated.ScrollView
         ref={scroll}
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="automatic"
@@ -307,48 +315,43 @@ export function CollectionWallContent({
         scrollEnabled={!wall.pending}
         stickyHeaderIndices={editing ? undefined : [header ? 1 : 0]}
         onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-        refreshControl={
-          wall.signedIn && !editing ? (
-            <RefreshControl
-              refreshing={wall.loading}
-              tintColor="transparent"
-              onRefresh={() => {
-                void wall.refresh();
-              }}
-            />
-          ) : undefined
-        }
+        refreshControl={pull.refreshControl}
       >
-        {!editing && header}
+        {/* Raised over the paper strip at the end, which would cover the header while a pull holds it up. */}
+        {!editing && header && <Animated.View style={[{ zIndex: 1 }, pull.headerStyle]}>{header}</Animated.View>}
         {!editing && (
           <View
             onLayout={(event) => {
               controlsHeight.current = event.nativeEvent.layout.height;
+              pull.onHeaderLayout(event);
             }}
-            style={{ backgroundColor: Gallery.paper }}
           >
-            {controls}
-            <View style={styles.toolbar}>
-              {wall.draft && (
-                <GalleryButton
-                  label="Edit wall"
-                  icon="slider.horizontal.3"
-                  disabled={blocked || !wall.draft}
-                  onPress={edit}
-                />
-              )}
-              <View style={styles.toolbarTrailing}>
-                {wall.loading && wall.draft && !wall.error && <LoadingRing accessibilityLabel="Refreshing wall" />}
-                <GalleryButton
-                  label="All artworks"
-                  icon="chevron.right"
-                  iconPosition="trailing"
-                  tone="ink"
-                  disabled={blocked}
-                  onPress={() => router.push("/all-artworks")}
-                />
+            <Animated.View style={[{ backgroundColor: Gallery.paper }, pull.headerStyle]}>
+              {controls}
+              <View style={styles.toolbar}>
+                {wall.draft && (
+                  <GalleryButton
+                    label="Edit wall"
+                    icon="slider.horizontal.3"
+                    disabled={blocked || !wall.draft}
+                    onPress={edit}
+                  />
+                )}
+                <View style={styles.toolbarTrailing}>
+                  {wall.loading && wall.draft && !wall.error && !pull.refreshing && (
+                    <LoadingRing accessibilityLabel="Refreshing wall" />
+                  )}
+                  <GalleryButton
+                    label="All artworks"
+                    icon="chevron.right"
+                    iconPosition="trailing"
+                    tone="ink"
+                    disabled={blocked}
+                    onPress={() => router.push("/all-artworks")}
+                  />
+                </View>
               </View>
-            </View>
+            </Animated.View>
           </View>
         )}
         {wall.error && (
@@ -494,7 +497,7 @@ export function CollectionWallContent({
         )}
         {/* The root carries the wall color so bottom overscroll continues the wall; the header above it is paper, so top overscroll stays paper too. */}
         <View pointerEvents="none" style={styles.topOverscroll} />
-      </ScrollView>
+      </Animated.ScrollView>
       {editing
         && (wallpaperPreview ? (
           <View style={styles.tray}>

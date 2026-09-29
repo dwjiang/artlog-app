@@ -1,12 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
 import type { ReactNode } from "react";
 
+import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import type { SharedVisit } from "@/lib/social/types";
 
 import { ProfileScreen } from "./profile-screen";
 
 const mockPages = jest.fn();
+const mockQueryRefresh = jest.fn();
+const mockVisitsRefresh = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
@@ -65,10 +68,11 @@ jest.mock("@/lib/social/use-social-query", () => ({
           : mockGetFunctionName(query) === "visitReactions:getSummary"
             ? { likeCount: 0, commentCount: 0, liked: false }
             : { color: "#45524B", items: [] },
+    refresh: () => mockQueryRefresh(mockGetFunctionName(query)),
   }),
   useCursorPages: (...args: unknown[]) => {
     mockPages(...args);
-    return { items: mockVisits, done: true, loading: false };
+    return { items: mockVisits, done: true, loading: false, refresh: mockVisitsRefresh };
   },
 }));
 let mockVisits: SharedVisit[] = [];
@@ -184,4 +188,17 @@ it("uses the same shared visit card as Home", async () => {
   expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "View Jamie Chen’s profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "More options" })).toBeOnTheScreen();
+});
+
+it("refreshes the profile and the open section when pulled", async () => {
+  await render(<ProfileScreen profileId="friend" />);
+  await act(() => lastRefreshControl().onRefresh?.());
+  expect(mockQueryRefresh.mock.calls.flat()).toEqual(expect.arrayContaining(["profiles:getPublic", "walls:getPublic"]));
+  expect(mockVisitsRefresh).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  mockQueryRefresh.mockClear();
+  await act(() => lastRefreshControl().onRefresh?.());
+  expect(mockVisitsRefresh).toHaveBeenCalledTimes(1);
+  expect(mockQueryRefresh.mock.calls.flat()).toContain("profiles:getPublic");
+  expect(mockQueryRefresh.mock.calls.flat()).not.toContain("walls:getPublic");
 });

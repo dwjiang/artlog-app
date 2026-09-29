@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 
+import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import type { SharedVisit } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
@@ -197,12 +198,16 @@ it("replaces first-load ghosts with a retry action after failure", async () => {
   expect(mockRefresh).toHaveBeenCalledTimes(1);
 });
 
-it("retains existing visits and shows only the refresh indicator while refreshing", async () => {
+it("retains existing visits and shows only the pull spinner while refreshing", async () => {
+  mockPages.mockReturnValue(pages({ items: [visit] }));
+  const view = await render(<HomeScreen />);
+  await act(() => lastRefreshControl().onRefresh?.());
+  expect(mockRefresh).toHaveBeenCalledTimes(1);
   mockPages.mockReturnValue(pages({ items: [visit], loading: true, refreshing: true, done: false }));
-  await render(<HomeScreen />);
+  await view.rerender(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  expect(screen.getByRole("progressbar", { name: "Refreshing visits" })).toBeOnTheScreen();
-  expect(screen.queryByRole("progressbar", { name: "Loading visits…" })).toBeNull();
+  expect(lastRefreshControl().refreshing).toBe(true);
+  expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.queryByText("All visits shown.")).toBeNull();
 });
 

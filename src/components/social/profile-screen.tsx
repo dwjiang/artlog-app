@@ -3,10 +3,12 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
@@ -42,7 +44,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const [tab, setTab] = useState<"wall" | "visits">("wall");
   const [chosenAudience, setAudience] = useState<VisitAudienceFilterValue>("all");
   const [visitCount, setVisitCount] = useState<number>();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useAnimatedRef<ScrollView>();
   const offsets = useRef({ wall: 0, visits: 0 });
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
@@ -68,6 +70,17 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     visitPage,
     visitId,
   );
+  const pull = usePullToRefresh(scroll, {
+    enabled: !!profile.data,
+    refreshing: profile.refreshing || (tab === "wall" ? wall.refreshing : visits.refreshing),
+    onRefresh: () => {
+      profile.refresh();
+      relationship.refresh();
+      if (tab === "wall") wall.refresh();
+      else visits.refresh();
+    },
+    restInset: headerHeight,
+  });
   // The header counts every visit the viewer can see, so it keeps the last full count while a filter is on.
   if (audience === "all" && visits.done && visits.items.length !== visitCount) setVisitCount(visits.items.length);
   function changeTab(value: "wall" | "visits") {
@@ -123,17 +136,17 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       {session.status !== "loading" && session.profileId !== profileId && (
         <ReportToolbar kind="profile" id={person.profileId} />
       )}
-      <ScrollView
+      <Animated.ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
         stickyHeaderIndices={[1]}
-        scrollEventThrottle={100}
+        refreshControl={pull.refreshControl}
         onScroll={(event) => {
           offsets.current[tab] = event.nativeEvent.contentOffset.y;
         }}
         contentContainerStyle={{ paddingBottom: 30 }}
       >
-        <View style={pulledToSafeArea}>
+        <Animated.View style={[pulledToSafeArea, pull.headerStyle]}>
           <ProfileHeader
             identity={{ name: person.name, subtitle: `@${person.username}`, profile: person }}
             stats={[
@@ -152,18 +165,24 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               />
             )}
           </ProfileHeader>
-        </View>
+        </Animated.View>
         {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
             spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
             tappable, and must be a style: the sticky wrapper takes this View's style but not its props. */}
-        <View style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}>
-          <View
-            style={{
-              backgroundColor: Gallery.paper,
-              paddingHorizontal: 20,
-              paddingBottom: 12,
-              paddingTop: 4,
-            }}
+        <View
+          style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
+          onLayout={pull.onHeaderLayout}
+        >
+          <Animated.View
+            style={[
+              {
+                backgroundColor: Gallery.paper,
+                paddingHorizontal: 20,
+                paddingBottom: 12,
+                paddingTop: 4,
+              },
+              pull.headerStyle,
+            ]}
           >
             <NativeSegmentedPicker
               label="Profile section"
@@ -174,7 +193,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
                 { value: "visits", label: "Visits" },
               ]}
             />
-          </View>
+          </Animated.View>
         </View>
         {tab === "wall" ? (
           wall.error ? (
@@ -226,7 +245,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             <PageFooter {...visits} count={visits.items.length} />
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </GestureHandlerRootView>
   );
 }

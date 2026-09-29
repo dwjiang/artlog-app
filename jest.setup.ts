@@ -21,10 +21,13 @@ jest.mock("react-native-reanimated", () => ({
   default: {
     View: jest.requireActual("react-native").View,
     ScrollView: jest.requireActual("react-native").ScrollView,
+    FlatList: jest.requireActual("react-native").FlatList,
   },
   isSharedValue: () => false,
   getUseOfValueInStyleWarning: () => "",
   useAnimatedRef: () => jest.requireActual("react").useRef(null),
+  useAnimatedStyle: () => ({}),
+  useScrollOffset: () => ({ value: 0 }),
 }));
 
 // expo-audio patches its native player class on import, which jest-expo does not mock; route tests load it through the root layout.
