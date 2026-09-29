@@ -20,6 +20,7 @@ export function AudioIconButton({
   size = 22,
   color,
   disabled,
+  selected,
   style,
 }: {
   name: string;
@@ -28,13 +29,14 @@ export function AudioIconButton({
   size?: number;
   color?: string;
   disabled?: boolean;
+  selected?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, selected }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

@@ -93,6 +93,14 @@ it("supports VoiceOver adjustments for position", async () => {
   expect(mockSeek).toHaveBeenCalledWith(27);
 });
 
+it("shows the transcript and queue buttons as labelled icons without visible text", async () => {
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Transcript and sources" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Up next" })).toBeOnTheScreen();
+  expect(screen.queryByText("Transcript")).toBeNull();
+  expect(screen.queryByText("Up next")).toBeNull();
+});
+
 it("marks transcript selection and returns to the artwork when tapped again", async () => {
   const onView = jest.fn();
   await render(<PlayerTransport view="transcript" onView={onView} />);
