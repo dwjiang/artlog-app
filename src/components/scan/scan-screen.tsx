@@ -8,8 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
-import { GalleryButton } from "@/components/collection/gallery-button";
-import { WallSheet } from "@/components/collection/wall-sheet";
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText } from "@/components/themed-text";
 import { BottomTabInset, Colors, Gallery, Spacing } from "@/constants/theme";
@@ -35,7 +33,6 @@ export function ScanScreen() {
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const [appState, setAppState] = useState(AppState.currentState);
-  const [help, setHelp] = useState<"open" | "import">();
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
   const [preview, setPreview] = useState({ width: 0, height: 0 });
@@ -73,7 +70,7 @@ export function ScanScreen() {
     });
   }, [navigation, visitId]);
   const searching = !occupied && (phase === "searching" || (phase === "retry" && source !== "library"));
-  const detecting = active && !help && cameraReady && searching;
+  const detecting = active && cameraReady && searching;
   const { resetDetection } = capture.controller;
   useEffect(() => {
     if (!detecting) resetDetection();
@@ -88,7 +85,7 @@ export function ScanScreen() {
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !["searching", "retry"].includes(phase);
-  const cameraActive = active && !help && (searching || (phase === "capturing" && source === "camera"));
+  const cameraActive = active && (searching || (phase === "capturing" && source === "camera"));
   const failedImport = phase === "retry" && source === "library";
   const retryHint = failedImport
     ? undefined
@@ -207,25 +204,7 @@ export function ScanScreen() {
                     void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}));
                   }}
                 />
-                <GlassSurface isInteractive style={styles.importButton}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Camera tips"
-                    disabled={busy}
-                    accessibilityState={{ disabled: busy }}
-                    onPress={() => setHelp("open")}
-                    style={({ pressed }) => [styles.tips, (pressed || busy) && styles.dimmed]}
-                  >
-                    <Image
-                      source="sf:info.circle"
-                      tintColor={Colors.light.overlayText}
-                      style={{ width: 26, height: 26 }}
-                    />
-                    <ThemedText variant="metadata" themeColor="overlayText">
-                      Tips
-                    </ThemedText>
-                  </Pressable>
-                </GlassSurface>
+                <View style={styles.controlsSpacer} />
               </View>
             )}
           </View>
@@ -256,33 +235,6 @@ export function ScanScreen() {
           insets={revealInsets}
           onComplete={() => capture.completeReveal(capture.presentation!.attempt)}
         />
-      )}
-      {help && (
-        <WallSheet
-          title="Camera tips"
-          presented={help === "open"}
-          onDismiss={() => setHelp((current) => (current === "import" ? current : undefined))}
-          onDismissed={() => {
-            setHelp(undefined);
-            if (help === "import") void capture.importPhoto();
-          }}
-        >
-          <View style={styles.tipsContent}>
-            <Image
-              source={require("../../../assets/images/onboarding/water-lilies-in-gallery.jpg")}
-              style={styles.tipsPhoto}
-              accessibilityLabel="Example of an artwork framed straight on"
-            />
-            <ThemedText>Fit the whole artwork in the frame, face it straight on, and hold steady.</ThemedText>
-            <ThemedText themeColor="textSecondary">
-              Avoid glare by moving a little to the side. If the artwork is hard to identify, try its museum label.
-            </ThemedText>
-            <View style={styles.tipsActions}>
-              <GalleryButton label="Ready to scan" variant="filled" fullWidth onPress={() => setHelp(undefined)} />
-              <GalleryButton label="Import a photo instead" fullWidth onPress={() => setHelp("import")} />
-            </View>
-          </View>
-        </WallSheet>
       )}
     </View>
   );
@@ -317,6 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  controlsSpacer: { width: IMPORT_SIZE },
   importButton: {
     width: IMPORT_SIZE,
     height: IMPORT_SIZE,
@@ -325,14 +278,5 @@ const styles = StyleSheet.create({
   },
   importContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: Spacing.one },
   importIcon: { width: 24, height: 24 },
-  tips: {
-    flex: 1,
-    gap: Spacing.one,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   dimmed: { opacity: 0.7 },
-  tipsContent: { padding: Spacing.content, gap: 14 },
-  tipsPhoto: { width: "100%", aspectRatio: 3 / 2, backgroundColor: Gallery.fill },
-  tipsActions: { gap: Spacing.two },
 });

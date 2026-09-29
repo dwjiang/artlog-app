@@ -380,7 +380,6 @@ it.each(["processing", "revealing", "result"] as const)("pauses scanning and imp
   expect(mockDetectorActive.at(-1)).toBe(false);
   expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Scan artwork" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Camera tips" })).toBeDisabled();
   expect(screen.getByText("Identifying artwork")).toBeOnTheScreen();
 });
 
@@ -529,27 +528,4 @@ it("keeps a chosen visit through sheets above the tab and drops it at the result
   mockSetParams.mockClear();
   mockVisitUnavailable?.();
   expect(mockSetParams).toHaveBeenCalledWith({ visitId: undefined });
-});
-
-it("pauses the camera and detection while reading tips and resumes on Ready to scan", async () => {
-  await render(<ScanScreen />);
-  await act(() => mockCameraProps.onStarted());
-  await fireEvent.press(screen.getByRole("button", { name: "Camera tips" }));
-  expect(screen.getByLabelText("Example of an artwork framed straight on")).toBeOnTheScreen();
-  expect(mockCameraProps.isActive).toBe(false);
-  expect(mockDetectorActive.at(-1)).toBe(false);
-  await fireEvent.press(screen.getByRole("button", { name: "Ready to scan" }));
-  expect(screen.queryByRole("button", { name: "Ready to scan" })).toBeNull();
-  expect(mockCameraProps.isActive).toBe(true);
-  expect(mockDetectorActive.at(-1)).toBe(true);
-});
-
-it("closes camera tips before opening the photo library", async () => {
-  await render(<ScanScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Camera tips" }));
-  mockImport.mockImplementationOnce(async () => {
-    expect(screen.queryByRole("button", { name: "Ready to scan" })).toBeNull();
-  });
-  await fireEvent.press(screen.getByRole("button", { name: "Import a photo instead" }));
-  expect(mockImport).toHaveBeenCalledTimes(1);
 });
