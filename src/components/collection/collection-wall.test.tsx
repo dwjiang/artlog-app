@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
 import { Image, ScrollView, Text } from "react-native";
 
+import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import { addArtworkPhoto } from "@/db/repos/artwork-album";
 import {
   insertSavedWork,
@@ -805,6 +806,28 @@ it("shows a blank wall and opens Scan when there is no saved art", async () => {
     settle({ ...published, items: [] });
   });
   expect(screen.queryByLabelText("Refreshing wall")).toBeNull();
+});
+
+it("shows only the pull spinner while a pull refreshes the wall", async () => {
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [] });
+  await render(<CollectionWall works={[]} />);
+  await screen.findByText("No artworks on your wall yet.");
+  let settle: (wall: OwnerWall) => void = () => {};
+  mockTransport.getMine.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+  );
+  await act(async () => {
+    lastRefreshControl().onRefresh?.();
+  });
+  expect(lastRefreshControl().refreshing).toBe(true);
+  expect(screen.queryByLabelText("Refreshing wall")).toBeNull();
+  await act(async () => {
+    settle({ ...published, items: [] });
+  });
+  expect(lastRefreshControl().refreshing).toBe(false);
 });
 
 it("opens the editor from an empty wall when saved art is available", async () => {
