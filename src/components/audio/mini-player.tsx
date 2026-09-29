@@ -11,7 +11,7 @@ import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
 import { NarrationWaveform } from "./narration-waveform";
 
-export const MINI_PLAYER_HEIGHT = 46;
+export const MINI_PLAYER_HEIGHT = 48;
 export function openPlayer(view: "player" | "queue" = "player") {
   router.push({ pathname: "/now-playing", params: { view } });
 }
@@ -27,61 +27,49 @@ export function MiniPlayer() {
           ? "Ready to play"
           : `${audio.playing ? "Playing" : "Paused"}${audio.duration ? ` · ${audioTime(audio.duration - audio.position)} left` : ""}`;
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open player, ${audio.current.work.title}, ${subtitle}`}
-          onPress={() => openPlayer()}
-          style={styles.summary}
-        >
-          <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600" }}>
-              {audio.current.work.title}
-            </Text>
-            <Text numberOfLines={1} style={{ fontSize: 11, color: Gallery.muted }}>
-              {subtitle}
-            </Text>
-          </View>
-        </Pressable>
-        {audio.phase === "loading" ? (
-          <View
-            accessible
-            accessibilityRole="progressbar"
-            accessibilityLabel={subtitle}
-            accessibilityState={{ busy: true }}
-            style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
-          >
-            <NarrationWaveform />
-          </View>
-        ) : (
-          <AudioIconButton
-            name={audio.playing ? "pause.fill" : "play.fill"}
-            label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
-            onPress={audio.controller.toggle}
-            color={Gallery.accent}
-            size={23}
-          />
-        )}
-        <AudioIconButton name="list.bullet" label="Up next" onPress={() => openPlayer("queue")} size={22} />
-      </View>
-      <View style={styles.track}>
+    <View style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open player, ${audio.current.work.title}, ${subtitle}`}
+        onPress={() => openPlayer()}
+        style={styles.summary}
+      >
+        <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600" }}>
+            {audio.current.work.title}
+          </Text>
+          <Text numberOfLines={1} style={{ fontSize: 11, color: Gallery.muted, fontVariant: ["tabular-nums"] }}>
+            {subtitle}
+          </Text>
+        </View>
+      </Pressable>
+      {audio.phase === "loading" ? (
         <View
-          style={{
-            height: 2,
-            width: `${audio.duration ? Math.min(100, (audio.position / audio.duration) * 100) : 0}%`,
-            backgroundColor: Gallery.accent,
-          }}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={subtitle}
+          accessibilityState={{ busy: true }}
+          style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <NarrationWaveform />
+        </View>
+      ) : (
+        <AudioIconButton
+          name={audio.playing ? "pause.fill" : "play.fill"}
+          label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
+          onPress={audio.controller.toggle}
+          color={Gallery.accent}
+          size={23}
         />
-      </View>
+      )}
+      <AudioIconButton name="list.bullet" label="Up next" onPress={() => openPlayer("queue")} size={22} />
     </View>
   );
 }
 const styles = StyleSheet.create({
-  container: { overflow: "hidden" },
   row: {
-    minHeight: 44,
+    minHeight: MINI_PLAYER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 14,
@@ -94,5 +82,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  track: { height: 2, backgroundColor: Gallery.softBorder },
 });
