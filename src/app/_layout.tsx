@@ -9,7 +9,7 @@ import { ProfileSetupPrompt } from "@/components/account/profile-setup-prompt";
 import { AppDiagnostics } from "@/components/app-diagnostics";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { AppUpdateGate } from "@/components/app-update-gate";
-import { ListeningRoot } from "@/components/audio/listening-root";
+import { DockedPlayerInsets, ListeningRoot } from "@/components/audio/listening-root";
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
 import { ToastLayer } from "@/components/toast";
@@ -67,6 +67,11 @@ function AppContent() {
                       ...NavigationTheme,
                       headerBackButtonDisplayMode: "default",
                     }}
+                    screenLayout={({ options, children }) => (
+                      <DockedPlayerInsets modal={!!options.presentation && options.presentation !== "card"}>
+                        {children}
+                      </DockedPlayerInsets>
+                    )}
                   >
                     <Stack.Screen
                       name="now-playing"
