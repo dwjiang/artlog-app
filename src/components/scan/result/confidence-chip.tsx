@@ -56,6 +56,8 @@ export function ConfidenceChip({
 const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    maxWidth: "100%",
     alignItems: "baseline",
     gap: Spacing.one,
     paddingHorizontal: Spacing.compact,

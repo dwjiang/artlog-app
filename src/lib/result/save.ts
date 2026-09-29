@@ -216,9 +216,11 @@ export async function saveResult(
     completion: {
       savedId: localId,
       title: existing?.title ?? snapshot.title,
-      wasExisting: !!existing,
-      photoPaths: additional.map((photo) => photo.path),
-      visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : "No visit · Collection only",
+      artist: existing ? existing.artist : snapshot.artist,
+      date: existing ? existing.date : snapshot.date,
+      medium: existing ? existing.medium : snapshot.medium,
+      previewPath: scanPreviewPath(capture.cropPath),
+      visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : undefined,
     },
   };
 }

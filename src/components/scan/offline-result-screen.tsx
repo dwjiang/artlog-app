@@ -70,7 +70,7 @@ export function OfflineResultScreen({
   const viewResult =
     onViewResult
     && (() => {
-      if (hasEdits) {
+      if (hasEdits && !saved.savedId) {
         Alert.alert(
           "Discard your edits?",
           "Save your entry first to keep these details, or discard them to view the online result.",
@@ -90,77 +90,75 @@ export function OfflineResultScreen({
   if (editingCrop) {
     return <ScanCropEditor capture={capture} onCancel={() => setEditingCrop(false)} />;
   }
-  if (saved.completion) {
-    return <CaptureCompletion completion={saved.completion} onViewResult={onViewResult} />;
-  }
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <ResultCard
-        key={`${manual}:${view.primary?.objectId}`}
-        manual={manual}
-        view={view}
-        saving={saved.saving}
-        savedId={saved.savedId}
-        saveError={saved.error}
-        captureInput={{ capture, view }}
-        header={
-          <CardHeader
-            cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
-            artworkTitle={view.primary?.title}
-            kind={view.kind}
-            probability={view.primary?.probability}
-            onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
-            onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
-          />
-        }
-        context={
-          viewResult
-          && !saved.savedId && (
-            <GalleryButton
-              label="View the online result"
-              icon="antenna.radiowaves.left.and.right"
-              onPress={viewResult}
-              disabled={saved.saving}
+    <CaptureCompletion completion={saved.completion} onViewResult={onViewResult}>
+      <ThemedView style={{ flex: 1 }}>
+        <ResultCard
+          key={`${manual}:${view.primary?.objectId}`}
+          manual={manual}
+          view={view}
+          saving={saved.saving}
+          savedId={saved.savedId}
+          saveError={saved.error}
+          captureInput={{ capture, view }}
+          header={
+            <CardHeader
+              cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
+              artworkTitle={view.primary?.title}
+              kind={view.kind}
+              probability={view.primary?.probability}
+              onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
+              onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
             />
-          )
-        }
-        visit={!saved.savedId && <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />}
-        onLabel={onLabel}
-        onPick={setChosen}
-        onEdit={() => setHasEdits(true)}
-        savePhotoOnly={manual && !hasEdits}
-        onSave={(draft) => {
-          void saved.save({ capture, view, draft });
-        }}
-        onSavePhoto={() => {
-          void saved.save({ capture, draft: draftFromCandidate() });
-        }}
-        onViewSaved={() =>
-          router.push({
-            pathname: "/saved/[savedId]",
-            params: { savedId: saved.savedId ?? "" },
-          })
-        }
-      />
-      <NotRightSheet
-        open={notRight}
-        onDismiss={() => setNotRight(false)}
-        runnerUps={view.runnerUps}
-        onPick={(candidate) => {
-          setChosen(candidate);
-          setNotRight(false);
-        }}
-        onLabel={onLabel}
-        onManual={() => {
-          setManual(true);
-          setHasEdits(true);
-          setNotRight(false);
-        }}
-        onSavePhoto={() => {
-          setNotRight(false);
-          void saved.save({ capture, draft: draftFromCandidate() });
-        }}
-      />
-    </ThemedView>
+          }
+          context={
+            viewResult && (
+              <GalleryButton
+                label="View the online result"
+                icon="antenna.radiowaves.left.and.right"
+                onPress={viewResult}
+                disabled={saved.saving}
+              />
+            )
+          }
+          visit={!saved.savedId && <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />}
+          onLabel={onLabel}
+          onPick={setChosen}
+          onEdit={() => setHasEdits(true)}
+          savePhotoOnly={manual && !hasEdits}
+          onSave={(draft) => {
+            void saved.save({ capture, view, draft });
+          }}
+          onSavePhoto={() => {
+            void saved.save({ capture, draft: draftFromCandidate() });
+          }}
+          onViewSaved={() =>
+            router.push({
+              pathname: "/saved/[savedId]",
+              params: { savedId: saved.savedId ?? "" },
+            })
+          }
+        />
+        <NotRightSheet
+          open={notRight}
+          onDismiss={() => setNotRight(false)}
+          runnerUps={view.runnerUps}
+          onPick={(candidate) => {
+            setChosen(candidate);
+            setNotRight(false);
+          }}
+          onLabel={onLabel}
+          onManual={() => {
+            setManual(true);
+            setHasEdits(true);
+            setNotRight(false);
+          }}
+          onSavePhoto={() => {
+            setNotRight(false);
+            void saved.save({ capture, draft: draftFromCandidate() });
+          }}
+        />
+      </ThemedView>
+    </CaptureCompletion>
   );
 }

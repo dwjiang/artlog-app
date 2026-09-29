@@ -178,15 +178,20 @@ function CitedParagraph({ sentences, sources }: ReturnType<typeof citeDocent>) {
       </ThemedText>
       {sources.length > 0 && (
         <View style={styles.sources}>
-          {sources.map(({ number, label, url }) => (
-            <SourceLink key={url} label={label} url={url} style={styles.source}>
-              <SourceNumber number={number} />
-              <ThemedText type="link" style={styles.sourceLabel}>
-                {label}
-              </ThemedText>
-              <Image source="sf:arrow.up.right" tintColor={Gallery.accent} style={styles.open} />
-            </SourceLink>
-          ))}
+          <ThemedText variant="metadata" themeColor="textSecondary" style={styles.sourcesHeading}>
+            Sources
+          </ThemedText>
+          <View>
+            {sources.map(({ number, label, url }) => (
+              <SourceLink key={url} label={label} url={url} style={styles.source}>
+                <SourceNumber number={number} />
+                <ThemedText variant="metadata" style={styles.sourceLabel}>
+                  {label}
+                </ThemedText>
+                <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
+              </SourceLink>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -205,34 +210,31 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.two, paddingTop: Spacing.one },
   prose: { gap: Spacing.two },
   failed: { gap: Spacing.one, alignItems: "flex-start" },
-  marker: { paddingLeft: 3, transform: [{ translateY: -5 }] },
+  marker: { paddingLeft: Spacing.one },
   number: {
-    minWidth: 17,
-    minHeight: 17,
+    minWidth: 18,
+    minHeight: 18,
     paddingHorizontal: Spacing.one,
-    borderRadius: 3,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Gallery.fill,
+    backgroundColor: Gallery.highlight,
   },
   numberText: {
     fontSize: 11,
     lineHeight: 13,
     fontWeight: "600",
-    color: Gallery.muted,
+    fontVariant: ["tabular-nums"],
+    color: Gallery.accent,
   },
-  sources: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Gallery.separator,
-  },
+  sources: { gap: Spacing.two, paddingTop: Spacing.one },
+  sourcesHeading: { fontWeight: "600" },
   source: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.compact,
+    gap: Spacing.two,
     minHeight: 44,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Gallery.separator,
+    paddingVertical: Spacing.two,
   },
-  sourceLabel: { flex: 1 },
+  sourceLabel: { flex: 1, fontWeight: "500", color: Gallery.accent },
   open: { width: 10, height: 10 },
 });

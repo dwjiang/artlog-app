@@ -2,7 +2,7 @@ import tzLookup from "@photostructure/tz-lookup";
 import { Image } from "expo-image";
 import { useFocusEffect, router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
@@ -128,20 +128,22 @@ export function CaptureContextButton({
       }
       style={({ pressed }) => [row ? styles.row : styles.chip, pressed && styles.pressed, disabled && styles.disabled]}
     >
-      {row && (
-        <ThemedText variant="secondary" themeColor="textSecondary">
-          Visit
-        </ThemedText>
-      )}
-      <Image source="sf:mappin.and.ellipse" tintColor={Gallery.ink} style={styles.icon} />
-      {label ? (
-        <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>
-          {label}
-        </ThemedText>
-      ) : (
-        <TextSkeleton label="Loading visit…" width={140} />
-      )}
-      <Image source="sf:chevron.down" tintColor={Gallery.ink} style={styles.chevron} />
+      <Image source="sf:mappin.and.ellipse" tintColor={Gallery.muted} style={styles.icon} />
+      <View style={row ? styles.rowText : styles.chipText}>
+        {row && (
+          <ThemedText variant="metadata" themeColor="textSecondary">
+            Visit
+          </ThemedText>
+        )}
+        {label ? (
+          <ThemedText type="smallBold" numberOfLines={row ? undefined : 1} style={styles.label}>
+            {label}
+          </ThemedText>
+        ) : (
+          <TextSkeleton label="Loading visit…" width={140} />
+        )}
+      </View>
+      <Image source={row ? "sf:chevron.right" : "sf:chevron.down"} tintColor={Gallery.muted} style={styles.chevron} />
     </Pressable>
   );
 }
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   chip: {
     alignSelf: "flex-start",
     maxWidth: "100%",
-    minHeight: 36,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
@@ -163,11 +165,14 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.surface,
   },
   row: {
-    minHeight: 44,
+    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
+    paddingVertical: Spacing.compact,
   },
+  rowText: { flex: 1, gap: Spacing.half },
+  chipText: { flexShrink: 1 },
   pressed: { opacity: 0.6 },
   disabled: { opacity: 0.5 },
   icon: { width: 16, height: 16 },

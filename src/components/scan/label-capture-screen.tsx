@@ -37,9 +37,10 @@ import { useScan } from "@/lib/result/use-scan";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
 import { CameraPermission } from "./camera-permission";
+import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
 import { CapturePhotosButton } from "./capture-photos-button";
-import { LabelActions } from "./label/label-actions";
+import { ContributionStatus, LabelActions } from "./label/label-actions";
 import { ProgressSteps } from "./label/progress-steps";
 import { VerifiedFieldsForm } from "./label/verified-fields-form";
 import { SourceChip } from "./result/source-chip";
@@ -464,67 +465,81 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
       },
     };
     return (
-      <ThemedView style={styles.container}>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="interactive"
-          contentContainerStyle={styles.content}
-        >
-          <ThemedText
-            type="small"
-            style={{
-              alignSelf: "flex-start",
-              padding: 6,
-              backgroundColor: Gallery.highlight,
-              color: Gallery.accent,
-            }}
-          >
-            {phase.flow.sourceUrl ? "Read from the museum page" : "Read from your photo"}
-          </ThemedText>
-          <ThemedText type="title">Review artwork details</ThemedText>
-          <ThemedText themeColor="textSecondary">
-            Check the details before saving. Edit anything that doesn’t look right.
-          </ThemedText>
-          {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
-          <VerifiedFieldsForm
-            key={phase.flow.updatedAt}
-            state={form}
-            warnings={phase.flow.warnings}
-            editable={editable}
-            onChange={onChange}
-          />
-          {capture && !savedId && (
-            <>
-              <CaptureContextButton capture={capture} disabled={saving} />
-              <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
-            </>
-          )}
-          <LabelActions
-            allowContribution={!!contribution}
-            canSave={canSaveLabel(form)}
-            saving={saving}
+      <CaptureCompletion
+        completion={completion}
+        sharedToIndex={shared?.status === "tentative"}
+        status={
+          <ContributionStatus
             sharing={sharing}
-            savedId={savedId}
-            completion={completion}
             shared={shared}
-            saveError={saveError}
             shareError={shareError}
-            onSave={() => {
-              void save(input);
-            }}
             onShare={() => {
               void retrySharing();
             }}
-            onViewSaved={() =>
-              router.push({
-                pathname: "/saved/[savedId]",
-                params: { savedId: savedId ?? "" },
-              })
-            }
           />
-        </ScrollView>
-      </ThemedView>
+        }
+      >
+        <ThemedView style={styles.container}>
+          <ScrollView
+            contentInsetAdjustmentBehavior="automatic"
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="interactive"
+            contentContainerStyle={styles.content}
+          >
+            <ThemedText
+              type="small"
+              style={{
+                alignSelf: "flex-start",
+                padding: 6,
+                backgroundColor: Gallery.highlight,
+                color: Gallery.accent,
+              }}
+            >
+              {phase.flow.sourceUrl ? "Read from the museum page" : "Read from your photo"}
+            </ThemedText>
+            <ThemedText type="title">Review artwork details</ThemedText>
+            <ThemedText themeColor="textSecondary">
+              Check the details before saving. Edit anything that doesn’t look right.
+            </ThemedText>
+            {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
+            <VerifiedFieldsForm
+              key={phase.flow.updatedAt}
+              state={form}
+              warnings={phase.flow.warnings}
+              editable={editable}
+              onChange={onChange}
+            />
+            {capture && !savedId && (
+              <>
+                <CaptureContextButton capture={capture} disabled={saving} />
+                <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
+              </>
+            )}
+            <LabelActions
+              allowContribution={!!contribution}
+              canSave={canSaveLabel(form)}
+              saving={saving}
+              sharing={sharing}
+              savedId={savedId}
+              shared={shared}
+              saveError={saveError}
+              shareError={shareError}
+              onSave={() => {
+                void save(input);
+              }}
+              onShare={() => {
+                void retrySharing();
+              }}
+              onViewSaved={() =>
+                router.push({
+                  pathname: "/saved/[savedId]",
+                  params: { savedId: savedId ?? "" },
+                })
+              }
+            />
+          </ScrollView>
+        </ThemedView>
+      </CaptureCompletion>
     );
   }
 

@@ -210,9 +210,9 @@ it("retains an edited visit after leaving the session and saves only new photos 
     }),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
   expect(screen.getByText("Other museum · 2 Sep 2026")).toBeOnTheScreen();
-  expect(screen.getAllByLabelText("Saved photo preview")).toHaveLength(1);
+  expect(screen.getAllByLabelText("Your photo of Water Lilies")).toHaveLength(1);
   expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "detail.jpg" })]);
   expect(selectArtworkPhotos("artwork").all()).toEqual(
     expect.arrayContaining([
@@ -260,7 +260,7 @@ it("saves an unsaved artwork and every added photo directly from the session", a
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Save 2 photos" }));
   expect(await screen.findByText("My edited title")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Add a private note" })).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
   expect((await getSavedWork("saved-new"))?.title).toBe("My edited title");
   expect(
     selectArtworkPhotos("saved-new")
@@ -344,11 +344,7 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
     status: "tentative",
   });
   await fireEvent.press(screen.getByRole("button", { name: "Retry saving to the shared index" }));
-  expect(
-    await screen.findByText(
-      "An artwork crop was saved to the shared index. Your wall and shared visits haven’t changed.",
-    ),
-  ).toBeOnTheScreen();
+  expect(await screen.findByText("An artwork crop was saved to the shared index.")).toBeOnTheScreen();
   expect(selectArtworkPhotos("saved-new").all()).toHaveLength(1);
   // The capture was scanned at the Met with no visit yet: the save started one.
   expect(selectArtworkPhotos("saved-new").all()[0].visitLocalId).toBe("3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f");
@@ -461,6 +457,6 @@ it("keeps unresolved photos in the draft until the owner explicitly confirms the
   expect(screen.getByRole("button", { name: "Save 1 photo" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "Keep with this artwork" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByText("Saved to your collection")).toBeOnTheScreen();
+  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
   expect(selectArtworkPhotos("artwork").all()).toHaveLength(2);
 });

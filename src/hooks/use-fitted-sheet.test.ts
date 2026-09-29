@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { Dimensions, type LayoutChangeEvent } from "react-native";
+import { DeviceEventEmitter, Dimensions, type LayoutChangeEvent } from "react-native";
 
 import { useFittedSheetHeight } from "./use-fitted-sheet";
 
@@ -47,4 +47,17 @@ it("does not count the header and footer twice when they move into the scroll co
   await rerender({ scrollAll: false });
   await act(() => result.current.onContentSizeChange(390, 120));
   expect(result.current.height).toBe(270);
+});
+
+it("keeps long sheet content scrollable above the keyboard and expands after dismissal", async () => {
+  const { result } = await renderHook(() => useFittedSheetHeight({ scrollAll: true }));
+  await act(() => result.current.onContentSizeChange(390, 5000));
+  await act(() =>
+    DeviceEventEmitter.emit("keyboardWillChangeFrame", {
+      endCoordinates: { screenX: 0, screenY: 450, width: 390, height: 350 },
+    }),
+  );
+  expect(result.current.height).toBe(450);
+  await act(() => DeviceEventEmitter.emit("keyboardDidHide", {}));
+  expect(result.current.height).toBe(Dimensions.get("window").height);
 });
