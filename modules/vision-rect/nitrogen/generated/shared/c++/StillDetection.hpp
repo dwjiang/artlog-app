@@ -28,12 +28,12 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-// Forward declaration of `RectObservation` to properly resolve imports.
-namespace margelo::nitro::visionrect { struct RectObservation; }
+// Forward declaration of `StillRectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillRectObservation; }
 // Forward declaration of `SubjectObservation` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
 
-#include "RectObservation.hpp"
+#include "StillRectObservation.hpp"
 #include <vector>
 #include "SubjectObservation.hpp"
 #include <string>
@@ -48,13 +48,13 @@ namespace margelo::nitro::visionrect {
   public:
     double width     SWIFT_PRIVATE;
     double height     SWIFT_PRIVATE;
-    std::vector<RectObservation> rectangles     SWIFT_PRIVATE;
+    std::vector<StillRectObservation> rectangles     SWIFT_PRIVATE;
     std::vector<SubjectObservation> subjects     SWIFT_PRIVATE;
     std::optional<std::string> subjectNote     SWIFT_PRIVATE;
 
   public:
     StillDetection() = default;
-    explicit StillDetection(double width, double height, std::vector<RectObservation> rectangles, std::vector<SubjectObservation> subjects, std::optional<std::string> subjectNote): width(width), height(height), rectangles(rectangles), subjects(subjects), subjectNote(subjectNote) {}
+    explicit StillDetection(double width, double height, std::vector<StillRectObservation> rectangles, std::vector<SubjectObservation> subjects, std::optional<std::string> subjectNote): width(width), height(height), rectangles(rectangles), subjects(subjects), subjectNote(subjectNote) {}
 
   public:
     friend bool operator==(const StillDetection& lhs, const StillDetection& rhs) = default;
@@ -72,7 +72,7 @@ namespace margelo::nitro {
       return margelo::nitro::visionrect::StillDetection(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "width"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "height"))),
-        JSIConverter<std::vector<margelo::nitro::visionrect::RectObservation>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectangles"))),
+        JSIConverter<std::vector<margelo::nitro::visionrect::StillRectObservation>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectangles"))),
         JSIConverter<std::vector<margelo::nitro::visionrect::SubjectObservation>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subjects"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subjectNote")))
       );
@@ -81,7 +81,7 @@ namespace margelo::nitro {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "width"), JSIConverter<double>::toJSI(runtime, arg.width));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "height"), JSIConverter<double>::toJSI(runtime, arg.height));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "rectangles"), JSIConverter<std::vector<margelo::nitro::visionrect::RectObservation>>::toJSI(runtime, arg.rectangles));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "rectangles"), JSIConverter<std::vector<margelo::nitro::visionrect::StillRectObservation>>::toJSI(runtime, arg.rectangles));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "subjects"), JSIConverter<std::vector<margelo::nitro::visionrect::SubjectObservation>>::toJSI(runtime, arg.subjects));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "subjectNote"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.subjectNote));
       return obj;
@@ -96,7 +96,7 @@ namespace margelo::nitro {
       }
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "width")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "height")))) return false;
-      if (!JSIConverter<std::vector<margelo::nitro::visionrect::RectObservation>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectangles")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::visionrect::StillRectObservation>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectangles")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::visionrect::SubjectObservation>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subjects")))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "subjectNote")))) return false;
       return true;

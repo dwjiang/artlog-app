@@ -24,6 +24,8 @@ namespace margelo::nitro::visionrect { struct RectObservation; }
 namespace margelo::nitro::visionrect { struct RectPoint; }
 // Forward declaration of `StillDetection` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct StillDetection; }
+// Forward declaration of `StillRectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillRectObservation; }
 // Forward declaration of `SubjectObservation` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
 // Forward declaration of `TextLine` to properly resolve imports.
@@ -45,6 +47,7 @@ namespace VisionRect { class HybridVisionRectSpec_cxx; }
 #include "RectObservation.hpp"
 #include "RectPoint.hpp"
 #include "StillDetection.hpp"
+#include "StillRectObservation.hpp"
 #include "SubjectObservation.hpp"
 #include "TextLine.hpp"
 #include "TextRecognition.hpp"
@@ -113,6 +116,17 @@ namespace margelo::nitro::visionrect::bridge::swift {
   // pragma MARK: std::weak_ptr<margelo::nitro::camera::HybridFrameSpec>
   using std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ = std::weak_ptr<margelo::nitro::camera::HybridFrameSpec>;
   inline std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ weakify_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: std::vector<StillRectObservation>
+  /**
+   * Specialized version of `std::vector<StillRectObservation>`.
+   */
+  using std__vector_StillRectObservation_ = std::vector<StillRectObservation>;
+  inline std::vector<StillRectObservation> create_std__vector_StillRectObservation_(size_t size) noexcept {
+    std::vector<StillRectObservation> vector;
+    vector.reserve(size);
+    return vector;
+  }
   
   // pragma MARK: std::vector<SubjectObservation>
   /**

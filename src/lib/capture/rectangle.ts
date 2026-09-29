@@ -37,6 +37,16 @@ export const STILL_MATCH_TOLERANCE = 0.05;
 export const SUBJECT_QUAD_FILL_TOLERANCE = 0.025;
 // Small lifted regions can be details inside an edge-to-edge painting, despite a rectangular mask.
 export const MIN_UNGUIDED_SUBJECT_AREA_FRACTION = 0.2;
+/**
+ * A candidate nested in the chosen quad is the artwork inside a container (a screen, wall panel, mat or card)
+ * when at most this share of it is flat and at least `CONTAINER_BAND_MIN_FLAT_SHARE` of the band around it is.
+ * On the Mac harness paintings shown on a laptop, behind a mat or on a card measured at most 14% flat and the
+ * band around them 33–96%; a picture in a drawing of a gallery wall had 21% flat paper around it.
+ */
+export const NESTED_ARTWORK_MAX_FLAT_SHARE = 0.15;
+export const CONTAINER_BAND_MIN_FLAT_SHARE = 0.25;
+/** Share of the container a nested artwork covers: smaller ones are painted details, and above it the band is too thin to measure. */
+export const NESTED_ARTWORK_AREA_RANGE: [number, number] = [0.2, 0.9];
 
 export type FrameSize = { width: number; height: number };
 export type Guidance = "searching" | "move-closer" | "fit-whole-painting" | "straighten" | "hold-still" | "ready";
@@ -267,18 +277,56 @@ export function isQuadrilateralSubject(subject: SubjectObservation): boolean {
   return subject.quad.length === 4 && Math.abs(subject.quadFill - 1) <= SUBJECT_QUAD_FILL_TOLERANCE;
 }
 
-function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | null {
-  let best: Quad | null = null;
+type StillCandidate = { quad: Quad; flatShare: number };
+
+function closestCandidate(candidates: StillCandidate[], target: Quad): StillCandidate | undefined {
+  let best: StillCandidate | undefined;
   let bestDistance = STILL_MATCH_TOLERANCE;
-  for (const candidate of rectangles) {
-    const quad = toQuad(candidate.corners);
-    const separation = maxCornerDistance(quad, target, unitSize);
+  for (const candidate of candidates) {
+    const separation = maxCornerDistance(candidate.quad, target, unitSize);
     if (separation <= bestDistance) {
-      best = quad;
+      best = candidate;
       bestDistance = separation;
     }
   }
   return best;
+}
+
+function largestCandidate(candidates: StillCandidate[]): StillCandidate | undefined {
+  return candidates.reduce<StillCandidate | undefined>(
+    (best, candidate) => (!best || quadArea(candidate.quad) > quadArea(best.quad) ? candidate : best),
+    undefined,
+  );
+}
+
+/** Flat share of the band between `outer` and `inner`, which lies inside it. */
+function bandFlatShare(outer: StillCandidate, inner: StillCandidate): number {
+  const outerArea = quadArea(outer.quad);
+  const innerArea = quadArea(inner.quad);
+  return (outer.flatShare * outerArea - inner.flatShare * innerArea) / (outerArea - innerArea);
+}
+
+/** The largest textured candidate inside `container` with a mostly flat band around it. */
+function nestedArtwork(container: StillCandidate, candidates: StillCandidate[]): StillCandidate | undefined {
+  const [minShare, maxShare] = NESTED_ARTWORK_AREA_RANGE;
+  const area = quadArea(container.quad);
+  return largestCandidate(
+    candidates.filter((candidate) => {
+      const share = quadArea(candidate.quad) / area;
+      return (
+        share >= minShare
+        && share <= maxShare
+        && candidate.flatShare <= NESTED_ARTWORK_MAX_FLAT_SHARE
+        && candidate.quad.every((corner) => containsPoint(container.quad, corner))
+        && bandFlatShare(container, candidate) >= CONTAINER_BAND_MIN_FLAT_SHARE
+      );
+    }),
+  );
+}
+
+function innermostArtwork(chosen: StillCandidate, candidates: StillCandidate[]): Quad {
+  const inner = nestedArtwork(chosen, candidates);
+  return inner ? innermostArtwork(inner, candidates) : chosen.quad;
 }
 
 /**
@@ -288,33 +336,33 @@ function closestRectangle(rectangles: RectObservation[], target: Quad): Quad | n
  * Subjects cut off by the edge are doors and walls, or a painting
  * whose mask ran off the photo and fits a tilted quad; those fall through. Without a subject the
  * rectangle candidates stand in: the one matching the preview quad, else the largest.
- * Preview corners alone are never evidence of a still boundary. Imports keep the outer candidate because a smaller nested rectangle can be
- * painted detail rather than the canvas boundary.
+ * Preview corners alone are never evidence of a still boundary. The choice may be a container, such as a screen,
+ * wall panel or mat, so the crop then steps inward to a textured candidate with a flat band around it; painted
+ * detail inside a canvas has paint around it, so the canvas stays.
  */
 export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
-  const rectangles = still.rectangles.filter(
-    (observation) => observation.corners.length === 4 && isUsableQuad(toQuad(observation.corners)),
-  );
-  const subjects = still.subjects
+  const rectangles = still.rectangles
+    .filter((observation) => observation.corners.length === 4 && isUsableQuad(toQuad(observation.corners)))
+    .map((observation) => ({ quad: toQuad(observation.corners), flatShare: observation.flatShare }));
+  const lifted = still.subjects
     .filter(isQuadrilateralSubject)
-    .map((subject) => toQuad(subject.quad))
+    .map((subject) => ({ quad: toQuad(subject.quad), flatShare: subject.flatShare }))
+    .filter(({ quad }) => isUsableQuad(quad));
+  const subjects = lifted
     .filter(
-      (quad) =>
-        isUsableQuad(quad)
-        && !isCutOff(quad)
+      ({ quad }) =>
+        !isCutOff(quad)
         && (quadArea(quad) >= MIN_UNGUIDED_SUBJECT_AREA_FRACTION
           || (previewQuad !== null
             && enclosesCentroid(previewQuad, quad)
             && quadArea(quad) >= 0.5 * quadArea(previewQuad))
-          || closestRectangle(rectangles, quad) !== null),
+          || closestCandidate(rectangles, quad) !== undefined),
     )
-    .sort((a, b) => quadArea(b) - quadArea(a));
-  const subject = (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad))) ?? subjects[0];
-  if (subject) return subject;
-  if (previewQuad) {
-    const match = closestRectangle(rectangles, previewQuad);
-    if (match) return match;
-  }
-  const largest = largestObservation(rectangles);
-  return largest ? toQuad(largest.corners) : null;
+    .sort((a, b) => quadArea(b.quad) - quadArea(a.quad));
+  const chosen =
+    (previewQuad && subjects.find(({ quad }) => enclosesCentroid(previewQuad, quad)))
+    ?? subjects[0]
+    ?? (previewQuad && closestCandidate(rectangles, previewQuad))
+    ?? largestCandidate(rectangles);
+  return chosen ? innermostArtwork(chosen, [...rectangles, ...lifted]) : null;
 }
