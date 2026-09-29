@@ -1,10 +1,12 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppStateStatus } from "react-native";
 
+import { Spacing } from "@/constants/theme";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
 import type { CaptureTimings } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
+import { useToastLift } from "@/lib/ui/toast";
 import type { VenueView } from "@/lib/venue/use-venue";
 
 import { ScanScreen } from "./scan-screen";
@@ -327,6 +329,18 @@ it("hides camera startup errors while an imported photo is processing or needs a
   expect(screen.queryByText("Could not start the camera. You can import a photo.")).toBeNull();
   expect(screen.getByRole("alert")).toHaveTextContent("Fit all corners");
   expect(screen.getByRole("button", { name: "Choose another photo" })).toBeEnabled();
+});
+
+it("floats toasts above the camera controls and hints only while the scan tab is focused", async () => {
+  const lift = await renderHook(useToastLift);
+  const view = await render(<ScanScreen />);
+  await fireEvent(screen.getByRole("button", { name: "Import" }), "layout", {
+    nativeEvent: { layout: { height: 140 } },
+  });
+  expect(lift.result.current).toEqual(expect.objectContaining({ height: 34 + Spacing.three + 140 }));
+  mockFocused = false;
+  await view.rerender(<ScanScreen />);
+  expect(lift.result.current).toBeUndefined();
 });
 
 it("shows camera startup progress only while the camera is meant to run", async () => {
