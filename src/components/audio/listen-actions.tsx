@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
@@ -11,7 +12,6 @@ import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { openPlayer } from "./mini-player";
-import { NarrationWaveform } from "./narration-waveform";
 
 export function ListenActions({
   artworkId,
@@ -100,7 +100,7 @@ export function ListenActions({
       >
         <View style={[styles.play, another && queued && styles.queued]}>
           {preparing ? (
-            <NarrationWaveform color={Gallery.surface} size={24} />
+            <LoadingRing color={Gallery.surface} size={24} accessible={false} />
           ) : (
             <AudioIcon
               name={
