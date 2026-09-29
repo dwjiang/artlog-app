@@ -4,7 +4,7 @@
 //   swiftc -O -framework Vision -framework CoreImage \
 //     modules/vision-rect/ios/RectangleDetector.swift modules/vision-rect/ios/SubjectDetector.swift \
 //     modules/vision-rect/ios/StillAnalyzer.swift modules/vision-rect/ios/Letterbox.swift \
-//     modules/vision-rect/ios/TextRecognizer.swift \
+//     modules/vision-rect/ios/TextRecognizer.swift modules/vision-rect/ios/FlatnessMap.swift \
 //     modules/vision-rect/scripts/mac-harness.swift -o /tmp/vision-rect-harness
 //   /tmp/vision-rect-harness analyze <image>... [--out <dir>]
 //     --out writes <name>-analysis.png (subject quads red, bounds dotted, rectangles blue) and <name>-crop.png (top subject warped)
@@ -111,13 +111,19 @@ struct Harness {
           "quadFill": round4(CGFloat(subject.quadFill)),
           "bounds": subject.bounds.map { [round4($0.x), round4($0.y)] },
           "quad": subject.quad.map { [round4($0.x), round4($0.y)] },
+          "flatShare": round4(CGFloat(result.flatness.flatShare(subject.quad))),
         ]
       }
       print(json([
         "file": url.lastPathComponent, "width": result.width, "height": result.height, "ms": (elapsed * 10).rounded() / 10,
         "subjects": subjects,
         "subjectNote": result.subjectNote ?? NSNull(),
-        "rectangles": result.rectangles.map { ["confidence": round4(CGFloat($0.confidence)), "area": round4($0.area), "corners": $0.corners.map { [round4($0.x), round4($0.y)] }] },
+        "rectangles": result.rectangles.map {
+          [
+            "confidence": round4(CGFloat($0.confidence)), "area": round4($0.area), "corners": $0.corners.map { [round4($0.x), round4($0.y)] },
+            "flatShare": round4(CGFloat(result.flatness.flatShare($0.corners))),
+          ]
+        },
       ]))
       guard let outDir else { continue }
       let name = url.deletingPathExtension().lastPathComponent

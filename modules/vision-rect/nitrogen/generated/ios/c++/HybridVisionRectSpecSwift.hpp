@@ -22,6 +22,8 @@ namespace margelo::nitro::visionrect { struct RectPoint; }
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 // Forward declaration of `StillDetection` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct StillDetection; }
+// Forward declaration of `StillRectObservation` to properly resolve imports.
+namespace margelo::nitro::visionrect { struct StillRectObservation; }
 // Forward declaration of `SubjectObservation` to properly resolve imports.
 namespace margelo::nitro::visionrect { struct SubjectObservation; }
 // Forward declaration of `LetterboxResult` to properly resolve imports.
@@ -42,6 +44,7 @@ namespace margelo::nitro::visionrect { struct TextLine; }
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include "StillDetection.hpp"
 #include <NitroModules/Promise.hpp>
+#include "StillRectObservation.hpp"
 #include "SubjectObservation.hpp"
 #include <string>
 #include "LetterboxResult.hpp"

@@ -10,6 +10,7 @@ export type {
   RectObservation,
   RectPoint,
   StillDetection,
+  StillRectObservation,
   SubjectObservation,
   TextLine,
   TextRecognition,
