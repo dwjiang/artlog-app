@@ -325,11 +325,15 @@ it("surfaces a sharing failure and lets the user try again", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
   expect(await screen.findByText("mapped: boom. Your artwork is saved to your collection.")).toBeOnTheScreen();
-  mockContribute.mockResolvedValue({
-    contributionId: "contrib-1",
-    status: "tentative",
-  });
+  let finish!: (value: { contributionId: string; status: "tentative" }) => void;
+  mockContribute.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
   await fireEvent.press(screen.getByRole("button", { name: SHARE_BUTTON }));
+  expect(screen.getByRole("button", { name: SHARE_BUTTON })).toBeDisabled();
+  await act(async () => finish({ contributionId: "contrib-1", status: "tentative" }));
   expect(mockSave).toHaveBeenCalledTimes(1);
   expect(mockContribute).toHaveBeenCalledTimes(2);
   expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();

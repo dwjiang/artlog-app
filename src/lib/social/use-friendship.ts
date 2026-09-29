@@ -22,7 +22,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
   const own = useSocialQuery(api.friendships.getState, enabled && !source ? { profileId } : "skip", session.key);
   const query = source ? { ...source, error: undefined } : own;
   const [confirmed, setConfirmed] = useState<Relationship>();
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<FriendshipAction>();
   const [error, setError] = useState<string>();
   const request = useRef<AbortController | null>(null);
   useEffect(
@@ -51,7 +51,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
       logger: false,
       fetch: (input, options) => expoFetch(input, { ...options, signal: controller.signal }),
     });
-    setBusy(true);
+    setPending(action);
     setError(undefined);
     try {
       const result = await client.mutation(
@@ -77,14 +77,14 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
     } finally {
       if (current()) {
         request.current = null;
-        setBusy(false);
+        setPending(undefined);
       }
     }
   }
 
   return {
     state,
-    busy,
+    pending,
     error: error ?? (query.error ? (socialErrorMessage(query.error) ?? "Couldn’t load this friendship.") : undefined),
     act,
     refresh: () => {
