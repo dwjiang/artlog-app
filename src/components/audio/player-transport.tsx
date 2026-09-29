@@ -1,6 +1,6 @@
 import Slider from "@react-native-community/slider";
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -15,8 +15,6 @@ import { NarrationWaveform } from "./narration-waveform";
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
 export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
   const audio = useListening();
-  const { fontScale } = useWindowDimensions();
-  const actionStyle = [styles.action, fontScale <= 1.4 && styles.actionColumn];
   const [scrubbing, setScrubbing] = useState(false);
   const dragging = useRef(false);
   const [draft, setDraft] = useState(audio.position);
@@ -29,6 +27,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   // Speech still being generated has no length yet, so there is no range to seek within.
   const seekable = ready && audio.duration > 0;
   const position = scrubbing ? draft : audio.position;
+  const queue = view === "queue" || view === "saved";
   return (
     <View style={styles.container}>
       <Slider
@@ -126,7 +125,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         />
         <AudioIcon name="speaker.wave.2.fill" size={16} color={Gallery.muted} />
       </View>
-      <View style={[styles.bottom, fontScale > 1.4 && styles.stacked]}>
+      <View style={styles.bottom}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Playback speed, ${audio.rate} times`}
@@ -134,7 +133,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             const rates = [1, 1.25, 1.5, 2];
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
-          style={actionStyle}
+          style={styles.action}
         >
           <Text
             style={{
@@ -147,30 +146,20 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             {audio.rate}×
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Transcript and sources"
-          accessibilityState={{ selected: view === "transcript" }}
+        <AudioIconButton
+          name="captions.bubble"
+          label="Transcript and sources"
+          selected={view === "transcript"}
           onPress={() => onView(view === "transcript" ? "player" : "transcript")}
-          style={[actionStyle, view === "transcript" && styles.selected]}
-        >
-          <AudioIcon name="text.alignleft" size={18} />
-          <Text style={[styles.actionText, view === "transcript" && styles.selectedText]}>Transcript</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Up next"
-          accessibilityState={{
-            selected: view === "queue" || view === "saved",
-          }}
-          onPress={() => onView(view === "queue" || view === "saved" ? "player" : "queue")}
-          style={[actionStyle, (view === "queue" || view === "saved") && styles.selected]}
-        >
-          <AudioIcon name="list.bullet" size={20} />
-          <Text style={[styles.actionText, (view === "queue" || view === "saved") && styles.selectedText]}>
-            Up next
-          </Text>
-        </Pressable>
+          style={view === "transcript" && styles.selected}
+        />
+        <AudioIconButton
+          name="list.bullet"
+          label="Up next"
+          selected={queue}
+          onPress={() => onView(queue ? "player" : "queue")}
+          style={queue && styles.selected}
+        />
       </View>
     </View>
   );
@@ -178,7 +167,6 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.content,
-    paddingBottom: Spacing.two,
     backgroundColor: Gallery.paper,
   },
   slider: { height: 44 },
@@ -210,28 +198,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   volume: { flexDirection: "row", alignItems: "center", gap: Spacing.compact },
-  bottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.one,
-    marginTop: Spacing.two,
-    paddingTop: Spacing.two,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Gallery.softBorder,
-  },
-  stacked: { flexDirection: "column", alignItems: "stretch" },
-  actionColumn: { flex: 1 },
-  action: {
-    minHeight: 44,
-    minWidth: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.compact,
-    borderRadius: Radius.button,
-  },
-  selected: { backgroundColor: Gallery.highlight },
-  selectedText: { fontWeight: "600" },
-  actionText: { flexShrink: 1, textAlign: "center", fontSize: 12, lineHeight: 18, color: Gallery.ink },
+  bottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  action: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
+  selected: { backgroundColor: Gallery.highlight, borderRadius: Radius.button },
 });

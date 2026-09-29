@@ -83,9 +83,17 @@ export function NowPlayingScreen() {
     </View>
   );
   const compact = height < 720;
-  const artworkSize = Math.min(width - Spacing.content * 2, height * (compact || fontScale > 1.4 ? 0.24 : 0.35), 360);
+  // Only accessibility text sizes can outgrow the sheet; otherwise the artwork shrinks so the player never scrolls.
+  const scrolls = fontScale > 1.4;
+  const artworkSize = Math.min(width - Spacing.content * 2, scrolls ? height * 0.24 : 360);
   const artwork = (
-    <View style={[styles.artwork, !work.imageUri && styles.noArtwork, { width: artworkSize, height: artworkSize }]}>
+    <View
+      style={[
+        styles.artwork,
+        !work.imageUri && styles.noArtwork,
+        scrolls ? { height: artworkSize } : { flex: 1, maxHeight: artworkSize },
+      ]}
+    >
       {work.imageUri ? (
         <Image
           source={work.imageUri}
@@ -106,6 +114,18 @@ export function NowPlayingScreen() {
     </Text>
   );
   const transport = <PlayerTransport view={view} onView={setView} />;
+  const player = (
+    <>
+      <View style={[styles.artworkSpace, !scrolls && styles.fill, compact && { paddingVertical: Spacing.three }]}>
+        {artwork}
+      </View>
+      <View style={styles.details}>
+        {metadata}
+        {status}
+      </View>
+      {transport}
+    </>
+  );
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(8, bottom) }]}>
       <View style={styles.header}>
@@ -130,16 +150,14 @@ export function NowPlayingScreen() {
           />
         )}
       </View>
-      {view === "player" && (
-        <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never">
-          <View style={[styles.artworkSpace, compact && { paddingVertical: Spacing.three }]}>{artwork}</View>
-          <View style={styles.details}>
-            {metadata}
-            {status}
-          </View>
-          {transport}
-        </ScrollView>
-      )}
+      {view === "player"
+        && (scrolls ? (
+          <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never">
+            {player}
+          </ScrollView>
+        ) : (
+          <View style={styles.scroll}>{player}</View>
+        ))}
       {view === "queue" && (
         <>
           <ListeningQueue />
@@ -190,7 +208,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing.four,
   },
-  artwork: { alignItems: "center", justifyContent: "center" },
+  fill: { flex: 1 },
+  artwork: { aspectRatio: 1, alignItems: "center", justifyContent: "center" },
   noArtwork: { backgroundColor: Gallery.fill },
   details: { paddingHorizontal: Spacing.content, gap: Spacing.two },
   metadata: { gap: Spacing.two, paddingBottom: Spacing.two },
