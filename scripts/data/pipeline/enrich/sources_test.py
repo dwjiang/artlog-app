@@ -12,6 +12,11 @@ from pipeline.enrich.sources import (
 from pipeline.polite_http import PoliteClient
 
 
+@pytest.fixture(autouse=True)
+def no_live_wikidata_queries(monkeypatch):
+    monkeypatch.setattr("pipeline.enrich.sources.sparql", lambda *_args, **_kwargs: [])
+
+
 @pytest.mark.parametrize(
     ("url", "score"),
     [
@@ -315,6 +320,111 @@ def test_search_cannot_introduce_a_different_work_with_the_same_title():
         )
     assert len(sources) == 1
     assert "38.1 by 46" in sources[0]["text"]
+
+
+@pytest.mark.parametrize(
+    ("prop", "object_id", "page", "other"),
+    [
+        (
+            "P3634",
+            "437881",
+            "https://www.metmuseum.org/art/collection/search/437881?lang=en",
+            "https://www.metmuseum.org/art/collection/search/437880",
+        ),
+        (
+            "P4610",
+            "28560",
+            "https://www.artic.edu/artworks/28560/the-bedroom",
+            "https://www.artic.edu/artworks/28561/the-bedroom",
+        ),
+    ],
+)
+def test_collection_ids_on_wikidata_identify_the_museum_page(prop, object_id, page, other):
+    entity = {
+        "claims": {prop: [{"mainsnak": {"snaktype": "value", "datavalue": {"value": object_id}}}]}
+    }
+
+    def respond(request):
+        return httpx.Response(200, json={"entities": {"Q1": entity}})
+
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(respond),
+        sleep=lambda _: None,
+    ) as http:
+        sources = SourceGatherer(
+            http,
+            lambda _: [
+                {"url": page, "content": "This painting."},
+                {"url": other, "content": "Another painting with the same title."},
+            ],
+        ).gather(
+            {"title": "The Bedroom", "artist": "Vincent van Gogh", "wikidataId": "Q1"},
+            {"pageUrl": "https://www.wikidata.org/wiki/Q1"},
+        )
+    assert [source["url"] for source in sources] == [page]
+
+
+def test_chicago_work_finds_its_wikidata_item_and_reads_the_api_text():
+    queries = []
+
+    def query(text):
+        queries.append(text)
+        return [{"item": {"value": "http://www.wikidata.org/entity/Q18713076"}}]
+
+    def respond(request):
+        if request.url.host == "api.artic.edu":
+            assert request.headers["AIC-User-Agent"] == "test"
+            description = "<p>The most famous <em>bedroom</em>, in Arles.</p><p>He made three.</p>"
+            return httpx.Response(200, json={"data": {"description": description}})
+        if request.url.host == "www.wikidata.org":
+            entity = {"labels": {"en": {"value": "The Bedroom"}}}
+            return httpx.Response(200, json={"entities": {"Q18713076": entity}})
+        return httpx.Response(403)
+
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(respond),
+        sleep=lambda _: None,
+    ) as http:
+        sources = SourceGatherer(http, lambda _: [], query).gather(
+            {"title": "The Bedroom", "artist": "Vincent van Gogh"},
+            {
+                "pageUrl": "https://www.artic.edu/artworks/28560",
+                "owner": {"name": "Art Institute of Chicago", "website": "https://www.artic.edu"},
+            },
+        )
+    assert [(source["url"], source["text"]) for source in sources] == [
+        (
+            "https://www.artic.edu/artworks/28560",
+            "The most famous bedroom, in Arles.\nHe made three.",
+        ),
+        ("https://www.wikidata.org/wiki/Q18713076", "Label: The Bedroom"),
+    ]
+    assert 'wdt:P4610 "28560"' in queries[0]
+
+
+def test_search_copy_of_the_wikidata_page_does_not_replace_its_summary():
+    entity = {"labels": {"en": {"value": "Harbor"}}}
+
+    def respond(request):
+        return httpx.Response(200, json={"entities": {"Q1": entity}})
+
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(respond),
+        sleep=lambda _: None,
+    ) as http:
+        sources = SourceGatherer(
+            http,
+            lambda _: [
+                {"url": "https://www.wikidata.org/wiki/Q1", "content": "| depicts | boat |\n" * 50}
+            ],
+        ).gather({"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {})
+    assert [source["text"] for source in sources] == ["Label: Harbor"]
 
 
 def test_unanchored_search_still_applies_scores_and_text_limits():

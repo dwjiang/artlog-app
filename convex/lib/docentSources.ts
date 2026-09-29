@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import { normalizePassage } from "../../shared/audio/guide";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
+import { articDescription } from "./artic";
 import { wikidataScore, type SourceDoc } from "./docentPrompts";
 import { reportBackendError } from "./observability";
 import { pageText } from "./pageExtract";
@@ -11,6 +12,7 @@ import { searchWithCredit } from "./tavilySpend";
 import { fetchVenuePage, venueHosts } from "./venueFetch";
 import {
   entityLabel,
+  findEntityByStatement,
   getEntities,
   getEntity,
   itemValues,
@@ -18,6 +20,7 @@ import {
   quantityValues,
   stringValues,
   yearValues,
+  wikipediaArticle,
   type WikidataEntity,
 } from "./wikidata";
 
@@ -56,6 +59,20 @@ const UNITS: Record<string, string> = {
   Q174789: "mm",
   Q218593: "in",
 };
+const ARTIC_ID = "P4610";
+// Museums whose collection pages search returns, by the Wikidata property that records their object ids.
+const COLLECTIONS = [
+  {
+    property: "P3634",
+    page: (id: string) => `https://www.metmuseum.org/art/collection/search/${id}`,
+    identity: /^metmuseum\.org\/art\/collection\/search\/(\d+)$/,
+  },
+  {
+    property: ARTIC_ID,
+    page: (id: string) => `https://www.artic.edu/artworks/${id}`,
+    identity: /^artic\.edu\/artworks\/(\d+)$/,
+  },
+];
 
 export type SourceInput = {
   artwork: Pick<Doc<"artworks">, "title" | "artist" | "wikidataId">;
@@ -98,6 +115,21 @@ export async function wikidataSummary(entity: WikidataEntity): Promise<string> {
   }
   return lines.join("\n");
 }
+
+function collectionPages(entity: WikidataEntity): string[] {
+  return COLLECTIONS.flatMap(({ property, page }) => stringValues(entity, property).map(page));
+}
+
+function collectionObject(url: string): { property: string; id: string } | null {
+  for (const { property, identity } of COLLECTIONS) {
+    const id = identity.exec(sourceIdentity(url))?.[1];
+    if (id) return { property, id };
+  }
+  return null;
+}
+
+const wikipediaUrl = (title: string) =>
+  `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`;
 
 function sourceIdentity(value: string): string {
   const url = new URL(value);
@@ -181,8 +213,8 @@ export function trimSources(sources: SourceDoc[]): SourceDoc[] {
   return trimmed;
 }
 
-// The owner's collection page, Wikidata, and score-filtered search results. Fetch errors
-// are counted so the caller can retry later instead of caching an empty sheet.
+// The owner's collection page, Chicago's API text, Wikidata, the work's English Wikipedia article, and
+// score-filtered search results. Fetch errors are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
   const sources: SourceDoc[] = [];
   let failures = 0;
@@ -213,9 +245,31 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       console.warn("Owner page unavailable for the fact sheet", error);
     }
   }
-  if (input.artwork.wikidataId) {
+  const ownerObject = input.pageUrl ? collectionObject(input.pageUrl) : null;
+  let { wikidataId } = input.artwork;
+  // Works imported from the Met or Chicago carry no Wikidata id; their object id finds the item.
+  if (!wikidataId && ownerObject) {
     try {
-      const entity = await getEntity(input.artwork.wikidataId);
+      wikidataId = (await findEntityByStatement(ownerObject.property, ownerObject.id)) ?? undefined;
+    } catch (error) {
+      failures++;
+      await reportBackendError(error, "docent.wikidata");
+      console.warn("Wikidata unavailable for the fact sheet", error);
+    }
+  }
+  const wikidataPage = wikidataId ? sourceIdentity(`https://www.wikidata.org/wiki/${wikidataId}`) : undefined;
+  const anchors = new Set([
+    ...(input.pageUrl ? [sourceIdentity(input.pageUrl)] : []),
+    ...(wikidataPage ? [wikidataPage] : []),
+  ]);
+  let article: string | undefined;
+  let articId = ownerObject?.property === ARTIC_ID ? ownerObject.id : undefined;
+  if (wikidataId) {
+    try {
+      const entity = await getEntity(wikidataId, "labels|claims|sitelinks");
+      article = entity?.sitelinks?.enwiki?.title;
+      articId ??= entity ? stringValues(entity, ARTIC_ID).find((id) => /^\d+$/.test(id)) : undefined;
+      for (const page of entity ? collectionPages(entity) : []) anchors.add(sourceIdentity(page));
       const text = entity ? await wikidataSummary(entity) : "";
       if (entity && text) {
         sources.push({
@@ -231,6 +285,41 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       console.warn("Wikidata unavailable for the fact sheet", error);
     }
   }
+  // Search often misses a work's own article, so the one Wikidata links is read directly.
+  let articlePage: string | undefined;
+  if (article) {
+    const url = wikipediaUrl(article);
+    anchors.add(sourceIdentity(url));
+    try {
+      const text = await wikipediaArticle(article);
+      if (text) {
+        articlePage = sourceIdentity(url);
+        sources.push({ url, label: "Wikipedia", score: sourceScore(url) ?? 0, text: text.slice(0, MAX_SOURCE_CHARS) });
+      }
+    } catch (error) {
+      failures++;
+      await reportBackendError(error, "docent.wikipedia");
+      console.warn("Wikipedia unavailable for the fact sheet", error);
+    }
+  }
+  if (articId) {
+    const url = `https://www.artic.edu/artworks/${articId}`;
+    try {
+      const text = await articDescription(articId);
+      if (text) {
+        sources.push({
+          url,
+          label: "Art Institute of Chicago",
+          score: sourceScore(url) ?? 0,
+          text: text.slice(0, MAX_SOURCE_CHARS),
+        });
+      }
+    } catch (error) {
+      failures++;
+      await reportBackendError(error, "docent.artic");
+      console.warn("Art Institute API unavailable for the fact sheet", error);
+    }
+  }
   const response = await searchWithCredit(ctx, {
     query: `"${input.artwork.title.replaceAll('"', "")}" ${input.artwork.artist} ${input.owner?.name ?? "painting"}`,
     includeDomains: admissibleDomains(),
@@ -238,22 +327,21 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     includeRawContent: true,
   });
   if (!response) failures++;
-  const anchors = new Set([
-    ...(input.pageUrl ? [sourceIdentity(input.pageUrl)] : []),
-    ...(input.artwork.wikidataId ? [sourceIdentity(`https://www.wikidata.org/wiki/${input.artwork.wikidataId}`)] : []),
-  ]);
   for (const result of response?.results ?? []) {
     const score = sourceScore(result.url);
     const content = result.rawContent?.trim() || result.content.trim();
     if (score === null || !content) continue;
+    const identity = sourceIdentity(result.url);
+    // Wikidata's page is statement tables no fact can quote verbatim; the summary above stands for it.
+    // A scraped copy of the article read above adds only citation links and page chrome.
+    if (identity === wikidataPage || identity === articlePage) continue;
     // A trusted domain can describe another work with the same title; require the known identity.
-    if (anchors.size > 0 && !anchors.has(sourceIdentity(result.url)) && !linksToArtwork(content, result.url, anchors)) {
+    if (anchors.size > 0 && !anchors.has(identity) && !linksToArtwork(content, result.url, anchors)) {
       continue;
     }
     const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
     // Search can return the owner's page again, often under a language or tracking parameter. Keep
     // one source per page: the longer text, under the first URL, label and score.
-    const identity = sourceIdentity(result.url);
     const existing = sources.find((source) => sourceIdentity(source.url) === identity);
     if (!existing) {
       sources.push({

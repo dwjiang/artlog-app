@@ -44,6 +44,7 @@ import type * as lib_agreement from "../lib/agreement.js";
 import type * as lib_albumMedia from "../lib/albumMedia.js";
 import type * as lib_appAttest from "../lib/appAttest.js";
 import type * as lib_appleToken from "../lib/appleToken.js";
+import type * as lib_artic from "../lib/artic.js";
 import type * as lib_artworkContent from "../lib/artworkContent.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calibrator_calibrate from "../lib/calibrator/calibrate.js";
@@ -196,6 +197,7 @@ declare const fullApi: ApiFromModules<{
   "lib/albumMedia": typeof lib_albumMedia;
   "lib/appAttest": typeof lib_appAttest;
   "lib/appleToken": typeof lib_appleToken;
+  "lib/artic": typeof lib_artic;
   "lib/artworkContent": typeof lib_artworkContent;
   "lib/auth": typeof lib_auth;
   "lib/calibrator/calibrate": typeof lib_calibrator_calibrate;

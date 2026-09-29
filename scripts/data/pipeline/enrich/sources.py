@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from html import unescape
 from typing import TypedDict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit
 
@@ -10,6 +11,7 @@ from bs4 import BeautifulSoup, Tag
 
 from pipeline.model_version import REPO_ROOT
 from pipeline.polite_http import PoliteClient, RetryLater, RobotsDisallowed
+from pipeline.wikidata import sparql
 
 from .validator import source_passage
 
@@ -33,6 +35,12 @@ PROPERTIES = {
     "P6216": "Copyright status",
 }
 UNITS = {"Q174728": "cm", "Q11573": "m", "Q174789": "mm", "Q218593": "in"}
+ARTIC_ID = "P4610"
+# Object ids Wikidata records for museums whose collection pages search returns: the Met and Chicago.
+COLLECTION_PAGES = {
+    "P3634": "https://www.metmuseum.org/art/collection/search/{}",
+    ARTIC_ID: "https://www.artic.edu/artworks/{}",
+}
 
 
 class SourceDoc(TypedDict):
@@ -48,6 +56,11 @@ def host(url: str) -> str:
 
 def source_identity(url: str) -> str:
     parts = urlsplit(url)
+    if host(url) == "artic.edu":
+        # Chicago's numeric collection URLs and title-suffixed URLs identify the same object.
+        match = re.fullmatch(r"/artworks/(\d+)(?:/[^/]+)?/?", parts.path)
+        if match:
+            return f"artic.edu/artworks/{match[1]}"
     if host(url) == "metmuseum.org":
         match = re.fullmatch(r"/(?:[a-z]{2}/)?art/collection/search/(\d+)/?", parts.path)
         object_id = (
@@ -66,6 +79,28 @@ def source_identity(url: str) -> str:
     ]
     path = unquote(parts.path).replace(" ", "_").rstrip("/")
     return host(url) + path + ("?" + urlencode(sorted(query)) if query else "")
+
+
+COLLECTION_IDENTITIES = {
+    "P3634": r"metmuseum\.org/art/collection/search/(\d+)",
+    ARTIC_ID: r"artic\.edu/artworks/(\d+)",
+}
+
+
+def collection_object(url: str) -> tuple[str, str] | None:
+    identity = source_identity(url)
+    for prop, pattern in COLLECTION_IDENTITIES.items():
+        if match := re.fullmatch(pattern, identity):
+            return prop, match[1]
+    return None
+
+
+# Inline tags go without a space so a quoted sentence reads as it does on the page.
+def html_paragraphs(html: str) -> str:
+    text = unescape(
+        re.sub(r"<[^>]+>", "", re.sub(r"</p>|<br\s*/?>", "\n", html, flags=re.IGNORECASE))
+    )
+    return "\n".join(line for line in (" ".join(part.split()) for part in text.split("\n")) if line)
 
 
 def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
@@ -194,9 +229,15 @@ def claim_values(entity: dict, prop: str) -> list:
 
 
 class SourceGatherer:
-    def __init__(self, http: PoliteClient, search: Callable[[str], list[dict]]):
+    def __init__(
+        self,
+        http: PoliteClient,
+        search: Callable[[str], list[dict]],
+        query: Callable[[str], list[dict]] | None = None,
+    ):
         self.http = http
         self.search = search
+        self.query = query or (lambda text: sparql(text, user_agent=http.user_agent))
         self.labels: dict[str, str] = {}
 
     def _json(self, url: str, allowed_host: str) -> dict:
@@ -318,9 +359,24 @@ class SourceGatherer:
                 )
 
         page_url, owner = context.get("pageUrl"), context.get("owner")
+        owner_object = collection_object(page_url) if page_url else None
+        qid = artwork.get("wikidataId")
+        # Works imported from the Met or Chicago carry no Wikidata id; their object id finds the item.
+        if not qid and owner_object:
+            prop, object_id = owner_object
+            try:
+                rows = self.query(
+                    f'SELECT ?item WHERE {{ ?item wdt:{prop} "{object_id}" }} LIMIT 2'
+                )
+                if len(rows) == 1:
+                    qid = rows[0]["item"]["value"].rsplit("/", 1)[-1]
+            except (httpx.HTTPError, KeyError, ValueError) as error:
+                log.warning("Wikidata item lookup unavailable: %s", error)
+        wikidata_page = source_identity(f"https://www.wikidata.org/wiki/{qid}") if qid else None
+        artic_id = owner_object[1] if owner_object and owner_object[0] == ARTIC_ID else None
         anchors = {source_identity(page_url)} if page_url else set()
-        if artwork.get("wikidataId"):
-            anchors.add(source_identity(f"https://www.wikidata.org/wiki/{artwork['wikidataId']}"))
+        if wikidata_page:
+            anchors.add(wikidata_page)
         if page_url and urlsplit(page_url).scheme == "http":
             page_url = urlsplit(page_url)._replace(scheme="https").geturl()
         # The venue's own page is canonical once the host check passes (convex/lib/docentSources.ts).
@@ -334,9 +390,23 @@ class SourceGatherer:
                 add(str(response.url), owner["name"], page_text(response.text), score=1.0)
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
                 log.warning("Owner page unavailable: %s", error)
-        if qid := artwork.get("wikidataId"):
+        if qid:
             try:
                 summary, entity = self._wikidata(qid)
+                artic_id = artic_id or next(
+                    (
+                        v
+                        for v in claim_values(entity, ARTIC_ID)
+                        if isinstance(v, str) and v.isdigit()
+                    ),
+                    None,
+                )
+                anchors.update(
+                    source_identity(page.format(value))
+                    for prop, page in COLLECTION_PAGES.items()
+                    for value in claim_values(entity, prop)
+                    if isinstance(value, str)
+                )
                 add(f"https://www.wikidata.org/wiki/{qid}", "Wikidata", summary)
                 title = entity.get("sitelinks", {}).get("enwiki", {}).get("title")
                 if title:
@@ -347,11 +417,37 @@ class SourceGatherer:
                     add(str(response.url), "Wikipedia", wikipedia_lead(response.text))
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
                 log.warning("Wikidata/Wikipedia unavailable: %s", error)
+        # Chicago's website refuses our fetcher; its public API carries the curatorial text (CC BY 4.0).
+        if artic_id:
+            try:
+                response = self.http.get(
+                    f"https://api.artic.edu/api/v1/artworks/{artic_id}?fields=description,short_description",
+                    headers={"AIC-User-Agent": self.http.user_agent},
+                    allowed_hosts=frozenset({"api.artic.edu"}),
+                )
+                if response.status_code != 404:
+                    response.raise_for_status()
+                    data = response.json()["data"]
+                    text = "\n".join(
+                        html_paragraphs(data[k])
+                        for k in ("description", "short_description")
+                        if isinstance(data.get(k), str)
+                    )
+                    add(
+                        f"https://www.artic.edu/artworks/{artic_id}",
+                        "Art Institute of Chicago",
+                        text,
+                    )
+            except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
+                log.warning("Art Institute API unavailable: %s", error)
         title = artwork["title"].replace('"', "")
         owner_name = (owner or {}).get("name", "painting")
         for result in self.search(f'"{title}" {artwork["artist"]} {owner_name}'):
             url, content = result.get("url"), result.get("raw_content") or result.get("content")
             if isinstance(url, str) and isinstance(content, str) and content.strip():
+                # Wikidata's page is statement tables no fact can quote verbatim; the summary stands for it.
+                if source_identity(url) == wikidata_page:
+                    continue
                 # Domain trust cannot distinguish multiple paintings called Sunflowers or Bathers.
                 if (
                     anchors

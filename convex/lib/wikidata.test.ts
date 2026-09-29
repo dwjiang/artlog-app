@@ -6,12 +6,14 @@ import {
   countries,
   creators,
   entityLabel,
+  findEntityByStatement,
   getEntities,
   getEntity,
   isArtist,
   isPainting,
   lifespan,
   searchEntities,
+  wikipediaArticle,
   yearValues,
   type WikidataEntity,
 } from "./wikidata";
@@ -63,6 +65,35 @@ describe("Wikidata client", () => {
     });
   });
 
+  it("finds the one item carrying a museum identifier", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ query: { search: [{ title: "Q18713076" }] } }))
+      .mockResolvedValueOnce(jsonResponse({ query: { search: [{ title: "Q1" }, { title: "Q2" }] } }))
+      .mockResolvedValueOnce(jsonResponse({ query: { search: [] } }));
+    expect(await findEntityByStatement("P4610", "28560")).toBe("Q18713076");
+    expect(await findEntityByStatement("P3634", "1")).toBeNull();
+    expect(await findEntityByStatement("P3634", "2")).toBeNull();
+    const params = new URL(String(fetchMock.mock.calls[0][0])).searchParams;
+    expect(params.get("list")).toBe("search");
+    expect(params.get("srsearch")).toBe("haswbstatement:P4610=28560");
+  });
+
+  it("reads an English Wikipedia article as plain text, empty when it does not exist", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          query: { pages: [{ title: "The Bohemian (Bouguereau)", extract: " The Bohemian is an oil painting.\n" }] },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ query: { pages: [{ title: "Missing", missing: true }] } }));
+    expect(await wikipediaArticle("The Bohemian (Bouguereau)")).toBe("The Bohemian is an oil painting.");
+    expect(await wikipediaArticle("Missing")).toBe("");
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.origin + url.pathname).toBe("https://en.wikipedia.org/w/api.php");
+    expect(url.searchParams.get("titles")).toBe("The Bohemian (Bouguereau)");
+    expect(url.searchParams.get("explaintext")).toBe("1");
+  });
+
   it("batches entity lookups into one call and drops missing entities", async () => {
     fetchMock.mockImplementation(async (input) => {
       const ids = new URL(String(input)).searchParams.get("ids")!.split("|");
@@ -74,6 +105,7 @@ describe("Wikidata client", () => {
     expect(params.get("action")).toBe("wbgetentities");
     expect(params.get("ids")).toBe("Q296|Q999999");
     expect(params.get("props")).toBe("labels|claims");
+    expect(params.get("sitefilter")).toBe("enwiki");
     expect(await getEntity("Q999999")).toBeNull();
     expect(await getEntities([])).toEqual({});
     expect(fetchMock).toHaveBeenCalledTimes(2);
