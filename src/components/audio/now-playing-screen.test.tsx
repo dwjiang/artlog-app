@@ -44,6 +44,7 @@ jest.mock("./listening-queue", () => ({
 }));
 jest.mock("./add-saved-works", () => ({ AddSavedWorks: () => null }));
 jest.mock("./player-transport", () => ({
+  transportStacks: () => false,
   PlayerTransport: ({ onView }: { onView: (view: string) => void }) => {
     const { Pressable, Text } = jest.requireActual("react-native");
     return (

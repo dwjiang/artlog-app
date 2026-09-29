@@ -3,7 +3,7 @@ import { AccessibilityInfo } from "react-native";
 
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
 
-import { PlayerTransport } from "./player-transport";
+import { PlayerTransport, transportStacks } from "./player-transport";
 
 const mockSeek = jest.fn();
 const mockToggle = jest.fn();
@@ -93,12 +93,22 @@ it("supports VoiceOver adjustments for position", async () => {
   expect(mockSeek).toHaveBeenCalledWith(27);
 });
 
-it("shows the transcript and queue buttons as labelled icons without visible text", async () => {
+it("labels the speed, transcript, and queue buttons with visible text", async () => {
   await render(<PlayerTransport view="player" onView={jest.fn()} />);
-  expect(screen.getByRole("button", { name: "Transcript and sources" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Up next" })).toBeOnTheScreen();
-  expect(screen.queryByText("Transcript")).toBeNull();
-  expect(screen.queryByText("Up next")).toBeNull();
+  expect(screen.getByRole("button", { name: "Playback speed, 1 times" })).toHaveTextContent("1×Speed");
+  expect(screen.getByRole("button", { name: "Transcript and sources" })).toHaveTextContent("Transcript");
+  expect(screen.getByRole("button", { name: "Up next" })).toHaveTextContent("Up next");
+});
+
+it.each([
+  [375, 1, false],
+  [375, 1.12, true],
+  [393, 1.12, false],
+  [402, 1.24, true],
+  [430, 1.24, false],
+  [440, 1.35, true],
+])("on a %i pt screen at %f× text, stacks the actions: %s", (width, fontScale, stacks) => {
+  expect(transportStacks(width, fontScale)).toBe(stacks);
 });
 
 it("marks transcript selection and returns to the artwork when tapped again", async () => {

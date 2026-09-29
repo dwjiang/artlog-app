@@ -16,7 +16,7 @@ import { useListening } from "@/lib/audio/use-listening";
 import { AddSavedWorks } from "./add-saved-works";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 import { ListeningQueue, QueueOptions } from "./listening-queue";
-import { PlayerTransport, type PlayerView } from "./player-transport";
+import { PlayerTransport, type PlayerView, transportStacks } from "./player-transport";
 
 export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();
@@ -83,8 +83,8 @@ export function NowPlayingScreen() {
     </View>
   );
   const compact = height < 720;
-  // Only accessibility text sizes can outgrow the sheet; otherwise the artwork shrinks so the player never scrolls.
-  const scrolls = fontScale > 1.4;
+  // Only a stacked transport can outgrow the sheet; otherwise the artwork shrinks so the player never scrolls.
+  const scrolls = transportStacks(width, fontScale);
   const artworkSize = Math.min(width - Spacing.content * 2, scrolls ? height * 0.24 : 360);
   const artwork = (
     <View
