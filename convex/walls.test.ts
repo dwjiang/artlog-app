@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 
+import { STARTER_WALLS } from "../shared/wall/defaults";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { fileStorage } from "./lib/fileStorage";
@@ -10,19 +11,18 @@ import { seedDevice } from "./lib/testFactories";
 import { wallFixture } from "./lib/wallFixtures";
 import { harness } from "./test.helpers";
 
-it("creates exactly one wall on first write, normalizes color and acknowledges unchanged retries", async () => {
+it("updates the starter wall, normalizes color and acknowledges unchanged retries", async () => {
   const t = harness();
   const a = await wallFixture(t, "a");
-  expect(await a.as.query(api.walls.getMine, {})).toMatchObject({
-    revision: 0,
-    color: "#FCFCF9",
-    items: [],
-  });
+  const initial = await a.as.query(api.walls.getMine, {});
+  expect(initial).toMatchObject({ revision: 0, items: [] });
+  expect(STARTER_WALLS).toContainEqual({ color: initial.color, pattern: initial.pattern });
   expect(await t.query(api.walls.getPublic, { profileId: a.profile.profileId })).toMatchObject({
-    color: "#FCFCF9",
+    color: initial.color,
+    pattern: initial.pattern,
     items: [],
   });
-  expect(await t.run((ctx) => ctx.db.query("walls").collect())).toHaveLength(0);
+  expect(await t.run((ctx) => ctx.db.query("walls").collect())).toHaveLength(1);
   const results = await Promise.all(
     [1, 2].map(() => a.as.mutation(api.walls.setLayout, { ...a.input, color: "#abcdef" })),
   );

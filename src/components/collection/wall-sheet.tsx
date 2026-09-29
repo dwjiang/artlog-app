@@ -79,7 +79,7 @@ export function WallSheet({
         >
           {/* Presented content needs its own React Native touch and measurement root. */}
           <RNHostView>
-            <View style={fit ? { height: fitted.height } : { flex: 1 }}>
+            <View style={{ height: fit ? fitted.height : fitted.maxHeight }}>
               {(!fit || !scrollAll) && heading}
               {fit ? (
                 <ScrollView

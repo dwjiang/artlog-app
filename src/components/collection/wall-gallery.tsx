@@ -1,8 +1,7 @@
-import { Image } from "expo-image";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { ThemedText as Text } from "@/components/themed-text";
@@ -10,14 +9,20 @@ import { Gallery } from "@/constants/theme";
 import {
   constrainLayout,
   isLightWall,
+  resizeWallLayout,
+  wallAspect,
   wallBottom,
+  type WallCorner,
   type WallLayout,
   type WallPiece,
   type Wallpaper,
 } from "@/lib/wall/wall-layout";
 
 import { WallArtwork } from "./wall-artwork";
+import { wallFrameInset } from "./wall-frame";
 import { wallpaperStyle } from "./wallpaper";
+
+const corners: WallCorner[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
 
 export function WallGallery({
   pieces,
@@ -25,10 +30,12 @@ export function WallGallery({
   width,
   minHeight = pieces.length > 0 ? 580 : 440,
   editing = false,
+  bottomInset = 0,
+  backgroundBottomInset = 0,
   onSelect,
   onMove,
   selectedId,
-  onRemove,
+  onDeselect,
   children,
 }: {
   pieces: WallPiece[];
@@ -36,24 +43,29 @@ export function WallGallery({
   width: number;
   editing?: boolean;
   selectedId?: string;
-  onRemove?: (id: string) => void;
+  onDeselect?: () => void;
   minHeight?: number;
+  bottomInset?: number;
+  backgroundBottomInset?: number;
   onSelect: (piece: WallPiece) => void;
   onMove?: (id: string, layout: WallLayout) => void;
   children?: React.ReactNode;
 }) {
   const light = isLightWall(wallpaper.color);
   return (
-    <View
-      style={[
-        wallpaperStyle(wallpaper),
-        {
-          width,
-          minHeight,
-          height: Math.max(minHeight, wallBottom(pieces) * width + 85),
-        },
-      ]}
-    >
+    <View style={{ width, minHeight, height: Math.max(minHeight, wallBottom(pieces) * width + 85) + bottomInset }}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, wallpaperStyle(wallpaper), { bottom: -backgroundBottomInset }]}
+      />
+      {editing && selectedId && onDeselect && (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          accessibilityRole="button"
+          accessibilityLabel="Deselect artwork"
+          onPress={onDeselect}
+        />
+      )}
       {pieces.map((piece) => (
         <Hanging
           key={piece.localId}
@@ -61,7 +73,6 @@ export function WallGallery({
           width={width}
           editing={editing}
           selected={selectedId === piece.localId}
-          onRemove={onRemove}
           labelColor={light ? Gallery.ink : Gallery.paper}
           onSelect={onSelect}
           onMove={onMove}
@@ -80,29 +91,28 @@ function Hanging({
   onSelect,
   onMove,
   selected,
-  onRemove,
 }: {
   piece: WallPiece;
   width: number;
   editing: boolean;
   labelColor: string;
   selected: boolean;
-  onRemove?: (id: string) => void;
   onSelect: (piece: WallPiece) => void;
   onMove?: (id: string, layout: WallLayout) => void;
 }) {
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
   const dragging = useSharedValue(false);
-  const { layout } = piece;
   const scale = useSharedValue(1);
+  const { layout } = piece;
+  const artworkWidth = layout.width * width;
+  const inset = wallFrameInset(layout.frame, artworkWidth);
+  const artworkHeight = (artworkWidth - inset * 2) / wallAspect(piece) + inset * 2;
   useEffect(() => {
     scale.set(1);
-  }, [layout.width, scale]);
-  useEffect(() => {
     offsetX.set(0);
     offsetY.set(0);
-  }, [layout.x, layout.y, offsetX, offsetY]);
+  }, [layout.width, layout.x, layout.y, offsetX, offsetY, scale]);
   const pan = Gesture.Pan()
     .enabled(editing)
     .activateAfterLongPress(220)
@@ -118,14 +128,14 @@ function Hanging({
       offsetX.set((next.x - layout.x) * width);
       offsetY.set((next.y - layout.y) * width);
     })
-    .onEnd(() => {
-      if (onMove) {
+    .onEnd((event, success) => {
+      if (success && onMove) {
         scheduleOnRN(
           onMove,
           piece.localId,
           constrainLayout(layout, {
-            x: layout.x + offsetX.get() / width,
-            y: layout.y + offsetY.get() / width,
+            x: layout.x + event.translationX / width,
+            y: layout.y + event.translationY / width,
           }),
         );
       }
@@ -137,30 +147,13 @@ function Hanging({
         offsetY.set(0);
       }
     });
-  const resize = Gesture.Pan()
-    .enabled(editing && selected)
-    .blocksExternalGesture(pan)
-    .onUpdate((event) => {
-      const next = constrainLayout(layout, {
-        width: layout.width + event.translationX / width,
-      });
-      scale.set(next.width / layout.width);
-    })
-    .onEnd(() => {
-      if (onMove) {
-        scheduleOnRN(onMove, piece.localId, constrainLayout(layout, { width: layout.width * scale.get() }));
-      }
-    })
-    .onFinalize((_event, success) => {
-      if (!success) scale.set(1);
-    });
   const size = useAnimatedStyle(() => ({
     transform: [{ scale: scale.get() }],
     transformOrigin: "top left",
   }));
   const motion = useAnimatedStyle(() => ({
     transform: [{ translateX: offsetX.get() }, { translateY: offsetY.get() }],
-    zIndex: dragging.get() ? 101 : layout.layer,
+    zIndex: dragging.get() ? 101 : editing && selected ? 100 : layout.layer,
     opacity: dragging.get() ? 0.92 : 1,
   }));
   const hanging = (
@@ -168,130 +161,187 @@ function Hanging({
       style={[
         {
           position: "absolute",
-          left: layout.x * width,
-          top: layout.y * width,
-          width: layout.width * width,
+          left: layout.x * width - 22,
+          top: layout.y * width - 22,
+          width: artworkWidth + 44,
+          padding: 22,
         },
         motion,
       ]}
     >
       <Animated.View style={size}>
         <Pressable
-          accessibilityRole="button"
+          accessibilityRole={editing && selected ? "adjustable" : "button"}
           accessibilityLabel={`${piece.artwork.title}, ${piece.artwork.artist}`}
+          accessibilityState={{ selected: editing && selected }}
           accessibilityHint={
             editing
-              ? "Select to change the frame or photo. Hold and drag to move; drag the corner handle to resize."
+              ? "Hold and drag to move. Drag any corner to resize. Tap empty wall space to deselect."
               : "Opens artwork details."
           }
-          onPress={() => onSelect(piece)}
-        >
-          <View
-            style={{
-              outlineColor: Gallery.accent,
-              outlineWidth: editing && selected ? 2 : 0,
-              outlineOffset: 5,
-            }}
-          >
-            <WallArtwork piece={piece} width={layout.width * width} />
-          </View>
-          <View style={styles.label}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
-                {piece.artwork.artist}
-              </Text>
-              <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
-                {piece.artwork.title}
-              </Text>
-            </View>
-          </View>
-        </Pressable>
-        {editing && selected && (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${piece.artwork.title} from wall`}
-              onPress={() => onRemove?.(piece.localId)}
-              style={[
-                styles.editBadge,
-                {
-                  top: -18,
-                  left: -18,
-                  width: 44,
-                  height: 44,
-                  borderRadius: 6,
-                  backgroundColor: Gallery.destructiveFill,
-                },
-              ]}
-            >
-              <Image source="sf:minus.circle.fill" style={{ width: 20, height: 20 }} tintColor={Gallery.destructive} />
-            </Pressable>
-            <GestureDetector gesture={resize}>
-              <Animated.View
-                accessible
-                accessibilityRole="adjustable"
-                accessibilityLabel="Artwork size"
-                accessibilityHint="Drag to resize artwork."
-                accessibilityValue={{
+          accessibilityValue={
+            editing && selected
+              ? {
                   min: 16,
                   max: 90,
                   now: Math.round(layout.width * 100),
-                  text: `${Math.round(layout.width * 100)} percent of wall width`,
-                }}
-                accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-                onAccessibilityAction={({ nativeEvent }) =>
-                  onMove?.(
-                    piece.localId,
-                    constrainLayout(layout, {
-                      width: layout.width + (nativeEvent.actionName === "increment" ? 0.04 : -0.04),
-                    }),
-                  )
+                  text: `${Math.round(layout.width * 100)} percent wall width`,
                 }
-                style={[
-                  styles.editBadge,
-                  {
-                    top: undefined,
-                    bottom: 18,
-                    right: -12,
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                  },
-                ]}
-              >
-                <Image
-                  source="sf:arrow.up.left.and.arrow.down.right"
-                  style={{ width: 13, height: 13 }}
-                  tintColor={Gallery.surface}
-                />
-              </Animated.View>
-            </GestureDetector>
-          </>
-        )}
+              : undefined
+          }
+          accessibilityActions={
+            editing && selected
+              ? [
+                  { name: "increment", label: "Increase artwork size" },
+                  { name: "decrement", label: "Decrease artwork size" },
+                  { name: "moveLeft", label: "Move left" },
+                  { name: "moveRight", label: "Move right" },
+                  { name: "moveUp", label: "Move up" },
+                  { name: "moveDown", label: "Move down" },
+                ]
+              : undefined
+          }
+          onAccessibilityAction={({ nativeEvent: { actionName } }) => {
+            if (!editing || !selected || !onMove) return;
+            const patches: Record<string, Partial<WallLayout>> = {
+              increment: { width: layout.width + 0.04 },
+              decrement: { width: layout.width - 0.04 },
+              moveLeft: { x: layout.x - 0.025 },
+              moveRight: { x: layout.x + 0.025 },
+              moveUp: { y: layout.y - 0.025 },
+              moveDown: { y: layout.y + 0.025 },
+            };
+            if (patches[actionName]) onMove(piece.localId, constrainLayout(layout, patches[actionName]));
+          }}
+          onPress={() => onSelect(piece)}
+        >
+          <View style={{ outlineColor: Gallery.accent, outlineWidth: editing && selected ? 1.5 : 0 }}>
+            <WallArtwork piece={piece} width={artworkWidth} />
+          </View>
+          <View style={styles.label}>
+            <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
+              {piece.artwork.artist}
+            </Text>
+            <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
+              {piece.artwork.title}
+            </Text>
+          </View>
+        </Pressable>
       </Animated.View>
+      {editing
+        && selected
+        && corners.map((corner) => (
+          <ResizeCorner
+            key={corner}
+            corner={corner}
+            piece={piece}
+            wallWidth={width}
+            artworkWidth={artworkWidth}
+            artworkHeight={artworkHeight}
+            pan={pan}
+            scale={scale}
+            offsetX={offsetX}
+            offsetY={offsetY}
+            onMove={onMove}
+          />
+        ))}
     </Animated.View>
   );
   return editing ? <GestureDetector gesture={pan}>{hanging}</GestureDetector> : hanging;
 }
 
+function ResizeCorner({
+  corner,
+  piece,
+  wallWidth,
+  artworkWidth,
+  artworkHeight,
+  pan,
+  scale,
+  offsetX,
+  offsetY,
+  onMove,
+}: {
+  corner: WallCorner;
+  piece: WallPiece;
+  wallWidth: number;
+  artworkWidth: number;
+  artworkHeight: number;
+  pan: ReturnType<typeof Gesture.Pan>;
+  scale: SharedValue<number>;
+  offsetX: SharedValue<number>;
+  offsetY: SharedValue<number>;
+  onMove?: (id: string, layout: WallLayout) => void;
+}) {
+  const { layout } = piece;
+  const left = corner.endsWith("left");
+  const top = corner.startsWith("top");
+  const resize = Gesture.Pan()
+    .withTestId(`resize-${piece.localId}-${corner}`)
+    .minDistance(0)
+    .blocksExternalGesture(pan)
+    .onUpdate((event) => {
+      const next = resizeWallLayout(
+        layout,
+        corner,
+        { x: event.translationX / wallWidth, y: event.translationY / wallWidth },
+        artworkWidth / artworkHeight,
+      );
+      scale.set(next.width / layout.width);
+      offsetX.set((next.x - layout.x) * wallWidth);
+      offsetY.set((next.y - layout.y) * wallWidth);
+    })
+    .onEnd((event, success) => {
+      if (success && onMove) {
+        scheduleOnRN(
+          onMove,
+          piece.localId,
+          resizeWallLayout(
+            layout,
+            corner,
+            { x: event.translationX / wallWidth, y: event.translationY / wallWidth },
+            artworkWidth / artworkHeight,
+          ),
+        );
+      }
+    })
+    .onFinalize((_event, success) => {
+      if (!success) {
+        scale.set(1);
+        offsetX.set(0);
+        offsetY.set(0);
+      }
+    });
+  const position = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: left ? 0 : artworkWidth * (scale.get() - 1) },
+      { translateY: top ? 0 : artworkHeight * (scale.get() - 1) },
+    ],
+  }));
+  return (
+    <GestureDetector gesture={resize}>
+      <Animated.View
+        accessible={false}
+        testID={`resize-${corner}`}
+        style={[styles.cornerTarget, { left: left ? 0 : artworkWidth, top: top ? 0 : artworkHeight }, position]}
+      >
+        <View style={styles.cornerDot} />
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
 const styles = StyleSheet.create({
-  label: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    paddingTop: 8,
-  },
+  label: { marginTop: 14, gap: 2 },
   artist: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
   title: { fontSize: 12, lineHeight: 16 },
-  editBadge: {
-    position: "absolute",
-    top: -10,
-    right: -10,
-    width: 26,
-    height: 26,
-    backgroundColor: Gallery.accent,
-    borderRadius: 6,
-    justifyContent: "center",
-    alignItems: "center",
+  cornerTarget: { position: "absolute", width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  cornerDot: {
+    width: 9,
+    height: 9,
+    backgroundColor: Gallery.paper,
+    borderWidth: 1.5,
+    borderColor: Gallery.accent,
+    borderRadius: 2,
   },
 });

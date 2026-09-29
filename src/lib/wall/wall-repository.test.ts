@@ -49,7 +49,6 @@ function fixture() {
     getMine: jest.fn().mockResolvedValue(wall),
     setLayout: jest.fn().mockResolvedValue({ ...wall, revision: 2, color: draft.color }),
     setNoteVisibility: jest.fn().mockResolvedValue(wall),
-    listMine: jest.fn().mockResolvedValue({ page: [], cursor: null, isDone: true }),
   } satisfies WallTransport;
   const online = jest.fn().mockResolvedValue(true);
   const repository = createWallRepository({
@@ -226,7 +225,7 @@ it("keeps the layout draft’s base revision through a notes conflict", async ()
   repository.dispose();
 });
 
-it("ignores older reads and rejects collection selections from a switched account", async () => {
+it("ignores older reads and rejects reads from a switched account", async () => {
   const f = fixture();
   const first = deferred<OwnerWall>();
   f.transport.getMine.mockReturnValueOnce(first.promise);
@@ -238,13 +237,13 @@ it("ignores older reads and rejects collection selections from a switched accoun
   first.resolve(wall);
   await older;
   expect(f.repository.getSnapshot().acknowledged?.revision).toBe(5);
-  const selections = deferred<{ page: never[]; cursor: null; isDone: true }>();
-  f.transport.listMine.mockReturnValueOnce(selections.promise);
-  const reading = f.repository.listSelections();
+  const pending = deferred<OwnerWall>();
+  f.transport.getMine.mockReturnValueOnce(pending.promise);
+  const reading = f.repository.refresh();
   await Promise.resolve();
   await Promise.resolve();
   f.switch();
-  selections.resolve({ page: [], cursor: null, isDone: true });
+  pending.resolve(wall);
   await expect(reading).rejects.toThrow("cancelled");
   f.repository.dispose();
 });

@@ -2,7 +2,7 @@ import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
-import { DEFAULT_WALL_COLOR } from "@/shared/wall/defaults";
+import { randomWallStyle } from "@/shared/wall/defaults";
 
 import type { WallDraft } from "./wall-layout";
 import type { WallState } from "./wall-repository";
@@ -71,9 +71,14 @@ export function createLocalWallRepository() {
   async function refresh() {
     if (state.pending) throw new Error("A wall update is in progress");
     const current = session();
-    const wall = await readPrivateWall(current.owner);
+    let wall = await readPrivateWall(current.owner);
     current.check();
-    update({ acknowledged: wall ?? { color: DEFAULT_WALL_COLOR, items: [] } });
+    if (!wall) {
+      wall = { ...randomWallStyle(), items: [] };
+      await setSetting(privateWallKey(current.owner), JSON.stringify(wall));
+      current.check();
+    }
+    update({ acknowledged: wall });
   }
   async function publishLayout() {
     if (state.pending) throw new Error("A wall update is in progress");
@@ -126,23 +131,6 @@ export function createLocalWallRepository() {
     setNoteDraft: (_changes: unknown) => unpublished(),
     publishLayout,
     publishNotes: async () => unpublished(),
-    listSelections: async (_cursor?: string | null) => {
-      const current = session();
-      const page = listSavedWorks(current.owner)
-        .all()
-        .map((work) => ({
-          localId: work.localId,
-          snapshot: {
-            title: work.title,
-            artist: work.artist,
-            ...(work.date ? { date: work.date } : {}),
-            ...(work.medium ? { medium: work.medium } : {}),
-            ...(work.institution ? { institution: work.institution } : {}),
-          },
-        }));
-      current.check();
-      return { page, cursor: null, isDone: true };
-    },
     discardDrafts: () => update({ layoutDraft: null }),
     dispose: () => {
       unsubscribe?.();

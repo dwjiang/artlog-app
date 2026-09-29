@@ -1,4 +1,11 @@
-import { constrainLayout, nextWallLayout, removeWallPiece, wallBottom, type WallPiece } from "./wall-layout";
+import {
+  constrainLayout,
+  nextWallLayout,
+  removeWallPiece,
+  resizeWallLayout,
+  wallBottom,
+  type WallPiece,
+} from "./wall-layout";
 
 const piece = (width: number, height: number): WallPiece => ({
   localId: "one",
@@ -90,4 +97,39 @@ it("removes only the wall placement and compacts layers for the API", () => {
     ["three", 1],
   ]);
   expect(draft.items).toHaveLength(3);
+});
+
+describe("resizing from artwork corners", () => {
+  const layout = { ...piece(2, 1).layout, x: 0.3, y: 0.4 };
+
+  it.each(["top-left", "top-right", "bottom-left", "bottom-right"] as const)(
+    "grows from %s while the opposite corner stays fixed",
+    (corner) => {
+      const left = corner.endsWith("left");
+      const top = corner.startsWith("top");
+      const next = resizeWallLayout(layout, corner, { x: left ? -0.1 : 0.1, y: top ? -0.05 : 0.05 }, 2);
+      expect(next.width).toBeCloseTo(0.5);
+      expect(next.x + (left ? next.width : 0)).toBeCloseTo(layout.x + (left ? layout.width : 0));
+      expect(next.y + (top ? next.width / 2 : 0)).toBeCloseTo(layout.y + (top ? layout.width / 2 : 0));
+      expect(next.frame).toBe(layout.frame);
+      expect(next.layer).toBe(layout.layer);
+    },
+  );
+
+  it("responds to vertical dragging and keeps a minimum size", () => {
+    expect(resizeWallLayout(layout, "bottom-right", { x: 0, y: 0.2 }, 2).width).toBeGreaterThan(layout.width);
+    expect(resizeWallLayout(layout, "top-left", { x: 10, y: 10 }, 2)).toMatchObject({ width: 0.16 });
+  });
+
+  it("stops at the side and top of the wall without shifting the opposite corner", () => {
+    const left = resizeWallLayout(layout, "bottom-left", { x: -10, y: 10 }, 2);
+    expect(left.x).toBeCloseTo(0.025);
+    expect(left.x + left.width).toBeCloseTo(layout.x + layout.width);
+    const right = resizeWallLayout(layout, "bottom-right", { x: 10, y: 10 }, 2);
+    expect(right.x + right.width).toBeCloseTo(0.975);
+    expect(right.x).toBe(layout.x);
+    const top = resizeWallLayout({ ...layout, y: 0.05 }, "top-right", { x: 10, y: -10 }, 0.5);
+    expect(top.y).toBeCloseTo(0.04);
+    expect(top.y + top.width / 0.5).toBeCloseTo(0.05 + layout.width / 0.5);
+  });
 });

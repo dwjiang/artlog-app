@@ -7,7 +7,6 @@ import { api } from "../../../convex/_generated/api";
 export type OwnerWall = FunctionReturnType<typeof api.walls.getMine>;
 export type LayoutInput = FunctionArgs<typeof api.walls.setLayout>;
 export type VisibilityInput = FunctionArgs<typeof api.walls.setNoteVisibility>;
-export type CollectionInput = FunctionArgs<typeof api.collections.listMine>;
 export type RequestContext = { token: string; signal: AbortSignal };
 
 export function createWallTransport(url: string, fetcher: typeof globalThis.fetch = expoFetch) {
@@ -26,7 +25,6 @@ export function createWallTransport(url: string, fetcher: typeof globalThis.fetc
       client(context).mutation(api.walls.setNoteVisibility, args, {
         skipQueue: true,
       }),
-    listMine: (args: CollectionInput, context: RequestContext) => client(context).query(api.collections.listMine, args),
   };
 }
 export type WallTransport = ReturnType<typeof createWallTransport>;

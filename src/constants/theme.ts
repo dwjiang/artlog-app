@@ -1,6 +1,6 @@
 import { Platform, type TextStyle } from "react-native";
 
-import { DEFAULT_WALL_COLOR } from "@/shared/wall/defaults";
+import { WALL_COLORS } from "@/shared/wall/defaults";
 
 export const Gallery = {
   ink: "#1B2531",
@@ -25,16 +25,7 @@ export const Gallery = {
   softBorder: "#DCE1E8",
   accentBorder: "#C4D0F4",
   sage: "#CDD0CA",
-  colors: [
-    { name: "Paper", value: DEFAULT_WALL_COLOR },
-    { name: "Sage", value: "#CDD0CA" },
-    { name: "Forest", value: "#45524B" },
-    { name: "Slate", value: "#4C5B6B" },
-    { name: "Burgundy", value: "#6C2F2B" },
-    { name: "Plum", value: "#524650" },
-    { name: "Limestone", value: "#E2DCD0" },
-    { name: "Chalk", value: "#EDECE7" },
-  ],
+  colors: WALL_COLORS,
 } as const;
 
 export const Colors = {
