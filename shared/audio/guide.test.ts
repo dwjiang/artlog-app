@@ -1,5 +1,6 @@
 import {
   guideOpening,
+  GUIDE_SECTIONS,
   guideResearch,
   guideSchema,
   parseGuideLines,
@@ -242,6 +243,9 @@ it("asks for the thread and quote first, then short hook, look, story and takeaw
   expect(full.required).toEqual(["thread", "quote", "hook", "look", "story", "takeaway"]);
   expect(full.properties.story.minItems).toBe(6);
   expect(thin.properties.story.minItems).toBe(5);
+  const relaxed = guideSchema(richIds.size, { relaxed: true });
+  expect(GUIDE_SECTIONS.map((section) => relaxed.properties[section].minItems)).toEqual([1, 1, 1, 1]);
+  expect(relaxed.properties.story.maxItems).toBe(full.properties.story.maxItems);
   expect(full.properties.look.items.properties.sentence.maxLength).toBe(140);
   expect(full.properties.hook.items.properties.sentence.maxLength).toBe(170);
 });
