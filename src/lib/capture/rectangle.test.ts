@@ -177,20 +177,18 @@ describe("previewQuad", () => {
 
 describe("selectCaptureQuad", () => {
   const previewQuad = toQuad(framed);
-  type Subject = { quad: Quad; quadFill: number; area?: number; flatShare?: number };
-  type Rectangle = Quad | { quad: Quad; flatShare: number };
-  const still = (rectangles: Rectangle[] = [], subjects: Subject[] = []) => ({
+  type Subject = { quad: Quad; quadFill: number; area?: number };
+  const still = (rectangles: Quad[] = [], subjects: Subject[] = []) => ({
     width: 1280,
     height: 853,
-    rectangles: rectangles.map((rectangle) => {
-      const { quad, flatShare } = Array.isArray(rectangle) ? { quad: rectangle, flatShare: 0 } : rectangle;
-      return { confidence: 1, corners: quad.map(([x, y]) => ({ x, y })), flatShare };
-    }),
+    rectangles: rectangles.map((quad) => ({
+      confidence: 1,
+      corners: quad.map(([x, y]) => ({ x, y })),
+    })),
     subjects: subjects.map((subject) => ({
       area: subject.area ?? quadArea(subject.quad),
       quadFill: subject.quadFill,
       quad: subject.quad.map(([x, y]) => ({ x, y })),
-      flatShare: subject.flatShare ?? 0,
     })),
   });
   // Numbers below come from the Mac harness (`mac-harness.swift analyze`) on Wikimedia Commons gallery photographs.
@@ -388,135 +386,67 @@ describe("selectCaptureQuad", () => {
     },
   );
 
-  it("takes the outer rectangle for library imports over one nested in the painting", () => {
+  it("takes the outer rectangle for library imports and never the nested one", () => {
     expect(selectCaptureQuad(null, still([orsaySky, orsayOuter]))).toEqual(orsayOuter);
     expect(selectCaptureQuad(null, still())).toBeNull();
   });
 
-  // iPhone photos of paintings on a laptop showing the scan demo page. The laptop lifts as a subject cut off by the
-  // photo's edge; the screen, the page and the painting are nested rectangles.
-  const jatteScreen = {
-    quad: [
+  it.each([null, toQuad(box(0.1, 0.1, 0.9, 0.9))])(
+    "keeps the whole painting when a textured detail is surrounded by smooth paint: %s",
+    (preview) => {
+      const painting = toQuad(box(0.1, 0.1, 0.9, 0.9));
+      const detail = toQuad(box(0.3, 0.3, 0.7, 0.7));
+      expect(selectCaptureQuad(preview, still([painting, detail]))).toEqual(painting);
+    },
+  );
+
+  it("keeps the preview's confirmed painting instead of a lifted detail inside it", () => {
+    const painting = toQuad(box(0.1, 0.1, 0.9, 0.9));
+    const detail = toQuad(box(0.25, 0.25, 0.75, 0.75));
+    expect(selectCaptureQuad(painting, still([painting], [{ quad: detail, quadFill: 1.004 }]))).toEqual(painting);
+  });
+
+  it("keeps the preview's confirmed painting instead of an unrelated lifted painting", () => {
+    const target = toQuad(box(0.1, 0.2, 0.4, 0.8));
+    const neighbor = toQuad(box(0.5, 0.1, 0.95, 0.9));
+    expect(selectCaptureQuad(target, still([target], [{ quad: neighbor, quadFill: 1.004 }]))).toEqual(target);
+  });
+
+  it("refines the preview with a matching lifted boundary even when another subject is larger", () => {
+    const target = toQuad(box(0.1, 0.2, 0.4, 0.8));
+    const refined = toQuad(box(0.11, 0.21, 0.41, 0.81));
+    const neighbor = toQuad(box(0.5, 0.1, 0.95, 0.9));
+    expect(
+      selectCaptureQuad(
+        target,
+        still(
+          [target],
+          [
+            { quad: neighbor, quadFill: 1.004 },
+            { quad: refined, quadFill: 1.004 },
+          ],
+        ),
+      ),
+    ).toEqual(refined);
+  });
+
+  it("keeps an ambiguous screen boundary unless the preview targets the painting inside it", () => {
+    // iPhone photo of La Grande Jatte displayed on a laptop.
+    const screen: Quad = [
       [0.0687, 0.3582],
       [0.8313, 0.359],
       [0.8145, 0.7285],
       [0.0786, 0.7048],
-    ] as Quad,
-    flatShare: 0.1598,
-  };
-  const jattePainting = {
-    quad: [
+    ];
+    const painting: Quad = [
       [0.2285, 0.4087],
       [0.7677, 0.4097],
       [0.7552, 0.6805],
       [0.2328, 0.665],
-    ] as Quad,
-    flatShare: 0.0004,
-  };
-  const jatteLaptop: Subject = {
-    quad: [
-      [0.1183, 0.3532],
-      [0.8288, 0.3521],
-      [0.5592, 0.9985],
-      [0, 1],
-    ],
-    quadFill: 0.9924,
-    flatShare: 0.3018,
-  };
-
-  it("crops to the painting inside a screen when the band around it is flat", () => {
-    const detection = still([jatteScreen, jattePainting], [jatteLaptop]);
-    expect(selectCaptureQuad(null, detection)).toEqual(jattePainting.quad);
-    expect(selectCaptureQuad(jatteScreen.quad, detection)).toEqual(jattePainting.quad);
-  });
-
-  it("skips nested candidates that are flat themselves or only part of the painting", () => {
-    const screen = {
-      quad: [
-        [0.0157, 0.3026],
-        [0.9128, 0.3046],
-        [0.9109, 0.7479],
-        [0.0157, 0.7405],
-      ] as Quad,
-      flatShare: 0.3429,
-    };
-    const page = {
-      quad: [
-        [0.1147, 0.3043],
-        [0.9115, 0.3041],
-        [0.9125, 0.7489],
-        [0.1081, 0.7407],
-      ] as Quad,
-      flatShare: 0.3521,
-    };
-    const painting = {
-      quad: [
-        [0.2206, 0.3504],
-        [0.8016, 0.3514],
-        [0.8028, 0.6952],
-        [0.2153, 0.6909],
-      ] as Quad,
-      flatShare: 0.0605,
-    };
-    const partOfPainting = {
-      quad: [
-        [0.2281, 0.4957],
-        [0.7953, 0.3585],
-        [0.7933, 0.6912],
-        [0.2221, 0.6851],
-      ] as Quad,
-      flatShare: 0.0699,
-    };
-    expect(selectCaptureQuad(null, still([screen, page, painting, partOfPainting]))).toEqual(painting.quad);
-  });
-
-  it("crops to the painting inside a lifted display case", () => {
-    const painting = { quad: toQuad(box(0.3, 0.3, 0.7, 0.7)), flatShare: 0.02 };
-    const detection = still([painting], [{ quad: toQuad(box(0.1, 0.1, 0.9, 0.9)), quadFill: 1.004, flatShare: 0.5 }]);
-    expect(selectCaptureQuad(null, detection)).toEqual(painting.quad);
-  });
-
-  it("keeps the outer quad around painted detail and around flat nested panels", () => {
-    // A drawing of a picture gallery wall (Cooper Hewitt, public domain): a drawn picture has paint and paper around it.
-    const drawnWall: Subject = {
-      quad: [
-        [0.0571, 0.0844],
-        [0.9611, 0.0912],
-        [0.8953, 0.8787],
-        [0.0592, 0.8767],
-      ],
-      quadFill: 1.0092,
-      flatShare: 0.1596,
-    };
-    const drawnPicture = {
-      quad: [
-        [0.3193, 0.1887],
-        [0.6935, 0.19],
-        [0.6938, 0.6427],
-        [0.3195, 0.6437],
-      ] as Quad,
-      flatShare: 0.0155,
-    };
-    expect(selectCaptureQuad(null, still([drawnPicture], [drawnWall]))).toEqual(drawnWall.quad);
-    // Hong Kong Museum of Art (Wingsumlam, CC BY-SA 3.0): the view through a doorway in a plain wall is mostly blank wall too.
-    const doorway = {
-      quad: [
-        [0.3289, 0.2854],
-        [0.6275, 0.2945],
-        [0.6277, 0.9321],
-        [0.3276, 0.9448],
-      ] as Quad,
-      flatShare: 0.5856,
-    };
-    const view = {
-      quad: [
-        [0.3423, 0.347],
-        [0.5862, 0.3542],
-        [0.5866, 0.8535],
-        [0.3609, 0.8624],
-      ] as Quad,
-      flatShare: 0.5181,
-    };
-    expect(selectCaptureQuad(null, still([doorway, view]))).toEqual(doorway.quad);
+    ];
+    const detection = still([screen, painting]);
+    expect(selectCaptureQuad(null, detection)).toEqual(screen);
+    expect(selectCaptureQuad(screen, detection)).toEqual(screen);
+    expect(selectCaptureQuad(painting, detection)).toEqual(painting);
   });
 });
