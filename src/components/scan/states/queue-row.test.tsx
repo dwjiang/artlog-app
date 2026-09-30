@@ -1,8 +1,24 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
-import type { PendingScan } from "@/db/schema";
+import { confidentScan, failedScan, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
+import { db } from "@/db/client";
+import { cacheOfflineResult } from "@/db/repos/offline-scan-results";
+import { offlineScanResults, pendingScans, type PendingScan } from "@/db/schema";
+import type { PhotoSessionDraft } from "@/lib/capture/photo-draft";
+import type { ScanResult } from "@/lib/result/state";
+import { useScan } from "@/lib/result/use-scan";
 
 import { QueueRow, RETRY_ROW, queueStatusText } from "./queue-row";
+
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
+
+let mockScan: ScanResult | Error | undefined;
+let mockSession: PhotoSessionDraft;
+jest.mock("@/lib/result/use-scan", () => ({
+  useScan: jest.fn((scanId?: string) => (scanId ? mockScan : undefined)),
+}));
 
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
@@ -10,7 +26,7 @@ jest.mock("@/lib/files/photos", () => ({
 }));
 
 jest.mock("@/lib/capture/photo-draft", () => ({
-  readPhotoSession: () => ({ photos: [] }),
+  readPhotoSession: () => mockSession,
 }));
 
 const now = new Date(2026, 8, 11, 12, 0, 0).getTime();
@@ -42,26 +58,107 @@ const handlers = {
   onRetry: jest.fn(),
   onDiscard: jest.fn(),
 };
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  db.delete(offlineScanResults).run();
+  db.delete(pendingScans).run();
+  mockScan = undefined;
+  mockSession = { photos: [] };
+});
 
 it.each([
   ["queued", "Waiting for signal"],
   ["identifying", "Identifying…"],
   ["failed", "Couldn’t identify"],
-  ["identified", "Ready to save"],
 ] as const)("describes a %s row", async (status, text) => {
   expect(queueStatusText(status)).toBe(text);
   await render(<QueueRow item={{ ...row, status }} now={now} {...handlers} />);
   expect(status === "identifying" ? screen.getByLabelText(text) : screen.getByText(text)).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: `Artwork scan, Scan from 5 min ago, ${text}` })).toBeOnTheScreen();
   expect(screen.getByText("5 min ago · 1 photo")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Label attached")).toBeNull();
 });
+
+it("keeps completed scans accessible and resumable without a status chip", async () => {
+  const identified = { ...row, status: "identified" as const };
+  await render(<QueueRow item={identified} now={now} {...handlers} />);
+  expect(screen.queryByText("Ready to save")).toBeNull();
+  expect(screen.getByText("Artwork scan")).toBeOnTheScreen();
+  expect(screen.getByText("5 min ago · 1 photo")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Artwork scan, Scan from 5 min ago, Ready to save" }));
+  expect(handlers.onOpen).toHaveBeenCalledWith(identified);
+});
+
+it("shows the identified artwork's artist and date without the museum", async () => {
+  mockScan = confidentScan;
+  await render(
+    <QueueRow item={{ ...row, status: "identified", scanId: confidentScan.scanId }} now={now} {...handlers} />,
+  );
+  expect(await screen.findByText("Claude Monet · 1916")).toBeOnTheScreen();
+  expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
+  expect(screen.queryByText("Metropolitan Museum of Art")).toBeNull();
+  expect(
+    screen.getByRole("button", {
+      name: "Water Lilies, Claude Monet · 1916, Scan from 5 min ago, Ready to save",
+    }),
+  ).toBeOnTheScreen();
+  expect(screen.queryByText("Possible match")).toBeNull();
+});
+
+it("uses edited details and omits empty fields without falling back to recognition", async () => {
+  mockScan = confidentScan;
+  mockSession = {
+    photos: [],
+    saveInput: {
+      capture: row,
+      draft: { title: " My study ", artist: "  ", date: " 2026 ", institution: " ", medium: "" },
+    },
+  };
+  await render(
+    <QueueRow item={{ ...row, status: "identified", scanId: confidentScan.scanId }} now={now} {...handlers} />,
+  );
+  expect(await screen.findByText("My study")).toBeOnTheScreen();
+  expect(screen.getByText("2026")).toBeOnTheScreen();
+  expect(screen.queryByText("Claude Monet · 1916")).toBeNull();
+  expect(screen.queryByText("Metropolitan Museum of Art")).toBeNull();
+});
+
+it("shows the cached local match while a scan waits for signal", async () => {
+  db.insert(pendingScans).values(row).run();
+  await cacheOfflineResult(row.localId, confidentScan, row.owner);
+  await render(<QueueRow item={row} now={now} {...handlers} />);
+  expect(await screen.findByText("Claude Monet · 1916")).toBeOnTheScreen();
+  expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
+  expect(screen.getByText("Waiting for signal")).toBeOnTheScreen();
+});
+
+it("distinguishes a possible match from an identified artwork", async () => {
+  mockScan = softScan;
+  await render(<QueueRow item={{ ...row, status: "identified", scanId: softScan.scanId }} now={now} {...handlers} />);
+  expect(await screen.findByText("Possible match")).toBeOnTheScreen();
+  expect(screen.getByText("Claude Monet · 1899")).toBeOnTheScreen();
+});
+
+it.each([missScan, failedScan, null, new Error("Unavailable")])(
+  "keeps the scan usable when no reliable artwork details are available (%#)",
+  async (scan) => {
+    mockScan = scan;
+    await render(
+      <QueueRow item={{ ...row, status: "identified", scanId: confidentScan.scanId }} now={now} {...handlers} />,
+    );
+    await waitFor(() => expect(useScan).toHaveBeenCalledWith(confidentScan.scanId));
+    expect(screen.getByText("Artwork scan")).toBeOnTheScreen();
+    expect(screen.queryByText("Haystacks")).toBeNull();
+    expect(screen.queryByText("Possible match")).toBeNull();
+    expect(screen.getByText("5 min ago · 1 photo")).toBeOnTheScreen();
+  },
+);
 
 it("opens the card from the row and shows the crop", async () => {
   await render(<QueueRow item={row} now={now} {...handlers} />);
   await fireEvent.press(
     screen.getByRole("button", {
-      name: "Scan from 5 min ago, Waiting for signal",
+      name: "Artwork scan, Scan from 5 min ago, Waiting for signal",
     }),
   );
   expect(handlers.onOpen).toHaveBeenCalledWith(row);
@@ -77,7 +174,7 @@ it("opens a failed row and retries only from its menu action", async () => {
   await render(<QueueRow item={failed} now={now} {...handlers} />);
   await fireEvent.press(
     screen.getByRole("button", {
-      name: "Scan from 5 min ago, Couldn’t identify",
+      name: "Artwork scan, Scan from 5 min ago, Couldn’t identify",
     }),
   );
   expect(handlers.onOpen).toHaveBeenCalledWith(failed);

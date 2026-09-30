@@ -95,7 +95,7 @@ function QueueContent() {
     >
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>
-          Your scans
+          Recent scans
         </ThemedText>
         <GalleryButton label="Close" onPress={() => router.dismiss()} />
       </View>
@@ -137,17 +137,21 @@ function QueueContent() {
           />
         </EmptyState>
       )}
-      {items.map((item) => (
-        <QueueRow
-          key={item.localId}
-          item={item}
-          onOpen={open}
-          onRetry={retry}
-          onDiscard={discard}
-          retrying={retrying.includes(item.localId)}
-          discarding={discarding.includes(item.localId)}
-        />
-      ))}
+      {items.length > 0 && (
+        <View>
+          {items.map((item) => (
+            <QueueRow
+              key={item.localId}
+              item={item}
+              onOpen={open}
+              onRetry={retry}
+              onDiscard={discard}
+              retrying={retrying.includes(item.localId)}
+              discarding={discarding.includes(item.localId)}
+            />
+          ))}
+        </View>
+      )}
       {retryError && (
         <ThemedText themeColor="error" accessibilityRole="alert">
           {retryError}
