@@ -1,8 +1,9 @@
 import { DisplayMedia } from "@/components/artwork/display-media";
+import { wallFrameInset } from "@/lib/wall/wall-frames";
 import { wallAspect, type WallPiece } from "@/lib/wall/wall-layout";
 
 import { SavedWorkImage } from "./saved-work-image";
-import { WallFrame, wallFrameInset } from "./wall-frame";
+import { WallFrame } from "./wall-frame";
 
 export function WallArtwork({ piece, width }: { piece: WallPiece; width: number }) {
   const innerWidth = Math.max(1, width - wallFrameInset(piece.layout.frame, width) * 2);

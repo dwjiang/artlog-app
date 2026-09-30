@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import {
-  constrainLayout,
+  constrainWallPiece,
   isLightWall,
   resizeWallLayout,
-  wallAspect,
+  wallPieceBounds,
   wallBottom,
   type WallCorner,
   type WallLayout,
@@ -19,7 +19,6 @@ import {
 } from "@/lib/wall/wall-layout";
 
 import { WallArtwork } from "./wall-artwork";
-import { wallFrameInset } from "./wall-frame";
 import { wallpaperStyle } from "./wallpaper";
 
 const corners: WallCorner[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
@@ -35,6 +34,7 @@ export function WallGallery({
   onSelect,
   onMove,
   selectedId,
+  scrollGesture,
   onDeselect,
   children,
 }: {
@@ -43,6 +43,7 @@ export function WallGallery({
   width: number;
   editing?: boolean;
   selectedId?: string;
+  scrollGesture?: NativeGesture;
   onDeselect?: () => void;
   minHeight?: number;
   bottomInset?: number;
@@ -53,7 +54,9 @@ export function WallGallery({
 }) {
   const light = isLightWall(wallpaper.color);
   return (
-    <View style={{ width, minHeight, height: Math.max(minHeight, wallBottom(pieces) * width + 85) + bottomInset }}>
+    <View
+      style={{ width, minHeight, height: Math.max(minHeight, wallBottom(pieces, width) * width + 85) + bottomInset }}
+    >
       <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, wallpaperStyle(wallpaper), { bottom: -backgroundBottomInset }]}
@@ -70,6 +73,8 @@ export function WallGallery({
         <Hanging
           key={piece.localId}
           piece={piece}
+          pieces={pieces}
+          scrollGesture={scrollGesture}
           width={width}
           editing={editing}
           selected={selectedId === piece.localId}
@@ -85,6 +90,8 @@ export function WallGallery({
 
 function Hanging({
   piece,
+  pieces,
+  scrollGesture,
   width,
   editing,
   labelColor,
@@ -93,6 +100,8 @@ function Hanging({
   selected,
 }: {
   piece: WallPiece;
+  pieces: WallPiece[];
+  scrollGesture?: NativeGesture;
   width: number;
   editing: boolean;
   labelColor: string;
@@ -100,59 +109,66 @@ function Hanging({
   onSelect: (piece: WallPiece) => void;
   onMove?: (id: string, layout: WallLayout) => void;
 }) {
-  const offsetX = useSharedValue(0);
-  const offsetY = useSharedValue(0);
-  const dragging = useSharedValue(false);
-  const scale = useSharedValue(1);
   const { layout } = piece;
+  const preview = useSharedValue(layout);
+  const dragging = useSharedValue(false);
   const artworkWidth = layout.width * width;
-  const inset = wallFrameInset(layout.frame, artworkWidth);
-  const artworkHeight = (artworkWidth - inset * 2) / wallAspect(piece) + inset * 2;
+  const artworkHeight = wallPieceBounds(piece, width).height * width;
   useEffect(() => {
-    scale.set(1);
-    offsetX.set(0);
-    offsetY.set(0);
-  }, [layout.width, layout.x, layout.y, offsetX, offsetY, scale]);
+    preview.set(layout);
+  }, [layout, editing, preview]);
   const pan = Gesture.Pan()
+    .withTestId(`move-${piece.localId}`)
     .enabled(editing)
-    .activateAfterLongPress(220)
+    .minDistance(3)
+    // The outer padding belongs to the resize handles; blank wall remains available for scrolling.
+    .hitSlop(-22)
+    .blocksExternalGesture(...(scrollGesture ? [scrollGesture] : []))
     .onStart(() => {
       dragging.set(true);
       scheduleOnRN(onSelect, piece);
     })
     .onUpdate((event) => {
-      const next = constrainLayout(layout, {
-        x: layout.x + event.translationX / width,
-        y: layout.y + event.translationY / width,
-      });
-      offsetX.set((next.x - layout.x) * width);
-      offsetY.set((next.y - layout.y) * width);
+      preview.set(
+        constrainWallPiece(
+          { ...piece, layout: preview.get() },
+          {
+            x: layout.x + event.translationX / width,
+            y: layout.y + event.translationY / width,
+          },
+          pieces,
+          width,
+        ),
+      );
     })
     .onEnd((event, success) => {
       if (success && onMove) {
-        scheduleOnRN(
-          onMove,
-          piece.localId,
-          constrainLayout(layout, {
+        const next = constrainWallPiece(
+          { ...piece, layout: preview.get() },
+          {
             x: layout.x + event.translationX / width,
             y: layout.y + event.translationY / width,
-          }),
+          },
+          pieces,
+          width,
         );
+        preview.set(next);
+        scheduleOnRN(onMove, piece.localId, next);
       }
     })
     .onFinalize((_event, success) => {
       dragging.set(false);
-      if (!success) {
-        offsetX.set(0);
-        offsetY.set(0);
-      }
+      if (!success) preview.set(layout);
     });
   const size = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.get() }],
+    transform: [{ scale: preview.get().width / layout.width }],
     transformOrigin: "top left",
   }));
   const motion = useAnimatedStyle(() => ({
-    transform: [{ translateX: offsetX.get() }, { translateY: offsetY.get() }],
+    transform: [
+      { translateX: (preview.get().x - layout.x) * width },
+      { translateY: (preview.get().y - layout.y) * width },
+    ],
     zIndex: dragging.get() ? 101 : editing && selected ? 100 : layout.layer,
     opacity: dragging.get() ? 0.92 : 1,
   }));
@@ -176,7 +192,7 @@ function Hanging({
           accessibilityState={{ selected: editing && selected }}
           accessibilityHint={
             editing
-              ? "Hold and drag to move. Drag any corner to resize. Tap empty wall space to deselect."
+              ? "Drag to move. Swipe empty wall space to scroll. Drag any corner to resize. Tap empty wall space to deselect."
               : "Opens artwork details."
           }
           accessibilityValue={
@@ -211,7 +227,9 @@ function Hanging({
               moveUp: { y: layout.y - 0.025 },
               moveDown: { y: layout.y + 0.025 },
             };
-            if (patches[actionName]) onMove(piece.localId, constrainLayout(layout, patches[actionName]));
+            if (patches[actionName]) {
+              onMove(piece.localId, constrainWallPiece(piece, patches[actionName], pieces, width));
+            }
           }}
           onPress={() => onSelect(piece)}
         >
@@ -239,9 +257,9 @@ function Hanging({
             artworkWidth={artworkWidth}
             artworkHeight={artworkHeight}
             pan={pan}
-            scale={scale}
-            offsetX={offsetX}
-            offsetY={offsetY}
+            pieces={pieces}
+            scrollGesture={scrollGesture}
+            preview={preview}
             onMove={onMove}
           />
         ))}
@@ -257,9 +275,9 @@ function ResizeCorner({
   artworkWidth,
   artworkHeight,
   pan,
-  scale,
-  offsetX,
-  offsetY,
+  pieces,
+  scrollGesture,
+  preview,
   onMove,
 }: {
   corner: WallCorner;
@@ -268,9 +286,9 @@ function ResizeCorner({
   artworkWidth: number;
   artworkHeight: number;
   pan: ReturnType<typeof Gesture.Pan>;
-  scale: SharedValue<number>;
-  offsetX: SharedValue<number>;
-  offsetY: SharedValue<number>;
+  pieces: WallPiece[];
+  scrollGesture?: NativeGesture;
+  preview: SharedValue<WallLayout>;
   onMove?: (id: string, layout: WallLayout) => void;
 }) {
   const { layout } = piece;
@@ -279,7 +297,7 @@ function ResizeCorner({
   const resize = Gesture.Pan()
     .withTestId(`resize-${piece.localId}-${corner}`)
     .minDistance(0)
-    .blocksExternalGesture(pan)
+    .blocksExternalGesture(pan, ...(scrollGesture ? [scrollGesture] : []))
     .onUpdate((event) => {
       const next = resizeWallLayout(
         layout,
@@ -287,35 +305,32 @@ function ResizeCorner({
         { x: event.translationX / wallWidth, y: event.translationY / wallWidth },
         artworkWidth / artworkHeight,
       );
-      scale.set(next.width / layout.width);
-      offsetX.set((next.x - layout.x) * wallWidth);
-      offsetY.set((next.y - layout.y) * wallWidth);
+      preview.set(constrainWallPiece({ ...piece, layout: preview.get() }, next, pieces, wallWidth));
     })
     .onEnd((event, success) => {
       if (success && onMove) {
-        scheduleOnRN(
-          onMove,
-          piece.localId,
+        const next = constrainWallPiece(
+          { ...piece, layout: preview.get() },
           resizeWallLayout(
             layout,
             corner,
             { x: event.translationX / wallWidth, y: event.translationY / wallWidth },
             artworkWidth / artworkHeight,
           ),
+          pieces,
+          wallWidth,
         );
+        preview.set(next);
+        scheduleOnRN(onMove, piece.localId, next);
       }
     })
     .onFinalize((_event, success) => {
-      if (!success) {
-        scale.set(1);
-        offsetX.set(0);
-        offsetY.set(0);
-      }
+      if (!success) preview.set(layout);
     });
   const position = useAnimatedStyle(() => ({
     transform: [
-      { translateX: left ? 0 : artworkWidth * (scale.get() - 1) },
-      { translateY: top ? 0 : artworkHeight * (scale.get() - 1) },
+      { translateX: left ? 0 : artworkWidth * (preview.get().width / layout.width - 1) },
+      { translateY: top ? 0 : artworkHeight * (preview.get().width / layout.width - 1) },
     ],
   }));
   return (

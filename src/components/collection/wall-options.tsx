@@ -13,10 +13,11 @@ import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { Gallery } from "@/constants/theme";
+import { wallFrameInset, wallFrames } from "@/lib/wall/wall-frames";
 import { wallAspect, type WallFrame as Frame, type WallPiece } from "@/lib/wall/wall-layout";
 
 import { WallArtwork } from "./wall-artwork";
-import { WallFrame, wallFrameInset, wallFrames } from "./wall-frame";
+import { WallFrame } from "./wall-frame";
 
 function WallChoice({
   label,

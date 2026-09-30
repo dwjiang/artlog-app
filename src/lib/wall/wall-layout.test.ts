@@ -1,9 +1,11 @@
 import {
   constrainLayout,
+  constrainWallPiece,
   nextWallLayout,
   removeWallPiece,
   resizeWallLayout,
   wallBottom,
+  wallPieceBounds,
   type WallPiece,
 } from "./wall-layout";
 
@@ -25,12 +27,14 @@ const piece = (width: number, height: number): WallPiece => ({
 });
 
 it("sizes the wall from uncropped artwork proportions", () => {
-  expect(wallBottom([piece(200, 400)])).toBeCloseTo(1);
-  expect(wallBottom([piece(400, 200)])).toBeCloseTo(0.4);
+  expect(wallBottom([{ ...piece(200, 400), layout: { ...piece(200, 400).layout, frame: "none" } }])).toBeCloseTo(1);
+  expect(wallBottom([{ ...piece(400, 200), layout: { ...piece(400, 200).layout, frame: "none" } }])).toBeCloseTo(0.4);
 });
 
 it("keeps a newly hung local photo at its original proportions before publishing", () => {
-  expect(wallBottom([{ ...piece(1, 1), cropAspectRatio: 0.5 }])).toBeCloseTo(1);
+  expect(
+    wallBottom([{ ...piece(1, 1), cropAspectRatio: 0.5, layout: { ...piece(1, 1).layout, frame: "none" } }]),
+  ).toBeCloseTo(1);
 });
 
 it("uses a thin black frame for every new placement without changing existing customization", () => {
@@ -131,5 +135,84 @@ describe("resizing from artwork corners", () => {
     const top = resizeWallLayout({ ...layout, y: 0.05 }, "top-right", { x: 10, y: -10 }, 0.5);
     expect(top.y).toBeCloseTo(0.04);
     expect(top.y + top.width / 0.5).toBeCloseTo(0.05 + layout.width / 0.5);
+  });
+});
+
+describe("keeping wall artworks apart", () => {
+  const moving = { ...piece(1, 1), layout: { ...piece(1, 1).layout, x: 0.05, y: 0.1, width: 0.2 } };
+  const neighbor = {
+    ...piece(1, 1),
+    localId: "neighbor",
+    layout: { ...moving.layout, x: 0.5 },
+  };
+
+  it("stops a drag before another artwork and permits moving away again", () => {
+    const next = constrainWallPiece(moving, { x: 0.4 }, [moving, neighbor], 390);
+    expect(next.x).toBeGreaterThan(moving.layout.x);
+    expect(next.x + next.width).toBeLessThanOrEqual(neighbor.layout.x - 0.025);
+    expect(constrainWallPiece({ ...moving, layout: next }, { x: 0.05 }, [neighbor], 390).x).toBe(0.05);
+  });
+
+  it("constrains resizing and accessible size adjustments against neighbors", () => {
+    const next = constrainWallPiece(moving, { width: 0.6 }, [neighbor], 390);
+    expect(next.width).toBeGreaterThan(moving.layout.width);
+    expect(next.x + next.width).toBeLessThanOrEqual(neighbor.layout.x - 0.025);
+    expect(next.x).toBe(moving.layout.x);
+  });
+
+  it("accounts for landscape frames and leaves room for artwork labels", () => {
+    const landscape = { ...moving, cropAspectRatio: 3, layout: { ...moving.layout, frame: "mat" as const } };
+    const bounds = wallPieceBounds(landscape, 390);
+    expect(bounds.height).toBeGreaterThan(landscape.layout.width / 3);
+    const below = { ...neighbor, layout: { ...neighbor.layout, x: moving.layout.x, y: 0.8 } };
+    const next = constrainWallPiece(below, { y: 0.12 }, [landscape], 390);
+    expect(next.y).toBeGreaterThanOrEqual(bounds.y + bounds.height + 0.16);
+  });
+
+  it("allows clear placements and ignores the artwork's own old placement", () => {
+    expect(constrainWallPiece(moving, { y: 0.5 }, [moving, neighbor], 390)).toEqual({ ...moving.layout, y: 0.5 });
+  });
+
+  it("allows an already overlapping artwork to be dragged into free space", () => {
+    const overlapping = { ...moving, layout: { ...moving.layout, x: 0.5 } };
+    expect(constrainWallPiece(overlapping, { y: 1 }, [neighbor], 390).y).toBe(1);
+  });
+
+  it("lets repeated small moves separate artworks after a taller photo is selected", () => {
+    const taller = { ...piece(1, 1), cropAspectRatio: 0.4 };
+    let below = { ...neighbor, layout: { ...taller.layout, y: 1.2 } };
+    for (let step = 0; step < 8; step++) {
+      const next = constrainWallPiece(below, { y: below.layout.y + 0.025 }, [taller], 390);
+      expect(next.y).toBeCloseTo(below.layout.y + 0.025);
+      below = { ...below, layout: next };
+    }
+    const bounds = wallPieceBounds(taller, 390);
+    expect(below.layout.y).toBeGreaterThanOrEqual(bounds.y + bounds.height + 0.16);
+  });
+
+  it("lets repeated small size decreases resolve an overlap", () => {
+    let taller = { ...piece(1, 1), cropAspectRatio: 0.4 };
+    const below = { ...neighbor, layout: { ...taller.layout, y: 1.2 } };
+    for (let step = 0; step < 4; step++) {
+      const next = constrainWallPiece(taller, { width: taller.layout.width - 0.04 }, [below], 390);
+      expect(next.width).toBeCloseTo(taller.layout.width - 0.04);
+      taller = { ...taller, layout: next };
+    }
+    const bounds = wallPieceBounds(taller, 390);
+    expect(bounds.y + bounds.height + 0.16).toBeLessThanOrEqual(below.layout.y);
+  });
+
+  it("lets an artwork fully inside another move toward the nearest edge", () => {
+    const inside = { ...moving, layout: { ...moving.layout, x: 0.2, y: 0.2, width: 0.16 } };
+    const enclosing = { ...neighbor, layout: { ...neighbor.layout, x: 0.1, y: 0.1, width: 0.6 } };
+    expect(constrainWallPiece(inside, { x: 0.175 }, [enclosing], 390).x).toBe(0.175);
+    expect(constrainWallPiece(inside, { x: 0.225 }, [enclosing], 390)).toEqual(inside.layout);
+  });
+
+  it.each([0.525, 0.625])("does not worsen another collision while escaping an overlap (neighbor at %s)", (x) => {
+    const overlapping = { ...moving, layout: { ...moving.layout, x: 0.4 } };
+    const left = { ...neighbor, layout: { ...neighbor.layout, x: 0.25 } };
+    const right = { ...neighbor, localId: "right", layout: { ...neighbor.layout, x } };
+    expect(constrainWallPiece(overlapping, { x: 0.425 }, [left, right], 390)).toEqual(overlapping.layout);
   });
 });

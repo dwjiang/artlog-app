@@ -3,10 +3,11 @@ import { useState, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
-import { WallFrame, wallFrameInset } from "@/components/collection/wall-frame";
+import { WallFrame } from "@/components/collection/wall-frame";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { wallFrameInset } from "@/lib/wall/wall-frames";
 import { normalizeSearch } from "@/shared/journal/limits";
 
 export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
