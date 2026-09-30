@@ -1,9 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
-import { internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalAction, internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
 import { internalMutation } from "./functions";
 import { patchArtworkContent } from "./lib/artworkContent";
+import { clearNarration } from "./lib/narrationEvidence";
+import { withErrorReporting } from "./lib/observability";
+import { r2 } from "./lib/r2";
 import { factSheetEntry } from "./lib/validators";
 import { changeEngagement } from "./lib/visitReactions";
 import { deactivateWallItem } from "./lib/wallItems";
@@ -258,13 +262,22 @@ export const decideReport = internalMutation({
             updatedAt: now,
           });
         }
-      } else {
+      } else if (target.kind === "comment") {
         // The report's evidence keeps the comment's text after the row is gone.
         const comment = await ctx.db.get("visitComments", target.commentId);
         if (comment) {
           await ctx.db.delete("visitComments", comment._id);
           await changeEngagement(ctx, comment.publicationId, "commentCount", -1);
         }
+      } else {
+        // Generated text and audio come from the artwork's research: holding it for review hides both
+        // until replaceFactSheet lifts the hold.
+        const artwork = await ctx.db.get("artworks", target.artworkId);
+        if (artwork && !artwork.factSheetNeedsReview) {
+          await ctx.db.patch("artworks", artwork._id, { factSheetNeedsReview: true });
+          await clearDocent(ctx, artwork);
+        }
+        await clearNarration(ctx, target.artworkId);
       }
     }
     await ctx.db.patch("reports", reportId, {
@@ -273,4 +286,16 @@ export const decideReport = internalMutation({
     });
     return null;
   },
+});
+
+// Operator-only access to retained recordings, including audio removed from public playback.
+export const reportAudio = internalAction({
+  args: { reportId: v.id("reports") },
+  returns: v.array(v.string()),
+  handler: (ctx, { reportId }): Promise<string[]> =>
+    withErrorReporting("review.reportAudio", async () => {
+      const report = await ctx.runQuery(internal.review.getReport, { reportId });
+      if (report?.evidence.kind !== "audio") throw new ConvexError({ code: "not_found" });
+      return Promise.all(report.evidence.fileIds.map((id) => r2.downloadUrl(id)));
+    }),
 });

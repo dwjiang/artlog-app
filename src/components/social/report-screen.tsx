@@ -10,17 +10,18 @@ import { visitStyles } from "@/components/visits/visit-ui";
 import { Gallery, SettingsOutline, Typography } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
-import { REPORT_NOUNS, REPORT_REASON_LABELS, REPORT_REASONS, reportTarget } from "@/lib/social/report";
+import { REPORT_NOUNS, REPORT_REASON_LABELS, reportTarget } from "@/lib/social/report";
 import type { ReportInput, ReportReason } from "@/lib/social/types";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { useSheetSubmit } from "@/lib/ui/use-sheet-submit";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { LIMITS } from "@/shared/journal/limits";
+import { REASONS_BY_KIND } from "@/shared/social/contracts";
 
 import { api } from "../../../convex/_generated/api";
 
-export function ReportScreen({ kind, id }: { kind?: string; id?: string }) {
-  const target = reportTarget(kind, id);
+export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: string; renderId?: string }) {
+  const target = reportTarget(kind, id, renderId);
   const send = useMutation(api.reports.submit);
   const deviceReady = useDeviceReady();
   const [reason, setReason] = useState<ReportReason>();
@@ -57,7 +58,7 @@ export function ReportScreen({ kind, id }: { kind?: string; id?: string }) {
   return (
     <FormSheet title={`Report ${noun}`} busy={busy}>
       <View accessibilityRole="radiogroup" accessibilityLabel="Reason" style={styles.card}>
-        {REPORT_REASONS[target.kind].map((value, index) => {
+        {REASONS_BY_KIND[target.kind].map((value, index) => {
           const selected = value === reason;
           return (
             <Pressable
@@ -89,7 +90,7 @@ export function ReportScreen({ kind, id }: { kind?: string; id?: string }) {
         style={[formSheetStyles.input, { minHeight: 96 }]}
       />
       <GalleryButton
-        label="Send report"
+        label="Report"
         busyLabel="Sending…"
         variant="filled"
         fullWidth

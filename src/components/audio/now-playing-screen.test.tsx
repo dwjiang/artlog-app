@@ -5,8 +5,10 @@ import { dismissToast, showErrorToast } from "@/lib/ui/toast";
 import { NowPlayingScreen } from "./now-playing-screen";
 
 const mockAudio = {
+  renderId: "render-1" as string | undefined,
   current: {
     work: {
+      artworkId: "artwork-1",
       title: "Water Lilies",
       artist: "Claude Monet",
       opening: "This is Water Lilies, by Claude Monet, dated 1916.",
@@ -31,9 +33,10 @@ const mockAudio = {
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => mockAudio,
 }));
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
-  router: { back: jest.fn() },
+  router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) },
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
@@ -72,6 +75,37 @@ it("shows the exact spoken script with its sources rather than the artwork card 
   expect(screen.getByText("Take a moment to notice the lilies.")).toBeOnTheScreen();
   expect(screen.getByText("Museum")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
+});
+
+it("reports the audio once it plays and the transcript once it shows", async () => {
+  mockAudio.phase = "loading";
+  const { rerender } = await render(<NowPlayingScreen />);
+  expect(screen.getByRole("button", { name: "Report audio" })).toBeDisabled();
+  mockAudio.phase = "ready";
+  await rerender(<NowPlayingScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Report audio" }));
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/report",
+    params: { kind: "audio", id: "artwork-1", renderId: "render-1" },
+  });
+  await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Report transcript" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/report", params: { kind: "transcript", id: "artwork-1" } });
+});
+
+it("keeps the failed recording reportable after playback stops", async () => {
+  mockAudio.phase = "error";
+  mockAudio.renderId = "failed-render";
+  const { rerender } = await render(<NowPlayingScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Report audio" }));
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/report",
+    params: { kind: "audio", id: "artwork-1", renderId: "failed-render" },
+  });
+  mockAudio.renderId = undefined;
+  await rerender(<NowPlayingScreen />);
+  expect(screen.queryByRole("button", { name: "Report audio" })).toBeNull();
+  mockAudio.renderId = "render-1";
 });
 
 it("returns from choosing saved works to Up next", async () => {

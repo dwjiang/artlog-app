@@ -271,7 +271,7 @@ it("lets friends drop a moderation-removed profile so it stops holding a friend 
   const b = await socialUser(t);
   const reporter = await seedDevice(t);
   await befriend(a, b);
-  const reportId = await reporter.as.mutation(api.reports.submit, {
+  const { reportId } = await reporter.as.mutation(api.reports.submit, {
     target: { kind: "profile", profileId: b.profileId },
     reason: "harassment",
   });

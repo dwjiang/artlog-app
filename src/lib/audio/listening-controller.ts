@@ -55,6 +55,7 @@ export type AudioHandle = {
   addListener(event: "playbackStatusUpdate", callback: (status: Playback) => void): { remove(): void };
 };
 export type ListeningState = {
+  renderId?: string;
   sentences?: DocentSentence[];
   current?: ListeningTrack;
   queue: ListeningTrack[];
@@ -74,7 +75,7 @@ export type ListeningDependencies = {
   render(
     track: ListeningTrack,
     onStage?: (stage: NarrationPreparationStage) => void,
-  ): Promise<{ uri: string; sentences: DocentSentence[]; duration?: number; live?: boolean }>;
+  ): Promise<{ uri: string; sentences: DocentSentence[]; renderId: string; duration?: number; live?: boolean }>;
   cancel(): void;
   create(uri: string): AudioHandle;
   configure(): Promise<void>;
@@ -179,6 +180,7 @@ export class ListeningController {
     this.update({
       current: track,
       sentences: undefined,
+      renderId: undefined,
       queue: this.state.queue.filter((item) => item.work.artworkId !== track.work.artworkId),
       history: this.historyAfter(track),
       phase: "loading",
@@ -216,6 +218,7 @@ export class ListeningController {
         preparationStage: "buffering",
         duration: rendered.duration ?? saved?.duration ?? 0,
         sentences: rendered.sentences,
+        renderId: rendered.renderId,
       });
       this.subscription = player.addListener("playbackStatusUpdate", (status) => {
         if (generation !== this.generation) return;
@@ -357,6 +360,7 @@ export class ListeningController {
     this.update({
       current: undefined,
       sentences: undefined,
+      renderId: undefined,
       queue: [],
       history: this.historyAfter(),
       phase: "idle",

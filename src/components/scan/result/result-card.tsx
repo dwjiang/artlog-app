@@ -197,6 +197,7 @@ export function ResultCard({
               factSheet={view.factSheet}
               status={view.docentStatus}
               onRetry={onRetryDocent}
+              report={view.primary && { kind: "docent", artworkId: view.primary.artworkId }}
             />
             {view.primary && (
               <>

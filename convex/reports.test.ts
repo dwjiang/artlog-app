@@ -1,9 +1,10 @@
 import { expect, it } from "vitest";
 
 import { api, internal } from "./_generated/api";
+import { readArtworkContent } from "./lib/artworkContent";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
-import { seedDevice } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 it("accepts public reports from registered devices, deduplicates account reporters, and requires shared-visit access", async () => {
@@ -17,18 +18,18 @@ it("accepts public reports from registered devices, deduplicates account reporte
   await expect(unregistered.as.mutation(api.reports.submit, { target, reason: "spam" })).rejects.toMatchObject({
     data: { code: "device_not_registered" },
   });
-  const id = await guest.as.mutation(api.reports.submit, {
+  const { reportId: id } = await guest.as.mutation(api.reports.submit, {
     target,
     reason: "spam",
   });
-  expect(await guest.as.mutation(api.reports.submit, { target, reason: "harassment" })).toBe(id);
-  const first = await stranger.as.mutation(api.reports.submit, {
+  expect((await guest.as.mutation(api.reports.submit, { target, reason: "harassment" })).reportId).toBe(id);
+  const { reportId: first } = await stranger.as.mutation(api.reports.submit, {
     target,
     reason: "spam",
   });
   const sibling = await seedDevice(t);
   await t.run((ctx) => ctx.db.patch("devices", sibling.deviceId, { accountId: stranger.accountId }));
-  expect(await sibling.as.mutation(api.reports.submit, { target, reason: "spam" })).toBe(first);
+  expect((await sibling.as.mutation(api.reports.submit, { target, reason: "spam" })).reportId).toBe(first);
   const draft = await socialVisit(t, author);
   await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection: "Public evidence" }));
   const post = await author.as.mutation(api.sharedVisits.publish, {
@@ -36,7 +37,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
     reflection: "Public evidence",
   });
   const sharedTarget = { kind: "sharedVisit" as const, postId: post.postId! };
-  const reportId = await stranger.as.mutation(api.reports.submit, {
+  const { reportId } = await stranger.as.mutation(api.reports.submit, {
     target: sharedTarget,
     reason: "harassment",
   });
@@ -65,7 +66,7 @@ it("records operator decisions and permanently removes a publication without cha
   const draft = await socialVisit(t, a);
   await befriend(a, b);
   const post = await a.as.mutation(api.sharedVisits.publish, draft.selection);
-  const reportId = await b.as.mutation(api.reports.submit, {
+  const { reportId } = await b.as.mutation(api.reports.submit, {
     target: { kind: "sharedVisit", postId: post.postId! },
     reason: "harassment",
   });
@@ -136,7 +137,7 @@ it("captures only published wall text and retains removal even if an active flag
       layout: { x: 0, y: 0, width: 1, layer: 0, frame: "none" },
     });
   });
-  const reportId = await reporter.as.mutation(api.reports.submit, {
+  const { reportId } = await reporter.as.mutation(api.reports.submit, {
     target: { kind: "wallItem", itemId },
     reason: "harassment",
   });
@@ -169,7 +170,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
   const a = await socialUser(t);
   const reporter = await seedDevice(t);
   const target = { kind: "profile" as const, profileId: a.profileId };
-  const first = await reporter.as.mutation(api.reports.submit, {
+  const { reportId: first } = await reporter.as.mutation(api.reports.submit, {
     target,
     reason: "harassment",
   });
@@ -180,7 +181,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
     reason: "Allowed",
   });
   expect(await t.query(api.profiles.getPublic, { profileId: a.profileId })).not.toBeNull();
-  const reportId = await reporter.as.mutation(api.reports.submit, {
+  const { reportId } = await reporter.as.mutation(api.reports.submit, {
     target,
     reason: "harassment",
   });
@@ -218,8 +219,8 @@ it("enforces ten daily reports per account across devices without charging dupli
       target: { kind: "profile" as const, profileId: author.profileId },
       reason: "spam" as const,
     };
-    const first = await reporter.as.mutation(api.reports.submit, input);
-    expect(await sibling.as.mutation(api.reports.submit, input)).toBe(first);
+    const { reportId: first } = await reporter.as.mutation(api.reports.submit, input);
+    expect((await sibling.as.mutation(api.reports.submit, input)).reportId).toBe(first);
   }
   const author = await socialUser(t);
   await expect(
@@ -243,7 +244,7 @@ it("reports a visible comment with its text as evidence, and removal deletes it"
     requestId: crypto.randomUUID(),
   });
   const target = { kind: "comment" as const, commentId };
-  const reportId = await guest.as.mutation(api.reports.submit, { target, reason: "harassment" });
+  const { reportId } = await guest.as.mutation(api.reports.submit, { target, reason: "harassment" });
   expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual({
     kind: "comment",
     profileId: commenter.profileId,
@@ -296,7 +297,7 @@ it("rejects reports of the reporter's own content and a bare “other” reason"
   await expect(
     reporter.as.mutation(api.reports.submit, { target, reason: "other", details: "  " }),
   ).rejects.toMatchObject({ data: { code: "invalid_report" } });
-  const reportId = await reporter.as.mutation(api.reports.submit, {
+  const { reportId } = await reporter.as.mutation(api.reports.submit, {
     target,
     reason: "other",
     details: "  Links to a scam site  ",
@@ -304,5 +305,141 @@ it("rejects reports of the reporter's own content and a bare “other” reason"
   expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
     reason: "other",
     details: "Links to a scam site",
+  });
+});
+
+const docentFixture = [{ sentence: "Monet painted this pond at Giverny in 1916.", factIds: ["f1"] }];
+const factSheetFixture = [
+  {
+    id: "f1",
+    text: "Painted at Giverny in 1916.",
+    sourceUrl: "https://museum.example/lilies",
+    sourceLabel: "Test Museum",
+    sourceScore: 1,
+  },
+];
+const seedDescribed = (t: ReturnType<typeof harness>) =>
+  t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { factSheetUpdatedAt: 5 },
+      artworkContent: { docent: { en: docentFixture }, factSheet: factSheetFixture },
+    }),
+  );
+
+it.each(["wrongFacts", "wrongArtwork", "offensive", "other"] as const)(
+  "saves a %s description report without changing content or scheduling generation",
+  async (reason) => {
+    const t = harness();
+    const reporter = await seedDevice(t);
+    const { artworkId } = await seedDescribed(t);
+    const target = { kind: "docent" as const, artworkId };
+    const state = () =>
+      t.run(async (ctx) => {
+        const artwork = (await ctx.db.get("artworks", artworkId))!;
+        return {
+          artwork,
+          content: await readArtworkContent(ctx, artwork),
+          scheduled: await ctx.db.system.query("_scheduled_functions").collect(),
+        };
+      });
+    const before = await state();
+    const { reportId } = await reporter.as.mutation(api.reports.submit, {
+      target,
+      reason,
+      details: "  Please review this description.  ",
+    });
+    expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+      target,
+      reason,
+      details: "Please review this description.",
+      reporter: { kind: "device", deviceId: reporter.deviceId },
+      evidence: { kind: "docent", artworkId, sentences: [docentFixture[0].sentence] },
+      status: "open",
+    });
+    expect(await state()).toEqual(before);
+    expect((await reporter.as.query(api.artworks.enrichment, { artworkId }))?.docent).toEqual(docentFixture);
+  },
+);
+
+it("deduplicates open generated-content reports per reporter while accepting other reporters", async () => {
+  const t = harness();
+  const reporter = await seedDevice(t);
+  const other = await seedDevice(t);
+  const { artworkId } = await seedDescribed(t);
+  const target = { kind: "docent" as const, artworkId };
+  const first = await reporter.as.mutation(api.reports.submit, { target, reason: "wrongFacts" });
+  expect(await reporter.as.mutation(api.reports.submit, { target, reason: "wrongFacts" })).toEqual(first);
+  const second = await other.as.mutation(api.reports.submit, { target, reason: "offensive" });
+  expect(second.reportId).not.toBe(first.reportId);
+  expect((await t.query(internal.review.listReports, {})).rows).toHaveLength(2);
+});
+
+it("uses the existing report limit for generated content", async () => {
+  const t = harness();
+  const reporter = await seedDevice(t);
+  for (let index = 0; index < 10; index++) {
+    const { artworkId } = await seedDescribed(t);
+    await reporter.as.mutation(api.reports.submit, { target: { kind: "docent", artworkId }, reason: "offensive" });
+  }
+  const { artworkId } = await seedDescribed(t);
+  await expect(
+    reporter.as.mutation(api.reports.submit, {
+      target: { kind: "docent", artworkId },
+      reason: "offensive",
+    }),
+  ).rejects.toMatchObject({ data: { code: "rate_limited" } });
+  expect((await t.query(internal.review.listReports, {})).rows).toHaveLength(10);
+});
+
+it("accepts only the reasons that fit generated content and needs something to report", async () => {
+  const t = harness();
+  const reporter = await seedDevice(t);
+  const { artworkId } = await seedDescribed(t);
+  for (const [kind, reason] of [
+    ["docent", "spam"],
+    ["transcript", "glitches"],
+    ["audio", "wrongFacts"],
+  ] as const) {
+    await expect(
+      reporter.as.mutation(api.reports.submit, {
+        target: kind === "audio" ? { kind, artworkId, renderId: "missing" } : { kind, artworkId },
+        reason,
+      }),
+    ).rejects.toMatchObject({ data: { code: "invalid_report" } });
+  }
+  for (const kind of ["transcript", "audio"] as const) {
+    await expect(
+      reporter.as.mutation(api.reports.submit, {
+        target: kind === "audio" ? { kind, artworkId, renderId: "missing" } : { kind, artworkId },
+        reason: "other",
+        details: "Wrong",
+      }),
+    ).rejects.toMatchObject({ data: { code: "not_found" } });
+  }
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetNeedsReview: true }));
+  await expect(
+    reporter.as.mutation(api.reports.submit, { target: { kind: "docent", artworkId }, reason: "offensive" }),
+  ).rejects.toMatchObject({ data: { code: "not_found" } });
+});
+
+it("holds an artwork's generated content for review when an operator removes a reported description", async () => {
+  const t = harness();
+  const reporter = await seedDevice(t);
+  const { artworkId } = await seedDescribed(t);
+  const { reportId } = await reporter.as.mutation(api.reports.submit, {
+    target: { kind: "docent", artworkId },
+    reason: "offensive",
+  });
+  await t.mutation(internal.review.decideReport, {
+    reportId,
+    operator: "operator@example.test",
+    decision: "remove",
+    reason: "Confirmed",
+  });
+  const artwork = await t.run((ctx) => ctx.db.get("artworks", artworkId));
+  expect(artwork?.factSheetNeedsReview).toBe(true);
+  expect(await reporter.as.query(api.artworks.enrichment, { artworkId })).toMatchObject({
+    docentWriting: false,
+    narrationWriting: false,
   });
 });

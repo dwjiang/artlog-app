@@ -8,6 +8,7 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ReportableHeading } from "@/components/reportable-heading";
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
@@ -72,9 +73,14 @@ export function NowPlayingScreen() {
   );
   const metadata = (
     <View style={styles.metadata}>
-      <Text variant="metadata" themeColor="textSecondary">
-        AI-generated voice
-      </Text>
+      <ReportableHeading
+        report={audio.renderId ? { kind: "audio", artworkId: work.artworkId, renderId: audio.renderId } : undefined}
+        disabled={audio.phase === "loading"}
+      >
+        <Text variant="metadata" themeColor="textSecondary">
+          AI-generated voice
+        </Text>
+      </ReportableHeading>
       <Text selectable variant="display" style={styles.title}>
         {work.title}
       </Text>
@@ -160,7 +166,9 @@ export function NowPlayingScreen() {
             gap: Spacing.three,
           }}
         >
-          <Text variant="display">{work.title}</Text>
+          <ReportableHeading report={{ kind: "transcript", artworkId: work.artworkId }} disabled={!audio.sentences}>
+            <Text variant="display">{work.title}</Text>
+          </ReportableHeading>
           {audio.sentences ? (
             <DocentSection docent={audio.sentences} factSheet={work.facts} />
           ) : (

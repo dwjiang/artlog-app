@@ -325,6 +325,27 @@ it("shows the audio guide transcript and its sources once the narration exists",
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
   expect(screen.queryByText("About this work")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Report transcript" }));
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/report",
+    params: { kind: "transcript", id: "artwork-1" },
+  });
+});
+
+it("reports the description, and keeps each section and its heading while a new version is written", async () => {
+  await render(detail("lilies"));
+  await fireEvent.press(await screen.findByRole("button", { name: "Report description" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/report", params: { kind: "docent", id: "artwork-1" } });
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    docentWriting: true,
+    narrationWriting: true,
+  });
+  await render(detail("lilies"));
+  expect(await screen.findByText("About this work")).toBeOnTheScreen();
+  expect(screen.getByText("Audio guide transcript")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Writing the transcript…")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: /^Report/ })).toBeNull();
 });
 
 it("skips the enrichment query for a work saved without an artwork", async () => {

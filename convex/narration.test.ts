@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
+import { SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { api, internal } from "./_generated/api";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
@@ -348,7 +349,7 @@ it("keeps the script when speech fails, hides provider response details, and spe
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(1);
 });
 
-it("releases a stream that drops midway and deletes the segments it already stored", async () => {
+it("keeps cut-off speech private for a day, then deletes unreported segments", async () => {
   const { t, as, args, fetcher, rows, files } = await setup();
   const held = heldSpeech("fail");
   fetcher.mockResolvedValueOnce(completion());
@@ -360,8 +361,16 @@ it("releases a stream that drops midway and deletes the segments it already stor
   expect((await rows()).map((row) => [row.claim, row.segments, row.sentences?.length])).toEqual([
     [undefined, undefined, guideFixture.length],
   ]);
-  expect(await files()).toEqual([]);
+  const retained = await files();
+  expect(retained).toHaveLength(1);
+  expect(retained[0].publicDownload).toBe(false);
+  const [failure] = await t.run((ctx) => ctx.db.query("narrationFailures").collect());
+  expect(failure.renderId).toBe(live.renderId);
+  expect(failure.expiresAt).toBeGreaterThan(Date.now() + 23 * 60 * 60_000);
   expect((await t.fetch(path(live.uri))).status).toBe(404);
+  await t.run((ctx) => ctx.db.patch("narrationFailures", failure._id, { expiresAt: Date.now() - 1 }));
+  await t.mutation(internal.retention.expireBatch, {});
+  expect(await t.run((ctx) => fileStorage.getMetadata(ctx, retained[0]._id))).toBeNull();
 });
 
 it("allows only one generation claim and rejects a late completion after a stale claim is replaced", async () => {
@@ -538,4 +547,139 @@ it("refuses a tiny script instead of synthesizing another ten-second guide", asy
   });
   expect(fetcher).toHaveBeenCalledTimes(2);
   expect(await rows()).toHaveLength(0);
+});
+
+it.each([
+  ["transcript", "wrongFacts"],
+  ["transcript", "offensive"],
+  ["audio", "glitches"],
+  ["audio", "mispronounced"],
+  ["audio", "mismatch"],
+] as const)("saves a %s report for %s while preserving the script and playable audio", async (kind, reason) => {
+  const { t, as, artworkId, fetcher, rows, files, render } = await setup();
+  const first = await render();
+  const beforeRows = await rows();
+  const beforeFiles = await files();
+  const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  const beforeScheduled = await scheduled();
+  const { reportId } = await as.mutation(api.reports.submit, {
+    target: kind === "audio" ? { kind, artworkId, renderId: first.renderId } : { kind, artworkId },
+    reason,
+    details: "Please review this guide.",
+  });
+  expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+    reason,
+    details: "Please review this guide.",
+    status: "open",
+    evidence:
+      kind === "transcript"
+        ? { kind, artworkId, sentences: guideFixture.map(({ sentence }) => sentence) }
+        : { kind, artworkId, renderId: first.renderId, speechModel: SPEECH_MODEL, voice: SPEECH_VOICE },
+  });
+  expect(await rows()).toEqual(beforeRows);
+  expect(await files()).toEqual(
+    beforeFiles.map((file) => ({
+      ...file,
+      refCount: file.refCount + (kind === "audio" && file._id === beforeRows[0].storageId ? 1 : 0),
+    })),
+  );
+  expect(await scheduled()).toEqual(beforeScheduled);
+  const next = await render();
+  expect(next.renderId).toBe(first.renderId);
+  expect(next.sentences).toEqual(first.sentences);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it.each(["docent", "transcript", "audio"] as const)(
+  "revokes playing audio and cancels its generation when a %s report is removed",
+  async (kind) => {
+    const { t, as, artworkId, args, fetcher, rows } = await setup();
+    const held = heldSpeech();
+    fetcher.mockResolvedValueOnce(completion());
+    fetcher.mockResolvedValueOnce(held.response);
+    const live = await as.action(api.narration.render, args);
+    const [entry] = await rows();
+    const segmentId = entry.segments![0].storageId;
+    const { reportId } = await as.mutation(api.reports.submit, {
+      target: kind === "audio" ? { kind, artworkId, renderId: live.renderId } : { kind, artworkId },
+      reason: kind === "audio" ? "glitches" : "offensive",
+    });
+    await t.mutation(internal.review.decideReport, {
+      reportId,
+      operator: "reviewer",
+      decision: "remove",
+      reason: "Confirmed",
+    });
+    expect((await t.fetch(path(live.uri))).status).toBe(404);
+    expect(await t.query(internal.files.downloadable, { id: segmentId })).toBeNull();
+    expect(await t.query(internal.narration.progress, { artworkId, claim: live.renderId })).toBeNull();
+    held.release();
+    await t.finishInProgressScheduledFunctions();
+    expect(await rows()).toHaveLength(0);
+    await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
+      data: { code: "narration_unavailable" },
+    });
+    expect(await t.run(async (ctx) => !!(await fileStorage.get(ctx, segmentId)))).toBe(kind === "audio");
+  },
+);
+
+it("retains reported audio and transcript through cache replacement and clearing", async () => {
+  const { t, as, artworkId, rows, render } = await setup();
+  const first = await render();
+  const [{ storageId }] = await rows();
+  const target = { kind: "audio" as const, artworkId, renderId: first.renderId };
+  const { reportId } = await as.mutation(api.reports.submit, { target, reason: "mismatch" });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
+  const replacement = await render();
+  expect(replacement.renderId).not.toBe(first.renderId);
+  await t.mutation(internal.narration.clear, {});
+  const retained = await t.run(async (ctx) => (await fileStorage.get(ctx, storageId!))!.arrayBuffer());
+  expect(new Uint8Array(retained)).toEqual(spokenBytes);
+  expect(await t.query(internal.files.downloadable, { id: storageId! })).toBeNull();
+  expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+    status: "open",
+    evidence: {
+      renderId: first.renderId,
+      fileIds: [storageId],
+      sentences: first.sentences.map(({ sentence }) => sentence),
+    },
+  });
+  expect(await t.action(internal.review.reportAudio, { reportId })).toEqual([`https://r2.test/download/${storageId}`]);
+});
+
+it("reports the failed render after another listener retries and retains its evidence past expiry", async () => {
+  const { t, as, artworkId, args, fetcher, render } = await setup();
+  const held = heldSpeech("fail");
+  fetcher.mockResolvedValueOnce(completion());
+  fetcher.mockResolvedValueOnce(held.response);
+  const live = await as.action(api.narration.render, args);
+  held.release();
+  await t.finishInProgressScheduledFunctions();
+  const replacement = await render();
+  expect(replacement.renderId).not.toBe(live.renderId);
+  const input = { target: { kind: "audio" as const, artworkId, renderId: live.renderId }, reason: "glitches" as const };
+  const { reportId } = await as.mutation(api.reports.submit, input);
+  expect(await as.mutation(api.reports.submit, input)).toEqual({ reportId });
+  const [failure] = await t.run((ctx) => ctx.db.query("narrationFailures").collect());
+  await t.run((ctx) => ctx.db.patch("narrationFailures", failure._id, { expiresAt: Date.now() - 1 }));
+  await t.mutation(internal.retention.expireBatch, {});
+  expect(await t.run(async (ctx) => (await fileStorage.get(ctx, failure.fileIds[0]))?.size ?? 0)).toBeGreaterThan(0);
+  expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+    evidence: { renderId: live.renderId, fileIds: failure.fileIds },
+  });
+  expect(await t.query(internal.files.downloadable, { id: failure.fileIds[0] })).toBeNull();
+  const other = await seedDevice(t);
+  await expect(other.as.mutation(api.reports.submit, input)).rejects.toMatchObject({ data: { code: "not_found" } });
+});
+
+it("rejects an audio report for another artwork's render", async () => {
+  const { t, as, render } = await setup();
+  const first = await render();
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
+  await expect(
+    as.mutation(api.reports.submit, {
+      target: { kind: "audio", artworkId, renderId: first.renderId },
+      reason: "glitches",
+    }),
+  ).rejects.toMatchObject({ data: { code: "not_found" } });
 });

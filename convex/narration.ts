@@ -14,16 +14,8 @@ import {
 } from "../shared/audio/guide";
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  env,
-  httpAction,
-  internalAction,
-  internalQuery,
-  type ActionCtx,
-  type MutationCtx,
-} from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { action, env, httpAction, internalAction, internalQuery, type ActionCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -39,6 +31,7 @@ import {
   scriptCurrent,
   type RenderedNarration,
 } from "./lib/narrationCache";
+import { audioEvidenceOf, clearNarration, releaseNarrationFiles } from "./lib/narrationEvidence";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitDevice, limitKey } from "./lib/rateLimits";
 import { reserveSpend } from "./lib/spend";
@@ -59,10 +52,6 @@ const FIRST_SEGMENT_TIMEOUT_MS = 30_000;
 const SEGMENT_RETENTION_MS = 60 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function deleteFiles(ctx: MutationCtx, entry: Doc<"narrationAudio">) {
-  await Promise.all(narrationFiles(entry).map((storageId) => fileStorage.delete(ctx, storageId)));
-}
 
 export const claim = internalMutation({
   args: { artworkId: v.id("artworks"), claim: v.string() },
@@ -104,7 +93,7 @@ export const claim = internalMutation({
     };
     if (entry) {
       await ctx.db.replace("narrationAudio", entry._id, fields);
-      await deleteFiles(ctx, entry);
+      await releaseNarrationFiles(ctx, narrationFiles(entry));
     } else {
       await ctx.db.insert("narrationAudio", fields);
     }
@@ -118,7 +107,8 @@ export const scripted = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { artworkId, claim, sentences }) => {
     const entry = await narrationEntry(ctx, artworkId);
-    if (entry?.claim !== claim) return false;
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (entry?.claim !== claim || !artwork || !narrationCurrent(entry, artwork)) return false;
     await ctx.db.patch("narrationAudio", entry._id, { sentences });
     await ctx.scheduler.runAfter(0, internal.narration.speak, {
       artworkId,
@@ -134,8 +124,10 @@ export const appendSegment = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { artworkId, claim, segment: added }) => {
     const entry = await narrationEntry(ctx, artworkId);
-    if (entry?.claim !== claim || entry.storageId) {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (entry?.claim !== claim || entry.storageId || !artwork || !narrationCurrent(entry, artwork)) {
       await fileStorage.delete(ctx, added.storageId);
+      if (entry?.claim === claim && !entry.storageId) await clearNarration(ctx, artworkId);
       return false;
     }
     await retainFile(ctx, added.storageId, true);
@@ -164,6 +156,13 @@ export const finish = internalMutation({
     }
     if (storageId) await fileStorage.delete(ctx, storageId);
     if (entry?.claim === claim) {
+      if (!storageId && artwork && narrationCurrent(entry, artwork)) {
+        const evidence = audioEvidenceOf(entry);
+        // A cut-off stream stays privately reportable for a day, including after a retry.
+        if (evidence) {
+          await ctx.db.insert("narrationFailures", { ...evidence, expiresAt: Date.now() + 24 * 60 * 60_000 });
+        }
+      }
       // The row must drop its references before the files can go; the reference count holds them.
       if (artwork && entry.sentences && scriptCurrent(entry, artwork)) {
         await ctx.db.patch("narrationAudio", entry._id, {
@@ -175,7 +174,7 @@ export const finish = internalMutation({
       } else {
         await ctx.db.delete("narrationAudio", entry._id);
       }
-      await deleteFiles(ctx, entry);
+      await releaseNarrationFiles(ctx, narrationFiles(entry));
     }
     return null;
   },
@@ -188,7 +187,10 @@ export const dropSegments = internalMutation({
     const entry = await narrationEntry(ctx, artworkId);
     if (entry?.claim !== claim || !entry.storageId || !entry.segments) return null;
     await ctx.db.patch("narrationAudio", entry._id, { segments: undefined });
-    await Promise.all(entry.segments.map(({ storageId }) => fileStorage.delete(ctx, storageId)));
+    await releaseNarrationFiles(
+      ctx,
+      entry.segments.map(({ storageId }) => storageId),
+    );
     return null;
   },
 });
@@ -217,7 +219,10 @@ export const listing = internalQuery({
   handler: async (ctx, args) => {
     const artworkId = ctx.db.normalizeId("artworks", args.artworkId);
     const entry = artworkId ? await narrationEntry(ctx, artworkId) : null;
-    if (entry?.claim !== args.render || !entry.segments?.length) return null;
+    const artwork = artworkId ? await ctx.db.get("artworks", artworkId) : null;
+    if (entry?.claim !== args.render || !entry.segments?.length || !artwork || !narrationCurrent(entry, artwork)) {
+      return null;
+    }
     const segments = [];
     for (const { storageId, duration } of entry.segments) {
       const uri = await fileStorage.getUrl(ctx, storageId);
@@ -252,8 +257,7 @@ export const clear = internalMutation({
   handler: async (ctx) => {
     let cleared = 0;
     for await (const entry of ctx.db.query("narrationAudio")) {
-      await ctx.db.delete("narrationAudio", entry._id);
-      await deleteFiles(ctx, entry);
+      await clearNarration(ctx, entry.artworkId);
       cleared++;
     }
     return cleared;

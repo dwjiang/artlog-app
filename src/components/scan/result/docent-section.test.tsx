@@ -7,6 +7,8 @@ const mockReportError = jest.fn();
 const mockToast = jest.fn();
 let mockActive = true;
 
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({ router: { push: (...args: unknown[]) => mockPush(...args) } }));
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
 }));
@@ -200,4 +202,16 @@ it("keeps the source visible and explains a browser failure", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn’t open this source\./);
   await fireEvent.press(screen.getByRole("link", { name: "Test Museum" }));
   expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("offers Report at the end of the title only while there are sentences to report", async () => {
+  const report = { kind: "docent" as const, artworkId: "artwork-1" as never };
+  const { rerender } = await render(
+    <DocentSection title="About this work" docent={docent} factSheet={factSheet} report={report} />,
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Report description" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "docent", id: "artwork-1" } });
+  await rerender(<DocentSection title="About this work" status="writing" report={report} />);
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Report description" })).toBeNull();
 });

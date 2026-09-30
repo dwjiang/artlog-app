@@ -14,6 +14,7 @@ import {
   reportReason,
   reportTarget,
   reportEvidence,
+  audioReportEvidence,
   reportReview,
   removal,
 } from "../shared/social/contracts";
@@ -90,6 +91,12 @@ export default defineSchema({
     // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
     segments: v.optional(v.array(v.object({ storageId: v.id("files"), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),
+  narrationFailures: defineTable({
+    ...audioReportEvidence.fields,
+    expiresAt: v.number(),
+  })
+    .index("by_artwork_render", ["artworkId", "renderId"])
+    .index("by_expiresAt", ["expiresAt"]),
   museumDownloads: defineTable({
     venueId: v.id("museums"),
     published: v.optional(museumPackage),

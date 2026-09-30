@@ -65,6 +65,8 @@ export function registerFileReferences(fileTriggers: Triggers<DataModel>) {
   register("mediaAssets", (row) => (row.revokedAt === undefined ? [row.storageId] : []));
   register("profiles", (row) => [row.photoStorageId]);
   register("narrationAudio", (row) => [row.storageId, ...(row.segments ?? []).map((segment) => segment.storageId)]);
+  register("narrationFailures", (row) => row.fileIds);
+  register("reports", (row) => (row.evidence.kind === "audio" ? row.evidence.fileIds : []));
   register("museumDownloads", (row) =>
     [...(row.published?.chunks ?? []), ...(row.building?.chunks ?? [])].map((part) => part.storageId),
   );

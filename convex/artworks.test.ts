@@ -53,6 +53,8 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
   );
   expect(await as.query(api.artworks.enrichment, { artworkId })).toEqual({
     docent,
+    docentWriting: false,
+    narrationWriting: false,
     narrationFacts: chips,
     narrationResearchUpdatedAt: 5,
     narrationOpening: openingFixture,
@@ -72,11 +74,15 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
     }),
   ).toEqual({
     rightsStatus: "in_copyright",
+    docentWriting: false,
+    narrationWriting: false,
     narrationOpening: openingFixture,
   });
   const reverted = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { reverted: true } }));
   expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({
     rightsStatus: "public_domain",
+    docentWriting: false,
+    narrationWriting: false,
     narrationOpening: openingFixture,
   });
   const gone = await t.run((ctx) => seedArtworkWithObject(ctx));

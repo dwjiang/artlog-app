@@ -37,7 +37,7 @@ function Dock() {
 
 it("re-renders layout around the player when a track loads or clears, not on every position update", async () => {
   const controller = new ListeningController({
-    render: async () => ({ uri: "file:///audio.mp3", sentences: [] }),
+    render: async () => ({ uri: "file:///audio.mp3", sentences: [], renderId: "render-1" }),
     cancel: jest.fn(),
     configure: async () => {},
     create: () => player,

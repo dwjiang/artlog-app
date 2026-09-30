@@ -14,7 +14,7 @@ it("revokes immediately, purges social references in batches, and deletes files 
     const draft = await socialVisit(t, a, 50);
     await befriend(a, b);
     const post = await a.as.mutation(api.sharedVisits.publish, draft.selection);
-    const reportId = await a.as.mutation(api.reports.submit, {
+    const { reportId } = await a.as.mutation(api.reports.submit, {
       target: { kind: "profile", profileId: b.profileId },
       reason: "spam",
     });

@@ -32,7 +32,10 @@ export function narrationProvenance(artwork: Doc<"artworks">) {
 export function scriptCurrent(entry: Doc<"narrationAudio">, artwork: Doc<"artworks">): boolean {
   const provenance = scriptProvenance(artwork);
   return (
-    entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt
+    !artwork.factSheetNeedsReview
+    && !artwork.retiredAt
+    && artwork.identityStatus === "established"
+    && entry.factSheetUpdatedAt === provenance.factSheetUpdatedAt
     && entry.opening === provenance.opening
     && entry.guideModel === provenance.guideModel
   );
