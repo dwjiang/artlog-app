@@ -39,10 +39,12 @@ import type { LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/valid
 import { CameraPermission } from "./camera-permission";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
+import { CaptureControls, ShutterButton } from "./capture-controls";
 import { CapturePhotosButton } from "./capture-photos-button";
 import { ContributionStatus, LabelActions } from "./label/label-actions";
 import { ProgressSteps } from "./label/progress-steps";
 import { VerifiedFieldsForm } from "./label/verified-fields-form";
+import { OverlayCaption } from "./overlay-caption";
 import { SourceChip } from "./result/source-chip";
 
 export const QR_FOUND = "Found a QR code";
@@ -545,80 +547,78 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
 
   const canCapture = active && cameraReady && !busy;
   return (
-    <ScrollView
-      style={styles.camera}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: 20,
-        paddingBottom: Math.max(20, bottom),
-        gap: 18,
-      }}
-    >
-      <ThemedText themeColor="textSecondary">Fill the frame with the museum label.</ThemedText>
-      <CameraPermission compact onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
-        <View
-          style={{
-            height: 260,
-            marginHorizontal: -20,
-            backgroundColor: Gallery.fill,
+    <View style={styles.camera}>
+      <CameraPermission onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
+        <Camera
+          style={StyleSheet.absoluteFill}
+          device="back"
+          orientationSource="interface"
+          resizeMode="cover"
+          isActive={active}
+          outputs={outputs}
+          allowHapticsAndSystemSoundsPlayback
+          onStarted={() => {
+            setCameraReady(true);
+            setCameraError(undefined);
           }}
+          onStopped={() => setCameraReady(false)}
+          onError={(error) => {
+            reportError(error, "camera.start", { data: { screen: "label" } });
+            setCameraReady(false);
+            setCameraError("Could not start the camera. You can import a label photo.");
+          }}
+        />
+        <ScrollView
+          style={StyleSheet.absoluteFill}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={[styles.cameraOverlay, { paddingBottom: bottom + Spacing.three }]}
         >
-          <Camera
-            style={StyleSheet.absoluteFill}
-            device="back"
-            orientationSource="interface"
-            isActive={active}
-            outputs={outputs}
-            allowHapticsAndSystemSoundsPlayback
-            onStarted={() => {
-              setCameraReady(true);
-              setCameraError(undefined);
-            }}
-            onStopped={() => setCameraReady(false)}
-            onError={(error) => {
-              reportError(error, "camera.start", { data: { screen: "label" } });
-              setCameraReady(false);
-              setCameraError(error.message);
-            }}
-          />
           <View
             pointerEvents="none"
-            accessibilityLabel="Label guide"
-            style={{
-              position: "absolute",
-              top: 40,
-              bottom: 40,
-              left: 24,
-              right: 24,
-              borderWidth: 2,
-              borderColor: Gallery.accent,
-            }}
-          />
-        </View>
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.guideArea}
+          >
+            <View style={styles.guide}>
+              <View style={[styles.guideCorner, styles.topLeft]} />
+              <View style={[styles.guideCorner, styles.topRight]} />
+              <View style={[styles.guideCorner, styles.bottomLeft]} />
+              <View style={[styles.guideCorner, styles.bottomRight]} />
+            </View>
+          </View>
+          <View pointerEvents="box-none" style={styles.cameraBottom}>
+            {cameraError ? (
+              <View accessible accessibilityRole="alert">
+                <OverlayCaption>{cameraError}</OverlayCaption>
+              </View>
+            ) : (
+              <View accessibilityLiveRegion="polite">
+                <OverlayCaption
+                  hint={
+                    busy
+                      ? undefined
+                      : offline
+                        ? "No signal. We’ll keep the label with your scan and finish when you’re back online."
+                        : "Tap the shutter to read the text. QR codes scan automatically."
+                  }
+                >
+                  {busy ? "Reading the label" : "Fill the frame with the museum label."}
+                </OverlayCaption>
+              </View>
+            )}
+            <CaptureControls importLabel="Import a label photo" importDisabled={busy || !active} onImport={importPhoto}>
+              <ShutterButton
+                label="Read label"
+                hint="Takes a photo of the museum label to read its text"
+                disabled={!canCapture}
+                busy={busy}
+                onPress={takePhoto}
+              />
+            </CaptureControls>
+          </View>
+        </ScrollView>
       </CameraPermission>
-      <ThemedText type="small" themeColor="textSecondary">
-        {storeOnly
-          ? "No signal. We’ll keep the label with your scan and finish when you’re back online."
-          : "Keep the text sharp and avoid glare."}
-      </ThemedText>
-      {cameraError && (
-        <ThemedText themeColor="error" accessibilityRole="alert">
-          {cameraError}
-        </ThemedText>
-      )}
-      <View style={{ flex: 1 }} />
-      <GalleryButton
-        label="Read label"
-        icon="viewfinder"
-        variant="filled"
-        fullWidth
-        disabled={!canCapture}
-        busy={busy}
-        onPress={takePhoto}
-      />
-      <GalleryButton label="Import a label photo" icon="photo" fullWidth disabled={busy} onPress={importPhoto} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -656,4 +656,23 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: Spacing.three },
   camera: { flex: 1, backgroundColor: Colors.light.background },
+  cameraOverlay: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.content,
+    paddingTop: Spacing.four,
+    gap: Spacing.four,
+  },
+  cameraBottom: { gap: Spacing.three },
+  guideArea: { flexGrow: 1, justifyContent: "center" },
+  guide: { width: "100%", aspectRatio: 1.5 },
+  guideCorner: {
+    position: "absolute",
+    width: Spacing.four,
+    height: Spacing.four,
+    borderColor: Colors.light.overlayText,
+  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
+  topRight: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 },
 });

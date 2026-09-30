@@ -1,6 +1,6 @@
 import { Canvas, Path } from "@shopify/react-native-skia";
 import { useEffect, useSyncExternalStore } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { cancelAnimation, Easing, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { Colors, Gallery } from "@/constants/theme";
@@ -8,9 +8,9 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { CaptureController } from "@/lib/capture/capture-controller";
 import type { FrameSize, Guidance } from "@/lib/capture/rectangle";
 
+import { SHUTTER_SIZE, ShutterButton } from "./capture-controls";
 import { OverlayCaption } from "./overlay-caption";
 
-const SHUTTER_SIZE = 72;
 const RING_SIZE = SHUTTER_SIZE + 14;
 const RING_RADIUS = RING_SIZE / 2 - 2;
 const ring = `M ${RING_SIZE / 2} 2 a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${RING_RADIUS * 2} a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${-RING_RADIUS * 2}`;
@@ -118,7 +118,13 @@ export function CaptureShutter({
     return () => cancelAnimation(progress);
   }, [value, progress, reduced]);
   return (
-    <View style={styles.shutterContainer}>
+    <ShutterButton
+      label="Scan artwork"
+      hint="Scans now instead of waiting for automatic detection"
+      disabled={disabled}
+      busy={busy}
+      onPress={onPress}
+    >
       <View
         pointerEvents="none"
         accessibilityElementsHidden
@@ -129,24 +135,12 @@ export function CaptureShutter({
           <Path path={ring} color={Gallery.highlight} style="stroke" strokeWidth={3} strokeCap="round" end={progress} />
         </Canvas>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Scan artwork"
-        accessibilityHint="Scans now instead of waiting for automatic detection"
-        disabled={disabled}
-        accessibilityState={{ disabled, busy }}
-        onPress={onPress}
-        style={({ pressed }) => [styles.shutter, (pressed || disabled) && styles.dimmed]}
-      >
-        <View style={styles.shutterInner} />
-      </Pressable>
-    </View>
+    </ShutterButton>
   );
 }
 
 const styles = StyleSheet.create({
   feedback: { minHeight: 44, justifyContent: "center" },
-  shutterContainer: { width: SHUTTER_SIZE, height: SHUTTER_SIZE },
   ring: {
     position: "absolute",
     width: RING_SIZE,
@@ -154,18 +148,4 @@ const styles = StyleSheet.create({
     left: -7,
     top: -7,
   },
-  shutter: {
-    width: SHUTTER_SIZE,
-    height: SHUTTER_SIZE,
-    borderRadius: SHUTTER_SIZE / 2,
-    borderWidth: 3,
-    borderColor: Colors.light.overlayText,
-    padding: 4,
-  },
-  shutterInner: {
-    flex: 1,
-    borderRadius: SHUTTER_SIZE / 2,
-    backgroundColor: Colors.light.overlayText,
-  },
-  dimmed: { opacity: 0.7 },
 });
