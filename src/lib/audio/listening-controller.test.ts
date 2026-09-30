@@ -18,6 +18,7 @@ jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/ui/toast", () => ({ showErrorToast: jest.fn() }));
 
 const liveAudio = {
+  renderId: "live-render",
   uri: "https://example.convex.site/narration-playlist",
   sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
   live: true,
@@ -75,6 +76,7 @@ function setup() {
     render: jest.fn<ReturnType<ListeningDependencies["render"]>, Parameters<ListeningDependencies["render"]>>(
       async () => ({
         uri: "file:///audio.mp3",
+        renderId: "stored-render",
         duration: 100,
         sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
       }),
@@ -183,6 +185,7 @@ it("ignores late synthesis after a different track or stop", async () => {
   const { controller, deps } = setup();
   let resolve!: (value: {
     uri: string;
+    renderId: string;
     duration: number;
     sentences: { sentence: string; factIds: string[] }[];
   }) => void;
@@ -197,6 +200,7 @@ it("ignores late synthesis after a different track or stop", async () => {
   await controller.play(track("b"));
   resolve({
     uri: "old",
+    renderId: "old-render",
     duration: 3,
     sentences: [{ sentence: "Old script.", factIds: ["f1"] }],
   });
@@ -205,6 +209,7 @@ it("ignores late synthesis after a different track or stop", async () => {
   expect(controller.snapshot().current?.work.title).toBe("b");
   controller.stop();
   expect(controller.snapshot().current).toBeUndefined();
+  expect(controller.snapshot().renderId).toBeUndefined();
   expect(deps.cancel).toHaveBeenCalled();
 });
 
@@ -382,6 +387,7 @@ it("offers Retry for a stalled playlist even when the native player stops emitti
   expect(controller.snapshot()).toMatchObject({
     phase: "error",
     playing: false,
+    renderId: "live-render",
   });
   expect(showErrorToast).toHaveBeenCalledWith("Audio stopped responding.", expect.any(Function));
   expect(controller.snapshot().queue).toEqual([track("b")]);

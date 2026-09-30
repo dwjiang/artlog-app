@@ -145,7 +145,7 @@ it("lists only the caller’s active, unremoved shared visits", async () => {
   const flagged = await a.as.query(api.sharedVisits.getState, {
     visitLocalId: removed.visit.localId,
   });
-  const reportId = await b.as.mutation(api.reports.submit, {
+  const { reportId } = await b.as.mutation(api.reports.submit, {
     target: { kind: "sharedVisit", postId: flagged.postId! },
     reason: "harassment",
   });

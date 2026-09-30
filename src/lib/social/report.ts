@@ -1,24 +1,24 @@
 import type { Href } from "expo-router";
 
+import type { ReportKind } from "@/shared/social/contracts";
+
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { ReportReason, ReportTarget } from "./types";
 
-export type ReportKind = ReportTarget["kind"];
+export type ContentReportTarget = Extract<ReportTarget, { artworkId: Id<"artworks"> }>;
 
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   spam: "Spam or scam",
   harassment: "Harassment or hate",
   impersonation: "Pretending to be someone else",
   privacy: "Shares private information",
+  wrongFacts: "Wrong or made-up facts",
+  wrongArtwork: "Describes a different artwork",
+  offensive: "Offensive or inappropriate",
+  mispronounced: "Mispronounced words",
+  glitches: "Glitches or cuts off",
+  mismatch: "Doesn’t match the transcript",
   other: "Something else",
-};
-
-/** Each kind lists the reasons that fit it, most common first; "other" stays last. */
-export const REPORT_REASONS: Record<ReportKind, ReportReason[]> = {
-  profile: ["spam", "impersonation", "harassment", "other"],
-  wallItem: ["spam", "harassment", "other"],
-  sharedVisit: ["harassment", "privacy", "spam", "other"],
-  comment: ["harassment", "spam", "privacy", "other"],
 };
 
 export const REPORT_NOUNS: Record<ReportKind, string> = {
@@ -26,13 +26,20 @@ export const REPORT_NOUNS: Record<ReportKind, string> = {
   wallItem: "artwork",
   sharedVisit: "visit",
   comment: "comment",
+  docent: "description",
+  transcript: "transcript",
+  audio: "audio",
 };
 
-export function reportHref(kind: ReportKind, id: string): Href {
-  return { pathname: "/report", params: { kind, id } };
+export function reportHref(kind: ReportKind, id: string, renderId?: string): Href {
+  return { pathname: "/report", params: { kind, id, ...(renderId ? { renderId } : {}) } };
 }
 
-export function reportTarget(kind: string | undefined, id: string | undefined): ReportTarget | undefined {
+export function reportTarget(
+  kind: string | undefined,
+  id: string | undefined,
+  renderId?: string,
+): ReportTarget | undefined {
   if (!id) return;
   switch (kind) {
     case "profile":
@@ -43,5 +50,10 @@ export function reportTarget(kind: string | undefined, id: string | undefined): 
       return { kind, postId: id };
     case "comment":
       return { kind, commentId: id as Id<"visitComments"> };
+    case "docent":
+    case "transcript":
+      return { kind, artworkId: id as Id<"artworks"> };
+    case "audio":
+      return renderId ? { kind, artworkId: id as Id<"artworks">, renderId } : undefined;
   }
 }

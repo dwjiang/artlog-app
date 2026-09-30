@@ -1,7 +1,8 @@
 import { router, Stack } from "expo-router";
 
 import { Gallery } from "@/constants/theme";
-import { REPORT_NOUNS, reportHref, type ReportKind } from "@/lib/social/report";
+import { REPORT_NOUNS, reportHref } from "@/lib/social/report";
+import type { ReportKind } from "@/shared/social/contracts";
 
 /** The header's More menu on someone else's profile, visit, or artwork. */
 export function ReportToolbar({ kind, id }: { kind: ReportKind; id: string }) {

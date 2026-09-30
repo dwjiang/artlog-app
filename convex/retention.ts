@@ -16,6 +16,12 @@ export const expireBatch = internalMutation({
   handler: async (ctx) => {
     let more = false;
     const now = Date.now();
+    const narrations = await ctx.db
+      .query("narrationFailures")
+      .withIndex("by_expiresAt", (q) => q.lte("expiresAt", now))
+      .take(BATCH);
+    for (const row of narrations) await ctx.db.delete("narrationFailures", row._id);
+    more ||= narrations.length === BATCH;
     const challenges = await ctx.db
       .query("attestChallenges")
       .withIndex("by_expiresAt", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))

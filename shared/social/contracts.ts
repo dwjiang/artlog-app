@@ -116,9 +116,37 @@ export const reportTarget = v.union(
   v.object({ kind: v.literal("wallItem"), itemId: v.id("wallItems") }),
   v.object({ kind: v.literal("sharedVisit"), postId: v.string() }),
   v.object({ kind: v.literal("comment"), commentId: v.id("visitComments") }),
+  // Generated text and audio are shared by everyone who sees the artwork, so these name the artwork.
+  v.object({ kind: v.literal("docent"), artworkId: v.id("artworks") }),
+  v.object({ kind: v.literal("transcript"), artworkId: v.id("artworks") }),
+  v.object({ kind: v.literal("audio"), artworkId: v.id("artworks"), renderId: v.string() }),
 );
-export const REPORT_REASONS = ["spam", "harassment", "impersonation", "privacy", "other"] as const;
+export type ReportKind = Infer<typeof reportTarget>["kind"];
+export const REPORT_REASONS = [
+  "spam",
+  "harassment",
+  "impersonation",
+  "privacy",
+  "wrongFacts",
+  "wrongArtwork",
+  "offensive",
+  "mispronounced",
+  "glitches",
+  "mismatch",
+  "other",
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
 export const reportReason = v.union(...REPORT_REASONS.map(v.literal));
+/** Each kind lists the reasons that fit it, most common first; "other" stays last. */
+export const REASONS_BY_KIND: Record<ReportKind, readonly ReportReason[]> = {
+  profile: ["spam", "impersonation", "harassment", "other"],
+  wallItem: ["spam", "harassment", "other"],
+  sharedVisit: ["harassment", "privacy", "spam", "other"],
+  comment: ["harassment", "spam", "privacy", "other"],
+  docent: ["wrongFacts", "wrongArtwork", "offensive", "other"],
+  transcript: ["wrongFacts", "wrongArtwork", "offensive", "other"],
+  audio: ["mispronounced", "glitches", "mismatch", "other"],
+};
 export const reportInput = v.object({
   target: reportTarget,
   reason: reportReason,
@@ -127,6 +155,15 @@ export const reportInput = v.object({
 export const removal = v.object({
   reportId: v.id("reports"),
   removedAt: v.number(),
+});
+export const audioReportEvidence = v.object({
+  kind: v.literal("audio"),
+  artworkId: v.id("artworks"),
+  renderId: v.string(),
+  speechModel: v.string(),
+  voice: v.string(),
+  sentences: v.array(v.string()),
+  fileIds: v.array(v.id("files")),
 });
 export const reportEvidence = v.union(
   v.object({
@@ -159,6 +196,10 @@ export const reportEvidence = v.union(
     commentId: v.id("visitComments"),
     body: v.string(),
   }),
+  // Keep the reported version as evidence for review, even if the generated content changes later.
+  v.object({ kind: v.literal("docent"), artworkId: v.id("artworks"), sentences: v.array(v.string()) }),
+  v.object({ kind: v.literal("transcript"), artworkId: v.id("artworks"), sentences: v.array(v.string()) }),
+  audioReportEvidence,
 );
 export const reportDecision = v.union(v.literal("dismiss"), v.literal("remove"));
 export const reportReview = v.object({
@@ -342,6 +383,7 @@ export function validateWallItems(
 export function validateReport(input: Infer<typeof reportInput>): void {
   if (
     (input.target.kind === "sharedVisit" && !isUuid(input.target.postId))
+    || !REASONS_BY_KIND[input.target.kind].includes(input.reason)
     || (input.reason === "other" && !input.details?.trim())
     || (input.details?.length ?? 0) > LIMITS.reportDetails
   ) {

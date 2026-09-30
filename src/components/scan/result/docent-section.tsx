@@ -5,11 +5,13 @@ import { StyleSheet, View } from "react-native";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
+import { ReportableHeading } from "@/components/reportable-heading";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+import type { ContentReportTarget } from "@/lib/social/report";
 import { showErrorToast } from "@/lib/ui/toast";
 
 import type { DocentSentence, DocentStatus, FactChip } from "../../../../convex/lib/validators";
@@ -28,6 +30,8 @@ export type DocentSectionProps = {
   /** The backend's progress on this artwork's sentences; omitted where nothing is being written. */
   status?: DocentStatus;
   onRetry?: () => Promise<unknown>;
+  /** Offered at the end of the title while there are sentences to report. */
+  report?: ContentReportTarget;
 };
 
 type NumberedSource = { number: number; label: string; url: string };
@@ -63,7 +67,7 @@ function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
 }
 
 /** Cited docent prose: one paragraph with numbered markers, then the numbered sources. */
-export function DocentSection({ docent, factSheet, title, status, onRetry }: DocentSectionProps) {
+export function DocentSection({ docent, factSheet, title, status, onRetry, report }: DocentSectionProps) {
   // A retry restarts the wait and remounts the failed state, so each attempt gets its own toast.
   const [attempt, setAttempt] = useState(0);
   const [stalled, setStalled] = useState(false);
@@ -83,7 +87,11 @@ export function DocentSection({ docent, factSheet, title, status, onRetry }: Doc
   if (!docent?.length && !title && !writing && status !== "failed") return null;
   return (
     <View style={styles.section}>
-      {title ? <HighlightHeading>{title}</HighlightHeading> : null}
+      {title ? (
+        <ReportableHeading report={docent?.length ? report : undefined}>
+          <HighlightHeading>{title}</HighlightHeading>
+        </ReportableHeading>
+      ) : null}
       {docent?.length ? (
         <CitedParagraph {...citeDocent(docent, factSheet)} />
       ) : status === "failed" || (writing && stalled) ? (

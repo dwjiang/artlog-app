@@ -95,7 +95,7 @@ it("revokes media when an author is removed even while its publication remains a
   const { t, a, b, transport, publish } = await fixture();
   const context = await publish();
   await befriend(a, b);
-  const reportId = await b.as.mutation(api.reports.submit, {
+  const { reportId } = await b.as.mutation(api.reports.submit, {
     target: { kind: "profile", profileId: a.profileId },
     reason: "harassment",
   });
