@@ -1,16 +1,13 @@
 import { Button, Host, Row } from "@expo/ui";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AppState, Pressable, StyleSheet, View } from "react-native";
+import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
-import { GlassSurface } from "@/components/glass-surface";
-import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
@@ -18,6 +15,7 @@ import { reportError } from "@/lib/observability";
 import { useLiftToasts } from "@/lib/ui/toast";
 
 import { CameraPermission } from "./camera-permission";
+import { CaptureControls } from "./capture-controls";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
 import { CaptureReveal } from "./capture-reveal";
 import { CaptureVisitPill } from "./capture-visit-pill";
@@ -25,8 +23,6 @@ import { DetectionLog, DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
 import { VenuePill } from "./venue-pill";
-
-const IMPORT_SIZE = 64;
 
 export function ScanScreen() {
   const audioInset = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + 16 : 0;
@@ -145,7 +141,14 @@ export function ScanScreen() {
           }}
         />
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-        <View pointerEvents="box-none" style={[styles.overlay, { paddingBottom: controlsBottom }]}>
+        <ScrollView
+          style={styles.overlay}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={[
+            styles.overlayContent,
+            { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
+          ]}
+        >
           <View
             pointerEvents="box-none"
             style={styles.bottom}
@@ -172,24 +175,12 @@ export function ScanScreen() {
                 </Row>
               </Host>
             ) : (
-              <View style={styles.controls}>
-                <GlassSurface isInteractive style={styles.importButton}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Import"
-                    disabled={busy || !active}
-                    accessibilityState={{ disabled: busy || !active }}
-                    onPress={() => {
-                      void capture.importPhoto();
-                    }}
-                    style={({ pressed }) => [styles.importContent, (pressed || busy) && styles.dimmed]}
-                  >
-                    <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
-                    <ThemedText variant="metadata" themeColor="overlayText">
-                      Photos
-                    </ThemedText>
-                  </Pressable>
-                </GlassSurface>
+              <CaptureControls
+                importDisabled={busy || !active}
+                onImport={() => {
+                  void capture.importPhoto();
+                }}
+              >
                 <CaptureShutter
                   controller={capture.controller}
                   disabled={shutterDisabled}
@@ -200,11 +191,10 @@ export function ScanScreen() {
                     void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}));
                   }}
                 />
-                <View style={styles.controlsSpacer} />
-              </View>
+              </CaptureControls>
             )}
           </View>
-        </View>
+        </ScrollView>
       </CameraPermission>
       {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
       <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
@@ -241,6 +231,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 1,
+  },
+  overlayContent: {
+    flexGrow: 1,
     justifyContent: "flex-end",
     paddingHorizontal: Spacing.content,
   },
@@ -260,19 +253,4 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   bottom: { gap: Spacing.three },
-  controls: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  controlsSpacer: { width: IMPORT_SIZE },
-  importButton: {
-    width: IMPORT_SIZE,
-    height: IMPORT_SIZE,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  importContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: Spacing.one },
-  importIcon: { width: 24, height: 24 },
-  dimmed: { opacity: 0.7 },
 });

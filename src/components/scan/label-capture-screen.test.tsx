@@ -6,6 +6,7 @@ import { AccessibilityInfo, AppState, DeviceEventEmitter } from "react-native";
 import type { PendingScan } from "@/db/schema";
 import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
 import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
+import { reportError } from "@/lib/observability";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
@@ -16,16 +17,22 @@ import { STEP_LABELS } from "./label/progress-steps";
 jest.mock("@/hooks/use-reduced-motion", () => ({
   useReducedMotion: () => true,
 }));
+jest.mock("@/lib/observability", () => ({
+  ...jest.requireActual("@/lib/observability"),
+  reportError: jest.fn(),
+}));
 
 type CameraProps = {
   isActive: boolean;
   outputs: unknown[];
   onStarted: () => void;
+  onError: (error: Error) => void;
 };
 type StageCallback = (stage: LabelStage) => void;
 
 let mockLabelOnly = false;
 let mockReachable: boolean | undefined = true;
+let mockCameraPermission = true;
 let mockCameraProps: CameraProps;
 let mockQr: { enabled: boolean; onCode: (url: string) => void };
 const mockPhoto = jest.fn();
@@ -94,7 +101,7 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 jest.mock("react-native-vision-camera", () => ({
   useCameraPermission: () => ({
-    hasPermission: true,
+    hasPermission: mockCameraPermission,
     canRequestPermission: false,
     requestPermission: jest.fn(),
   }),
@@ -233,6 +240,7 @@ beforeEach(() => {
     .spyOn(AccessibilityInfo, "addEventListener")
     .mockImplementation((event, listener) => DeviceEventEmitter.addListener(event, listener));
   mockReachable = true;
+  mockCameraPermission = true;
   AppState.currentState = "active";
   jest.spyOn(AppState, "addEventListener").mockReturnValue({ remove: jest.fn() } as never);
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -272,7 +280,51 @@ it("prompts for the label over the camera with the QR scanner running", async ()
   expect(mockCameraProps.outputs).toContainEqual({ kind: "qr-output" });
   expect(mockQr.enabled).toBe(true);
   expect(screen.getByRole("button", { name: "Read label" })).toBeEnabled();
+  expect(screen.getByText("Photos")).toBeOnTheScreen();
+  expect(screen.getByText("Tap the shutter to read the text. QR codes scan automatically.")).toBeOnTheScreen();
   expect(mockCaptureId).toHaveBeenCalledWith(scanId);
+});
+
+it("disables capture until the camera starts and keeps both controls busy during a photo", async () => {
+  let finish!: (photo: { filePath: string }) => void;
+  mockPhoto.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+  await render(<LabelCaptureScreen scanId={scanId} />);
+  expect(screen.getByRole("button", { name: "Read label" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
+  await act(async () => mockCameraProps.onStarted());
+  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
+  expect(screen.getByRole("button", { name: "Read label" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Read label" }).props.accessibilityState).toMatchObject({ busy: true });
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeDisabled();
+  expect(screen.getByText("Reading the label")).toBeOnTheScreen();
+  expect(mockQr.enabled).toBe(false);
+  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
+  expect(mockPhoto).toHaveBeenCalledTimes(1);
+  await act(async () => finish({ filePath: "/tmp/label.jpg" }));
+  expect(await screen.findByText("Review artwork details")).toBeOnTheScreen();
+});
+
+it("offers one photo import when camera permission is denied", async () => {
+  mockCameraPermission = false;
+  await render(<LabelCaptureScreen scanId={scanId} />);
+  expect(screen.getByRole("button", { name: "Open Settings" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Read label" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Import a label photo" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Import a photo" }));
+  expect(mockPicker).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText("Review artwork details")).toBeOnTheScreen();
+});
+
+it("shows a recoverable camera error over the preview and keeps Photos available", async () => {
+  await start();
+  await act(async () => mockCameraProps.onError(new Error("Camera session failed")));
+  expect(screen.getByRole("alert")).toHaveTextContent("Could not start the camera. You can import a label photo.");
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "camera.start", { data: { screen: "label" } });
+  expect(screen.getByRole("button", { name: "Read label" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
+  await act(async () => mockCameraProps.onStarted());
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "Read label" })).toBeEnabled();
 });
 
 it("reads a shot online, shows the stages, then locks the verified fields with their sources", async () => {
