@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
+import { getLocalProfileName } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 
@@ -11,26 +12,26 @@ export function WelcomePrompt() {
   const active = useScreenActive();
   const owner = useLocalOwner();
   const router = useRouter();
-  const [checked, setChecked] = useState(false);
+  const [checkedOwner, setCheckedOwner] = useState<string>();
   useEffect(() => {
-    if (!active || checked) return;
+    if (!active || checkedOwner === owner) return;
     let cancelled = false;
     void (async () => {
-      const seen = await getSetting(WELCOME_SEEN_SETTING);
+      const [seen, name] = await Promise.all([getSetting(WELCOME_SEEN_SETTING), getLocalProfileName()]);
       if (cancelled) return;
-      await setSetting(WELCOME_SEEN_SETTING, "true");
+      if (owner.startsWith("account:")) await setSetting(WELCOME_SEEN_SETTING, "true");
       if (cancelled) return;
-      setChecked(true);
-      if (seen !== "true" && !owner.startsWith("account:")) {
+      setCheckedOwner(owner);
+      if ((seen !== "true" || !name) && !owner.startsWith("account:")) {
         router.push("/welcome");
       }
     })().catch((cause) => {
       reportError(cause, "account.welcome.load");
-      if (!cancelled) setChecked(true);
+      if (!cancelled) setCheckedOwner(owner);
     });
     return () => {
       cancelled = true;
     };
-  }, [active, checked, router, owner]);
+  }, [active, checkedOwner, router, owner]);
   return null;
 }

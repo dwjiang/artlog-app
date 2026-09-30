@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { type ReactNode, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -14,9 +14,16 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ProfileAvatar } from "@/components/social/profile-avatar";
+import { ProfileField } from "@/components/social/profile-fields";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { setSetting } from "@/db/repos/settings";
+import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
+import { setLocalProfileName, useLocalProfileName } from "@/lib/account/local-profile";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { reportError } from "@/lib/observability";
+import { LIMITS } from "@/shared/journal/limits";
 
 import { AccessLines, PromptPreview, useWelcomeAccess, type AccessStep } from "./welcome-access";
 import { WelcomeArt, welcomeWall } from "./welcome-art";
@@ -31,10 +38,17 @@ export function WelcomeScreen() {
   const pager = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
   const [index, setIndex] = useState(0);
+  const localProfile = useLocalProfileName();
+  const [draft, setDraft] = useState<string>();
+  const name = draft ?? localProfile.name ?? "";
+  const [signInAfterName, setSignInAfterName] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [error, setError] = useState<string>();
   const access = useWelcomeAccess();
   // 0 while the welcome page is centered, 1 once it has been swiped away; drives the wall parallax.
   const welcomeProgress = useDerivedValue(() => (reduced ? 0 : scrollX.get() / width));
-  const count = access.steps.length + 1;
+  const count = access.steps.length + 2;
   const last = index === count - 1;
   const step = index === 0 ? undefined : access.steps[index - 1];
   const onScroll = useAnimatedScrollHandler({
@@ -42,92 +56,158 @@ export function WelcomeScreen() {
       scrollX.set(event.contentOffset.x);
     },
   });
-  const finish = () => router.back();
-  const advance = () => {
-    if (last) {
-      finish();
-      return;
-    }
-    pager.current?.scrollTo({ x: (index + 1) * width, animated: !reduced });
-    setIndex(index + 1);
+  const goTo = (page: number) => {
+    pager.current?.scrollTo({ x: page * width, animated: !reduced });
+    setIndex(page);
   };
+  const advance = () => goTo(Math.min(index + 1, count - 1));
   const allow = async (current: AccessStep) => {
     await access.answer(current);
     advance();
   };
+  const finish = async () => {
+    if (!name.trim() || localProfile.loading || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setError(undefined);
+    try {
+      await setLocalProfileName(name);
+      await setSetting(WELCOME_SEEN_SETTING, "true");
+      if (signInAfterName) router.replace(signInRoute("account"));
+      else router.back();
+    } catch (cause) {
+      reportError(cause, "account.welcome.save");
+      setError("Your name couldn’t be saved. Please try again.");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
 
   return (
-    <View style={[styles.root, { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) }]}>
-      <View style={styles.header}>
-        <View accessible accessibilityLabel={`Page ${index + 1} of ${count}`} style={styles.progress}>
-          {Array.from({ length: count }, (_, position) => (
-            <ProgressSegment key={position} position={position} scrollX={scrollX} width={width} />
-          ))}
+    <KeyboardAvoidingView behavior="padding" style={styles.root}>
+      <View style={[styles.root, { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) }]}>
+        <View style={styles.header}>
+          <View accessible accessibilityLabel={`Page ${index + 1} of ${count}`} style={styles.progress}>
+            {Array.from({ length: count }, (_, position) => (
+              <ProgressSegment key={position} position={position} scrollX={scrollX} width={width} />
+            ))}
+          </View>
+          <View
+            pointerEvents={last ? "none" : "auto"}
+            accessibilityElementsHidden={last}
+            importantForAccessibility={last ? "no-hide-descendants" : "auto"}
+            style={{ opacity: last ? 0 : 1 }}
+          >
+            <GalleryButton label="Skip" tone="ink" fullWidth={false} onPress={() => goTo(count - 1)} />
+          </View>
         </View>
-        <View
-          pointerEvents={last ? "none" : "auto"}
-          accessibilityElementsHidden={last}
-          importantForAccessibility={last ? "no-hide-descendants" : "auto"}
-          style={{ opacity: last ? 0 : 1 }}
+        <Animated.ScrollView
+          ref={pager}
+          horizontal
+          pagingEnabled
+          scrollEnabled={!saving}
+          keyboardShouldPersistTaps="handled"
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={onScroll}
+          onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / width))}
+          style={styles.pager}
         >
-          <GalleryButton label="Skip" tone="ink" fullWidth={false} onPress={finish} />
+          <WelcomePage active={index === 0} width={width}>
+            <Stage color={welcomeWall} square>
+              {(size) => <WelcomeArt size={size} progress={welcomeProgress} />}
+            </Stage>
+            <Headline accessibilityLabel={`Welcome to Artlog. ${BRAND_STATEMENT}`}>{BRAND_STATEMENT}</Headline>
+          </WelcomePage>
+          {access.steps.map((current, position) => (
+            <WelcomePage key={current.key} active={index === position + 1} width={width}>
+              <Stage color={current.wall}>
+                {() => <PromptPreview prompt={current.prompt} stacked={current.prompt.options.length > 2} />}
+              </Stage>
+              <Headline>{current.headline}</Headline>
+              <AccessLines lines={current.lines} />
+            </WelcomePage>
+          ))}
+          <WelcomePage active={last} width={width}>
+            <View style={styles.avatar}>
+              <ProfileAvatar name={name.trim() || undefined} size={84} />
+            </View>
+            <View style={{ gap: Spacing.two }}>
+              <Headline>Your name.</Headline>
+              <Text style={{ color: Gallery.muted }}>Use your name or a nickname for your profile.</Text>
+            </View>
+            <ProfileField
+              label="Name"
+              value={name}
+              onChangeText={setDraft}
+              placeholder="Your name or nickname"
+              maxLength={LIMITS.name}
+              textContentType="name"
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              editable={!saving && !localProfile.loading}
+              onSubmitEditing={() => void finish()}
+            />
+            {error && (
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                {error}
+              </Text>
+            )}
+          </WelcomePage>
+        </Animated.ScrollView>
+        <View style={styles.actions}>
+          {last ? (
+            <GalleryButton
+              label={signInAfterName ? "Continue to sign in" : "Continue"}
+              fullWidth
+              variant="filled"
+              disabled={!name.trim() || localProfile.loading}
+              busy={saving}
+              busyLabel="Saving…"
+              onPress={() => void finish()}
+            />
+          ) : step ? (
+            <>
+              <GalleryButton
+                label={step.answer === "unanswered" ? `Allow ${step.name}` : "Continue"}
+                fullWidth
+                variant="filled"
+                busy={access.asking === step.key}
+                busyLabel="Asking…"
+                onPress={() => void allow(step)}
+              />
+              {step.answer === "unanswered" && (
+                <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" onPress={advance} />
+              )}
+            </>
+          ) : (
+            <>
+              <GalleryButton
+                label="Get started"
+                fullWidth
+                variant="filled"
+                onPress={() => {
+                  setSignInAfterName(false);
+                  advance();
+                }}
+              />
+              <GalleryButton
+                label="I already have an account"
+                fullWidth
+                variant="filled"
+                tone="neutral"
+                onPress={() => {
+                  setSignInAfterName(true);
+                  goTo(count - 1);
+                }}
+              />
+            </>
+          )}
         </View>
       </View>
-      <Animated.ScrollView
-        ref={pager}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={onScroll}
-        onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / width))}
-        style={styles.pager}
-      >
-        <WelcomePage active={index === 0} width={width}>
-          <Stage color={welcomeWall} square>
-            {(size) => <WelcomeArt size={size} progress={welcomeProgress} />}
-          </Stage>
-          <Headline accessibilityLabel={`Welcome to Artlog. ${BRAND_STATEMENT}`}>{BRAND_STATEMENT}</Headline>
-        </WelcomePage>
-        {access.steps.map((current, position) => (
-          <WelcomePage key={current.key} active={index === position + 1} width={width}>
-            <Stage color={current.wall}>
-              {() => <PromptPreview prompt={current.prompt} stacked={current.prompt.options.length > 2} />}
-            </Stage>
-            <Headline>{current.headline}</Headline>
-            <AccessLines lines={current.lines} />
-          </WelcomePage>
-        ))}
-      </Animated.ScrollView>
-      <View style={styles.actions}>
-        {step ? (
-          <>
-            <GalleryButton
-              label={step.answer === "unanswered" ? `Allow ${step.name}` : "Continue"}
-              fullWidth
-              variant="filled"
-              busy={access.asking === step.key}
-              busyLabel="Asking…"
-              onPress={() => void allow(step)}
-            />
-            {step.answer === "unanswered" && (
-              <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" onPress={advance} />
-            )}
-          </>
-        ) : (
-          <>
-            <GalleryButton label="Get started" fullWidth variant="filled" onPress={advance} />
-            <GalleryButton
-              label="I already have an account"
-              fullWidth
-              variant="filled"
-              tone="neutral"
-              onPress={() => router.replace(signInRoute("account"))}
-            />
-          </>
-        )}
-      </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -140,6 +220,7 @@ function WelcomePage({ active, width, children }: { active: boolean; width: numb
       contentInsetAdjustmentBehavior="never"
       alwaysBounceVertical={false}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.page}
     >
       {children}
@@ -226,6 +307,7 @@ const styles = StyleSheet.create({
   track: { flex: 1, height: 3, borderRadius: Radius.full, overflow: "hidden", backgroundColor: Gallery.softBorder },
   fill: { flex: 1, backgroundColor: Gallery.ink, transformOrigin: "left" },
   pager: { flex: 1 },
+  avatar: { alignItems: "center", paddingVertical: Spacing.four },
   page: { flexGrow: 1, paddingHorizontal: Spacing.content, paddingTop: Spacing.two, gap: Spacing.four },
   stage: { overflow: "hidden", borderRadius: Radius.sheet },
   prompt: { minHeight: 300, padding: Spacing.three, alignItems: "center", justifyContent: "center" },

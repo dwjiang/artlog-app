@@ -15,8 +15,8 @@ import { socialStyles } from "./social-styles";
 
 type ProfileIdentity = {
   name: string;
-  subtitle: string;
-  /** Omitted for a collection without a public profile, which gets a placeholder photo and no bio line. */
+  subtitle?: string;
+  avatarName?: string;
   profile?: { photoUrl?: string; bio?: string };
 };
 /** A count left undefined is still loading. */
@@ -74,7 +74,7 @@ export function ProfileHeader({
       {identity ? (
         <>
           <ProfileAvatar
-            name={identity.profile && identity.name}
+            name={identity.profile ? identity.name : identity.avatarName}
             photoUrl={identity.profile?.photoUrl}
             size={AVATAR_SIZE}
           />
@@ -83,7 +83,9 @@ export function ProfileHeader({
               <Text variant={large ? "section" : "display"} accessibilityRole="header" style={{ textAlign: "center" }}>
                 {identity.name}
               </Text>
-              <Text style={[socialStyles.caption, { textAlign: "center" }]}>{identity.subtitle}</Text>
+              {identity.subtitle && (
+                <Text style={[socialStyles.caption, { textAlign: "center" }]}>{identity.subtitle}</Text>
+              )}
             </View>
             {identity.profile
               && (identity.profile.bio ? (
