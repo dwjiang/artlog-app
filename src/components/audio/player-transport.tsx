@@ -24,14 +24,16 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const [scrubbing, setScrubbing] = useState(false);
   const dragging = useRef(false);
   const [draft, setDraft] = useState(audio.position);
+  const [draftDuration, setDraftDuration] = useState(0);
   const ready = audio.phase === "ready";
   const preparing = audio.phase === "loading";
   const preparation = preparationLabel(audio.preparationStage);
   useEffect(() => {
     if (preparing) AccessibilityInfo.announceForAccessibility(preparation);
   }, [preparing, preparation]);
-  // Speech still being generated has no length yet, so there is no range to seek within.
-  const seekable = ready && audio.duration > 0;
+  const availableDuration = audio.duration || audio.availableDuration;
+  const seekable = ready && availableDuration > 0;
+  const sliderDuration = scrubbing ? draftDuration : availableDuration;
   const position = scrubbing ? draft : audio.position;
   const queue = view === "queue" || view === "saved";
   const stacked = transportStacks(width, fontScale);
@@ -41,7 +43,9 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         accessibilityRole="adjustable"
         accessibilityLabel="Narration position"
         accessibilityValue={{
-          text: seekable ? `${audioTime(position)} of ${audioTime(audio.duration)}` : audioTime(position),
+          text: seekable
+            ? `${audioTime(position)} of ${audioTime(availableDuration)}${audio.duration ? "" : " available"}`
+            : audioTime(position),
         }}
         accessibilityActions={[
           { name: "increment", label: "Forward 15 seconds" },
@@ -52,9 +56,9 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             void audio.controller.seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
           }
         }}
-        value={seekable ? audio.position : 0}
+        value={seekable ? position : 0}
         minimumValue={0}
-        maximumValue={Math.max(1, audio.duration)}
+        maximumValue={Math.max(1, sliderDuration)}
         disabled={!seekable}
         tapToSeek
         thumbSize={1}
@@ -65,6 +69,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
         onSlidingStart={(value) => {
           dragging.current = true;
           setDraft(value);
+          setDraftDuration(availableDuration);
           setScrubbing(true);
         }}
         onValueChange={(value) => {
@@ -79,7 +84,11 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
       />
       <View style={styles.times}>
         <Text style={styles.time}>{preparing ? "—:—" : audioTime(position)}</Text>
-        {seekable && <Text style={styles.time}>−{audioTime(audio.duration - position)}</Text>}
+        {seekable && (
+          <Text style={styles.time}>
+            {audio.duration ? `−${audioTime(audio.duration - position)}` : `${audioTime(availableDuration)} available`}
+          </Text>
+        )}
       </View>
       <View style={styles.controls}>
         <AudioIconButton

@@ -55,6 +55,7 @@ beforeEach(() => {
     playing: false,
     position: 0,
     duration: 0,
+    availableDuration: 0,
     waiting: false,
     rate: 1,
     revision: 0,
