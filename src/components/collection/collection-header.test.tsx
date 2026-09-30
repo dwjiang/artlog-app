@@ -1,10 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 
+import { removeSetting } from "@/db/repos/settings";
+import { setLocalProfileName } from "@/lib/account/local-profile";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { CollectionHeader } from "./collection-header";
 
 const mockPush = jest.fn();
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
@@ -17,8 +22,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: mockProfile }),
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await removeSetting("local-profile-name");
   switchOwner(anonymousOwner());
   mockSession = { status: "signed-out", key: "guest" };
   mockProfile = undefined;
@@ -30,28 +36,37 @@ it("does not report zero artworks before collection counts load", async () => {
   expect(screen.queryByLabelText("0 artworks")).toBeNull();
   expect(screen.getByRole("button", { name: "Settings" })).toBeOnTheScreen();
   await view.rerender(<CollectionHeader artworkCount={3} visitCount={1} />);
+  await screen.findByRole("header", { name: "Guest" });
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByLabelText("3 artworks")).toBeOnTheScreen();
   expect(screen.getByLabelText("1 visit")).toBeOnTheScreen();
 });
 
-it("identifies the local collection without making its title a sign-in action", async () => {
-  await render(<CollectionHeader />);
-  expect(screen.getByRole("header", { name: "Your collection" })).toBeOnTheScreen();
-  expect(screen.getByText("Saved on this iPhone")).toBeOnTheScreen();
+it("shows the saved name in the shared profile header and opens settings", async () => {
+  await setLocalProfileName("Alex Rivera");
+  await render(<CollectionHeader artworkCount={3} visitCount={1} />);
+  expect(await screen.findByRole("header", { name: "Alex Rivera" })).toBeOnTheScreen();
+  expect(screen.getByText("AR", { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.queryByText("Saved on this iPhone")).toBeNull();
+  expect(screen.getByLabelText("3 artworks")).toBeOnTheScreen();
+  expect(screen.getByLabelText("1 visit")).toBeOnTheScreen();
   expect(screen.queryByText("No bio")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Settings" }));
   expect(mockPush).toHaveBeenCalledWith("/settings");
 });
 
-it("asks for sign-in only when the guest chooses to share a wall", async () => {
-  await render(<CollectionHeader artworkCount={1} />);
+it("updates a mounted guest header when onboarding saves a name", async () => {
+  await render(<CollectionHeader />);
+  await screen.findByRole("header", { name: "Guest" });
+  await act(() => setLocalProfileName("Alex"));
+  expect(screen.getByRole("header", { name: "Alex" })).toBeOnTheScreen();
+});
+
+it.each([0, 1])("keeps account promotion out of the guest header with %i saved artworks", async (artworkCount) => {
+  await render(<CollectionHeader artworkCount={artworkCount} />);
   expect(mockPush).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Share your wall" }));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/sign-in",
-    params: { context: "wall" },
-  });
+  expect(screen.queryByText(/sign in|sync your collection/i)).toBeNull();
+  expect(screen.queryByRole("button", { name: /sign in|create account|share/i })).toBeNull();
 });
 
 it("offers nothing to share from an empty guest collection", async () => {
@@ -69,6 +84,7 @@ describe("signed in", () => {
   });
 
   it("shows your profile the way other people see it, with your collection counts", async () => {
+    await setLocalProfileName("Local Alex");
     mockProfile = {
       profileId: "alex",
       name: "Alex Morgan",
@@ -88,6 +104,10 @@ describe("signed in", () => {
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/share-profile", params: { profileId: "alex" } });
     await fireEvent.press(screen.getByRole("button", { name: "Settings" }));
     expect(mockPush).toHaveBeenLastCalledWith("/settings");
+    mockSession = { status: "signed-out", key: "guest" };
+    await act(() => switchOwner(anonymousOwner()));
+    expect(await screen.findByRole("header", { name: "Local Alex" })).toBeOnTheScreen();
+    expect(screen.queryByText("@alex")).toBeNull();
   });
 
   it("says so when your profile has no bio", async () => {

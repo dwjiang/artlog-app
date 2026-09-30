@@ -1,8 +1,8 @@
 import { router } from "expo-router";
 
 import { OwnProfileActions, ProfileHeader } from "@/components/social/profile-header";
+import { useLocalProfileName } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { signInRoute } from "@/lib/account/sign-in-context";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
@@ -20,23 +20,38 @@ export function CollectionHeader({
   loading?: boolean;
 }) {
   const session = useSocialSession();
+  const localProfile = useLocalProfileName();
   const guest = !useLocalOwner().startsWith("account:");
   const { data: profile, error: profileError } = useSocialQuery(
     api.profiles.mine,
     session.status === "ready" ? {} : "skip",
     session.key,
   );
+  const stats = [
+    { noun: "artwork", count: loading ? undefined : artworkCount },
+    { noun: "visit", count: loading ? undefined : visitCount },
+  ];
+  const settings = <GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />;
+  if (guest) {
+    return (
+      <ProfileHeader
+        identity={
+          localProfile.loading ? undefined : { name: localProfile.name ?? "Guest", avatarName: localProfile.name }
+        }
+        stats={stats}
+        accessory={settings}
+      />
+    );
+  }
   const status = profile
     ? `@${profile.username}`
-    : guest
-      ? "Saved on this iPhone"
-      : session.status === "offline"
-        ? "Offline · saved on this iPhone"
-        : session.status === "profile-required"
-          ? "Create a profile to share your wall"
-          : session.status === "error" || profileError || profile === null
-            ? "Profile unavailable"
-            : undefined;
+    : session.status === "offline"
+      ? "Offline · saved on this iPhone"
+      : session.status === "profile-required"
+        ? "Create a profile to share your wall"
+        : session.status === "error" || profileError || profile === null
+          ? "Profile unavailable"
+          : undefined;
   return (
     <ProfileHeader
       identity={
@@ -44,24 +59,11 @@ export function CollectionHeader({
           ? undefined
           : { name: profile?.name ?? "Your collection", subtitle: status, profile: profile ?? undefined }
       }
-      stats={[
-        { noun: "artwork", count: loading ? undefined : artworkCount },
-        { noun: "visit", count: loading ? undefined : visitCount },
-      ]}
-      accessory={<GalleryIconButton label="Settings" icon="gearshape" onPress={() => router.push("/settings")} />}
+      stats={stats}
+      accessory={settings}
     >
       {profile ? (
         <OwnProfileActions profileId={profile.profileId} />
-      ) : guest ? (
-        artworkCount > 0 && (
-          <GalleryButton
-            label="Share your wall"
-            icon="square.and.arrow.up"
-            variant="outlined"
-            fullWidth
-            onPress={() => router.push(signInRoute("wall"))}
-          />
-        )
       ) : (
         session.status === "profile-required" && (
           <GalleryButton

@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { removeSetting, setSetting } from "@/db/repos/settings";
 
 import { useIntroductionOver, WELCOME_SEEN_SETTING } from "./introduction";
+import { setLocalProfileName } from "./local-profile";
 
 const tabs = ["(tabs)", "(home)"];
 let mockSegments = tabs;
@@ -14,6 +15,7 @@ jest.mock("expo-router", () => ({ useSegments: () => mockSegments }));
 beforeEach(async () => {
   mockSegments = tabs;
   await removeSetting(WELCOME_SEEN_SETTING);
+  await removeSetting("local-profile-name");
 });
 
 it("holds a new guest through the welcome and the sign-in it hands off to, until the tabs are back", async () => {
@@ -32,10 +34,18 @@ it("holds a new guest through the welcome and the sign-in it hands off to, until
   expect(result.current).toBe(true);
 });
 
-it("does not hold someone who saw the welcome on an earlier launch", async () => {
+it("does not hold someone who completed onboarding on an earlier launch", async () => {
+  await setLocalProfileName("Alex");
   await setSetting(WELCOME_SEEN_SETTING, "true");
   const { result } = await renderHook(() => useIntroductionOver("device:returning"));
   await waitFor(() => expect(result.current).toBe(true));
+});
+
+it("holds a guest who still needs to enter a name", async () => {
+  await setSetting(WELCOME_SEEN_SETTING, "true");
+  const { result } = await renderHook(() => useIntroductionOver("device:returning"));
+  await act(async () => {});
+  expect(result.current).toBe(false);
 });
 
 it("does not hold a signed-in account, which never gets the welcome", async () => {
