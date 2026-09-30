@@ -6,11 +6,12 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
 import { readPhotoSession } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
+import { useRecentScanMetadata } from "@/lib/queue/use-recent-scan-metadata";
 
 export const RETRY_ROW = "Retry scan";
 
@@ -50,13 +51,15 @@ export function QueueRow({
   const status = queueStatusText(item.status);
   const hasLabel = Boolean(item.labelPhotoPath || item.qrUrl);
   const session = readPhotoSession(item.owner, item.photoPath);
-  const title = session.saveInput?.draft.title.trim() || "Artwork scan";
+  const { title, attribution, uncertain } = useRecentScanMetadata(item, session);
   const photoCount = session.photos.length + 1;
   return (
     <View style={styles.row}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Scan from ${when}, ${status}`}
+        accessibilityLabel={[title, attribution, `Scan from ${when}`, status, uncertain && "Possible match"]
+          .filter(Boolean)
+          .join(", ")}
         onPress={() => onOpen(item)}
         disabled={discarding}
         accessibilityState={{ disabled: discarding, busy: discarding }}
@@ -69,31 +72,39 @@ export function QueueRow({
           style={styles.thumbnail}
         />
         <View style={styles.text}>
-          <ThemedText type="smallBold" numberOfLines={2}>
-            {title}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText variant="section">{title}</ThemedText>
+          {!!attribution && (
+            <ThemedText variant="secondary" themeColor="textSecondary">
+              {attribution}
+            </ThemedText>
+          )}
+          <ThemedText variant="metadata" themeColor="textSecondary">
             {when} · {photoCount} {photoCount === 1 ? "photo" : "photos"}
           </ThemedText>
+          {uncertain && (
+            <ThemedText variant="metadata" themeColor="warning">
+              Possible match
+            </ThemedText>
+          )}
           {retrying || item.status === "identifying" || discarding ? (
             <LoadingRing
               accessibilityLabel={discarding ? "Discarding scan…" : retrying ? "Retrying…" : status}
               style={{ alignSelf: "flex-start" }}
             />
-          ) : (
+          ) : item.status !== "identified" ? (
             <ThemedText
               type="small"
               style={{
                 alignSelf: "flex-start",
                 paddingHorizontal: 6,
                 paddingVertical: 3,
-                backgroundColor: item.status === "identified" ? Gallery.highlight : Gallery.fill,
+                backgroundColor: Gallery.fill,
               }}
-              themeColor={item.status === "failed" ? "error" : item.status === "identified" ? "success" : "warning"}
+              themeColor={item.status === "failed" ? "error" : "warning"}
             >
               {status}
             </ThemedText>
-          )}
+          ) : null}
         </View>
         {hasLabel && (
           <Image
@@ -153,11 +164,11 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.6 },
   thumbnail: {
-    width: 64,
-    height: 76,
-    borderRadius: 2,
+    width: 88,
+    height: 88,
+    borderRadius: Radius.thumbnail,
     backgroundColor: Colors.light.backgroundElement,
   },
-  text: { flex: 1, gap: Spacing.half },
+  text: { flex: 1, gap: Spacing.one },
   labelIcon: { width: 20, height: 20 },
 });
