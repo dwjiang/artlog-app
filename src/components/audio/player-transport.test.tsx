@@ -9,6 +9,7 @@ const mockSeek = jest.fn();
 const mockToggle = jest.fn();
 const mockAudio = {
   duration: 120,
+  availableDuration: 0,
   phase: "ready",
   preparationStage: undefined as NarrationPreparationStage | undefined,
 };
@@ -16,6 +17,7 @@ jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({
     position: 12,
     duration: mockAudio.duration,
+    availableDuration: mockAudio.availableDuration,
     phase: mockAudio.phase,
     preparationStage: mockAudio.preparationStage,
     playing: true,
@@ -33,6 +35,7 @@ jest.mock("@react-native-community/slider", () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockAudio.duration = 120;
+  mockAudio.availableDuration = 0;
   mockAudio.phase = "ready";
   mockAudio.preparationStage = undefined;
 });
@@ -141,4 +144,33 @@ it("offers no seeking and no time left while the narration's length is still unk
   expect(screen.queryByText(/^−/)).not.toBeOnTheScreen();
   await fireEvent(slider, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
   expect(mockSeek).not.toHaveBeenCalled();
+});
+
+it("enables the growing generated range and changes to time remaining when the full duration arrives", async () => {
+  mockAudio.duration = 0;
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  mockAudio.availableDuration = 24;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  const slider = screen.getByRole("adjustable", { name: "Narration position" });
+  expect(slider).toHaveProp("disabled", false);
+  expect(slider).toHaveProp("maximumValue", 24);
+  expect(slider).toHaveProp("value", 12);
+  expect(slider).toHaveAccessibilityValue({ text: "0:12 of 0:24 available" });
+  expect(screen.getByText("0:24 available")).toBeOnTheScreen();
+  expect(screen.queryByText(/^−/)).not.toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Back 15 seconds" })).toBeEnabled();
+  await fireEvent(slider, "slidingStart", 12);
+  await fireEvent(slider, "valueChange", 18);
+  mockAudio.availableDuration = 48;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(slider).toHaveProp("maximumValue", 24);
+  expect(slider).toHaveProp("value", 18);
+  await fireEvent(slider, "slidingComplete", 18);
+  expect(mockSeek).toHaveBeenCalledWith(18);
+  expect(slider).toHaveProp("maximumValue", 48);
+  mockAudio.duration = 60;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(slider).toHaveProp("maximumValue", 60);
+  expect(screen.getByText("−0:48")).toBeOnTheScreen();
+  expect(screen.queryByText(/available/)).not.toBeOnTheScreen();
 });

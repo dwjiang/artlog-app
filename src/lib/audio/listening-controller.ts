@@ -46,6 +46,7 @@ export type Playback = {
 };
 export type AudioHandle = {
   readonly currentStatus: Playback;
+  readonly seekableDuration: number;
   play(): void;
   pause(): void;
   seekTo(seconds: number, toleranceMillisBefore?: number, toleranceMillisAfter?: number): Promise<void>;
@@ -67,6 +68,7 @@ export type ListeningState = {
   position: number;
   duration: number;
   waiting: boolean;
+  availableDuration: number;
   rate: number;
   revision: number;
 };
@@ -89,6 +91,7 @@ export class ListeningController {
     playing: false,
     position: 0,
     duration: 0,
+    availableDuration: 0,
     waiting: false,
     rate: 1,
     revision: 0,
@@ -150,6 +153,17 @@ export class ListeningController {
       this.player = undefined;
     }
   }
+  private refreshAvailability(player: AudioHandle) {
+    if (!this.awaitingLength) return;
+    let availableDuration = 0;
+    try {
+      const duration = player.seekableDuration;
+      if (Number.isFinite(duration)) availableDuration = Math.max(0, duration);
+    } catch (error) {
+      reportError(error, "narration.seekableRange");
+    }
+    if (availableDuration !== this.state.availableDuration) this.update({ availableDuration });
+  }
   private watchProgress(player: AudioHandle) {
     let position = player.currentStatus.currentTime;
     let progressedAt = Date.now();
@@ -157,6 +171,7 @@ export class ListeningController {
       // AVPlayer can stop sending events while an HLS playlist returns 404. Read native state
       // so a lock-screen pause or background playback with delayed JS events is not a failure.
       const status = player.currentStatus;
+      this.refreshAvailability(player);
       if (status.timeControlStatus === "paused" || status.didJustFinish || status.currentTime !== position) {
         position = status.currentTime;
         progressedAt = Date.now();
@@ -188,6 +203,7 @@ export class ListeningController {
       playing: false,
       position,
       duration: saved?.duration ?? 0,
+      availableDuration: 0,
       waiting,
     });
     try {
@@ -227,6 +243,7 @@ export class ListeningController {
           return;
         }
         if (!status.isLoaded) return;
+        this.refreshAvailability(player);
         if (!starting) {
           starting = true;
           const duration = status.duration || rendered.duration || 0;
@@ -308,17 +325,22 @@ export class ListeningController {
     }
   };
   seek = async (position: number) => {
-    if (this.state.phase !== "ready" || !this.state.duration || !Number.isFinite(position)) return;
+    const { player } = this;
+    if (this.state.phase !== "ready" || !player || !Number.isFinite(position)) return;
+    this.refreshAvailability(player);
+    const limit = this.state.duration || this.state.availableDuration;
+    if (!limit) return;
     const { generation } = this;
-    const next = Math.max(0, Math.min(this.state.duration, position));
+    const next = Math.max(0, Math.min(limit, position));
     try {
-      await this.player?.seekTo(next);
+      await player.seekTo(next);
       if (generation === this.generation) {
-        this.update({ position: next });
+        this.update({ position: player.currentStatus.currentTime });
         this.remember();
       }
-    } catch {
+    } catch (error) {
       if (generation === this.generation) {
+        reportError(error, "narration.seek");
         this.fail("Couldn’t change position.");
       }
     }
@@ -368,6 +390,7 @@ export class ListeningController {
       playing: false,
       position: 0,
       duration: 0,
+      availableDuration: 0,
       waiting: false,
     });
   };

@@ -35,6 +35,7 @@ const track = (id: string): ListeningTrack => ({
 });
 class Player implements AudioHandle {
   callback?: (value: Playback) => void;
+  seekableDuration = 0;
   currentStatus: Playback = {
     currentTime: 0,
     duration: 100,
@@ -52,7 +53,9 @@ class Player implements AudioHandle {
   remove = jest.fn();
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
-  seekTo = jest.fn(async () => {});
+  seekTo = jest.fn(async (seconds: number) => {
+    this.currentStatus = { ...this.currentStatus, currentTime: seconds };
+  });
   addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
     this.callback = callback;
     return { remove: jest.fn() };
@@ -320,7 +323,7 @@ it("shows the spoken transcript while retaining the original evidence for replay
   expect(controller.snapshot().sentences).toBeUndefined();
 });
 
-it("plays a live playlist at 1× and holds speed, seeking and restart until its length is known", async () => {
+it("plays a live playlist at 1× and holds speed until its length is known", async () => {
   const { controller, deps, players } = setup();
   controller.setRate(1.5);
   deps.render.mockResolvedValue(liveAudio as never);
@@ -348,6 +351,139 @@ it("plays a live playlist at 1× and holds speed, seeking and restart until its 
     [true, { title: "a", artist: "Artist", artworkUrl: undefined }],
   ]);
   expect(controller.snapshot()).toMatchObject({ duration: 61, rate: 2 });
+  controller.dispose();
+});
+
+it("seeks within the native range before the total duration is known, then uses the full duration", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"));
+  const player = players.at(-1)!;
+  player.seekableDuration = 24;
+  await controller.seek(12);
+  expect(player.seekTo).not.toHaveBeenCalled();
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  player.emit({ duration: 0, currentTime: 8, playing: true });
+  expect(controller.snapshot()).toMatchObject({ duration: 0, availableDuration: 24 });
+  await controller.seek(12);
+  expect(player.seekTo).toHaveBeenLastCalledWith(12);
+  await controller.seek(40);
+  expect(player.seekTo).toHaveBeenLastCalledWith(24);
+  await controller.seek(-15);
+  expect(player.seekTo).toHaveBeenLastCalledWith(0);
+  player.seekableDuration = 48;
+  await controller.seek(40);
+  expect(player.seekTo).toHaveBeenLastCalledWith(40);
+  player.emit({ duration: 61, currentTime: 40, playing: true });
+  await controller.seek(90);
+  expect(player.seekTo).toHaveBeenLastCalledWith(61);
+  controller.dispose();
+});
+
+it("clears the native range and ignores late playback events after changing tracks or stopping", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"));
+  const first = players.at(-1)!;
+  first.seekableDuration = 24;
+  first.emit({ duration: 0 });
+  await Promise.resolve();
+  await controller.play(track("b"));
+  first.seekableDuration = 48;
+  first.emit({ duration: 0 });
+  expect(controller.snapshot().availableDuration).toBe(0);
+  const second = players.at(-1)!;
+  second.seekableDuration = 12;
+  second.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(controller.snapshot().availableDuration).toBe(12);
+  controller.stop();
+  second.emit({ duration: 0 });
+  expect(controller.snapshot().availableDuration).toBe(0);
+});
+
+it("clamps live seeks to the native range, including changes since the last status event", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"));
+  const player = players.at(-1)!;
+  player.seekableDuration = 42.383;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  try {
+    expect(controller.snapshot().availableDuration).toBe(42.383);
+    await controller.seek(48.384);
+    expect(player.seekTo).toHaveBeenLastCalledWith(42.383);
+    expect(controller.snapshot().position).toBe(42.383);
+    player.seekableDuration = 50;
+    await controller.seek(60);
+    expect(player.seekTo).toHaveBeenLastCalledWith(50);
+    player.seekableDuration = 0;
+    const calls = player.seekTo.mock.calls.length;
+    await controller.seek(15);
+    expect(player.seekTo).toHaveBeenCalledTimes(calls);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("refreshes the native seek range while paused without playback events", async () => {
+  jest.useFakeTimers();
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  try {
+    player.seekableDuration = 18.191;
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(controller.snapshot().availableDuration).toBe(18.191);
+    player.seekableDuration = 0;
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(controller.snapshot().availableDuration).toBe(0);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("keeps actual native position when a seek resolves without reaching its target", async () => {
+  const { controller, play } = setup();
+  const player = await play(track("a"));
+  player.emit({ currentTime: 12, playing: true });
+  player.seekTo.mockImplementationOnce(async () => {});
+  await controller.seek(40);
+  expect(controller.snapshot().position).toBe(12);
+  expect(controller.progressFor(track("a"))?.position).toBe(12);
+  player.seekTo.mockImplementationOnce(async () => {
+    player.currentStatus = { ...player.currentStatus, currentTime: 39.9 };
+  });
+  await controller.seek(40);
+  expect(controller.snapshot().position).toBe(39.9);
+  controller.dispose();
+});
+
+it("disables seeking and reports a range read failure without interrupting live playback", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"));
+  const player = players.at(-1)!;
+  player.seekableDuration = 18;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  const error = new Error("Native range unavailable");
+  Object.defineProperty(player, "seekableDuration", {
+    get: () => {
+      throw error;
+    },
+  });
+  player.emit({ duration: 0, currentTime: 12, playing: true });
+  expect(controller.snapshot()).toMatchObject({ phase: "ready", playing: true, availableDuration: 0 });
+  expect(reportError).toHaveBeenCalledWith(error, "narration.seekableRange");
+  const calls = player.seekTo.mock.calls.length;
+  await controller.seek(15);
+  expect(player.seekTo).toHaveBeenCalledTimes(calls);
   controller.dispose();
 });
 
