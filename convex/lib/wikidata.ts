@@ -3,7 +3,6 @@ import { ConvexError } from "convex/values";
 import { fetchText, userAgent } from "./politeFetch";
 
 const API = "https://www.wikidata.org/w/api.php";
-const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 const TIMEOUT_MS = 8000;
 // Prolific artists carry hundreds of claims; Monet's entity alone is several megabytes.
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -30,6 +29,7 @@ export type WikidataEntity = {
   id: string;
   missing?: string;
   labels?: Record<string, { value: string }>;
+  aliases?: Record<string, { value: string }[]>;
   claims?: Record<string, Claim[]>;
   sitelinks?: Record<string, { title: string }>;
 };
@@ -90,7 +90,11 @@ export async function searchEntities(term: string, limit = 10): Promise<SearchHi
   });
 }
 
-export async function getEntities(ids: string[], props = "labels|claims"): Promise<Record<string, WikidataEntity>> {
+export async function getEntities(
+  ids: string[],
+  props = "labels|claims",
+  languages = ["en"],
+): Promise<Record<string, WikidataEntity>> {
   const unique = [...new Set(ids)];
   const entities: Record<string, WikidataEntity> = {};
   for (let offset = 0; offset < unique.length; offset += MAX_IDS) {
@@ -98,9 +102,8 @@ export async function getEntities(ids: string[], props = "labels|claims"): Promi
       action: "wbgetentities",
       ids: unique.slice(offset, offset + MAX_IDS).join("|"),
       props,
-      languages: "en",
-      // A famous painting links hundreds of wikis; only the English article is read.
-      sitefilter: "enwiki",
+      languages: languages.join("|"),
+      sitefilter: languages.map((language) => `${language}wiki`).join("|"),
     })) as { entities?: Record<string, WikidataEntity> };
     for (const [id, entity] of Object.entries(json.entities ?? {})) {
       if (entity && typeof entity === "object" && entity.missing === undefined) {
@@ -111,8 +114,8 @@ export async function getEntities(ids: string[], props = "labels|claims"): Promi
   return entities;
 }
 
-export async function getEntity(id: string, props?: string): Promise<WikidataEntity | null> {
-  return (await getEntities([id], props))[id] ?? null;
+export async function getEntity(id: string, props?: string, languages?: string[]): Promise<WikidataEntity | null> {
+  return (await getEntities([id], props, languages))[id] ?? null;
 }
 
 // The item that carries this identifier, when exactly one does.
@@ -128,7 +131,10 @@ export async function findEntityByStatement(property: string, value: string): Pr
 }
 
 // Plain text keeps the article's sentences quotable; empty when there is no such article.
-export async function wikipediaArticle(title: string): Promise<string> {
+export async function wikipediaArticle(title: string, language = "en"): Promise<string> {
+  if (!/^[a-z]{2,3}(?:-[a-z0-9]+)*$/.test(language)) {
+    throw new ConvexError({ code: "wikidata_error", reason: "invalid_language" });
+  }
   const json = (await call(
     {
       action: "query",
@@ -139,7 +145,7 @@ export async function wikipediaArticle(title: string): Promise<string> {
       titles: title,
       formatversion: "2",
     },
-    WIKIPEDIA_API,
+    `https://${language}.wikipedia.org/w/api.php`,
   )) as { query?: { pages?: { extract?: unknown }[] } };
   const extract = json.query?.pages?.[0]?.extract;
   return typeof extract === "string" ? extract.trim() : "";

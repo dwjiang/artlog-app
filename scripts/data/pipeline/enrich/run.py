@@ -135,7 +135,7 @@ def run(
                         summary.superseded += 1
                         continue
                     current = context["artwork"]
-                    cached = current.get("factSheetUpdatedAt") is not None
+                    cached = bool((context.get("content") or {}).get("factSheet"))
                     # A preview regenerates the complete sheet so an already-enriched work is inspectable.
                     cached = cached and not dry_run
                     provider.check_budget(cached=cached)

@@ -133,7 +133,7 @@ def test_paid_timeout_is_not_retried_or_refunded(factory):
 
     provider = factory(respond)
     with pytest.raises(httpx.ReadTimeout):
-        provider.search("painting")
+        provider.search("painting", ["metmuseum.org"])
     assert provider.usage.tavily_credits == 1
     assert provider.writer.mock_calls == [
         call.query("spend:assertCap", {"kind": "tavily", "amount": 1}),
@@ -149,9 +149,10 @@ def test_search_request_and_reported_credit_reconciliation(factory):
         return httpx.Response(200, json={"results": [], "usage": {"credits": 0}})
 
     provider = factory(respond)
-    assert provider.search("painting") == []
+    assert provider.search("painting", ["metmuseum.org"]) == []
     assert requests[0]["search_depth"] == "basic" and requests[0]["max_results"] == 8
     assert requests[0]["include_raw_content"] == "markdown"
+    assert requests[0]["include_domains"] == ["metmuseum.org"]
     assert provider.usage.tavily_credits == 0
     provider.writer.mutation.assert_any_call(
         "spend:reconcile", {"kind": "tavily", "day": "2026-09-11", "reserved": 1, "actual": 0}

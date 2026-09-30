@@ -204,6 +204,20 @@ are reused; a later batch failure leaves earlier batches committed.
 
 ## Enrichment
 
+Research searches approved museum domains and the verified owner's sites. If the
+accepted non-Wikidata text totals less than 1,200 characters, it reads at most one
+additional linked Wikipedia language and, if still thin, makes one fallback
+search. Each artwork uses at most two Tavily searches, each subject to the daily
+cap. An owner essay without an artwork link must name the matching accession,
+title and artist together. Runtime and batch share the domain scores and research
+policy under `shared/sources/`.
+
+The batch includes contributed and currently on-view artworks with missing or
+empty descriptions, even if a previous attempt wrote a fact-sheet timestamp.
+Nonempty research is reused; empty research is fetched again. Successful
+paragraphs are skipped, and failed attempts remain retryable. Run the bounded
+batch below after changing source coverage to fill those gaps.
+
 Set `NEBIUS_API_KEY`, `TAVILY_API_KEY`, `FACT_SHEET_MODEL`, and `DOCENT_MODEL`
 alongside the Convex credentials. Use the same model settings as the backend;
 see [`.env.example`](../../.env.example).

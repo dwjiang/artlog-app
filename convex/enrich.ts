@@ -3,6 +3,7 @@ import { type Infer, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
+import { readArtworkContent } from "./lib/artworkContent";
 import { currentPlacement } from "./lib/placements";
 import schema from "./schema";
 
@@ -14,13 +15,13 @@ const batchCursor = v.object({
 });
 export type BatchCursor = Infer<typeof batchCursor>;
 
-function claimable(artwork: Doc<"artworks">, now: number): boolean {
+async function claimable(ctx: QueryCtx, artwork: Doc<"artworks">, now: number): Promise<boolean> {
   return (
     artwork.identityStatus === "established"
     && artwork.retiredAt === undefined
-    && artwork.factSheetUpdatedAt === undefined
     && !artwork.factSheetNeedsReview
     && (artwork.enrichClaimedAt === undefined || artwork.enrichClaimedAt < now - STALE_CLAIM_MS)
+    && !(await readArtworkContent(ctx, artwork))?.docent?.en?.length
   );
 }
 
@@ -70,7 +71,7 @@ async function pendingPage(
       }
       seen.add(object.artworkId);
       const artwork = await ctx.db.get("artworks", object.artworkId);
-      if (artwork && claimable(artwork, now)) artworks.push(artwork);
+      if (artwork && (await claimable(ctx, artwork, now))) artworks.push(artwork);
     }
     return {
       artworks,
@@ -88,7 +89,7 @@ async function pendingPage(
       maximumBytesRead: 1024 * 1024,
     });
   for (const artwork of page.page) {
-    if (claimable(artwork, now) && (await onView(ctx, artwork._id, now))) {
+    if ((await claimable(ctx, artwork, now)) && (await onView(ctx, artwork._id, now))) {
       artworks.push(artwork);
     }
   }

@@ -31,6 +31,21 @@ afterEach(() => {
 const entity = (id: string) => wikidataEntities[id] as WikidataEntity;
 
 describe("Wikidata client", () => {
+  it("requests bounded language labels and sitelinks and reads the selected Wikipedia language", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entities: { Q1: { id: "Q1" } } }));
+    await getEntity("Q1", "labels|aliases|sitelinks", ["en", "fr"]);
+    const query = new URL(String(fetchMock.mock.calls[0][0])).searchParams;
+    expect(query.get("languages")).toBe("en|fr");
+    expect(query.get("sitefilter")).toBe("enwiki|frwiki");
+    fetchMock.mockResolvedValueOnce(jsonResponse({ query: { pages: [{ extract: "Un tableau." }] } }));
+    expect(await wikipediaArticle("Le Port", "fr")).toBe("Un tableau.");
+    expect(new URL(String(fetchMock.mock.calls[1][0])).host).toBe("fr.wikipedia.org");
+    await expect(wikipediaArticle("Le Port", "fr.evil.example/")).rejects.toMatchObject({
+      data: { reason: "invalid_language" },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     { error: { code: "ratelimited", info: "Rate limit exceeded" } },
     { errors: [{ code: "ratelimited", text: "Rate limit exceeded" }] },

@@ -1,7 +1,8 @@
 import json
 import logging
 import re
-from collections.abc import Callable
+import unicodedata
+from collections.abc import Callable, Sequence
 from html import unescape
 from typing import TypedDict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit
@@ -17,6 +18,7 @@ from .validator import source_passage
 
 log = logging.getLogger(__name__)
 SCORES = json.loads((REPO_ROOT / "shared/sources/source-scores.json").read_text())
+RESEARCH_POLICY = json.loads((REPO_ROOT / "shared/sources/research-policy.json").read_text())
 MAX_CHARS = 24_000
 # Mirrors convex/lib/docentSources.ts: the best-scored sources fill a fixed budget, a passage stays
 # only in the first source that carries it, and lines shorter than a passage stay everywhere.
@@ -36,6 +38,9 @@ PROPERTIES = {
 }
 UNITS = {"Q174728": "cm", "Q11573": "m", "Q174789": "mm", "Q218593": "in"}
 ARTIC_ID = "P4610"
+EDITORIAL_PATH = (
+    r"/(?:essays?|perspectives|exhibitions|press|press-releases|stories|articles?|blogs?|read)/"
+)
 # Object ids Wikidata records for museums whose collection pages search returns: the Met and Chicago.
 COLLECTION_PAGES = {
     "P3634": "https://www.metmuseum.org/art/collection/search/{}",
@@ -104,10 +109,7 @@ def html_paragraphs(html: str) -> str:
 
 
 def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
-    if not re.search(
-        r"/(?:essays|perspectives|exhibitions|press|press-releases|stories|articles|blog)/",
-        urlsplit(page_url).path,
-    ):
+    if not re.search(EDITORIAL_PATH, urlsplit(page_url).path):
         return False
     for link in re.findall(r"\]\(([^\s)]+)\)", text):
         try:
@@ -128,7 +130,7 @@ def plain_markdown(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
-def source_score(url: str) -> float | None:
+def source_score(url: str, owner_hosts: Sequence[str] = ()) -> float | None:
     try:
         parts = urlsplit(url)
         domain = host(url)
@@ -144,11 +146,73 @@ def source_score(url: str) -> float | None:
         re.IGNORECASE,
     ):
         return None
+    if any(domain == d or domain.endswith("." + d) for d in owner_hosts):
+        return 1.0
     score = next(
         (s for d, s in SCORES["domains"].items() if domain == d or domain.endswith("." + d)),
         SCORES["default"],
     )
     return score if score >= SCORES["threshold"] else None
+
+
+def admissible_domains(owner_hosts: list[str]) -> list[str]:
+    return list(
+        dict.fromkeys(
+            [
+                *[d for d, score in SCORES["domains"].items() if score >= SCORES["threshold"]],
+                *[d for d in owner_hosts if source_score("https://" + d, owner_hosts) is not None],
+            ]
+        )
+    )
+
+
+def identity_text(value: str) -> str:
+    plain = "".join(
+        c for c in unicodedata.normalize("NFKD", value) if not unicodedata.combining(c)
+    ).lower()
+    return " ".join("".join(c if c.isalnum() else " " for c in plain).split())
+
+
+def identifies_owner_work(
+    text: str,
+    url: str,
+    artwork: dict,
+    accession: str | None,
+    titles: list[str],
+    owner_hosts: list[str],
+) -> bool:
+    if not re.search(EDITORIAL_PATH, urlsplit(url).path):
+        return False
+    if not accession or not any(host(url) == d or host(url).endswith("." + d) for d in owner_hosts):
+        return False
+    accession_pattern = re.compile(
+        r"(^|[^\w./-])" + re.escape(accession) + r"(?!\w|[./-]\w)", re.IGNORECASE
+    )
+    artist = identity_text(artwork["artist"])
+    if not accession or not artist:
+        return False
+    for paragraph in re.split(r"\n\s*\n", text):
+        if len(paragraph) > 1000:
+            continue
+        normalized = " " + identity_text(paragraph) + " "
+        if (
+            accession_pattern.search(paragraph)
+            and f" {artist} " in normalized
+            and any(identity_text(t) and f" {identity_text(t)} " in normalized for t in titles)
+        ):
+            return True
+    return False
+
+
+def thin_research(sources: list[SourceDoc]) -> bool:
+    return (
+        sum(
+            len(s["text"])
+            for s in trim_sources(sorted(sources, key=lambda s: -s["score"]))
+            if host(s["url"]) != "wikidata.org"
+        )
+        < RESEARCH_POLICY["minimumTextChars"]
+    )
 
 
 def trim_sources(sources: list[SourceDoc]) -> list[SourceDoc]:
@@ -208,10 +272,12 @@ def wikipedia_lead(html: str) -> str:
     return " ".join(paragraphs)[:MAX_CHARS]
 
 
-def wikipedia_url(title: str) -> str:
+def wikipedia_url(title: str, language: str = "en") -> str:
     # MediaWiki leaves these characters unencoded in canonical URLs, so the fetched URL matches
     # the form search results use and dedupes against them.
-    return "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_"), safe=";:@$!*(),/~")
+    return f"https://{language}.wikipedia.org/wiki/" + quote(
+        title.replace(" ", "_"), safe=";:@$!*(),/~"
+    )
 
 
 def claims_for(entity: dict, prop: str) -> list[dict]:
@@ -232,7 +298,7 @@ class SourceGatherer:
     def __init__(
         self,
         http: PoliteClient,
-        search: Callable[[str], list[dict]],
+        search: Callable[[str, list[str]], list[dict]],
         query: Callable[[str], list[dict]] | None = None,
     ):
         self.http = http
@@ -339,9 +405,16 @@ class SourceGatherer:
 
     def gather(self, artwork: dict, context: dict) -> list[SourceDoc]:
         sources: dict[str, SourceDoc] = {}
+        page_url, owner = context.get("pageUrl"), context.get("owner")
+        owner_hosts = [
+            host(owner[k]) for k in ("website", "collectionSiteUrl") if owner and owner.get(k)
+        ]
+        owner_hosts = [h for h in owner_hosts if h]
+        titles = [artwork["title"]]
+        articles = []
 
         def add(url, label, text, score=None):
-            score = source_score(url) if score is None else score
+            score = source_score(url, owner_hosts) if score is None else score
             # One source per page, whatever language or tracking parameter search found it under.
             key = source_identity(url)
             previous = sources.get(key)
@@ -358,7 +431,6 @@ class SourceGatherer:
                     text=text.strip()[:MAX_CHARS],
                 )
 
-        page_url, owner = context.get("pageUrl"), context.get("owner")
         owner_object = collection_object(page_url) if page_url else None
         qid = artwork.get("wikidataId")
         # Works imported from the Met or Chicago carry no Wikidata id; their object id finds the item.
@@ -382,9 +454,7 @@ class SourceGatherer:
         # The venue's own page is canonical once the host check passes (convex/lib/docentSources.ts).
         if page_url and owner:
             try:
-                hosts = frozenset(
-                    host(owner[k]) for k in ("website", "collectionSiteUrl") if owner.get(k)
-                )
+                hosts = frozenset(owner_hosts)
                 response = self.http.get(page_url, allowed_hosts=hosts)
                 response.raise_for_status()
                 add(str(response.url), owner["name"], page_text(response.text), score=1.0)
@@ -408,15 +478,42 @@ class SourceGatherer:
                     if isinstance(value, str)
                 )
                 add(f"https://www.wikidata.org/wiki/{qid}", "Wikidata", summary)
-                title = entity.get("sitelinks", {}).get("enwiki", {}).get("title")
-                if title:
-                    url = wikipedia_url(title)
-                    anchors.add(source_identity(url))
-                    response = self.http.get(url, allowed_hosts=frozenset({"en.wikipedia.org"}))
-                    response.raise_for_status()
-                    add(str(response.url), "Wikipedia", wikipedia_lead(response.text))
+                for language in RESEARCH_POLICY["languages"]:
+                    label = entity.get("labels", {}).get(language, {}).get("value")
+                    if label:
+                        titles.append(label)
+                    titles.extend(
+                        alias["value"] for alias in entity.get("aliases", {}).get(language, [])
+                    )
+                    title = entity.get("sitelinks", {}).get(f"{language}wiki", {}).get("title")
+                    if title:
+                        articles.append((title, language))
+                        anchors.add(source_identity(wikipedia_url(title, language)))
+                titles.extend(
+                    v["text"]
+                    for v in claim_values(entity, "P1476")
+                    if isinstance(v, dict) and v.get("text")
+                )
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
-                log.warning("Wikidata/Wikipedia unavailable: %s", error)
+                log.warning("Wikidata unavailable: %s", error)
+
+        def read_article(article):
+            title, language = article
+            url = wikipedia_url(title, language)
+            try:
+                response = self.http.get(
+                    url, allowed_hosts=frozenset({f"{language}.wikipedia.org"})
+                )
+                response.raise_for_status()
+                text = wikipedia_lead(response.text)
+                if text:
+                    add(url, "Wikipedia", text)
+            except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
+                log.warning("Wikipedia unavailable: %s", error)
+
+        english_article = next((a for a in articles if a[1] == "en"), None)
+        if english_article:
+            read_article(english_article)
         # Chicago's website refuses our fetcher; its public API carries the curatorial text (CC BY 4.0).
         if artic_id:
             try:
@@ -440,20 +537,56 @@ class SourceGatherer:
                     )
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
                 log.warning("Art Institute API unavailable: %s", error)
-        title = artwork["title"].replace('"', "")
-        owner_name = (owner or {}).get("name", "painting")
-        for result in self.search(f'"{title}" {artwork["artist"]} {owner_name}'):
-            url, content = result.get("url"), result.get("raw_content") or result.get("content")
-            if isinstance(url, str) and isinstance(content, str) and content.strip():
-                # Wikidata's page is statement tables no fact can quote verbatim; the summary stands for it.
-                if source_identity(url) == wikidata_page:
+
+        def search_sources(query, fallback=False):
+            for result in self.search(query, admissible_domains(owner_hosts)):
+                url, content = result.get("url"), result.get("raw_content") or result.get("content")
+                if not isinstance(url, str) or not isinstance(content, str) or not content.strip():
                     continue
-                # Domain trust cannot distinguish multiple paintings called Sunflowers or Bathers.
+                if source_score(url, owner_hosts) is None:
+                    continue
+                identity = source_identity(url)
+                if identity == wikidata_page:
+                    continue
+                plain = plain_markdown(content)
                 if (
-                    anchors
-                    and source_identity(url) not in anchors
+                    (anchors or fallback)
+                    and identity not in anchors
                     and not links_to_artwork(content, url, anchors)
+                    and not identifies_owner_work(
+                        plain, url, artwork, context.get("accession"), titles, owner_hosts
+                    )
                 ):
                     continue
-                add(url, host(url), f"{result.get('title', '')}\n{plain_markdown(content)}")
+                add(url, host(url), f"{result.get('title', '')}\n{plain}")
+
+        def quoted(value):
+            return '"' + value.replace('"', "") + '"'
+
+        owner_name = (owner or {}).get("name", "painting")
+        searched = False
+        try:
+            search_sources(f"{quoted(artwork['title'])} {artwork['artist']} {owner_name}")
+            searched = True
+        except (httpx.HTTPError, RuntimeError) as error:
+            log.warning("Search unavailable: %s", error)
+        if thin_research(list(sources.values())):
+            other_article = next((a for a in articles if a[1] != "en"), None)
+            if other_article:
+                read_article(other_article)
+            if searched and thin_research(list(sources.values())):
+                alternate = next(
+                    (t for t in titles if identity_text(t) != identity_text(artwork["title"])), None
+                )
+                term = context.get("accession") or alternate
+                query = (
+                    f"{quoted(term)} {artwork['artist']} {owner_name}"
+                    if term
+                    else f"{artwork['title'].replace(chr(34), '')} {artwork['artist']} history technique"
+                )
+                # Optional expansion must not discard evidence if its credit cap or provider fails.
+                try:
+                    search_sources(query, fallback=True)
+                except (httpx.HTTPError, RuntimeError) as error:
+                    log.warning("Fallback search unavailable: %s", error)
         return trim_sources(sorted(sources.values(), key=lambda s: -s["score"]))

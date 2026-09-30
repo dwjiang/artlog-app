@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { BatchCursor } from "./enrich";
+import { patchArtworkContent } from "./lib/artworkContent";
 import { patchContributionState } from "./lib/objectContributionState";
 import { newObjectCounters } from "./lib/objectCounters";
 import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
@@ -42,6 +43,11 @@ async function fixture() {
         artwork: { factSheetUpdatedAt: now - HOUR },
       })
     ).artworkId;
+    await patchArtworkContent(
+      ctx,
+      { _id: enriched },
+      { docent: { en: [{ sentence: "The harbor fills the canvas.", factIds: ["f1"] }] } },
+    );
     const freshClaim = (
       await seedArtworkWithObject(ctx, {
         object: { source: "user" },
@@ -94,6 +100,31 @@ async function sweep(t: Harness, limit = 100, after?: BatchCursor): Promise<Doc<
 }
 
 describe("enrich.claimBatch", () => {
+  it.each([false, true])("includes empty descriptions when existing research is %s", async (hasResearch) => {
+    const { t, ids } = await fixture();
+    await t.run(async (ctx) => {
+      await patchArtworkContent(
+        ctx,
+        { _id: ids.enriched },
+        {
+          factSheet: hasResearch
+            ? [
+                {
+                  id: "f1",
+                  text: "The harbor fills the canvas.",
+                  sourceUrl: "https://www.metmuseum.org/art/1",
+                  sourceLabel: "Met",
+                  sourceScore: 1,
+                },
+              ]
+            : [],
+          docent: { en: [] },
+        },
+      );
+    });
+    expect(claimed(await sweep(t))).toContain(ids.enriched);
+  });
+
   it("claims contributions before on-view works and skips enriched, claimed, reviewed and reverted rows", async () => {
     const { t, now, ids } = await fixture();
     const artworks = await sweep(t);
@@ -159,6 +190,11 @@ describe("enrich.claimBatch", () => {
               factSheetUpdatedAt: 1,
               enrichGeneration: 0,
             });
+            await patchArtworkContent(
+              ctx,
+              { _id: artworkId },
+              { docent: { en: [{ sentence: "The harbor fills the canvas.", factIds: ["f1"] }] } },
+            );
             const objectId = await ctx.db.insert("objects", {
               identityStatus: "established" as const,
               key,

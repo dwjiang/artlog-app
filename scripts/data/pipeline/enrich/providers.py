@@ -5,8 +5,6 @@ from dataclasses import asdict, dataclass
 import httpx
 from convex import ConvexError
 
-from .sources import SCORES
-
 log = logging.getLogger(__name__)
 
 
@@ -58,7 +56,7 @@ class Providers:
                 ) from error
             raise
 
-    def search(self, query: str) -> list[dict]:
+    def search(self, query: str, domains: list[str]) -> list[dict]:
         day = self._reserve("tavily")
         self.usage.tavily_credits += 1
         # No automatic paid retries. A timeout may still have incurred a charge.
@@ -74,9 +72,7 @@ class Providers:
                 "max_results": 8,
                 "include_raw_content": "markdown",
                 "include_usage": True,
-                "include_domains": [
-                    d for d, score in SCORES["domains"].items() if score >= SCORES["threshold"]
-                ],
+                "include_domains": domains,
                 "include_domains_mode": "filter",
                 "topic": "general",
             },
