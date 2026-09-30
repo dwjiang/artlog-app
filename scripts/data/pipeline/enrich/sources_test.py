@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from pipeline.enrich.providers import SpendCap
+from pipeline.enrich.references import review_references
 from pipeline.enrich.sources import (
     SourceGatherer,
     links_to_artwork,
@@ -45,7 +46,7 @@ def test_verified_owner_domains_expand_search_without_admitting_shops_or_other_h
         robots=False,
         transport=httpx.MockTransport(lambda _: httpx.Response(403)),
     ) as http:
-        sources = SourceGatherer(http, search).gather(
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Jane Painter"},
             {"pageUrl": page, "owner": {"name": "Museum", "website": "https://museum.example"}},
         )
@@ -97,7 +98,7 @@ def test_accession_fallback_accepts_only_the_owners_matching_essay():
         robots=False,
         transport=httpx.MockTransport(lambda _: httpx.Response(403)),
     ) as http:
-        sources = SourceGatherer(http, search).gather(
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Jane Painter"},
             {
                 "pageUrl": "https://www.sfmoma.org/artwork/1987.1",
@@ -129,7 +130,7 @@ def test_linked_non_english_article_and_alternate_title_expand_thin_research():
     with PoliteClient(
         user_agent="test", robots=False, transport=httpx.MockTransport(respond)
     ) as http:
-        sources = SourceGatherer(http, search).gather(
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Jane Painter", "wikidataId": "Q1"}, {}
         )
     assert "https://fr.wikipedia.org/wiki/Le_Port_(tableau)" in requests
@@ -167,7 +168,7 @@ def test_full_search_article_expands_the_linked_wikipedia_lead(language):
     with PoliteClient(
         user_agent="test", robots=False, transport=httpx.MockTransport(respond)
     ) as http:
-        sources = SourceGatherer(http, search).gather(
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Jane Painter", "wikidataId": "Q1"}, {}
         )
 
@@ -195,7 +196,7 @@ def test_optional_fallback_cap_keeps_the_first_pass_evidence():
         robots=False,
         transport=httpx.MockTransport(lambda _: httpx.Response(403)),
     ) as http:
-        sources = SourceGatherer(http, search).gather(
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Jane Painter"}, {"pageUrl": page}
         )
     assert [s["url"] for s in sources] == [page]
@@ -210,7 +211,9 @@ def test_failed_first_search_is_not_retried():
         transport=httpx.MockTransport(lambda _: httpx.Response(403)),
     ) as http:
         assert (
-            SourceGatherer(http, search).gather({"title": "Harbor", "artist": "Jane Painter"}, {})
+            SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
+                {"title": "Harbor", "artist": "Jane Painter"}, {}
+            )
             == []
         )
     search.assert_called_once()
@@ -243,6 +246,7 @@ def test_owner_text_search_filter_and_character_limits():
                     "content": "same page, translated",
                 },
             ],
+            extract=Mock(return_value=[]),
         )
         sources = gatherer.gather(
             {"title": "Test", "artist": "Artist"},
@@ -302,7 +306,7 @@ def test_owner_page_is_canonical_regardless_of_domain_score():
             lambda _: httpx.Response(200, text="<main>Wall label</main>")
         ),
     ) as http:
-        sources = SourceGatherer(http, lambda _, domains: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: [], extract=Mock(return_value=[])).gather(
             {"title": "Test", "artist": "Artist"},
             {
                 "pageUrl": "https://www.sfmoma.org/artwork/1",
@@ -323,7 +327,7 @@ def test_owner_redirect_is_rejected_before_fetching_another_host():
     with PoliteClient(
         user_agent="test", robots=False, transport=httpx.MockTransport(respond)
     ) as http:
-        gatherer = SourceGatherer(http, lambda _, domains: [])
+        gatherer = SourceGatherer(http, lambda _, domains: [], extract=Mock(return_value=[]))
         assert (
             gatherer.gather(
                 {"title": "Test", "artist": "Artist"},
@@ -386,7 +390,7 @@ def test_wikidata_claims_labels_units_precision_and_wikipedia():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _, domains: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: [], extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     assert len(sources) == 2
@@ -431,7 +435,7 @@ def test_unavailable_item_labels_preserve_the_entity_facts():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _, domains: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: [], extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     assert len(sources) == 1
@@ -475,7 +479,7 @@ def test_copyright_claim_retains_its_jurisdiction():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _, domains: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: [], extract=Mock(return_value=[])).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     text = sources[0]["text"]
@@ -496,6 +500,7 @@ def test_search_cannot_introduce_a_different_work_with_the_same_title():
                     "content": "The Met painting measures 38.1 by 46 cm.",
                 },
             ],
+            extract=Mock(return_value=[]),
         ).gather(
             {"title": "Bathers", "artist": "Paul Cézanne"},
             {"pageUrl": "http://www.metmuseum.org/art/collection/search/435867"},
@@ -541,6 +546,7 @@ def test_collection_ids_on_wikidata_identify_the_museum_page(prop, object_id, pa
                 {"url": page, "content": "This painting."},
                 {"url": other, "content": "Another painting with the same title."},
             ],
+            extract=Mock(return_value=[]),
         ).gather(
             {"title": "The Bedroom", "artist": "Vincent van Gogh", "wikidataId": "Q1"},
             {"pageUrl": "https://www.wikidata.org/wiki/Q1"},
@@ -571,7 +577,9 @@ def test_chicago_work_finds_its_wikidata_item_and_reads_the_api_text():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _, domains: [], query).gather(
+        sources = SourceGatherer(
+            http, lambda _, domains: [], query, extract=Mock(return_value=[])
+        ).gather(
             {"title": "The Bedroom", "artist": "Vincent van Gogh"},
             {
                 "pageUrl": "https://www.artic.edu/artworks/28560",
@@ -605,6 +613,7 @@ def test_search_copy_of_the_wikidata_page_does_not_replace_its_summary():
             lambda _, domains: [
                 {"url": "https://www.wikidata.org/wiki/Q1", "content": "| depicts | boat |\n" * 50}
             ],
+            extract=Mock(return_value=[]),
         ).gather({"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {})
     assert [source["text"] for source in sources] == ["Label: Harbor"]
 
@@ -617,6 +626,7 @@ def test_unanchored_search_still_applies_scores_and_text_limits():
                 {"url": "https://www.metmuseum.org/art/1", "content": "x" * 25000},
                 {"url": "https://random.test/art", "content": "untrusted"},
             ],
+            extract=Mock(return_value=[]),
         ).gather({"title": "Harbor", "artist": "Mira"}, {})
     assert len(sources) == 1 and len(sources[0]["text"]) == 24000
 
@@ -637,6 +647,7 @@ def test_search_full_content_replaces_a_short_owner_page():
                     "raw_content": "Full research describing brushwork and the circumstances of the painting.",
                 }
             ],
+            extract=Mock(return_value=[]),
         ).gather(
             {"title": "Harbor", "artist": "Mira"},
             {
@@ -662,6 +673,7 @@ def test_markdown_search_pages_reach_the_model_as_plain_prose():
                     "See [the painting](/art/collection/search/436535).",
                 }
             ],
+            extract=Mock(return_value=[]),
         ).gather(
             {"title": "Wheat Field with Cypresses", "artist": "Vincent van Gogh"},
             {"pageUrl": "https://www.metmuseum.org/art/collection/search/436535"},
@@ -691,3 +703,162 @@ def test_curatorial_links_identify_the_exact_work_across_museum_url_formats():
         "https://www.metmuseum.org/art/collection/search/436535",
         anchors,
     )
+
+
+def test_trim_preserves_reference_marker_so_review_cannot_be_skipped():
+    source = {
+        "url": "https://auction.example/1",
+        "label": "Auction",
+        "score": 0.8,
+        "text": "  The painting depicts Carnival and Lent.  ",
+        "referenceUrl": "https://www.wikidata.org/wiki/Q1",
+    }
+    assert trim_sources([source]) == [{**source, "text": source["text"].strip()}]
+
+
+def test_known_artwork_reference_reaches_review_without_expanding_search_domains():
+    citation = "https://auction.example/lot/1"
+    text = "Carnival and Lent. Follower of Pieter Brueghel II. Oil on circular panel, diameter 26.8 cm."
+    entity = {
+        "id": "Q1",
+        "claims": {
+            "P18": [{"mainsnak": {"snaktype": "value", "datavalue": {"value": "Painting.jpg"}}}]
+        },
+    }
+    html = f'<table><tr><td id="fileinfotpl_art_references">References</td><td><a href="{citation}">Lot</a></td></tr></table><a href="https://other.example/1">Biography</a>'
+
+    def respond(request):
+        if request.url.host == "www.wikidata.org":
+            return httpx.Response(200, json={"entities": {"Q1": entity}})
+        if request.url.host == "commons.wikimedia.org":
+            return httpx.Response(200, text=html)
+        raise AssertionError(request.url)
+
+    extract = Mock(
+        return_value=[
+            {"url": citation, "raw_content": text},
+            {"url": "https://unrequested.example/1", "raw_content": text},
+        ]
+    )
+    search = Mock(return_value=[])
+    with PoliteClient(
+        user_agent="test", robots=False, transport=httpx.MockTransport(respond)
+    ) as http:
+        sources = SourceGatherer(http, search, extract=extract).gather(
+            {"title": "Carnival and Lent", "artist": "Marten van Cleve", "wikidataId": "Q1"}, {}
+        )
+    extract.assert_called_once_with([citation])
+    assert sources == [
+        {
+            "url": citation,
+            "label": "auction.example",
+            "score": 0.8,
+            "text": text,
+            "referenceUrl": "https://commons.wikimedia.org/wiki/File:Painting.jpg",
+        }
+    ]
+    assert all("auction.example" not in c.args[1] for c in search.call_args_list)
+
+
+@pytest.mark.parametrize("via", ["owner", "search"])
+def test_existing_sources_keep_citation_for_review_without_another_extraction(via):
+    page = "https://museum.example/work/1"
+    text = "Harbor. Follower of Jane Painter. Oil on panel, 26 cm. Provenance includes the original gallery collection."
+    entity = {
+        "id": "Q1",
+        "claims": {
+            "P170": [
+                {
+                    "references": [
+                        {"snaks": {"P854": [{"datavalue": {"value": page + "?utm_source=wiki"}}]}}
+                    ]
+                }
+            ]
+        },
+    }
+    search = Mock(return_value=[{"url": page, "content": text}] if via == "search" else [])
+    extract = Mock(return_value=[])
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200 if via == "owner" else 403, text=f"<main>{text}</main>")
+        ),
+    ) as http:
+        gatherer = SourceGatherer(http, search, extract=extract)
+        gatherer._wikidata = Mock(return_value=("", entity))
+        artwork = {"title": "Harbor", "artist": "Jane Painter", "wikidataId": "Q1"}
+        sources = gatherer.gather(
+            artwork,
+            {"pageUrl": page, "owner": {"name": "Museum", "website": "https://museum.example"}},
+        )
+    assert len(sources) == 1
+    assert sources[0]["referenceUrl"] == "https://www.wikidata.org/wiki/Q1"
+    extract.assert_not_called()
+    provider = Mock()
+    provider.chat.return_value = {
+        "reviews": [
+            {
+                "source": "s1",
+                "relation": "same_artwork",
+                "evidence": "Harbor.",
+                "comparison": "The title and dimensions match.",
+                "conflicts": [{"field": "artist", "text": "Follower of Jane Painter"}],
+            }
+        ]
+    }
+    _, conflicts = review_references(provider, sources, artwork)
+    assert conflicts[0]["field"] == "artist"
+
+
+def test_rejected_references_cannot_displace_catalogue_research():
+    citations = [f"https://auction.example/lot/{i}" for i in range(5)]
+    article = "The painting depicts the harbor where the artist spent the summer working outdoors."
+    entity = {
+        "id": "Q1",
+        "sitelinks": {"enwiki": {"title": "Harbor"}},
+        "claims": {
+            "P170": [
+                {
+                    "references": [
+                        {"snaks": {"P854": [{"datavalue": {"value": url}} for url in citations]}}
+                    ]
+                }
+            ]
+        },
+    }
+    extract = Mock(
+        return_value=[
+            {"url": url, "raw_content": str(i) * 24_000} for i, url in enumerate(citations)
+        ]
+    )
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(
+                200, text=f'<div class="mw-parser-output"><p>{article}</p></div>'
+            )
+        ),
+    ) as http:
+        gatherer = SourceGatherer(http, Mock(return_value=[]), extract=extract)
+        gatherer._wikidata = Mock(return_value=("", entity))
+        sources = gatherer.gather({"title": "Harbor", "artist": "Artist", "wikidataId": "Q1"}, {})
+    assert len([s for s in sources if s.get("referenceUrl")]) == 5
+    provider = Mock()
+    provider.chat.return_value = {
+        "reviews": [
+            {
+                "source": f"s{i + 1}",
+                "relation": "other",
+                "evidence": "",
+                "comparison": "Different painting.",
+                "conflicts": [],
+            }
+            for i, source in enumerate(sources)
+            if source.get("referenceUrl")
+        ]
+    }
+    accepted, conflicts = review_references(provider, sources, {})
+    assert not conflicts
+    assert [s["text"] for s in trim_sources(accepted)] == [article]

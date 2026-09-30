@@ -34,6 +34,7 @@ import {
   embeddingArchive,
   evidenceKind,
   factSheetEntry,
+  researchConflict,
   feedbackResolution,
   labelFlow,
   labelReading,
@@ -128,9 +129,11 @@ export default defineSchema({
     factSheetNeedsReview: v.optional(v.boolean()),
   })
     .index("by_key", ["key"])
-    .index("by_wikidataId", ["wikidataId"]),
+    .index("by_wikidataId", ["wikidataId"])
+    .index("by_factSheetNeedsReview", ["factSheetNeedsReview"]),
 
   artworkContent: defineTable({
+    researchConflicts: v.optional(v.array(researchConflict)),
     factSheet: v.optional(v.array(factSheetEntry)),
     docent: v.optional(v.object({ en: v.optional(v.array(docentSentence)) })),
   }),

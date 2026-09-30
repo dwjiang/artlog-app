@@ -598,7 +598,7 @@ describe("enrichment after identification", () => {
       sourceUrl: "https://www.sfmoma.org/press/monet-water-lilies-returns",
       sourceLabel: "sfmoma.org",
     });
-    expect(await readSpend(t)).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 2 });
+    expect(await readSpend(t)).toMatchObject({ tokenFactoryCalls: 2, tavilyCredits: 3 });
   });
 
   it("schedules nothing for a soft result", async () => {

@@ -43,10 +43,10 @@ class Providers:
             if status["spent"] + needed > status["cap"]:
                 raise SpendCap(f"{kind} daily cap reached ({status['spent']}/{status['cap']})")
 
-    def _reserve(self, kind: str) -> str:
+    def _reserve(self, kind: str, amount: int = 1) -> str:
         try:
-            self.writer.query("spend:assertCap", {"kind": kind, "amount": 1})
-            return self.writer.mutation("spend:add", {"kind": kind, "amount": 1})
+            self.writer.query("spend:assertCap", {"kind": kind, "amount": amount})
+            return self.writer.mutation("spend:add", {"kind": kind, "amount": amount})
         except ConvexError as error:
             # The Python client keeps application data on `.data`; its message is generic.
             data = error.data if isinstance(error.data, dict) else {}
@@ -57,15 +57,9 @@ class Providers:
             raise
 
     def search(self, query: str, domains: list[str]) -> list[dict]:
-        day = self._reserve("tavily")
-        self.usage.tavily_credits += 1
-        # No automatic paid retries. A timeout may still have incurred a charge.
-        response = self.http.post(
-            "https://api.tavily.com/search",
-            headers={
-                "Authorization": f"Bearer {self.settings.tavily_api_key}",
-            },
-            json={
+        return self._tavily(
+            "search",
+            {
                 "query": query,
                 "search_depth": "basic",
                 "auto_parameters": False,
@@ -76,29 +70,61 @@ class Providers:
                 "include_domains_mode": "filter",
                 "topic": "general",
             },
+        ).get("results", [])
+
+    def extract(self, urls: list[str]) -> list[dict]:
+        if not 1 <= len(urls) <= 5:
+            raise ValueError("Invalid reference count")
+        data = self._tavily(
+            "extract",
+            {
+                "urls": urls,
+                "extract_depth": "advanced",
+                "format": "text",
+                "include_images": False,
+                "include_usage": True,
+                "timeout": 20,
+            },
+            reserved=2,
+        )
+        results = data.get("results", [])
+        missing = sum(not any(row.get("url") == url for row in results) for url in urls)
+        if missing:
+            log.warning("%s reference pages unavailable", missing)
+        return results
+
+    def _tavily(self, operation: str, body: dict, reserved: int = 1):
+        day = self._reserve("tavily", reserved)
+        self.usage.tavily_credits += reserved
+        response = self.http.post(
+            f"https://api.tavily.com/{operation}",
+            headers={"Authorization": f"Bearer {self.settings.tavily_api_key}"},
+            json=body,
         )
         response.raise_for_status()
         data = response.json()
         credits = data.get("usage", {}).get("credits")
         if isinstance(credits, (int, float)) and not isinstance(credits, bool) and credits >= 0:
-            if credits != 1:
+            if credits != reserved:
                 self.writer.mutation(
                     "spend:reconcile",
                     {
                         "kind": "tavily",
                         "day": day,
-                        "reserved": 1,
+                        "reserved": reserved,
                         "actual": credits,
                     },
                 )
-            self.usage.tavily_credits += credits - 1
-        return data.get("results", [])
+            self.usage.tavily_credits += credits - reserved
+        return data
 
     def chat(
         self, *, stage: str, system: str, inputs: list[dict] | dict, schema: dict, max_tokens: int
     ):
         model = (
-            self.settings.fact_sheet_model if stage == "factSheet" else self.settings.docent_model
+            self.settings.fact_sheet_model
+            if stage in {"factSheet", "referenceReview"}
+            else self.settings.docent_model
         )
         while True:
             fallback = stage == "factSheet" and self.fact_sheet_json_object
@@ -172,7 +198,9 @@ class Providers:
             self.usage.prompt_tokens += prompt_tokens
             self.usage.completion_tokens += completion_tokens
             # Estimated model cost, excluding Tavily and unreported usage.
-            input_rate, output_rate = (0.30, 0.90) if stage == "factSheet" else (0.06, 0.24)
+            input_rate, output_rate = (
+                (0.30, 0.90) if stage in {"factSheet", "referenceReview"} else (0.06, 0.24)
+            )
             self.usage.estimated_model_usd += (
                 prompt_tokens * input_rate + completion_tokens * output_rate
             ) / 1e6

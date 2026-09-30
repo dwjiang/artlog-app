@@ -206,3 +206,29 @@ def test_schemas_match_the_evaluated_model_contract(schema, filename):
         }
         assert source["enum"] == ["s1", "s2"]
     assert schema == retained
+
+
+def test_reference_extraction_reserves_two_credits_and_keeps_partial_success(factory):
+    requests = []
+
+    def respond(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "results": [{"url": "https://auction.example/1", "raw_content": "Catalogue essay"}],
+                "failed_results": [{"url": "https://gallery.example/2", "error": "Unavailable"}],
+                "usage": {"credits": 0},
+            },
+        )
+
+    provider = factory(respond)
+    results = provider.extract(["https://auction.example/1", "https://gallery.example/2"])
+    assert results == [{"url": "https://auction.example/1", "raw_content": "Catalogue essay"}]
+    assert requests[0]["extract_depth"] == "advanced"
+    assert requests[0]["include_usage"] is True
+    provider.writer.mutation.assert_any_call("spend:add", {"kind": "tavily", "amount": 2})
+    provider.writer.mutation.assert_any_call(
+        "spend:reconcile", {"kind": "tavily", "day": "2026-09-11", "reserved": 2, "actual": 0}
+    )
+    assert provider.usage.tavily_credits == 0

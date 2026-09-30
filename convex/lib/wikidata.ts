@@ -19,6 +19,8 @@ const IN_COLLECTIONS = "P6379";
 const COUNTRY = "P17";
 
 type Claim = {
+  rank?: string;
+  references?: { snaks?: Record<string, { datavalue?: { value?: unknown } }[]> }[];
   mainsnak?: {
     snaktype?: string;
     datavalue?: { type?: string; value?: unknown };
@@ -233,4 +235,14 @@ export function collections(entity: WikidataEntity): string[] {
 
 export function countries(entity: WikidataEntity): string[] {
   return [...new Set(itemValues(entity, COUNTRY))];
+}
+
+export async function commonsFileHtml(file: string): Promise<string> {
+  const json = (await call(
+    { action: "parse", page: `File:${file}`, prop: "text", redirects: "1", uselang: "en" },
+    "https://commons.wikimedia.org/w/api.php",
+  )) as { parse?: { text?: { "*"?: string } } };
+  const html = json.parse?.text?.["*"];
+  if (typeof html !== "string") throw new ConvexError({ code: "wikidata_error", reason: "bad_commons_response" });
+  return html;
 }

@@ -115,7 +115,11 @@ def test_preview_does_not_claim_release_or_write_artwork(rig):
 
 
 def test_failure_releases_generation_and_continues(rig):
-    rig.gatherer.gather.side_effect = [ValueError("source failed"), [{"url": "a"}], [{"url": "b"}]]
+    rig.gatherer.gather.side_effect = [
+        ValueError("source failed"),
+        [{"url": "a", "text": "Source A"}],
+        [{"url": "b", "text": "Source B"}],
+    ]
     summary = execute(rig)
     assert (summary.failed, summary.written) == (1, 2)
     assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]
@@ -236,3 +240,79 @@ def test_missing_setting_error_does_not_print_provider_keys():
             _env_file=None, nebius_api_key="private-test-secret", tavily_api_key="key"
         )
     assert "private-test-secret" not in str(error.value)
+
+
+def test_reference_conflicts_write_a_review_hold_without_generating_prose(rig, monkeypatch):
+    conflict = {
+        "field": "artist",
+        "text": "Follower of Pieter Brueghel II",
+        "sourceUrl": "https://auction.example/1",
+        "sourceLabel": "Auction",
+        "referenceUrl": "https://www.wikidata.org/wiki/Q1",
+    }
+    monkeypatch.setattr(
+        "pipeline.enrich.run.review_references", Mock(return_value=([], [conflict]))
+    )
+    prose = Mock(side_effect=AssertionError("Conflicts must not produce prose"))
+    monkeypatch.setattr("pipeline.enrich.run.docent.generate", prose)
+    result = run(
+        rig.writer, rig.gatherer, rig.provider, budget=1, artwork_key="art:0", emit=lambda _: None
+    )
+    assert result.written == 1
+    write = next(
+        c for c in rig.writer.mutation.call_args_list if c.args[0] == "docent:writeEnrichment"
+    )
+    assert write.args[1]["researchConflicts"] == [conflict]
+    assert write.args[1]["docentEn"] == []
+    assert "factSheet" not in write.args[1]
+
+
+@pytest.mark.parametrize("relation", ["other", "same_artwork"])
+def test_fact_sheet_budget_applies_after_reference_review(rig, monkeypatch, relation):
+    references = [
+        {
+            "url": f"https://auction.example/{i}",
+            "label": "Auction",
+            "score": 0.8,
+            "referenceUrl": "https://www.wikidata.org/wiki/Q1",
+            "text": str(i) * 24_000,
+        }
+        for i in range(2)
+    ]
+    article = {
+        "url": "https://en.wikipedia.org/wiki/Harbor",
+        "label": "Wikipedia",
+        "score": 0.7,
+        "text": "The artist painted the harbor outdoors during the summer.",
+    }
+    rig.gatherer.gather.return_value = references + [article]
+    rig.provider.chat.return_value = {
+        "reviews": [
+            {
+                "source": f"s{i + 1}",
+                "relation": relation,
+                "evidence": str(i) * 80,
+                "comparison": "Compared the object details.",
+                "conflicts": [],
+            }
+            for i in range(2)
+        ]
+    }
+    sheet = Mock(return_value=[{"id": "f1"}])
+    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", sheet)
+    assert execute(rig, artwork_key="art:0").written == 1
+    sources = sheet.call_args.args[1]
+    if relation == "other":
+        assert sources == [article]
+    else:
+        assert sum(len(s["text"]) for s in sources) == 40_000
+
+
+def test_all_references_rejected_releases_claim_without_a_fact_sheet_call(rig, monkeypatch):
+    monkeypatch.setattr("pipeline.enrich.run.review_references", Mock(return_value=([], [])))
+    sheet = Mock()
+    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", sheet)
+    summary = execute(rig, artwork_key="art:0")
+    assert (summary.failed, summary.written) == (1, 0)
+    sheet.assert_not_called()
+    assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]

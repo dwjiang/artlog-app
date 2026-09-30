@@ -15,7 +15,8 @@ from pipeline.polite_http import PoliteClient
 from . import docent, factsheet
 from .prompts import PROMPT_VERSION
 from .providers import Providers, SpendCap
-from .sources import SourceGatherer
+from .references import review_references
+from .sources import SourceGatherer, trim_sources
 
 log = logging.getLogger(__name__)
 
@@ -143,14 +144,24 @@ def run(
                     sources = [] if cached else gatherer.gather(current, context)
                     if not cached and not sources:
                         raise ValueError("No admissible source text; leaving artwork retryable")
+                    sources, conflicts = review_references(provider, sources, current)
+                    sources = trim_sources(sources)
+                    if not cached and not sources and not conflicts:
+                        raise ValueError("No admissible source text; leaving artwork retryable")
                     facts = (
-                        (context["content"] or {}).get("factSheet", [])
-                        if cached
-                        else factsheet.generate(provider, sources, current)
+                        []
+                        if conflicts
+                        else (
+                            (context["content"] or {}).get("factSheet", [])
+                            if cached
+                            else factsheet.generate(provider, sources, current)
+                        )
                     )
-                    if not facts:
+                    if not facts and not conflicts:
                         raise ValueError("No grounded facts; leaving artwork retryable")
-                    sentences, generated = docent.generate(provider, facts)
+                    sentences, generated = (
+                        ([], 0) if conflicts else docent.generate(provider, facts)
+                    )
                     summary.generated_sentences += generated
                     summary.kept_sentences += len(sentences)
                     result = {
@@ -161,10 +172,11 @@ def run(
                         "factSheet": facts,
                         "docentEn": sentences,
                         "sources": sources,
+                        "researchConflicts": conflicts,
                         "generatedSentences": generated,
                         "dryRun": dry_run,
                     }
-                    if not sentences:
+                    if not sentences and not conflicts:
                         raise ValueError("All docent sentences dropped; leaving artwork retryable")
                     if dry_run:
                         summary.previewed += 1
@@ -175,7 +187,9 @@ def run(
                             "generation": artwork["enrichGeneration"],
                             "docentEn": sentences,
                         }
-                        if not cached:
+                        if conflicts:
+                            args["researchConflicts"] = conflicts
+                        elif not cached:
                             args["factSheet"] = facts
                         written = writer.mutation("docent:writeEnrichment", args)
                         result["written"] = written
@@ -239,7 +253,7 @@ def main() -> int:
         PoliteClient(user_agent=settings.user_agent, max_retries=1, max_retry_after=10) as polite,
     ):
         provider = Providers(writer, http, settings)
-        gatherer = SourceGatherer(polite, provider.search)
+        gatherer = SourceGatherer(polite, provider.search, extract=provider.extract)
         summary = run(
             writer,
             gatherer,

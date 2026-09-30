@@ -41,6 +41,7 @@ def build_fact_sheet(raw: list[dict], sources: list[dict]) -> list[dict]:
                 "sourceUrl": source["url"],
                 "sourceLabel": source["label"],
                 "sourceScore": source["score"],
+                **({"referenceUrl": source["referenceUrl"]} if source.get("referenceUrl") else {}),
             }
         )
     facts.sort(key=lambda fact: -fact["sourceScore"])
