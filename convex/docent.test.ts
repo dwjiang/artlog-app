@@ -887,3 +887,218 @@ it.each([
     expect((await artwork())?.factSheet?.map((fact) => fact.text)).toEqual([quoted.text]);
   },
 );
+
+describe("reference attribution review", () => {
+  it("holds conflicting research and narration until an operator replaces the sheet", async () => {
+    const t = harness();
+    const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { artist: "Marten van Cleve" } }));
+    const generation = (await t.mutation(internal.docent.claim, { artworkId }))!;
+    const conflict = {
+      field: "artist" as const,
+      text: "Follower of Pieter Brueghel II",
+      sourceUrl: "https://auction.example/1",
+      sourceLabel: "Auction",
+      referenceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+    };
+    expect(
+      await t.mutation(internal.docent.writeEnrichment, {
+        artworkId,
+        generation,
+        docentEn: [{ sentence: "Must not be published.", factIds: [] }],
+        researchConflicts: [conflict],
+      }),
+    ).toBe(true);
+    expect(await readArtwork(t, artworkId)).toMatchObject({
+      artist: "Marten van Cleve",
+      factSheetNeedsReview: true,
+      researchConflicts: [conflict],
+    });
+    expect((await readArtwork(t, artworkId))?.docent).toBeUndefined();
+    expect(await t.mutation(internal.docent.claim, { artworkId })).toBeNull();
+    expect(await t.query(internal.review.listResearchConflicts, {})).toEqual({
+      rows: [{ artworkId, title: "Water Lilies", artist: "Marten van Cleve", conflicts: [conflict] }],
+      cursor: null,
+    });
+    expect(await t.mutation(internal.docent.writeEnrichment, { artworkId, generation, docentEn: [] })).toBe(false);
+    await t.mutation(internal.review.replaceFactSheet, { artworkId, factSheet: [], correctionIds: [] });
+    expect((await readArtwork(t, artworkId))?.researchConflicts).toBeUndefined();
+    expect((await readArtwork(t, artworkId))?.factSheetNeedsReview).toBeUndefined();
+  });
+
+  it("runs reference verification before extracting facts and reconciles the extra model call", async () => {
+    const t = harness();
+    const { deviceId } = await seedDevice(t);
+    const { artworkId } = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, {
+        artwork: { title: "Carnival and Lent", artist: "Marten van Cleve", wikidataId: "Q1" },
+      }),
+    );
+    const citation = "https://auction.example/lot/1";
+    const text = "Carnival and Lent. Follower of Pieter Brueghel II. Oil on circular panel, diameter 26.8 cm.";
+    routes.push((url) => {
+      if (url.href.startsWith(WIKIDATA)) {
+        return jsonResponse({
+          entities: {
+            Q1: {
+              id: "Q1",
+              claims: { P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: citation } }] } }] }] },
+            },
+          },
+        });
+      }
+      if (url.href === "https://api.tavily.com/extract") {
+        return jsonResponse({ results: [{ url: citation, raw_content: text }], usage: { credits: 1 } });
+      }
+      if (url.href === TOKEN_FACTORY) {
+        return completion({
+          reviews: [
+            {
+              source: "s1",
+              comparison: "The citation and object details match the target.",
+              relation: "same_artwork",
+              evidence: text,
+              conflicts: [{ field: "artist", text: "Follower of Pieter Brueghel II." }],
+            },
+          ],
+        });
+      }
+    });
+    tavily({ results: [], images: [], usage: { credits: 1 } });
+    await t.action(internal.docent.ensure, { artworkId, deviceId });
+    expect((await readArtwork(t, artworkId))?.factSheetNeedsReview).toBe(true);
+    expect(bodies(TOKEN_FACTORY).map((body) => body.response_format.json_schema.name)).toEqual(["referenceReview"]);
+    expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 1, tavilyCredits: 3 });
+  });
+});
+
+it("turns an accepted direct reference into grounded narration research with its citation trail", async () => {
+  const t = harness();
+  const { deviceId } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { title: "Carnival and Lent", artist: "Marten van Cleve", wikidataId: "Q1" },
+    }),
+  );
+  const citation = "https://auction.example/lot/1";
+  const text =
+    "Carnival and Lent by Marten van Cleve. The plump figure represents Carnival and the gaunt woman represents Lent.";
+  routes.push((url, init) => {
+    if (url.href.startsWith(WIKIDATA)) {
+      return jsonResponse({
+        entities: {
+          Q1: {
+            id: "Q1",
+            claims: { P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: citation } }] } }] }] },
+          },
+        },
+      });
+    }
+    if (url.href === "https://api.tavily.com/extract") {
+      return jsonResponse({ results: [{ url: citation, raw_content: text }], usage: { credits: 1 } });
+    }
+    if (url.href !== TOKEN_FACTORY) return undefined;
+    const { name } = JSON.parse(String(init?.body)).response_format.json_schema;
+    if (name === "referenceReview") {
+      return completion({
+        reviews: [
+          {
+            source: "s1",
+            comparison: "The citation and object details match the target.",
+            relation: "same_artwork",
+            evidence: text,
+            conflicts: [],
+          },
+        ],
+      });
+    }
+    if (name === "factSheet") {
+      return completion([
+        { source: "s1", text: "The plump figure represents Carnival and the gaunt woman represents Lent." },
+      ]);
+    }
+    return completion([
+      { sentence: "The plump figure represents Carnival, while the gaunt woman represents Lent.", fact_ids: ["f1"] },
+    ]);
+  });
+  tavily({ results: [], images: [], usage: { credits: 1 } });
+  await t.action(internal.docent.ensure, { artworkId, deviceId });
+  const artwork = await readArtwork(t, artworkId);
+  expect(artwork?.factSheetNeedsReview).toBeUndefined();
+  expect(guideResearch(artwork?.factSheet ?? [])).toHaveLength(1);
+  expect(artwork?.factSheet?.[0]).toMatchObject({
+    sourceUrl: citation,
+    referenceUrl: "https://www.wikidata.org/wiki/Q1",
+  });
+  expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 3, tavilyCredits: 3 });
+});
+
+it.each(["other", "same_artwork"])(
+  "applies the fact-sheet budget after reviewing long references as %s",
+  async (relation) => {
+    const t = harness();
+    const { deviceId } = await seedDevice(t);
+    const { artworkId } = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, {
+        artwork: { title: "Harbor", artist: "Artist", wikidataId: "Q1" },
+      }),
+    );
+    const article = "The artist painted the harbor outdoors during the summer.";
+    const referenceFact = "The painting was first shown in a village exhibition.";
+    const references = [0, 1].map((index) => ({
+      url: `https://auction.example/${index}`,
+      raw_content: `${index}. ${referenceFact} `.repeat(500),
+    }));
+    routes.push((url, init) => {
+      if (url.href.startsWith(WIKIDATA)) {
+        return jsonResponse({
+          entities: {
+            Q1: {
+              id: "Q1",
+              sitelinks: { enwiki: { title: "Harbor" } },
+              claims: {
+                P170: [
+                  { references: [{ snaks: { P854: references.map(({ url }) => ({ datavalue: { value: url } })) } }] },
+                ],
+              },
+            },
+          },
+        });
+      }
+      if (url.hostname === "en.wikipedia.org") return jsonResponse({ query: { pages: [{ extract: article }] } });
+      if (url.href === "https://api.tavily.com/extract") {
+        return jsonResponse({ results: references, usage: { credits: 2 } });
+      }
+      if (url.href !== TOKEN_FACTORY) return undefined;
+      const body = JSON.parse(String(init?.body));
+      const { name } = body.response_format.json_schema;
+      const { input } = JSON.parse(body.messages[1].content);
+      if (name === "referenceReview") {
+        return completion({
+          reviews: input.references.map((source: { source: string }) => ({
+            source: source.source,
+            relation,
+            evidence: referenceFact,
+            comparison: "Compared the object details.",
+            conflicts: [],
+          })),
+        });
+      }
+      if (name === "factSheet") {
+        return completion([{ source: input.sources[0].id, text: relation === "other" ? article : referenceFact }]);
+      }
+      return completion([{ sentence: relation === "other" ? article : referenceFact, fact_ids: ["f1"] }]);
+    });
+    tavily({ results: [], images: [], usage: { credits: 1 } });
+    await t.action(internal.docent.ensure, { artworkId, deviceId });
+    const sheet = bodies(TOKEN_FACTORY).find((body) => body.response_format.json_schema.name === "factSheet");
+    expect(sheet).toBeDefined();
+    const sources: { text: string; url: string }[] = JSON.parse(sheet.messages[1].content).input.sources;
+    expect(sources.reduce((sum, source) => sum + source.text.length, 0)).toBe(
+      relation === "other" ? article.length : 40_000,
+    );
+    expect(sources.map(({ url }) => url)).toEqual(
+      relation === "other" ? ["https://en.wikipedia.org/wiki/Harbor"] : references.map(({ url }) => url),
+    );
+    expect((await readArtwork(t, artworkId))?.docent?.en).toHaveLength(1);
+  },
+);

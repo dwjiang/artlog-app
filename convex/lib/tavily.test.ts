@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { jsonResponse, tavilySeurat } from "./labelFixtures";
-import { parseSearchResponse, search } from "./tavily";
+import { extract, parseSearchResponse, search } from "./tavily";
 
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
@@ -154,5 +154,29 @@ describe("Tavily search", () => {
       data: { code: "search_unconfigured" },
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+it("extracts only supplied references and accounts for partial HTTP-200 failures", async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonResponse({
+      results: [
+        { url: "https://auction.example/1", raw_content: "Catalogue text" },
+        { url: "https://unrequested.example/3", raw_content: "Ignored" },
+      ],
+      failed_results: [{ url: "https://gallery.example/2", error: "Unavailable" }],
+      usage: { credits: 0.2 },
+    }),
+  );
+  expect(await extract(["https://auction.example/1", "https://gallery.example/2"])).toEqual({
+    results: [{ url: "https://auction.example/1", text: "Catalogue text" }],
+    failures: 1,
+    credits: 0.2,
+  });
+  expect(fetchMock.mock.calls[0][0]).toBe("https://api.tavily.com/extract");
+  expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+    extract_depth: "advanced",
+    format: "text",
+    include_usage: true,
   });
 });

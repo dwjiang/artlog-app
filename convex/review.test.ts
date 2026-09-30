@@ -18,6 +18,41 @@ const factSheet = [
   },
 ];
 
+it("paginates research conflicts past an empty page of unrelated review holds", async () => {
+  const t = harness({ transactionLimits: true });
+  const conflict = {
+    field: "artist" as const,
+    text: "Follower of Jane Painter",
+    sourceUrl: "https://museum.example/work",
+    sourceLabel: "Museum",
+    referenceUrl: "https://www.wikidata.org/wiki/Q1",
+  };
+  const artworkId = await t.run(async (ctx) => {
+    const fields = {
+      title: "Harbor",
+      artist: "Jane Painter",
+      identityStatus: "established" as const,
+      rightsStatus: "unknown" as const,
+      multiplicity: "unique" as const,
+      enrichGeneration: 0,
+      factSheetNeedsReview: true,
+    };
+    for (let index = 0; index < 100; index++) {
+      await ctx.db.insert("artworks", { ...fields, key: `hold:${index}` });
+    }
+    const contentId = await ctx.db.insert("artworkContent", { researchConflicts: [conflict] });
+    return ctx.db.insert("artworks", { ...fields, key: "conflict", contentId });
+  });
+  const first = await t.query(internal.review.listResearchConflicts, {});
+  expect(first.rows).toEqual([]);
+  expect(first.cursor).toEqual(expect.any(String));
+  const next = await t.query(internal.review.listResearchConflicts, { cursor: first.cursor });
+  expect(next).toEqual({
+    rows: [{ artworkId, title: "Harbor", artist: "Jane Painter", conflicts: [conflict] }],
+    cursor: null,
+  });
+});
+
 async function fixture() {
   const t = harness({ transactionLimits: true });
   const user = await seedDevice(t);

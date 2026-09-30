@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 
+import referenceReview from "../shared/sources/reference-review.json";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalQuery, type ActionCtx, type MutationCtx, env } from "./_generated/server";
@@ -19,16 +20,20 @@ import {
   parseDocent,
   parseFactSheet,
 } from "./lib/docentPrompts";
-import { gatherSources } from "./lib/docentSources";
+import { gatherSources, trimSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
+import { clearNarration } from "./lib/narrationEvidence";
 import { readObjectDetails } from "./lib/objectDetails";
 import { reportBackendError } from "./lib/observability";
 import { limitDevice } from "./lib/rateLimits";
+import { applyReferenceReview, referenceReviewInput, referenceReviewSchema } from "./lib/referenceReview";
 import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
 import {
   docentSentence,
   factSheetEntry,
+  researchConflict,
+  type ResearchConflict,
   type DocentSentence,
   type DocentStatus,
   type FactSheetEntry,
@@ -39,8 +44,7 @@ import schema from "./schema";
 // A scan's claim blocks concurrent generation for ten minutes; the batch job (enrich.claimBatch)
 // reclaims after an hour.
 const CLAIM_MS = 10 * 60 * 1000;
-// Two chatJson calls, each retried at most once (tokenFactory.chatJson); chatJson sends temperature 0.
-const MAX_MODEL_CALLS = 4;
+// Each chatJson call is retried at most once; linked references add one review call.
 // Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
 const MODEL_TIMEOUT_MS = 20_000;
 
@@ -125,9 +129,10 @@ export const writeEnrichment = internalMutation({
     generation: v.number(),
     factSheet: v.optional(v.array(factSheetEntry)),
     docentEn: v.array(docentSentence),
+    researchConflicts: v.optional(v.array(researchConflict)),
   },
   returns: v.boolean(),
-  handler: async (ctx, { artworkId, generation, factSheet, docentEn }) => {
+  handler: async (ctx, { artworkId, generation, factSheet, docentEn, researchConflicts }) => {
     const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
     if (
@@ -139,13 +144,17 @@ export const writeEnrichment = internalMutation({
       return false;
     }
     const now = Date.now();
+    const needsReview = !!researchConflicts?.length;
+    if (needsReview) await clearNarration(ctx, artworkId);
     await patchArtworkContent(ctx, artwork, {
       ...(factSheet ? { factSheet } : {}),
-      docent: { en: docentEn },
+      researchConflicts: needsReview ? researchConflicts : undefined,
+      docent: needsReview ? undefined : { en: docentEn },
     });
     await ctx.db.patch("artworks", artworkId, {
       ...(factSheet ? { factSheetUpdatedAt: now } : {}),
-      docentUpdatedAt: now,
+      docentUpdatedAt: needsReview ? undefined : now,
+      factSheetNeedsReview: needsReview || undefined,
       enrichClaimedAt: undefined,
       docentFailedAt: undefined,
     });
@@ -226,6 +235,7 @@ async function generate(
 ): Promise<{
   factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
+  researchConflicts?: ResearchConflict[];
 } | null> {
   const cached = context.content?.factSheet?.length ? context.content.factSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
@@ -240,11 +250,36 @@ async function generate(
     });
     if (sources.sources.length === 0) return null;
   }
-  const day = await reserveSpend(ctx, "tokenFactory", MAX_MODEL_CALLS);
+  const hasReferences = sources?.sources.some((source) => source.referenceUrl);
+  const reserved = cached ? 2 : hasReferences ? 6 : 4;
+  const day = await reserveSpend(ctx, "tokenFactory", reserved);
   let calls = 0;
   try {
+    if (hasReferences) {
+      const result = await chatJson({
+        model: models.factSheet,
+        system: referenceReview.prompt,
+        user: JSON.stringify({ input: referenceReviewInput(sources!.sources, artwork) }),
+        schemaName: "referenceReview",
+        schema: referenceReviewSchema(sources!.sources),
+        maxTokens: 2048,
+        parse: (value) => {
+          try {
+            return applyReferenceReview(value, sources!.sources);
+          } catch {
+            return null;
+          }
+        },
+        timeoutMs: MODEL_TIMEOUT_MS,
+      });
+      calls += result.calls;
+      if (result.value.conflicts.length > 0) return { docentEn: [], researchConflicts: result.value.conflicts };
+      sources!.sources = result.value.sources;
+      if (sources!.sources.length === 0) return null;
+    }
     let factSheet = cached;
     if (!factSheet) {
+      sources!.sources = trimSources(sources!.sources);
       const sheet = await chatJson({
         model: models.factSheet,
         system: FACT_SHEET_PROMPT,
@@ -289,7 +324,7 @@ async function generate(
     await ctx.runMutation(internal.spend.reconcile, {
       kind: "tokenFactory",
       day,
-      reserved: MAX_MODEL_CALLS,
+      reserved,
       actual: calls,
     });
   }

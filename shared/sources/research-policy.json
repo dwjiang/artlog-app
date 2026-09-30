@@ -1,4 +1,5 @@
 {
   "minimumTextChars": 1200,
-  "languages": ["en", "fr", "de", "es", "it", "nl", "pt", "ja", "zh"]
+  "languages": ["en", "fr", "de", "es", "it", "nl", "pt", "ja", "zh"],
+  "maxReferencePages": 5
 }

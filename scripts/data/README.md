@@ -212,6 +212,24 @@ cap. An owner essay without an artwork link must name the matching accession,
 title and artist together. Runtime and batch share the domain scores and research
 policy under `shared/sources/`.
 
+Research also reads up to five distinct public HTTPS references from the artwork's
+Wikidata statements and the Source/References cells of its first linked Commons
+file. Tavily advanced Extract reads those pages without a publisher allowlist; links on
+those pages are not followed. A shared Super review rejects unrelated or uncertain
+objects. Artist/date conflicts save their exact evidence, hold enrichment and
+narration, and appear in `review:listResearchConflicts`; `review:replaceFactSheet`
+clears the hold after deliberate review. The conflict query returns `{ rows, cursor }`;
+pass its cursor back until it is null, even when a page's rows are empty.
+Reference-derived facts retain both the
+source URL and the Wikidata/Commons URL that cited it. The existing narration
+catalogue filter is unchanged. Each extraction batch reserves two Tavily credits
+and reconciles provider usage; reference review adds one model call.
+
+To inspect richer research for an already-enriched artwork, use `--dry-run`.
+After reviewing the preview, explicitly invalidate its research with
+`docent:invalidateDocent` (`includeResearch: true`) before regenerating it;
+source-coverage changes do not automatically erase cached descriptions.
+
 The batch includes contributed and currently on-view artworks with missing or
 empty descriptions, even if a previous attempt wrote a fact-sheet timestamp.
 Nonempty research is reused; empty research is fetched again. Successful

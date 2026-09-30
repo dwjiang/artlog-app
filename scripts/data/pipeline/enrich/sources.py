@@ -4,7 +4,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Sequence
 from html import unescape
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit
 
 import httpx
@@ -14,6 +14,7 @@ from pipeline.model_version import REPO_ROOT
 from pipeline.polite_http import PoliteClient, RetryLater, RobotsDisallowed
 from pipeline.wikidata import sparql
 
+from .references import bounded_references, commons_references, wikidata_references
 from .validator import source_passage
 
 log = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ class SourceDoc(TypedDict):
     label: str
     score: float
     text: str
+    referenceUrl: NotRequired[str]
 
 
 def host(url: str) -> str:
@@ -232,9 +234,7 @@ def trim_sources(sources: list[SourceDoc]) -> list[SourceDoc]:
         if not text:
             continue
         remaining -= len(text)
-        trimmed.append(
-            SourceDoc(url=source["url"], label=source["label"], score=source["score"], text=text)
-        )
+        trimmed.append({**source, "text": text})
     return trimmed
 
 
@@ -300,9 +300,12 @@ class SourceGatherer:
         http: PoliteClient,
         search: Callable[[str, list[str]], list[dict]],
         query: Callable[[str], list[dict]] | None = None,
+        *,
+        extract: Callable[[list[str]], list[dict]],
     ):
         self.http = http
         self.search = search
+        self.extract = extract
         self.query = query or (lambda text: sparql(text, user_agent=http.user_agent))
         self.labels: dict[str, str] = {}
 
@@ -412,6 +415,8 @@ class SourceGatherer:
         owner_hosts = [h for h in owner_hosts if h]
         titles = [artwork["title"]]
         articles = []
+        references = []
+        commons_file = None
 
         def add(url, label, text, score=None):
             score = source_score(url, owner_hosts) if score is None else score
@@ -463,6 +468,8 @@ class SourceGatherer:
         if qid:
             try:
                 summary, entity = self._wikidata(qid)
+                references.extend(wikidata_references(entity))
+                commons_file = next(iter(claim_values(entity, "P18")), None)
                 artic_id = artic_id or next(
                     (
                         v
@@ -589,4 +596,42 @@ class SourceGatherer:
                     search_sources(query, fallback=True)
                 except (httpx.HTTPError, RuntimeError) as error:
                     log.warning("Fallback search unavailable: %s", error)
-        return trim_sources(sorted(sources.values(), key=lambda s: -s["score"]))
+        if isinstance(commons_file, str):
+            reference_url = "https://commons.wikimedia.org/wiki/File:" + quote(
+                commons_file.replace(" ", "_"), safe=""
+            )
+            try:
+                response = self.http.get(
+                    reference_url, allowed_hosts=frozenset({"commons.wikimedia.org"})
+                )
+                response.raise_for_status()
+                references.extend(commons_references(response.text, reference_url))
+            except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError) as error:
+                log.warning("Commons references unavailable: %s", error)
+        selected = {}
+        for reference in bounded_references(references):
+            existing = sources.get(source_identity(reference["url"]))
+            if existing:
+                existing["referenceUrl"] = reference["referenceUrl"]
+            else:
+                selected[reference["url"]] = reference
+        if selected:
+            try:
+                for result in self.extract(list(selected)):
+                    reference = selected.get(result.get("url"))
+                    text = result.get("raw_content")
+                    if reference and isinstance(text, str) and len(text.strip()) >= 80:
+                        sources[source_identity(reference["url"])] = {
+                            **reference,
+                            "label": host(reference["url"]),
+                            "score": SCORES["domains"]["wikidata.org"],
+                            "text": text.strip()[:MAX_CHARS],
+                        }
+            except (httpx.HTTPError, RuntimeError, ValueError) as error:
+                log.warning("Reference extraction unavailable: %s", error)
+        ordered = sorted(sources.values(), key=lambda s: -s["score"])
+        # References retain their per-page limit until review without consuming catalogue space.
+        catalogue = trim_sources([s for s in ordered if not s.get("referenceUrl")])
+        return sorted(
+            catalogue + [s for s in ordered if s.get("referenceUrl")], key=lambda s: -s["score"]
+        )

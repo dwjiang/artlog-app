@@ -4,18 +4,31 @@ import { internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import { reportBackendError } from "./observability";
 import { reserveSpend } from "./spend";
-import { search, type TavilySearchRequest, type TavilySearchResponse } from "./tavily";
+import {
+  REFERENCE_EXTRACTION_CREDITS,
+  extract,
+  search,
+  type TavilySearchRequest,
+  type TavilySearchResponse,
+} from "./tavily";
 
-// One credit is reserved atomically before dispatch and reconciled from the reported
+export const searchWithCredit = (ctx: ActionCtx, request: TavilySearchRequest): Promise<TavilySearchResponse | null> =>
+  withCredit(ctx, () => search(request), "search", 1);
+export const extractWithCredit = (ctx: ActionCtx, urls: string[]) =>
+  withCredit(ctx, () => extract(urls), "extract", REFERENCE_EXTRACTION_CREDITS);
+
+// Credits are reserved atomically before dispatch and reconciled from the reported
 // usage. Returns null when the cap is reached, the key is missing, or the search fails; the caller
 // continues without web evidence.
-export async function searchWithCredit(
+async function withCredit<T extends { credits?: number }>(
   ctx: ActionCtx,
-  request: TavilySearchRequest,
-): Promise<TavilySearchResponse | null> {
+  run: () => Promise<T>,
+  operation: string,
+  reserved: number,
+): Promise<T | null> {
   let day: string;
   try {
-    day = await reserveSpend(ctx, "tavily", 1);
+    day = await reserveSpend(ctx, "tavily", reserved);
   } catch (error) {
     if (error instanceof ConvexError && error.data.code === "spend_cap") {
       console.warn("Tavily daily cap reached; skipping web search");
@@ -23,28 +36,28 @@ export async function searchWithCredit(
     }
     throw error;
   }
-  let response: TavilySearchResponse;
+  let response: T;
   try {
-    response = await search(request);
+    response = await run();
   } catch (error) {
     if (error instanceof ConvexError && error.data.code === "search_unconfigured") {
       await ctx.runMutation(internal.spend.reconcile, {
         kind: "tavily",
         day,
-        reserved: 1,
+        reserved,
         actual: 0,
       });
     }
     // Any other failure keeps the reservation: the provider may have charged the credit.
-    await reportBackendError(error, "tavily.search");
-    console.warn("Tavily search failed", error);
+    await reportBackendError(error, `tavily.${operation}`);
+    console.warn(`Tavily ${operation} failed`, error);
     return null;
   }
   if (response.credits !== undefined) {
     await ctx.runMutation(internal.spend.reconcile, {
       kind: "tavily",
       day,
-      reserved: 1,
+      reserved,
       actual: response.credits,
     });
   }

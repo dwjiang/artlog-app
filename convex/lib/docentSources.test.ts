@@ -5,20 +5,25 @@ import type { ActionCtx } from "../_generated/server";
 import { articDescription } from "./artic";
 import { gatherSources, trimSources } from "./docentSources";
 import { reportBackendError } from "./observability";
+import { applyReferenceReview, referenceReviewInput } from "./referenceReview";
 import { sourceScore } from "./sourceScores";
-import { searchWithCredit } from "./tavilySpend";
+import { extractWithCredit, searchWithCredit } from "./tavilySpend";
 import { fetchVenuePage } from "./venueFetch";
-import { findEntityByStatement, getEntity, wikipediaArticle } from "./wikidata";
+import { commonsFileHtml, findEntityByStatement, getEntity, wikipediaArticle } from "./wikidata";
 
 vi.mock("./artic", () => ({ articDescription: vi.fn<typeof articDescription>() }));
 vi.mock("./observability", () => ({ reportBackendError: vi.fn<typeof reportBackendError>() }));
-vi.mock("./tavilySpend", () => ({ searchWithCredit: vi.fn<typeof searchWithCredit>() }));
+vi.mock("./tavilySpend", () => ({
+  searchWithCredit: vi.fn<typeof searchWithCredit>(),
+  extractWithCredit: vi.fn<typeof extractWithCredit>(),
+}));
 vi.mock("./venueFetch", async (original) => ({
   ...(await original<typeof import("./venueFetch")>()),
   fetchVenuePage: vi.fn<typeof fetchVenuePage>(),
 }));
 vi.mock("./wikidata", async (original) => ({
   ...(await original<typeof import("./wikidata")>()),
+  commonsFileHtml: vi.fn<typeof commonsFileHtml>(),
   findEntityByStatement: vi.fn<typeof findEntityByStatement>(),
   getEntity: vi.fn<typeof getEntity>(),
   wikipediaArticle: vi.fn<typeof wikipediaArticle>(),
@@ -395,5 +400,106 @@ it("stops the text sent at the budget, best sources first", () => {
   expect(trimmed.map(({ url, text }) => [url, text.length])).toEqual([
     ["a", 30_000],
     ["b", 10_000],
+  ]);
+});
+
+it("follows only known-item citations without expanding search domains or crawling extracted links", async () => {
+  const cited = "https://auction.example/lot/1";
+  const text = "A catalogue essay for the target painting. ".repeat(5);
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q1",
+    claims: {
+      P18: [{ mainsnak: { datavalue: { value: "Painting.jpg" } } }],
+      P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: cited } }] } }] }],
+    },
+  });
+  vi.mocked(commonsFileHtml).mockResolvedValue(
+    `<table><tr><td id="fileinfotpl_art_references">References</td><td><a href="${cited}">Lot</a></td></tr></table><a href="https://unrelated.example/2">Artist</a>`,
+  );
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  vi.mocked(extractWithCredit).mockResolvedValue({
+    results: [
+      { url: cited, text },
+      { url: "https://unrequested.example/3", text },
+    ],
+    failures: 0,
+  });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Painting", artist: "Artist", wikidataId: "Q1" },
+    owner: null,
+  });
+  expect(extractWithCredit).toHaveBeenCalledExactlyOnceWith({}, [cited]);
+  expect(result.sources).toEqual([
+    {
+      url: cited,
+      referenceUrl: "https://www.wikidata.org/wiki/Q1",
+      label: "auction.example",
+      score: 0.8,
+      text: text.trim(),
+    },
+  ]);
+  expect(
+    vi.mocked(searchWithCredit).mock.calls.every(([, request]) => !request.includeDomains.includes("auction.example")),
+  ).toBe(true);
+});
+
+it.each(["owner", "search"])(
+  "reviews a citation already fetched through %s without extracting it again",
+  async (via) => {
+    const text =
+      "Painting. Follower of Artist. Oil on panel, 26 cm. Provenance includes the original gallery collection.";
+    vi.mocked(getEntity).mockResolvedValue({
+      id: "Q1",
+      claims: {
+        P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: `${pageUrl}?utm_source=wiki` } }] } }] }],
+      },
+    });
+    if (via === "owner") {
+      vi.mocked(fetchVenuePage).mockResolvedValue({ url: pageUrl, html: `<main>${text}</main>` });
+      vi.mocked(searchWithCredit).mockResolvedValue({ results: [], images: [] });
+    } else {
+      vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+      vi.mocked(searchWithCredit).mockResolvedValue({
+        results: [{ url: pageUrl, title: "Painting", content: text, score: 1, images: [] }],
+        images: [],
+      });
+    }
+    const artwork = { ...input.artwork, wikidataId: "Q1" };
+    const { sources } = await gatherSources({} as ActionCtx, { ...input, artwork });
+    expect(referenceReviewInput(sources, artwork).references).toEqual([
+      expect.objectContaining({ url: pageUrl, referenceUrl: "https://www.wikidata.org/wiki/Q1" }),
+    ]);
+    expect(extractWithCredit).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps every reference for review without displacing catalogue research", async () => {
+  const citations = Array.from({ length: 5 }, (_, index) => `https://auction.example/lot/${index}`);
+  const article = "The painting depicts the harbor where the artist spent the summer working outdoors.";
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q1",
+    sitelinks: { enwiki: { title: "Painting" } },
+    claims: { P170: [{ references: [{ snaks: { P854: citations.map((value) => ({ datavalue: { value } })) } }] }] },
+  });
+  vi.mocked(wikipediaArticle).mockResolvedValue(article);
+  vi.mocked(searchWithCredit).mockResolvedValue({ results: [], images: [] });
+  vi.mocked(extractWithCredit).mockResolvedValue({
+    results: citations.map((url, index) => ({ url, text: String(index).repeat(24_000) })),
+    failures: 0,
+  });
+  const artwork = { title: "Painting", artist: "Artist", wikidataId: "Q1" };
+  const { sources } = await gatherSources({} as ActionCtx, { artwork, owner: null });
+  const input = referenceReviewInput(sources, artwork);
+  expect(input.references).toHaveLength(5);
+  expect(input.catalogue).toEqual([{ url: "https://en.wikipedia.org/wiki/Painting", text: article }]);
+  const reviews = input.references.map(({ source }) => ({
+    source,
+    relation: "other",
+    evidence: "",
+    comparison: "The page describes a different painting.",
+    conflicts: [],
+  }));
+  expect(trimSources(applyReferenceReview({ reviews }, sources).sources)).toEqual([
+    expect.objectContaining({ text: article }),
   ]);
 });

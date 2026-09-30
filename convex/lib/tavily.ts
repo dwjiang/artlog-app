@@ -5,6 +5,7 @@ import { fetchText, userAgent } from "./politeFetch";
 
 const ENDPOINT = "https://api.tavily.com/search";
 const TIMEOUT_MS = 8000;
+export const REFERENCE_EXTRACTION_CREDITS = 2;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
 export type TavilySearchRequest = {
@@ -75,8 +76,6 @@ export function parseSearchResponse(json: unknown): TavilySearchResponse {
 
 // Keep search cost and source scope predictable: basic depth, auto parameters off, domain filtering.
 export async function search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
-  const apiKey = env.TAVILY_API_KEY;
-  if (!apiKey) throw new ConvexError({ code: "search_unconfigured" });
   const body = {
     query: request.query,
     search_depth: "basic",
@@ -91,10 +90,16 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
     ...(request.timeRange ? { time_range: request.timeRange } : {}),
     ...(request.includeAnswer ? { include_answer: request.includeAnswer } : {}),
   };
+  return parseSearchResponse(await requestJson(ENDPOINT, body, request.includeRawContent ? 20_000 : TIMEOUT_MS));
+}
+
+async function requestJson(endpoint: string, body: object, timeoutMs: number): Promise<unknown> {
+  const apiKey = env.TAVILY_API_KEY;
+  if (!apiKey) throw new ConvexError({ code: "search_unconfigured" });
   let page;
   try {
     page = await fetchText(
-      ENDPOINT,
+      endpoint,
       {
         method: "POST",
         headers: {
@@ -106,7 +111,7 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
         body: JSON.stringify(body),
       },
       {
-        timeoutMs: request.includeRawContent ? 20_000 : TIMEOUT_MS,
+        timeoutMs,
         maxBytes: MAX_RESPONSE_BYTES,
       },
     );
@@ -120,8 +125,39 @@ export async function search(request: TavilySearchRequest): Promise<TavilySearch
     });
   }
   try {
-    return parseSearchResponse(JSON.parse(page.body));
+    return JSON.parse(page.body);
   } catch {
     throw new ConvexError({ code: "search_error", reason: "bad_json" });
   }
+}
+
+export type TavilyExtractResponse = { results: { url: string; text: string }[]; failures: number; credits?: number };
+
+export async function extract(urls: string[]): Promise<TavilyExtractResponse> {
+  if (urls.length === 0 || urls.length > 5) throw new ConvexError({ code: "invalid_reference_count" });
+  const value = (await requestJson(
+    "https://api.tavily.com/extract",
+    {
+      urls,
+      extract_depth: "advanced",
+      format: "text",
+      include_images: false,
+      include_usage: true,
+      timeout: 20,
+    },
+    30_000,
+  )) as { results?: { url?: unknown; raw_content?: unknown }[]; usage?: { credits?: number } };
+  const results = (value.results ?? []).flatMap((row) =>
+    typeof row.url === "string"
+    && urls.includes(row.url)
+    && typeof row.raw_content === "string"
+    && row.raw_content.trim()
+      ? [{ url: row.url, text: row.raw_content }]
+      : [],
+  );
+  return {
+    results,
+    failures: urls.filter((url) => !results.some((row) => row.url === url)).length,
+    credits: value.usage?.credits,
+  };
 }

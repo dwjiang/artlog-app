@@ -5,13 +5,15 @@ import researchPolicy from "../../shared/sources/research-policy.json";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { articDescription } from "./artic";
+import { boundedReferences, commonsReferences, wikidataReferences, type ArtworkReference } from "./artworkReferences";
 import { wikidataScore, type SourceDoc } from "./docentPrompts";
 import { reportBackendError } from "./observability";
 import { pageText } from "./pageExtract";
 import { admissibleDomains, sourceScore } from "./sourceScores";
-import { searchWithCredit } from "./tavilySpend";
+import { extractWithCredit, searchWithCredit } from "./tavilySpend";
 import { fetchVenuePage, hostAllowed, venueHosts } from "./venueFetch";
 import {
+  commonsFileHtml,
   entityLabel,
   findEntityByStatement,
   getEntities,
@@ -268,6 +270,8 @@ export function trimSources(sources: SourceDoc[]): SourceDoc[] {
 // score-filtered search results. Fetch errors are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
   const sources: SourceDoc[] = [];
+  const references: ArtworkReference[] = [];
+  let commonsFile: string | undefined;
   let failures = 0;
   const ownerHosts = input.owner ? venueHosts(input.owner) : [];
   const titles = new Set([input.artwork.title]);
@@ -321,6 +325,8 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     try {
       const entity = await getEntity(wikidataId, "labels|aliases|claims|sitelinks", researchPolicy.languages);
       if (entity) {
+        references.push(...wikidataReferences(entity));
+        commonsFile = stringValues(entity, "P18")[0];
         for (const language of researchPolicy.languages) {
           const label = entity.labels?.[language]?.value;
           if (label) titles.add(label);
@@ -441,5 +447,42 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       );
     }
   }
-  return { sources: trimSources(sources.sort((a, b) => b.score - a.score)), failures };
+  if (commonsFile) {
+    const referenceUrl = `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(commonsFile.replaceAll(" ", "_"))}`;
+    try {
+      references.push(...commonsReferences(await commonsFileHtml(commonsFile), referenceUrl));
+    } catch (error) {
+      failures++;
+      await reportBackendError(error, "docent.commonsReferences");
+    }
+  }
+  const selected = boundedReferences(references).filter((reference) => {
+    const existing = sources.filter((source) => sourceIdentity(source.url) === sourceIdentity(reference.url));
+    for (const source of existing) source.referenceUrl = reference.referenceUrl;
+    return existing.length === 0;
+  });
+  if (selected.length > 0) {
+    const extracted = await extractWithCredit(
+      ctx,
+      selected.map((reference) => reference.url),
+    );
+    failures += extracted?.failures ?? selected.length;
+    for (const result of extracted?.results ?? []) {
+      const reference = selected.find((reference) => reference.url === result.url);
+      if (!reference || result.text.trim().length < MIN_PAGE_CHARS) continue;
+      sources.push({
+        ...reference,
+        label: bareHost(result.url),
+        score: wikidataScore(),
+        text: result.text.trim().slice(0, MAX_SOURCE_CHARS),
+      });
+    }
+  }
+  sources.sort((a, b) => b.score - a.score);
+  // References keep their per-page limit until review; rejected pages must not consume catalogue space.
+  const catalogue = trimSources(sources.filter((source) => !source.referenceUrl));
+  return {
+    sources: [...catalogue, ...sources.filter((source) => source.referenceUrl)].sort((a, b) => b.score - a.score),
+    failures,
+  };
 }

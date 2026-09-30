@@ -4,11 +4,11 @@ import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
 import { clearDocent } from "./docent";
 import { internalMutation } from "./functions";
-import { patchArtworkContent } from "./lib/artworkContent";
+import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { clearNarration } from "./lib/narrationEvidence";
 import { withErrorReporting } from "./lib/observability";
 import { r2 } from "./lib/r2";
-import { factSheetEntry } from "./lib/validators";
+import { researchConflict, factSheetEntry } from "./lib/validators";
 import { changeEngagement } from "./lib/visitReactions";
 import { deactivateWallItem } from "./lib/wallItems";
 import schema from "./schema";
@@ -142,7 +142,7 @@ export const replaceFactSheet = internalMutation({
       .withIndex("by_artworkId_status", (q) => q.eq("artworkId", artworkId).eq("status", "open"))
       .first();
     await clearDocent(ctx, artwork);
-    await patchArtworkContent(ctx, artwork, { factSheet });
+    await patchArtworkContent(ctx, artwork, { factSheet, researchConflicts: undefined });
     await ctx.db.patch("artworks", artworkId, {
       factSheetUpdatedAt: Date.now(),
       factSheetNeedsReview: outstanding ? true : undefined,
@@ -298,4 +298,37 @@ export const reportAudio = internalAction({
       if (report?.evidence.kind !== "audio") throw new ConvexError({ code: "not_found" });
       return Promise.all(report.evidence.fileIds.map((id) => r2.downloadUrl(id)));
     }),
+});
+
+export const listResearchConflicts = internalQuery({
+  args: { cursor: v.optional(cursorArg) },
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        artworkId: v.id("artworks"),
+        title: v.string(),
+        artist: v.string(),
+        conflicts: v.array(researchConflict),
+      }),
+    ),
+    cursor: cursorArg,
+  }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query("artworks")
+      .withIndex("by_factSheetNeedsReview", (q) => q.eq("factSheetNeedsReview", true))
+      .paginate({ cursor: cursor ?? null, numItems: MAX_ROWS, maximumBytesRead: REVIEW_PAGE_BYTES });
+    const rows = await Promise.all(
+      page.page.map(async (artwork) => ({
+        artworkId: artwork._id,
+        title: artwork.title,
+        artist: artwork.artist,
+        conflicts: (await readArtworkContent(ctx, artwork))?.researchConflicts ?? [],
+      })),
+    );
+    return {
+      rows: rows.filter((row) => row.conflicts.length),
+      cursor: page.isDone ? null : page.continueCursor,
+    };
+  },
 });

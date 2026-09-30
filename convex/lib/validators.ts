@@ -98,6 +98,7 @@ export const feedbackResolution = v.object({
 export type FeedbackResolution = Infer<typeof feedbackResolution>;
 
 export const factSheetEntry = v.object({
+  referenceUrl: v.optional(v.string()),
   id: v.string(),
   text: v.string(),
   sourceUrl: v.string(),
@@ -250,3 +251,12 @@ export const takedownTarget = v.union(
     venueId: v.optional(v.id("museums")),
   }),
 );
+
+export const researchConflict = v.object({
+  field: v.union(v.literal("artist"), v.literal("date")),
+  text: v.string(),
+  sourceUrl: v.string(),
+  sourceLabel: v.string(),
+  referenceUrl: v.string(),
+});
+export type ResearchConflict = Infer<typeof researchConflict>;

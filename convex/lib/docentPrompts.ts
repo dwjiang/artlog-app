@@ -59,6 +59,7 @@ export const DOCENT_SCHEMA = {
 };
 
 export type SourceDoc = {
+  referenceUrl?: string;
   url: string;
   label: string;
   score: number;
@@ -144,6 +145,7 @@ export function buildFactSheet(raw: RawFact[], sources: SourceDoc[]): FactSheetE
       sourceUrl: source.url,
       sourceLabel: source.label,
       sourceScore: source.score,
+      ...(source.referenceUrl ? { referenceUrl: source.referenceUrl } : {}),
     });
   }
   return facts
