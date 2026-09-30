@@ -16,7 +16,14 @@
     "theartnewspaper.com": 0.85,
     "nytimes.com": 0.85,
     "wikidata.org": 0.8,
-    "wikipedia.org": 0.7
+    "wikipedia.org": 0.7,
+    "sfmoma.org": 0.95,
+    "famsf.org": 0.95,
+    "asianart.org": 0.95,
+    "bampfa.org": 0.95,
+    "museum.stanford.edu": 0.95,
+    "museumca.org": 0.95,
+    "sjmusart.org": 0.95
   },
   "excluded": [
     "pinterest.com",

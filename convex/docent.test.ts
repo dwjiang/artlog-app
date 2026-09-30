@@ -276,6 +276,36 @@ async function fixture(
 }
 
 describe("docent.ensure", () => {
+  it.each(["facts", "prose"])("keeps a run retryable when all generated %s are rejected", async (stage) => {
+    const { artwork, ensure } = await fixture();
+    page(PAGE, ownerPage);
+    wikidata();
+    tavily();
+    models(stage === "facts" ? [{ text: "An unsupported statement.", sourceUrl: PAGE }] : facts, [
+      { sentence: "This sentence cites an unknown fact.", fact_ids: ["missing"] },
+    ]);
+    await ensure();
+    expect((await artwork())?.docent?.en?.length ?? 0).toBe(0);
+    expect(await artwork()).toHaveProperty("docentFailedAt");
+    expect(await artwork()).not.toHaveProperty("enrichClaimedAt");
+    routes = [];
+    everything();
+    await ensure();
+    expect((await artwork())?.docent?.en).toHaveLength(2);
+  });
+
+  it("rebuilds empty cached research and prose on the next identification", async () => {
+    const { t, work, artwork, ensure } = await fixture();
+    await t.run(async (ctx) => {
+      await patchArtworkContent(ctx, { _id: work.artworkId }, { factSheet: [], docent: { en: [] } });
+      await ctx.db.patch("artworks", work.artworkId, { factSheetUpdatedAt: 1, docentUpdatedAt: 1 });
+    });
+    everything();
+    await ensure();
+    expect((await artwork())?.factSheet?.length).toBeGreaterThan(0);
+    expect((await artwork())?.docent?.en).toHaveLength(2);
+  });
+
   it("generates a sourced fact sheet and validated sentences on a cache miss and settles spend", async () => {
     const { artwork, spend, ensure } = await fixture();
     everything();
@@ -321,7 +351,7 @@ describe("docent.ensure", () => {
     expect(stored?.enrichClaimedAt).toBeUndefined();
     expect(await spend()).toMatchObject({
       tokenFactoryCalls: 2,
-      tavilyCredits: 1,
+      tavilyCredits: 2,
     });
 
     const [search] = bodies(TAVILY);
@@ -361,7 +391,7 @@ describe("docent.ensure", () => {
     ]);
     expect(input[0].text).toContain("Saint-Rémy");
     expect(input[1].text).toContain("lively brushwork");
-    expect(calls(TAVILY)).toHaveLength(1);
+    expect(calls(TAVILY)).toHaveLength(2);
     expect(input[0].text).not.toContain("Visit Exhibitions Shop");
     expect(input[2].text).toContain("Inception: 1889");
     expect(input[2].text).toContain("Collection: Metropolitan Museum of Art");
@@ -379,7 +409,11 @@ describe("docent.ensure", () => {
     const { t, work, artwork, ensure, spend } = await fixture();
     everything();
     await t.run(async (ctx) => {
-      await patchArtworkContent(ctx, { _id: work.artworkId }, { docent: { en: [] } });
+      await patchArtworkContent(
+        ctx,
+        { _id: work.artworkId },
+        { docent: { en: [{ sentence: "A cached paragraph about the painting.", factIds: ["f1"] }] } },
+      );
       await ctx.db.patch("artworks", work.artworkId, { docentUpdatedAt: 1 });
     });
     await ensure();
@@ -440,7 +474,7 @@ describe("docent.ensure", () => {
     expect((await optedOut.artwork())?.factSheet?.map((fact) => fact.sourceUrl)).toEqual([WIKIDATA_PAGE]);
   });
 
-  it("caches an empty sheet when no admissible source exists, but retries later after fetch failures", async () => {
+  it("keeps missing evidence and fetch failures retryable without caching empty success", async () => {
     const bare = await fixture({ pageUrl: null, wikidataId: null });
     tavily({
       results: [
@@ -455,16 +489,14 @@ describe("docent.ensure", () => {
     });
     models();
     await bare.ensure();
-    expect(await bare.artwork()).toMatchObject({
-      factSheet: [],
-      docent: { en: [] },
-    });
+    expect((await bare.artwork())?.factSheet).toBeUndefined();
+    expect((await bare.artwork())?.docent).toBeUndefined();
     expect(await bare.artwork()).not.toHaveProperty("enrichClaimedAt");
-    expect(await bare.artwork()).not.toHaveProperty("docentFailedAt");
+    expect(await bare.artwork()).toHaveProperty("docentFailedAt");
     expect(calls(TOKEN_FACTORY)).toEqual([]);
     expect(await bare.spend()).toMatchObject({
       tokenFactoryCalls: 0,
-      tavilyCredits: 1,
+      tavilyCredits: 2,
     });
 
     fetchMock.mockClear();
@@ -506,7 +538,7 @@ describe("docent.ensure", () => {
     expect(stored?.docentFailedAt).toEqual(expect.any(Number));
     expect(await spend()).toMatchObject({
       tokenFactoryCalls: 2,
-      tavilyCredits: 1,
+      tavilyCredits: 2,
     });
   });
 
@@ -558,7 +590,7 @@ describe("docent.ensure", () => {
     const last = await readArtwork(t, artworkIds[60]);
     expect(last?.factSheet).toBeUndefined();
     expect(last?.enrichClaimedAt).toBeUndefined();
-    expect(calls(TAVILY)).toHaveLength(60);
+    expect(calls(TAVILY)).toHaveLength(120);
     expect((await readArtwork(t, artworkIds[59]))?.docent?.en).toHaveLength(1);
   });
 });
@@ -685,7 +717,7 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
   expect((await readArtwork(t, artworkId))?.docent).toBeUndefined();
 });
 
-it("shares a single research search between independent docent and audio scripts", async () => {
+it("shares a single research pass between independent docent and audio scripts", async () => {
   const { t, work, ensure, artwork } = await fixture();
   everything();
   await ensure();
@@ -717,7 +749,7 @@ it("shares a single research search between independent docent and audio scripts
   });
   expect(spoken.sentences).toEqual([{ sentence: guideOpening(researched!), factIds: [] }, ...guideBodyFixture]);
   expect((await artwork())?.docent).toEqual(researched?.docent);
-  expect(calls(TAVILY)).toHaveLength(1);
+  expect(calls(TAVILY)).toHaveLength(2);
   expect(JSON.parse(bodies(TOKEN_FACTORY)[2].messages[1].content).research).toEqual(
     guideResearch(researched!.factSheet!),
   );
@@ -734,7 +766,7 @@ it("refreshes the shared research when explicitly invalidated", async () => {
   expect((await artwork())?.factSheet).toBeUndefined();
   expect((await artwork())?.docent).toBeUndefined();
   await ensure();
-  expect(calls(TAVILY)).toHaveLength(2);
+  expect(calls(TAVILY)).toHaveLength(4);
   expect((await artwork())?.factSheet?.length).toBeGreaterThan(0);
 });
 
@@ -770,7 +802,7 @@ it("includes museum essays linked to the exact artwork while excluding another v
     WIKIDATA_PAGE,
   ]);
   expect(calls(PAGE)).toHaveLength(1);
-  expect(calls(TAVILY)).toHaveLength(1);
+  expect(calls(TAVILY)).toHaveLength(2);
 });
 
 it("sends markdown search pages as plain prose, so a fact copied from an essay survives the verbatim check", async () => {

@@ -206,7 +206,7 @@ it("reports whether a confident card's background is being written, failed, or h
       docentUpdatedAt: 2,
     });
   });
-  expect(await status()).toBe("unavailable");
+  expect(await status()).toBe("writing");
 });
 
 it("updates gallery history only for a confident result and never rolls it backwards", async () => {

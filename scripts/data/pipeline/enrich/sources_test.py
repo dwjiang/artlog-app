@@ -1,6 +1,9 @@
+from unittest.mock import Mock
+
 import httpx
 import pytest
 
+from pipeline.enrich.providers import SpendCap
 from pipeline.enrich.sources import (
     SourceGatherer,
     links_to_artwork,
@@ -34,6 +37,185 @@ def test_domain_admission(url, score):
     assert source_score(url) == score
 
 
+def test_verified_owner_domains_expand_search_without_admitting_shops_or_other_hosts():
+    page = "https://collection.museum.example/work/1"
+    search = Mock(return_value=[{"url": page, "content": "Curatorial research. " * 100}])
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(403)),
+    ) as http:
+        sources = SourceGatherer(http, search).gather(
+            {"title": "Harbor", "artist": "Jane Painter"},
+            {"pageUrl": page, "owner": {"name": "Museum", "website": "https://museum.example"}},
+        )
+    assert [s["url"] for s in sources] == [page]
+    assert sources[0]["score"] == 1
+    search.assert_called_once()
+    assert {"museum.example", "sfmoma.org", "famsf.org", "asianart.org", "bampfa.org"} <= set(
+        search.call_args.args[1]
+    )
+    assert source_score("https://shop.museum.example/work/1", ["museum.example"]) is None
+    assert source_score("https://museum.example.evil.test/work/1", ["museum.example"]) is None
+
+
+def test_accession_fallback_accepts_only_the_owners_matching_essay():
+    accepted = "https://www.sfmoma.org/read/harbor"
+    search = Mock(
+        side_effect=[
+            [],
+            [
+                {
+                    "url": accepted,
+                    "content": "Harbor by Jane Painter. Accession 1987.1. Painted outdoors.",
+                },
+                {
+                    "url": "https://www.sfmoma.org/read/other-number",
+                    "content": "Harbor by Jane Painter. Accession 1987.10.",
+                },
+                {
+                    "url": "https://www.sfmoma.org/read/other-part",
+                    "content": "Harbor by Jane Painter. Accession 1987.1.2.",
+                },
+                {
+                    "url": "https://www.sfmoma.org/read/other-artist",
+                    "content": "Harbor by John Painter. Accession 1987.1.",
+                },
+                {
+                    "url": "https://www.metmuseum.org/essays/harbor",
+                    "content": "Harbor by Jane Painter. Accession 1987.1.",
+                },
+                {
+                    "url": "https://www.sfmoma.org/artwork/other",
+                    "content": "Related work: Harbor by Jane Painter. Accession 1987.1.",
+                },
+            ],
+        ]
+    )
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(403)),
+    ) as http:
+        sources = SourceGatherer(http, search).gather(
+            {"title": "Harbor", "artist": "Jane Painter"},
+            {
+                "pageUrl": "https://www.sfmoma.org/artwork/1987.1",
+                "accession": "1987.1",
+                "owner": {"name": "SFMOMA", "website": "https://www.sfmoma.org"},
+            },
+        )
+    assert [s["url"] for s in sources] == [accepted]
+    assert search.call_count == 2
+    assert '"1987.1"' in search.call_args.args[0]
+
+
+def test_linked_non_english_article_and_alternate_title_expand_thin_research():
+    entity = {
+        "labels": {"en": {"value": "Harbor"}, "fr": {"value": "Le Port"}},
+        "sitelinks": {"frwiki": {"title": "Le Port (tableau)"}},
+    }
+    requests = []
+
+    def respond(request):
+        requests.append(str(request.url))
+        if request.url.host == "www.wikidata.org":
+            return httpx.Response(200, json={"entities": {"Q1": entity}})
+        return httpx.Response(
+            200, text='<div class="mw-parser-output"><p>Le tableau représente un port.</p></div>'
+        )
+
+    search = Mock(return_value=[])
+    with PoliteClient(
+        user_agent="test", robots=False, transport=httpx.MockTransport(respond)
+    ) as http:
+        sources = SourceGatherer(http, search).gather(
+            {"title": "Harbor", "artist": "Jane Painter", "wikidataId": "Q1"}, {}
+        )
+    assert "https://fr.wikipedia.org/wiki/Le_Port_(tableau)" in requests
+    assert any(s["text"] == "Le tableau représente un port." for s in sources)
+    assert search.call_count == 2
+    assert '"Le Port"' in search.call_args.args[0]
+
+
+@pytest.mark.parametrize("language", ["en", "fr"])
+def test_full_search_article_expands_the_linked_wikipedia_lead(language):
+    title, lead, history = (
+        (
+            "Harbor",
+            "Harbor is an oil painting by Jane Painter.",
+            "The artist painted outdoors, building up blue and violet shadows in thin layers. ",
+        )
+        if language == "en"
+        else (
+            "Le Port",
+            "Le Port est une peinture de Jane Painter.",
+            "L'artiste peignait en plein air, superposant des ombres bleues et violettes. ",
+        )
+    )
+    history = history * 20
+    url = f"https://{language}.wikipedia.org/wiki/{title.replace(' ', '_')}"
+    entity = {"sitelinks": {f"{language}wiki": {"title": title}}}
+
+    def respond(request):
+        if request.url.host == "www.wikidata.org":
+            return httpx.Response(200, json={"entities": {"Q1": entity}})
+        return httpx.Response(200, text=f'<div class="mw-parser-output"><p>{lead}</p></div>')
+
+    result = {"url": url, "title": title, "raw_content": f"{lead}\n\n{history}"}
+    search = Mock(side_effect=[[result], []] if language == "en" else [[], [result]])
+    with PoliteClient(
+        user_agent="test", robots=False, transport=httpx.MockTransport(respond)
+    ) as http:
+        sources = SourceGatherer(http, search).gather(
+            {"title": "Harbor", "artist": "Jane Painter", "wikidataId": "Q1"}, {}
+        )
+
+    assert sources == [
+        {
+            "url": url,
+            "label": "Wikipedia",
+            "score": 0.7,
+            "text": f"{title}\n{lead}\n\n{history}".strip(),
+        }
+    ]
+    assert search.call_count == (1 if language == "en" else 2)
+
+
+def test_optional_fallback_cap_keeps_the_first_pass_evidence():
+    page = "https://www.sfmoma.org/artwork/1987.1"
+    search = Mock(
+        side_effect=[
+            [{"url": page, "content": "Harbor was painted outdoors."}],
+            SpendCap("Daily cap"),
+        ]
+    )
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(403)),
+    ) as http:
+        sources = SourceGatherer(http, search).gather(
+            {"title": "Harbor", "artist": "Jane Painter"}, {"pageUrl": page}
+        )
+    assert [s["url"] for s in sources] == [page]
+    assert search.call_count == 2
+
+
+def test_failed_first_search_is_not_retried():
+    search = Mock(side_effect=SpendCap("Daily cap"))
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(403)),
+    ) as http:
+        assert (
+            SourceGatherer(http, search).gather({"title": "Harbor", "artist": "Jane Painter"}, {})
+            == []
+        )
+    search.assert_called_once()
+
+
 def test_owner_text_search_filter_and_character_limits():
     def respond(request):
         return httpx.Response(
@@ -48,7 +230,7 @@ def test_owner_text_search_filter_and_character_limits():
     ) as http:
         gatherer = SourceGatherer(
             http,
-            lambda query: [
+            lambda query, domains: [
                 {
                     "url": "https://en.wikipedia.org/wiki/Test",
                     "title": "Test",
@@ -120,14 +302,14 @@ def test_owner_page_is_canonical_regardless_of_domain_score():
             lambda _: httpx.Response(200, text="<main>Wall label</main>")
         ),
     ) as http:
-        sources = SourceGatherer(http, lambda _: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: []).gather(
             {"title": "Test", "artist": "Artist"},
             {
                 "pageUrl": "https://www.sfmoma.org/artwork/1",
                 "owner": {"name": "SFMOMA", "website": "https://www.sfmoma.org"},
             },
         )
-    assert source_score("https://www.sfmoma.org/artwork/1") is None
+    assert source_score("https://www.sfmoma.org/artwork/1") == 0.95
     assert [(s["label"], s["score"], s["text"]) for s in sources] == [("SFMOMA", 1.0, "Wall label")]
 
 
@@ -141,7 +323,7 @@ def test_owner_redirect_is_rejected_before_fetching_another_host():
     with PoliteClient(
         user_agent="test", robots=False, transport=httpx.MockTransport(respond)
     ) as http:
-        gatherer = SourceGatherer(http, lambda _: [])
+        gatherer = SourceGatherer(http, lambda _, domains: [])
         assert (
             gatherer.gather(
                 {"title": "Test", "artist": "Artist"},
@@ -204,7 +386,7 @@ def test_wikidata_claims_labels_units_precision_and_wikipedia():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: []).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     assert len(sources) == 2
@@ -249,7 +431,7 @@ def test_unavailable_item_labels_preserve_the_entity_facts():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: []).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     assert len(sources) == 1
@@ -293,7 +475,7 @@ def test_copyright_claim_retains_its_jurisdiction():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _: []).gather(
+        sources = SourceGatherer(http, lambda _, domains: []).gather(
             {"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {}
         )
     text = sources[0]["text"]
@@ -304,7 +486,7 @@ def test_search_cannot_introduce_a_different_work_with_the_same_title():
     with PoliteClient(user_agent="test", robots=False) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {
                     "url": "https://en.wikipedia.org/wiki/The_Bathers_(Cézanne)",
                     "content": "The Philadelphia painting measures 210.5 by 250.8 cm.",
@@ -355,7 +537,7 @@ def test_collection_ids_on_wikidata_identify_the_museum_page(prop, object_id, pa
     ) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {"url": page, "content": "This painting."},
                 {"url": other, "content": "Another painting with the same title."},
             ],
@@ -389,7 +571,7 @@ def test_chicago_work_finds_its_wikidata_item_and_reads_the_api_text():
         transport=httpx.MockTransport(respond),
         sleep=lambda _: None,
     ) as http:
-        sources = SourceGatherer(http, lambda _: [], query).gather(
+        sources = SourceGatherer(http, lambda _, domains: [], query).gather(
             {"title": "The Bedroom", "artist": "Vincent van Gogh"},
             {
                 "pageUrl": "https://www.artic.edu/artworks/28560",
@@ -420,7 +602,7 @@ def test_search_copy_of_the_wikidata_page_does_not_replace_its_summary():
     ) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {"url": "https://www.wikidata.org/wiki/Q1", "content": "| depicts | boat |\n" * 50}
             ],
         ).gather({"title": "Harbor", "artist": "Mira", "wikidataId": "Q1"}, {})
@@ -431,7 +613,7 @@ def test_unanchored_search_still_applies_scores_and_text_limits():
     with PoliteClient(user_agent="test", robots=False) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {"url": "https://www.metmuseum.org/art/1", "content": "x" * 25000},
                 {"url": "https://random.test/art", "content": "untrusted"},
             ],
@@ -448,7 +630,7 @@ def test_search_full_content_replaces_a_short_owner_page():
     ) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {
                     "url": "https://www.metmuseum.org/art/1",
                     "content": "Snippet",
@@ -471,7 +653,7 @@ def test_markdown_search_pages_reach_the_model_as_plain_prose():
     with PoliteClient(user_agent="test", robots=False) as http:
         sources = SourceGatherer(
             http,
-            lambda _: [
+            lambda _, domains: [
                 {
                     "url": "https://www.metmuseum.org/perspectives/van-gogh-cypresses",
                     "title": "Cypresses",

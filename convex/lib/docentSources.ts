@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 
 import { normalizePassage } from "../../shared/audio/guide";
+import researchPolicy from "../../shared/sources/research-policy.json";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { articDescription } from "./artic";
@@ -9,7 +10,7 @@ import { reportBackendError } from "./observability";
 import { pageText } from "./pageExtract";
 import { admissibleDomains, sourceScore } from "./sourceScores";
 import { searchWithCredit } from "./tavilySpend";
-import { fetchVenuePage, venueHosts } from "./venueFetch";
+import { fetchVenuePage, hostAllowed, venueHosts } from "./venueFetch";
 import {
   entityLabel,
   findEntityByStatement,
@@ -78,6 +79,7 @@ export type SourceInput = {
   artwork: Pick<Doc<"artworks">, "title" | "artist" | "wikidataId">;
   owner: Pick<Doc<"museums">, "name" | "website" | "collectionSiteUrl"> | null;
   pageUrl?: string;
+  accession?: string;
 };
 
 export type GatheredSources = { sources: SourceDoc[]; failures: number };
@@ -128,8 +130,8 @@ function collectionObject(url: string): { property: string; id: string } | null 
   return null;
 }
 
-const wikipediaUrl = (title: string) =>
-  `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`;
+const wikipediaUrl = (title: string, language: string) =>
+  `https://${language}.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`;
 
 function sourceIdentity(value: string): string {
   const url = new URL(value);
@@ -162,12 +164,10 @@ function sourceIdentity(value: string): string {
   return `${bareHost(value)}${path.replaceAll(" ", "_").replace(/\/$/, "")}${suffix ? `?${suffix}` : ""}`;
 }
 
+const EDITORIAL_PATH = /\/(?:essays?|perspectives|exhibitions|press|press-releases|stories|articles?|blogs?|read)\//;
+
 function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): boolean {
-  if (
-    !/\/(?:essays|perspectives|exhibitions|press|press-releases|stories|articles|blog)\//.test(
-      new URL(pageUrl).pathname,
-    )
-  ) {
+  if (!EDITORIAL_PATH.test(new URL(pageUrl).pathname)) {
     return false;
   }
   return [...text.matchAll(/\]\(([^\s)]+)\)/g)].some((match) => {
@@ -189,6 +189,57 @@ function plainMarkdown(text: string): string {
     .replaceAll(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, "$2")
     .replaceAll(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, "$2")
     .replaceAll(/\n{3,}/g, "\n\n");
+}
+
+function identityText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replaceAll(/\p{M}/gu, "")
+    .toLowerCase()
+    .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+// An accession is scoped to its museum. Require all three identifiers near one another so a
+// collection index cannot combine a title from one work with an accession from another.
+function identifiesOwnerWork(
+  text: string,
+  url: string,
+  input: SourceInput,
+  titles: string[],
+  hosts: string[],
+): boolean {
+  if (
+    !input.accession
+    || hosts.length === 0
+    || !hostAllowed(new URL(url), hosts)
+    || !EDITORIAL_PATH.test(new URL(url).pathname)
+  ) {
+    return false;
+  }
+  const accession = new RegExp(
+    `(^|[^\\p{L}\\p{N}./-])${input.accession.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}]|[./-][\\p{L}\\p{N}])`,
+    "iu",
+  );
+  const artist = identityText(input.artwork.artist);
+  if (!input.accession.trim() || !artist) return false;
+  return text.split(/\n\s*\n/).some((paragraph) => {
+    if (paragraph.length > 1000) return false;
+    const normalized = ` ${identityText(paragraph)} `;
+    return (
+      accession.test(paragraph)
+      && normalized.includes(` ${artist} `)
+      && titles.some((title) => identityText(title) && normalized.includes(` ${identityText(title)} `))
+    );
+  });
+}
+
+function thinResearch(sources: SourceDoc[]): boolean {
+  return (
+    trimSources([...sources].sort((a, b) => b.score - a.score))
+      .filter((source) => bareHost(source.url) !== "wikidata.org")
+      .reduce((total, source) => total + source.text.length, 0) < researchPolicy.minimumTextChars
+  );
 }
 
 // Sources arrive best first. A passage stays only in the first source that carries it, and the text
@@ -213,16 +264,18 @@ export function trimSources(sources: SourceDoc[]): SourceDoc[] {
   return trimmed;
 }
 
-// The owner's collection page, Chicago's API text, Wikidata, the work's English Wikipedia article, and
+// The owner's collection page, Chicago's API text, Wikidata, linked Wikipedia articles, and
 // score-filtered search results. Fetch errors are counted so the caller can retry later instead of caching an empty sheet.
 export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise<GatheredSources> {
   const sources: SourceDoc[] = [];
   let failures = 0;
+  const ownerHosts = input.owner ? venueHosts(input.owner) : [];
+  const titles = new Set([input.artwork.title]);
   if (input.pageUrl && input.owner) {
     try {
       const pageUrl = new URL(input.pageUrl);
       if (pageUrl.protocol === "http:") pageUrl.protocol = "https:";
-      const page = await fetchVenuePage(pageUrl.href, venueHosts(input.owner));
+      const page = await fetchVenuePage(pageUrl.href, ownerHosts);
       const text = pageText(page.html, MAX_SOURCE_CHARS);
       if (text.length >= MIN_PAGE_CHARS) {
         sources.push({
@@ -262,12 +315,23 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     ...(input.pageUrl ? [sourceIdentity(input.pageUrl)] : []),
     ...(wikidataPage ? [wikidataPage] : []),
   ]);
-  let article: string | undefined;
+  let articles: { title: string; language: string }[] = [];
   let articId = ownerObject?.property === ARTIC_ID ? ownerObject.id : undefined;
   if (wikidataId) {
     try {
-      const entity = await getEntity(wikidataId, "labels|claims|sitelinks");
-      article = entity?.sitelinks?.enwiki?.title;
+      const entity = await getEntity(wikidataId, "labels|aliases|claims|sitelinks", researchPolicy.languages);
+      if (entity) {
+        for (const language of researchPolicy.languages) {
+          const label = entity.labels?.[language]?.value;
+          if (label) titles.add(label);
+          for (const alias of entity.aliases?.[language] ?? []) titles.add(alias.value);
+        }
+        for (const title of monolingualValues(entity, "P1476")) titles.add(title);
+      }
+      articles = researchPolicy.languages.flatMap((language) => {
+        const title = entity?.sitelinks?.[`${language}wiki`]?.title;
+        return title ? [{ title, language }] : [];
+      });
       articId ??= entity ? stringValues(entity, ARTIC_ID).find((id) => /^\d+$/.test(id)) : undefined;
       for (const page of entity ? collectionPages(entity) : []) anchors.add(sourceIdentity(page));
       const text = entity ? await wikidataSummary(entity) : "";
@@ -285,15 +349,14 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       console.warn("Wikidata unavailable for the fact sheet", error);
     }
   }
-  // Search often misses a work's own article, so the one Wikidata links is read directly.
-  let articlePage: string | undefined;
-  if (article) {
-    const url = wikipediaUrl(article);
-    anchors.add(sourceIdentity(url));
+  const readArticles = new Set<string>();
+  for (const article of articles) anchors.add(sourceIdentity(wikipediaUrl(article.title, article.language)));
+  async function readArticle(article: { title: string; language: string }) {
+    const url = wikipediaUrl(article.title, article.language);
     try {
-      const text = await wikipediaArticle(article);
+      const text = await wikipediaArticle(article.title, article.language);
       if (text) {
-        articlePage = sourceIdentity(url);
+        readArticles.add(sourceIdentity(url));
         sources.push({ url, label: "Wikipedia", score: sourceScore(url) ?? 0, text: text.slice(0, MAX_SOURCE_CHARS) });
       }
     } catch (error) {
@@ -302,6 +365,8 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       console.warn("Wikipedia unavailable for the fact sheet", error);
     }
   }
+  const englishArticle = articles.find((article) => article.language === "en");
+  if (englishArticle) await readArticle(englishArticle);
   if (articId) {
     const url = `https://www.artic.edu/artworks/${articId}`;
     try {
@@ -320,38 +385,60 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       console.warn("Art Institute API unavailable for the fact sheet", error);
     }
   }
-  const response = await searchWithCredit(ctx, {
-    query: `"${input.artwork.title.replaceAll('"', "")}" ${input.artwork.artist} ${input.owner?.name ?? "painting"}`,
-    includeDomains: admissibleDomains(),
-    maxResults: SEARCH_RESULTS,
-    includeRawContent: true,
-  });
-  if (!response) failures++;
-  for (const result of response?.results ?? []) {
-    const score = sourceScore(result.url);
-    const content = result.rawContent?.trim() || result.content.trim();
-    if (score === null || !content) continue;
-    const identity = sourceIdentity(result.url);
-    // Wikidata's page is statement tables no fact can quote verbatim; the summary above stands for it.
-    // A scraped copy of the article read above adds only citation links and page chrome.
-    if (identity === wikidataPage || identity === articlePage) continue;
-    // A trusted domain can describe another work with the same title; require the known identity.
-    if (anchors.size > 0 && !anchors.has(identity) && !linksToArtwork(content, result.url, anchors)) {
-      continue;
+  async function searchSources(query: string, fallback = false): Promise<boolean> {
+    const response = await searchWithCredit(ctx, {
+      query,
+      includeDomains: admissibleDomains(ownerHosts),
+      maxResults: SEARCH_RESULTS,
+      includeRawContent: true,
+    });
+    if (!response) {
+      failures++;
+      return false;
     }
-    const text = `${result.title}\n${plainMarkdown(content)}`.trim().slice(0, MAX_SOURCE_CHARS);
-    // Search can return the owner's page again, often under a language or tracking parameter. Keep
-    // one source per page: the longer text, under the first URL, label and score.
-    const existing = sources.find((source) => sourceIdentity(source.url) === identity);
-    if (!existing) {
-      sources.push({
-        url: result.url,
-        label: bareHost(result.url),
-        score,
-        text,
-      });
-    } else if (text.length > existing.text.length) {
-      existing.text = text;
+    for (const result of response.results) {
+      const score = sourceScore(result.url, ownerHosts);
+      const content = result.rawContent?.trim() || result.content.trim();
+      if (score === null || !content) continue;
+      const identity = sourceIdentity(result.url);
+      if (identity === wikidataPage || readArticles.has(identity)) continue;
+      const plain = plainMarkdown(content);
+      if (
+        (anchors.size > 0 || fallback)
+        && !anchors.has(identity)
+        && !linksToArtwork(content, result.url, anchors)
+        && !identifiesOwnerWork(plain, result.url, input, [...titles], ownerHosts)
+      ) {
+        continue;
+      }
+      const text = `${result.title}\n${plain}`.trim().slice(0, MAX_SOURCE_CHARS);
+      const existing = sources.find((source) => sourceIdentity(source.url) === identity);
+      if (!existing) {
+        sources.push({ url: result.url, label: bareHost(result.url), score, text });
+      } else if (text.length > existing.text.length) {
+        existing.text = text;
+      }
+    }
+    return true;
+  }
+  const quote = (value: string) => `"${value.replaceAll('"', "")}"`;
+  const searched = await searchSources(
+    `${quote(input.artwork.title)} ${input.artwork.artist} ${input.owner?.name ?? "painting"}`,
+  );
+  if (thinResearch(sources)) {
+    // Read at most one other linked article; its Wikidata sitelink establishes the work's identity.
+    const otherArticle = articles.find((article) => article.language !== "en");
+    if (otherArticle) await readArticle(otherArticle);
+    // A failed/capped first call is not retried. Each successful search pass has its own credit reservation.
+    if (searched && thinResearch(sources)) {
+      const alternate = [...titles].find((title) => identityText(title) !== identityText(input.artwork.title));
+      const term = input.accession ?? alternate;
+      await searchSources(
+        term
+          ? `${quote(term)} ${input.artwork.artist} ${input.owner?.name ?? "artwork"}`
+          : `${input.artwork.title.replaceAll('"', "")} ${input.artwork.artist} history technique`,
+        true,
+      );
     }
   }
   return { sources: trimSources(sources.sort((a, b) => b.score - a.score)), failures };

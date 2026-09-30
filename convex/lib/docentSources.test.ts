@@ -5,6 +5,7 @@ import type { ActionCtx } from "../_generated/server";
 import { articDescription } from "./artic";
 import { gatherSources, trimSources } from "./docentSources";
 import { reportBackendError } from "./observability";
+import { sourceScore } from "./sourceScores";
 import { searchWithCredit } from "./tavilySpend";
 import { fetchVenuePage } from "./venueFetch";
 import { findEntityByStatement, getEntity, wikipediaArticle } from "./wikidata";
@@ -97,6 +98,130 @@ it.each(["https://www.artic.edu/artworks/16568", "https://www.artic.edu/artworks
 );
 
 const found = (url: string, content: string) => ({ url, title: "", content, score: 1, images: [] });
+
+it("searches the verified owner's sites and accepts its artwork even outside the static domain list", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  const url = "https://collection.museum.example/work/1";
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [found(url, "Curatorial research. ".repeat(100))],
+  });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Harbor", artist: "Jane Painter" },
+    owner: {
+      name: "Museum",
+      website: "https://museum.example",
+      collectionSiteUrl: "https://collection.museum.example",
+    },
+    pageUrl: url,
+  });
+  expect(result.sources).toEqual([expect.objectContaining({ url, score: 1 })]);
+  expect(searchWithCredit).toHaveBeenCalledTimes(1);
+  expect(searchWithCredit).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      includeDomains: expect.arrayContaining([
+        "museum.example",
+        "sfmoma.org",
+        "famsf.org",
+        "asianart.org",
+        "bampfa.org",
+      ]),
+    }),
+  );
+  expect(sourceScore("https://shop.museum.example/work/1", ["museum.example"])).toBeNull();
+  expect(sourceScore("https://museum.example.evil.test/work/1", ["museum.example"])).toBeNull();
+});
+
+it("makes one accession fallback for thin research and accepts an owner essay without a hyperlink", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  const url = "https://www.sfmoma.org/essay/harbor";
+  vi.mocked(searchWithCredit)
+    .mockResolvedValueOnce({ images: [], results: [] })
+    .mockResolvedValueOnce({
+      images: [],
+      results: [found(url, "Harbor by Jane Painter. Accession 1987.1. The blue paint was applied in broad strokes.")],
+    });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Harbor", artist: "Jane Painter" },
+    owner: { name: "SFMOMA", website: "https://www.sfmoma.org" },
+    pageUrl: "https://www.sfmoma.org/artwork/1987.1",
+    accession: "1987.1",
+  });
+  expect(result.sources.map((source) => source.url)).toEqual([url]);
+  expect(searchWithCredit).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(searchWithCredit).mock.calls[1][1].query).toContain('"1987.1"');
+});
+
+it("rejects same-title essays with a different accession, artist, or museum", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [
+      found("https://www.sfmoma.org/essay/other-number", "Harbor by Jane Painter. Accession 1987.10."),
+      found("https://www.sfmoma.org/essay/other-part", "Harbor by Jane Painter. Accession 1987.1.2."),
+      found("https://www.sfmoma.org/artwork/other-work", "Related work: Harbor by Jane Painter. Accession 1987.1."),
+      found("https://www.sfmoma.org/essay/other-artist", "Harbor by John Painter. Accession 1987.1."),
+      found("https://www.metmuseum.org/essays/other-museum", "Harbor by Jane Painter. Accession 1987.1."),
+    ],
+  });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Harbor", artist: "Jane Painter" },
+    owner: { name: "SFMOMA", website: "https://www.sfmoma.org" },
+    pageUrl: "https://www.sfmoma.org/artwork/1987.1",
+    accession: "1987.1",
+  });
+  expect(result.sources).toEqual([]);
+});
+
+it("retains accepted evidence when the optional fallback is capped or unavailable", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  vi.mocked(searchWithCredit)
+    .mockResolvedValueOnce({ images: [], results: [found(pageUrl, "The painting was made outdoors.")] })
+    .mockResolvedValueOnce(null);
+  const result = await gatherSources({} as ActionCtx, input);
+  expect(result.sources).toEqual([expect.objectContaining({ url: pageUrl, text: "The painting was made outdoors." })]);
+  expect(searchWithCredit).toHaveBeenCalledTimes(2);
+});
+
+it("does not retry a failed first search or accept unbound results from the fallback", async () => {
+  vi.mocked(searchWithCredit).mockResolvedValue(null);
+  const bare = { artwork: { title: "Harbor", artist: "Jane Painter" }, owner: null };
+  expect((await gatherSources({} as ActionCtx, bare)).sources).toEqual([]);
+  expect(searchWithCredit).toHaveBeenCalledTimes(1);
+  vi.mocked(searchWithCredit)
+    .mockClear()
+    .mockResolvedValueOnce({ images: [], results: [] })
+    .mockResolvedValueOnce({
+      images: [],
+      results: [found("https://www.metmuseum.org/essays/harbor", "An unrelated harbor painting.")],
+    });
+  expect((await gatherSources({} as ActionCtx, bare)).sources).toEqual([]);
+});
+
+it("uses a linked local-language article and alternate title when English research is missing", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
+  vi.mocked(getEntity).mockResolvedValue({
+    id: "Q1",
+    labels: { en: { value: "Harbor" }, fr: { value: "Le Port" } },
+    sitelinks: { frwiki: { title: "Le Port (tableau)" } },
+  });
+  vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
+  vi.mocked(wikipediaArticle).mockResolvedValue("Le tableau représente un port.");
+  const result = await gatherSources({} as ActionCtx, {
+    ...wikidataWork("Q1"),
+    artwork: { title: "Harbor", artist: "Jane Painter", wikidataId: "Q1" },
+  });
+  expect(wikipediaArticle).toHaveBeenCalledWith("Le Port (tableau)", "fr");
+  expect(result.sources).toContainEqual(
+    expect.objectContaining({
+      url: "https://fr.wikipedia.org/wiki/Le_Port_(tableau)",
+      text: "Le tableau représente un port.",
+    }),
+  );
+  expect(searchWithCredit).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(searchWithCredit).mock.calls[1][1].query).toContain('"Le Port"');
+});
 // Wikidata-sourced objects link their Wikidata item, which the owner-page fetch refuses.
 const wikidataWork = (wikidataId: string) => ({
   artwork: { title: "Painting", artist: "Artist", wikidataId },
@@ -137,7 +262,7 @@ it("reads the English Wikipedia article Wikidata links to the work and keeps its
       { url: article, label: "Wikipedia", score: 0.7, text: "It is signed IVMeer but not dated." },
     ],
   });
-  expect(wikipediaArticle).toHaveBeenCalledWith("Girl with a Pearl Earring");
+  expect(wikipediaArticle).toHaveBeenCalledWith("Girl with a Pearl Earring", "en");
 });
 
 it("keeps the sheet retryable when the linked Wikipedia article can't be read", async () => {

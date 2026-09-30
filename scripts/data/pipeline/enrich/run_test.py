@@ -98,6 +98,15 @@ def test_empty_pages_advance_and_budget_releases_unused_claims(rig):
     assert all(c["generation"] == 7 for c in rig.calls("docent:writeEnrichment"))
 
 
+def test_empty_cached_research_is_rebuilt(rig):
+    rig.artworks[0]["factSheetUpdatedAt"] = 1
+    rig.contents["id0"] = {"factSheet": [], "docent": {"en": []}}
+    summary = execute(rig, budget=1)
+    assert summary.written == 1
+    rig.gatherer.gather.assert_called_once()
+    assert rig.calls("docent:writeEnrichment")[0]["factSheet"]
+
+
 def test_preview_does_not_claim_release_or_write_artwork(rig):
     summary = execute(rig, dry_run=True)
     assert summary.previewed == 3
@@ -213,13 +222,12 @@ def test_cached_sheet_rewrite_needs_no_search_budget(rig):
     assert rig.outputs[0]["factSheet"] == [{"id": "cached-fact"}]
 
 
-def test_cached_sheet_without_content_stays_retryable(rig):
+def test_cached_sheet_without_content_is_rebuilt(rig):
     rig.artworks[0]["factSheetUpdatedAt"] = 1
     summary = execute(rig, artwork_key="met:1")
-    assert (summary.failed, summary.written) == (1, 0)
-    rig.gatherer.gather.assert_not_called()
-    assert not rig.calls("docent:writeEnrichment")
-    assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]
+    assert (summary.failed, summary.written) == (0, 1)
+    rig.gatherer.gather.assert_called_once()
+    assert rig.calls("docent:writeEnrichment")[0]["factSheet"]
 
 
 def test_missing_setting_error_does_not_print_provider_keys():

@@ -22,6 +22,7 @@ import {
 import { gatherSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
 import { readObjectDetails } from "./lib/objectDetails";
+import { reportBackendError } from "./lib/observability";
 import { limitDevice } from "./lib/rateLimits";
 import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
@@ -53,7 +54,7 @@ export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): P
 }
 
 export function docentStatusOf(artwork: Doc<"artworks">, content: ArtworkContentFields | null): DocentStatus {
-  if (content?.docent?.en) return content.docent.en.length > 0 ? "ready" : "unavailable";
+  if (content?.docent?.en?.length) return "ready";
   if (artwork.factSheetNeedsReview) return "unavailable";
   return artwork.docentFailedAt === undefined ? "writing" : "failed";
 }
@@ -66,6 +67,7 @@ export const load = internalQuery({
       artwork: schema.doc("artworks"),
       content: v.union(schema.doc("artworkContent"), v.null()),
       pageUrl: v.optional(v.string()),
+      accession: v.optional(v.string()),
       owner: v.union(schema.doc("museums"), v.null()),
     }),
   ),
@@ -73,6 +75,7 @@ export const load = internalQuery({
     const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork || artwork.identityStatus !== "established") return null;
     let pageUrl: string | undefined;
+    let accession: string | undefined;
     let owner: Doc<"museums"> | null = null;
     for await (const object of ctx.db.query("objects").withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
       if (object.reverted || object.mergedInto || !object.ownerId) {
@@ -83,10 +86,11 @@ export const load = internalQuery({
       const museum = await ctx.db.get("museums", object.ownerId);
       if (!museum || (await isVenueOptedOut(ctx, museum))) continue;
       pageUrl = details.pageUrl;
+      accession = object.accession;
       owner = museum;
       break;
     }
-    return { artwork, content: await readArtworkContent(ctx, artwork), pageUrl, owner };
+    return { artwork, content: await readArtworkContent(ctx, artwork), pageUrl, accession, owner };
   },
 });
 
@@ -99,7 +103,7 @@ export const claim = internalMutation({
       return null;
     }
     const content = await readArtworkContent(ctx, artwork);
-    if (content?.docent?.en) return null;
+    if (content?.docent?.en?.length) return null;
     const now = Date.now();
     if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) {
       return null;
@@ -218,12 +222,12 @@ async function generate(
   ctx: ActionCtx,
   models: Models,
   artwork: Doc<"artworks">,
-  context: { content: ArtworkContentFields | null; pageUrl?: string; owner: Doc<"museums"> | null },
+  context: { content: ArtworkContentFields | null; pageUrl?: string; accession?: string; owner: Doc<"museums"> | null },
 ): Promise<{
   factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
 } | null> {
-  const cached = artwork.factSheetUpdatedAt !== undefined ? context.content?.factSheet : undefined;
+  const cached = context.content?.factSheet?.length ? context.content.factSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
     // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.
@@ -232,11 +236,9 @@ async function generate(
       artwork,
       owner: context.owner,
       pageUrl: context.pageUrl,
+      accession: context.accession,
     });
-    // Nothing found because every source errored: release the claim and try again later.
-    if (sources.sources.length === 0) {
-      return sources.failures ? null : { factSheet: [], docentEn: [] };
-    }
+    if (sources.sources.length === 0) return null;
   }
   const day = await reserveSpend(ctx, "tokenFactory", MAX_MODEL_CALLS);
   let calls = 0;
@@ -277,7 +279,7 @@ async function generate(
         new Set(factSheet.map((fact) => fact.id)),
       );
     }
-    return { ...(cached ? {} : { factSheet }), docentEn };
+    return docentEn.length > 0 ? { ...(cached ? {} : { factSheet }), docentEn } : null;
   } catch (error) {
     if (error instanceof ConvexError && typeof error.data.calls === "number") {
       calls += error.data.calls;
@@ -328,6 +330,7 @@ export const ensure = internalAction({
         console.warn("Docent generation skipped", error.data);
         return null;
       }
+      await reportBackendError(error, "docent.ensure");
       throw error;
     } finally {
       if (!written) {
