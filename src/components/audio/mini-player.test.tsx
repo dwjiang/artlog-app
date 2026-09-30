@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { router } from "expo-router";
+import { Color, router } from "expo-router";
 
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
 
@@ -18,7 +18,10 @@ const mockAudio = {
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => mockAudio,
 }));
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("expo-router", () => ({
+  ...jest.requireActual("expo-router"),
+  router: { push: jest.fn() },
+}));
 
 beforeEach(() => {
   mockAudio.phase = "ready";
@@ -33,6 +36,13 @@ it("shows the time left once the narration's length is known, and only the state
   mockAudio.duration = 0;
   await rerender(<MiniPlayer />);
   expect(screen.getByText("Playing")).toBeOnTheScreen();
+});
+
+it("lets native glass adapt the title and playback status to the content behind it", async () => {
+  await render(<MiniPlayer />);
+
+  expect(screen.getByText("Water Lilies")).toHaveStyle({ color: Color.ios.label });
+  expect(screen.getByText("Playing · 1:00 left")).toHaveStyle({ color: Color.ios.secondaryLabel });
 });
 
 it("shows generation activity and keeps the player reachable while audio is loading", async () => {

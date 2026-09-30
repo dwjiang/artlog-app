@@ -1,17 +1,18 @@
 import { Image, type ImageSource } from "expo-image";
-import { Pressable, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, type ColorValue, type StyleProp, type ViewStyle } from "react-native";
 
 import { Gallery } from "@/constants/theme";
 
-export function AudioIcon({ name, size = 22, color = Gallery.ink }: { name: string; size?: number; color?: string }) {
-  return (
-    <Image
-      source={`sf:${name}` as ImageSource}
-      tintColor={color}
-      style={{ width: size, height: size }}
-      accessible={false}
-    />
-  );
+export function AudioIcon({
+  name,
+  size = 22,
+  color = Gallery.ink,
+}: {
+  name: string;
+  size?: number;
+  color?: ColorValue;
+}) {
+  return <Image source={`sf:${name}` as ImageSource} style={{ width: size, height: size, color }} accessible={false} />;
 }
 export function AudioIconButton({
   name,
@@ -26,7 +27,7 @@ export function AudioIconButton({
   label: string;
   onPress: () => void;
   size?: number;
-  color?: string;
+  color?: ColorValue;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {

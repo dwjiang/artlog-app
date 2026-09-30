@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { Color, router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
@@ -36,10 +36,14 @@ export function MiniPlayer() {
       >
         <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600" }}>
+          {/* Native colors follow the glass accessory's contrast, even while the app stays in light mode. */}
+          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600", color: Color.ios.label }}>
             {audio.current.work.title}
           </Text>
-          <Text numberOfLines={1} style={{ fontSize: 11, color: Gallery.muted, fontVariant: ["tabular-nums"] }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: 11, color: Color.ios.secondaryLabel, fontVariant: ["tabular-nums"] }}
+          >
             {subtitle}
           </Text>
         </View>
@@ -55,7 +59,13 @@ export function MiniPlayer() {
           size={23}
         />
       )}
-      <AudioIconButton name="list.bullet" label="Up next" onPress={() => openPlayer("queue")} size={22} />
+      <AudioIconButton
+        name="list.bullet"
+        label="Up next"
+        onPress={() => openPlayer("queue")}
+        color={Color.ios.label}
+        size={22}
+      />
     </View>
   );
 }
