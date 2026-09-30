@@ -552,6 +552,32 @@ it("persists resizing directly from the wall without opening a sheet", async () 
   expect(screen.queryByRole("header", { name: "Edit frame" })).toBeNull();
 });
 
+it.each(["moveRight", "increment"])("saves only a clear placement when %s reaches a neighbor", async (actionName) => {
+  mockTransport.getMine.mockResolvedValue({
+    ...published,
+    items: [
+      published.items[0],
+      {
+        ...published.items[0],
+        itemId: "item-b",
+        placementId: "save-b",
+        saveLocalId: "save-b",
+        layout: { ...published.items[0].layout, x: 0.53, width: 0.2, layer: 1 },
+        artwork: { ...published.items[0].artwork, title: "Sunflowers" },
+      },
+    ],
+  });
+  await openWall();
+  await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
+  await fireEvent(screen.getByRole("button", { name: "The Milkmaid" }), "accessibilityAction", {
+    nativeEvent: { actionName },
+  });
+  await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
+  const { items } = mockTransport.setLayout.mock.calls[0][0];
+  expect(items[0].layout.x + items[0].layout.width).toBeLessThanOrEqual(items[1].layout.x - 0.025);
+  expect(items[1].layout).toEqual({ ...published.items[0].layout, x: 0.53, width: 0.2, layer: 1 });
+});
+
 it("shows the empty wall instead of a spinner while the account scope is still missing", async () => {
   switchOwner("account:a");
   await render(<CollectionWall works={libraryWorks} onEditingChange={jest.fn()} />);

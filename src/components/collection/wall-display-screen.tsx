@@ -11,6 +11,7 @@ import type { SavedWork } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
+import { wallFrames } from "@/lib/wall/wall-frames";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
 
 import { ArtworkQueryState } from "./artwork-query-state";
@@ -18,7 +19,6 @@ import { GalleryButton } from "./gallery-button";
 import { NoteVisibility } from "./note-visibility";
 import { PhotoVisibility } from "./photo-visibility";
 import { WallArtwork } from "./wall-artwork";
-import { wallFrames } from "./wall-frame";
 import { WallFramePicker } from "./wall-options";
 import { WallPhotoPicker } from "./wall-photo-picker";
 import { wallpaperStyle } from "./wallpaper";
