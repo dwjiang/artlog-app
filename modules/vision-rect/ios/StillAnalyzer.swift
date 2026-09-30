@@ -13,12 +13,10 @@ struct StillAnalysis {
   let subjects: [DetectedSubject]
   /// Why subject lifting produced nothing, when it did: its error, or what it rejected.
   let subjectNote: String?
-  /// Where the analyzed image has no visible texture, for measuring the surround of each candidate.
-  let flatness: FlatnessMap
 }
 
 enum StillAnalyzer {
-  /// Detects rectangles, lifts foreground subjects and maps flat regions on the still, decoded and downscaled once for all three.
+  /// Detects rectangles and lifts foreground subjects on the still, decoded and downscaled once for both.
   static func analyze(fileURL: URL) throws -> StillAnalysis {
     let properties = try ImageFile.properties(of: fileURL)
     let image = try ImageFile.thumbnail(fileURL, maxPixelSize: SubjectDetectorTuning.analysisMaxPixelSize)
@@ -47,8 +45,7 @@ enum StillAnalyzer {
       height: properties.uprightHeight,
       rectangles: rectangles,
       subjects: subjects,
-      subjectNote: subjectNote,
-      flatness: try FlatnessMap(image: image)
+      subjectNote: subjectNote
     )
   }
 }

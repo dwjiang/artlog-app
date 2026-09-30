@@ -70,3 +70,28 @@ it("does not treat a prominent internal portrait subject as the canvas boundary"
   });
   expect(await warper.warpAndLetterbox("file:///portrait.jpg", quad, 512)).toBeNull();
 });
+
+it("warps the confirmed preview boundary when subject lifting selects an interior detail", async () => {
+  mockStill.mockResolvedValue({
+    width: 1200,
+    height: 1600,
+    rectangles: [{ corners, confidence: 1 }],
+    subjects: [
+      {
+        quad: [
+          { x: 0.25, y: 0.25 },
+          { x: 0.75, y: 0.25 },
+          { x: 0.75, y: 0.75 },
+          { x: 0.25, y: 0.75 },
+        ],
+        quadFill: 1.004,
+        area: 0.25,
+      },
+    ],
+  });
+  mockWarp.mockResolvedValue({ cropPath: "/crop.jpg", usedQuad: corners });
+
+  await warper.warpAndLetterbox("file:///painting.jpg", quad, 512);
+
+  expect(mockWarp).toHaveBeenCalledWith("/painting.jpg", corners, 512);
+});

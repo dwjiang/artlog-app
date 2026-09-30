@@ -18,9 +18,9 @@ public extension StillDetection {
   /**
    * Create a new instance of `StillDetection`.
    */
-  init(width: Double, height: Double, rectangles: [StillRectObservation], subjects: [SubjectObservation], subjectNote: String?) {
-    self.init(width, height, { () -> bridge.std__vector_StillRectObservation_ in
-      var __vector = bridge.create_std__vector_StillRectObservation_(rectangles.count)
+  init(width: Double, height: Double, rectangles: [RectObservation], subjects: [SubjectObservation], subjectNote: String?) {
+    self.init(width, height, { () -> bridge.std__vector_RectObservation_ in
+      var __vector = bridge.create_std__vector_RectObservation_(rectangles.count)
       for __item in rectangles {
         __vector.push_back(__item)
       }
@@ -51,7 +51,7 @@ public extension StillDetection {
   }
   
   @inline(__always)
-  var rectangles: [StillRectObservation] {
+  var rectangles: [RectObservation] {
     return self.__rectangles.map({ __item in __item })
   }
   

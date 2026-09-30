@@ -18,14 +18,14 @@ public extension SubjectObservation {
   /**
    * Create a new instance of `SubjectObservation`.
    */
-  init(area: Double, quadFill: Double, quad: [RectPoint], flatShare: Double) {
+  init(area: Double, quadFill: Double, quad: [RectPoint]) {
     self.init(area, quadFill, { () -> bridge.std__vector_RectPoint_ in
       var __vector = bridge.create_std__vector_RectPoint_(quad.count)
       for __item in quad {
         __vector.push_back(__item)
       }
       return __vector
-    }(), flatShare)
+    }())
   }
 
   @inline(__always)
@@ -41,10 +41,5 @@ public extension SubjectObservation {
   @inline(__always)
   var quad: [RectPoint] {
     return self.__quad.map({ __item in __item })
-  }
-  
-  @inline(__always)
-  var flatShare: Double {
-    return self.__flatShare
   }
 }

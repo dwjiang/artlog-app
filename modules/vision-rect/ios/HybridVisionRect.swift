@@ -32,20 +32,9 @@ final class HybridVisionRect: HybridVisionRectSpec {
       return StillDetection(
         width: Double(analysis.width),
         height: Double(analysis.height),
-        rectangles: analysis.rectangles.map { rectangle in
-          StillRectObservation(
-            confidence: Double(rectangle.confidence),
-            corners: rectangle.corners.map { RectPoint(x: $0.x, y: $0.y) },
-            flatShare: analysis.flatness.flatShare(rectangle.corners)
-          )
-        },
+        rectangles: analysis.rectangles.map(Self.observation),
         subjects: analysis.subjects.map { subject in
-          SubjectObservation(
-            area: subject.area,
-            quadFill: subject.quadFill,
-            quad: subject.quad.map { RectPoint(x: $0.x, y: $0.y) },
-            flatShare: analysis.flatness.flatShare(subject.quad)
-          )
+          SubjectObservation(area: subject.area, quadFill: subject.quadFill, quad: subject.quad.map { RectPoint(x: $0.x, y: $0.y) })
         },
         subjectNote: analysis.subjectNote
       )

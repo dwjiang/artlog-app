@@ -21,14 +21,6 @@ export interface RectDetection {
   observations: RectObservation[];
 }
 
-export interface StillRectObservation {
-  confidence: number;
-  /** Corners in order top-left, top-right, bottom-right, bottom-left. */
-  corners: RectPoint[];
-  /** Share of the quad without visible texture, 0–1: blank wall, mat or page rather than paint. */
-  flatShare: number;
-}
-
 export interface SubjectObservation {
   /** Share of the image covered by the subject's largest connected region. */
   area: number;
@@ -36,8 +28,6 @@ export interface SubjectObservation {
   quadFill: number;
   /** Corners fitted to the region's sides, in order top-left, top-right, bottom-right, bottom-left. */
   quad: RectPoint[];
-  /** Share of the quad without visible texture, 0–1. */
-  flatShare: number;
 }
 
 export interface StillDetection {
@@ -45,7 +35,7 @@ export interface StillDetection {
   width: number;
   height: number;
   /** Rectangle candidates, largest first. */
-  rectangles: StillRectObservation[];
+  rectangles: RectObservation[];
   /** Foreground subjects lifted from the background, largest first. */
   subjects: SubjectObservation[];
   /** Why subject lifting produced nothing, when it did: its error (the iOS Simulator cannot run it) or what it rejected. */

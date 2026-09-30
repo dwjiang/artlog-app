@@ -44,11 +44,10 @@ namespace margelo::nitro::visionrect {
     double area     SWIFT_PRIVATE;
     double quadFill     SWIFT_PRIVATE;
     std::vector<RectPoint> quad     SWIFT_PRIVATE;
-    double flatShare     SWIFT_PRIVATE;
 
   public:
     SubjectObservation() = default;
-    explicit SubjectObservation(double area, double quadFill, std::vector<RectPoint> quad, double flatShare): area(area), quadFill(quadFill), quad(quad), flatShare(flatShare) {}
+    explicit SubjectObservation(double area, double quadFill, std::vector<RectPoint> quad): area(area), quadFill(quadFill), quad(quad) {}
 
   public:
     friend bool operator==(const SubjectObservation& lhs, const SubjectObservation& rhs) = default;
@@ -66,8 +65,7 @@ namespace margelo::nitro {
       return margelo::nitro::visionrect::SubjectObservation(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "area"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "quadFill"))),
-        JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "quad"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flatShare")))
+        JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "quad")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::visionrect::SubjectObservation& arg) {
@@ -75,7 +73,6 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "area"), JSIConverter<double>::toJSI(runtime, arg.area));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "quadFill"), JSIConverter<double>::toJSI(runtime, arg.quadFill));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "quad"), JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::toJSI(runtime, arg.quad));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "flatShare"), JSIConverter<double>::toJSI(runtime, arg.flatShare));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -89,7 +86,6 @@ namespace margelo::nitro {
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "area")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "quadFill")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::visionrect::RectPoint>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "quad")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "flatShare")))) return false;
       return true;
     }
   };
