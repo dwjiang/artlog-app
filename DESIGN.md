@@ -62,7 +62,9 @@ display, and mastheads and controls stack.
 ## Layout
 
 Use 20-point page gutters, 24-point section spacing, 16-point row padding, and
-8 points between related items, drawn from the spacing tokens. Long names,
+8 points between related items, drawn from the spacing tokens. A text button
+under another button gets no added gap (`ActionStack`): its 44-point target
+already leaves about 11 points above the label. Long names,
 titles, and notes wrap. Above 1.4× text scale, artwork grids collapse to one
 column. Scrolling, keyboard avoidance, and safe areas take precedence over a
 fixed-height composition. The movable Wall keeps its own geometry and accessible
@@ -91,8 +93,8 @@ Interface writing:
   missing, or what the person can do next.
 - Do let artwork and visual design supply the personality; everyday tasks do not
   need slogans, quips, or inspirational encouragement.
-- Do keep one brand statement, on Welcome: “Remember the art that stays with
-  you.”
+- Do keep one brand statement, on Welcome: “Point at a painting. Learn its
+  story.”
 - Do use factual empty-state headings, such as “No saved artworks yet.” Add a
   short next step when useful: “Scan an artwork to add it to your collection.”
 - Do match copy to the actual state: signing in, creating a profile, loading,

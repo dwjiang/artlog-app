@@ -3,6 +3,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { VisitKeepsake } from "@/components/guest/visit-keepsake";
@@ -182,14 +183,19 @@ function CaptureContext({
             title="No visits yet."
             detail="Create a visit to remember where you saw this artwork. You can also save it on its own."
           >
-            <GalleryButton
-              label="Create a visit"
-              icon="plus"
-              variant="filled"
-              fullWidth
-              onPress={() => router.push("/visit-create")}
-            />
-            <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
+            <ActionStack
+              textActions={
+                <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
+              }
+            >
+              <GalleryButton
+                label="Create a visit"
+                icon="plus"
+                variant="filled"
+                fullWidth
+                onPress={() => router.push("/visit-create")}
+              />
+            </ActionStack>
           </EmptyState>
         )
       )}

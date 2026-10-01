@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View, useWindowDimensions, type FlatList } from 
 import Animated, { useAnimatedRef, type CSSAnimationProperties } from "react-native-reanimated";
 
 import { SignInActions } from "@/components/account/sign-in-actions";
+import { ActionStack } from "@/components/action-stack";
 import { ChoiceMenu } from "@/components/choice-menu";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -160,17 +161,22 @@ export function LeaderboardScreen() {
                 detail="Rankings show saved artwork and visit totals. You can browse Global without a profile."
                 visual={<EmptyPodium />}
               >
-                {session.status === "signed-out" ? (
-                  <LeaderboardSignIn />
-                ) : (
-                  <GalleryButton
-                    label="Create your profile"
-                    variant="filled"
-                    fullWidth
-                    onPress={() => router.push("/create-profile")}
-                  />
-                )}
-                <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
+                <ActionStack
+                  textActions={
+                    <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
+                  }
+                >
+                  {session.status === "signed-out" ? (
+                    <LeaderboardSignIn />
+                  ) : (
+                    <GalleryButton
+                      label="Create your profile"
+                      variant="filled"
+                      fullWidth
+                      onPress={() => router.push("/create-profile")}
+                    />
+                  )}
+                </ActionStack>
               </EmptyState>
             ) : (
               <SocialGate session={session} />
@@ -191,24 +197,29 @@ export function LeaderboardScreen() {
               }
               visual={<EmptyPodium />}
             >
-              <GalleryButton
-                label={audience === "friends" ? "Find friends" : metric === "visits" ? "Add visit" : "Scan artwork"}
-                variant="filled"
-                fullWidth
-                onPress={() => {
-                  if (audience === "friends") {
-                    router.push("/people");
-                  } else if (metric === "visits") {
-                    router.push("/visit-create");
-                  } else {
-                    router.dismissAll();
-                    router.navigate("/scan");
-                  }
-                }}
-              />
-              {audience === "friends" && (
-                <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
-              )}
+              <ActionStack
+                textActions={
+                  audience === "friends" && (
+                    <GalleryButton label="Browse Global" fullWidth onPress={() => filter({ audience: "global" })} />
+                  )
+                }
+              >
+                <GalleryButton
+                  label={audience === "friends" ? "Find friends" : metric === "visits" ? "Add visit" : "Scan artwork"}
+                  variant="filled"
+                  fullWidth
+                  onPress={() => {
+                    if (audience === "friends") {
+                      router.push("/people");
+                    } else if (metric === "visits") {
+                      router.push("/visit-create");
+                    } else {
+                      router.dismissAll();
+                      router.navigate("/scan");
+                    }
+                  }}
+                />
+              </ActionStack>
             </EmptyState>
           )
         }

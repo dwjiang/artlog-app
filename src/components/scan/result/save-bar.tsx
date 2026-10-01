@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
@@ -32,7 +33,7 @@ export function SaveBar({
   return (
     <View>
       {savedId ? (
-        <View style={{ gap: Spacing.one }}>
+        <ActionStack textActions={<GalleryButton label="View artwork" fullWidth onPress={onViewSaved} />}>
           <GalleryButton
             label="Scan next artwork"
             icon="arrow.right"
@@ -44,8 +45,7 @@ export function SaveBar({
               router.navigate("/(tabs)/(scan)/scan");
             }}
           />
-          <GalleryButton label="View artwork" fullWidth onPress={onViewSaved} />
-        </View>
+        </ActionStack>
       ) : (
         <>
           {visit}

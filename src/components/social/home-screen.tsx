@@ -6,6 +6,7 @@ import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -155,21 +156,34 @@ export function HomeScreen() {
                 title="No public visits yet."
                 detail="View public walls to see other people’s collections."
               >
-                <GalleryButton
-                  label="View public walls"
-                  variant="filled"
-                  fullWidth
-                  onPress={() => router.push("/people")}
-                />
-                <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate("/scan")} />
+                <ActionStack
+                  textActions={
+                    <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate("/scan")} />
+                  }
+                >
+                  <GalleryButton
+                    label="View public walls"
+                    variant="filled"
+                    fullWidth
+                    onPress={() => router.push("/people")}
+                  />
+                </ActionStack>
               </SocialInvitation>
             ) : (
               <SocialInvitation
                 title="No visits from friends yet."
                 detail="Add friends to see the museum visits they share."
               >
-                <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
-                <GalleryButton label="Browse Global" fullWidth onPress={() => setChosenTab("global")} />
+                <ActionStack
+                  textActions={<GalleryButton label="Browse Global" fullWidth onPress={() => setChosenTab("global")} />}
+                >
+                  <GalleryButton
+                    label="Find friends"
+                    variant="filled"
+                    fullWidth
+                    onPress={() => router.push("/people")}
+                  />
+                </ActionStack>
               </SocialInvitation>
             )
           ) : null

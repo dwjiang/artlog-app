@@ -2,6 +2,7 @@ import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -157,19 +158,23 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
           {error}
         </Text>
       )}
-      <GalleryButton
-        label={error ? "Try again" : "Create public profile"}
-        variant="filled"
-        fullWidth
-        busy={busy}
-        disabled={!name.trim() || (!profileCreated && usernameBlocked)}
-        onPress={() => {
-          void submit();
-        }}
-      />
-      {profileCreated && error && (
-        <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={onCreated} />
-      )}
+      <ActionStack
+        textActions={
+          profileCreated
+          && error && <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={onCreated} />
+        }
+      >
+        <GalleryButton
+          label={error ? "Try again" : "Create public profile"}
+          variant="filled"
+          fullWidth
+          busy={busy}
+          disabled={!name.trim() || (!profileCreated && usernameBlocked)}
+          onPress={() => {
+            void submit();
+          }}
+        />
+      </ActionStack>
     </ScrollView>
   );
 }
