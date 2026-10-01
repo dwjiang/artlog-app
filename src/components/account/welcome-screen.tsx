@@ -21,7 +21,6 @@ import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
 import { setLocalProfileName, useLocalProfileName } from "@/lib/account/local-profile";
-import { signInRoute } from "@/lib/account/sign-in-context";
 import { reportError } from "@/lib/observability";
 import { LIMITS } from "@/shared/journal/limits";
 
@@ -41,7 +40,6 @@ export function WelcomeScreen() {
   const localProfile = useLocalProfileName();
   const [draft, setDraft] = useState<string>();
   const name = draft ?? localProfile.name ?? "";
-  const [signInAfterName, setSignInAfterName] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string>();
@@ -73,8 +71,7 @@ export function WelcomeScreen() {
     try {
       await setLocalProfileName(name);
       await setSetting(WELCOME_SEEN_SETTING, "true");
-      if (signInAfterName) router.replace(signInRoute("account"));
-      else router.back();
+      router.back();
     } catch (cause) {
       reportError(cause, "account.welcome.save");
       setError("Your name couldn’t be saved. Please try again.");
@@ -160,7 +157,7 @@ export function WelcomeScreen() {
         <View style={styles.actions}>
           {last ? (
             <GalleryButton
-              label={signInAfterName ? "Continue to sign in" : "Continue"}
+              label="Continue"
               fullWidth
               variant="filled"
               disabled={!name.trim() || localProfile.loading}
@@ -183,27 +180,7 @@ export function WelcomeScreen() {
               )}
             </>
           ) : (
-            <>
-              <GalleryButton
-                label="Get started"
-                fullWidth
-                variant="filled"
-                onPress={() => {
-                  setSignInAfterName(false);
-                  advance();
-                }}
-              />
-              <GalleryButton
-                label="I already have an account"
-                fullWidth
-                variant="filled"
-                tone="neutral"
-                onPress={() => {
-                  setSignInAfterName(true);
-                  goTo(count - 1);
-                }}
-              />
-            </>
+            <GalleryButton label="Get started" fullWidth variant="filled" onPress={advance} />
           )}
         </View>
       </View>

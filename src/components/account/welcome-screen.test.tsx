@@ -10,7 +10,6 @@ import { WelcomeScreen } from "./welcome-screen";
 type Permission = { granted: boolean; canAskAgain: boolean } | null;
 
 const mockBack = jest.fn();
-const mockReplace = jest.fn();
 const mockRequestCamera = jest.fn();
 const mockRequestPhotos = jest.fn();
 const mockRequestLocation = jest.fn();
@@ -22,7 +21,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ back: mockBack, replace: mockReplace }),
+  useRouter: () => ({ back: mockBack }),
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
@@ -123,21 +122,6 @@ it("moves on without asking again when a permission is already answered", async 
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(mockRequestCamera).not.toHaveBeenCalled();
   expect(await screen.findByLabelText("Page 3 of 5")).toBeOnTheScreen();
-});
-
-it("saves the name before opening sign-in without another welcome underneath it", async () => {
-  await render(<WelcomeScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "I already have an account" }));
-  expect(mockReplace).not.toHaveBeenCalled();
-  await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
-  await fireEvent.press(screen.getByRole("button", { name: "Continue to sign in" }));
-  await waitFor(() =>
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: "/sign-in",
-      params: { context: "account" },
-    }),
-  );
-  expect(await getLocalProfileName()).toBe("Alex");
 });
 
 it("prefills the saved name when onboarding is reopened", async () => {
