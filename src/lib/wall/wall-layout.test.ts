@@ -27,17 +27,21 @@ const piece = (width: number, height: number): WallPiece => ({
 });
 
 it("sizes the wall from uncropped artwork proportions", () => {
-  expect(wallBottom([{ ...piece(200, 400), layout: { ...piece(200, 400).layout, frame: "none" } }])).toBeCloseTo(1);
-  expect(wallBottom([{ ...piece(400, 200), layout: { ...piece(400, 200).layout, frame: "none" } }])).toBeCloseTo(0.4);
+  expect(wallBottom([{ ...piece(200, 400), layout: { ...piece(200, 400).layout, frame: "black" } }])).toBeCloseTo(
+    0.9663,
+  );
+  expect(wallBottom([{ ...piece(400, 200), layout: { ...piece(400, 200).layout, frame: "black" } }])).toBeCloseTo(
+    0.4169,
+  );
 });
 
 it("keeps a newly hung local photo at its original proportions before publishing", () => {
   expect(
-    wallBottom([{ ...piece(1, 1), cropAspectRatio: 0.5, layout: { ...piece(1, 1).layout, frame: "none" } }]),
-  ).toBeCloseTo(1);
+    wallBottom([{ ...piece(1, 1), cropAspectRatio: 0.5, layout: { ...piece(1, 1).layout, frame: "black" } }]),
+  ).toBeCloseTo(0.9663);
 });
 
-it("uses a thin black frame for every new placement without changing existing customization", () => {
+it("uses a matte black frame for every new placement without changing existing customization", () => {
   const pieces = [
     piece(1, 1),
     {

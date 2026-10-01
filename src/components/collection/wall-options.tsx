@@ -13,8 +13,8 @@ import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { Gallery } from "@/constants/theme";
-import { wallFrameInset, wallFrames } from "@/lib/wall/wall-frames";
 import { wallAspect, type WallFrame as Frame, type WallPiece } from "@/lib/wall/wall-layout";
+import { wallFrameInset, WALL_FRAMES as wallFrames } from "@/shared/wall/frames";
 
 import { WallArtwork } from "./wall-artwork";
 import { WallFrame } from "./wall-frame";
@@ -69,7 +69,9 @@ function WallChoice({
               fontWeight: selected ? "600" : "400",
               color: selected ? Gallery.accent : Gallery.muted,
             }}
-          >{`${label}${selected ? " ✓" : ""}`}</NativeText>
+          >
+            {label}
+          </NativeText>
         </Column>
       </Button>
     </Host>

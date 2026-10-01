@@ -1,66 +1,84 @@
-import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { Canvas, createPicture, FilterMode, MipmapMode, Picture, Skia, useImage } from "@shopify/react-native-skia";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { View } from "react-native";
 
-import { wallFrameInset, wallFrames } from "@/lib/wall/wall-frames";
-import type { WallFrame as Frame } from "@/lib/wall/wall-layout";
+import { reportError } from "@/lib/observability";
+import { framePatches } from "@/lib/wall/frame-patches";
+import { wallFrameAssets } from "@/lib/wall/wall-frame-assets";
+import { wallFrameInset, WALL_FRAMES as wallFrames, type WallFrame as Frame } from "@/shared/wall/frames";
 
 export function WallFrame({ frame, children, width }: { frame: Frame; children: ReactNode; width: number }) {
   const finish = wallFrames.find((item) => item.value === frame)!;
+  const { sculpted } = wallFrameAssets[frame];
   const inset = wallFrameInset(frame, width);
+  const [height, setHeight] = useState(0);
+  const scale = Math.min(1, width / 166);
   return (
     <View
+      onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
       style={{
         width,
         padding: inset,
-        backgroundColor: finish.color,
-        experimental_backgroundImage: finish.gradient,
-        boxShadow:
-          frame === "none" || frame === "black"
-            ? undefined
-            : width < 70
-              ? "0 1px 3px rgba(0,0,0,0.25)"
-              : "0 14px 22px -12px rgba(0,0,0,0.65), 0 2px 3px rgba(0,0,0,0.28)",
+        backgroundColor: sculpted ? undefined : finish.color,
+        boxShadow: sculpted
+          ? undefined
+          : [
+              { offsetX: scale, offsetY: 2 * scale, blurRadius: 2 * scale, color: "rgba(27,20,12,0.22)" },
+              { offsetX: 2 * scale, offsetY: 5 * scale, blurRadius: 7 * scale, color: "rgba(27,20,12,0.18)" },
+            ],
       }}
     >
       {children}
-      {frame !== "none" && (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              borderWidth: frame === "mat" ? 1 : 0.5,
-              borderTopColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.5)",
-              borderLeftColor: frame === "mat" ? "#2E2A26" : "rgba(255,240,205,0.35)",
-              borderBottomColor: "rgba(35,26,15,0.6)",
-              borderRightColor: "rgba(35,26,15,0.45)",
-            },
-          ]}
-        />
-      )}
-      {frame === "baroque" && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            inset: inset * 0.45,
-            borderWidth: Math.min(1, inset * 0.2),
-            borderColor: "#6D501B",
-          }}
-        />
-      )}
-      {inset > 0 && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            inset,
-            borderWidth: frame === "white" ? 2 : 0.5,
-            borderColor: frame === "white" ? "#4F4B46" : "rgba(30,20,10,0.45)",
-            boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18)",
-          }}
-        />
-      )}
+      <FrameTexture key={frame} frame={frame} width={width} height={height} inset={inset} />
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          inset,
+          boxShadow: `inset 0 ${scale}px ${2 * scale}px rgba(20,15,10,0.3)`,
+        }}
+      />
     </View>
   );
+}
+
+function FrameTexture({ frame, width, height, inset }: { frame: Frame; width: number; height: number; inset: number }) {
+  const asset = wallFrameAssets[frame];
+  const scale = Math.min(1, width / 166);
+  const shadowPadding = asset.sculpted ? 12 * scale : 0;
+  const onError = useCallback(() => {
+    reportError(new Error("Bundled frame texture could not load"), "wall.frame.load", { data: { frame } });
+  }, [frame]);
+  const image = useImage(asset.source, onError);
+  const picture = useMemo(() => {
+    if (!image || height <= 0) return null;
+    return createPicture(
+      (canvas) => {
+        canvas.translate(shadowPadding, shadowPadding);
+        if (asset.sculpted) {
+          const paint = Skia.Paint();
+          paint.setImageFilter(
+            Skia.ImageFilter.MakeDropShadow(
+              2 * scale,
+              4 * scale,
+              2 * scale,
+              2 * scale,
+              Skia.Color("rgba(27,20,12,0.3)"),
+            ),
+          );
+          canvas.saveLayer(paint);
+        }
+        for (const { src, dest } of framePatches(asset.bounds, width, height, inset)) {
+          canvas.drawImageRectOptions(image, src, dest, FilterMode.Linear, MipmapMode.None);
+        }
+        if (asset.sculpted) canvas.restore();
+      },
+      { x: 0, y: 0, width: width + shadowPadding * 2, height: height + shadowPadding * 2 },
+    );
+  }, [asset, image, width, height, inset, scale, shadowPadding]);
+  return picture ? (
+    <Canvas pointerEvents="none" accessible={false} style={{ position: "absolute", inset: -shadowPadding }}>
+      <Picture picture={picture} />
+    </Canvas>
+  ) : null;
 }

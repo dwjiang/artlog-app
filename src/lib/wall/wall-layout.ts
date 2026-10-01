@@ -1,6 +1,6 @@
 import { DEFAULT_WALL_FRAME } from "@/shared/wall/defaults";
+import { wallFrameInset } from "@/shared/wall/frames";
 
-import { wallFrameInset } from "./wall-frames";
 import type { LayoutInput, OwnerWall } from "./wall-transport";
 
 export type WallDraft = Pick<LayoutInput, "color" | "pattern" | "items">;

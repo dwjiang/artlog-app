@@ -11,8 +11,8 @@ import type { SavedWork } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
-import { wallFrames } from "@/lib/wall/wall-frames";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
+import { WALL_FRAMES as wallFrames } from "@/shared/wall/frames";
 
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";

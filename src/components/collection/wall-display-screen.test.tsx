@@ -62,7 +62,11 @@ it("explains why a hung work cannot share its note until the note has synced", a
   expect(screen.getByText("Add a note and let it sync before sharing it.")).toBeOnTheScreen();
 });
 
-it("saves a frame change for the hung placement", async () => {
+it.each([
+  ["Carved Leaf", "carved-leaf"],
+  ["Aged Silver", "aged-silver"],
+  ["Satin Silver & Linen", "satin-silver-linen"],
+])("saves %s for the hung placement", async (name, frame) => {
   const setLayoutDraft = jest.fn();
   const publishLayout = jest.fn().mockResolvedValue(undefined);
   mockWall = {
@@ -76,13 +80,13 @@ it("saves a frame change for the hung placement", async () => {
     setError: jest.fn(),
   };
   await render(<WallDisplayScreen savedId="lilies" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Baroque" }));
+  await fireEvent.press(await screen.findByRole("button", { name }));
   expect(setLayoutDraft).toHaveBeenCalledWith(
     expect.objectContaining({
       items: [
         expect.objectContaining({
           placementId: "p",
-          layout: expect.objectContaining({ frame: "baroque" }),
+          layout: expect.objectContaining({ frame }),
         }),
       ],
     }),
@@ -90,7 +94,7 @@ it("saves a frame change for the hung placement", async () => {
   expect(publishLayout).toHaveBeenCalledTimes(1);
 });
 
-it("previews the selected artwork and offers all eight frames without preset sizes", async () => {
+it("previews the selected artwork and offers the approved frames without preset sizes", async () => {
   mockWall = {
     signedIn: true,
     pieces: [
@@ -114,13 +118,38 @@ it("previews the selected artwork and offers all eight frames without preset siz
   await render(<WallDisplayScreen savedId="lilies" />);
   expect(
     await screen.findByRole("image", {
-      name: "Water Lilies, Black frame preview",
+      name: "Water Lilies, Matte Black frame preview",
     }),
   ).toBeOnTheScreen();
-  for (const name of ["Gilt", "Baroque", "Walnut", "Oak", "Black", "White float", "Mat", "No frame"]) {
+  for (const name of [
+    "Natural Oak",
+    "Sculpted Walnut",
+    "Ebonized Oak",
+    "Antique Gold",
+    "Carved Leaf",
+    "Aged Silver",
+    "Satin Silver & Linen",
+    "Matte Black",
+    "White Float",
+    "Museum Mat",
+    "Fine Scroll",
+  ]) {
     expect(screen.getByRole("button", { name })).toBeOnTheScreen();
   }
-  for (const name of ["S", "M", "L"]) {
+  for (const name of [
+    "S",
+    "M",
+    "L",
+    "No frame",
+    "Rococo",
+    "Gilt",
+    "Oak",
+    "Walnut",
+    "Black",
+    "Mat",
+    "Baroque Gold",
+    "Acanthus",
+  ]) {
     expect(screen.queryByRole("button", { name })).toBeNull();
   }
   expect(screen.getByRole("header", { name: "Water Lilies" })).toBeOnTheScreen();

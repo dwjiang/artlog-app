@@ -330,7 +330,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
       active: true,
       noteVisible: true,
       noteRevision: 2,
-      layout: { x: 0, y: 0, width: 1, layer: 0, frame: "none" },
+      layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
     });
     const post = await ctx.db.insert("sharedVisits", {
       audience: "public",
@@ -380,7 +380,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
 it("validates shared layout, dimensions, and reporting boundaries", () => {
   expect(() => validateLayout({ x: 0, y: 3, width: 0.5, layer: 2, frame: "oak" })).not.toThrow();
   for (const width of [0, -1, 2, Infinity]) {
-    expect(() => validateLayout({ x: 0, y: 0, width, layer: 0, frame: "none" })).toThrow("invalid_wall");
+    expect(() => validateLayout({ x: 0, y: 0, width, layer: 0, frame: "black" })).toThrow("invalid_wall");
   }
   expect(() =>
     validateMedia({

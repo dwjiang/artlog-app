@@ -1,6 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
+import { WALL_FRAMES } from "../wall/frames";
 import { isAllowedIdentity, isOffensive } from "./profile-text";
 import { isUsername } from "./username";
 
@@ -12,9 +13,7 @@ export const publicProfile = v.object({
   photoUrl: v.optional(v.string()),
   publishedWallCount: v.number(),
 });
-export const frame = v.union(
-  ...(["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const).map(v.literal),
-);
+export const frame = v.union(...WALL_FRAMES.map((finish) => v.literal(finish.value)));
 /** A wall without a pattern is plain color. */
 export const wallPattern = v.union(
   ...(["stripe", "pinstripe", "grid", "dots", "check", "trellis"] as const).map(v.literal),
