@@ -458,9 +458,11 @@ export function MuseumDetail({
         <View
           style={[
             styles.footer,
+            // Stacked, the transparent Cancel's own 48-point target spaces it from the filled button.
             fontScale > 1.4 && {
               flexDirection: "column",
               alignItems: "stretch",
+              rowGap: 0,
             },
           ]}
         >

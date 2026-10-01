@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Dimensions } from "react-native";
 
 import * as settings from "@/db/repos/settings";
 import { getLocalProfileName, setLocalProfileName } from "@/lib/account/local-profile";
@@ -29,6 +28,7 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/lib/module/mock"));
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual("react-native-reanimated/mock"),
+  cubicBezier: () => "ease-out",
   useReducedMotion: () => false,
 }));
 jest.mock("react-native-vision-camera", () => ({
@@ -42,6 +42,13 @@ jest.mock("expo-location", () => ({
 }));
 
 const allowed = { granted: true, canAskAgain: true };
+
+async function declineEveryPermission() {
+  await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
+  for (let page = 0; page < 3; page++) {
+    await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  }
+}
 
 beforeEach(async () => {
   jest.restoreAllMocks();
@@ -60,11 +67,13 @@ it("asks for each permission before saving a name and completing onboarding", as
   await render(<WelcomeScreen />);
   expect(screen.getByLabelText("Page 1 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
 
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
   expect(screen.getByLabelText("Page 2 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Scan artworks." })).toBeOnTheScreen();
-  expect(screen.getByText("Artwork photos stay on your phone")).toBeOnTheScreen();
+  expect(screen.getByText("Identifies paintings and reads their wall labels.")).toBeOnTheScreen();
   expect(screen.queryByRole("header", { name: /Welcome to Artlog/ })).toBeNull();
 
   await fireEvent.press(screen.getByRole("button", { name: "Allow camera" }));
@@ -82,7 +91,6 @@ it("asks for each permission before saving a name and completing onboarding", as
   expect(await screen.findByLabelText("Page 5 of 5")).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
   expect(await settings.getSetting("welcome-seen")).toBeUndefined();
-  expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("Name"), "  Alex Rivera  ");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
@@ -90,9 +98,9 @@ it("asks for each permission before saving a name and completing onboarding", as
   expect(await settings.getSetting("welcome-seen")).toBe("true");
 });
 
-it("skips permission prompts but still requires a name or nickname", async () => {
+it("declines every permission but still requires a name or nickname", async () => {
   await render(<WelcomeScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Skip" }));
+  await declineEveryPermission();
   expect(screen.getByRole("header", { name: "Your name." })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), "   ");
@@ -105,13 +113,19 @@ it("skips permission prompts but still requires a name or nickname", async () =>
   expect(mockRequestLocation).not.toHaveBeenCalled();
 });
 
-it("follows the page a visitor swipes to", async () => {
+it("goes back one page at a time without answering for the visitor", async () => {
   await render(<WelcomeScreen />);
-  await fireEvent(screen.getByText("Remember the art that stays with you."), "momentumScrollEnd", {
-    nativeEvent: { contentOffset: { x: Dimensions.get("window").width * 2 } },
-  });
-  expect(screen.getByLabelText("Page 3 of 5")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   expect(screen.getByRole("header", { name: "Keep the photo." })).toBeOnTheScreen();
+
+  await fireEvent.press(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByLabelText("Page 2 of 5")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Allow camera" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(mockRequestCamera).not.toHaveBeenCalled();
 });
 
 it("moves on without asking again when a permission is already answered", async () => {
@@ -127,7 +141,7 @@ it("moves on without asking again when a permission is already answered", async 
 it("prefills the saved name when onboarding is reopened", async () => {
   await setLocalProfileName("Alex");
   await render(<WelcomeScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Skip" }));
+  await declineEveryPermission();
   expect(await screen.findByDisplayValue("Alex")).toBeOnTheScreen();
 });
 
@@ -135,7 +149,7 @@ it("keeps the entered name and retries when saving fails", async () => {
   const failure = new Error("Disk unavailable");
   jest.spyOn(settings, "setSetting").mockRejectedValueOnce(failure);
   await render(<WelcomeScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Skip" }));
+  await declineEveryPermission();
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Your name couldn’t be saved. Please try again.");

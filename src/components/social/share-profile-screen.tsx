@@ -8,6 +8,7 @@ import { useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -131,18 +132,19 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
         </View>
       </ScrollView>
       <View collapsable={false} style={[styles.actions, { paddingBottom: Math.max(bottom, Spacing.three) }]}>
-        <GalleryButton
-          label="Share QR code"
-          icon="square.and.arrow.up"
-          variant="filled"
-          fullWidth
-          busy={busy}
-          busyLabel="Preparing QR code…"
-          onPress={() => {
-            void share();
-          }}
-        />
-        <GalleryButton label="Done" fullWidth onPress={() => router.back()} />
+        <ActionStack textActions={<GalleryButton label="Done" fullWidth onPress={() => router.back()} />}>
+          <GalleryButton
+            label="Share QR code"
+            icon="square.and.arrow.up"
+            variant="filled"
+            fullWidth
+            busy={busy}
+            busyLabel="Preparing QR code…"
+            onPress={() => {
+              void share();
+            }}
+          />
+        </ActionStack>
       </View>
     </View>
   );
@@ -179,6 +181,5 @@ const styles = StyleSheet.create({
   actions: {
     paddingHorizontal: Spacing.content,
     paddingTop: Spacing.compact,
-    gap: Spacing.two,
   },
 });

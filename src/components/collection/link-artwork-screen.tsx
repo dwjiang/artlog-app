@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActionStack } from "@/components/action-stack";
 import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { ArtworkCollage } from "@/components/guest/artwork-preview";
 import { VisitKeepsake } from "@/components/guest/visit-keepsake";
@@ -242,23 +243,24 @@ function LinkPicker({
               }
               visual={savedId ? <VisitKeepsake /> : <ArtworkCollage />}
             >
-              <GalleryButton
-                label={savedId ? "Add visit" : "Scan artwork"}
-                variant="filled"
-                fullWidth
-                onPress={() => {
-                  if (savedId) {
-                    router.push({
-                      pathname: "/visit-create",
-                      params: { savedId },
-                    });
-                  } else {
-                    router.dismissAll();
-                    router.navigate({ pathname: "/scan", params: { visitId } });
-                  }
-                }}
-              />
-              <GalleryButton label="Not now" fullWidth onPress={() => router.back()} />
+              <ActionStack textActions={<GalleryButton label="Not now" fullWidth onPress={() => router.back()} />}>
+                <GalleryButton
+                  label={savedId ? "Add visit" : "Scan artwork"}
+                  variant="filled"
+                  fullWidth
+                  onPress={() => {
+                    if (savedId) {
+                      router.push({
+                        pathname: "/visit-create",
+                        params: { savedId },
+                      });
+                    } else {
+                      router.dismissAll();
+                      router.navigate({ pathname: "/scan", params: { visitId } });
+                    }
+                  }}
+                />
+              </ActionStack>
             </EmptyState>
           )
         }

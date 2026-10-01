@@ -8,6 +8,7 @@ import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPaper } from "@/components/empty-state-art";
@@ -418,22 +419,27 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   if (phase.kind === "error") {
     return (
       <StateCard title="We couldn’t read that label." detail={phase.message} illustrated>
-        <GalleryButton
-          label="Retake label"
-          variant="filled"
-          fullWidth
-          onPress={() => setPhase({ kind: "capture", restore: false })}
-        />
-        <GalleryButton
-          label="Enter details myself"
-          fullWidth
-          onPress={() =>
-            router.replace({
-              pathname: "/result/[scanId]",
-              params: { scanId, edit: "1" },
-            })
+        <ActionStack
+          textActions={
+            <GalleryButton
+              label="Enter details myself"
+              fullWidth
+              onPress={() =>
+                router.replace({
+                  pathname: "/result/[scanId]",
+                  params: { scanId, edit: "1" },
+                })
+              }
+            />
           }
-        />
+        >
+          <GalleryButton
+            label="Retake label"
+            variant="filled"
+            fullWidth
+            onPress={() => setPhase({ kind: "capture", restore: false })}
+          />
+        </ActionStack>
       </StateCard>
     );
   }

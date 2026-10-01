@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
@@ -45,10 +46,14 @@ export function SocialState({
   }
   return (
     <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />} centered={centered}>
-      {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
-      {secondaryAction && onSecondaryAction && (
-        <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />
-      )}
+      <ActionStack
+        textActions={
+          secondaryAction
+          && onSecondaryAction && <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />
+        }
+      >
+        {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
+      </ActionStack>
     </EmptyState>
   );
 }
@@ -70,8 +75,11 @@ export function SocialGate({
         title={"Sign in to add friends."}
         detail="See the museum visits and artworks your friends share."
       >
-        <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
-        {onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
+        <ActionStack
+          textActions={onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
+        >
+          <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
+        </ActionStack>
       </SocialInvitation>
     );
   }
@@ -81,33 +89,33 @@ export function SocialGate({
         title="Create a public profile."
         detail="A public profile lets you find friends and follow their museum visits."
       >
-        <GalleryButton
-          label="Create your profile"
-          variant="filled"
-          fullWidth
-          onPress={() => router.push("/create-profile")}
-        />
-        {onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
+        <ActionStack
+          textActions={onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
+        >
+          <GalleryButton
+            label="Create your profile"
+            variant="filled"
+            fullWidth
+            onPress={() => router.push("/create-profile")}
+          />
+        </ActionStack>
       </SocialInvitation>
     );
   }
   if (session.status === "offline") {
     return (
-      <View>
-        <SocialState
-          title="You’re offline."
-          detail="Your saved collection is still here. Shared visits will return when you’re connected."
-          icon="wifi.slash"
-          action="Open your collection"
-          onAction={() => {
-            router.dismissAll();
-            router.navigate("/collection");
-          }}
-        />
-        <View style={{ paddingHorizontal: 20 }}>
-          <GalleryButton label="Try again" fullWidth onPress={session.refresh} />
-        </View>
-      </View>
+      <SocialState
+        title="You’re offline."
+        detail="Your saved collection is still here. Shared visits will return when you’re connected."
+        icon="wifi.slash"
+        action="Open your collection"
+        onAction={() => {
+          router.dismissAll();
+          router.navigate("/collection");
+        }}
+        secondaryAction="Try again"
+        onSecondaryAction={session.refresh}
+      />
     );
   }
   if (session.status === "error") {

@@ -1,12 +1,11 @@
 import { useRouter } from "expo-router";
 import { type ReactNode, useRef, useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   type SharedValue,
@@ -15,7 +14,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
-import { ProfileField } from "@/components/social/profile-fields";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
@@ -24,10 +22,10 @@ import { setLocalProfileName, useLocalProfileName } from "@/lib/account/local-pr
 import { reportError } from "@/lib/observability";
 import { LIMITS } from "@/shared/journal/limits";
 
-import { AccessLines, PromptPreview, useWelcomeAccess, type AccessStep } from "./welcome-access";
-import { WelcomeArt, welcomeWall } from "./welcome-art";
+import { useWelcomeAccess, type AccessStep } from "./welcome-access";
+import { AccessArt, WelcomeArt } from "./welcome-art";
 
-const BRAND_STATEMENT = "Remember the art that stays with you.";
+const BRAND_STATEMENT = "Point at a painting. Learn its story.";
 
 export function WelcomeScreen() {
   const router = useRouter();
@@ -37,6 +35,8 @@ export function WelcomeScreen() {
   const pager = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
   const [index, setIndex] = useState(0);
+  // Each page's picture plays its entrance once, the first time the page arrives.
+  const [reached, setReached] = useState(0);
   const localProfile = useLocalProfileName();
   const [draft, setDraft] = useState<string>();
   const name = draft ?? localProfile.name ?? "";
@@ -44,8 +44,6 @@ export function WelcomeScreen() {
   const savingRef = useRef(false);
   const [error, setError] = useState<string>();
   const access = useWelcomeAccess();
-  // 0 while the welcome page is centered, 1 once it has been swiped away; drives the wall parallax.
-  const welcomeProgress = useDerivedValue(() => (reduced ? 0 : scrollX.get() / width));
   const count = access.steps.length + 2;
   const last = index === count - 1;
   const step = index === 0 ? undefined : access.steps[index - 1];
@@ -54,9 +52,11 @@ export function WelcomeScreen() {
       scrollX.set(event.contentOffset.x);
     },
   });
+  // Pages change only through their buttons, so a swipe can never pass a permission without an answer.
   const goTo = (page: number) => {
     pager.current?.scrollTo({ x: page * width, animated: !reduced });
     setIndex(page);
+    setReached((furthest) => Math.max(furthest, page));
   };
   const advance = () => goTo(Math.min(index + 1, count - 1));
   const allow = async (current: AccessStep) => {
@@ -85,76 +85,103 @@ export function WelcomeScreen() {
     <KeyboardAvoidingView behavior="padding" style={styles.root}>
       <View style={[styles.root, { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) }]}>
         <View style={styles.header}>
+          <View
+            pointerEvents={index === 0 ? "none" : "auto"}
+            accessibilityElementsHidden={index === 0}
+            importantForAccessibility={index === 0 ? "no-hide-descendants" : "auto"}
+            style={{ opacity: index === 0 ? 0 : 1 }}
+          >
+            <GalleryButton
+              label="Back"
+              icon="chevron.left"
+              iconOnly
+              fullWidth={false}
+              disabled={saving}
+              onPress={() => goTo(Math.max(index - 1, 0))}
+            />
+          </View>
           <View accessible accessibilityLabel={`Page ${index + 1} of ${count}`} style={styles.progress}>
             {Array.from({ length: count }, (_, position) => (
               <ProgressSegment key={position} position={position} scrollX={scrollX} width={width} />
             ))}
-          </View>
-          <View
-            pointerEvents={last ? "none" : "auto"}
-            accessibilityElementsHidden={last}
-            importantForAccessibility={last ? "no-hide-descendants" : "auto"}
-            style={{ opacity: last ? 0 : 1 }}
-          >
-            <GalleryButton label="Skip" tone="ink" fullWidth={false} onPress={() => goTo(count - 1)} />
           </View>
         </View>
         <Animated.ScrollView
           ref={pager}
           horizontal
           pagingEnabled
-          scrollEnabled={!saving}
+          scrollEnabled={false}
           keyboardShouldPersistTaps="handled"
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={onScroll}
-          onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / width))}
           style={styles.pager}
         >
           <WelcomePage active={index === 0} width={width}>
-            <Stage color={welcomeWall} square>
-              {(size) => <WelcomeArt size={size} progress={welcomeProgress} />}
-            </Stage>
+            <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wordmark}>
+              Artlog
+            </Text>
+            <View style={styles.art}>
+              <WelcomeArt />
+            </View>
             <Headline accessibilityLabel={`Welcome to Artlog. ${BRAND_STATEMENT}`}>{BRAND_STATEMENT}</Headline>
           </WelcomePage>
           {access.steps.map((current, position) => (
             <WelcomePage key={current.key} active={index === position + 1} width={width}>
-              <Stage color={current.wall}>
-                {() => <PromptPreview prompt={current.prompt} stacked={current.prompt.options.length > 2} />}
-              </Stage>
-              <Headline>{current.headline}</Headline>
-              <AccessLines lines={current.lines} />
+              <View style={styles.art}>
+                <AccessArt step={current.key} shown={reached > position} />
+              </View>
+              <View style={styles.copy}>
+                <Headline>{current.headline}</Headline>
+                <Text themeColor="textSecondary">{current.caption}</Text>
+              </View>
             </WelcomePage>
           ))}
           <WelcomePage active={last} width={width}>
-            <View style={styles.avatar}>
-              <ProfileAvatar name={name.trim() || undefined} size={84} />
+            <View style={styles.art}>
+              <View style={styles.nameCard}>
+                <ProfileAvatar name={name.trim() || undefined} size={96} />
+                <TextInput
+                  accessibilityLabel="Name"
+                  value={name}
+                  onChangeText={setDraft}
+                  placeholder="Name or nickname"
+                  placeholderTextColor={Gallery.muted}
+                  selectionColor={Gallery.accent}
+                  keyboardAppearance="light"
+                  maxLength={LIMITS.name}
+                  textContentType="name"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  editable={!saving && !localProfile.loading}
+                  onSubmitEditing={() => void finish()}
+                  style={styles.nameInput}
+                />
+              </View>
             </View>
-            <View style={{ gap: Spacing.two }}>
+            <View style={styles.copy}>
               <Headline>Your name.</Headline>
-              <Text style={{ color: Gallery.muted }}>Use your name or a nickname for your profile.</Text>
+              {error && (
+                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                  {error}
+                </Text>
+              )}
             </View>
-            <ProfileField
-              label="Name"
-              value={name}
-              onChangeText={setDraft}
-              placeholder="Your name or nickname"
-              maxLength={LIMITS.name}
-              textContentType="name"
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="done"
-              editable={!saving && !localProfile.loading}
-              onSubmitEditing={() => void finish()}
-            />
-            {error && (
-              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                {error}
-              </Text>
-            )}
           </WelcomePage>
         </Animated.ScrollView>
         <View style={styles.actions}>
+          {/* Two rows on every page, so the pages above keep their height when the button count changes. */}
+          {!step || step.answer !== "unanswered" ? (
+            <View
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{ opacity: 0 }}
+            >
+              <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" disabled onPress={advance} />
+            </View>
+          ) : null}
           {last ? (
             <GalleryButton
               label="Continue"
@@ -205,37 +232,6 @@ function WelcomePage({ active, width, children }: { active: boolean; width: numb
   );
 }
 
-/** A tinted wall; `square` art is sized to the stage, a prompt preview sizes itself and centers. */
-function Stage({
-  color,
-  square = false,
-  children,
-}: {
-  color: string;
-  square?: boolean;
-  children: (size: number) => ReactNode;
-}) {
-  const { fontScale } = useWindowDimensions();
-  const [layout, setLayout] = useState<{ width: number; height: number }>();
-  return (
-    <View
-      onLayout={({ nativeEvent }) => setLayout(nativeEvent.layout)}
-      style={[
-        styles.stage,
-        { backgroundColor: color },
-        square ? { flex: 1, minHeight: fontScale > 1.3 ? 200 : 160 } : styles.prompt,
-      ]}
-    >
-      {/* Absolute, so square art never props the stage open when the copy needs the room. */}
-      {square ? (
-        <View style={styles.art}>{layout && children(Math.min(layout.width, layout.height))}</View>
-      ) : (
-        children(0)
-      )}
-    </View>
-  );
-}
-
 function Headline({ accessibilityLabel, children }: { accessibilityLabel?: string; children: string }) {
   const { fontScale } = useWindowDimensions();
   return (
@@ -277,18 +273,34 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.content,
+    gap: Spacing.two,
+    paddingLeft: Spacing.compact,
+    paddingRight: Spacing.content,
   },
   progress: { flex: 1, flexDirection: "row", gap: Spacing.one },
   track: { flex: 1, height: 3, borderRadius: Radius.full, overflow: "hidden", backgroundColor: Gallery.softBorder },
   fill: { flex: 1, backgroundColor: Gallery.ink, transformOrigin: "left" },
   pager: { flex: 1 },
-  avatar: { alignItems: "center", paddingVertical: Spacing.four },
   page: { flexGrow: 1, paddingHorizontal: Spacing.content, paddingTop: Spacing.two, gap: Spacing.four },
-  stage: { overflow: "hidden", borderRadius: Radius.sheet },
-  prompt: { minHeight: 300, padding: Spacing.three, alignItems: "center", justifyContent: "center" },
-  art: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+  wordmark: { ...Typography.wordmark, fontSize: 26, lineHeight: 34, letterSpacing: -0.8, color: Gallery.ink },
+  art: { flex: 1, minHeight: 220, justifyContent: "center" },
+  copy: { gap: Spacing.two },
+  nameCard: {
+    alignItems: "center",
+    gap: Spacing.content,
+    paddingHorizontal: Spacing.content,
+    paddingVertical: Spacing.five,
+    borderRadius: Radius.card,
+    backgroundColor: Gallery.fill,
+  },
+  nameInput: {
+    ...Typography.display,
+    fontSize: 34,
+    lineHeight: 44,
+    alignSelf: "stretch",
+    textAlign: "center",
+    color: Gallery.ink,
+  },
   title: { ...Typography.display, fontSize: 36, lineHeight: 47, color: Gallery.ink },
   actions: { gap: Spacing.compact, paddingHorizontal: Spacing.content, paddingTop: Spacing.three },
 });

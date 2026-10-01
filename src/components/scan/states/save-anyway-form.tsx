@@ -3,6 +3,7 @@ import { Button, Menu } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, disabled } from "@expo/ui/swift-ui/modifiers";
 import { useState } from "react";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { CapturePhotosButton } from "@/components/scan/capture-photos-button";
 import { FieldsForm } from "@/components/scan/result/fields-form";
@@ -49,9 +50,29 @@ export function SaveAnywayForm({
       onViewSaved={onViewSaved}
     />
   );
+  const detailsButton = editable && !compact && (
+    <GalleryButton
+      label={editing ? "Hide details" : "Add details (optional)"}
+      onPress={() => setEditing((value) => !value)}
+    />
+  );
+  const photosButton = captureInput && editable && !compact && (
+    <CapturePhotosButton input={{ ...captureInput, draft }} disabled={saving} />
+  );
   return (
     <>
-      {!editing && saveBar}
+      {!editing && (
+        <ActionStack
+          textActions={
+            <>
+              {detailsButton}
+              {photosButton}
+            </>
+          }
+        >
+          {saveBar}
+        </ActionStack>
+      )}
       {editable && compact && (
         <Host matchContents colorScheme="light">
           <Menu label="More options" modifiers={[accessibilityLabel("More scan options"), buttonStyle("plain")]}>
@@ -63,12 +84,7 @@ export function SaveAnywayForm({
           </Menu>
         </Host>
       )}
-      {editable && !compact && (
-        <GalleryButton
-          label={editing ? "Hide details" : "Add details (optional)"}
-          onPress={() => setEditing((value) => !value)}
-        />
-      )}
+      {editing && detailsButton}
       {editing && (
         <FieldsForm
           draft={draft}
@@ -80,9 +96,7 @@ export function SaveAnywayForm({
           }}
         />
       )}
-      {captureInput && editable && !compact && (
-        <CapturePhotosButton input={{ ...captureInput, draft }} disabled={saving} />
-      )}
+      {editing && photosButton}
       {editing && saveBar}
     </>
   );

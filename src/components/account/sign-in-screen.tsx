@@ -2,6 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkStrip } from "@/components/guest/artwork-preview";
@@ -67,11 +68,13 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
           {copy.title}
         </Text>
         <Text style={styles.detail}>{copy.detail}</Text>
-        <View style={styles.actions}>
+        <ActionStack
+          style={styles.actions}
+          textActions={<GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />}
+        >
           {/* The chosen provider keeps its progress until the linked journal is ready to open. */}
           <SignInActions state={{ ...state, busy: busy || waitingForJournal }} />
-          <GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />
-        </View>
+        </ActionStack>
       </ScrollView>
     </>
   );
@@ -103,5 +106,5 @@ const styles = StyleSheet.create({
     color: Gallery.ink,
   },
   detail: { ...Typography.body, color: Gallery.muted },
-  actions: { gap: 8, paddingTop: 8 },
+  actions: { paddingTop: 8 },
 });
