@@ -110,11 +110,6 @@ export function SettingsScreen() {
       )}
       <SettingsGroup title="Your journal">
         <SettingsRow label="General" icon="gearshape" onPress={detail("general")} />
-        <SettingsRow
-          label="Museum downloads"
-          icon="arrow.down.to.line"
-          onPress={() => router.push("/museum-downloads")}
-        />
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>
