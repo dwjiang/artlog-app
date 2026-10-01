@@ -123,13 +123,6 @@ function AppContent() {
                       }}
                     />
                     <Stack.Screen name="settings-detail" options={{ title: "Settings" }} />
-                    <Stack.Screen
-                      name="museum-downloads"
-                      options={{
-                        presentation: "fullScreenModal",
-                        headerShown: false,
-                      }}
-                    />
                     <Stack.Screen name="settings" options={{ title: "", headerBackTitle: "Collection" }} />
                     <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
                     <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />

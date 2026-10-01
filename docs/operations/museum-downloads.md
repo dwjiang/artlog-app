@@ -1,6 +1,7 @@
 # Museum downloads
 
-Settings → Museum downloads lists published packages for the app's bundled model.
+The app has no downloads screen for now; the backend and the app's download and
+offline-recognition code remain for its return. Packages target the bundled model.
 Each package contains established, eligible museum-owned objects with reference
 embeddings, ORB features, and cached artwork metadata and reading. Only complete
 packages become available for offline recognition. Unmatched scans keep the normal
