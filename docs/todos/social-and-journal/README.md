@@ -145,8 +145,7 @@ One wall belongs to one profile. It stores `color` and items with `saveLocalId`,
 `x`, `y`, `width`, explicit layer order, `frame`, and independent note visibility.
 Positions and widths are fractions of wall width; vertical position can exceed
 one. Values must be finite, width positive, `x >= 0`, `y >= 0`, and
-`x + width <= 1`. Frame IDs are `gilt`, `baroque`, `walnut`, `oak`, `black`,
-`white`, `mat`, and `none`. Aspect ratio comes from media dimensions, with a
+`x + width <= 1`. Frame IDs come from `shared/wall/frames.ts`. Aspect ratio comes from media dimensions, with a
 defined placeholder when media is unavailable.
 
 Adding an item publishes that selection with its note visibility off. Persist

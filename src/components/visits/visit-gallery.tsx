@@ -3,11 +3,9 @@ import { useState, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
-import { WallFrame } from "@/components/collection/wall-frame";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { wallFrameInset } from "@/lib/wall/wall-frames";
 import { normalizeSearch } from "@/shared/journal/limits";
 
 export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
@@ -55,9 +53,7 @@ export function VisitGalleryArtwork({
         style={[styles.stage, { aspectRatio: stageAspect }]}
         onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
       >
-        <WallFrame frame="none" width={frameWidth}>
-          {children(Math.max(1, frameWidth - wallFrameInset("none", frameWidth) * 2))}
-        </WallFrame>
+        <View style={{ width: frameWidth }}>{children(frameWidth)}</View>
         {photoCount !== 1 && (
           <View style={styles.badge}>
             {photoCount > 1 && (

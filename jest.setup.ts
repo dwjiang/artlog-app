@@ -1,5 +1,12 @@
 import { initializeOwner, switchOwner } from "./src/lib/account/owner-store";
 
+// Frame geometry has pure tests; native texture rendering is checked on iOS.
+jest.mock("@shopify/react-native-skia", () => ({
+  Canvas: jest.requireActual("react-native").View,
+  Picture: jest.requireActual("react-native").View,
+  useImage: () => null,
+}));
+
 jest.mock("@react-native-google-signin/google-signin", () => {
   return {
     GoogleSignin: { configure: jest.fn(), signIn: jest.fn(), signOut: jest.fn() },

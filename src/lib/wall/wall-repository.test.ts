@@ -13,7 +13,7 @@ const wall: OwnerWall = {
       itemId: "item-a" as never,
       placementId: "save-a",
       saveLocalId: "save-a",
-      layout: { x: 0, y: 0, width: 1, layer: 0, frame: "none" },
+      layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
       noteVisible: false,
       noteRevision: 0,
       noteEligible: true,

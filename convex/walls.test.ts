@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 
 import { STARTER_WALLS } from "../shared/wall/defaults";
+import { WALL_FRAMES } from "../shared/wall/frames";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { fileStorage } from "./lib/fileStorage";
@@ -179,7 +180,15 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
     }),
   ).rejects.toThrow(/Validator error: Expected one of .*, got `"fake"`/);
   let revision = 0;
-  for (const frame of ["gilt", "baroque", "walnut", "oak", "black", "white", "mat", "none"] as const) {
+  for (const frame of ["none", "baroque", "acanthus"]) {
+    await expect(
+      a.as.mutation(api.walls.setLayout, {
+        ...a.input,
+        items: [{ ...a.selection, layout: { ...a.layout, frame: frame as never } }],
+      }),
+    ).rejects.toThrow(/Validator error/);
+  }
+  for (const { value: frame } of WALL_FRAMES) {
     const result = await a.as.mutation(api.walls.setLayout, {
       ...a.input,
       revision,
@@ -191,6 +200,7 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
       ],
     });
     revision = result.revision;
+    expect(result.items[0].layout.frame).toBe(frame);
   }
 });
 
@@ -519,7 +529,7 @@ async function galleryFixture() {
         placementId: crypto.randomUUID(),
         saveLocalId: save.localId,
         photoLocalId: photos[0].localId,
-        layout: { x: 0, y: 0, width: 0.4, layer: 0, frame: "none" as const },
+        layout: { x: 0, y: 0, width: 0.4, layer: 0, frame: "black" as const },
       },
     ],
   };

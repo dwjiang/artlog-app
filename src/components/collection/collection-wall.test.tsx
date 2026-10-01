@@ -397,8 +397,8 @@ it("saves each color, frame, and placement edit using the latest acknowledged re
   await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
   await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Baroque" })).toBeEnabled());
+  await fireEvent.press(screen.getByRole("button", { name: "Carved Leaf" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Carved Leaf" })).toBeEnabled());
   await fireEvent.press(screen.getAllByRole("button", { name: "Done" }).at(-1)!);
   await fireEvent(screen.getByRole("button", { name: "The Milkmaid" }), "accessibilityAction", {
     nativeEvent: { actionName: "moveRight" },
@@ -416,7 +416,7 @@ it("saves each color, frame, and placement edit using the latest acknowledged re
         {
           placementId: "save-a",
           saveLocalId: "save-a",
-          layout: { ...published.items[0].layout, x: 0.125, frame: "baroque" },
+          layout: { ...published.items[0].layout, x: 0.125, frame: "carved-leaf" },
         },
       ],
     },
@@ -488,12 +488,12 @@ it("keeps editor controls visible and locked during a save", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
   await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
   await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Carved Leaf" }));
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   expect(screen.getByRole("header", { name: "Edit frame" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Baroque" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Carved Leaf" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Done", disabled: true })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Baroque" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Carved Leaf" }));
   expect(mockTransport.setLayout).toHaveBeenCalledTimes(1);
   await act(async () =>
     resolveSave({
@@ -501,11 +501,11 @@ it("keeps editor controls visible and locked during a save", async () => {
       revision: 4,
       items: published.items.map((item) => ({
         ...item,
-        layout: { ...item.layout, frame: "baroque" },
+        layout: { ...item.layout, frame: "carved-leaf" },
       })),
     }),
   );
-  expect(screen.getByRole("button", { name: "Baroque" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Carved Leaf" })).toBeEnabled();
 });
 
 it("cancels an in-flight save when its owner changes without retaining a stale wall or error", async () => {
@@ -1118,7 +1118,7 @@ it("keeps only Frame and Remove in the selected palette and only frame choices i
   }
   await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
   expect(screen.getByRole("header", { name: "Edit frame" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Oak" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Natural Oak" })).toBeOnTheScreen();
   for (const name of ["Photo", "Arrange", "Take off wall", "Choose photo"]) {
     expect(screen.queryByRole("button", { name })).toBeNull();
   }

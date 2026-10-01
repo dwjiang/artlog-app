@@ -267,7 +267,7 @@ it("prevents accessible movement and resizing from entering a neighboring artwor
 });
 
 it.each(["moveDown", "decrement"])("recovers from a taller photo through repeated %s actions", async (actionName) => {
-  const taller = { ...piece, cropAspectRatio: 0.4, layout: { ...piece.layout, frame: "none" as const } };
+  const taller = { ...piece, cropAspectRatio: 0.4, layout: { ...piece.layout, frame: "black" as const } };
   const below = { ...piece, localId: "below", layout: { ...piece.layout, y: 1.1 } };
   const onMove = jest.fn();
   function EditableWall() {
