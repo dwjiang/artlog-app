@@ -10,6 +10,7 @@ import {
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
+import { relationshipSnapshot } from "./friendships";
 
 export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
   const photoUrl = profile.photoStorageId ? await fileStorage.getUrl(ctx, profile.photoStorageId) : null;
@@ -20,6 +21,15 @@ export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): P
     ...(profile.bio ? { bio: profile.bio } : {}),
     ...(photoUrl ? { photoUrl } : {}),
     publishedWallCount: profile.publishedWallCount,
+  };
+}
+// Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
+export async function projectBrowsedProfile(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
+  const person = await projectProfile(ctx, profile);
+  if (!viewer || viewer._id === profile._id) return person;
+  return {
+    ...person,
+    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id)).state,
   };
 }
 export function projectArtwork(

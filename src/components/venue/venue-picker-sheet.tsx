@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
@@ -224,6 +225,14 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
   const emptyDetail = keepVisit
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
+  const nearbyEmpty = !hasQuery && status !== "locating" && options.length === 0;
+  const leaveButton = (
+    <GalleryButton
+      label={keepVisit ? "Keep current visit" : "Continue without a museum"}
+      fullWidth
+      onPress={keepVisit ?? notHere}
+    />
+  );
   return (
     <ScrollView
       style={sheetStyle}
@@ -301,27 +310,37 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           }
           visual={<EmptyMap />}
         >
-          <GalleryButton
-            label="Search museums"
-            variant="filled"
-            fullWidth
-            onPress={() => searchInput.current?.focus()}
-          />
-          {status === "denied" && askable && <GalleryButton label="Allow location" fullWidth onPress={allowLocation} />}
-          {status === "denied" && !askable && (
+          <ActionStack
+            textActions={
+              <>
+                {status === "denied" && askable && (
+                  <GalleryButton label="Allow location" fullWidth onPress={allowLocation} />
+                )}
+                {status === "denied" && !askable && (
+                  <GalleryButton
+                    label="Open Settings"
+                    fullWidth
+                    onPress={() => {
+                      void Linking.openSettings().catch((cause) => {
+                        reportError(cause, "venue.open-settings", {
+                          level: "warning",
+                        });
+                        setFailure("Could not open Settings.");
+                      });
+                    }}
+                  />
+                )}
+                {leaveButton}
+              </>
+            }
+          >
             <GalleryButton
-              label="Open Settings"
+              label="Search museums"
+              variant="filled"
               fullWidth
-              onPress={() => {
-                void Linking.openSettings().catch((cause) => {
-                  reportError(cause, "venue.open-settings", {
-                    level: "warning",
-                  });
-                  setFailure("Could not open Settings.");
-                });
-              }}
+              onPress={() => searchInput.current?.focus()}
             />
-          )}
+          </ActionStack>
         </EmptyState>
       ) : (
         <>
@@ -360,11 +379,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           {failure ?? error}
         </ThemedText>
       )}
-      <GalleryButton
-        label={keepVisit ? "Keep current visit" : "Continue without a museum"}
-        fullWidth
-        onPress={keepVisit ?? notHere}
-      />
+      {!nearbyEmpty && leaveButton}
     </ScrollView>
   );
 }

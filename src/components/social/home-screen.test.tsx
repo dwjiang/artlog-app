@@ -28,6 +28,7 @@ jest.mock("./visit-card", () => ({
   },
 }));
 jest.mock("convex/react", () => ({
+  useMutation: () => jest.fn(),
   useQueries: (requests: RequestForQueries) => {
     const { useEffect, useRef } = jest.requireActual<typeof import("react")>("react");
     const subscription = useRef({}).current;
@@ -100,6 +101,18 @@ it("switches between loaded feeds without flashing loading placeholders", async 
     expect(screen.queryByText("Global museum")).toBeNull();
     expect(screen.queryByLabelText("Loading visits…")).toBeNull();
   }
+});
+
+it("opens friends and notifications independently from the home header", async () => {
+  await render(<HomeScreen />);
+  await deliver({
+    "profiles:requests:first": [{ profileId: "friend" }],
+    "notifications:unseen:first": { page: [{ id: "notification", kind: "friendRequest" }], cursor: null, isDone: true },
+  });
+  await fireEvent.press(screen.getByRole("button", { name: "Find friends, 1 request" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people");
+  await fireEvent.press(screen.getByRole("button", { name: "Notifications, 1 new" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/notifications");
 });
 
 it("retains loaded later pages separately for each feed", async () => {

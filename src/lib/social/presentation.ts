@@ -1,6 +1,6 @@
 import { isCalendarDate, LIMITS, normalizeSearch } from "@/shared/journal/limits";
 
-import type { FriendshipAction, Relationship } from "./types";
+import type { FriendshipAction, Relationship, SuggestionReason } from "./types";
 
 export function visitDate(value: string, locale?: string, format: "full" | "short" = "full"): string {
   if (!isCalendarDate(value)) return "Date unavailable";
@@ -59,4 +59,24 @@ export function friendshipActions(state: Relationship, viewerId: string): Friend
     return state.requesterId === viewerId ? ["cancel"] : ["accept", "decline"];
   }
   return ["request"];
+}
+
+const firstName = (name: string) => name.trim().split(/\s+/u)[0] ?? name;
+
+export function suggestionReasonText(reason: SuggestionReason): string {
+  switch (reason.kind) {
+    case "mutual": {
+      const [first, second] = reason.friends.map((friend) => firstName(friend.name));
+      if (reason.count === 1) return `Friends with ${first}`;
+      if (reason.count === 2 && second) return `Friends with ${first} and ${second}`;
+      const others = reason.count - 1;
+      return `Friends with ${first} and ${others} ${others === 1 ? "other" : "others"}`;
+    }
+    case "artwork":
+      return `Also saved ${reason.artwork.artwork.title}`;
+    case "museum":
+      return `Also visited ${reason.venueName}`;
+    case "liked":
+      return `Liked your visit to ${reason.venueName}`;
+  }
 }

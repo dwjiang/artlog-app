@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { PhotoGallery } from "@/components/artwork/photo-gallery";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
@@ -237,16 +238,21 @@ export function ArtworkAlbum({
               : "Add photos of the artwork, its details, or its wall label."
           }
         >
-          <GalleryButton label="Add photos" variant="filled" fullWidth onPress={addPhotos} />
-          {scope === "visit" && (
-            <GalleryButton
-              label="View all photos"
-              onPress={() => {
-                setScope("all");
-                setPage(0);
-              }}
-            />
-          )}
+          <ActionStack
+            textActions={
+              scope === "visit" && (
+                <GalleryButton
+                  label="View all photos"
+                  onPress={() => {
+                    setScope("all");
+                    setPage(0);
+                  }}
+                />
+              )
+            }
+          >
+            <GalleryButton label="Add photos" variant="filled" fullWidth onPress={addPhotos} />
+          </ActionStack>
         </EmptyState>
       )}
     </View>

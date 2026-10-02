@@ -622,7 +622,8 @@ export default defineSchema({
     .index("by_owner_localId", ["owner", "localId"])
     .index("by_owner_history", ["owner", "visitedOn", "localId"])
     .index("by_owner_venue_history", ["owner", "venueId", "visitedOn", "localId"])
-    .index("by_owner_changeVersion", ["owner", "changeVersion"]),
+    .index("by_owner_changeVersion", ["owner", "changeVersion"])
+    .index("by_venue_history", ["venueId", "visitedOn"]),
 
   collections: defineTable({
     ...journalSave.fields,
@@ -643,7 +644,8 @@ export default defineSchema({
     .index("by_owner_savedAt", ["owner", "deletedAt", "savedAt", "localId"])
     .index("by_owner_artwork_savedAt", ["owner", "artworkId", "deletedAt", "savedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"])
-    .index("by_visitId", ["visitId"]),
+    .index("by_visitId", ["visitId"])
+    .index("by_artwork_deletedAt", ["artworkId", "deletedAt"]),
 
   artworkPhotos: defineTable({
     ...albumPhoto.fields,
@@ -740,6 +742,8 @@ export default defineSchema({
     secondProfileId: v.id("profiles"),
     requesterId: v.id("profiles"),
     state: relationshipState,
+    // Cleared by a scheduled mutation so outgoing requests leave suggestions reactively.
+    suggestionExpiresAt: v.optional(v.number()),
     revision: v.number(),
     updatedAt: v.number(),
   })
@@ -754,6 +758,12 @@ export default defineSchema({
   })
     .index("by_pair", ["blockerId", "blockedId"])
     .index("by_blockedId", ["blockedId"]),
+  suggestionDismissals: defineTable({
+    profileId: v.id("profiles"),
+    dismissedId: v.id("profiles"),
+  })
+    .index("by_profile_dismissed", ["profileId", "dismissedId"])
+    .index("by_dismissedId", ["dismissedId"]),
   sharedVisits: defineTable({
     removal: v.optional(removal),
     postId: v.string(),

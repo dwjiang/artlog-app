@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { WallSheet } from "@/components/collection/wall-sheet";
@@ -116,7 +117,27 @@ function CompletionSheet({
         </View>
       }
       footer={
-        <View style={styles.actions}>
+        <ActionStack
+          style={styles.actions}
+          textActions={
+            <>
+              <GalleryButton
+                label="View artwork"
+                fullWidth
+                disabled={saving}
+                onPress={() => void dismiss(openArtwork)}
+              />
+              {onViewResult && (
+                <GalleryButton
+                  label="View result"
+                  fullWidth
+                  disabled={saving}
+                  onPress={() => void dismiss(onViewResult)}
+                />
+              )}
+            </>
+          }
+        >
           <GalleryButton
             label="Scan next artwork"
             icon="arrow.right"
@@ -132,11 +153,7 @@ function CompletionSheet({
               })
             }
           />
-          <GalleryButton label="View artwork" fullWidth disabled={saving} onPress={() => void dismiss(openArtwork)} />
-          {onViewResult && (
-            <GalleryButton label="View result" fullWidth disabled={saving} onPress={() => void dismiss(onViewResult)} />
-          )}
-        </View>
+        </ActionStack>
       }
     >
       <View style={styles.content}>
@@ -238,6 +255,6 @@ const styles = StyleSheet.create({
   noteTitle: { fontWeight: "600" },
   sharedNotice: { flexDirection: "row", alignItems: "center", gap: Spacing.two },
   sharedNoticeIcon: { width: 12, height: 12 },
-  actions: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.one },
+  actions: { padding: Spacing.content, paddingTop: Spacing.four },
   muted: { color: Gallery.muted },
 });

@@ -43,16 +43,20 @@ export function CompactFriendshipControls({
   profileId,
   session,
   friend = false,
-  declinable = false,
   relationship,
   onChanged,
+  fullWidth = false,
+  declinable = false,
 }: {
   onChanged?: () => void;
   profileId: PublicProfile["profileId"];
   session: SocialSession;
   friend?: boolean;
-  declinable?: boolean;
   relationship?: RelationshipSource;
+  /** Fills a card's width instead of sitting at the end of a row. */
+  fullWidth?: boolean;
+  /** Offers Ignore beside Accept on an incoming request. */
+  declinable?: boolean;
 }) {
   if (profileId === session.profileId) return null;
   if (friend) return <Text style={styles.friends}>Friends</Text>;
@@ -61,6 +65,7 @@ export function CompactFriendshipControls({
       <GalleryButton
         label="Add"
         variant="outlined"
+        fullWidth={fullWidth || undefined}
         onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
       />
     );
@@ -70,9 +75,10 @@ export function CompactFriendshipControls({
     <CompactFriendshipAction
       profileId={profileId}
       session={session}
-      declinable={declinable}
       relationship={relationship}
       onChanged={onChanged}
+      fullWidth={fullWidth}
+      declinable={declinable}
     />
   );
 }
@@ -80,15 +86,17 @@ export function CompactFriendshipControls({
 function CompactFriendshipAction({
   profileId,
   session,
-  declinable,
   relationship,
   onChanged,
+  fullWidth,
+  declinable,
 }: {
   onChanged?: () => void;
   profileId: PublicProfile["profileId"];
   session: SocialSession;
-  declinable: boolean;
   relationship?: RelationshipSource;
+  fullWidth: boolean;
+  declinable: boolean;
 }) {
   const { state, pending, error, act, refresh } = useFriendship(profileId, session, relationship);
   const busy = pending !== undefined;
@@ -100,22 +108,26 @@ function CompactFriendshipAction({
     });
   };
   return (
-    <View style={{ alignItems: "flex-end", maxWidth: 150 }}>
+    <View style={fullWidth ? { alignItems: "center" } : { alignItems: "flex-end", maxWidth: 150 }}>
       {state?.state === "accepted" ? (
         <Text style={styles.friends}>Friends</Text>
       ) : (
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={styles.actions}>
           <GalleryButton
-            variant="outlined"
+            variant={action === "accept" ? "filled" : "outlined"}
             label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
+            icon={action === "cancel" ? "checkmark" : undefined}
+            fullWidth={fullWidth || undefined}
             busy={pending === action}
             disabled={busy || !state || state.blocked}
             onPress={() => run(action)}
           />
-          {declinable && action === "accept" && (
+          {action === "accept" && declinable && (
             <GalleryIconButton
+              label="Ignore request"
               icon="xmark"
-              label="Ignore friend request"
+              tone="muted"
+              size={13}
               busy={pending === "decline"}
               disabled={busy}
               onPress={() => run("decline")}
@@ -291,4 +303,5 @@ export function FriendshipControls({
 
 const styles = StyleSheet.create({
   friends: { color: Gallery.muted, fontSize: 13 },
+  actions: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", justifyContent: "flex-end" },
 });

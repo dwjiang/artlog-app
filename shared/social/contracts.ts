@@ -110,6 +110,22 @@ export const sharedVisitCard = v.object({
   artwork: publicArtwork,
   photos: v.optional(v.array(displayMedia)),
 });
+export const commonArtwork = v.object({
+  itemId: v.id("wallItems"),
+  artwork: publicArtwork,
+});
+/** Why a person is suggested. Artworks come from their public wall; museums from visits the viewer can read. */
+export const suggestionReason = v.union(
+  v.object({ kind: v.literal("mutual"), count: v.number(), friends: v.array(publicProfile) }),
+  v.object({ kind: v.literal("artwork"), artwork: commonArtwork }),
+  v.object({ kind: v.literal("museum"), venueName: v.string() }),
+  v.object({ kind: v.literal("liked"), venueName: v.string() }),
+);
+export const suggestion = v.object({ profile: browsedProfile, reason: suggestionReason });
+export const inCommon = v.object({
+  artworks: v.array(commonArtwork),
+  museums: v.array(v.object({ venueId: v.id("museums"), name: v.string(), city: v.optional(v.string()) })),
+});
 export const reportTarget = v.union(
   v.object({ kind: v.literal("profile"), profileId: v.id("profiles") }),
   v.object({ kind: v.literal("wallItem"), itemId: v.id("wallItems") }),

@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -199,7 +200,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
               : "Find friends to see the museum visits they share."
           }
         />
-        <View style={styles.actions}>
+        <ActionStack textActions={<GalleryButton label="Done" fullWidth onPress={close} />}>
           {visitId ? (
             <GalleryButton
               label="Continue to sharing"
@@ -215,8 +216,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
               onPress={() => router.dismissTo("/people")}
             />
           )}
-          <GalleryButton label="Done" fullWidth onPress={close} />
-        </View>
+        </ActionStack>
       </SetupPage>
     );
   }
@@ -343,18 +343,23 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
         />
       </View>
       {errorText}
-      <GalleryButton
-        label={photo ? "Save photo" : "Skip for now"}
-        variant="filled"
-        fullWidth
-        busy={operation === "photo"}
-        busyLabel="Uploading photo…"
-        disabled={operation === "choose"}
-        onPress={() => {
-          void savePhoto();
-        }}
-      />
-      {error && photo && <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />}
+      <ActionStack
+        textActions={
+          error && photo && <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />
+        }
+      >
+        <GalleryButton
+          label={photo ? "Save photo" : "Skip for now"}
+          variant="filled"
+          fullWidth
+          busy={operation === "photo"}
+          busyLabel="Uploading photo…"
+          disabled={operation === "choose"}
+          onPress={() => {
+            void savePhoto();
+          }}
+        />
+      </ActionStack>
     </SetupPage>
   );
 }
@@ -421,5 +426,4 @@ const styles = StyleSheet.create({
   summary: { alignItems: "center", gap: Spacing.three, paddingTop: Spacing.five },
   identity: { alignItems: "center", gap: Spacing.half },
   centered: { textAlign: "center" },
-  actions: { gap: Spacing.two },
 });

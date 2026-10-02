@@ -1,4 +1,11 @@
-import { friendshipActions, initials, notificationAge, peopleSearch, visitDate } from "./presentation";
+import {
+  friendshipActions,
+  initials,
+  notificationAge,
+  peopleSearch,
+  suggestionReasonText,
+  visitDate,
+} from "./presentation";
 import type { Relationship } from "./types";
 
 it("formats calendar dates without shifting the visit into another day", () => {
@@ -49,4 +56,27 @@ it.each([
       "me",
     ),
   ).toEqual(actions);
+});
+
+it("explains each suggestion in one line, naming mutual friends by first name", () => {
+  const friend = (name: string) => ({ profileId: name as never, name, username: name, publishedWallCount: 0 });
+  const mutual = (count: number, ...names: string[]) =>
+    suggestionReasonText({ kind: "mutual", count, friends: names.map(friend) });
+  expect(mutual(1, "Theo Alvarez")).toBe("Friends with Theo");
+  expect(mutual(2, "Theo Alvarez", "Sam Okafor")).toBe("Friends with Theo and Sam");
+  expect(mutual(2, "Theo Alvarez")).toBe("Friends with Theo and 1 other");
+  expect(mutual(3, "Theo Alvarez", "Sam Okafor")).toBe("Friends with Theo and 2 others");
+  expect(
+    suggestionReasonText({
+      kind: "artwork",
+      artwork: {
+        itemId: "item" as never,
+        artwork: { title: "Water Lilies", artist: "Claude Monet", media: { kind: "placeholder", width: 1, height: 1 } },
+      },
+    }),
+  ).toBe("Also saved Water Lilies");
+  expect(suggestionReasonText({ kind: "museum", venueName: "The Art Institute of Chicago" })).toBe(
+    "Also visited The Art Institute of Chicago",
+  );
+  expect(suggestionReasonText({ kind: "liked", venueName: "The Met" })).toBe("Liked your visit to The Met");
 });

@@ -155,6 +155,21 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
     .unique();
   if (read) await ctx.db.delete("notificationReads", read._id);
+  const dismissed = await ctx.db
+    .query("suggestionDismissals")
+    .withIndex("by_profile_dismissed", (q) => q.eq("profileId", profile._id))
+    .take(BATCH);
+  const dismissedBy =
+    dismissed.length > 0
+      ? []
+      : await ctx.db
+          .query("suggestionDismissals")
+          .withIndex("by_dismissedId", (q) => q.eq("dismissedId", profile._id))
+          .take(BATCH);
+  if (dismissed.length > 0 || dismissedBy.length > 0) {
+    for (const row of [...dismissed, ...dismissedBy]) await ctx.db.delete("suggestionDismissals", row._id);
+    return true;
+  }
   if (profile.photoStorageId) await fileStorage.delete(ctx, profile.photoStorageId);
   await ctx.db.delete("profiles", profile._id);
   return true;
