@@ -20,10 +20,9 @@ const museum = {
 const STORY = "Van Gogh painted the view from his window at the asylum in Saint-Rémy.";
 const STORY_WORDS = STORY.split(" ");
 const WORD_MS = 280;
-// The welcome scan runs by itself: the line sweeps, then the result rises and its story starts reading.
+// The welcome scan runs by itself: the line sweeps, then the result rises with its story waiting for Play.
 const SCAN_DELAY = 500;
 const RESULT_DELAY = 1300;
-const STORY_DELAY = RESULT_DELAY + 300;
 
 const DRIFT_SCALE = 1.1;
 const DRIFT_SHIFT = 6;
@@ -157,28 +156,18 @@ export function WelcomeArt({ active }: { active: boolean }) {
   );
 }
 
-/** Reveals the story a word at a time; Reduce Motion shows it whole. */
+/** Reveals the story a word at a time once the visitor presses Play; until then every word waits in gray. */
 function useStoryReveal() {
-  const reduced = useReducedMotion();
-  const [said, setSaid] = useState(reduced ? STORY_WORDS.length : 0);
-  const [playing, setPlaying] = useState(!reduced);
-  const [firstDelay, setFirstDelay] = useState(STORY_DELAY);
+  const [said, setSaid] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const finished = said >= STORY_WORDS.length;
   useEffect(() => {
     if (!playing || finished) return;
-    const timer = setTimeout(() => setSaid((count) => count + 1), said === 0 ? firstDelay : WORD_MS);
+    const timer = setTimeout(() => setSaid((count) => count + 1), WORD_MS);
     return () => clearTimeout(timer);
-  }, [finished, firstDelay, playing, said]);
+  }, [finished, playing, said]);
   const control = finished
-    ? {
-        label: "Replay story",
-        icon: "arrow.counterclockwise" as const,
-        onPress: () => {
-          setFirstDelay(WORD_MS);
-          setSaid(reduced ? STORY_WORDS.length : 0);
-          setPlaying(!reduced);
-        },
-      }
+    ? { label: "Replay story", icon: "arrow.counterclockwise" as const, onPress: () => setSaid(0) }
     : playing
       ? { label: "Pause story", icon: "pause.fill" as const, onPress: () => setPlaying(false) }
       : { label: "Play story", icon: "play.fill" as const, onPress: () => setPlaying(true) };
