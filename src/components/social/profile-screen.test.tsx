@@ -3,7 +3,7 @@ import { getFunctionName as mockGetFunctionName } from "convex/server";
 import type { ReactNode } from "react";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
-import type { SharedVisit } from "@/lib/social/types";
+import type { InCommon, SharedVisit } from "@/lib/social/types";
 
 import { ProfileScreen } from "./profile-screen";
 
@@ -67,7 +67,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
           ? mockRelationship
           : mockGetFunctionName(query) === "visitReactions:getSummary"
             ? { likeCount: 0, commentCount: 0, liked: false }
-            : { color: "#45524B", items: [] },
+            : mockGetFunctionName(query) === "suggestions:inCommonWith"
+              ? mockInCommon
+              : { color: "#45524B", items: [] },
     refresh: () => mockQueryRefresh(mockGetFunctionName(query)),
   }),
   useCursorPages: (...args: unknown[]) => {
@@ -76,6 +78,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
   },
 }));
 let mockVisits: SharedVisit[] = [];
+let mockInCommon: InCommon = { artworks: [], museums: [] };
 const visit: SharedVisit = {
   audience: "public",
   postId: "post-a",
@@ -96,6 +99,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRelationship = { state: "none", blocked: false };
   mockVisits = [];
+  mockInCommon = { artworks: [], museums: [] };
 });
 
 it("requests authorized public visits for strangers", async () => {
@@ -201,4 +205,26 @@ it("refreshes the profile and the open section when pulled", async () => {
   expect(mockVisitsRefresh).toHaveBeenCalledTimes(1);
   expect(mockQueryRefresh.mock.calls.flat()).toContain("profiles:getPublic");
   expect(mockQueryRefresh.mock.calls.flat()).not.toContain("walls:getPublic");
+});
+
+it("shows the artworks and museums you have in common with someone else", async () => {
+  mockInCommon = {
+    artworks: [
+      {
+        itemId: "lilies" as never,
+        artwork: { title: "Water Lilies", artist: "Claude Monet", media: { kind: "placeholder", width: 1, height: 1 } },
+      },
+    ],
+    museums: [{ venueId: "moma" as never, name: "MoMA", city: "New York" }],
+  };
+  await render(<ProfileScreen profileId="friend" />);
+  expect(screen.getByRole("header", { name: "In common" })).toBeOnTheScreen();
+  expect(screen.getByText("You both visited · New York")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/artwork", params: { kind: "wall", itemId: "lilies" } });
+});
+
+it("leaves In common out when nothing is shared", async () => {
+  await render(<ProfileScreen profileId="friend" />);
+  expect(screen.queryByText("In common")).toBeNull();
 });

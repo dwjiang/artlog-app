@@ -2,14 +2,17 @@ import { ConvexError, v } from "convex/values";
 
 import { isRevision, LIMITS } from "../shared/journal/limits";
 import { relationship as state } from "../shared/social/contracts";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
-import { mutation } from "./functions";
+import { internalAction, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from "./lib/friendships";
+import { withErrorReporting } from "./lib/observability";
 import { activeProfile, requireProfile } from "./lib/ownership";
 import { limitKey } from "./lib/rateLimits";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
+const REQUESTED_STAYS_MS = 24 * 60 * 60 * 1000;
 // Revocations stay available after the counterpart is removed so a stale edge cannot hold a friend slot.
 async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation = false) {
   const actor = await requireProfile(ctx);
@@ -86,11 +89,18 @@ function transition(operation: "request" | "accept" | "decline" | "cancel" | "re
         secondProfileId,
         requesterId: operation === "request" ? profile._id : edge!.requesterId,
         state: next,
+        suggestionExpiresAt: next === "pending" ? Date.now() + REQUESTED_STAYS_MS : undefined,
         revision: (edge?.revision ?? 0) + 1,
         updatedAt: Date.now(),
       };
+      const friendshipId = edge?._id ?? (await ctx.db.insert("friendships", fields));
       if (edge) await ctx.db.patch("friendships", edge._id, fields);
-      else await ctx.db.insert("friendships", fields);
+      if (fields.suggestionExpiresAt !== undefined) {
+        await ctx.scheduler.runAt(fields.suggestionExpiresAt, internal.friendships.expireSuggestion, {
+          friendshipId,
+          revision: fields.revision,
+        });
+      }
       return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
     },
   });
@@ -100,6 +110,28 @@ export const accept = transition("accept");
 export const decline = transition("decline");
 export const cancel = transition("cancel");
 export const remove = transition("remove");
+
+const expiryArgs = { friendshipId: v.id("friendships"), revision: v.number() };
+export const expireSuggestion = internalAction({
+  args: expiryArgs,
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("friendships.expireSuggestion", () =>
+      ctx.runMutation(internal.friendships.clearSuggestionExpiry, args),
+    ),
+});
+
+export const clearSuggestionExpiry = internalMutation({
+  args: expiryArgs,
+  returns: v.null(),
+  handler: async (ctx, { friendshipId, revision }) => {
+    const edge = await ctx.db.get("friendships", friendshipId);
+    if (edge?.state === "pending" && edge.revision === revision && edge.suggestionExpiresAt !== undefined) {
+      await ctx.db.patch("friendships", friendshipId, { suggestionExpiresAt: undefined });
+    }
+    return null;
+  },
+});
 
 export const block = mutation({
   args: { ...args, blockRevision: v.number() },
@@ -125,6 +157,7 @@ export const block = mutation({
       secondProfileId,
       requesterId: snapshot.edge?.requesterId ?? profile._id,
       state: "none" as const,
+      suggestionExpiresAt: undefined,
       revision: revision + 1,
       updatedAt: Date.now(),
     };

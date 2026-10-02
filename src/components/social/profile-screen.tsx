@@ -20,6 +20,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
+import { InCommonSection } from "./in-common";
 import { OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
 import { ReportToolbar } from "./report-toolbar";
@@ -165,6 +166,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               />
             )}
           </ProfileHeader>
+          {!own && <InCommonSection profileId={person.profileId} session={session} />}
         </Animated.View>
         {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
             spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer

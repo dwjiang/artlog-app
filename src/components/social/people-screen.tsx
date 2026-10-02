@@ -13,6 +13,7 @@ import { peopleSearch } from "@/lib/social/presentation";
 import type { PublicProfile, Relationship } from "@/lib/social/types";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { useSuggestions } from "@/lib/social/use-suggestions";
 import { LIMITS } from "@/shared/journal/limits";
 
 import { api } from "../../../convex/_generated/api";
@@ -21,6 +22,7 @@ import { CompactFriendshipControls } from "./friendship-controls";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
+import { SuggestionList } from "./suggested-people";
 import { ProfileIdentity } from "./visit-card";
 
 type BrowsedProfile = PublicProfile & { relationship?: Relationship };
@@ -68,9 +70,18 @@ export function PeopleScreen() {
     setFilter("all");
   };
   const people = searching ? results : discovery;
+  const suggestions = useSuggestions(session);
+  const exploring = filter === "all" && !text.trim();
+  // People already listed under Requests or Suggested are not repeated among the newest profiles.
+  const listedAbove = new Set([
+    ...(requests.data ?? []).map(profileId),
+    ...suggestions.people.map((person) => person.profile.profileId),
+  ]);
+  const newest = discovery.items.filter((person) => !listedAbove.has(person.profileId));
   const changed = () => {
     friends.refresh();
     requests.refresh();
+    suggestions.refresh();
   };
   // Browse pages embed the viewer's relationship per row; a row only opens its own subscription when a page lacks it.
   const relationship = (person: BrowsedProfile, refresh: () => void) =>
@@ -78,6 +89,17 @@ export function PeopleScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "" }} />
+      {session.status === "ready" && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="qrcode"
+            accessibilityLabel="Share your profile"
+            tintColor={Gallery.ink}
+            hidesSharedBackground
+            onPress={() => router.push("/share-profile")}
+          />
+        </Stack.Toolbar>
+      )}
       <FlatList
         style={socialStyles.root}
         contentContainerStyle={socialStyles.content}
@@ -96,7 +118,7 @@ export function PeopleScreen() {
               : searching
                 ? results.items
                 : !text.trim()
-                  ? discovery.items
+                  ? newest
                   : []
         }
         keyExtractor={profileId}
@@ -127,71 +149,87 @@ export function PeopleScreen() {
           </View>
         )}
         ListHeaderComponent={
-          <View
-            style={{
-              paddingHorizontal: 20,
-              paddingTop: 4,
-              paddingBottom: 12,
-              gap: 12,
-            }}
-          >
-            <Text variant="pageTitle" accessibilityRole="header">
-              Friends
-            </Text>
-            <SearchField
-              filled
-              label="Name or username"
-              value={text}
-              onChange={setText}
-              onClear={() => setText("")}
-              showLabel={false}
-              editable={filter === "all" || session.status === "ready"}
-            />
-            <NativeSegmentedPicker
-              label="Friends filter"
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "all", label: "Explore" },
-                { value: "friends", label: "Friends" },
-              ]}
-            />
-            {filter === "friends" && !!requests.data?.length && (
-              <View style={{ gap: 10 }}>
-                <Text variant="section">
-                  Requests <Text style={{ backgroundColor: Gallery.highlight }}>{requests.data.length}</Text>
-                </Text>
-                {requests.data.map((person) => (
-                  <View
-                    key={person.profileId}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <ProfileIdentity profile={person} />
+          <>
+            <View
+              style={{
+                paddingHorizontal: 20,
+                paddingTop: 4,
+                paddingBottom: 12,
+                gap: 12,
+              }}
+            >
+              <Text variant="pageTitle" accessibilityRole="header">
+                Friends
+              </Text>
+              <SearchField
+                filled
+                label="Name or username"
+                value={text}
+                onChange={setText}
+                onClear={() => setText("")}
+                showLabel={false}
+                editable={filter === "all" || session.status === "ready"}
+              />
+              <NativeSegmentedPicker
+                label="Friends filter"
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: "all", label: "Explore" },
+                  { value: "friends", label: "Friends" },
+                ]}
+              />
+              {exploring && !!requests.data?.length && (
+                <View style={{ gap: 10, paddingTop: 12 }}>
+                  <Text variant="section" accessibilityRole="header">
+                    Requests
+                  </Text>
+                  {requests.data.map((person) => (
+                    <View
+                      key={person.profileId}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <ProfileIdentity profile={person} />
+                      </View>
+                      <CompactFriendshipControls
+                        onChanged={changed}
+                        profileId={person.profileId}
+                        session={session}
+                        relationship={relationship(person, requests.refresh)}
+                        declinable
+                      />
                     </View>
-                    <CompactFriendshipControls
-                      onChanged={changed}
-                      profileId={person.profileId}
-                      session={session}
-                      relationship={relationship(person, requests.refresh)}
-                    />
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              )}
+              {filter === "friends" && !!friends.data?.length && (
+                <Text variant="section">
+                  Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text>
+                </Text>
+              )}
+              {exploring && requests.error && (
+                <GalleryButton label="Retry friend requests" onPress={requests.refresh} />
+              )}
+            </View>
+            {exploring && (
+              <SuggestionList
+                people={suggestions.people}
+                session={session}
+                onDismiss={suggestions.dismiss}
+                refresh={suggestions.refresh}
+              />
             )}
-            {filter === "friends" && !!friends.data?.length && (
-              <Text variant="section">
-                Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text>
+            {exploring && newest.length > 0 && listedAbove.size > 0 && (
+              <Text variant="section" accessibilityRole="header" style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+                New on Artlog
               </Text>
             )}
-            {filter === "friends" && requests.error && (
-              <GalleryButton label="Retry friend requests" onPress={requests.refresh} />
-            )}
-          </View>
+          </>
         }
         ItemSeparatorComponent={() => (
           <View
@@ -229,7 +267,7 @@ export function PeopleScreen() {
           ) : session.offline ? (
             <SocialState title="You’re offline." detail="Connect to find friends." icon="wifi.slash" />
           ) : !text.trim() ? (
-            discovery.done && !discovery.loading && !discovery.error ? (
+            discovery.done && !discovery.loading && !discovery.error && discovery.items.length === 0 ? (
               <SocialInvitation
                 title={"No public profiles yet."}
                 detail="Profiles will appear here when people create them."

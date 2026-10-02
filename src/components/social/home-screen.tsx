@@ -16,15 +16,19 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
-import { useCursorPages } from "@/lib/social/use-social-query";
+import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { useSuggestions } from "@/lib/social/use-suggestions";
 
 import { api } from "../../../convex/_generated/api";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
+import { SuggestionList, SuggestionStrip } from "./suggested-people";
 import { VisitCard } from "./visit-card";
 
+// Suggestions sit above the Friends feed only until there are enough friends for the feed to carry the screen.
+const STRIP_FRIEND_LIMIT = 5;
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
 type FeedTab = "friends" | "global";
@@ -66,6 +70,20 @@ export function HomeScreen() {
   );
   const feed = tab === "global" ? globalFeed : friendsFeed;
   const router = useRouter();
+  const requests = useSocialQuery(api.profiles.requests, canBrowseFriends ? {} : "skip", session.key);
+  const suggestions = useSuggestions(session);
+  const suggestionActions = {
+    session,
+    onDismiss: suggestions.dismiss,
+    refresh: suggestions.refresh,
+    seeAll: () => router.push("/people"),
+  };
+  const showStrip =
+    tab === "friends"
+    && friendsFeed.items.length > 0
+    && suggestions.friendCount !== undefined
+    && suggestions.friendCount < STRIP_FRIEND_LIMIT
+    && suggestions.people.length > 0;
   const list = useAnimatedRef<FlatList<SharedVisit>>();
   const pull = usePullToRefresh(list, {
     enabled: canBrowse,
@@ -95,7 +113,7 @@ export function HomeScreen() {
               </Text>
               <View style={styles.headerActions}>
                 <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
-                <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
+                <FriendsButton requests={requests.data?.length ?? 0} onPress={() => router.push("/people")} />
               </View>
             </View>
             {guest && !dismissedPrompt && (
@@ -141,6 +159,7 @@ export function HomeScreen() {
                 ]}
               />
             </View>
+            {showStrip && <SuggestionStrip people={suggestions.people} {...suggestionActions} />}
           </Animated.View>
         }
         ListEmptyComponent={
@@ -169,6 +188,25 @@ export function HomeScreen() {
                   />
                 </ActionStack>
               </SocialInvitation>
+            ) : suggestions.people.length > 0 ? (
+              <View>
+                <View style={styles.emptyFeed}>
+                  <Text variant="section" accessibilityRole="header">
+                    No visits from friends yet.
+                  </Text>
+                  <Text themeColor="textSecondary">Add friends to see the museum visits they share.</Text>
+                </View>
+                <SuggestionList people={suggestions.people.slice(0, 5)} {...suggestionActions} />
+                <View style={styles.emptyFeedAction}>
+                  <GalleryButton
+                    label="Share your profile"
+                    icon="qrcode"
+                    variant="outlined"
+                    fullWidth
+                    onPress={() => router.push("/share-profile")}
+                  />
+                </View>
+              </View>
             ) : (
               <SocialInvitation
                 title="No visits from friends yet."
@@ -200,6 +238,25 @@ export function HomeScreen() {
   );
 }
 
+function FriendsButton({ requests, onPress }: { requests: number; onPress: () => void }) {
+  return (
+    <View>
+      <GalleryIconButton
+        icon="person.badge.plus"
+        label={requests > 0 ? `Find friends, ${requests} ${requests === 1 ? "request" : "requests"}` : "Find friends"}
+        onPress={onPress}
+      />
+      {requests > 0 && (
+        <View style={styles.badge}>
+          <Text allowFontScaling={false} style={styles.badgeText}>
+            {requests > 9 ? "9+" : requests}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   masthead: {
     flexDirection: "row",
@@ -219,4 +276,22 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   tabs: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
+  badge: {
+    position: "absolute",
+    top: 4,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: Gallery.accent,
+    borderWidth: 2,
+    borderColor: Gallery.paper,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  badgeText: { color: Gallery.paper, fontSize: 11, lineHeight: 13, fontWeight: "600" },
+  emptyFeed: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
+  emptyFeedAction: { paddingHorizontal: 20, paddingTop: 16 },
 });
