@@ -28,6 +28,7 @@ jest.mock("./visit-card", () => ({
   },
 }));
 jest.mock("convex/react", () => ({
+  useMutation: () => jest.fn(),
   useQueries: (requests: RequestForQueries) => {
     const { useEffect, useRef } = jest.requireActual<typeof import("react")>("react");
     const subscription = useRef({}).current;

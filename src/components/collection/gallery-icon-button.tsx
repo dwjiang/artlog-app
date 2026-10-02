@@ -12,13 +12,15 @@ export function GalleryIconButton({
   disabled = false,
   busy = false,
   tone = "ink",
+  size = 21,
 }: {
   label: string;
   icon: ComponentProps<typeof Icon>["name"];
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
-  tone?: "accent" | "ink";
+  tone?: "accent" | "ink" | "muted";
+  size?: number;
 }) {
   const color = Gallery[tone];
   return (
@@ -39,7 +41,7 @@ export function GalleryIconButton({
         ) : (
           <Icon
             name={icon}
-            size={21}
+            size={size}
             color={color}
             modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]}
           />

@@ -3,7 +3,7 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
-import type { SharedVisit } from "@/lib/social/types";
+import type { SharedVisit, Suggestion } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { ArtworkScreen } from "./artwork-screen";
@@ -40,6 +40,17 @@ jest.mock("@/lib/social/use-social-session", () => ({
 jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
+}));
+const mockDismissSuggestion = jest.fn();
+let mockSuggestions: { people: Suggestion[]; friendCount?: number };
+jest.mock("@/lib/social/use-suggestions", () => ({
+  useSuggestions: () => ({
+    ...mockSuggestions,
+    loading: false,
+    error: undefined,
+    refresh: mockRefresh,
+    dismiss: mockDismissSuggestion,
+  }),
 }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
 jest.mock("@/db/repos/settings", () => ({
@@ -134,6 +145,7 @@ beforeEach(() => {
   };
   mockPages.mockReturnValue(pages());
   mockQuery.mockReturnValue({ data: undefined, refresh: mockRefresh });
+  mockSuggestions = { people: [] };
   process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
 });
 
@@ -676,4 +688,87 @@ it("keeps the discovery header mounted while searching and switching filters", a
     expect(screen.getByLabelText("Name or username")).toBe(search);
     expect(search).toHaveProp("value", "alex");
   }
+});
+
+const none = { state: "none" as const, revision: 0, requesterId: null, blocked: false, blockRevision: 0 };
+const profile = (name: string) => ({
+  profileId: name.toLowerCase().replaceAll(" ", "-") as never,
+  name,
+  username: name.toLowerCase().replaceAll(" ", ""),
+  publishedWallCount: 0,
+});
+const maya: Suggestion = {
+  profile: { ...profile("Maya Chen"), relationship: none },
+  reason: { kind: "mutual", count: 3, friends: [profile("Theo Alvarez"), profile("Sam Okafor")] },
+};
+const priya: Suggestion = {
+  profile: { ...profile("Priya Nair"), relationship: none },
+  reason: { kind: "artwork", artwork: { itemId: "lilies" as never, artwork: visit.artworks.page[0].artwork } },
+};
+const queryData = (data: Record<string, unknown>) =>
+  mockQuery.mockImplementation((query) => ({
+    data: data[getFunctionName(query)],
+    loading: false,
+    refresh: mockRefresh,
+  }));
+
+it("leads Explore with requests and suggestions, each saying why, above the newest profiles", async () => {
+  mockSuggestions = { people: [maya, priya], friendCount: 3 };
+  queryData({
+    "profiles:requests": [
+      {
+        ...profile("Lucía Romero"),
+        relationship: { ...none, state: "pending", revision: 1, requesterId: "lucía-romero" },
+      },
+    ],
+    "profiles:friends": [],
+  });
+  mockPages.mockReturnValue(pages({ items: [{ ...profile("Ruth Mendel"), relationship: none }, maya.profile] }));
+  await render(<PeopleScreen />);
+  expect(screen.getByRole("header", { name: "Requests" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Accept" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Ignore request" })).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
+  expect(screen.getByText("Friends with Theo and 2 others")).toBeOnTheScreen();
+  expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "New on Artlog" })).toBeOnTheScreen();
+  expect(screen.getByText("Ruth Mendel")).toBeOnTheScreen();
+  expect(screen.getAllByText("Maya Chen")).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Hide Maya Chen from suggestions" }));
+  expect(mockDismissSuggestion).toHaveBeenCalledWith(maya);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.queryByRole("header", { name: "Requests" })).toBeNull();
+  expect(screen.queryByText("Friends with Theo and 2 others")).toBeNull();
+});
+
+it("shows suggestion cards above a short Friends feed, ending with an invitation", async () => {
+  mockSuggestions = { people: [maya], friendCount: 2 };
+  queryData({ "profiles:requests": [] });
+  mockPages.mockReturnValue(pages({ items: [visit] }));
+  const view = await render(<HomeScreen />);
+  expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
+  expect(screen.getByText("Friends with Theo and 2 others")).toBeOnTheScreen();
+  expect(screen.getByText("Invite friends")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Share" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/share-profile");
+  await fireEvent.press(screen.getByRole("button", { name: "See all" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people");
+
+  mockSuggestions = { people: [maya], friendCount: 5 };
+  await view.rerender(<HomeScreen />);
+  expect(screen.queryByText("Invite friends")).toBeNull();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+});
+
+it("fills an empty Friends feed with suggestions and counts requests on the friends button", async () => {
+  mockSuggestions = { people: [priya], friendCount: 0 };
+  queryData({ "profiles:requests": [profile("Ben Carter"), profile("Lucía Romero")] });
+  await render(<HomeScreen />);
+  expect(screen.getByRole("header", { name: "No visits from friends yet." })).toBeOnTheScreen();
+  expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Share your profile" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/share-profile");
+  await fireEvent.press(screen.getByRole("button", { name: "Find friends, 2 requests" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people");
 });

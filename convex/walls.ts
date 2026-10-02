@@ -4,7 +4,6 @@ import { isRevision, LIMITS } from "../shared/journal/limits";
 import { displayMedia, validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
@@ -16,9 +15,9 @@ import {
   requireOwnedSave,
   requireProfile,
 } from "./lib/ownership";
-import { projectWallArtwork } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { requirePublicWallItem, requireSharedVisitItem } from "./lib/publicationAccess";
+import { activeWallItems, publicWallProjection } from "./lib/publicWall";
 
 const selection = v.object({
   placementId: v.string(),
@@ -53,53 +52,6 @@ async function wallOwner(ctx: QueryCtx, scope?: string) {
   await requireClaimComplete(ctx, result.device._id);
   return result;
 }
-async function activeItems(ctx: QueryCtx, wall: Doc<"walls"> | null) {
-  return wall
-    ? ctx.db
-        .query("wallItems")
-        .withIndex("by_wall_active", (q) => q.eq("wallId", wall._id).eq("active", true))
-        .take(LIMITS.wallItems)
-    : [];
-}
-async function currentProjection(ctx: QueryCtx, item: Doc<"wallItems">) {
-  try {
-    const current = await requirePublicWallItem(ctx, item._id);
-    const projection = projectWallArtwork(current.item, current.save, await resolveDisplayAsset(ctx, current.save));
-    if (item.photoLocalId) {
-      projection.artwork.media = await selectedPhotoMedia(ctx, current.save, item.photoLocalId, {
-        kind: "wallItem",
-        itemId: item._id,
-      });
-      const { save } = current;
-      if (
-        save.cropPhotoLocalId === item.photoLocalId
-        && save.cropStorageId
-        && save.cropWidth
-        && save.cropHeight
-        && save.photoUpdatedAt
-      ) {
-        projection.artwork.media = {
-          kind: "photo",
-          width: save.cropWidth,
-          height: save.cropHeight,
-          reference: {
-            kind: "wallItem",
-            itemId: item._id,
-            photoLocalId: item.photoLocalId,
-            variant: "crop",
-            cropRevision: save.photoUpdatedAt,
-          },
-        };
-      }
-    }
-    return { ...current, projection };
-  } catch (error) {
-    if (error instanceof ConvexError && error.data.code === "not_found") {
-      return null;
-    }
-    throw error;
-  }
-}
 async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
   const { profile, scope } = await wallOwner(ctx);
   const wall = await ctx.db
@@ -107,8 +59,8 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
     .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
     .unique();
   const items = [];
-  for (const item of await activeItems(ctx, wall)) {
-    const current = await currentProjection(ctx, item);
+  for (const item of await activeWallItems(ctx, wall)) {
+    const current = await publicWallProjection(ctx, item);
     if (current) {
       items.push({
         ...current.projection,
@@ -157,8 +109,8 @@ export const getPublic = query({
       .unique();
     const items = [];
     const saves = new Set<string>();
-    for (const item of await activeItems(ctx, wall)) {
-      const current = await currentProjection(ctx, item);
+    for (const item of await activeWallItems(ctx, wall)) {
+      const current = await publicWallProjection(ctx, item);
       if (current) {
         items.push(current.projection);
         saves.add(current.save._id);
@@ -186,7 +138,7 @@ export const getArtwork = query({
   ),
   handler: async (ctx, { itemId }) => {
     const item = await ctx.db.get("wallItems", itemId);
-    const current = item ? await currentProjection(ctx, item) : null;
+    const current = item ? await publicWallProjection(ctx, item) : null;
     if (!current) return null;
     const viewer = await optionalProfile(ctx);
     const photos = new Map<string, Infer<typeof displayMedia>>();
@@ -276,7 +228,7 @@ export const setLayout = mutation({
       .query("walls")
       .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
       .unique();
-    const previous = await activeItems(ctx, wall);
+    const previous = await activeWallItems(ctx, wall);
     const unchanged =
       color === (wall?.color ?? DEFAULT_WALL_COLOR)
       && input.pattern === wall?.pattern

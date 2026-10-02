@@ -14,6 +14,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -44,12 +45,18 @@ export function CompactFriendshipControls({
   friend = false,
   relationship,
   onChanged,
+  fullWidth = false,
+  declinable = false,
 }: {
   onChanged?: () => void;
   profileId: PublicProfile["profileId"];
   session: SocialSession;
   friend?: boolean;
   relationship?: RelationshipSource;
+  /** Fills a card's width instead of sitting at the end of a row. */
+  fullWidth?: boolean;
+  /** Offers Ignore beside Accept on an incoming request. */
+  declinable?: boolean;
 }) {
   if (profileId === session.profileId) return null;
   if (friend) return <Text style={styles.friends}>Friends</Text>;
@@ -58,6 +65,7 @@ export function CompactFriendshipControls({
       <GalleryButton
         label="Add"
         variant="outlined"
+        fullWidth={fullWidth || undefined}
         onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
       />
     );
@@ -69,6 +77,8 @@ export function CompactFriendshipControls({
       session={session}
       relationship={relationship}
       onChanged={onChanged}
+      fullWidth={fullWidth}
+      declinable={declinable}
     />
   );
 }
@@ -78,32 +88,52 @@ function CompactFriendshipAction({
   session,
   relationship,
   onChanged,
+  fullWidth,
+  declinable,
 }: {
   onChanged?: () => void;
   profileId: PublicProfile["profileId"];
   session: SocialSession;
   relationship?: RelationshipSource;
+  fullWidth: boolean;
+  declinable: boolean;
 }) {
   const { state, pending, error, act, refresh } = useFriendship(profileId, session, relationship);
   const busy = pending !== undefined;
   const action =
     state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
+  const run = (next: FriendshipAction) => {
+    void act(next).then((changed) => {
+      if (changed) onChanged?.();
+    });
+  };
   return (
-    <View style={{ alignItems: "flex-end", maxWidth: 150 }}>
+    <View style={fullWidth ? { alignItems: "center" } : { alignItems: "flex-end", maxWidth: 150 }}>
       {state?.state === "accepted" ? (
         <Text style={styles.friends}>Friends</Text>
       ) : (
-        <GalleryButton
-          variant="outlined"
-          label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
-          busy={busy}
-          disabled={busy || !state || state.blocked}
-          onPress={() => {
-            void act(action).then((changed) => {
-              if (changed) onChanged?.();
-            });
-          }}
-        />
+        <View style={styles.actions}>
+          <GalleryButton
+            variant={action === "accept" ? "filled" : "outlined"}
+            label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
+            icon={action === "cancel" ? "checkmark" : undefined}
+            fullWidth={fullWidth || undefined}
+            busy={pending === action}
+            disabled={busy || !state || state.blocked}
+            onPress={() => run(action)}
+          />
+          {action === "accept" && declinable && (
+            <GalleryIconButton
+              label="Ignore request"
+              icon="xmark"
+              tone="muted"
+              size={13}
+              busy={pending === "decline"}
+              disabled={busy}
+              onPress={() => run("decline")}
+            />
+          )}
+        </View>
       )}
       {error && <GalleryButton label="Retry" onPress={refresh} />}
     </View>
@@ -273,4 +303,5 @@ export function FriendshipControls({
 
 const styles = StyleSheet.create({
   friends: { color: Gallery.muted, fontSize: 13 },
+  actions: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", justifyContent: "flex-end" },
 });

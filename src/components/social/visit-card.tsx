@@ -21,11 +21,14 @@ export function ProfileIdentity({
   interactive = true,
   showChevron = false,
   friend = false,
+  detail,
 }: {
   profile: PublicProfile;
   interactive?: boolean;
   showChevron?: boolean;
   friend?: boolean;
+  /** Replaces the @username line, for example with why a person is suggested. */
+  detail?: ReactNode;
 }) {
   const router = useRouter();
   const content = (
@@ -33,7 +36,7 @@ export function ProfileIdentity({
       <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
-        <Text style={socialStyles.caption}>@{profile.username}</Text>
+        {detail ?? <Text style={socialStyles.caption}>@{profile.username}</Text>}
       </View>
       {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
       {showChevron && (

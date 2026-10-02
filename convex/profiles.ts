@@ -5,22 +5,11 @@ import { LIMITS, normalizeSearch } from "../shared/journal/limits";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
 import { randomWallStyle } from "../shared/wall/defaults";
-import type { Doc } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
+import { query } from "./_generated/server";
 import { mutation } from "./functions";
-import { acceptedRelationships, findBlock, relationshipSnapshot } from "./lib/friendships";
+import { acceptedRelationships, findBlock } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
-import { projectProfile } from "./lib/projections";
-
-// Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
-async function projectBrowsedProfile(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
-  const person = await projectProfile(ctx, profile);
-  if (!viewer || viewer._id === profile._id) return person;
-  return {
-    ...person,
-    relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id)).state,
-  };
-}
+import { projectBrowsedProfile, projectProfile } from "./lib/projections";
 
 export const create = mutation({
   args: { username: v.string(), name: v.string(), bio: v.optional(v.string()) },

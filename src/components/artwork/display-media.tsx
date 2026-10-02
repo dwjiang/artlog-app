@@ -17,6 +17,8 @@ type Props = {
   width: number;
   height?: number;
   token?: string | null;
+  /** Thumbnails fill their square; full views show the whole artwork. */
+  fit?: "contain" | "cover";
 };
 
 export function DisplayMedia(props: Props) {
@@ -49,7 +51,7 @@ export function DisplayMedia(props: Props) {
   return <MediaImage key={`${uri ?? "missing"}:${token ?? ""}`} {...props} uri={uri} />;
 }
 
-function MediaImage({ media, label, width, height, token, uri }: Props & { uri?: string }) {
+function MediaImage({ media, label, width, height, token, uri, fit = "contain" }: Props & { uri?: string }) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -71,12 +73,14 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
           backgroundColor: theme.backgroundElement,
           alignItems: "center",
           justifyContent: "center",
-          padding: 12,
+          padding: width >= 64 ? 12 : 0,
         }}
       >
-        <ThemedText type="small" themeColor="textSecondary">
-          Image unavailable
-        </ThemedText>
+        {width >= 64 && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Image unavailable
+          </ThemedText>
+        )}
       </View>
     );
   }
@@ -92,7 +96,7 @@ function MediaImage({ media, label, width, height, token, uri }: Props & { uri?:
             : {}),
         }}
         style={size}
-        contentFit="contain"
+        contentFit={fit}
         // Protected photos stay in RAM so the wall→detail push reuses the bytes, but never persist to disk;
         // sign-out clears them.
         cachePolicy={media.kind === "derivative" || media.kind === "photo" ? "memory" : "memory-disk"}
