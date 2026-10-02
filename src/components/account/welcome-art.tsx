@@ -1,12 +1,16 @@
 import { Image, type ImageSource } from "expo-image";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkCollage, introArtworks } from "@/components/guest/artwork-preview";
+import { PaintingReveal } from "@/components/scan/painting-reveal";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
+import type { FrameSize } from "@/lib/capture/rectangle";
+import { liftedPlacement, perspectiveMatrix, photoCorners, type RevealGeometry } from "@/lib/capture/reveal-geometry";
+import type { Quad } from "@/lib/capture/stages";
 
 import type { AccessKey } from "./welcome-access";
 
@@ -17,12 +21,28 @@ const museum = {
   // The Met's entrance, as fractions of the photograph.
   entrance: { x: 0.61, y: 0.48 },
 };
-const STORY = "Van Gogh painted the view from his window at the asylum in Saint-Rémy.";
+// The Met's photograph of Washington Crossing the Delaware in its empty gallery, and its reproduction for the lifted
+// painting: the photograph holds too few pixels of it to fill the screen.
+const gallery = {
+  photo: require("../../../assets/images/onboarding/washington-crossing-the-delaware-room.webp"),
+  photoSize: { width: 1200, height: 1600 },
+  // The canvas inside its frame, as fractions of the photograph.
+  corners: [
+    [0.28, 0.3371],
+    [0.7159, 0.3371],
+    [0.7159, 0.5271],
+    [0.28, 0.5271],
+  ] as Quad,
+  crop: require("../../../assets/images/onboarding/washington-crossing-the-delaware.webp"),
+  cropSize: { width: 1937, height: 1135 },
+};
+const STORY = "Leutze painted it in Germany, using American tourists and art students as models.";
 const STORY_WORDS = STORY.split(" ");
 const WORD_MS = 280;
-// The welcome scan runs by itself: the line sweeps, then the result rises with its story waiting for Play.
-const SCAN_DELAY = 500;
-const RESULT_DELAY = 1300;
+// The welcome scan runs by itself, the way the camera's does: once the welcome has slid up and the room has been seen,
+// the painting lifts out, and the result rises as the shine passes, with its story waiting for Play.
+const SCAN_DELAY = 1400;
+const RESULT_DELAY = 2500;
 
 const DRIFT_SCALE = 1.1;
 const DRIFT_SHIFT = 6;
@@ -128,32 +148,52 @@ function Backdrop({
   );
 }
 
-/** The Starry Night with a scan line passing over it once, as the welcome opens. */
-export function WelcomeArt({ active }: { active: boolean }) {
-  const reduced = useReducedMotion();
+/**
+ * The welcome's scan of Washington Crossing the Delaware, played with the camera's reveal. `clear` keeps the lifted painting between the
+ * status bar and the result card.
+ */
+export function WelcomeArt({ clear }: { clear: { top: number; bottom: number } }) {
+  const [box, setBox] = useState<FrameSize>();
+  const [scanned, setScanned] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setScanned(true), SCAN_DELAY);
+    return () => clearTimeout(timer);
+  }, []);
+  const { top, bottom } = clear;
+  const geometry = useMemo(() => box && welcomeScanGeometry(box, { top, bottom }), [box, top, bottom]);
   return (
-    <Backdrop source={introArtworks.stars.source} focus={{ x: 0.2, y: 0.5 }} active={active}>
-      {!reduced && (
-        <Animated.View
-          style={[
-            styles.scanLine,
-            {
-              animationName: {
-                "0%": { top: "22%", opacity: 0 },
-                "20%": { opacity: 1 },
-                "80%": { opacity: 1 },
-                "100%": { top: "72%", opacity: 0 },
-              },
-              animationDuration: 800,
-              animationDelay: SCAN_DELAY,
-              animationTimingFunction: "ease-in-out",
-              animationFillMode: "both",
-            },
-          ]}
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.camera}
+      onLayout={({ nativeEvent }) => setBox(nativeEvent.layout)}
+    >
+      {geometry && (
+        <PaintingReveal
+          geometry={geometry}
+          // Until the scan, the photograph shows its own painting; the brighter reproduction would look pasted on.
+          crop={scanned ? gallery.crop : undefined}
+          playing={scanned}
+          background={(blurRadius) => (
+            <Image
+              source={gallery.photo}
+              contentFit="cover"
+              blurRadius={blurRadius}
+              accessible={false}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
         />
       )}
-    </Backdrop>
+    </View>
   );
+}
+
+function welcomeScanGeometry(box: FrameSize, clear: { top: number; bottom: number }): RevealGeometry | null {
+  const from = photoCorners(gallery.corners, gallery.photoSize, box, "cover");
+  const { to, width, height } = liftedPlacement(gallery.cropSize, box, clear);
+  if (!perspectiveMatrix(width, height, from)) return null;
+  return { from, to, width, height, image: { left: 0, top: 0, width, height } };
 }
 
 /** Reveals the story a word at a time once the visitor presses Play; until then every word waits in gray. */
@@ -181,10 +221,10 @@ export function ScanResult() {
     <Enter motion="rise" delay={RESULT_DELAY} style={styles.resultSlot}>
       <View style={[styles.card, styles.result]}>
         <View style={styles.resultRow}>
-          <Image source={introArtworks.stars.source} contentFit="cover" accessible={false} style={styles.thumbnail} />
+          <Image source={gallery.crop} contentFit="cover" accessible={false} style={styles.thumbnail} />
           <View accessible style={styles.resultText}>
-            <Text style={styles.cardTitle}>The Starry Night</Text>
-            <Text style={styles.cardDetail}>Vincent van Gogh · 1889</Text>
+            <Text style={styles.cardTitle}>Washington Crossing the Delaware</Text>
+            <Text style={styles.cardDetail}>Emanuel Leutze · 1851</Text>
           </View>
           <View style={styles.storyControl}>
             <GalleryIconButton
@@ -301,14 +341,7 @@ const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFill, overflow: "hidden", backgroundColor: Gallery.ink },
   wash: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(255,255,255,0.22)" },
   collection: { ...StyleSheet.absoluteFill, justifyContent: "center", backgroundColor: Gallery.sage },
-  scanLine: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    boxShadow: "0 0 14px #FFFFFF",
-  },
+  camera: { ...StyleSheet.absoluteFill, overflow: "hidden", backgroundColor: Gallery.ink },
   card: {
     borderRadius: Radius.card,
     backgroundColor: Gallery.surface,

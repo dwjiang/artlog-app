@@ -3,14 +3,8 @@ import type { ImageRef } from "expo-image-manipulator";
 
 import type { CapturePresentation } from "@/lib/capture/use-capture";
 
-import {
-  CaptureReveal,
-  CROSSFADE_MS,
-  HIGHLIGHT_MS,
-  REVEAL_TIMEOUT_MS,
-  SHINE_MS,
-  STRAIGHTEN_MS,
-} from "./capture-reveal";
+import { CaptureReveal, REVEAL_TIMEOUT_MS } from "./capture-reveal";
+import { CROSSFADE_MS, HIGHLIGHT_MS, SHINE_MS, STRAIGHTEN_MS } from "./painting-reveal";
 
 let mockReduced = false;
 const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] = [];

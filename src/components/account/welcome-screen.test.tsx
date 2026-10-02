@@ -112,36 +112,36 @@ beforeEach(async () => {
 
 it("asks for each permission before saving a name and completing onboarding", async () => {
   await render(<WelcomeScreen />);
-  expect(screen.getByLabelText("Page 1 of 6")).toBeOnTheScreen();
+  expect(screen.queryByLabelText(/^Step /)).toBeNull();
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-  expect(screen.getByText("The Starry Night")).toBeOnTheScreen();
+  expect(screen.getByText("Washington Crossing the Delaware")).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
-  expect(screen.getByLabelText("Page 2 of 6")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Step 1 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Scan artworks." })).toBeOnTheScreen();
   expect(screen.getByText("Identifies paintings and reads their wall labels.")).toBeOnTheScreen();
   expect(screen.queryByRole("header", { name: /Welcome to Artlog/ })).toBeNull();
 
   await fireEvent.press(screen.getByRole("button", { name: "Allow camera" }));
   expect(mockRequestCamera).toHaveBeenCalledTimes(1);
-  expect(await screen.findByLabelText("Page 3 of 6")).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Keep the photo." })).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   expect(mockRequestPhotos).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("Page 4 of 6")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Step 3 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Find the museum." })).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Allow location" }));
   expect(mockRequestLocation).toHaveBeenCalledTimes(1);
-  expect(await screen.findByLabelText("Page 5 of 6")).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Step 4 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Save your collection." })).toBeOnTheScreen();
   expect(screen.getByText("Sync your collection, share your wall, and connect with friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
-  expect(screen.getByLabelText("Page 6 of 6")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Step 5 of 5")).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
   expect(await settings.getSetting("welcome-seen")).toBeUndefined();
   await fireEvent.changeText(screen.getByLabelText("Name"), "  Alex Rivera  ");
@@ -159,7 +159,7 @@ it("opens the terms and privacy policy websites from the first page", async () =
   expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
   await fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
   expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
-  expect(screen.getByLabelText("Page 1 of 6")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
 });
 
 it("declines every permission but still requires a name or nickname", async () => {
@@ -184,11 +184,12 @@ it("goes back one page at a time without answering for the visitor", async () =>
   expect(screen.getByRole("header", { name: "Keep the photo." })).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByLabelText("Page 2 of 6")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Step 1 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Allow camera" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(screen.queryByLabelText(/^Step /)).toBeNull();
   expect(mockRequestCamera).not.toHaveBeenCalled();
 });
 
@@ -199,7 +200,7 @@ it("moves on without asking again when a permission is already answered", async 
   expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(mockRequestCamera).not.toHaveBeenCalled();
-  expect(await screen.findByLabelText("Page 3 of 6")).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
 });
 
 it("prefills the saved name when onboarding is reopened", async () => {
@@ -270,8 +271,9 @@ it("continues a new account from onboarding into profile setup", async () => {
 it("takes a signed-in account through the permissions only", async () => {
   switchOwner("account:alex");
   await render(<WelcomeScreen />);
-  expect(screen.getByLabelText("Page 1 of 4")).toBeOnTheScreen();
+  expect(screen.queryByLabelText(/^Step /)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
+  expect(screen.getByLabelText("Step 1 of 3")).toBeOnTheScreen();
   for (let page = 0; page < 3; page++) {
     await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   }

@@ -81,12 +81,16 @@ export function WelcomeScreen() {
   const [guest] = useState(!owner.startsWith("account:"));
   const signInPage = access.steps.length + 1;
   const count = access.steps.length + (guest ? 3 : 1);
+  const steps = count - 1;
   const finishing = useRef(false);
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.set(event.contentOffset.x);
     },
   });
+  const controls = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollX.get(), [0, width], [0, 1], Extrapolation.CLAMP),
+  }));
   // Pages change only through their buttons, so a swipe can never pass a permission without an answer.
   const goTo = (page: number) => {
     pager.current?.scrollTo({ x: page * width, animated: !reduced });
@@ -161,7 +165,7 @@ export function WelcomeScreen() {
         <WelcomePage
           active={index === 0}
           width={width}
-          art={<WelcomeArt active={index === 0} />}
+          art={(clear) => <WelcomeArt clear={clear} />}
           overlay={<ScanResult />}
           bottom={sheetBottom}
           actions={
@@ -329,36 +333,38 @@ export function WelcomeScreen() {
       </Animated.ScrollView>
       <View pointerEvents="box-none" style={[styles.header, { paddingTop: top }]}>
         <View pointerEvents="none" style={[styles.scrim, { height: top + 110 }]} />
-        <View pointerEvents="box-none" style={styles.headerRow}>
-          <View
-            pointerEvents={index === 0 ? "none" : "auto"}
-            accessibilityElementsHidden={index === 0}
-            importantForAccessibility={index === 0 ? "no-hide-descendants" : "auto"}
-            style={{ opacity: index === 0 ? 0 : 1 }}
-          >
-            <GlassSurface isInteractive style={styles.backGlass}>
-              <GalleryIconButton
-                label="Back"
-                icon="chevron.left"
-                tone="surface"
-                size={17}
-                disabled={saving}
-                onPress={() => goTo(Math.max(index - 1, 0))}
-              />
-            </GlassSurface>
-          </View>
-          <View accessible accessibilityLabel={`Page ${index + 1} of ${count}`} style={styles.progress}>
-            {Array.from({ length: count }, (_, position) => (
-              <ProgressSegment key={position} position={position} scrollX={scrollX} width={width} />
+        {/* The welcome is not a step, so the controls arrive with the first permission page. */}
+        <Animated.View
+          pointerEvents={index === 0 ? "none" : "box-none"}
+          accessibilityElementsHidden={index === 0}
+          importantForAccessibility={index === 0 ? "no-hide-descendants" : "auto"}
+          style={[styles.headerRow, controls]}
+        >
+          <GlassSurface isInteractive style={styles.backGlass}>
+            <GalleryIconButton
+              label="Back"
+              icon="chevron.left"
+              tone="surface"
+              size={17}
+              disabled={saving}
+              onPress={() => goTo(Math.max(index - 1, 0))}
+            />
+          </GlassSurface>
+          <View accessible accessibilityLabel={`Step ${index} of ${steps}`} style={styles.progress}>
+            {Array.from({ length: steps }, (_, position) => (
+              <ProgressSegment key={position} page={position + 1} scrollX={scrollX} width={width} />
             ))}
           </View>
-        </View>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-/** One page: its picture fills the room above a white sheet holding the copy and the page's own buttons. */
+/**
+ * One page: its picture fills the room above a white sheet holding the copy and the page's own buttons. A picture
+ * drawn from a function learns the room it has clear of the status bar and the overlay.
+ */
 function WelcomePage({
   active,
   width,
@@ -370,7 +376,7 @@ function WelcomePage({
 }: {
   active: boolean;
   width: number;
-  art: ReactNode;
+  art: ReactNode | ((clear: { top: number; bottom: number }) => ReactNode);
   overlay?: ReactNode;
   bottom: number;
   actions: ReactNode;
@@ -393,7 +399,11 @@ function WelcomePage({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.page}
       >
-        <View style={[styles.art, { minHeight: artHeight }]}>{art}</View>
+        <View style={[styles.art, { minHeight: artHeight }]}>
+          {typeof art === "function"
+            ? art({ top: top + Spacing.three, bottom: overlayHeight + SHEET_RADIUS + Spacing.three })
+            : art}
+        </View>
         <View>
           <View style={[styles.sheet, { paddingBottom: bottom }]}>
             <View style={styles.copy}>{children}</View>
@@ -423,19 +433,11 @@ function Headline({ accessibilityLabel, children }: { accessibilityLabel?: strin
   );
 }
 
-function ProgressSegment({
-  position,
-  scrollX,
-  width,
-}: {
-  position: number;
-  scrollX: SharedValue<number>;
-  width: number;
-}) {
+function ProgressSegment({ page, scrollX, width }: { page: number; scrollX: SharedValue<number>; width: number }) {
   const fill = useAnimatedStyle(() => ({
     transform: [
       {
-        scaleX: interpolate(scrollX.get() / width, [position - 1, position], [0, 1], Extrapolation.CLAMP),
+        scaleX: interpolate(scrollX.get() / width, [page - 1, page], [0, 1], Extrapolation.CLAMP),
       },
     ],
   }));

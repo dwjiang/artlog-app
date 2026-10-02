@@ -42,9 +42,9 @@ it("maps all four crop corners exactly onto the frozen photograph and the final 
 it("shows the entire unpadded artwork and accounts for odd asymmetric padding", () => {
   const geometry = revealGeometry(painting, { width: 390, height: 844 }, "contain")!;
   const scale = geometry.width / painting.contentBounds.width;
-  expect(geometry.imageTop).toBe(-85 * scale);
+  expect(geometry.image.top).toBe(-85 * scale);
   expect(geometry.height).toBe(341 * scale);
-  expect(geometry.imageSize).toBe(512 * scale);
+  expect(geometry.image).toMatchObject({ width: 512 * scale, height: 512 * scale });
   expect(geometry.width / geometry.height).toBeCloseTo(512 / 341);
 });
 

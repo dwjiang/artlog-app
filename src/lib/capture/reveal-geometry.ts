@@ -44,12 +44,21 @@ export function interpolateCorners(from: Quad, to: Quad, progress: number): Quad
   return from.map(([x, y], i) => [x + (to[i][0] - x) * progress, y + (to[i][1] - y) * progress]) as Quad;
 }
 
+/** `image` places the crop inside the painting's box, which clips it to the painting. */
+export type RevealGeometry = {
+  from: Quad;
+  to: Quad;
+  width: number;
+  height: number;
+  image: { left: number; top: number; width: number; height: number };
+};
+
 export function revealGeometry(
   painting: PreparedPainting,
   view: FrameSize,
   fit: "cover" | "contain",
   insets = { top: 0, bottom: 0 },
-) {
+): RevealGeometry | null {
   const { photoSize: photo, contentBounds: bounds, cropSize } = painting;
   if (
     ![photo.width, photo.height, view.width, view.height, bounds.width, bounds.height, cropSize].every(
@@ -62,26 +71,8 @@ export function revealGeometry(
   ) {
     return null;
   }
-  const photoScale = (fit === "cover" ? Math.max : Math.min)(view.width / photo.width, view.height / photo.height);
-  const from = painting.corners.map(([x, y]) => [
-    x * photo.width * photoScale + (view.width - photo.width * photoScale) / 2,
-    y * photo.height * photoScale + (view.height - photo.height * photoScale) / 2,
-  ]) as Quad;
-  const availableHeight = view.height - insets.top - insets.bottom;
-  const scale = Math.min(
-    (view.width - 48) / bounds.width,
-    Math.min(view.height * 0.6, availableHeight) / bounds.height,
-  );
-  const width = bounds.width * scale;
-  const height = bounds.height * scale;
-  const left = (view.width - width) / 2;
-  const top = insets.top + (availableHeight - height) / 2;
-  const to: Quad = [
-    [left, top],
-    [left + width, top],
-    [left + width, top + height],
-    [left, top + height],
-  ];
+  const from = photoCorners(painting.corners, photo, view, fit);
+  const { to, width, height, scale } = liftedPlacement(bounds, view, insets);
   if (!perspectiveMatrix(width, height, from) || !perspectiveMatrix(width, height, to)) {
     return null;
   }
@@ -90,8 +81,39 @@ export function revealGeometry(
     to,
     width,
     height,
-    imageSize: cropSize * scale,
-    imageLeft: -bounds.x * scale,
-    imageTop: -bounds.y * scale,
+    image: { left: -bounds.x * scale, top: -bounds.y * scale, width: cropSize * scale, height: cropSize * scale },
   };
+}
+
+/** Where corners given as fractions of a photograph land in a view showing that photograph centered. */
+export function photoCorners(corners: Quad, photo: FrameSize, view: FrameSize, fit: "cover" | "contain"): Quad {
+  const scale = (fit === "cover" ? Math.max : Math.min)(view.width / photo.width, view.height / photo.height);
+  return corners.map(([x, y]) => [
+    x * photo.width * scale + (view.width - photo.width * scale) / 2,
+    y * photo.height * scale + (view.height - photo.height * scale) / 2,
+  ]) as Quad;
+}
+
+/** Where a lifted painting comes to rest: upright and centered between the insets. */
+export function liftedPlacement(
+  content: { width: number; height: number },
+  view: FrameSize,
+  insets = { top: 0, bottom: 0 },
+) {
+  const availableHeight = view.height - insets.top - insets.bottom;
+  const scale = Math.min(
+    (view.width - 48) / content.width,
+    Math.min(view.height * 0.6, availableHeight) / content.height,
+  );
+  const width = content.width * scale;
+  const height = content.height * scale;
+  const left = (view.width - width) / 2;
+  const top = insets.top + (availableHeight - height) / 2;
+  const to: Quad = [
+    [left, top],
+    [left + width, top],
+    [left + width, top + height],
+    [left, top + height],
+  ];
+  return { to, width, height, scale };
 }
