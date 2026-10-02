@@ -139,7 +139,12 @@ export function LeaderboardScreen() {
                 ]}
               >
                 <Text style={[styles.rank, own && styles.ownRank, { minWidth: 25 * fontScale }]}>{item.rank}</Text>
-                <ProfileAvatar name={item.profile.name} photoUrl={item.profile.photoUrl} size={36} />
+                <ProfileAvatar
+                  name={item.profile.name}
+                  photoUrl={item.profile.photoUrl}
+                  avatar={item.profile.avatar}
+                  size={36}
+                />
                 <View style={styles.nameRow}>
                   <Text style={styles.name}>{item.profile.name}</Text>
                   {own && <Text style={[styles.caption, { fontWeight: "600" }]}>You</Text>}

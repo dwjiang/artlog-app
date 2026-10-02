@@ -67,6 +67,7 @@ const visit: SharedVisit = {
     profileId: "alex" as never,
     name: "Alex Chen",
     username: "alex",
+    avatar: "vermeer" as const,
     publishedWallCount: 0,
   },
   venue: { venueId: "museum" as never, name: "Musée d’Orsay", city: "Paris" },

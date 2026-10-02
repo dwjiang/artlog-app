@@ -16,6 +16,7 @@ export const save = action({
     username: v.optional(v.string()),
     bio: v.optional(v.string()),
     photo: v.optional(v.union(v.bytes(), v.null())),
+    avatar: v.optional(v.string()),
   },
   returns: publicProfile,
   handler: async (ctx, input): Promise<Infer<typeof publicProfile>> =>
@@ -49,6 +50,7 @@ export const save = action({
           username: input.username,
           bio: input.bio,
           photo,
+          avatar: input.avatar,
         });
       } catch (error) {
         if (photo) await fileStorage.delete(ctx, photo);

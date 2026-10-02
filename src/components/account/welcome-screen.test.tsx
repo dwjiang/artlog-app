@@ -91,6 +91,7 @@ beforeEach(async () => {
   jest.restoreAllMocks();
   jest.clearAllMocks();
   await settings.removeSetting("local-profile-name");
+  await settings.setSetting("local-profile-avatar", "vermeer");
   await settings.removeSetting("welcome-seen");
   mockCamera = { hasPermission: false, canRequestPermission: true };
   mockPhotos = null;
@@ -273,13 +274,15 @@ it("saves a chosen photo with the name, and keeps the name page usable when Phot
   await render(<WelcomeScreen />);
   await declineEveryPermission();
 
-  await fireEvent.press(screen.getByRole("button", { name: "Add a photo" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("This photo couldn’t be opened. Choose another.");
-  expect(reportError).toHaveBeenCalledWith(failure, "account.welcome.photo");
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("This photo could not be opened. Try another image.");
+  expect(reportError).toHaveBeenCalledWith(failure, "profile.photo.choose");
 
-  await fireEvent.press(screen.getByRole("button", { name: "Add a photo" }));
-  expect(await screen.findByRole("button", { name: "Change photo" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
+  expect(await screen.findByText("Your photo")).toBeOnTheScreen();
   expect(screen.queryByRole("alert")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(savePhoto).not.toHaveBeenCalled();
 
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
@@ -287,4 +290,17 @@ it("saves a chosen photo with the name, and keeps the name page usable when Phot
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(savePhoto).toHaveBeenCalledWith("file:///cache/me.jpg");
   expect(await getLocalProfileName()).toBe("Alex");
+});
+
+it("saves a picked painting with the name", async () => {
+  const saveAvatar = jest.spyOn(localProfile, "setLocalProfileAvatar").mockResolvedValue();
+  await render(<WelcomeScreen />);
+  await declineEveryPermission();
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Senecio, Paul Klee" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(saveAvatar).toHaveBeenCalledWith("klee");
 });

@@ -42,6 +42,7 @@ export function CollectionHeader({
                 name: localProfile.name ?? "Guest",
                 avatarName: localProfile.name,
                 avatarPhotoUrl: localProfile.photoUrl,
+                avatar: localProfile.avatar,
               }
         }
         stats={stats}

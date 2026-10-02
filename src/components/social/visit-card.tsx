@@ -33,7 +33,12 @@ export function ProfileIdentity({
   const router = useRouter();
   const content = (
     <>
-      <ProfileAvatar name={profile.name} photoUrl={profile.photoUrl} size={showChevron ? 64 : 44} />
+      <ProfileAvatar
+        name={profile.name}
+        photoUrl={profile.photoUrl}
+        avatar={profile.avatar}
+        size={showChevron ? 64 : 44}
+      />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
         {detail ?? <Text style={socialStyles.caption}>@{profile.username}</Text>}
@@ -211,7 +216,7 @@ export function VisitFeedCard({
   onOpenMenu,
 }: {
   audience: SharedVisit["audience"];
-  author: Pick<PublicProfile, "name" | "photoUrl">;
+  author: Pick<PublicProfile, "name" | "photoUrl" | "avatar">;
   venue: { name: string; city?: string };
   visitedOn: string;
   notes: string;
@@ -250,7 +255,7 @@ export function VisitFeedCard({
   );
   const identity = (
     <>
-      <ProfileAvatar name={author.name} photoUrl={author.photoUrl} size={40} />
+      <ProfileAvatar name={author.name} photoUrl={author.photoUrl} avatar={author.avatar} size={40} />
       <View style={{ flex: 1, gap: 1 }}>
         <View style={styles.nameRow}>
           <Text style={styles.feedName}>{author.name}</Text>

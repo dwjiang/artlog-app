@@ -30,6 +30,7 @@ const profile = {
   profileId: "profile" as never,
   username: "alex",
   name: "Alex Morgan",
+  avatar: "vermeer" as const,
   publishedWallCount: 2,
   photoUrl: "https://example.com/avatar.jpg",
 };
@@ -107,18 +108,17 @@ it("shows why the server refused an offensive name", async () => {
   expect(mockBack).not.toHaveBeenCalled();
 });
 
-it("removes the photo explicitly and preserves the draft after a save failure", async () => {
+it("swaps the photo for a painting and keeps the choice after a save failure", async () => {
   mockSave.mockRejectedValue(new Error("offline"));
   await render(<EditProfileForm profile={profile} scope="account:a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Remove photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Senecio, Paul Klee" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
-  expect(mockSave).toHaveBeenCalledWith({
-    name: "Alex Morgan",
-    bio: "",
-    photo: null,
-  });
+  expect(mockSave).toHaveBeenCalledWith({ name: "Alex Morgan", bio: "", avatar: "klee", photo: null });
   expect(screen.getByText(/Your profile was not saved/)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Add photo" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
+  expect(mockSave).toHaveBeenLastCalledWith({ name: "Alex Morgan", bio: "", avatar: "klee", photo: null });
   expect(mockBack).not.toHaveBeenCalled();
 });
 
@@ -132,14 +132,16 @@ it("does not upload a selected photo into a different account after preparation"
       }),
   );
   await render(<EditProfileForm profile={profile} scope="account:a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Change photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   await act(() => switchOwner("account:b", "scope-b"));
   await act(() => finish(new ArrayBuffer(3)));
   expect(mockSave).not.toHaveBeenCalled();
 });
 
-it("blocks photo changes while a save is in flight", async () => {
+it("blocks picture changes while a save is in flight", async () => {
   let finish!: (saved: typeof profile) => void;
   mockSave.mockImplementation(
     () =>
@@ -149,10 +151,7 @@ it("blocks photo changes while a save is in flight", async () => {
   );
   await render(<EditProfileForm profile={profile} scope="account:a" />);
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
-  const change = screen.getByRole("button", { name: "Change photo" });
-  expect(change).toBeDisabled();
-  await fireEvent.press(change);
-  expect(chooseProfilePhoto).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Change picture" })).toBeDisabled();
   await act(() => finish(profile));
   expect(mockBack).toHaveBeenCalledTimes(1);
 });

@@ -56,7 +56,7 @@ export function SettingsScreen() {
               borderColor: Gallery.separator,
             }}
           >
-            <ProfileAvatar name={profile?.name} photoUrl={profile?.photoUrl} size={64} />
+            <ProfileAvatar name={profile?.name} photoUrl={profile?.photoUrl} avatar={profile?.avatar} size={64} />
             <View style={{ flex: 1, gap: 4 }}>
               <ThemedText variant="section" style={{ fontSize: 24, lineHeight: 28 }}>
                 {accountName}

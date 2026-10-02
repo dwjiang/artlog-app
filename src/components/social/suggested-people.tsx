@@ -34,7 +34,7 @@ function ReasonVisual({ reason, token, size }: { reason: SuggestionReason; token
               key={friend.profileId}
               style={[styles.stacked, { borderRadius: size / 2 + 2 }, index > 0 && { marginLeft: -size / 3 }]}
             >
-              <ProfileAvatar name={friend.name} photoUrl={friend.photoUrl} size={size} />
+              <ProfileAvatar name={friend.name} photoUrl={friend.photoUrl} avatar={friend.avatar} size={size} />
             </View>
           ))}
         </View>
@@ -174,7 +174,12 @@ function SuggestionCard({
         }
         style={styles.cardIdentity}
       >
-        <ProfileAvatar name={person.profile.name} photoUrl={person.profile.photoUrl} size={64} />
+        <ProfileAvatar
+          name={person.profile.name}
+          photoUrl={person.profile.photoUrl}
+          avatar={person.profile.avatar}
+          size={64}
+        />
         <Text style={styles.cardName} numberOfLines={2}>
           {person.profile.name}
         </Text>

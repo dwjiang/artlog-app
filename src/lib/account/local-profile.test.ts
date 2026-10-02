@@ -3,10 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react-native";
 import * as settings from "@/db/repos/settings";
 import { removeSetting } from "@/db/repos/settings";
 import { reportError } from "@/lib/observability";
+import { isAvatarId } from "@/shared/social/avatars";
 
 import {
   getLocalProfile,
   getLocalProfileName,
+  setLocalProfileAvatar,
   setLocalProfileName,
   setLocalProfilePhoto,
   useLocalProfile,
@@ -60,6 +62,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   await removeSetting("local-profile-name");
   await removeSetting("local-profile-photo");
+  await removeSetting("local-profile-avatar");
   mockFiles.clear();
   mockDeleteFailures.clear();
   mockUuid = 0;
@@ -91,7 +94,29 @@ it("updates mounted profiles after saving and restores the name on remount", asy
   expect(first.result.current.name).toBe("Alex");
   await first.unmount();
   const next = await renderHook(useLocalProfile);
-  await waitFor(() => expect(next.result.current).toEqual({ name: "Alex", photoUrl: undefined, loading: false }));
+  await waitFor(() =>
+    expect(next.result.current).toEqual({
+      name: "Alex",
+      photoUrl: undefined,
+      avatar: first.result.current.avatar,
+      loading: false,
+    }),
+  );
+});
+
+it("keeps one painting per installation, and a picked painting replaces the photo", async () => {
+  const [first, second] = await Promise.all([getLocalProfile(), getLocalProfile()]);
+  expect(isAvatarId(first.avatar)).toBe(true);
+  expect(second.avatar).toBe(first.avatar);
+  mockFiles.add("file:///cache/first.jpg");
+  await setLocalProfilePhoto("file:///cache/first.jpg");
+  const mounted = await renderHook(useLocalProfile);
+  await waitFor(() => expect(mounted.result.current.photoUrl).toBe("file:///documents/profile/photo-1.jpg"));
+
+  await act(() => setLocalProfileAvatar("klee"));
+  await waitFor(() => expect(mounted.result.current).toMatchObject({ avatar: "klee", photoUrl: undefined }));
+  expect([...mockFiles]).toEqual([]);
+  expect((await getLocalProfile()).avatar).toBe("klee");
 });
 
 it("keeps one chosen photo in documents and shows each replacement", async () => {

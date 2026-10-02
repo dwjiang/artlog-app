@@ -2,6 +2,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
 import { WALL_FRAMES } from "../wall/frames";
+import { avatarId } from "./avatars";
 import { isAllowedIdentity, isOffensive } from "./profile-text";
 import { isUsername } from "./username";
 
@@ -11,6 +12,8 @@ export const publicProfile = v.object({
   name: v.string(),
   bio: v.optional(v.string()),
   photoUrl: v.optional(v.string()),
+  /** Shown whenever there is no photo. */
+  avatar: avatarId,
   publishedWallCount: v.number(),
 });
 export const frame = v.union(...WALL_FRAMES.map((finish) => v.literal(finish.value)));

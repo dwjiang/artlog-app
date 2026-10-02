@@ -702,6 +702,8 @@ export default defineSchema({
     name: v.string(),
     bio: v.optional(v.string()),
     photoStorageId: v.optional(v.id("files")),
+    // A preset id from shared/social/avatars; plain string so retiring a preset never invalidates stored rows.
+    avatar: v.optional(v.string()),
     searchText: v.string(),
     active: v.boolean(),
     publishedWallCount: v.number(),

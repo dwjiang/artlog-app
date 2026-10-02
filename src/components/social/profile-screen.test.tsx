@@ -23,6 +23,7 @@ const mockPerson = {
   username: "friend",
   name: "Jamie Chen",
   bio: "Chasing Rothkos.",
+  avatar: "vermeer" as const,
   publishedWallCount: 0,
 };
 const mockPush = jest.fn();

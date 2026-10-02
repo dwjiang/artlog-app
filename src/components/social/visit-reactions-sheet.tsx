@@ -120,7 +120,7 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
             });
           }}
         >
-          <ProfileAvatar name={item.name} photoUrl={item.photoUrl} size={40} />
+          <ProfileAvatar name={item.name} photoUrl={item.photoUrl} avatar={item.avatar} size={40} />
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>@{item.username}</Text>
@@ -248,7 +248,12 @@ function Comments({
         }}
         renderItem={({ item }) => (
           <View style={styles.comment}>
-            <ProfileAvatar name={item.author.name} photoUrl={item.author.photoUrl} size={32} />
+            <ProfileAvatar
+              name={item.author.name}
+              photoUrl={item.author.photoUrl}
+              avatar={item.author.avatar}
+              size={32}
+            />
             <View style={{ flex: 1, gap: 4 }}>
               <View style={styles.byline}>
                 <Text style={styles.name}>{item.author.name}</Text>
@@ -318,7 +323,12 @@ function Comments({
         {session.status === "ready" ? (
           <>
             <View style={styles.inputRow}>
-              <ProfileAvatar name={viewer.data?.name ?? "You"} photoUrl={viewer.data?.photoUrl} size={32} />
+              <ProfileAvatar
+                name={viewer.data?.name ?? "You"}
+                photoUrl={viewer.data?.photoUrl}
+                avatar={viewer.data?.avatar}
+                size={32}
+              />
               <View style={[styles.inputWrap, focused && { borderColor: Gallery.accent }]}>
                 <TextInput
                   accessibilityLabel="Add a comment"

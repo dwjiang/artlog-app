@@ -90,6 +90,7 @@ const visit: SharedVisit = {
     profileId: "alex" as never,
     name: "Alex Chen",
     username: "alex",
+    avatar: "vermeer" as const,
     publishedWallCount: 0,
   },
   venue: { venueId: "museum" as never, name: "Museum of Modern Art" },
@@ -627,6 +628,7 @@ it("renders Explore rows from the relationship embedded in each page instead of 
     profileId: profileId as never,
     name: profileId,
     username: profileId,
+    avatar: "vermeer" as const,
     publishedWallCount: 0,
     relationship,
   });
@@ -698,6 +700,7 @@ const profile = (name: string) => ({
   profileId: name.toLowerCase().replaceAll(" ", "-") as never,
   name,
   username: name.toLowerCase().replaceAll(" ", ""),
+  avatar: "vermeer" as const,
   publishedWallCount: 0,
 });
 const maya: Suggestion = {
