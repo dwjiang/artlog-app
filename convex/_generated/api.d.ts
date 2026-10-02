@@ -79,6 +79,7 @@ import type * as lib_museumDownloadValidators from "../lib/museumDownloadValidat
 import type * as lib_museumWorkIdentity from "../lib/museumWorkIdentity.js";
 import type * as lib_narrationCache from "../lib/narrationCache.js";
 import type * as lib_narrationEvidence from "../lib/narrationEvidence.js";
+import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_objectContributionState from "../lib/objectContributionState.js";
 import type * as lib_objectCounters from "../lib/objectCounters.js";
 import type * as lib_objectDetails from "../lib/objectDetails.js";
@@ -131,6 +132,7 @@ import type * as museumDownloads from "../museumDownloads.js";
 import type * as museums from "../museums.js";
 import type * as narration from "../narration.js";
 import type * as nativeLogin from "../nativeLogin.js";
+import type * as notifications from "../notifications.js";
 import type * as observability from "../observability.js";
 import type * as orbFiles from "../orbFiles.js";
 import type * as photoVisibility from "../photoVisibility.js";
@@ -238,6 +240,7 @@ declare const fullApi: ApiFromModules<{
   "lib/museumWorkIdentity": typeof lib_museumWorkIdentity;
   "lib/narrationCache": typeof lib_narrationCache;
   "lib/narrationEvidence": typeof lib_narrationEvidence;
+  "lib/notifications": typeof lib_notifications;
   "lib/objectContributionState": typeof lib_objectContributionState;
   "lib/objectCounters": typeof lib_objectCounters;
   "lib/objectDetails": typeof lib_objectDetails;
@@ -290,6 +293,7 @@ declare const fullApi: ApiFromModules<{
   museums: typeof museums;
   narration: typeof narration;
   nativeLogin: typeof nativeLogin;
+  notifications: typeof notifications;
   observability: typeof observability;
   orbFiles: typeof orbFiles;
   photoVisibility: typeof photoVisibility;

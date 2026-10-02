@@ -260,3 +260,15 @@ export const researchConflict = v.object({
   referenceUrl: v.string(),
 });
 export type ResearchConflict = Infer<typeof researchConflict>;
+
+export const notificationEvent = v.union(
+  v.object({ kind: v.literal("friendRequest") }),
+  v.object({ kind: v.literal("friendAccepted") }),
+  v.object({ kind: v.literal("visitLike"), publicationId: v.id("sharedVisits") }),
+  v.object({
+    kind: v.literal("visitComment"),
+    publicationId: v.id("sharedVisits"),
+    commentId: v.id("visitComments"),
+  }),
+);
+export type NotificationEvent = Infer<typeof notificationEvent>;

@@ -475,6 +475,7 @@ it("loads public visits for guests and opens their details without signing in", 
   expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
     ["sharedVisits:listFeed", "skip"],
     ["sharedVisits:listPublic", {}],
+    ["notifications:unseen", "skip"],
   ]);
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
@@ -493,12 +494,14 @@ it("switches a signed-in Home between friends’ visits and Global public visits
   expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
     ["sharedVisits:listFeed", {}],
     ["sharedVisits:listPublic", {}],
+    ["notifications:unseen", {}],
   ]);
   expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
-  expect(getFunctionName(mockPages.mock.lastCall[0])).toBe("sharedVisits:listPublic");
-  expect(mockPages.mock.lastCall[1]).toEqual({});
+  expect(
+    mockPages.mock.calls.filter(([query]) => getFunctionName(query) === "sharedVisits:listPublic").at(-1)?.[1],
+  ).toEqual({});
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
