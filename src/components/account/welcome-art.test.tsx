@@ -11,7 +11,7 @@ jest.mock("react-native-reanimated", () => ({
   useReducedMotion: () => false,
 }));
 
-const WORDS = ["Van", "Gogh", "painted", "Saint-Rémy."];
+const WORDS = ["Leutze", "painted", "art", "models."];
 
 const expectUnread = (words: string[]) => {
   for (const word of words) expect(screen.getByText(word)).toHaveStyle({ color: Gallery.muted });
@@ -37,11 +37,11 @@ it("keeps the story gray until Play is pressed, then reads it from the first wor
 
   await fireEvent.press(screen.getByRole("button", { name: "Play story" }));
   await readFor(1);
-  expect(screen.getByText("Van")).toHaveStyle({ color: Gallery.ink });
-  expectUnread(["Gogh", "Saint-Rémy."]);
+  expect(screen.getByText("Leutze")).toHaveStyle({ color: Gallery.ink });
+  expectUnread(["painted", "models."]);
 
   await readFor(20);
-  expect(screen.getByText("Saint-Rémy.")).toHaveStyle({ color: Gallery.ink });
+  expect(screen.getByText("models.")).toHaveStyle({ color: Gallery.ink });
 });
 
 it("pauses where it is, and replays from gray once finished", async () => {
@@ -50,13 +50,13 @@ it("pauses where it is, and replays from gray once finished", async () => {
   await readFor(1);
   await fireEvent.press(screen.getByRole("button", { name: "Pause story" }));
   await readFor(20);
-  expect(screen.getByText("Van")).toHaveStyle({ color: Gallery.ink });
-  expectUnread(["Gogh"]);
+  expect(screen.getByText("Leutze")).toHaveStyle({ color: Gallery.ink });
+  expectUnread(["painted"]);
 
   await fireEvent.press(screen.getByRole("button", { name: "Play story" }));
   await readFor(20);
   await fireEvent.press(screen.getByRole("button", { name: "Replay story" }));
   expectUnread(WORDS);
   await readFor(1);
-  expect(screen.getByText("Van")).toHaveStyle({ color: Gallery.ink });
+  expect(screen.getByText("Leutze")).toHaveStyle({ color: Gallery.ink });
 });
