@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { afterEach, expect, it, vi } from "vitest";
 
 import { internal } from "./_generated/api";
@@ -20,6 +22,32 @@ it("uses the file document ID for server uploads and R2 reads", async () => {
   expect(r2.put).toHaveBeenCalledWith(id, blob);
   expect(await (await r2.get(id))?.text()).toBe("archive bytes");
   expect(await t.action(async (ctx) => (await fileStorage.get(ctx, id))?.text())).toBe("archive bytes");
+});
+
+it("stores an HTTP request body, which the Convex runtime streams only once", async () => {
+  class StreamingBlob extends Blob {
+    #read = false;
+    override async arrayBuffer() {
+      if (this.#read) throw new TypeError("Can't re-read streaming Blob");
+      this.#read = true;
+      return super.arrayBuffer();
+    }
+  }
+  const uploaded: string[] = [];
+  vi.mocked(r2.put).mockImplementationOnce(async (_key, blob) => {
+    uploaded.push(new TextDecoder().decode(await blob.arrayBuffer()));
+  });
+  const t = harness();
+  const id = await t.action((ctx) =>
+    fileStorage.store(ctx, new StreamingBlob(["photo bytes"], { type: "image/jpeg" })),
+  );
+  expect(uploaded).toEqual(["photo bytes"]);
+  expect(await t.query(internal.files.metadata, { id })).toMatchObject({
+    state: "ready",
+    contentType: "image/jpeg",
+    size: 11,
+    sha256: createHash("sha256").update("photo bytes").digest("hex"),
+  });
 });
 
 it("reserves direct uploads under the file document ID", async () => {
