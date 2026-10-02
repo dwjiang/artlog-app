@@ -5,19 +5,19 @@ import { Gallery, Spacing } from "@/constants/theme";
 
 export const introArtworks = {
   pearl: {
-    source: require("../../../assets/images/onboarding/girl-with-a-pearl-earring.jpg"),
+    source: require("../../../assets/images/onboarding/girl-with-a-pearl-earring.webp"),
     title: "Girl with a Pearl Earring, Johannes Vermeer",
-    aspectRatio: 960 / 1137,
+    aspectRatio: 1600 / 1895,
   },
   lilies: {
-    source: require("../../../assets/images/onboarding/water-lilies.jpg"),
+    source: require("../../../assets/images/onboarding/water-lilies.webp"),
     title: "Water Lilies, Claude Monet",
-    aspectRatio: 843 / 809,
+    aspectRatio: 1686 / 1619,
   },
   stars: {
-    source: require("../../../assets/images/onboarding/starry-night.jpg"),
+    source: require("../../../assets/images/onboarding/starry-night.webp"),
     title: "The Starry Night, Vincent van Gogh",
-    aspectRatio: 960 / 760,
+    aspectRatio: 1920 / 1520,
   },
 } as const;
 

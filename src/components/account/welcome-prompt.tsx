@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
-import { getSetting, setSetting } from "@/db/repos/settings";
+import { getSetting } from "@/db/repos/settings";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
 import { getLocalProfileName } from "@/lib/account/local-profile";
@@ -19,10 +19,9 @@ export function WelcomePrompt() {
     void (async () => {
       const [seen, name] = await Promise.all([getSetting(WELCOME_SEEN_SETTING), getLocalProfileName()]);
       if (cancelled) return;
-      if (owner.startsWith("account:")) await setSetting(WELCOME_SEEN_SETTING, "true");
-      if (cancelled) return;
       setCheckedOwner(owner);
-      if ((seen !== "true" || !name) && !owner.startsWith("account:")) {
+      // Everyone finishes the welcome once; a guest also needs a name, which an account's profile replaces.
+      if (seen !== "true" || (!name && !owner.startsWith("account:"))) {
         router.push("/welcome");
       }
     })().catch((cause) => {

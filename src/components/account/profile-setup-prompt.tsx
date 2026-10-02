@@ -7,14 +7,14 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
 
-/** Opens profile setup after an inline sign-in; the sign-in sheet hands off to setup itself. */
+/** Inline sign-ins use this prompt; the sign-in and welcome screens own their handoffs. */
 export function ProfileSetupPrompt() {
   const offer = useProfileSetupOffer();
   const pathname = usePathname();
   const ready = useDeviceReady();
   const account = useQuery(api.accounts.me, offer && ready ? {} : "skip");
   useEffect(() => {
-    if (!offer || !account || pathname === "/sign-in") return;
+    if (!offer || !account || pathname === "/sign-in" || pathname === "/welcome") return;
     takeProfileSetupOffer();
     if (account.linked && account.hasProfile === false) router.push(profileSetupRoute(offer));
   }, [account, offer, pathname]);

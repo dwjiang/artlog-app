@@ -48,7 +48,13 @@ it("holds a guest who still needs to enter a name", async () => {
   expect(result.current).toBe(false);
 });
 
-it("does not hold a signed-in account, which never gets the welcome", async () => {
+it("holds a signed-in account until it finishes the welcome, which needs no name", async () => {
+  const held = await renderHook(() => useIntroductionOver("account:existing"));
+  await act(async () => {});
+  expect(held.result.current).toBe(false);
+  await held.unmount();
+
+  await setSetting(WELCOME_SEEN_SETTING, "true");
   const { result } = await renderHook(() => useIntroductionOver("account:existing"));
   await waitFor(() => expect(result.current).toBe(true));
 });

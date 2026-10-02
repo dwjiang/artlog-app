@@ -2,9 +2,12 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 
-export const SIGN_IN_BUTTON_HEIGHT = 50;
+// Matches a full-width filled GalleryButton, so provider buttons sit in the same stack as the app's own actions.
+export const SIGN_IN_BUTTON_HEIGHT = 52;
+const LABEL_SIZE = 17;
+const GOOGLE_LOGO_SIZE = 18;
 
 export function ProviderSignInButton({
   provider,
@@ -22,9 +25,16 @@ export function ProviderSignInButton({
   const { fontScale } = useWindowDimensions();
   const apple = provider === "apple";
   const label = apple ? "Continue with Apple" : "Continue with Google";
-  const logoHeight = SIGN_IN_BUTTON_HEIGHT * fontScale;
-  // Apple's unmodified 31 × 44 artwork includes the logo's required clear space.
-  const logoWidth = (logoHeight * 31) / 44;
+  // Apple sizes its logo artwork for a title at 43% of the button height, so it follows the title to keep the glyph
+  // in proportion. The unmodified 31 × 44 artwork includes the logo's required clear space.
+  const logoHeight = Math.round(LABEL_SIZE / 0.43) * fontScale;
+  // Google's iOS logo-to-title gap, used for both logos. Apple's artwork already ends in clear space (its glyph stops
+  // at x = 23.2 of 31), so its margin is only the remainder.
+  const logoGap = Spacing.compact * fontScale;
+  const appleClearSpace = (logoHeight / 44) * (31 - 23.2);
+  const logoSize = apple
+    ? { width: (logoHeight * 31) / 44, height: logoHeight }
+    : { width: GOOGLE_LOGO_SIZE * fontScale, height: GOOGLE_LOGO_SIZE * fontScale };
   const dimmed = disabled && !busy;
   return (
     <Pressable
@@ -37,19 +47,21 @@ export function ProviderSignInButton({
         styles.button,
         { minHeight },
         apple && styles.appleButton,
-        !apple && dimmed && styles.googleDisabled,
         (pressed || dimmed) && styles.dimmed,
       ]}
     >
       {/* Hidden content keeps the button's size while the ring replaces it. */}
-      <View pointerEvents="none" style={[styles.logo, { width: logoWidth, height: logoHeight }, busy && styles.hidden]}>
+      <View
+        pointerEvents="none"
+        style={[logoSize, { marginRight: apple ? logoGap - appleClearSpace : logoGap }, busy && styles.hidden]}
+      >
         <Image
           source={
             apple ? require("../../../assets/images/apple-sign-in.svg") : require("../../../assets/images/google-g.png")
           }
           contentFit="contain"
           accessible={false}
-          style={apple ? { width: logoWidth, height: logoHeight } : { width: 20 * fontScale, height: 20 * fontScale }}
+          style={logoSize}
         />
       </View>
       <Text style={[styles.label, apple && styles.appleLabel, busy && styles.hidden]}>{label}</Text>
@@ -69,19 +81,17 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: Gallery.surface,
     borderWidth: 1,
-    borderColor: Gallery.controlBorder,
-    borderRadius: 8,
+    borderColor: Gallery.softBorder,
+    borderRadius: Radius.button,
   },
   appleButton: { backgroundColor: "#000000", borderColor: "#000000" },
-  googleDisabled: { borderColor: Gallery.separator },
   dimmed: { opacity: 0.5 },
   hidden: { opacity: 0 },
-  logo: { alignItems: "center", justifyContent: "center" },
   label: {
     flexShrink: 1,
     color: Gallery.ink,
-    fontSize: SIGN_IN_BUTTON_HEIGHT * 0.43,
-    fontWeight: "500",
+    fontSize: LABEL_SIZE,
+    fontWeight: "600",
     textAlign: "center",
   },
   appleLabel: { color: "#FFFFFF" },

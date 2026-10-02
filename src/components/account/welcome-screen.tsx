@@ -1,6 +1,16 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { type ReactNode, useRef, useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -13,19 +23,29 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { GlassSurface } from "@/components/glass-surface";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { Fonts, Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
-import { setLocalProfileName, useLocalProfileName } from "@/lib/account/local-profile";
+import { setLocalProfileName, setLocalProfilePhoto, useLocalProfile } from "@/lib/account/local-profile";
+import { useLocalOwner } from "@/lib/account/owner-store";
+import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
+import { signInContexts } from "@/lib/account/sign-in-context";
+import { useAccount } from "@/lib/account/use-account";
 import { reportError } from "@/lib/observability";
+import { chooseProfilePhoto, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import { LIMITS } from "@/shared/journal/limits";
 
+import { SignInActions } from "./sign-in-actions";
 import { useWelcomeAccess, type AccessStep } from "./welcome-access";
-import { AccessArt, WelcomeArt } from "./welcome-art";
+import { AccessArt, NameArt, SavedPhotoTile, ScanResult, SignInArt, WelcomeArt } from "./welcome-art";
 
 const BRAND_STATEMENT = "Point at a painting. Learn its story.";
+const SHEET_RADIUS = 28;
+const HEADER_HEIGHT = Spacing.two + 44;
 
 export function WelcomeScreen() {
   const router = useRouter();
@@ -37,68 +57,283 @@ export function WelcomeScreen() {
   const [index, setIndex] = useState(0);
   // Each page's picture plays its entrance once, the first time the page arrives.
   const [reached, setReached] = useState(0);
-  const localProfile = useLocalProfileName();
+  const localProfile = useLocalProfile();
   const [draft, setDraft] = useState<string>();
   const name = draft ?? localProfile.name ?? "";
+  const [photoDraft, setPhotoDraft] = useState<string>();
+  const photoDraftRef = useRef<string>(undefined);
+  const photo = photoDraft ?? localProfile.photoUrl;
+  const [choosingPhoto, setChoosingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string>();
   const access = useWelcomeAccess();
-  const count = access.steps.length + 2;
-  const last = index === count - 1;
-  const step = index === 0 ? undefined : access.steps[index - 1];
+  const account = useAccount();
+  // An account brings its own profile, so it skips the sign-in and name pages. Fixed when the welcome opens, so
+  // signing in on the way through cannot reshuffle the pages under the visitor.
+  const owner = useLocalOwner();
+  const [guest] = useState(!owner.startsWith("account:"));
+  const signInPage = access.steps.length + 1;
+  const count = access.steps.length + (guest ? 3 : 1);
+  const finishing = useRef(false);
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.set(event.contentOffset.x);
     },
   });
+  useEffect(() => () => removeProfilePhotoDraft(photoDraftRef.current), []);
+
   // Pages change only through their buttons, so a swipe can never pass a permission without an answer.
   const goTo = (page: number) => {
     pager.current?.scrollTo({ x: page * width, animated: !reduced });
     setIndex(page);
     setReached((furthest) => Math.max(furthest, page));
   };
-  const advance = () => goTo(Math.min(index + 1, count - 1));
+  const close = async () => {
+    try {
+      await setSetting(WELCOME_SEEN_SETTING, "true");
+    } catch (cause) {
+      reportError(cause, "account.welcome.save");
+    }
+    router.back();
+  };
+  const advance = () => (index >= count - 1 ? void close() : goTo(index + 1));
   const allow = async (current: AccessStep) => {
     await access.answer(current);
     advance();
+  };
+  useEffect(() => {
+    // Signed in on the sign-in page: a new account continues into profile setup, an existing one is done.
+    if (!guest || !account.account?.linked || account.busy || finishing.current) return;
+    finishing.current = true;
+    const { hasProfile } = account.account;
+    void setSetting(WELCOME_SEEN_SETTING, "true")
+      .catch((cause: unknown) => reportError(cause, "account.welcome.save"))
+      .then(() => {
+        const offer = hasProfile === false ? takeProfileSetupOffer() : undefined;
+        if (offer) router.replace(profileSetupRoute(offer));
+        else router.back();
+      });
+  }, [account.account, account.busy, guest, router]);
+
+  const choosePhoto = async () => {
+    if (choosingPhoto || savingRef.current) return;
+    setChoosingPhoto(true);
+    setError(undefined);
+    try {
+      const next = await chooseProfilePhoto();
+      if (next) {
+        removeProfilePhotoDraft(photoDraftRef.current);
+        photoDraftRef.current = next;
+        setPhotoDraft(next);
+      }
+    } catch (cause) {
+      reportError(cause, "account.welcome.photo");
+      setError("This photo couldn’t be opened. Choose another.");
+    } finally {
+      setChoosingPhoto(false);
+    }
   };
   const finish = async () => {
     if (!name.trim() || localProfile.loading || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     setError(undefined);
+    let saved = "name";
     try {
       await setLocalProfileName(name);
+      saved = "photo";
+      if (photoDraftRef.current) {
+        await setLocalProfilePhoto(photoDraftRef.current);
+        photoDraftRef.current = undefined;
+        setPhotoDraft(undefined);
+      }
       await setSetting(WELCOME_SEEN_SETTING, "true");
       router.back();
     } catch (cause) {
       reportError(cause, "account.welcome.save");
-      setError("Your name couldn’t be saved. Please try again.");
+      setError(`Your ${saved} couldn’t be saved. Please try again.`);
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   };
 
+  const sheetBottom = Math.max(Spacing.four, bottom);
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.root}>
-      <View style={[styles.root, { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) }]}>
-        <View style={styles.header}>
+      <StatusBar style="light" />
+      <Animated.ScrollView
+        ref={pager}
+        horizontal
+        pagingEnabled
+        scrollEnabled={false}
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={onScroll}
+        style={styles.root}
+      >
+        <WelcomePage
+          active={index === 0}
+          width={width}
+          art={<WelcomeArt active={index === 0} />}
+          overlay={<ScanResult />}
+          bottom={sheetBottom}
+          actions={<GalleryButton label="Get started" fullWidth variant="filled" onPress={advance} />}
+        >
+          <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wordmark}>
+            Artlog
+          </Text>
+          <Headline accessibilityLabel={`Welcome to Artlog. ${BRAND_STATEMENT}`}>
+            {"Point at a painting.\nLearn its story."}
+          </Headline>
+        </WelcomePage>
+        {access.steps.map((current, position) => {
+          const page = position + 1;
+          return (
+            <WelcomePage
+              key={current.key}
+              active={index === page}
+              width={width}
+              art={<AccessArt step={current.key} active={index === page} shown={reached >= page} />}
+              overlay={current.key === "photos" ? <SavedPhotoTile shown={reached >= page} /> : undefined}
+              bottom={sheetBottom}
+              actions={
+                current.answer === "unanswered" ? (
+                  <>
+                    <GalleryButton
+                      label={`Allow ${current.name}`}
+                      fullWidth
+                      variant="filled"
+                      busy={access.asking === current.key}
+                      busyLabel="Asking…"
+                      onPress={() => void allow(current)}
+                    />
+                    <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" onPress={advance} />
+                  </>
+                ) : (
+                  <GalleryButton label="Continue" fullWidth variant="filled" onPress={() => void allow(current)} />
+                )
+              }
+            >
+              <Headline>{current.headline}</Headline>
+              <Text themeColor="textSecondary">{current.caption}</Text>
+            </WelcomePage>
+          );
+        })}
+        {guest && (
+          <WelcomePage
+            active={index === signInPage}
+            width={width}
+            art={<SignInArt />}
+            bottom={sheetBottom}
+            actions={
+              <>
+                <SignInActions state={account} />
+                <GalleryButton
+                  label="Not now"
+                  fullWidth
+                  variant="filled"
+                  tone="neutral"
+                  disabled={account.busy}
+                  onPress={advance}
+                />
+              </>
+            }
+          >
+            <Headline>Save your collection.</Headline>
+            <Text themeColor="textSecondary">{signInContexts.account.detail}</Text>
+          </WelcomePage>
+        )}
+        {guest && (
+          <WelcomePage
+            active={index === count - 1}
+            width={width}
+            art={<NameArt active={index === count - 1} />}
+            bottom={sheetBottom}
+            actions={
+              <GalleryButton
+                label="Continue"
+                fullWidth
+                variant="filled"
+                disabled={!name.trim() || localProfile.loading || choosingPhoto}
+                busy={saving}
+                busyLabel="Saving…"
+                onPress={() => void finish()}
+              />
+            }
+          >
+            <Headline>Your name.</Headline>
+            <View style={styles.nameRow}>
+              {/* The text button below is the accessible way to choose a photo. */}
+              <Pressable
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                disabled={saving}
+                onPress={() => void choosePhoto()}
+              >
+                <ProfileAvatar name={name.trim() || undefined} photoUrl={photo} size={72} />
+                <View style={styles.photoBadge}>
+                  <Image source="sf:camera.fill" tintColor={Gallery.surface} style={styles.photoBadgeIcon} />
+                </View>
+              </Pressable>
+              <TextInput
+                accessibilityLabel="Name"
+                value={name}
+                onChangeText={setDraft}
+                placeholder="Name or nickname"
+                placeholderTextColor={Gallery.muted}
+                selectionColor={Gallery.accent}
+                keyboardAppearance="light"
+                maxLength={LIMITS.name}
+                textContentType="name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                editable={!saving && !localProfile.loading}
+                onSubmitEditing={() => void finish()}
+                style={styles.nameInput}
+              />
+            </View>
+            <View style={styles.photoAction}>
+              <GalleryButton
+                label={photo ? "Change photo" : "Add a photo"}
+                fullWidth={false}
+                contentAlignment="leading"
+                disabled={saving}
+                busy={choosingPhoto}
+                busyLabel="Opening Photos…"
+                onPress={() => void choosePhoto()}
+              />
+            </View>
+            {error && (
+              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                {error}
+              </Text>
+            )}
+          </WelcomePage>
+        )}
+      </Animated.ScrollView>
+      <View pointerEvents="box-none" style={[styles.header, { paddingTop: top }]}>
+        <View pointerEvents="none" style={[styles.scrim, { height: top + 110 }]} />
+        <View pointerEvents="box-none" style={styles.headerRow}>
           <View
             pointerEvents={index === 0 ? "none" : "auto"}
             accessibilityElementsHidden={index === 0}
             importantForAccessibility={index === 0 ? "no-hide-descendants" : "auto"}
             style={{ opacity: index === 0 ? 0 : 1 }}
           >
-            <GalleryButton
-              label="Back"
-              icon="chevron.left"
-              iconOnly
-              fullWidth={false}
-              disabled={saving}
-              onPress={() => goTo(Math.max(index - 1, 0))}
-            />
+            <GlassSurface isInteractive style={styles.backGlass}>
+              <GalleryIconButton
+                label="Back"
+                icon="chevron.left"
+                tone="surface"
+                size={17}
+                disabled={saving}
+                onPress={() => goTo(Math.max(index - 1, 0))}
+              />
+            </GlassSurface>
           </View>
           <View accessible accessibilityLabel={`Page ${index + 1} of ${count}`} style={styles.progress}>
             {Array.from({ length: count }, (_, position) => (
@@ -106,140 +341,71 @@ export function WelcomeScreen() {
             ))}
           </View>
         </View>
-        <Animated.ScrollView
-          ref={pager}
-          horizontal
-          pagingEnabled
-          scrollEnabled={false}
-          keyboardShouldPersistTaps="handled"
-          showsHorizontalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={onScroll}
-          style={styles.pager}
-        >
-          <WelcomePage active={index === 0} width={width}>
-            <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wordmark}>
-              Artlog
-            </Text>
-            <View style={styles.art}>
-              <WelcomeArt />
-            </View>
-            <Headline accessibilityLabel={`Welcome to Artlog. ${BRAND_STATEMENT}`}>{BRAND_STATEMENT}</Headline>
-          </WelcomePage>
-          {access.steps.map((current, position) => (
-            <WelcomePage key={current.key} active={index === position + 1} width={width}>
-              <View style={styles.art}>
-                <AccessArt step={current.key} shown={reached > position} />
-              </View>
-              <View style={styles.copy}>
-                <Headline>{current.headline}</Headline>
-                <Text themeColor="textSecondary">{current.caption}</Text>
-              </View>
-            </WelcomePage>
-          ))}
-          <WelcomePage active={last} width={width}>
-            <View style={styles.art}>
-              <View style={styles.nameCard}>
-                <ProfileAvatar name={name.trim() || undefined} size={96} />
-                <TextInput
-                  accessibilityLabel="Name"
-                  value={name}
-                  onChangeText={setDraft}
-                  placeholder="Name or nickname"
-                  placeholderTextColor={Gallery.muted}
-                  selectionColor={Gallery.accent}
-                  keyboardAppearance="light"
-                  maxLength={LIMITS.name}
-                  textContentType="name"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  editable={!saving && !localProfile.loading}
-                  onSubmitEditing={() => void finish()}
-                  style={styles.nameInput}
-                />
-              </View>
-            </View>
-            <View style={styles.copy}>
-              <Headline>Your name.</Headline>
-              {error && (
-                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                  {error}
-                </Text>
-              )}
-            </View>
-          </WelcomePage>
-        </Animated.ScrollView>
-        <View style={styles.actions}>
-          {/* Two rows on every page, so the pages above keep their height when the button count changes. */}
-          {!step || step.answer !== "unanswered" ? (
-            <View
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={{ opacity: 0 }}
-            >
-              <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" disabled onPress={advance} />
-            </View>
-          ) : null}
-          {last ? (
-            <GalleryButton
-              label="Continue"
-              fullWidth
-              variant="filled"
-              disabled={!name.trim() || localProfile.loading}
-              busy={saving}
-              busyLabel="Saving…"
-              onPress={() => void finish()}
-            />
-          ) : step ? (
-            <>
-              <GalleryButton
-                label={step.answer === "unanswered" ? `Allow ${step.name}` : "Continue"}
-                fullWidth
-                variant="filled"
-                busy={access.asking === step.key}
-                busyLabel="Asking…"
-                onPress={() => void allow(step)}
-              />
-              {step.answer === "unanswered" && (
-                <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" onPress={advance} />
-              )}
-            </>
-          ) : (
-            <GalleryButton label="Get started" fullWidth variant="filled" onPress={advance} />
-          )}
-        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function WelcomePage({ active, width, children }: { active: boolean; width: number; children: ReactNode }) {
+/** One page: its picture fills the room above a white sheet holding the copy and the page's own buttons. */
+function WelcomePage({
+  active,
+  width,
+  art,
+  overlay,
+  bottom,
+  actions,
+  children,
+}: {
+  active: boolean;
+  width: number;
+  art: ReactNode;
+  overlay?: ReactNode;
+  bottom: number;
+  actions: ReactNode;
+  children: ReactNode;
+}) {
+  const { top } = useSafeAreaInsets();
+  const [overlayHeight, setOverlayHeight] = useState(0);
+  // Absolute overlays do not grow the scroll content; reserve their full height below the fixed header.
+  const artHeight = Math.max(300, top + HEADER_HEIGHT + Spacing.three + overlayHeight + SHEET_RADIUS);
   return (
-    <ScrollView
+    <View
       style={{ width }}
       accessibilityElementsHidden={!active}
       importantForAccessibility={active ? "auto" : "no-hide-descendants"}
-      contentInsetAdjustmentBehavior="never"
-      alwaysBounceVertical={false}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.page}
     >
-      {children}
-    </ScrollView>
+      <ScrollView
+        contentInsetAdjustmentBehavior="never"
+        alwaysBounceVertical={false}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.page}
+      >
+        <View style={[styles.art, { minHeight: artHeight }]}>{art}</View>
+        <View>
+          <View style={[styles.sheet, { paddingBottom: bottom }]}>
+            <View style={styles.copy}>{children}</View>
+            <View style={styles.actions}>{actions}</View>
+          </View>
+          {/* After the sheet, so a picture rising out of its edge draws on top of it. */}
+          {overlay && (
+            <View
+              pointerEvents="box-none"
+              onLayout={({ nativeEvent }) => setOverlayHeight(nativeEvent.layout.height)}
+              style={styles.overlay}
+            >
+              {overlay}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 function Headline({ accessibilityLabel, children }: { accessibilityLabel?: string; children: string }) {
-  const { fontScale } = useWindowDimensions();
   return (
-    <Text
-      accessibilityRole="header"
-      accessibilityLabel={accessibilityLabel}
-      style={fontScale > 1.3 ? Typography.display : styles.title}
-    >
+    <Text accessibilityRole="header" accessibilityLabel={accessibilityLabel} style={styles.title}>
       {children}
     </Text>
   );
@@ -269,38 +435,73 @@ function ProgressSegment({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Gallery.paper },
-  header: {
+  root: { flex: 1, backgroundColor: Gallery.ink },
+  header: { position: "absolute", top: 0, left: 0, right: 0 },
+  // Keeps the status bar and the white controls legible over bright paintings.
+  scrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    experimental_backgroundImage:
+      "linear-gradient(180deg, rgba(8,11,16,0.62) 0%, rgba(8,11,16,0.3) 55%, rgba(8,11,16,0) 100%)",
+  },
+  headerRow: {
+    height: HEADER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.compact,
+    paddingTop: Spacing.two,
     paddingLeft: Spacing.compact,
     paddingRight: Spacing.content,
   },
+  backGlass: { width: 44, height: 44, borderRadius: 22, overflow: "hidden" },
   progress: { flex: 1, flexDirection: "row", gap: Spacing.one },
-  track: { flex: 1, height: 3, borderRadius: Radius.full, overflow: "hidden", backgroundColor: Gallery.softBorder },
-  fill: { flex: 1, backgroundColor: Gallery.ink, transformOrigin: "left" },
-  pager: { flex: 1 },
-  page: { flexGrow: 1, paddingHorizontal: Spacing.content, paddingTop: Spacing.two, gap: Spacing.four },
-  wordmark: { ...Typography.wordmark, fontSize: 26, lineHeight: 34, letterSpacing: -0.8, color: Gallery.ink },
-  art: { flex: 1, minHeight: 220, justifyContent: "center" },
-  copy: { gap: Spacing.two },
-  nameCard: {
-    alignItems: "center",
-    gap: Spacing.content,
-    paddingHorizontal: Spacing.content,
-    paddingVertical: Spacing.five,
-    borderRadius: Radius.card,
-    backgroundColor: Gallery.fill,
+  track: {
+    flex: 1,
+    height: 3,
+    borderRadius: Radius.full,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.36)",
   },
+  fill: { flex: 1, backgroundColor: Gallery.surface, transformOrigin: "left" },
+  page: { flexGrow: 1 },
+  art: { flex: 1, marginBottom: -SHEET_RADIUS, overflow: "hidden" },
+  sheet: {
+    paddingTop: SHEET_RADIUS,
+    borderTopLeftRadius: SHEET_RADIUS,
+    borderTopRightRadius: SHEET_RADIUS,
+    backgroundColor: Gallery.paper,
+    boxShadow: "0 -10px 30px -8px rgba(8,11,16,0.32)",
+  },
+  overlay: { position: "absolute", left: 0, right: 0, bottom: "100%" },
+  copy: { gap: Spacing.two, paddingHorizontal: Spacing.content },
+  actions: { gap: Spacing.two, paddingHorizontal: Spacing.content, paddingTop: Spacing.four },
+  wordmark: { fontFamily: Fonts.display, fontSize: 20, lineHeight: 26, letterSpacing: -0.5, color: Gallery.ink },
+  title: { ...Typography.display, color: Gallery.ink },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: Spacing.two },
+  photoBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2.5,
+    borderColor: Gallery.surface,
+    backgroundColor: Gallery.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoBadgeIcon: { width: 12, height: 12 },
   nameInput: {
-    ...Typography.display,
-    fontSize: 34,
-    lineHeight: 44,
-    alignSelf: "stretch",
-    textAlign: "center",
+    flex: 1,
+    minHeight: 52,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.input,
+    backgroundColor: Gallery.fill,
+    fontSize: 17,
     color: Gallery.ink,
   },
-  title: { ...Typography.display, fontSize: 36, lineHeight: 47, color: Gallery.ink },
-  actions: { gap: Spacing.compact, paddingHorizontal: Spacing.content, paddingTop: Spacing.three },
+  photoAction: { alignItems: "flex-start", marginTop: -Spacing.one },
 });
