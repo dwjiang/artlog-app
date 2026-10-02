@@ -1,6 +1,7 @@
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image, type ImageSource } from "expo-image";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { StyleSheet, View, type ViewStyle } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { StyleSheet, View, useWindowDimensions, type ViewStyle } from "react-native";
 import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -8,9 +9,11 @@ import { ArtworkCollage, introArtworks } from "@/components/guest/artwork-previe
 import { PaintingReveal } from "@/components/scan/painting-reveal";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
+import { configureSpokenAudio } from "@/lib/audio/spoken-audio-mode";
 import type { FrameSize } from "@/lib/capture/rectangle";
 import { liftedPlacement, perspectiveMatrix, photoCorners, type RevealGeometry } from "@/lib/capture/reveal-geometry";
 import type { Quad } from "@/lib/capture/stages";
+import { reportError } from "@/lib/observability";
 
 import type { AccessKey } from "./welcome-access";
 
@@ -36,9 +39,28 @@ const gallery = {
   crop: require("../../../assets/images/onboarding/washington-crossing-the-delaware.webp"),
   cropSize: { width: 1937, height: 1135 },
 };
-const STORY = "Leutze painted it in Germany, using American tourists and art students as models.";
+const STORY =
+  "Leutze painted it in Germany, using American tourists and art students as models. The American painter Worthington Whittredge posed as Washington. Look at the flag: the Stars and Stripes it carries wasn’t adopted until the summer after this crossing.";
 const STORY_WORDS = STORY.split(" ");
-const WORD_MS = 280;
+// Each sentence of the story, as word positions.
+const SENTENCE_STARTS = STORY_WORDS.flatMap((_, position) =>
+  position === 0 || /[.!?]$/.test(STORY_WORDS[position - 1]) ? [position] : [],
+);
+const SENTENCES = SENTENCE_STARTS.map((from, index) => ({
+  from,
+  to: SENTENCE_STARTS[index + 1] ?? STORY_WORDS.length,
+}));
+// Below this screen height, in text-size points, the whole story leaves the lifted painting too little room.
+const SUBTITLE_HEIGHT = 720;
+// The story in the narration voice, and where each word starts in it, in seconds, from a word-level transcription.
+const narration = {
+  source: require("../../../assets/audio/welcome-story.m4a"),
+  wordStarts: [
+    0, 1.06, 1.56, 1.74, 2.14, 2.92, 3.16, 3.8, 4.38, 4.8, 5.08, 5.38, 5.74, 6.82, 6.96, 7.36, 7.78, 8.48, 9.28, 9.74,
+    10.08, 11.62, 11.7, 11.82, 12.34, 12.88, 13.08, 13.34, 13.72, 13.92, 14.6, 14.6, 15.26, 15.66, 15.96, 16.44, 16.44,
+    16.88, 17.18,
+  ],
+};
 // The welcome scan runs by itself, the way the camera's does: once the welcome has slid up and the room has been seen,
 // the painting lifts out, and the result rises as the shine passes, with its story waiting for Play.
 const SCAN_DELAY = 1400;
@@ -196,27 +218,94 @@ function welcomeScanGeometry(box: FrameSize, clear: { top: number; bottom: numbe
   return { from, to, width, height, image: { left: 0, top: 0, width, height } };
 }
 
-/** Reveals the story a word at a time once the visitor presses Play; until then every word waits in gray. */
-function useStoryReveal() {
-  const [said, setSaid] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const finished = said >= STORY_WORDS.length;
+/**
+ * Reads the story aloud once the visitor presses Play, lighting each word as it is spoken; until then every word waits
+ * in gray. Leaving the page pauses it.
+ */
+function useStoryReveal(active: boolean) {
+  const player = useAudioPlayer(narration.source, { updateInterval: 50 });
+  const { playing, currentTime, duration } = useAudioPlayerStatus(player);
+  const generation = useRef(0);
+  const cancelPendingPlay = useCallback(() => {
+    generation.current++;
+  }, []);
+  // Strictly past a word's start, so the first word stays gray until the voice moves and again after a rewind.
+  const said = narration.wordStarts.filter((start) => start < currentTime).length;
+  const finished = !playing && duration > 0 && currentTime >= duration;
   useEffect(() => {
-    if (!playing || finished) return;
-    const timer = setTimeout(() => setSaid((count) => count + 1), WORD_MS);
-    return () => clearTimeout(timer);
-  }, [finished, playing, said]);
+    if (!active) player.pause();
+    return cancelPendingPlay;
+  }, [active, player, cancelPendingPlay]);
+  const play = async () => {
+    if (!active) return;
+    const request = ++generation.current;
+    try {
+      try {
+        await configureSpokenAudio();
+      } catch (cause) {
+        if (request === generation.current) reportError(cause, "account.welcome.story");
+      }
+      if (request !== generation.current) return;
+      if (finished) {
+        await player.seekTo(0);
+        if (request !== generation.current) return;
+      }
+      player.play();
+    } catch (cause) {
+      if (request === generation.current) reportError(cause, "account.welcome.story");
+    }
+  };
   const control = finished
-    ? { label: "Replay story", icon: "arrow.counterclockwise" as const, onPress: () => setSaid(0) }
+    ? { label: "Replay story", icon: "arrow.counterclockwise" as const, onPress: () => void play() }
     : playing
-      ? { label: "Pause story", icon: "pause.fill" as const, onPress: () => setPlaying(false) }
-      : { label: "Play story", icon: "play.fill" as const, onPress: () => setPlaying(true) };
+      ? { label: "Pause story", icon: "pause.fill" as const, onPress: () => player.pause() }
+      : { label: "Play story", icon: "play.fill" as const, onPress: () => void play() };
   return { said, control };
 }
 
-/** The welcome scan's result, risen out of the sheet: the painting it found and its story, read in captions. */
-export function ScanResult() {
-  const { said, control } = useStoryReveal();
+function StoryWords({ from, to, said }: { from: number; to: number; said: number }) {
+  return STORY_WORDS.slice(from, to).map((word, offset) => {
+    const position = from + offset;
+    return (
+      <Text key={position} style={{ color: position < said ? Gallery.ink : Gallery.muted }}>
+        {position === to - 1 ? word : `${word} `}
+      </Text>
+    );
+  });
+}
+
+/**
+ * The story a sentence at a time, for short screens: the one being spoken shows in place of the rest. The sentences
+ * share one spot, so the card is as tall as the longest and keeps its height as they turn.
+ */
+function StorySubtitles({ said }: { said: number }) {
+  const reduced = useReducedMotion();
+  const shown = SENTENCE_STARTS.filter((start) => start < Math.max(said, 1)).length - 1;
+  return (
+    <View accessible accessibilityLabel={STORY} style={styles.subtitles}>
+      {SENTENCES.map(({ from, to }, index) => (
+        <Animated.View
+          key={from}
+          style={[
+            styles.subtitle,
+            index > 0 && styles.stackedSubtitle,
+            { opacity: index === shown ? 1 : 0 },
+            !reduced && { transitionProperty: "opacity", transitionDuration: 200 },
+          ]}
+        >
+          <Text style={styles.story}>
+            <StoryWords from={from} to={to} said={said} />
+          </Text>
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+/** The welcome scan's result, risen out of the sheet: the painting it found and its story, read aloud in captions. */
+export function ScanResult({ active }: { active: boolean }) {
+  const { said, control } = useStoryReveal(active);
+  const { height, fontScale } = useWindowDimensions();
   return (
     <Enter motion="rise" delay={RESULT_DELAY} style={styles.resultSlot}>
       <View style={[styles.card, styles.result]}>
@@ -236,13 +325,13 @@ export function ScanResult() {
             />
           </View>
         </View>
-        <Text accessibilityLabel={STORY} style={styles.story}>
-          {STORY_WORDS.map((word, position) => (
-            <Text key={position} style={{ color: position < said ? Gallery.ink : Gallery.muted }}>
-              {position === STORY_WORDS.length - 1 ? word : `${word} `}
-            </Text>
-          ))}
-        </Text>
+        {height / fontScale < SUBTITLE_HEIGHT ? (
+          <StorySubtitles said={said} />
+        ) : (
+          <Text accessibilityLabel={STORY} style={styles.story}>
+            <StoryWords from={0} to={STORY_WORDS.length} said={said} />
+          </Text>
+        )}
       </View>
     </Enter>
   );
@@ -356,6 +445,10 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: Fonts.display, fontSize: 19, lineHeight: 24, letterSpacing: -0.3, color: Gallery.ink },
   cardDetail: { fontSize: 14, lineHeight: 20, color: Gallery.muted },
   story: { fontSize: 15, lineHeight: 21 },
+  subtitles: { flexDirection: "row" },
+  subtitle: { width: "100%" },
+  // Pulls every later sentence back onto the first; the row still grows to the tallest.
+  stackedSubtitle: { marginLeft: "-100%" },
   tileSlot: { position: "absolute", right: Spacing.content, bottom: -28 },
   tile: {
     width: 90,

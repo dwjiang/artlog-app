@@ -49,6 +49,10 @@ jest.mock("convex/react", () => ({
   useQuery: (_query: unknown, args: unknown) => (args === "skip" ? undefined : mockAccount.account),
 }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
+jest.mock("expo-audio", () => ({
+  useAudioPlayer: () => ({ pause: () => {} }),
+  useAudioPlayerStatus: () => ({ playing: false, currentTime: 0 }),
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
 }));

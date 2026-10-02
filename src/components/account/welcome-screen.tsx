@@ -166,7 +166,7 @@ export function WelcomeScreen() {
           active={index === 0}
           width={width}
           art={(clear) => <WelcomeArt clear={clear} />}
-          overlay={<ScanResult />}
+          overlay={<ScanResult active={index === 0} />}
           bottom={sheetBottom}
           actions={
             <>
