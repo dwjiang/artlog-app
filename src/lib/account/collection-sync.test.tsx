@@ -148,6 +148,44 @@ it("keeps syncing notes while a photo transfer runs and retries a failed transfe
   expect(mockSync).toHaveBeenCalledTimes(2);
 });
 
+it("doubles a failing transfer's wait up to 15 minutes, ignores local changes meanwhile, and retries on reconnect", async () => {
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  await render(<CollectionSync />);
+  await tick();
+  await tick();
+  mockPending = false;
+  mockJournalPending = true;
+  mockPhotos.mockRejectedValue(new Error("Photo upload failed with HTTP 500"));
+  let attempts = mockPhotos.mock.calls.length;
+  // Retries scheduled from a timer can land a millisecond late, so those checks pass a wider window.
+  const expectRetryAfter = async (wait: number, window = 1) => {
+    await act(() => jest.advanceTimersByTimeAsync(wait - window));
+    expect(mockPhotos).toHaveBeenCalledTimes(attempts);
+    await act(() => jest.advanceTimersByTimeAsync(window));
+    expect(mockPhotos).toHaveBeenCalledTimes(++attempts);
+  };
+  await flushCollectionMedia();
+  expect(mockPhotos).toHaveBeenCalledTimes(++attempts);
+  await expectRetryAfter(30_000);
+  requestCollectionSync();
+  await tick();
+  expect(mockSync).toHaveBeenCalledTimes(3);
+  await expectRetryAfter(60_000 - 500);
+  for (const wait of [120_000, 240_000, 480_000, 900_000, 900_000]) await expectRetryAfter(wait);
+  mockNetwork({ isConnected: true });
+  await tick();
+  await tick();
+  expect(mockPhotos).toHaveBeenCalledTimes(++attempts);
+  mockPhotos.mockResolvedValue(undefined);
+  await expectRetryAfter(900_000, 1_000);
+  mockPhotos.mockRejectedValueOnce(new Error("Photo upload failed with HTTP 500"));
+  requestCollectionSync();
+  await tick();
+  await tick();
+  expect(mockPhotos).toHaveBeenCalledTimes(++attempts);
+  await expectRetryAfter(30_000, 1_000);
+});
+
 it("backs up the registered device before Apple sign-in and switches scope after linking", async () => {
   mockAccount = { scope: "a", accountId: null };
   const screen = await render(<CollectionSync />);
