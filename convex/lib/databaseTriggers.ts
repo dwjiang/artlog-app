@@ -2,10 +2,12 @@ import { Triggers } from "convex-helpers/server/triggers";
 
 import type { DataModel } from "../_generated/dataModel";
 import { registerFileReferences } from "./fileReferences";
+import { registerNotifications } from "./notifications";
 import { CHALLENGE_RETENTION_MS, COMPLETED_REMOVAL_RETENTION_MS, EVIDENCE_RETENTION_MS } from "./retentionPolicy";
 
 export const databaseTriggers = new Triggers<DataModel>();
 registerFileReferences(databaseTriggers);
+registerNotifications(databaseTriggers);
 
 databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {

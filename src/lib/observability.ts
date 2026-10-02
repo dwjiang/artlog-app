@@ -25,6 +25,7 @@ const expectedCodes = new Set([
   "invalid_save",
   "invalid_venue",
   "invalid_relationship",
+  "invalid_notification",
   "invalid_report",
   "sign_in_required",
   "already_linked",

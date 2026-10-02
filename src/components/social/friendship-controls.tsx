@@ -14,6 +14,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -42,6 +43,7 @@ export function CompactFriendshipControls({
   profileId,
   session,
   friend = false,
+  declinable = false,
   relationship,
   onChanged,
 }: {
@@ -49,6 +51,7 @@ export function CompactFriendshipControls({
   profileId: PublicProfile["profileId"];
   session: SocialSession;
   friend?: boolean;
+  declinable?: boolean;
   relationship?: RelationshipSource;
 }) {
   if (profileId === session.profileId) return null;
@@ -67,6 +70,7 @@ export function CompactFriendshipControls({
     <CompactFriendshipAction
       profileId={profileId}
       session={session}
+      declinable={declinable}
       relationship={relationship}
       onChanged={onChanged}
     />
@@ -76,34 +80,48 @@ export function CompactFriendshipControls({
 function CompactFriendshipAction({
   profileId,
   session,
+  declinable,
   relationship,
   onChanged,
 }: {
   onChanged?: () => void;
   profileId: PublicProfile["profileId"];
   session: SocialSession;
+  declinable: boolean;
   relationship?: RelationshipSource;
 }) {
   const { state, pending, error, act, refresh } = useFriendship(profileId, session, relationship);
   const busy = pending !== undefined;
   const action =
     state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
+  const run = (next: FriendshipAction) => {
+    void act(next).then((changed) => {
+      if (changed) onChanged?.();
+    });
+  };
   return (
     <View style={{ alignItems: "flex-end", maxWidth: 150 }}>
       {state?.state === "accepted" ? (
         <Text style={styles.friends}>Friends</Text>
       ) : (
-        <GalleryButton
-          variant="outlined"
-          label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
-          busy={busy}
-          disabled={busy || !state || state.blocked}
-          onPress={() => {
-            void act(action).then((changed) => {
-              if (changed) onChanged?.();
-            });
-          }}
-        />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <GalleryButton
+            variant="outlined"
+            label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
+            busy={pending === action}
+            disabled={busy || !state || state.blocked}
+            onPress={() => run(action)}
+          />
+          {declinable && action === "accept" && (
+            <GalleryIconButton
+              icon="xmark"
+              label="Ignore friend request"
+              busy={pending === "decline"}
+              disabled={busy}
+              onPress={() => run("decline")}
+            />
+          )}
+        </View>
       )}
       {error && <GalleryButton label="Retry" onPress={refresh} />}
     </View>

@@ -27,12 +27,22 @@ type Media = SharedArtwork["artwork"]["media"];
 const artworksPage = (visit: SharedVisit) => visit.artworks;
 const artworkId = (item: SharedArtwork) => item.itemId;
 
-export function VisitScreen({ postId }: { postId: string }) {
+export function VisitScreen({ postId, openComments = false }: { postId: string; openComments?: boolean }) {
   const session = useSocialSession();
-  return <VisitGallery key={`${session.key}:${postId}`} postId={postId} session={session} />;
+  return (
+    <VisitGallery key={`${session.key}:${postId}`} postId={postId} session={session} openComments={openComments} />
+  );
 }
 
-function VisitGallery({ postId, session }: { postId: string; session: ReturnType<typeof useSocialSession> }) {
+function VisitGallery({
+  postId,
+  session,
+  openComments,
+}: {
+  postId: string;
+  session: ReturnType<typeof useSocialSession>;
+  openComments: boolean;
+}) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const { fontScale } = useWindowDimensions();
@@ -106,7 +116,10 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
                 </Text>
               )}
               <View style={{ marginBottom: 12 }}>
-                <VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} />
+                <VisitReactions
+                  visit={{ ...visit.first, media: visit.items[0]?.artwork.media }}
+                  openComments={openComments}
+                />
               </View>
               <SharedCountHeading label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`} />
               {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}

@@ -19,6 +19,7 @@ import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
 import { api } from "../../../convex/_generated/api";
+import { NotificationsButton } from "./notifications-button";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
@@ -95,6 +96,7 @@ export function HomeScreen() {
               <View style={styles.headerActions}>
                 <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
                 <GalleryIconButton icon="magnifyingglass" label="Find friends" onPress={() => router.push("/people")} />
+                <NotificationsButton session={session} />
               </View>
             </View>
             {guest && !dismissedPrompt && (

@@ -135,6 +135,26 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     }
     return true;
   }
+  const received = await ctx.db
+    .query("notifications")
+    .withIndex("by_recipient", (q) => q.eq("recipientId", profile._id))
+    .take(BATCH);
+  const sent =
+    received.length > 0
+      ? []
+      : await ctx.db
+          .query("notifications")
+          .withIndex("by_actor_recipient_event", (q) => q.eq("actorId", profile._id))
+          .take(BATCH);
+  if (received.length > 0 || sent.length > 0) {
+    for (const row of [...received, ...sent]) await ctx.db.delete("notifications", row._id);
+    return true;
+  }
+  const read = await ctx.db
+    .query("notificationReads")
+    .withIndex("by_profileId", (q) => q.eq("profileId", profile._id))
+    .unique();
+  if (read) await ctx.db.delete("notificationReads", read._id);
   if (profile.photoStorageId) await fileStorage.delete(ctx, profile.photoStorageId);
   await ctx.db.delete("profiles", profile._id);
   return true;

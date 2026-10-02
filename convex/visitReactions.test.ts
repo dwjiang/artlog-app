@@ -230,7 +230,7 @@ describe("visit reactions", () => {
       /* drain bounded batches */
     }
     await t.run(async (ctx) => {
-      for (const table of ["visitLikes", "visitComments", "visitEngagement"] as const) {
+      for (const table of ["visitLikes", "visitComments", "visitEngagement", "notifications"] as const) {
         expect(await ctx.db.query(table).take(1)).toEqual([]);
       }
     });
