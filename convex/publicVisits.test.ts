@@ -65,17 +65,15 @@ it("paginates public visits with tied dates, filters blocked authors, and honors
   });
   expect([...first.page, ...second.page].map((post) => post.postId)).toEqual(ids.sort().reverse());
   await viewer.as.mutation(api.friendships.block, {
+    scope: viewer.scope,
     profileId: author.profileId,
-    revision: 0,
-    blockRevision: 0,
   });
   expect((await viewer.as.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   await expect(viewer.as.query(api.sharedVisits.get, { postId: ids[0] })).rejects.toMatchObject(notFound);
   const blocked = await socialUser(t);
   await author.as.mutation(api.friendships.block, {
+    scope: author.scope,
     profileId: blocked.profileId,
-    revision: 0,
-    blockRevision: 0,
   });
   for (const user of [viewer, blocked]) {
     expect(

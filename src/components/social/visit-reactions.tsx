@@ -17,9 +17,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { api } from "../../../convex/_generated/api";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
-export type ReactionVisit = Pick<SharedVisit, "postId" | "audience" | "author" | "venue" | "visitedOn"> & {
-  media?: SharedVisit["artworks"]["page"][number]["artwork"]["media"];
-};
+export type ReactionVisit = Pick<SharedVisit, "postId" | "audience">;
 export type ReactionSummary = {
   likeCount: number;
   commentCount: number;

@@ -581,9 +581,8 @@ it("lists incoming requests only, removing accepted and blocked connections", as
   });
   expect(await a.as.query(api.profiles.requests, {})).toEqual([]);
   await c.as.mutation(api.friendships.block, {
+    scope: c.scope,
     profileId: pa.profileId,
-    revision: 1,
-    blockRevision: 0,
   });
   expect(await c.as.query(api.profiles.requests, {})).toEqual([]);
   await expect(t.query(api.profiles.requests, {})).rejects.toThrow("unauthenticated");

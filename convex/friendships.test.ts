@@ -3,9 +3,52 @@ import { expect, it } from "vitest";
 import { api, internal } from "./_generated/api";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
+import { wallFixture } from "./lib/wallFixtures";
 import { harness } from "./test.helpers";
 
 const conflict = { data: { code: "conflict" } };
+
+it("keeps a newer block when an old unblock is retried", async () => {
+  const t = harness();
+  const actor = await socialUser(t);
+  const other = await socialUser(t);
+  const input = { scope: actor.scope, profileId: other.profileId };
+  const first = await actor.as.mutation(api.friendships.block, input);
+  const unblock = { ...input, blockRevision: first.blockRevision };
+  const cleared = await actor.as.mutation(api.friendships.unblock, unblock);
+  expect(await actor.as.mutation(api.friendships.unblock, unblock)).toEqual(cleared);
+  const newer = await actor.as.mutation(api.friendships.block, input);
+  await expect(actor.as.mutation(api.friendships.unblock, unblock)).rejects.toMatchObject(conflict);
+  expect(await actor.as.query(api.friendships.getState, { profileId: other.profileId })).toEqual(newer);
+  const [listed] = (await actor.as.query(api.friendships.listBlocked, {})).page;
+  expect(listed).toMatchObject({ profileId: other.profileId, blockRevision: newer.blockRevision });
+  await actor.as.mutation(api.friendships.unblock, { ...input, blockRevision: listed.blockRevision });
+  expect((await actor.as.query(api.friendships.listBlocked, {})).page).toEqual([]);
+});
+
+it.each(["block", "unblock"] as const)("rejects a delayed %s after the device changes accounts", async (action) => {
+  const t = harness();
+  const original = await socialUser(t);
+  const replacement = await socialUser(t);
+  const target = await socialUser(t);
+  if (action === "unblock") {
+    await replacement.as.mutation(api.friendships.block, { scope: replacement.scope, profileId: target.profileId });
+  }
+  const before = await replacement.as.query(api.friendships.getState, { profileId: target.profileId });
+  const input = {
+    scope: original.scope,
+    profileId: target.profileId,
+    ...(action === "unblock" ? { blockRevision: before.blockRevision } : {}),
+  };
+  await t.run((ctx) =>
+    ctx.db.patch("devices", original.deviceId, { accountId: replacement.accountId, scopeRevision: 2 }),
+  );
+  await expect(original.as.mutation(api.friendships[action], input)).rejects.toMatchObject({
+    data: { code: "sync_scope_changed" },
+  });
+  expect(await replacement.as.query(api.friendships.getState, { profileId: target.profileId })).toEqual(before);
+  expect(await t.run((ctx) => ctx.db.query("reports").collect())).toHaveLength(action === "block" ? 0 : 1);
+});
 
 it("derives the actor and restricts each pending transition to its participant", async () => {
   const t = harness();
@@ -96,9 +139,8 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
     }),
   ).toMatchObject({ revision: 3, state: "none" });
   await a.as.mutation(api.friendships.block, {
+    scope: a.scope,
     profileId: b.profileId,
-    revision: 3,
-    blockRevision: 0,
   });
   await expect(
     b.as.mutation(api.friendships.request, {
@@ -107,8 +149,9 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   await a.as.mutation(api.friendships.unblock, {
-    profileId: b.profileId,
+    scope: a.scope,
     blockRevision: 1,
+    profileId: b.profileId,
   });
   await expect(
     a.as.mutation(api.friendships.request, {
@@ -122,13 +165,11 @@ it("keeps revocation revisions and rejects delayed writes across remove and bloc
     blocked: false,
     blockRevision: 2,
   });
-  await expect(
-    a.as.mutation(api.friendships.block, {
-      profileId: b.profileId,
-      revision: 4,
-      blockRevision: 0,
-    }),
-  ).rejects.toMatchObject(conflict);
+  expect(await a.as.mutation(api.friendships.block, { scope: a.scope, profileId: b.profileId })).toMatchObject({
+    revision: 5,
+    blocked: true,
+    blockRevision: 3,
+  });
 });
 
 it("enforces the 200-friend cap for both participants and concurrent acceptances", async () => {
@@ -233,9 +274,8 @@ it("keeps account request and change quotas separate across devices and leaves r
     revision,
   });
   await sibling.as.mutation(api.friendships.block, {
+    scope: a.scope,
     profileId: b.profileId,
-    revision: revision + 1,
-    blockRevision: 0,
   });
 });
 
@@ -245,20 +285,19 @@ it("limits other relationship changes to 60 per minute", async () => {
   const b = await socialUser(t);
   for (let i = 0; i < 30; i++) {
     await a.as.mutation(api.friendships.block, {
+      scope: a.scope,
       profileId: b.profileId,
-      revision: i,
-      blockRevision: i * 2,
     });
     await a.as.mutation(api.friendships.unblock, {
-      profileId: b.profileId,
+      scope: a.scope,
       blockRevision: i * 2 + 1,
+      profileId: b.profileId,
     });
   }
   await expect(
     a.as.mutation(api.friendships.block, {
+      scope: a.scope,
       profileId: b.profileId,
-      revision: 30,
-      blockRevision: 60,
     }),
   ).rejects.toMatchObject({
     data: { code: "rate_limited", name: "relationshipChange" },
@@ -298,17 +337,99 @@ it("lets friends drop a moderation-removed profile so it stops holding a friend 
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect(
     await a.as.mutation(api.friendships.block, {
+      scope: a.scope,
       profileId: b.profileId,
-      revision: 3,
-      blockRevision: 0,
     }),
   ).toMatchObject({ blocked: true, blockRevision: 1 });
   expect(
     await a.as.mutation(api.friendships.unblock, {
-      profileId: b.profileId,
+      scope: a.scope,
       blockRevision: 1,
+      profileId: b.profileId,
     }),
   ).toMatchObject({ blocked: false, blockRevision: 2 });
   const { acceptedRelationships } = await import("./lib/friendships");
   expect(await t.run((ctx) => acceptedRelationships(ctx, a.profileId))).toEqual([]);
+});
+
+it("hides a blocked pair’s profiles, walls, and search results from each other but not from signed-out visitors", async () => {
+  const t = harness();
+  const author = await wallFixture(t, "author");
+  const viewer = await wallFixture(t, "viewer");
+  const {
+    items: [item],
+  } = await author.as.mutation(api.walls.setLayout, author.input);
+  const ids = (page: { profileId: string }[]) => page.map((person) => person.profileId);
+  expect(ids((await viewer.as.query(api.profiles.search, { query: "reader" })).page)).toContain(
+    author.profile.profileId,
+  );
+  await viewer.as.mutation(api.friendships.block, { scope: viewer.scope, profileId: author.profile.profileId });
+
+  // The blocker keeps the profile to unblock from; the blocked person loses it.
+  expect(await viewer.as.query(api.profiles.getPublic, { profileId: author.profile.profileId })).toMatchObject({
+    profileId: author.profile.profileId,
+  });
+  expect(await author.as.query(api.profiles.getPublic, { profileId: viewer.profile.profileId })).toBeNull();
+  for (const [person, other] of [
+    [viewer, author],
+    [author, viewer],
+  ]) {
+    expect(await person.as.query(api.walls.getPublic, { profileId: other.profile.profileId })).toBeNull();
+    expect(ids((await person.as.query(api.profiles.search, { query: "reader" })).page)).not.toContain(
+      other.profile.profileId,
+    );
+    expect(ids((await person.as.query(api.profiles.discover, {})).page)).not.toContain(other.profile.profileId);
+  }
+  expect(await viewer.as.query(api.walls.getArtwork, { itemId: item.itemId })).toBeNull();
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({ itemId: item.itemId });
+  expect(await t.query(api.walls.getPublic, { profileId: author.profile.profileId })).toMatchObject({
+    artworkCount: 1,
+  });
+
+  await viewer.as.mutation(api.friendships.unblock, {
+    scope: viewer.scope,
+    blockRevision: 1,
+    profileId: author.profile.profileId,
+  });
+  expect(await author.as.query(api.profiles.getPublic, { profileId: viewer.profile.profileId })).not.toBeNull();
+  expect(await viewer.as.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({ itemId: item.itemId });
+});
+
+it("sends each new block to moderation once and lists active blocks until they are lifted", async () => {
+  const t = harness();
+  const a = await socialUser(t);
+  const b = await socialUser(t);
+  const c = await socialUser(t);
+  const reports = () => t.run((ctx) => ctx.db.query("reports").collect());
+  const ids = (page: { profileId: string }[]) => page.map((person) => person.profileId);
+  await a.as.mutation(api.reports.submit, { target: { kind: "profile", profileId: c.profileId }, reason: "spam" });
+  await a.as.mutation(api.friendships.block, { scope: a.scope, profileId: b.profileId });
+  await a.as.mutation(api.friendships.block, { scope: a.scope, profileId: b.profileId });
+  await a.as.mutation(api.friendships.block, { scope: a.scope, profileId: c.profileId });
+  expect(await reports()).toEqual([
+    expect.objectContaining({ target: { kind: "profile", profileId: c.profileId }, reason: "spam" }),
+    expect.objectContaining({
+      reporter: { kind: "account", accountId: a.accountId },
+      target: { kind: "profile", profileId: b.profileId },
+      reason: "blocked",
+      status: "open",
+      evidence: expect.objectContaining({ kind: "profile", profileId: b.profileId }),
+    }),
+  ]);
+  await expect(
+    a.as.mutation(api.reports.submit, {
+      target: { kind: "profile", profileId: b.profileId },
+      reason: "blocked" as never,
+    }),
+  ).rejects.toThrow('got `"blocked"`');
+
+  expect(await a.as.query(api.friendships.listBlocked, {})).toMatchObject({
+    page: [{ profileId: c.profileId }, { profileId: b.profileId }],
+    isDone: true,
+  });
+  expect((await b.as.query(api.friendships.listBlocked, {})).page).toEqual([]);
+  await a.as.mutation(api.friendships.unblock, { scope: a.scope, blockRevision: 1, profileId: b.profileId });
+  expect(ids((await a.as.query(api.friendships.listBlocked, {})).page)).toEqual([c.profileId]);
+  await a.as.mutation(api.friendships.block, { scope: a.scope, profileId: b.profileId });
+  expect(await reports()).toHaveLength(2);
 });

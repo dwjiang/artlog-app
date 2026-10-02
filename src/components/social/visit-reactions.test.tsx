@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen } from "@testing-library/rea
 import type { FunctionReference } from "convex/server";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
-import { dismissToast, useToast } from "@/lib/ui/toast";
+import { dismissToast, showErrorToast, useToast } from "@/lib/ui/toast";
 
 import { VisitReactions, type ReactionVisit } from "./visit-reactions";
 
@@ -32,20 +32,10 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
+const mockBlock = jest.fn();
+jest.mock("@/lib/social/use-block", () => ({ useBlock: () => ({ block: mockBlock }) }));
 
-const visit: ReactionVisit = {
-  postId: "visit-a",
-  audience: "public",
-  author: {
-    profileId: "author" as never,
-    name: "Maya Park",
-    username: "maya",
-    avatar: "vermeer" as const,
-    publishedWallCount: 0,
-  },
-  venue: { venueId: "museum" as never, name: "MoMA" },
-  visitedOn: "2026-09-20",
-};
+const visit: ReactionVisit = { postId: "visit-a", audience: "public" };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -174,4 +164,43 @@ it("reports someone else’s comment after closing the sheet, and offers Delete 
   await fireEvent.press(screen.getByRole("button", { name: "Report comment: Rude words." }));
   expect(screen.queryByText("Rude words.")).toBeNull();
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "comment", id: "theirs" } });
+});
+
+it("offers Block beside Report on someone else’s comment, but not on your own or to guests", async () => {
+  const theirs = { profileId: "friend", name: "Jules Morgan" };
+  mockComments = [
+    { commentId: "theirs", body: "Rude words.", createdAt: 1, isAuthor: false, author: theirs },
+    { commentId: "mine", body: "My note.", createdAt: 2, isAuthor: false, author: { profileId: "me", name: "Me" } },
+  ];
+  const view = await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  expect(screen.queryByRole("button", { name: "Block Me" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Block Jules Morgan" }));
+  expect(mockBlock).toHaveBeenCalledWith(theirs);
+  mockSession = { ...mockSession, status: "signed-out", profileId: undefined };
+  await view.rerender(<VisitReactions visit={visit} />);
+  expect(screen.getByRole("button", { name: "Report comment: Rude words." })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Block Jules Morgan" })).toBeNull();
+});
+
+it("shows a failed block and its retry inside the open comments sheet", async () => {
+  const retry = jest.fn();
+  mockBlock.mockImplementationOnce(() => showErrorToast("Couldn’t block Jules Morgan.", retry));
+  mockComments = [
+    {
+      commentId: "theirs",
+      body: "A comment.",
+      createdAt: 1,
+      isAuthor: false,
+      author: { profileId: "friend", name: "Jules Morgan" },
+    },
+  ];
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Block Jules Morgan" }));
+  expect(screen.getByText("Couldn’t block Jules Morgan.")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Close comments" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("Couldn’t block Jules Morgan.")).toBeNull();
 });

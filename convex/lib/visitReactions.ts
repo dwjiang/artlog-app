@@ -1,6 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { findBlock } from "./friendships";
+import { blockedEitherWay } from "./friendships";
 import { activeProfile } from "./ownership";
 
 export function engagement(ctx: QueryCtx, publicationId: Id<"sharedVisits">) {
@@ -41,9 +41,7 @@ export async function visibleParticipant(
   if (!profile) return null;
   for (const other of new Set(others)) {
     if (!other || other === profileId) continue;
-    if ((await findBlock(ctx, profileId, other))?.active || (await findBlock(ctx, other, profileId))?.active) {
-      return null;
-    }
+    if (await blockedEitherWay(ctx, profileId, other)) return null;
   }
   return profile;
 }

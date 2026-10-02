@@ -12,6 +12,7 @@ import { activeProfile, optionalProfile, resolveOwner } from "./lib/ownership";
 import { projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
+import { findOpenReport, profileEvidence } from "./lib/reports";
 import { visibleParticipant } from "./lib/visitReactions";
 
 type ReportTarget = Infer<typeof reportInput>["target"];
@@ -36,17 +37,21 @@ export const submit = mutation({
       evidence = await socialEvidence(ctx, target, viewer?._id);
       if (evidence.profileId === viewer?._id) throw new ConvexError({ code: "invalid_report" });
     }
-    const existing = await ctx.db
-      .query("reports")
-      .withIndex("by_reporter_target_status", (q) => q.eq("reporter", owner).eq("target", target).eq("status", "open"))
-      .unique();
-    if (existing) return { reportId: existing._id };
+    const existing = await findOpenReport(ctx, owner, target);
+    if (existing && existing.reason !== "blocked") return { reportId: existing._id };
     await limitKey(ctx, "report", ownerKey(owner));
-    const reportId = await ctx.db.insert("reports", {
-      reporter: owner,
+    const fields = {
       ...input,
       details: input.details?.trim() || undefined,
       evidence,
+    };
+    if (existing) {
+      await ctx.db.patch("reports", existing._id, fields);
+      return { reportId: existing._id };
+    }
+    const reportId = await ctx.db.insert("reports", {
+      reporter: owner,
+      ...fields,
       status: "open",
     });
     return { reportId };
@@ -93,13 +98,7 @@ async function socialEvidence(
   if (target.kind === "profile") {
     const profile = await activeProfile(ctx, target.profileId);
     if (!profile) throw new ConvexError({ code: "not_found" });
-    return {
-      kind: "profile",
-      profileId: profile._id,
-      username: profile.username,
-      name: profile.name,
-      bio: profile.bio,
-    };
+    return profileEvidence(profile);
   }
   if (target.kind === "wallItem") {
     const { item, profile, save } = await requirePublicWallItem(ctx, target.itemId);

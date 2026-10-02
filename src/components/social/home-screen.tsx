@@ -18,6 +18,7 @@ import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
+import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
@@ -49,6 +50,7 @@ export function HomeScreen() {
   }
   const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
+  const blocking = useBlock(session);
   const guest = session.status === "signed-out";
   const tab =
     chosenTab ?? (session.status === "ready" ? "friends" : session.status === "loading" ? undefined : "global");
@@ -107,7 +109,14 @@ export function HomeScreen() {
         keyExtractor={visitId}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
-        renderItem={({ item }) => <VisitCard visit={item} token={session.token} viewerProfileId={session.profileId} />}
+        renderItem={({ item }) => (
+          <VisitCard
+            visit={item}
+            token={session.token}
+            viewerProfileId={session.profileId}
+            onBlock={session.status === "ready" ? blocking.block : undefined}
+          />
+        )}
         refreshControl={pull.refreshControl}
         ListHeaderComponent={
           <Animated.View style={pull.headerStyle} onLayout={pull.onHeaderLayout}>

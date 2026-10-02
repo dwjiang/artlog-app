@@ -160,7 +160,7 @@ it("leaves out friends, incoming and day-old requests, blocks and dismissals, an
   await befriend(viewer, ana);
   await viewer.as.mutation(api.friendships.request, { profileId: ben.profileId, revision: 0 });
   await cy.as.mutation(api.friendships.request, { profileId: viewer.profileId, revision: 0 });
-  await di.as.mutation(api.friendships.block, { profileId: viewer.profileId, revision: 0, blockRevision: 0 });
+  await di.as.mutation(api.friendships.block, { scope: di.scope, profileId: viewer.profileId });
   expect(await suggested(viewer)).toMatchObject([
     { profile: { name: "Ben", relationship: { state: "pending", requesterId: viewer.profileId } } },
     { profile: { name: "Ed", relationship: { state: "none" } } },
@@ -208,7 +208,7 @@ it.each(["forward", "reverse"] as const)("honors %s blocks beyond a thousand his
   const other = await socialUser(t, "other");
   await befriend(other, mutual);
   const [blocker, blocked] = direction === "forward" ? [viewer, other] : [other, viewer];
-  await blocker.as.mutation(api.friendships.block, { profileId: blocked.profileId, revision: 0, blockRevision: 0 });
+  await blocker.as.mutation(api.friendships.block, { scope: blocker.scope, profileId: blocked.profileId });
   expect(await names(viewer)).toEqual([]);
 });
 
@@ -273,7 +273,7 @@ it("lists public-wall artworks and readable museums in common, and nothing acros
   expect((await viewer.as.query(api.suggestions.inCommonWith, { profileId: priya.profileId })).artworks).toHaveLength(
     1,
   );
-  await priya.as.mutation(api.friendships.block, { profileId: viewer.profileId, revision: 0, blockRevision: 0 });
+  await priya.as.mutation(api.friendships.block, { scope: priya.scope, profileId: viewer.profileId });
   expect(await viewer.as.query(api.suggestions.inCommonWith, { profileId: priya.profileId })).toEqual({
     artworks: [],
     museums: [],

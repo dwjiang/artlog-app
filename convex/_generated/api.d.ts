@@ -106,6 +106,7 @@ import type * as lib_recognitionEligibility from "../lib/recognitionEligibility.
 import type * as lib_referenceReview from "../lib/referenceReview.js";
 import type * as lib_regions from "../lib/regions.js";
 import type * as lib_rejectionPenalty from "../lib/rejectionPenalty.js";
+import type * as lib_reports from "../lib/reports.js";
 import type * as lib_retentionPolicy from "../lib/retentionPolicy.js";
 import type * as lib_rightNowAccept from "../lib/rightNowAccept.js";
 import type * as lib_rightNowFixtures from "../lib/rightNowFixtures.js";
@@ -271,6 +272,7 @@ declare const fullApi: ApiFromModules<{
   "lib/referenceReview": typeof lib_referenceReview;
   "lib/regions": typeof lib_regions;
   "lib/rejectionPenalty": typeof lib_rejectionPenalty;
+  "lib/reports": typeof lib_reports;
   "lib/retentionPolicy": typeof lib_retentionPolicy;
   "lib/rightNowAccept": typeof lib_rightNowAccept;
   "lib/rightNowFixtures": typeof lib_rightNowFixtures;

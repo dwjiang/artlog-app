@@ -24,6 +24,10 @@ export function findBlock(ctx: QueryCtx, blockerId: Id<"profiles">, blockedId: I
     .withIndex("by_pair", (q) => q.eq("blockerId", blockerId).eq("blockedId", blockedId))
     .unique();
 }
+export async function blockedEitherWay(ctx: QueryCtx, a: Id<"profiles">, b: Id<"profiles">) {
+  const [forward, reverse] = await Promise.all([findBlock(ctx, a, b), findBlock(ctx, b, a)]);
+  return !!forward?.active || !!reverse?.active;
+}
 export async function relationshipSnapshot(ctx: QueryCtx, actor: Id<"profiles">, other: Id<"profiles">) {
   const [edge, block, reverseBlock] = await Promise.all([
     findRelationship(ctx, actor, other),

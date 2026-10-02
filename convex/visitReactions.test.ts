@@ -157,16 +157,14 @@ describe("visit reactions", () => {
       requestId: crypto.randomUUID(),
     });
     await third.as.mutation(api.friendships.block, {
+      scope: third.scope,
       profileId: visitor.profileId,
-      revision: 0,
-      blockRevision: 0,
     });
     expect((await third.as.query(api.visitReactions.listComments, { postId })).page).toEqual([]);
     expect((await third.as.query(api.visitReactions.listLikes, { postId })).page).toEqual([]);
     await author.as.mutation(api.friendships.block, {
+      scope: author.scope,
       profileId: visitor.profileId,
-      revision: 0,
-      blockRevision: 0,
     });
     await expect(visitor.as.query(api.visitReactions.getSummary, { postId })).rejects.toMatchObject({
       data: { code: "not_found" },
@@ -189,9 +187,8 @@ describe("visit reactions", () => {
       requestId: crypto.randomUUID(),
     });
     await author.as.mutation(api.friendships.block, {
+      scope: author.scope,
       profileId: visitor.profileId,
-      revision: 0,
-      blockRevision: 0,
     });
     for (const reader of [t, third.as, author.as]) {
       expect((await reader.query(api.visitReactions.listComments, { postId })).page).toEqual([]);

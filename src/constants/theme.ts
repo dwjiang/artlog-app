@@ -21,7 +21,6 @@ export const Gallery = {
   success: "#2F6846",
   warning: "#865A15",
   destructive: "#B42318",
-  destructiveFill: "#FFF5F2",
   softBorder: "#DCE1E8",
   accentBorder: "#C4D0F4",
   sage: "#CDD0CA",

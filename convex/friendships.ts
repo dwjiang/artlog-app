@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
 
+import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isRevision, LIMITS } from "../shared/journal/limits";
-import { relationship as state } from "../shared/social/contracts";
+import { publicProfile, relationship as state } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, query, type QueryCtx } from "./_generated/server";
@@ -9,13 +10,16 @@ import { internalMutation, mutation } from "./functions";
 import { acceptedRelationships, canonicalPair, checkRevision, relationshipSnapshot } from "./lib/friendships";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, requireProfile } from "./lib/ownership";
+import { projectProfile } from "./lib/projections";
 import { limitKey } from "./lib/rateLimits";
+import { findOpenReport, profileEvidence } from "./lib/reports";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
 const REQUESTED_STAYS_MS = 24 * 60 * 60 * 1000;
 // Revocations stay available after the counterpart is removed so a stale edge cannot hold a friend slot.
-async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation = false) {
+async function participants(ctx: QueryCtx, profileId: Id<"profiles">, revocation = false, scope?: string) {
   const actor = await requireProfile(ctx);
+  if (scope !== undefined && actor.scope !== scope) throw new ConvexError({ code: "sync_scope_changed" });
   if (actor.profile._id === profileId) {
     throw new ConvexError({ code: "invalid_relationship" });
   }
@@ -134,20 +138,18 @@ export const clearSuggestionExpiry = internalMutation({
 });
 
 export const block = mutation({
-  args: { ...args, blockRevision: v.number() },
+  args: { profileId: v.id("profiles"), scope: v.string() },
   returns: state,
-  handler: async (ctx, { profileId, revision, blockRevision }) => {
-    const { profile, accountId } = await participants(ctx, profileId, true);
+  handler: async (ctx, { profileId, scope }) => {
+    const { profile, accountId } = await participants(ctx, profileId, true, scope);
     const snapshot = await relationshipSnapshot(ctx, profile._id, profileId);
-    checkRevision(blockRevision, snapshot.block?.revision ?? 0);
-    checkRevision(revision, snapshot.edge?.revision ?? 0);
     if (snapshot.block?.active) return snapshot.state;
     await limitKey(ctx, "relationshipChange", accountId);
     const fields = {
       blockerId: profile._id,
       blockedId: profileId,
       active: true,
-      revision: blockRevision + 1,
+      revision: (snapshot.block?.revision ?? 0) + 1,
     };
     if (snapshot.block) await ctx.db.patch("blocks", snapshot.block._id, fields);
     else await ctx.db.insert("blocks", fields);
@@ -158,29 +160,62 @@ export const block = mutation({
       requesterId: snapshot.edge?.requesterId ?? profile._id,
       state: "none" as const,
       suggestionExpiresAt: undefined,
-      revision: revision + 1,
+      revision: (snapshot.edge?.revision ?? 0) + 1,
       updatedAt: Date.now(),
     };
     if (snapshot.edge) await ctx.db.patch("friendships", snapshot.edge._id, edge);
     else await ctx.db.insert("friendships", edge);
+    // App Review expects a block to notify the developer, so it joins the report queue unless one is already open.
+    const blocked = await activeProfile(ctx, profileId);
+    const reporter = { kind: "account" as const, accountId };
+    const target = { kind: "profile" as const, profileId };
+    if (blocked && !(await findOpenReport(ctx, reporter, target))) {
+      await ctx.db.insert("reports", {
+        reporter,
+        target,
+        reason: "blocked",
+        evidence: profileEvidence(blocked),
+        status: "open",
+      });
+    }
     return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
   },
 });
-export const unblock = mutation({
-  args: { profileId: v.id("profiles"), blockRevision: v.number() },
-  returns: state,
-  handler: async (ctx, { profileId, blockRevision }) => {
-    const { profile, accountId } = await participants(ctx, profileId, true);
-    const snapshot = await relationshipSnapshot(ctx, profile._id, profileId);
-    if (!isRevision(blockRevision)) {
-      throw new ConvexError({ code: "invalid_relationship" });
+export const listBlocked = query({
+  args: pageArgs,
+  returns: v.object({
+    page: v.array(v.object({ ...publicProfile.fields, blockRevision: v.number() })),
+    cursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, input) => {
+    const { profile } = await requireProfile(ctx);
+    const result = await ctx.db
+      .query("blocks")
+      .withIndex("by_blocker_active", (q) => q.eq("blockerId", profile._id).eq("active", true))
+      .order("desc")
+      .paginate(pagination(input));
+    const page = [];
+    for (const block of result.page) {
+      const person = await activeProfile(ctx, block.blockedId);
+      if (person) page.push({ ...(await projectProfile(ctx, person)), blockRevision: block.revision });
     }
+    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+  },
+});
+export const unblock = mutation({
+  args: { profileId: v.id("profiles"), scope: v.string(), blockRevision: v.number() },
+  returns: state,
+  handler: async (ctx, { profileId, scope, blockRevision }) => {
+    const { profile, accountId } = await participants(ctx, profileId, true, scope);
+    const snapshot = await relationshipSnapshot(ctx, profile._id, profileId);
+    if (!isRevision(blockRevision)) throw new ConvexError({ code: "invalid_relationship" });
     if (!snapshot.block?.active) return snapshot.state;
     checkRevision(blockRevision, snapshot.block.revision);
     await limitKey(ctx, "relationshipChange", accountId);
     await ctx.db.patch("blocks", snapshot.block._id, {
       active: false,
-      revision: blockRevision + 1,
+      revision: snapshot.block.revision + 1,
     });
     return (await relationshipSnapshot(ctx, profile._id, profileId)).state;
   },

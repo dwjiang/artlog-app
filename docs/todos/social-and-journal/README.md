@@ -192,9 +192,12 @@ implicitly accept the original request. Self-requests and duplicate edges are
 invalid; repeated requests do not generate additional pending records.
 
 Blocks are directional records. A block in either direction prevents requests,
-removes pending/accepted relationships, and revokes friends-only reads. Unblocking
-does not restore friendship. Public walls remain publicly accessible, including
-to signed-out visitors; blocking is not a promise to make public material secret.
+removes pending/accepted relationships, and hides each person's walls, visits,
+and reactions from the other while signed in; only the blocker can still open
+the other's profile, to unblock. Each new block also opens a profile report for
+moderation. Unblocking does not restore friendship. Public walls and visits stay
+visible to signed-out visitors; blocking is not a promise to make public
+material secret.
 
 ## Mutation, sync, and media boundaries
 

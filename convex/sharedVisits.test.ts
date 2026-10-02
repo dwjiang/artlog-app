@@ -216,9 +216,8 @@ it("allows public access before friendship and revokes detail, artwork, and feed
     }),
   ).rejects.toMatchObject(notFound);
   await b.as.mutation(api.friendships.block, {
+    scope: b.scope,
     profileId: a.profileId,
-    revision: 2,
-    blockRevision: 0,
   });
   await expect(b.as.query(api.sharedVisits.getArtwork, { postId, itemId })).rejects.toMatchObject(notFound);
   await expect(b.as.query(api.sharedVisits.get, { postId })).rejects.toMatchObject(notFound);

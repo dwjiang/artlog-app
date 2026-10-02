@@ -207,10 +207,15 @@ export function FriendshipControls({
   profileId,
   session,
   trailing,
+  unblocking = false,
+  onUnblock,
 }: {
   profileId: PublicProfile["profileId"];
   session: SocialSession;
   trailing?: ReactNode;
+  unblocking?: boolean;
+  /** Replaces the friendship actions while the viewer blocks this profile. */
+  onUnblock: () => void;
 }) {
   const { state, pending, error, act, refresh } = useFriendship(profileId, session);
   if (profileId === session.profileId) return null;
@@ -249,41 +254,51 @@ export function FriendshipControls({
         ]
       : !ready
         ? []
-        : state?.state === "accepted" && !state.blocked
+        : state?.blocked
           ? [
-              <FriendsMenu
-                key="friends"
-                removing={pending === "remove"}
-                onRemove={() => {
-                  if (!busy) {
-                    Alert.alert(
-                      "Remove this friend?",
-                      "You will no longer see each other’s friends-only activity. Public walls remain visible.",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Remove friend",
-                          style: "destructive",
-                          onPress: () => {
-                            void act("remove");
-                          },
-                        },
-                      ],
-                    );
-                  }
-                }}
+              <GalleryButton
+                key="unblock"
+                label="Unblock"
+                variant="outlined"
+                tone="ink"
+                fullWidth
+                minHeight={44}
+                busy={unblocking}
+                onPress={onUnblock}
               />,
             ]
-          : state
-            ? available.filter((action) => action !== "decline").map(actionButton)
-            : error
-              ? []
-              : [<TextSkeleton key="loading" label="Loading friendship…" width="100%" height={44} />];
+          : state?.state === "accepted"
+            ? [
+                <FriendsMenu
+                  key="friends"
+                  removing={pending === "remove"}
+                  onRemove={() => {
+                    if (!busy) {
+                      Alert.alert(
+                        "Remove this friend?",
+                        "You will no longer see each other’s friends-only activity. Public walls remain visible.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Remove friend",
+                            style: "destructive",
+                            onPress: () => {
+                              void act("remove");
+                            },
+                          },
+                        ],
+                      );
+                    }
+                  }}
+                />,
+              ]
+            : state
+              ? available.filter((action) => action !== "decline").map(actionButton)
+              : error
+                ? []
+                : [<TextSkeleton key="loading" label="Loading friendship…" width="100%" height={44} />];
   return (
     <View style={{ gap: Spacing.two }}>
-      {ready && state?.blocked && (
-        <Text style={[socialStyles.caption, { textAlign: "center" }]}>This connection is unavailable.</Text>
-      )}
       <ProfileActionRow
         actions={actions}
         secondary={available.includes("decline") && actionButton("decline")}
