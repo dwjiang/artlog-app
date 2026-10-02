@@ -15,11 +15,6 @@ export function CaptureArtworkMetadata({ completion }: { completion: CaptureComp
           {completion.medium}
         </ThemedText>
       )}
-      {completion.visitLabel && (
-        <ThemedText variant="metadata" themeColor="textSecondary">
-          {completion.visitLabel}
-        </ThemedText>
-      )}
     </>
   );
 }

@@ -42,7 +42,7 @@ export type CurrentVisit = {
   venueName: string;
   startedAt: number;
   manual?: boolean;
-  /** The calendar day the visit started, in the museum's time zone; the visit stays open past it until ended by hand. */
+  /** The calendar day the visit started, in the museum's time zone; once that day is over the next launch closes it. */
   visitedOn: string;
   timeZone: string;
   remoteVisitId?: Id<"visits">;
@@ -55,6 +55,7 @@ export type Fix = Coordinate & { at: number };
 export type VenueStatus = "idle" | "locating" | "resolved" | "choose" | "none" | "denied";
 
 export type VenueState = {
+  hydrated: boolean;
   status: VenueStatus;
   /** The venue the last fix resolved to, or the hydrated visit's venue before the first fix. */
   venue?: SeededOption;
@@ -97,9 +98,12 @@ export type VenueEvent =
   | { type: "visitStarted"; visit: CurrentVisit }
   | { type: "visitEnded"; localId: string; at: number }
   | { type: "dismissed"; at: number }
+  /** The camera asks for the sheet again while the museum is still undecided; answered or declined spots stay quiet. */
+  | { type: "prompt"; at: number }
   | { type: "backgrounded" };
 
 export const initialVenueState: VenueState = {
+  hydrated: false,
   status: "idle",
   options: [],
   prompt: 0,
@@ -176,11 +180,12 @@ function promptAllowed(state: VenueState, options: VenueOption[], at: number): b
 export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
   switch (event.type) {
     case "hydrated": {
-      const answers = { picked: event.picked, notHere: event.notHere ?? {} };
+      const answers = { hydrated: true, picked: event.picked, notHere: event.notHere ?? {} };
       if (!event.visit) {
         return { ...state, ...answers, visit: undefined, ended: event.ended };
       }
-      // Before the first fix, only a visit from today stands in for the phone's museum; an older one stays paused.
+      // Before the first fix, only a visit from today stands in for the phone's museum; the controller closes older
+      // ones before hydrating, so this branch only covers a day change between the read and the dispatch.
       if (!isVisitToday(event.visit, event.at)) {
         return { ...state, ...answers, visit: event.visit, ended: undefined };
       }
@@ -263,7 +268,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
           prompt: !event.quiet && promptAllowed(state, options, fix.at) ? state.prompt + 1 : state.prompt,
         };
       }
-      // Leaving the radius pauses the visit; it resumes on return and stays open until ended by hand.
+      // Leaving the radius pauses the visit; it resumes on return and stays open for the rest of its museum day.
       return { ...base, status: "none", venue: undefined, options: [] };
     }
     case "poiOptions": {
@@ -322,7 +327,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     }
     case "dismissed": {
-      // "Not here" rejects the listed options and the resolved venue; its visit pauses and stays open until ended by hand.
+      // "Not here" rejects the listed options and the resolved venue; its visit pauses and stays open for its museum day.
       const keys = new Set(state.options.map(venueOptionKey));
       if (state.venue) keys.add(state.venue.venueId);
       const notHere = Object.fromEntries([
@@ -336,6 +341,11 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         picked: state.picked && keys.has(state.picked.venueId) ? undefined : state.picked,
         notHere,
       };
+    }
+    case "prompt": {
+      const undecided = state.status === "choose" || (state.status === "none" && state.options.length > 0);
+      if (!undecided || !promptAllowed(state, state.options, event.at)) return state;
+      return { ...state, prompt: state.prompt + 1 };
     }
     case "backgrounded":
       return { ...state, fix: undefined };

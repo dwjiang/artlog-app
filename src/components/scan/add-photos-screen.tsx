@@ -32,7 +32,6 @@ import {
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { keepPhotos, shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { captureFileUri, persistArtworkPhoto } from "@/lib/files/photos";
-import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
 import { useSaveResult } from "@/lib/result/use-save-result";
 import { withEndVisitPrompt } from "@/lib/venue/end-visit-prompt";
@@ -265,7 +264,16 @@ function PhotoSession({
           date: target?.date,
           medium: target?.medium,
           previewPath: target?.cropPath ?? photos[0]?.path ?? null,
-          visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : undefined,
+          visit: visit
+            ? {
+                localId: visit.localId,
+                venueName: visit.venueName,
+                startedAt: visit.startedAt,
+                visitedOn: visit.visitedOn,
+                timeZone: visit.timeZone,
+                outcome: visit.endedAt === null && visit.startedAt !== null ? "joined" : "past",
+              }
+            : undefined,
         });
       } else {
         const input = readPhotoSession(owner, draftId).saveInput;

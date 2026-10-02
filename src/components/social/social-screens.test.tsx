@@ -53,6 +53,8 @@ jest.mock("@/lib/social/use-suggestions", () => ({
   }),
 }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
+jest.mock("@/components/visits/now-card", () => ({ NowCard: () => null }));
+jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => null }));
 jest.mock("@/db/repos/settings", () => ({
   getSetting: jest.fn(async () => undefined),
   setSetting: jest.fn(async () => {}),

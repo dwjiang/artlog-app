@@ -4,16 +4,18 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
 import { captureOwner, subscribeOwner } from "@/lib/account/owner-store";
+import type { VisitVisibility } from "@/shared/journal/contracts";
 
 import { createVisitSharingController } from "./visit-sharing-controller";
 import { createVisitSharingTransport } from "./visit-sharing-transport";
 
-export function useVisitSharing(visitLocalId: string, saveLocalIds: string[]) {
+export function useVisitSharing(visitLocalId: string, saveLocalIds: string[], initialAudience?: VisitVisibility) {
   const token = useAuthToken();
   const [session] = useState(() => {
     const input = { token, saveLocalIds };
     const controller = createVisitSharingController({
       visitLocalId,
+      initialAudience,
       saveLocalIds: () => input.saveLocalIds,
       transport: createVisitSharingTransport(process.env.EXPO_PUBLIC_CONVEX_URL!),
       capture: () => ({ ...captureOwner(), token: input.token }),

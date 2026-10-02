@@ -27,10 +27,10 @@ export const signInContexts = {
 
 export type SignInContext = keyof typeof signInContexts;
 
-export function signInRoute(context: SignInContext, visitId?: string) {
+export function signInRoute(context: SignInContext, visitId?: string, audience?: "friends") {
   return {
     pathname: "/sign-in" as const,
-    params: { context, ...(visitId ? { visitId } : {}) },
+    params: { context, ...(visitId ? { visitId, ...(audience ? { audience } : {}) } : {}) },
   };
 }
 

@@ -70,6 +70,10 @@ jest.mock("@/lib/label/share-saved-label", () => ({
 jest.mock("@/lib/result/use-save-result", () => ({
   useSaveResult: () => ({ saving: false, save: jest.fn() }),
 }));
+jest.mock("@/lib/journal/use-visit-works", () => ({
+  useVisitWorks: () => ({ works: [], loading: false }),
+}));
+jest.mock("@/lib/result/use-scan", () => ({ useScan: () => undefined }));
 
 function ResultRoute() {
   const { scanId } = useLocalSearchParams<{ scanId: string }>();

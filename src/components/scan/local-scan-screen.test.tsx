@@ -63,6 +63,7 @@ const mockVisitForSave = jest.fn();
 jest.mock("@/lib/venue/use-venue", () => ({
   visitByDefault: () => true,
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
+  openVisitLocalId: () => undefined,
 }));
 beforeEach(() => {
   mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {

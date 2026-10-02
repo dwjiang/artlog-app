@@ -27,7 +27,15 @@ import { SocialGate } from "./social-state";
 
 const STEPS = ["username", "name", "photo"] as const;
 
-export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedName?: string; visitId?: string }) {
+export function ProfileSetupScreen({
+  suggestedName = "",
+  visitId,
+  audience,
+}: {
+  suggestedName?: string;
+  visitId?: string;
+  audience?: "friends";
+}) {
   const router = useRouter();
   const session = useSocialSession();
   const create = useMutation(api.profiles.create);
@@ -206,7 +214,12 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
               label="Continue to sharing"
               variant="filled"
               fullWidth
-              onPress={() => router.replace({ pathname: "/visit-share/[visitId]", params: { visitId } })}
+              onPress={() =>
+                router.replace({
+                  pathname: "/visit-share/[visitId]",
+                  params: { visitId, ...(audience ? { audience } : {}) },
+                })
+              }
             />
           ) : (
             <GalleryButton

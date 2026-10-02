@@ -109,6 +109,7 @@ jest.mock("@/lib/venue/use-venue", () => {
     useVenue: () => ({ visit: undefined }),
     visitByDefault: () => true,
     visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
+    openVisitLocalId: () => undefined,
     VisitInProgressError: MockVisitInProgressError,
     venueController: { end: jest.fn() },
   };
@@ -225,7 +226,8 @@ it("retains an edited visit after leaving the session and saves only new photos 
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
   expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
-  expect(screen.getByText("Other museum · 2 Sep 2026")).toBeOnTheScreen();
+  expect(screen.getByText("Added to a past visit")).toBeOnTheScreen();
+  expect(await screen.findByText(/^Other museum · .*2 Sep 2026$/)).toBeOnTheScreen();
   expect(screen.getAllByLabelText("Your photo of Water Lilies")).toHaveLength(1);
   expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "detail.jpg" })]);
   expect(selectArtworkPhotos("artwork").all()).toEqual(

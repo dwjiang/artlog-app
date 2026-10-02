@@ -2,7 +2,15 @@ import { ConvexError } from "convex/values";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { artworkEncounters, pendingScans, savedWorks, visits, type NewVisit, type Visit } from "@/db/schema";
+import {
+  artworkEncounters,
+  artworkPhotos,
+  pendingScans,
+  savedWorks,
+  visits,
+  type NewVisit,
+  type Visit,
+} from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
 import { moveVisitTimes } from "@/lib/journal/visit-date";
@@ -162,6 +170,41 @@ export async function moveVisit(
       .run();
   });
   requestCollectionSync();
+}
+/** When the visit's latest artwork was saved, so a visit closed after its day ends where its saves stopped. */
+export async function latestVisitSaveAt(localId: string, owner = getLocalOwner()): Promise<number | undefined> {
+  const row = db
+    .select({
+      savedAt: sql<
+        number | null
+      >`max(case when ${savedWorks.visitLocalId} = ${localId} then ${savedWorks.savedAt} end)`,
+      capturedAt: sql<number | null>`max(${artworkPhotos.capturedAt})`,
+    })
+    .from(artworkEncounters)
+    .innerJoin(
+      savedWorks,
+      and(eq(savedWorks.owner, artworkEncounters.owner), eq(savedWorks.localId, artworkEncounters.savedLocalId)),
+    )
+    .leftJoin(
+      artworkPhotos,
+      and(
+        eq(artworkPhotos.owner, artworkEncounters.owner),
+        eq(artworkPhotos.savedLocalId, artworkEncounters.savedLocalId),
+        eq(artworkPhotos.visitLocalId, artworkEncounters.visitLocalId),
+        isNull(artworkPhotos.deletedAt),
+      ),
+    )
+    .where(
+      and(
+        eq(artworkEncounters.owner, owner),
+        eq(artworkEncounters.visitLocalId, localId),
+        isNull(artworkEncounters.deletedAt),
+        isNull(savedWorks.deletedAt),
+      ),
+    )
+    .get();
+  const times = [row?.savedAt, row?.capturedAt].filter((at): at is number => at != null);
+  return times.length > 0 ? Math.max(...times) : undefined;
 }
 export function listUnsyncedVisits(owner = getLocalOwner()) {
   return db

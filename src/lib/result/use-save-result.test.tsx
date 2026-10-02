@@ -64,7 +64,6 @@ const saved = {
     savedId: "saved-1",
     title: "Water Lilies",
     previewPath: null,
-    visitLabel: "The Met",
   },
 };
 

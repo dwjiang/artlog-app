@@ -25,6 +25,7 @@ import { installationStorage } from "@/lib/installation-storage";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
 import { QueueFlusher } from "@/lib/queue/use-queue";
 import { VenueResolver } from "@/lib/venue/use-venue";
+import { VisitActivitySync } from "@/lib/widgets/visit-activity-sync";
 import { WidgetProvider } from "@/lib/widgets/widget-provider";
 
 export function ErrorBoundary(props: ErrorBoundaryProps) {
@@ -58,6 +59,7 @@ function AppContent() {
           <QueueFlusher />
           <MuseumDownloadLifecycle />
           <VenueResolver />
+          <VisitActivitySync />
           <WidgetProvider>
             <ThemeProvider value={navigationTheme}>
               <ListeningProvider>
@@ -172,6 +174,33 @@ function AppContent() {
                     <Stack.Screen
                       name="venue-picker"
                       dangerouslySingular
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="visit-add"
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="dont-miss"
+                      options={{
+                        presentation: "formSheet",
+                        sheetAllowedDetents: "fitToContents",
+                        sheetGrabberVisible: true,
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="visit-wrap-up"
                       options={{
                         presentation: "formSheet",
                         sheetAllowedDetents: "fitToContents",

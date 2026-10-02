@@ -320,7 +320,7 @@ it("offers creation for the selected metric while preserving actual participatio
   expect(await screen.findByRole("button", { name: "Manage participation" })).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "No rankings yet." })).toBeOnTheScreen();
   await fireEvent.press(await screen.findByRole("button", { name: "Add visit" }));
-  expect(mockPush).toHaveBeenLastCalledWith("/visit-create");
+  expect(mockPush).toHaveBeenLastCalledWith("/visit-add");
   expect(screen.queryByText("LOGGED VISITS")).toBeNull();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));

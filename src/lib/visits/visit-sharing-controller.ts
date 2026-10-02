@@ -38,10 +38,12 @@ export function createVisitSharingController({
   subscribeOwner,
   flush,
   photoSelections = () => [],
+  initialAudience,
 }: {
   visitLocalId: string;
   saveLocalIds: () => string[];
   photoSelections?: () => NonNullable<ShareSelection["photoSelections"]>;
+  initialAudience?: ShareSelection["audience"];
   transport: VisitSharingTransport;
   capture: () => Session;
   subscribeOwner: (listener: () => void) => () => void;
@@ -128,7 +130,7 @@ export function createVisitSharingController({
         }
       : {
           visitLocalId,
-          audience: acknowledged.audience,
+          audience: state.acknowledged ? acknowledged.audience : (initialAudience ?? acknowledged.audience),
           revision: acknowledged.revision,
           saveLocalIds: (acknowledged.postId
             ? acknowledged.saveLocalIds.filter((id) => available.has(id))

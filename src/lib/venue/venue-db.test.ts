@@ -221,7 +221,11 @@ it("reports a corrupt installed database and recovers using the bundled table", 
   fs.writeFileSync(path.join(mockRoot, "SQLite", venueDb.VENUE_DB_NAME), "not a SQLite database");
   loadModules();
   expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({ changeVersion: 1 });
-  expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), "venue.table.validate", { level: "warning" });
+  expect(mockReportError).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "file is not a database", code: "SQLITE_NOTADB" }),
+    "venue.table.validate",
+    { level: "warning" },
+  );
 });
 
 it("drops fetched changes with a replaced bundled table and fetches them again on its first launch", async () => {

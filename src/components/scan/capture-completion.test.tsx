@@ -27,7 +27,14 @@ const completion = {
   date: "1906",
   medium: "Oil on canvas",
   previewPath: null,
-  visitLabel: "Today · The Met",
+  visit: {
+    localId: "visit-1",
+    venueName: "The Met",
+    startedAt: Date.UTC(2026, 8, 18, 17, 42),
+    visitedOn: "2026-09-18",
+    timeZone: "America/New_York",
+    outcome: "joined" as const,
+  },
 };
 
 beforeAll(async () => {
@@ -72,7 +79,8 @@ it("edits the private note inline and saves it before opening the artwork", asyn
   expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
   expect(screen.getByText("Claude Monet · 1906")).toBeOnTheScreen();
   expect(screen.getByText("Oil on canvas")).toBeOnTheScreen();
-  expect(screen.getByText("Today · The Met")).toBeOnTheScreen();
+  expect(await screen.findByText("Added to today’s visit")).toBeOnTheScreen();
+  expect(await screen.findByText("The Met · 0 artworks · Since 18 Sep 2026")).toBeOnTheScreen();
   const input = await screen.findByDisplayValue("Original note");
   await fireEvent.changeText(input, "Blue reflections on the water.");
   expect(mockNavigate).not.toHaveBeenCalled();
@@ -147,7 +155,7 @@ it("waits for pending writes and preserves the latest note when closing", async 
 });
 
 it("returns to the camera with the completed flow dismissed", async () => {
-  await render(<CaptureCompletion completion={{ ...completion, visitLabel: undefined }} />);
+  await render(<CaptureCompletion completion={{ ...completion, visit: undefined }} />);
   expect(screen.getByText("Claude Monet · 1906")).toBeOnTheScreen();
   expect(screen.queryByText("Collection only")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Scan next artwork" }));

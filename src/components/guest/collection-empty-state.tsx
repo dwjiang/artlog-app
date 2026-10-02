@@ -32,7 +32,7 @@ export function CollectionEmptyState({ kind }: { kind: "artworks" | "visits" }) 
         label={visits ? "Add visit" : "Scan artwork"}
         variant="filled"
         fullWidth
-        onPress={() => (visits ? router.push("/visit-create") : router.navigate("/scan"))}
+        onPress={() => (visits ? router.push("/visit-add") : router.navigate("/scan"))}
       />
       {visits && (
         <Text variant="metadata" themeColor="textSecondary">

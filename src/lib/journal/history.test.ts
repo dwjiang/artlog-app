@@ -2,6 +2,7 @@ import { sortWorksByArtist } from "@/lib/collection/search";
 
 import {
   filterVisits,
+  formatElapsed,
   formatVisitDate,
   formatVisitStart,
   groupHistoryByMonth,
@@ -125,4 +126,10 @@ it("shows a visit start as a time on its own museum day and as a date afterwards
   expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 18, 22))).toBe("5:10 PM");
   expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 19, 15))).toBe("18 Sep 2026");
   expect(formatVisitStart(startedAt, "Asia/Tokyo", Date.UTC(2026, 8, 18, 22))).toBe("6:10 AM");
+});
+
+it("formats elapsed time in hours and minutes", () => {
+  expect(formatElapsed(12 * 60_000)).toBe("12m");
+  expect(formatElapsed(83 * 60_000)).toBe("1h 23m");
+  expect(formatElapsed(-5)).toBe("0m");
 });

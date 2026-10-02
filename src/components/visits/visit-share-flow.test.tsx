@@ -20,6 +20,8 @@ const mockController = {
 };
 const mockPatchVisit = jest.fn();
 const mockGrid = jest.fn();
+const mockUseSharing = jest.fn();
+let mockAudience: string | undefined;
 // Drag gestures cannot run under Jest, so the grid renders its items in order and exposes its props for reordering.
 jest.mock("react-native-sortables", () => {
   const React = jest.requireActual("react");
@@ -80,7 +82,10 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
 }));
 jest.mock("@/lib/visits/use-visit-sharing", () => ({
-  useVisitSharing: () => mockSharing,
+  useVisitSharing: (...args: unknown[]) => {
+    mockUseSharing(...args);
+    return mockSharing;
+  },
 }));
 jest.mock("@/components/social/profile-form", () => ({ ProfileForm: () => null }));
 jest.mock("@/components/settings/account-section", () => ({
@@ -131,7 +136,7 @@ jest.mock("expo-router", () => {
       dismiss: () => mockDismiss(),
       dismissAll: () => mockDismissAll(),
     },
-    useLocalSearchParams: () => ({ visitId: "visit", saveId: "save" }),
+    useLocalSearchParams: () => ({ visitId: "visit", saveId: "save", audience: mockAudience }),
     useFocusEffect: (effect: () => void) => React.useEffect(effect, [effect]),
     useSegments: () => ["visit-share", "[visitId]"],
     useNavigation: () => ({ getState: () => undefined }),
@@ -150,6 +155,7 @@ jest.mock("expo-router", () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPage = "index";
+  mockAudience = undefined;
   mockVisit.owner = "account:a";
   mockVisit.visibility = "public";
   mockPhotos = [];
@@ -384,6 +390,21 @@ it("reuses profile and sign-in entry points before offering sharing", async () =
   expect(mockReplace).toHaveBeenCalledWith({
     pathname: "/sign-in",
     params: { context: "visit", visitId: "visit" },
+  });
+});
+
+it("carries the wrap-up's Friends choice into the draft and through guest sign-in without changing visibility", async () => {
+  mockAudience = "friends";
+  mockVisit.visibility = "private";
+  const view = await render(<VisitShareLayout />);
+  expect(mockUseSharing).toHaveBeenCalledWith("visit", ["save"], "friends");
+  expect(mockPatchVisit).not.toHaveBeenCalled();
+  expect(mockController.publish).not.toHaveBeenCalled();
+  mockVisit.owner = "device:guest";
+  await view.rerender(<VisitShareLayout />);
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "visit", visitId: "visit", audience: "friends" },
   });
 });
 

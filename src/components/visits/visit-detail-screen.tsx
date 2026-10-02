@@ -12,13 +12,13 @@ import { ToastPill } from "@/components/toast-pill";
 import { Gallery, Spacing } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
-import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner, useOwnerGeneration } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useVisits } from "@/lib/journal/use-visits";
 import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+import { saveVisitVisibility } from "@/lib/journal/visit-visibility";
 import { reportError } from "@/lib/observability";
 import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -177,20 +177,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     }
     setChangingVisibility(true);
     setVisibilityError(undefined);
-    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await patchVisit(visit.localId, { visibility: next }, visit.owner);
-      if (signedIn) {
-        await Promise.race([
-          flushJournal(),
-          new Promise<never>((_, reject) => {
-            timeout = setTimeout(() => reject(new Error("Visibility sync timed out")), 30_000);
-          }),
-        ]);
-        clearTimeout(timeout);
-        if (session.isCurrent() && !sharing.profileRequired) {
-          await controller.load();
-        }
+      await saveVisitVisibility(visit, next);
+      if (signedIn && session.isCurrent() && !sharing.profileRequired) {
+        await controller.load();
       }
     } catch (cause) {
       reportError(cause, "visit.visibility.save", {
@@ -205,7 +195,6 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         });
       }
     } finally {
-      clearTimeout(timeout);
       if (session.isOwnerCurrent()) setChangingVisibility(false);
     }
   }

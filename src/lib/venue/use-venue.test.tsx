@@ -25,7 +25,13 @@ const mockRefresh = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let mockReachable = true;
 const mockSettings = new Map<string, string>();
+jest.mock("@/lib/journal/wrap-up", () => ({
+  markWrapUp: async (owner: string, visitId: string) => {
+    mockSettings.set(`wrapUpVisit:${owner}`, visitId);
+  },
+}));
 const mockVisits = new Map<string, Visit>();
+const mockLatestSaves = new Map<string, number>();
 let mockNow = 1_000_000;
 let mockUuid = 0;
 let mockIntroduced = true;
@@ -99,6 +105,11 @@ jest.mock("@/db/repos/visits", () => ({
     const row = mockVisits.get(localId);
     if (row) mockVisits.set(localId, { ...row, ...to, syncedAt: null });
   },
+  latestVisitSaveAt: async (localId: string) => mockLatestSaves.get(localId),
+}));
+jest.mock("@/lib/observability", () => ({
+  reportError: jest.fn(),
+  addBreadcrumb: jest.fn(),
 }));
 jest.mock("@/lib/attested-write", () => ({
   signPayload: (...args: unknown[]) => mockSignPayload(...args),
@@ -188,6 +199,7 @@ beforeEach(() => {
   mockReachable = true;
   mockSettings.clear();
   mockVisits.clear();
+  mockLatestSaves.clear();
   mockRequestPermission.mockResolvedValue({ granted: true });
   mockGetPermission.mockResolvedValue({ granted: true });
   mockGetPosition.mockResolvedValue({
@@ -222,6 +234,14 @@ beforeEach(() => {
   controller = createVenueController();
 });
 afterEach(() => jest.restoreAllMocks());
+
+it("distinguishes an empty visit from one that has not hydrated yet", async () => {
+  expect(controller.getState().hydrated).toBe(false);
+  const hydration = controller.hydrate();
+  expect(controller.getState().hydrated).toBe(false);
+  await hydration;
+  expect(controller.getState()).toMatchObject({ hydrated: true, visit: undefined });
+});
 
 async function mountResolver() {
   await act(async () => {
@@ -912,7 +932,7 @@ describe("pausing, ending and the day", () => {
     );
   });
 
-  it("restores a visit left open from an earlier day at launch and keeps every open visit open", async () => {
+  it("closes a visit left open from an earlier day at launch where its saves stopped, queues its wrap-up, and leaves other visits alone", async () => {
     const startedAt = mockNow - 5 * 60 * 60 * 1000;
     const stale = {
       visibility: "public" as const,
@@ -938,32 +958,73 @@ describe("pausing, ending and the day", () => {
       venueName: "Neue",
       remoteVisitId: null,
     });
+    mockLatestSaves.set("stale", startedAt + 2 * 60 * 60 * 1000);
     mockSettings.set(CURRENT, "stale");
     mockNearest.mockResolvedValue([metRow]);
     await mountResolver();
-    expect(mockVisits.get("stale")).toMatchObject({ endedAt: null });
+    expect(mockVisits.get("stale")).toMatchObject({ endedAt: startedAt + 2 * 60 * 60 * 1000 });
     expect(mockVisits.get("elsewhere")).toMatchObject({ endedAt: null });
-    expect(mockSettings.get(CURRENT)).toBe("stale");
-    expect(controller.getContext()).toMatchObject({
-      venueId: "id-met",
-      visitLocalId: "stale",
-    });
+    expect(mockSettings.get(CURRENT)).toBeUndefined();
+    expect(mockSettings.get("wrapUpVisit:device:test-installation")).toBe("stale");
+    // Yesterday's ending does not block today's visit at the same museum.
+    expect(controller.visitByDefault(metId)).toBe(true);
+    expect(controller.getContext()).toEqual({ venueId: "id-met" });
+    expect(mockMutation).toHaveBeenCalledWith(
+      "syncVisit",
+      expect.objectContaining({ localId: "stale", endedAt: startedAt + 2 * 60 * 60 * 1000 }),
+    );
   });
 
-  it("keeps a visit open past midnight; saves there join it until it is ended, and the ending counts for that day", async () => {
+  it("closes a visit with no saves at its start when its day is over", async () => {
+    const startedAt = mockNow - DAY;
+    mockVisits.set("empty", {
+      visibility: "public" as const,
+      owner: "device:test-installation",
+      localId: "empty",
+      venueId: metId,
+      venueName: "Met",
+      startedAt,
+      endedAt: null,
+      remoteVisitId: null,
+      visitedOn: "1969-12-31",
+      timeZone: "UTC",
+      reflection: null,
+      syncedAt: null,
+      syncedBy: null,
+      revision: 0,
+    });
+    mockSettings.set(CURRENT, "empty");
+    await controller.hydrate();
+    expect(mockVisits.get("empty")).toMatchObject({ endedAt: startedAt });
+    expect(controller.getState().visit).toBeUndefined();
+  });
+
+  it("keeps a visit open past midnight while the app stays up, then closes it on the next foreground and lets a new one start", async () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
     await controller.visitForSave(metId, mockNow);
-    mockNow += DAY;
-    await expect(controller.resolve()).resolves.toMatchObject({ venueId: "id-met", visitLocalId: "uuid-1" });
+    const lateSave = mockNow + 2 * 60 * 60 * 1000;
+    mockNow = lateSave;
     await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({ localId: "uuid-1" });
+    mockLatestSaves.set("uuid-1", lateSave);
     expect(mockVisits.get("uuid-1")).toMatchObject({ endedAt: null });
-    await controller.end("uuid-1");
-    const relaunched = createVenueController();
-    await relaunched.hydrate();
-    await relaunched.resolve();
-    expect(relaunched.visitByDefault(metId)).toBe(false);
-    await expect(relaunched.visitForSave(metId, mockNow)).resolves.toMatchObject({ localId: "uuid-2" });
+    mockNow += DAY;
+    // The next day's resolve closes yesterday's visit before deciding where the phone is.
+    await expect(controller.resolve()).resolves.toEqual({ venueId: "id-met" });
+    expect(mockVisits.get("uuid-1")).toMatchObject({ endedAt: lateSave });
+    expect(mockSettings.get("wrapUpVisit:device:test-installation")).toBe("uuid-1");
+    expect(controller.visitByDefault(metId)).toBe(true);
+    await expect(controller.visitForSave(metId, mockNow)).resolves.toMatchObject({ localId: "uuid-2" });
+    expect(mockVisits.get("uuid-2")).toMatchObject({ endedAt: null });
+  });
+
+  it("starts a visit from the Add visit sheet without a save and lets the next save join it", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await expect(controller.startVisit(metId)).resolves.toMatchObject({ localId: "uuid-1", startedAt: mockNow });
+    expect(controller.getContext()).toEqual({ venueId: "id-met", visitLocalId: "uuid-1" });
+    expect(mockSettings.get(CURRENT)).toBe("uuid-1");
+    await expect(controller.visitForSave(metId, mockNow + 60_000)).resolves.toMatchObject({ localId: "uuid-1" });
   });
 });
 
@@ -1318,18 +1379,20 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
   expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
 });
 
-it("pauses a searched museum's visit the next day while location stays denied, before and after relaunch", async () => {
+it("closes a searched museum's visit the next day while location stays denied, and a relaunch finds it closed", async () => {
   mockRequestPermission.mockResolvedValue({ granted: false });
   await controller.confirm({ kind: "seeded", venueId: metId, name: metRow.name, manual: byHand() });
   const visit = await controller.visitForSave(metId, mockNow);
   mockNow += DAY;
   expect(await controller.resolve()).toEqual({});
-  expect(controller.getState().visit?.localId).toBe(visit.localId);
+  expect(controller.getState().visit).toBeUndefined();
+  expect(mockVisits.get(visit.localId)).toMatchObject({ endedAt: visit.startedAt });
+  expect(mockSettings.get("wrapUpVisit:device:test-installation")).toBe(visit.localId);
   const restored = createVenueController();
   await restored.hydrate();
   expect(restored.getContext()).toEqual({});
   expect(await restored.resolve()).toEqual({});
-  expect(restored.getState().visit?.localId).toBe(visit.localId);
+  expect(restored.getState().visit).toBeUndefined();
 });
 
 it("lets location take over the day after a museum was picked from search without a visit", async () => {

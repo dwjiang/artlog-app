@@ -14,6 +14,8 @@ const mockSubscriptions = new Map<object, RequestForQueries>();
 const mockPush = jest.fn();
 jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
+jest.mock("@/components/visits/now-card", () => ({ NowCard: () => null }));
+jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => null }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockSession.token }));
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));

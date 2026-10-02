@@ -16,7 +16,15 @@ import { useAccount } from "@/lib/account/use-account";
 
 import { SignInActions } from "./sign-in-actions";
 
-export function SignInScreen({ context = "account", visitId }: { context?: SignInContext; visitId?: string }) {
+export function SignInScreen({
+  context = "account",
+  visitId,
+  audience,
+}: {
+  context?: SignInContext;
+  visitId?: string;
+  audience?: "friends";
+}) {
   const state = useAccount();
   const { account, busy } = state;
   const owner = useLocalOwner();
@@ -32,19 +40,29 @@ export function SignInScreen({ context = "account", visitId }: { context?: SignI
     // A first sign-in continues into profile setup; setup itself carries the visit on afterwards.
     if (setupOffer && account.hasProfile === false) {
       takeProfileSetupOffer();
-      router.replace(profileSetupRoute(setupOffer, continuingVisit ? visitId : undefined));
+      router.replace(profileSetupRoute(setupOffer, continuingVisit ? visitId : undefined, audience));
       return;
     }
     if (waitingForJournal) return;
     if (continuingVisit) {
       router.replace({
         pathname: "/visit-share/[visitId]",
-        params: { visitId },
+        params: { visitId, ...(audience ? { audience } : {}) },
       });
     } else {
       router.back();
     }
-  }, [account?.hasProfile, account?.linked, busy, continuingVisit, router, setupOffer, visitId, waitingForJournal]);
+  }, [
+    account?.hasProfile,
+    account?.linked,
+    busy,
+    continuingVisit,
+    router,
+    setupOffer,
+    visitId,
+    audience,
+    waitingForJournal,
+  ]);
 
   return (
     <>

@@ -34,6 +34,12 @@ export function formatVisitDate(date: string): string {
   const [year, month, day] = date.split("-");
   return `${Number(day)} ${MONTHS[Number(month) - 1].slice(0, 3)} ${year}`;
 }
+/** "1h 23m", or "12m" within the first hour, for time spent on a visit. */
+export function formatElapsed(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+}
 /** "2:10 PM" in the museum's time zone, or the day it began ("18 Sep 2026") for a visit still open from an earlier day. */
 export function formatVisitStart(startedAt: number, timeZone: string, now = Date.now()): string {
   const day = calendarDate(startedAt, timeZone);

@@ -7,17 +7,16 @@ import type { PendingScan, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
-import type { CaptureCompletion } from "@/lib/capture/completion";
+import type { CaptureCompletion, CompletionVisit } from "@/lib/capture/completion";
 import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from "@/lib/capture/photo-draft";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { convex } from "@/lib/convex-client";
 import { keepPhotos } from "@/lib/files/kept-photos";
 import { scanPreviewPath } from "@/lib/files/photos";
-import { formatVisitDate } from "@/lib/journal/history";
 import type { ContributeInput } from "@/lib/label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
 import { reportError } from "@/lib/observability";
-import { visitForSave } from "@/lib/venue/use-venue";
+import { openVisitLocalId, visitForSave } from "@/lib/venue/use-venue";
 import { venueNameById } from "@/lib/venue/venue-db";
 
 import { api } from "../../../convex/_generated/api";
@@ -60,7 +59,10 @@ export function saveErrorMessage(cause: unknown): string {
   return cause instanceof Error && ACTIONABLE.has(cause.message) ? cause.message : "Couldn’t save. Try again.";
 }
 
-type LinkedVisit = Pick<Visit, "localId" | "venueId" | "venueName" | "visitedOn" | "remoteVisitId">;
+type LinkedVisit = Pick<
+  Visit,
+  "localId" | "venueId" | "venueName" | "visitedOn" | "timeZone" | "startedAt" | "remoteVisitId"
+>;
 
 /** Saves locally first, then mirrors the row to the collection on the server. `withoutVisit` keeps a museum save out of its visit. */
 export async function saveResult(
@@ -76,7 +78,9 @@ export async function saveResult(
   }
   const session = readPhotoSession(current.owner, capture.photoPath);
   const choice = captureVisitChoice(capture, session);
+  const openBefore = openVisitLocalId();
   let visit: LinkedVisit | undefined;
+  let outcome: CompletionVisit["outcome"] | undefined;
   if (choice.kind === "visit") {
     visit = await getVisit(choice.localId, current.owner);
     if (!visit) {
@@ -84,10 +88,12 @@ export async function saveResult(
         session.visit ? "Choose an available visit before saving." : "The capture is linked to an invalid visit",
       );
     }
+    outcome = openBefore === visit.localId ? "joined" : "past";
   } else if (choice.kind === "venue" && !withoutVisit) {
     // The first save at a museum starts its visit, dated by the shutter; later saves join it.
     const started = await visitForSave(choice.venueId, capture.capturedAt);
     visit = { ...started, remoteVisitId: started.remoteVisitId ?? null };
+    outcome = openVisitLocalId() !== started.localId ? "past" : openBefore === started.localId ? "joined" : "started";
   }
   if (!current.isCurrent()) throw new Error("Journal owner changed");
   if (
@@ -220,7 +226,17 @@ export async function saveResult(
       date: existing ? existing.date : snapshot.date,
       medium: existing ? existing.medium : snapshot.medium,
       previewPath: scanPreviewPath(capture.cropPath),
-      visitLabel: visit ? `${visit.venueName} · ${formatVisitDate(visit.visitedOn)}` : undefined,
+      visit:
+        visit && outcome
+          ? {
+              localId: visit.localId,
+              venueName: visit.venueName,
+              startedAt: visit.startedAt,
+              visitedOn: visit.visitedOn,
+              timeZone: visit.timeZone,
+              outcome,
+            }
+          : undefined,
     },
   };
 }

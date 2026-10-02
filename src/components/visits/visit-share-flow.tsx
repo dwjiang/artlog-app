@@ -63,9 +63,11 @@ export function VisitShareLayout() {
   return <ShareProvider key={`${owner}:${visitId}`} visit={visit} />;
 }
 function ShareProvider({ visit }: { visit: VisitSummary }) {
+  const { audience } = useLocalSearchParams<{ audience?: string }>();
   const sharing = useVisitSharing(
     visit.localId,
     visit.works.map((work) => work.localId),
+    audience === "friends" ? audience : undefined,
   );
   const generation = useOwnerGeneration();
   const { controller, token } = sharing;
@@ -98,9 +100,10 @@ function ShareError({ sharing }: { sharing: Sharing }) {
   ) : null;
 }
 function GuestVisitSignIn({ visitId }: { visitId: string }) {
+  const { audience } = useLocalSearchParams<{ audience?: string }>();
   useEffect(() => {
-    router.replace(signInRoute("visit", visitId));
-  }, [visitId]);
+    router.replace(signInRoute("visit", visitId, audience === "friends" ? audience : undefined));
+  }, [visitId, audience]);
   return (
     <VisitPage>
       <VisitMessage loading>Opening sign-in…</VisitMessage>

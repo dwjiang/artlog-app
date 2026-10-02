@@ -27,6 +27,8 @@ import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { venueLocation } from "@/lib/venue/venue-location";
 import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from "@/lib/venue/venue-reducer";
 
+import { MuseumMap, useOptionCoordinates } from "./museum-map";
+
 function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits | undefined): string {
   const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ""];
   if (option.kind === "poi" && option.category !== "unknown") {
@@ -133,7 +135,13 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
-  const { status, options, error, confirm, dismiss, declinePrompt, resolve } = view;
+  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix } = view;
+  // The location prompt asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
+  const [picking, setPicking] = useState(() => prompted && view.options.length > 0);
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(
+    () => view.options[0] && venueOptionKey(view.options[0]),
+  );
+  const coordinates = useOptionCoordinates(picking ? options : []);
   // Settings lists location only once iOS has asked, so a permission never answered is asked for here instead.
   const [location, requestLocation] = Location.useForegroundPermissions();
   const askable = location?.canAskAgain !== false;
@@ -233,6 +241,89 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       onPress={keepVisit ?? notHere}
     />
   );
+  if (picking) {
+    const selected = options.find((option) => venueOptionKey(option) === selectedKey);
+    const pins = options.flatMap((option) => {
+      const key = venueOptionKey(option);
+      const coordinate = coordinates.get(key);
+      return coordinate ? [{ key, name: option.name, ...coordinate }] : [];
+    });
+    const center = fix ?? pins[0];
+    return (
+      <ScrollView
+        style={sheetStyle}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        bounces={false}
+      >
+        <ThemedText type="title" accessibilityRole="header">
+          Which museum are you in?
+        </ThemedText>
+        <ThemedText themeColor="textSecondary">
+          {options.length > 1
+            ? "More than one museum is within a short walk."
+            : "The nearest museum is a short walk away."}
+        </ThemedText>
+        {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
+        <View>
+          {options.map((option, index) => {
+            const key = venueOptionKey(option);
+            const checked = key === selectedKey;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="radio"
+                accessibilityLabel={option.name}
+                accessibilityState={{ checked, disabled: !!busy }}
+                disabled={!!busy}
+                onPress={() => setSelectedKey(key)}
+                style={[styles.option, styles.unselectedOption]}
+              >
+                <View style={styles.optionText}>
+                  <ThemedText style={checked && styles.checkedLabel}>{option.name}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
+                  </ThemedText>
+                </View>
+                <View style={[styles.radio, checked && styles.radioChecked]}>
+                  {checked && <View style={styles.radioDot} />}
+                </View>
+              </Pressable>
+            );
+          })}
+          {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Not at a museum"
+            onPress={notHere}
+            style={styles.option}
+          >
+            <ThemedText themeColor="textSecondary">Not at a museum</ThemedText>
+          </Pressable>
+        </View>
+        {(failure ?? error) && (
+          <ThemedText selectable themeColor="error" accessibilityRole="alert">
+            {failure ?? error}
+          </ThemedText>
+        )}
+        <ActionStack
+          textActions={<GalleryButton label="Search for another museum" fullWidth onPress={() => setPicking(false)} />}
+        >
+          <GalleryButton
+            label="Continue"
+            variant="filled"
+            fullWidth
+            disabled={!selected}
+            busy={!!busy}
+            busyLabel="Confirming…"
+            onPress={() => {
+              if (selected) void choose(selected);
+            }}
+          />
+        </ActionStack>
+      </ScrollView>
+    );
+  }
   return (
     <ScrollView
       style={sheetStyle}
@@ -405,4 +496,16 @@ const styles = StyleSheet.create({
     borderBottomColor: Gallery.separator,
   },
   optionText: { flex: 1, gap: Spacing.half },
+  checkedLabel: { fontWeight: "600" },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: Gallery.controlBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioChecked: { borderColor: Gallery.accent, backgroundColor: Gallery.accent },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.paper },
 });

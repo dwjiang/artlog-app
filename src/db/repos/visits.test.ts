@@ -3,6 +3,7 @@ import { artworkEncounters, artworkPhotos, pendingScans, savedWorks, visits } fr
 import { onCollectionChange } from "@/lib/account/sync-events";
 
 import type { Id } from "../../../convex/_generated/dataModel";
+import { addArtworkPhoto, linkArtworkVisit } from "./artwork-album";
 import * as repo from "./visits";
 
 jest.mock("@/db/client", () => ({
@@ -21,6 +22,38 @@ const visit = {
 beforeEach(async () => {
   await db.delete(savedWorks);
   await db.delete(visits);
+});
+
+it("ends repeat visits at their latest capture, ignoring other visits and removed photos or encounters", async () => {
+  const owner = "account:me";
+  const noon = Date.parse("2024-02-29T12:00Z");
+  await repo.upsertVisit({ ...visit, startedAt: noon }, owner);
+  await repo.upsertVisit({ ...visit, localId: second, startedAt: noon }, owner);
+  await db
+    .insert(savedWorks)
+    .values({ owner, localId: "repeat", title: "Painting", artist: "Artist", savedAt: noon - 86_400_000 });
+  const photo = { savedLocalId: "repeat", path: "photo.jpg", kind: "full" as const, visitLocalId: first };
+  addArtworkPhoto({ ...photo, localId: "current", capturedAt: noon + 7_200_000 }, owner);
+  addArtworkPhoto({ ...photo, localId: "elsewhere", visitLocalId: second, capturedAt: noon + 10_800_000 }, owner);
+  addArtworkPhoto({ ...photo, localId: "deleted", capturedAt: noon + 14_400_000, deletedAt: noon }, owner);
+  expect(await repo.latestVisitSaveAt(first, owner)).toBe(noon + 7_200_000);
+  expect(await repo.latestVisitSaveAt(first, "account:other")).toBeUndefined();
+  await db.delete(artworkEncounters);
+  expect(await repo.latestVisitSaveAt(first, owner)).toBeUndefined();
+});
+
+it("uses the original save time only for the visit where it was saved", async () => {
+  const owner = "account:me";
+  const noon = Date.parse("2024-02-29T12:00Z");
+  await repo.upsertVisit(visit, owner);
+  await repo.upsertVisit({ ...visit, localId: second }, owner);
+  await db
+    .insert(savedWorks)
+    .values({ owner, localId: "no-photo", title: "Painting", artist: "Artist", savedAt: noon, visitLocalId: first });
+  linkArtworkVisit("no-photo", first, owner);
+  linkArtworkVisit("no-photo", second, owner);
+  expect(await repo.latestVisitSaveAt(first, owner)).toBe(noon);
+  expect(await repo.latestVisitSaveAt(second, owner)).toBeUndefined();
 });
 
 it("creates and links a visit atomically without copying photos, including retries", async () => {
