@@ -74,11 +74,12 @@ export const fileStorage = {
   },
   async store(ctx: Pick<ActionCtx, "runMutation">, blob: Blob): Promise<Id<"files">> {
     return withErrorReporting("files.store", async () => {
-      if (!blob.type) blob = new Blob([blob], { type: "application/octet-stream" });
-      const id = await ctx.runMutation(internal.files.reserve, { contentType: blob.type, size: blob.size });
+      // An HTTP request body streams once, so the R2 upload would leave nothing to hash.
+      const buffered = new Blob([await blob.arrayBuffer()], { type: blob.type || "application/octet-stream" });
+      const id = await ctx.runMutation(internal.files.reserve, { contentType: buffered.type, size: buffered.size });
       try {
-        await r2.put(id, blob);
-        const sha256 = await fileHash(blob);
+        await r2.put(id, buffered);
+        const sha256 = await fileHash(buffered);
         await ctx.runMutation(internal.files.complete, { id, sha256 });
         return id;
       } catch (error) {
