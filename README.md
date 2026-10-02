@@ -406,6 +406,7 @@ npm test                                             # Jest (src/, modules/, sha
 npx convex dev --once                                # push backend functions to your deployment
 npx convex codegen                                   # after a schema or function-signature change; commit convex/_generated/
 npm run ios                                          # reopen the installed dev client on a Simulator or device
+npm run licenses:generate                            # after dependency changes: rebuilds the in-app open source notices from a prebuilt ios/
 ```
 
 Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sqlite under
@@ -419,4 +420,5 @@ Agent guide: [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Mozilla Public License 2.0 — see [LICENSE](LICENSE). Notices for the open source libraries in the app build are
+generated into `assets/licenses/third-party-notices.json` and shown under Settings → About → Open source licenses.

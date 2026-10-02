@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
+import { router } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
@@ -87,6 +88,11 @@ export function AboutSection() {
             action: () => {
               void open(SOURCE_URL);
             },
+          },
+          {
+            label: "Open source licenses",
+            icon: "doc.plaintext",
+            action: () => router.push("/licenses"),
           },
           {
             label: "Space Grotesk font and license",
