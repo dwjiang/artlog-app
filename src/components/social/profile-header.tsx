@@ -7,6 +7,7 @@ import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import type { PublicProfile } from "@/lib/social/types";
+import type { AvatarId } from "@/shared/social/avatars";
 
 import { ProfileActionRow } from "./friendship-controls";
 import { ProfileAvatar } from "./profile-avatar";
@@ -18,7 +19,8 @@ type ProfileIdentity = {
   subtitle?: string;
   avatarName?: string;
   avatarPhotoUrl?: string;
-  profile?: { photoUrl?: string; bio?: string };
+  avatar?: AvatarId;
+  profile?: { photoUrl?: string; avatar: AvatarId; bio?: string };
 };
 /** A count left undefined is still loading. */
 type ProfileStat = { noun: string; count?: number };
@@ -77,6 +79,7 @@ export function ProfileHeader({
           <ProfileAvatar
             name={identity.profile ? identity.name : identity.avatarName}
             photoUrl={identity.profile ? identity.profile.photoUrl : identity.avatarPhotoUrl}
+            avatar={identity.profile ? identity.profile.avatar : identity.avatar}
             size={AVATAR_SIZE}
           />
           <View style={{ alignSelf: "stretch", alignItems: "center", gap: 6 }}>

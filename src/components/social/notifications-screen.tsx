@@ -198,7 +198,12 @@ function NotificationRow({
         {row.length > 1 ? (
           <AvatarPair people={[row[0].actor, row[1].actor]} />
         ) : (
-          <ProfileAvatar name={first.actor.name} photoUrl={first.actor.photoUrl} size={LEAD} />
+          <ProfileAvatar
+            name={first.actor.name}
+            photoUrl={first.actor.photoUrl}
+            avatar={first.actor.avatar}
+            size={LEAD}
+          />
         )}
         <View style={styles.body}>
           <Text style={styles.text}>
@@ -240,9 +245,9 @@ function NotificationRow({
 function AvatarPair({ people: [lead, next] }: { people: Item["actor"][] }) {
   return (
     <View style={styles.pair}>
-      <ProfileAvatar name={lead.name} photoUrl={lead.photoUrl} size={32} />
+      <ProfileAvatar name={lead.name} photoUrl={lead.photoUrl} avatar={lead.avatar} size={32} />
       <View style={styles.pairNext}>
-        <ProfileAvatar name={next.name} photoUrl={next.photoUrl} size={22} />
+        <ProfileAvatar name={next.name} photoUrl={next.photoUrl} avatar={next.avatar} size={22} />
       </View>
     </View>
   );

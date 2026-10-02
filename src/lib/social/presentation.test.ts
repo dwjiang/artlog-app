@@ -59,7 +59,13 @@ it.each([
 });
 
 it("explains each suggestion in one line, naming mutual friends by first name", () => {
-  const friend = (name: string) => ({ profileId: name as never, name, username: name, publishedWallCount: 0 });
+  const friend = (name: string) => ({
+    profileId: name as never,
+    name,
+    username: name,
+    avatar: "vermeer" as const,
+    publishedWallCount: 0,
+  });
   const mutual = (count: number, ...names: string[]) =>
     suggestionReasonText({ kind: "mutual", count, friends: names.map(friend) });
   expect(mutual(1, "Theo Alvarez")).toBe("Friends with Theo");

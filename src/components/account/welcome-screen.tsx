@@ -26,17 +26,23 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { GlassSurface } from "@/components/glass-surface";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
+import { ProfilePicturePicker } from "@/components/social/profile-picture-picker";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
-import { setLocalProfileName, setLocalProfilePhoto, useLocalProfile } from "@/lib/account/local-profile";
+import {
+  setLocalProfileAvatar,
+  setLocalProfileName,
+  setLocalProfilePhoto,
+  useLocalProfile,
+} from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { signInContexts } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { reportError } from "@/lib/observability";
-import { chooseProfilePhoto, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
+import { shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
 import { LIMITS } from "@/shared/journal/limits";
 
 import { SignInActions } from "./sign-in-actions";
@@ -60,10 +66,9 @@ export function WelcomeScreen() {
   const localProfile = useLocalProfile();
   const [draft, setDraft] = useState<string>();
   const name = draft ?? localProfile.name ?? "";
-  const [photoDraft, setPhotoDraft] = useState<string>();
-  const photoDraftRef = useRef<string>(undefined);
-  const photo = photoDraft ?? localProfile.photoUrl;
-  const [choosingPhoto, setChoosingPhoto] = useState(false);
+  const { picture, choose, commit } = useProfilePictureDraft();
+  const shown = shownPicture(localProfile, picture);
+  const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string>();
@@ -81,8 +86,6 @@ export function WelcomeScreen() {
       scrollX.set(event.contentOffset.x);
     },
   });
-  useEffect(() => () => removeProfilePhotoDraft(photoDraftRef.current), []);
-
   // Pages change only through their buttons, so a swipe can never pass a permission without an answer.
   const goTo = (page: number) => {
     pager.current?.scrollTo({ x: page * width, animated: !reduced });
@@ -116,24 +119,6 @@ export function WelcomeScreen() {
       });
   }, [account.account, account.busy, guest, router]);
 
-  const choosePhoto = async () => {
-    if (choosingPhoto || savingRef.current) return;
-    setChoosingPhoto(true);
-    setError(undefined);
-    try {
-      const next = await chooseProfilePhoto();
-      if (next) {
-        removeProfilePhotoDraft(photoDraftRef.current);
-        photoDraftRef.current = next;
-        setPhotoDraft(next);
-      }
-    } catch (cause) {
-      reportError(cause, "account.welcome.photo");
-      setError("This photo couldn’t be opened. Choose another.");
-    } finally {
-      setChoosingPhoto(false);
-    }
-  };
   const finish = async () => {
     if (!name.trim() || localProfile.loading || savingRef.current) return;
     savingRef.current = true;
@@ -142,12 +127,10 @@ export function WelcomeScreen() {
     let saved = "name";
     try {
       await setLocalProfileName(name);
-      saved = "photo";
-      if (photoDraftRef.current) {
-        await setLocalProfilePhoto(photoDraftRef.current);
-        photoDraftRef.current = undefined;
-        setPhotoDraft(undefined);
-      }
+      saved = "picture";
+      if (picture?.kind === "photo") await setLocalProfilePhoto(picture.uri);
+      if (picture?.kind === "avatar") await setLocalProfileAvatar(picture.avatar);
+      commit();
       await setSetting(WELCOME_SEEN_SETTING, "true");
       router.back();
     } catch (cause) {
@@ -257,7 +240,7 @@ export function WelcomeScreen() {
                 label="Continue"
                 fullWidth
                 variant="filled"
-                disabled={!name.trim() || localProfile.loading || choosingPhoto}
+                disabled={!name.trim() || localProfile.loading}
                 busy={saving}
                 busyLabel="Saving…"
                 onPress={() => void finish()}
@@ -266,16 +249,21 @@ export function WelcomeScreen() {
           >
             <Headline>Your name.</Headline>
             <View style={styles.nameRow}>
-              {/* The text button below is the accessible way to choose a photo. */}
+              {/* The text button below is the accessible way to change the picture. */}
               <Pressable
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
                 disabled={saving}
-                onPress={() => void choosePhoto()}
+                onPress={() => setPicking(true)}
               >
-                <ProfileAvatar name={name.trim() || undefined} photoUrl={photo} size={72} />
+                <ProfileAvatar
+                  name={name.trim() || undefined}
+                  photoUrl={shown.photoUrl}
+                  avatar={shown.avatar}
+                  size={72}
+                />
                 <View style={styles.photoBadge}>
-                  <Image source="sf:camera.fill" tintColor={Gallery.surface} style={styles.photoBadgeIcon} />
+                  <Image source="sf:pencil" tintColor={Gallery.surface} style={styles.photoBadgeIcon} />
                 </View>
               </Pressable>
               <TextInput
@@ -298,15 +286,23 @@ export function WelcomeScreen() {
             </View>
             <View style={styles.photoAction}>
               <GalleryButton
-                label={photo ? "Change photo" : "Add a photo"}
+                label="Change picture"
                 fullWidth={false}
                 contentAlignment="leading"
                 disabled={saving}
-                busy={choosingPhoto}
-                busyLabel="Opening Photos…"
-                onPress={() => void choosePhoto()}
+                onPress={() => setPicking(true)}
               />
             </View>
+            <ProfilePicturePicker
+              visible={picking}
+              name={name.trim() || undefined}
+              shown={shown}
+              onCancel={() => setPicking(false)}
+              onSave={(next) => {
+                choose(next);
+                setPicking(false);
+              }}
+            />
             {error && (
               <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
                 {error}

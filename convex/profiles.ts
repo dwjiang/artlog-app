@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
+import { isAvatarId } from "../shared/social/avatars";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
 import { randomWallStyle } from "../shared/wall/defaults";
@@ -12,11 +13,15 @@ import { activeProfile, optionalProfile, requireAccount, requireProfile } from "
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
 
 export const create = mutation({
-  args: { username: v.string(), name: v.string(), bio: v.optional(v.string()) },
+  // `avatar` carries over the painting someone already had as a guest.
+  args: { username: v.string(), name: v.string(), bio: v.optional(v.string()), avatar: v.optional(v.string()) },
   returns: publicProfile,
   handler: async (ctx, input) => {
     const { accountId } = await requireAccount(ctx);
     const fields = validateProfile(input);
+    if (input.avatar !== undefined && !isAvatarId(input.avatar)) {
+      throw new ConvexError({ code: "invalid_profile" });
+    }
     const existing = await ctx.db
       .query("profiles")
       .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
@@ -39,6 +44,7 @@ export const create = mutation({
       accountId,
       username: input.username,
       ...fields,
+      avatar: input.avatar,
       searchText: normalizeSearch(`${input.username} ${fields.name}`),
       active: true,
       publishedWallCount: 0,

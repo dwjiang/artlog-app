@@ -5,10 +5,22 @@ import { View } from "react-native";
 import { LoadingImage } from "@/components/loading-image";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { AVATAR_IMAGES } from "@/lib/social/avatar-images";
 import { initials } from "@/lib/social/presentation";
+import type { AvatarId } from "@/shared/social/avatars";
 
-/** Without a `name`, draws the placeholder for a collection that has no public profile. */
-export function ProfileAvatar({ name, photoUrl, size = 40 }: { name?: string; photoUrl?: string; size?: number }) {
+/** Prefers the photo, then the preset painting, then initials; with none, draws the placeholder for a collection. */
+export function ProfileAvatar({
+  name,
+  photoUrl,
+  avatar,
+  size = 40,
+}: {
+  name?: string;
+  photoUrl?: string;
+  avatar?: AvatarId;
+  size?: number;
+}) {
   const [failed, setFailed] = useState<string>();
   return (
     <View
@@ -29,6 +41,13 @@ export function ProfileAvatar({ name, photoUrl, size = 40 }: { name?: string; ph
           label={name ? `${name} profile photo` : "Profile photo"}
           contentFit="cover"
           onError={() => setFailed(photoUrl)}
+          style={{ width: size, height: size }}
+        />
+      ) : avatar ? (
+        <Image
+          source={AVATAR_IMAGES[avatar]}
+          cachePolicy="memory"
+          accessible={false}
           style={{ width: size, height: size }}
         />
       ) : name ? (

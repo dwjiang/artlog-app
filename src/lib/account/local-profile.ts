@@ -2,26 +2,44 @@ import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { useEffect, useState } from "react";
 
-import { getSetting, setSetting } from "@/db/repos/settings";
+import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { reportError } from "@/lib/observability";
 import { LIMITS } from "@/shared/journal/limits";
+import { AVATARS, type AvatarId, isAvatarId } from "@/shared/social/avatars";
 
 const NAME_KEY = "local-profile-name";
 const PHOTO_KEY = "local-profile-photo";
+const AVATAR_KEY = "local-profile-avatar";
 const PHOTO_FOLDER = "profile";
 const listeners = new Set<() => void>();
+let assigningAvatar: Promise<AvatarId> | undefined;
 
-export type LocalProfile = { name?: string; photoUrl?: string };
+/** `avatar` is shown whenever there is no photo. */
+export type LocalProfile = { name?: string; photoUrl?: string; avatar: AvatarId };
 
 export async function getLocalProfileName(): Promise<string | undefined> {
   return (await getSetting(NAME_KEY))?.trim() || undefined;
 }
 
 export async function getLocalProfile(): Promise<LocalProfile> {
-  const [name, photoPath] = await Promise.all([getLocalProfileName(), getSetting(PHOTO_KEY)]);
-  return { name, photoUrl: photoPath ? captureFileUri(photoPath) : undefined };
+  const [name, photoPath, avatar] = await Promise.all([getLocalProfileName(), getSetting(PHOTO_KEY), localAvatar()]);
+  return { name, photoUrl: photoPath ? captureFileUri(photoPath) : undefined, avatar };
+}
+
+// Each installation keeps one random painting until its owner picks another.
+async function localAvatar(): Promise<AvatarId> {
+  const stored = await getSetting(AVATAR_KEY);
+  if (isAvatarId(stored)) return stored;
+  assigningAvatar ??= (async () => {
+    const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)].id;
+    await setSetting(AVATAR_KEY, avatar);
+    return avatar;
+  })().finally(() => {
+    assigningAvatar = undefined;
+  });
+  return assigningAvatar;
 }
 
 // These are installation preferences, so changing the active journal owner cannot clear them.
@@ -51,6 +69,15 @@ export async function setLocalProfilePhoto(uri: string): Promise<void> {
   if (previous) removeProfileFile(captureFileUri(previous));
 }
 
+/** Choosing a painting replaces the photo. */
+export async function setLocalProfileAvatar(avatar: AvatarId): Promise<void> {
+  const photo = await getSetting(PHOTO_KEY);
+  await setSetting(AVATAR_KEY, avatar);
+  if (photo) await removeSetting(PHOTO_KEY);
+  for (const listener of listeners) listener();
+  if (photo) removeProfileFile(captureFileUri(photo));
+}
+
 function removeProfileFile(uri: string): void {
   try {
     removeFileIfExists(uri);
@@ -60,7 +87,7 @@ function removeProfileFile(uri: string): void {
 }
 
 export function useLocalProfile() {
-  const [state, setState] = useState<LocalProfile & { loading: boolean }>({ loading: true });
+  const [state, setState] = useState<Partial<LocalProfile> & { loading: boolean }>({ loading: true });
   useEffect(() => {
     let mounted = true;
     const load = () => {

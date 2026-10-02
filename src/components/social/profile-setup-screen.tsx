@@ -9,10 +9,11 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { useLocalProfile } from "@/lib/account/local-profile";
 import { captureOwner } from "@/lib/account/owner-store";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
-import { chooseProfilePhoto, profilePhotoBytes, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
+import { profilePictureArgs, shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
@@ -23,6 +24,7 @@ import { isAllowedIdentity } from "@/shared/social/profile-text";
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileField, UsernameField } from "./profile-fields";
+import { ProfilePicturePicker } from "./profile-picture-picker";
 import { SocialGate } from "./social-state";
 
 const STEPS = ["username", "name", "photo"] as const;
@@ -36,21 +38,23 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
   const [name, setName] = useState(suggestedName.slice(0, LIMITS.name));
   // Undefined follows the suggestion from the sign-in name until the person types a username.
   const [username, setUsername] = useState<string>();
-  const [photo, setPhoto] = useState<string>();
-  const [operation, setOperation] = useState<"username" | "name" | "choose" | "photo">();
+  const localProfile = useLocalProfile();
+  const { picture, choose } = useProfilePictureDraft();
+  const [picking, setPicking] = useState(false);
+  const [operation, setOperation] = useState<"username" | "name" | "picture">();
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState(false);
   const [finished, setFinished] = useState(false);
   const [savedName, setSavedName] = useState("");
-  const photoDraft = useRef<string>(undefined);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      removeProfilePhotoDraft(photoDraft.current);
     };
   }, []);
+  // The profile starts on the painting this person already had as a guest.
+  const shown = shownPicture({ avatar: localProfile.avatar }, picture);
   const trimmedName = name.trim();
   const suggestedDisplayName = suggestedName.trim().slice(0, LIMITS.name);
   const suggestion = useSocialQuery(
@@ -86,7 +90,7 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
     setOperation("username");
     setError(undefined);
     try {
-      await create({ name: initialName, username: chosenUsername });
+      await create({ name: initialName, username: chosenUsername, avatar: localProfile.avatar });
       if (!owner.isCurrent() || !mounted.current) return;
       setSavedName(initialName);
       setUsername(chosenUsername);
@@ -127,46 +131,28 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
       if (mounted.current) setOperation(undefined);
     }
   }
-  async function choosePhoto() {
+  async function savePicture() {
     if (busy) return;
-    setOperation("choose");
-    setError(undefined);
-    try {
-      const next = await chooseProfilePhoto();
-      if (!mounted.current) {
-        removeProfilePhotoDraft(next);
-        return;
-      }
-      if (next) {
-        removeProfilePhotoDraft(photoDraft.current);
-        photoDraft.current = next;
-        setPhoto(next);
-      }
-    } catch (cause) {
-      reportError(cause, "profile.photo.choose");
-      if (mounted.current) setError("This photo could not be opened. Try another image.");
-    } finally {
-      if (mounted.current) setOperation(undefined);
-    }
-  }
-  async function savePhoto() {
-    if (busy) return;
-    if (!photo) {
+    if (!picture) {
       finish();
       return;
     }
     const owner = captureOwner();
-    setOperation("photo");
+    setOperation("picture");
     setError(undefined);
     try {
-      const bytes = await profilePhotoBytes(photo);
+      const pictureArgs = await profilePictureArgs(picture);
       if (!owner.isCurrent() || !mounted.current) return;
-      await saveProfile({ name: savedName, photo: bytes });
+      await saveProfile({ name: savedName, ...pictureArgs });
       if (owner.isCurrent() && mounted.current) finish();
     } catch (cause) {
       reportError(cause, "profile.photo.save");
       if (owner.isCurrent() && mounted.current) {
-        setError("The photo couldn’t upload. Try again or continue without it.");
+        setError(
+          picture.kind === "photo"
+            ? "The photo couldn’t upload. Try again or continue without it."
+            : "Your picture wasn’t saved. Try again.",
+        );
       }
     } finally {
       if (mounted.current) setOperation(undefined);
@@ -179,7 +165,12 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
     return (
       <SetupPage>
         <View style={styles.summary}>
-          <ProfileAvatar name={profile?.name ?? trimmedName} photoUrl={profile?.photoUrl ?? photo} size={112} />
+          <ProfileAvatar
+            name={profile?.name ?? trimmedName}
+            photoUrl={profile ? profile.photoUrl : shown.photoUrl}
+            avatar={profile?.avatar ?? shown.avatar}
+            size={112}
+          />
           <View style={styles.identity}>
             <Text variant="section" style={styles.centered}>
               {profile?.name ?? (savedName || trimmedName)}
@@ -330,33 +321,39 @@ export function ProfileSetupScreen({ suggestedName = "", visitId }: { suggestedN
 
   return (
     <SetupPage bar={bar}>
-      <Heading title="Add a photo" detail="Optional. It appears on your public profile." />
+      <Heading title="Your picture" detail="It appears on your public profile." />
       <View style={styles.photo}>
-        <ProfileAvatar name={savedName} photoUrl={photo} size={112} />
-        <GalleryButton
-          label={photo ? "Change photo" : "Choose photo"}
-          busy={operation === "choose"}
-          disabled={busy}
-          onPress={() => {
-            void choosePhoto();
-          }}
-        />
+        <ProfileAvatar name={savedName} photoUrl={shown.photoUrl} avatar={shown.avatar} size={112} />
+        <GalleryButton label="Change picture" disabled={busy} onPress={() => setPicking(true)} />
       </View>
+      <ProfilePicturePicker
+        visible={picking}
+        name={savedName}
+        shown={shown}
+        onCancel={() => setPicking(false)}
+        onSave={(next) => {
+          setError(undefined);
+          choose(next);
+          setPicking(false);
+        }}
+      />
       {errorText}
       <ActionStack
         textActions={
-          error && photo && <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />
+          error
+          && picture?.kind === "photo" && (
+            <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />
+          )
         }
       >
         <GalleryButton
-          label={photo ? "Save photo" : "Skip for now"}
+          label={picture ? "Save picture" : "Continue"}
           variant="filled"
           fullWidth
-          busy={operation === "photo"}
-          busyLabel="Uploading photo…"
-          disabled={operation === "choose"}
+          busy={operation === "picture"}
+          busyLabel={picture?.kind === "photo" ? "Uploading photo…" : "Saving picture…"}
           onPress={() => {
-            void savePhoto();
+            void savePicture();
           }}
         />
       </ActionStack>

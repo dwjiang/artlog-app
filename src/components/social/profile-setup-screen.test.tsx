@@ -41,6 +41,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
     return { data, loading: false, refresh: jest.fn() };
   },
 }));
+jest.mock("@/lib/account/local-profile", () => ({
+  useLocalProfile: () => ({ loading: false, avatar: "great-wave" }),
+}));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
   profilePhotoBytes: jest.fn(),
@@ -67,7 +70,7 @@ async function continueTo(header: string) {
 async function reachPhoto() {
   await screen.findByText("Username available");
   await continueTo("Your name");
-  await continueTo("Add a photo");
+  await continueTo("Your picture");
 }
 
 it("claims the suggested username on the first step, then keeps Apple’s name and adds a photo", async () => {
@@ -76,13 +79,15 @@ it("claims the suggested username on the first step, then keeps Apple’s name a
   expect(screen.getByLabelText("Username")).toHaveDisplayValue("alex_morgan");
   await screen.findByText("Username available");
   await continueTo("Your name");
-  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex Morgan", username: "alex_morgan" });
+  expect(mockCreate).toHaveBeenCalledWith({ name: "Alex Morgan", username: "alex_morgan", avatar: "great-wave" });
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
   expect(screen.getByLabelText("Name")).toHaveDisplayValue("Alex Morgan");
-  await continueTo("Add a photo");
+  await continueTo("Your picture");
   expect(mockSavePhoto).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
   await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save picture" }));
   expect(mockSavePhoto).toHaveBeenCalledWith({ name: "Alex Morgan", photo: new ArrayBuffer(3) });
   expect(mockCreate).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
@@ -109,13 +114,17 @@ it("keeps the person on the username step when the name is taken, then saves a t
   await fireEvent.changeText(screen.getByLabelText("Username"), "alex_reads_art");
   await screen.findByText("Username available");
   await continueTo("Your name");
-  expect(mockCreate).toHaveBeenLastCalledWith({ name: "alex_reads_art", username: "alex_reads_art" });
+  expect(mockCreate).toHaveBeenLastCalledWith({
+    name: "alex_reads_art",
+    username: "alex_reads_art",
+    avatar: "great-wave",
+  });
   expect(screen.getByLabelText("Name")).toHaveDisplayValue("");
   expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex ");
-  await continueTo("Add a photo");
+  await continueTo("Your picture");
   expect(mockSavePhoto).toHaveBeenCalledWith({ name: "Alex" });
-  await fireEvent.press(screen.getByRole("button", { name: "Skip for now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
   expect(mockSavePhoto).toHaveBeenCalledTimes(1);
 });
@@ -127,14 +136,14 @@ it("claims the username without Apple’s name when that name isn’t allowed, t
   await fireEvent.changeText(screen.getByLabelText("Username"), "alex");
   await screen.findByText("Username available");
   await continueTo("Your name");
-  expect(mockCreate).toHaveBeenCalledWith({ name: "alex", username: "alex" });
+  expect(mockCreate).toHaveBeenCalledWith({ name: "alex", username: "alex", avatar: "great-wave" });
   expect(screen.getByLabelText("Name")).toHaveDisplayValue("Artlog Fan");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("alert")).toHaveTextContent(
     "That name, username, or bio isn’t allowed. Try different words.",
   );
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
-  await continueTo("Add a photo");
+  await continueTo("Your picture");
   expect(mockSavePhoto).toHaveBeenLastCalledWith({ name: "Alex" });
 });
 
@@ -142,11 +151,24 @@ it("keeps the profile when a photo upload fails and lets setup finish without it
   mockSavePhoto.mockRejectedValueOnce(new Error("offline"));
   await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
   await reachPhoto();
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
   await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save picture" }));
   expect(screen.getByRole("alert")).toHaveTextContent("The photo couldn’t upload. Try again or continue without it.");
   await fireEvent.press(screen.getByRole("button", { name: "Continue without photo" }));
   expect(mockCreate).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
+});
+
+it("saves a painting picked on the last step", async () => {
+  await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
+  await reachPhoto();
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Senecio, Paul Klee" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save picture" }));
+  expect(mockSavePhoto).toHaveBeenCalledWith({ name: "Alex Morgan", avatar: "klee", photo: null });
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
 });
 
@@ -168,7 +190,7 @@ it("waits for sign-in to finish before claiming a username and closes without a 
 it("continues a visit share after setup that started from sharing", async () => {
   await render(<ProfileSetupScreen suggestedName="Alex Morgan" visitId="museum-visit" />);
   await reachPhoto();
-  await fireEvent.press(screen.getByRole("button", { name: "Skip for now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   await fireEvent.press(screen.getByRole("button", { name: "Continue to sharing" }));
   expect(mockReplace).toHaveBeenCalledWith({ pathname: "/visit-share/[visitId]", params: { visitId: "museum-visit" } });
 });

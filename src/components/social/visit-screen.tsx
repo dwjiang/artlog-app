@@ -15,6 +15,7 @@ import { visitDate } from "@/lib/social/presentation";
 import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import type { AvatarId } from "@/shared/social/avatars";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
@@ -103,6 +104,7 @@ function VisitGallery({
                   name: author.name,
                   username: author.username,
                   photoUrl: author.photoUrl,
+                  avatar: author.avatar,
                   onPress: () =>
                     router.push({
                       pathname: "/profile/[profileId]",
@@ -182,12 +184,13 @@ export function SharedVisitHeading({
     name: string;
     username?: string;
     photoUrl?: string;
+    avatar?: AvatarId;
     onPress?: () => void;
   };
 }) {
   const identity = (
     <>
-      <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} size={40} />
+      <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} avatar={owner.avatar} size={40} />
       <View style={{ flex: 1 }}>
         <Text style={styles.ownerText}>{owner.name}</Text>
         {owner.username && <Text style={styles.meta}>@{owner.username}</Text>}

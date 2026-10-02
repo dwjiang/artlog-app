@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 
+import { defaultAvatar } from "../shared/social/avatars";
 import { api, internal } from "./_generated/api";
 import { fileStorage } from "./lib/fileStorage";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
@@ -36,6 +37,37 @@ it("updates only the authenticated profile and deletes replaced public photos", 
   });
   expect(await t.run((ctx) => fileStorage.get(ctx, photo))).toBeNull();
   expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).not.toHaveProperty("photoUrl");
+});
+
+it("shows a default painting until the owner picks one, and a picked painting replaces the photo", async () => {
+  const t = harness();
+  const owner = await socialUser(t);
+  expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).toMatchObject({
+    avatar: defaultAvatar(owner.profileId),
+  });
+  const photo = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"], { type: "image/jpeg" })));
+  await owner.as.mutation(internal.profilePhotoData.save, { profileId: owner.profileId, name: "Mira", photo });
+  const picked = await owner.as.mutation(internal.profilePhotoData.save, {
+    profileId: owner.profileId,
+    name: "Mira",
+    avatar: "klee",
+    photo: null,
+  });
+  expect(picked.avatar).toBe("klee");
+  expect(picked).not.toHaveProperty("photoUrl");
+  expect(await t.run((ctx) => fileStorage.get(ctx, photo))).toBeNull();
+  await owner.as.mutation(internal.profilePhotoData.save, { profileId: owner.profileId, name: "Mira M" });
+  expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).toMatchObject({
+    name: "Mira M",
+    avatar: "klee",
+  });
+  await expect(
+    owner.as.mutation(internal.profilePhotoData.save, {
+      profileId: owner.profileId,
+      name: "Mira",
+      avatar: "retired-painting",
+    }),
+  ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
 });
 
 it("renames the profile, releases the old username, and rejects a taken or invalid one", async () => {
