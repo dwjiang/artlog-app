@@ -137,6 +137,8 @@ it("keeps About details accessible", async () => {
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Source code" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Open source licenses" }));
+  expect(mockPush).toHaveBeenCalledWith("/licenses");
 });
 
 it("opens contextual sign-in while keeping the guest journal available", async () => {
