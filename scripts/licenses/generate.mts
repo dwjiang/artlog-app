@@ -19,7 +19,7 @@ import {
 
 const root = fileURLToPath(new URL("../../", import.meta.url)).replace(/\/$/, "");
 const ios = join(root, "ios");
-const output = join(root, "assets/licenses/third-party-notices.json");
+const output = join(root, "convex/lib/thirdPartyNotices.json");
 const prebuiltNotices: PrebuiltNotices = JSON.parse(
   readFileSync(new URL("./prebuilt-notices.json", import.meta.url), "utf8"),
 );

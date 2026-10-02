@@ -1,12 +1,12 @@
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
+import { openLegalPage } from "@/lib/legal-links";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
@@ -92,7 +92,9 @@ export function AboutSection() {
           {
             label: "Open source licenses",
             icon: "doc.plaintext",
-            action: () => router.push("/licenses"),
+            action: () => {
+              void openLegalPage("licenses");
+            },
           },
           {
             label: "Space Grotesk font and license",
