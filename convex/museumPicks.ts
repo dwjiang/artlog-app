@@ -3,7 +3,7 @@ import { v, type Infer } from "convex/values";
 import { ownerKey } from "../shared/journal/contracts";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { internalAction, internalQuery, query, type ActionCtx, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { requireDevice } from "./lib/auth";
 import {
@@ -26,8 +26,9 @@ const RECENT_SAVES_READ = 1000;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const storedPick = v.object({ artworkId: v.id("artworks"), objectId: v.id("objects"), score: v.number() });
-const scoredPick = v.object({ venueId: v.id("museums"), ...storedPick.fields });
-type ScoredPick = Infer<typeof scoredPick>;
+type StoredPick = Infer<typeof storedPick>;
+const venuePicks = v.object({ venueId: v.id("museums"), picks: v.array(storedPick) });
+type VenuePicks = Infer<typeof venuePicks>;
 
 const pickView = v.object({
   artworkId: v.id("artworks"),
@@ -59,13 +60,17 @@ async function showable(ctx: QueryCtx, objectId: Id<"objects">): Promise<Showabl
   return details && thumbnailUrl ? { artwork, details: { ...details, thumbnailUrl } } : null;
 }
 
+/** One page of placements in museum order, as each museum's best picks within the page. */
 export const scorePage = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({ picks: v.array(scoredPick), cursor: v.string(), isDone: v.boolean() }),
+  returns: v.object({ venues: v.array(venuePicks), cursor: v.string(), isDone: v.boolean() }),
   handler: async (ctx, { cursor }) => {
-    const page = await ctx.db.query("placements").paginate({ cursor, numItems: PAGE_SIZE });
-    const picks: ScoredPick[] = [];
+    const page = await ctx.db.query("placements").withIndex("by_venueId").paginate({ cursor, numItems: PAGE_SIZE });
+    const byVenue = new Map<Id<"museums">, StoredPick[]>();
     for (const placement of page.page) {
+      // Listing every museum seen, even without picks, clears one whose placements have all closed.
+      const picks = byVenue.get(placement.venueId) ?? [];
+      byVenue.set(placement.venueId, picks);
       if (placement.closedAt !== undefined || placement.identityStatus !== "established") continue;
       const shown = await showable(ctx, placement.objectId);
       if (!shown) continue;
@@ -78,16 +83,39 @@ export const scorePage = internalQuery({
         onView: placement.onView,
         fromPaintingsSource: placement.source === "wikidata",
       });
-      if (score !== null) {
-        picks.push({ venueId: placement.venueId, artworkId: shown.artwork._id, objectId: placement.objectId, score });
-      }
+      if (score !== null) picks.push({ artworkId: shown.artwork._id, objectId: placement.objectId, score });
     }
-    return { picks, cursor: page.continueCursor, isDone: page.isDone };
+    return {
+      venues: [...byVenue].map(([venueId, picks]) => ({ venueId, picks: best(picks) })),
+      cursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/** Museums with stored picks but no placements left, which the placement pages never reach. */
+export const emptiedVenuesPage = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({ venueIds: v.array(v.id("museums")), cursor: v.string(), isDone: v.boolean() }),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db
+      .query("museumPicks")
+      .withIndex("by_venue_score")
+      .paginate({ cursor, numItems: PAGE_SIZE });
+    const venueIds: Id<"museums">[] = [];
+    for (const venueId of new Set(page.page.map((pick) => pick.venueId))) {
+      const placement = await ctx.db
+        .query("placements")
+        .withIndex("by_venueId", (q) => q.eq("venueId", venueId))
+        .first();
+      if (!placement) venueIds.push(venueId);
+    }
+    return { venueIds, cursor: page.continueCursor, isDone: page.isDone };
   },
 });
 
 export const replaceVenues = internalMutation({
-  args: { venues: v.array(v.object({ venueId: v.id("museums"), picks: v.array(storedPick) })) },
+  args: { venues: v.array(venuePicks) },
   returns: v.null(),
   handler: async (ctx, { venues }) => {
     for (const { venueId, picks } of venues) {
@@ -102,78 +130,68 @@ export const replaceVenues = internalMutation({
   },
 });
 
-export const storedVenuesPage = internalQuery({
-  args: { cursor: v.union(v.string(), v.null()) },
-  returns: v.object({ venueIds: v.array(v.id("museums")), cursor: v.string(), isDone: v.boolean() }),
-  handler: async (ctx, { cursor }) => {
-    const page = await ctx.db
-      .query("museumPicks")
-      .withIndex("by_venue_score")
-      .paginate({ cursor, numItems: PAGE_SIZE });
-    return {
-      venueIds: [...new Set(page.page.map((pick) => pick.venueId))],
-      cursor: page.continueCursor,
-      isDone: page.isDone,
-    };
-  },
-});
-
-function best(picks: Iterable<ScoredPick>): ScoredPick[] {
-  return [...picks]
+/** Each artwork once, at its better score, then the top few. Trimming page by page keeps the same top picks. */
+function best(picks: StoredPick[]): StoredPick[] {
+  const byArtwork = new Map<Id<"artworks">, StoredPick>();
+  for (const pick of picks) {
+    if ((byArtwork.get(pick.artworkId)?.score ?? -Infinity) < pick.score) byArtwork.set(pick.artworkId, pick);
+  }
+  return [...byArtwork.values()]
     .sort((a, b) => b.score - a.score || stableTiebreak(a.artworkId) - stableTiebreak(b.artworkId))
     .slice(0, PICKS_PER_MUSEUM);
 }
 
+async function replace(ctx: ActionCtx, venues: VenuePicks[]) {
+  for (let start = 0; start < venues.length; start += VENUES_PER_WRITE) {
+    await ctx.runMutation(internal.museumPicks.replaceVenues, {
+      venues: venues.slice(start, start + VENUES_PER_WRITE),
+    });
+  }
+}
+
 /**
- * Re-scores every placement and replaces each museum's stored picks. Run after a corpus import:
- * `npx convex run museumPicks:rebuild`.
+ * Re-scores every placement and replaces each museum's stored picks, one page per scheduled step so the full
+ * corpus fits the action time limit. Run after a corpus import: `npx convex run museumPicks:rebuild`; it logs
+ * "Museum picks rebuilt" when the last step finishes.
  */
 export const rebuild = internalAction({
-  args: {},
-  returns: v.object({ museums: v.number(), picks: v.number() }),
-  handler: (ctx) =>
+  args: {
+    phase: v.optional(v.union(v.literal("emptied"), v.literal("score"))),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    // The museum the previous page ended inside, with its best picks so far.
+    open: v.optional(venuePicks),
+  },
+  returns: v.null(),
+  handler: (ctx, { phase = "emptied", cursor = null, open }) =>
     withErrorReporting("museumPicks.rebuild", async () => {
-      const byVenue = new Map<Id<"museums">, Map<Id<"artworks">, ScoredPick>>();
-      let cursor: string | null = null;
-      // Previously populated museums still need an empty replacement when their last placement disappears.
-      for (;;) {
-        const page: { venueIds: Id<"museums">[]; cursor: string; isDone: boolean } = await ctx.runQuery(
-          internal.museumPicks.storedVenuesPage,
-          { cursor },
+      if (phase === "emptied") {
+        const page = await ctx.runQuery(internal.museumPicks.emptiedVenuesPage, { cursor });
+        await replace(
+          ctx,
+          page.venueIds.map((venueId) => ({ venueId, picks: [] })),
         );
-        for (const venueId of page.venueIds) byVenue.set(venueId, new Map());
-        if (page.isDone) break;
-        cursor = page.cursor;
-      }
-      cursor = null;
-      for (;;) {
-        const page: { picks: ScoredPick[]; cursor: string; isDone: boolean } = await ctx.runQuery(
-          internal.museumPicks.scorePage,
-          { cursor },
+        await ctx.scheduler.runAfter(
+          0,
+          internal.museumPicks.rebuild,
+          page.isDone ? { phase: "score" } : { phase, cursor: page.cursor },
         );
-        for (const pick of page.picks) {
-          const artworks = byVenue.get(pick.venueId) ?? new Map<Id<"artworks">, ScoredPick>();
-          byVenue.set(pick.venueId, artworks);
-          // Two placements of one artwork at a museum (one per source) count once, at the better score.
-          if ((artworks.get(pick.artworkId)?.score ?? -Infinity) < pick.score) artworks.set(pick.artworkId, pick);
-          // Trimming as pages arrive keeps the Met's tens of thousands of placements out of memory.
-          if (artworks.size > PICKS_PER_MUSEUM * 4) {
-            byVenue.set(pick.venueId, new Map(best(artworks.values()).map((kept) => [kept.artworkId, kept])));
-          }
-        }
-        if (page.isDone) break;
-        cursor = page.cursor;
+        return null;
       }
-      const venues = [...byVenue].map(([venueId, artworks]) => ({
-        venueId,
-        picks: best(artworks.values()).map(({ artworkId, objectId, score }) => ({ artworkId, objectId, score })),
-      }));
-      for (let start = 0; start < venues.length; start += VENUES_PER_WRITE) {
-        await ctx.runMutation(internal.museumPicks.replaceVenues, {
-          venues: venues.slice(start, start + VENUES_PER_WRITE),
-        });
+      const page = await ctx.runQuery(internal.museumPicks.scorePage, { cursor });
+      const { venues } = page;
+      if (open && venues[0]?.venueId === open.venueId) {
+        venues[0] = { venueId: open.venueId, picks: best([...open.picks, ...venues[0].picks]) };
+      } else if (open) {
+        venues.unshift(open);
       }
-      return { museums: venues.length, picks: venues.reduce((total, venue) => total + venue.picks.length, 0) };
+      const next = page.isDone ? undefined : venues.pop();
+      await replace(ctx, venues);
+      if (page.isDone) {
+        console.log("Museum picks rebuilt");
+      } else {
+        await ctx.scheduler.runAfter(0, internal.museumPicks.rebuild, { phase, cursor: page.cursor, open: next });
+      }
+      return null;
     }),
 });
 

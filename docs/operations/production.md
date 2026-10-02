@@ -110,6 +110,9 @@ the first deploy that includes `museumPicks`, and after every corpus import:
 npx convex run museumPicks:rebuild --prod --env-file .context/production-target.env
 ```
 
+The command returns at once; scheduled steps finish the rebuild and log
+`Museum picks rebuilt`.
+
 Python imports use production `CONVEX_URL` and `CONVEX_DEPLOY_KEY` in the job
 process with a production-specific checkpoint. Keep the dev `.env.local` intact;
 the [upload todo](../todos/production-upload/README.md) owns import preparation and

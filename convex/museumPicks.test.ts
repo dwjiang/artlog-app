@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -7,6 +7,14 @@ import { seedArtworkWithObject, seedDevice, seedMuseum } from "./lib/testFactori
 import { harness, type Harness } from "./test.helpers";
 
 const DAY = "2026-10-02";
+
+afterEach(() => vi.useRealTimers());
+
+async function rebuild(t: Harness) {
+  vi.useFakeTimers();
+  await t.action(internal.museumPicks.rebuild, {});
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+}
 
 async function seedWork(
   t: Harness,
@@ -76,7 +84,8 @@ it("keeps each museum's best catalogue guesses, once per artwork, and only ones 
   await seedWork(t, venueId, "No picture", { thumbnail: false });
   await seedWork(t, elsewhere, "Somewhere else");
 
-  expect(await t.action(internal.museumPicks.rebuild, {})).toEqual({ museums: 2, picks: 3 });
+  await rebuild(t);
+  expect(await as.query(api.museumPicks.forVenue, { venueId: elsewhere, day: DAY })).toHaveLength(1);
   const picks = await as.query(api.museumPicks.forVenue, { venueId, day: DAY });
   expect(picks.map((pick) => pick.title)).toEqual(["Wheat Field with Cypresses", "Study of a tree"]);
   expect(picks[0]).toMatchObject({
@@ -88,6 +97,31 @@ it("keeps each museum's best catalogue guesses, once per artwork, and only ones 
   });
 });
 
+it("keeps a museum's picks from every page its placements span", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const venueId = await t.run((ctx) => seedMuseum(ctx));
+  const first = await seedWork(t, venueId, "First page", { wikidataId: "Q1373862" });
+  // Repeat placements of the same work fill the rest of the first page, so the next work starts the second.
+  await t.run(async (ctx) => {
+    for (let index = 0; index < 799; index++) {
+      await ctx.db.insert("placements", {
+        identityStatus: "established",
+        objectId: first.objectId,
+        venueId,
+        source: "feed",
+        onView: false,
+        confidence: 1,
+      });
+    }
+  });
+  await seedWork(t, venueId, "Second page", { wikidataId: "Q78655558" });
+  await rebuild(t);
+
+  const titles = (await as.query(api.museumPicks.forVenue, { venueId, day: DAY })).map((pick) => pick.title);
+  expect(titles.toSorted()).toEqual(["First page", "Second page"]);
+});
+
 it("puts works people saved at the museum recently ahead of the guesses, ignoring demo accounts", async () => {
   const t = harness();
   const { as, deviceId } = await seedDevice(t);
@@ -96,7 +130,7 @@ it("puts works people saved at the museum recently ahead of the guesses, ignorin
   await seedWork(t, venueId, "The famous one", { wikidataId: "Q1373862" });
   const loved = await seedWork(t, venueId, "A small favourite", { wikidataId: "Q78655558" });
   const demoPick = await seedWork(t, venueId, "Demo pick", { wikidataId: "Q78655559" });
-  await t.action(internal.museumPicks.rebuild, {});
+  await rebuild(t);
   await t.run(async (ctx) => {
     const demo = await ctx.db.insert("accounts", { provider: "apple", providerUserId: "demo:mayachen" });
     await save(ctx, venueId, loved, { kind: "device", deviceId }, deviceId);
@@ -117,7 +151,7 @@ it("rotates the guesses by day while keeping one day's order stable", async () =
   const { as } = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   for (let index = 0; index < 20; index++) await seedWork(t, venueId, `Painting ${index}`, { wikidataId: "Q1373862" });
-  await t.action(internal.museumPicks.rebuild, {});
+  await rebuild(t);
 
   const titles = async (day: string) =>
     (await as.query(api.museumPicks.forVenue, { venueId, day })).map((pick) => pick.title);
@@ -142,7 +176,7 @@ it("returns nothing for an id that is not a museum or a malformed day", async ()
   const { as, deviceId } = await seedDevice(t);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
   await seedWork(t, venueId, "Wheat Field with Cypresses", { wikidataId: "Q1373862" });
-  await t.action(internal.museumPicks.rebuild, {});
+  await rebuild(t);
 
   expect(await as.query(api.museumPicks.forVenue, { venueId: deviceId, day: DAY })).toEqual([]);
   expect(await as.query(api.museumPicks.forVenue, { venueId: "not-an-id", day: DAY })).toEqual([]);
@@ -156,7 +190,7 @@ it.each(["closed", "removed"])("clears a museum's last picks after its placement
   const elsewhere = await t.run((ctx) => seedMuseum(ctx));
   const work = await seedWork(t, venueId, "Moved painting");
   await seedWork(t, elsewhere, "Still here");
-  await t.action(internal.museumPicks.rebuild, {});
+  await rebuild(t);
   expect(await as.query(api.museumPicks.forVenue, { venueId, day: DAY })).toHaveLength(1);
   await t.run(async (ctx) => {
     const placements = await ctx.db
@@ -168,7 +202,7 @@ it.each(["closed", "removed"])("clears a museum's last picks after its placement
       else await ctx.db.delete("placements", placement._id);
     }
   });
-  await t.action(internal.museumPicks.rebuild, {});
+  await rebuild(t);
   expect(await as.query(api.museumPicks.forVenue, { venueId, day: DAY })).toEqual([]);
   expect(await as.query(api.museumPicks.forVenue, { venueId: elsewhere, day: DAY })).toHaveLength(1);
 });
