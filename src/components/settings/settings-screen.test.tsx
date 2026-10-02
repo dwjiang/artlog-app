@@ -6,6 +6,7 @@ import { SettingsDetailScreen } from "./settings-detail-screen";
 import { SettingsScreen } from "./settings-screen";
 
 const mockPush = jest.fn();
+const mockOpenBrowser = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignIn = jest.fn();
 const mockDelete = jest.fn();
@@ -34,6 +35,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 
 jest.mock("@/lib/account/use-account", () => ({
   useAccount: () => ({
@@ -77,6 +79,7 @@ beforeEach(async () => {
   mockBusy = false;
   mockSessionStatus = "ready";
   mockOffline = false;
+  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
 });
 
 it("shows grouped settings and opens the matching detail", async () => {
@@ -91,7 +94,6 @@ it("shows grouped settings and opens the matching detail", async () => {
   expect(screen.queryByRole("button", { name: "Visits" })).toBeNull();
   for (const [label, section] of [
     ["General", "general"],
-    ["Privacy", "privacy"],
     ["About", "about"],
   ]) {
     await fireEvent.press(screen.getByRole("button", { name: label }));
@@ -100,6 +102,10 @@ it("shows grouped settings and opens the matching detail", async () => {
       params: { section },
     });
   }
+  await fireEvent.press(screen.getByRole("button", { name: "Privacy Policy" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
+  await fireEvent.press(screen.getByRole("button", { name: "Terms of Service" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
   await fireEvent.press(screen.getByRole("button", { name: "Widgets" }));
   expect(mockPush).toHaveBeenLastCalledWith("/widgets");
   await fireEvent.press(screen.getByRole("button", { name: "Send feedback" }));
@@ -126,24 +132,11 @@ it("opens account management from the profile row", async () => {
   });
 });
 
-it("keeps privacy and About details accessible", async () => {
-  const view = await render(<SettingsDetailScreen section="privacy" />);
-  expect(
-    screen.getByText(/Apple Maps searches may send a search area centered on your location to Apple/),
-  ).toBeOnTheScreen();
-  expect(
-    screen.getByText(/Artlog’s servers receive the selected museum, but not your GPS coordinates/),
-  ).toBeOnTheScreen();
-  expect(
-    screen.getByText(/Confirming a new place also sends that place’s name, coordinates and website to Artlog/),
-  ).toBeOnTheScreen();
-  expect(screen.getByText(/sends only the label’s text/)).toBeOnTheScreen();
-  expect(screen.getByText(/Camera and location metadata are removed/)).toBeOnTheScreen();
-  await view.rerender(<SettingsDetailScreen section="about" />);
+it("keeps About details accessible", async () => {
+  await render(<SettingsDetailScreen section="about" />);
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
-  for (const label of ["Privacy policy", "Send feedback", "Source code"]) {
-    expect(screen.getByRole("button", { name: label })).toBeOnTheScreen();
-  }
+  expect(screen.getByRole("button", { name: "Source code" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
 });
 
 it("opens contextual sign-in while keeping the guest journal available", async () => {

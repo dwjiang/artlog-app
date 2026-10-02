@@ -14,6 +14,8 @@ EAS builds and submissions require an explicit request under the
       venue asset, and the [model asset settings](../../../scripts/model/README.md).
       Confirm Apple enrollment, signing, App Store Connect record, submission
       credentials, and current privacy/export declarations before building.
+      Deploy the backend first so the app's legal links resolve, then set the App Store
+      Connect Privacy Policy URL to `https://admired-goldfinch-660.convex.site/privacy`.
 - [ ] When requested, build with `eas build --platform ios --profile production`.
       Record the build ID and uncompressed installed app size; the project target
       is below 200 MB. If exceeded, review the packaging rather than adopting the

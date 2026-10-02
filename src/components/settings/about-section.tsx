@@ -1,7 +1,6 @@
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
@@ -11,7 +10,6 @@ import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
 const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
-const FEEDBACK_URL = `${SOURCE_URL}/issues/new`;
 const SPACE_GROTESK_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/spacegrotesk/OFL.txt";
 
 export function AboutSection() {
@@ -84,27 +82,10 @@ export function AboutSection() {
       <View style={{ ...SettingsOutline, overflow: "hidden" }}>
         {[
           {
-            label: "Privacy policy",
-            icon: "lock",
-            action: () =>
-              router.push({
-                pathname: "/settings-detail",
-                params: { section: "privacy" },
-              }),
-          },
-          { label: "Terms", icon: "doc.text", detail: "Coming soon" },
-          {
             label: "Source code",
             icon: "chevron.left.forwardslash.chevron.right",
             action: () => {
               void open(SOURCE_URL);
-            },
-          },
-          {
-            label: "Send feedback",
-            icon: "envelope",
-            action: () => {
-              void open(FEEDBACK_URL);
             },
           },
           {
@@ -114,13 +95,12 @@ export function AboutSection() {
               void open(SPACE_GROTESK_LICENSE_URL);
             },
           },
-        ].map(({ label, icon, detail, action }, index) => (
+        ].map(({ label, icon, action }, index) => (
           <Pressable
             key={label}
-            accessibilityRole={action ? "button" : "text"}
+            accessibilityRole="button"
             accessibilityLabel={label}
             onPress={action}
-            disabled={!action}
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
@@ -134,13 +114,7 @@ export function AboutSection() {
           >
             <Image source={`sf:${icon}`} tintColor={Gallery.ink} style={{ width: 18, height: 18 }} />
             <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
-            {detail ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                {detail}
-              </ThemedText>
-            ) : (
-              <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 10, height: 12 }} />
-            )}
+            <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 10, height: 12 }} />
           </Pressable>
         ))}
       </View>
