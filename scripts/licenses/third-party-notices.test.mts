@@ -13,9 +13,7 @@ import {
 } from "./notices.mts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const notices: ThirdPartyNotices = JSON.parse(
-  readFileSync(join(root, "assets/licenses/third-party-notices.json"), "utf8"),
-);
+const notices: ThirdPartyNotices = JSON.parse(readFileSync(join(root, "convex/lib/thirdPartyNotices.json"), "utf8"));
 const regenerate = "Run `npm run licenses:generate` after changing dependencies.";
 const prebuilt: PrebuiltNotices = JSON.parse(readFileSync(new URL("./prebuilt-notices.json", import.meta.url), "utf8"));
 

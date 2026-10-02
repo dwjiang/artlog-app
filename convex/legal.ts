@@ -1,9 +1,10 @@
 import { httpAction } from "./_generated/server";
-import { legalDocuments, renderLegalPage, type LegalDocument } from "./lib/legalPages";
+import { legalDocuments, renderLegalPage, renderLicensesPage } from "./lib/legalPages";
+import notices from "./lib/thirdPartyNotices.json";
 
 // Public pages: the App Store listing and the app's legal links point here.
-function page(document: LegalDocument) {
-  return new Response(renderLegalPage(document), {
+function page(html: string) {
+  return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "public, max-age=3600",
@@ -14,5 +15,6 @@ function page(document: LegalDocument) {
   });
 }
 
-export const privacy = httpAction(async () => page(legalDocuments.privacy));
-export const terms = httpAction(async () => page(legalDocuments.terms));
+export const privacy = httpAction(async () => page(renderLegalPage(legalDocuments.privacy)));
+export const terms = httpAction(async () => page(renderLegalPage(legalDocuments.terms)));
+export const licenses = httpAction(async () => page(renderLicensesPage(notices)));

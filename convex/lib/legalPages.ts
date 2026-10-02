@@ -5,6 +5,11 @@ export type LegalDocument = {
   sections: { heading: string; paragraphs: string[] }[];
 };
 
+export type ThirdPartyNotices = {
+  entries: { name: string; version?: string; license: string; holder?: string; text: number }[];
+  texts: string[];
+};
+
 const UPDATED = "October 2, 2026";
 const EMAIL = "danieljiang1999@gmail.com";
 const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Send feedback in Artlog.`;
@@ -245,6 +250,31 @@ const linkEmail = (html: string) => html.replaceAll(EMAIL, `<a href="mailto:${EM
 
 export function renderLegalPage({ title, updated, intro, sections }: LegalDocument) {
   const paragraphs = (texts: string[]) => texts.map((text) => `<p>${linkEmail(escapeHtml(text))}</p>`).join("");
+  return renderPage(
+    title,
+    `<h1>${escapeHtml(title)}</h1>
+<p class="updated">Last updated ${escapeHtml(updated)}</p>
+${paragraphs(intro)}
+${sections.map(({ heading, paragraphs: texts }) => `<h2>${escapeHtml(heading)}</h2>${paragraphs(texts)}`).join("\n")}`,
+  );
+}
+
+export function renderLicensesPage({ entries, texts }: ThirdPartyNotices) {
+  const title = "Open source licenses";
+  const notices = entries.map(({ name, version, license, holder, text }) => {
+    const meta = [version, license, holder].filter(Boolean).map((part) => escapeHtml(String(part)));
+    return `<h2>${escapeHtml(name)}</h2><p class="meta">${meta.join(" · ")}</p><p class="notice">${escapeHtml(texts[text] ?? "")}</p>`;
+  });
+  return renderPage(
+    title,
+    `<h1>${title}</h1>
+<p class="updated">${entries.length} libraries in the Artlog for iOS build</p>
+<p>Artlog is built with these open source libraries. Each is listed with its version, license and the notice its authors ask to be reproduced.</p>
+${notices.join("\n")}`,
+  );
+}
+
+function renderPage(title: string, body: string) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -258,19 +288,18 @@ main { max-width: 40rem; margin: 0 auto; padding: 32px 20px 48px; }
 h1 { margin: 0 0 4px; font-size: 30px; line-height: 1.25; letter-spacing: -0.02em; }
 h2 { margin: 32px 0 8px; font-size: 18px; line-height: 1.3; }
 p { margin: 0 0 12px; }
-.updated, nav { color: #66717C; font-size: 14px; }
+.updated, .meta, nav { color: #66717C; font-size: 14px; }
 .updated { margin-bottom: 24px; }
+.meta { margin: -4px 0 8px; }
+.notice { font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 a { color: #254FD4; }
 nav { margin-top: 40px; padding-top: 16px; border-top: 1px solid #DCE1E8; }
 </style>
 </head>
 <body>
 <main>
-<h1>${escapeHtml(title)}</h1>
-<p class="updated">Last updated ${escapeHtml(updated)}</p>
-${paragraphs(intro)}
-${sections.map(({ heading, paragraphs: texts }) => `<h2>${escapeHtml(heading)}</h2>${paragraphs(texts)}`).join("\n")}
-<nav><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a></nav>
+${body}
+<nav><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/licenses">Open source licenses</a></nav>
 </main>
 </body>
 </html>
