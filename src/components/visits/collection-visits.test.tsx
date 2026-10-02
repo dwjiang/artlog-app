@@ -60,7 +60,7 @@ it.each(["list", "globe"] as const)(
     expect(screen.queryByLabelText("Search your visits")).toBeNull();
     expect(screen.queryByRole("button", { name: "Globe" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Add visit" }));
-    expect(router.push).toHaveBeenCalledWith("/visit-create");
+    expect(router.push).toHaveBeenCalledWith("/visit-add");
   },
 );
 

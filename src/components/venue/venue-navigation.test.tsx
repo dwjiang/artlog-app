@@ -11,6 +11,10 @@ jest.mock("@/lib/audio/listening-provider", () => ({
 }));
 jest.mock("@/components/audio/listening-root", () => ({
   ListeningRoot: ({ children }: { children: import("react").ReactNode }) => children,
+  DockedPlayerInsets: ({ children }: PropsWithChildren) => children,
+}));
+jest.mock("@/lib/use-app-compatibility", () => ({
+  useAppCompatibility: () => ({ loading: false, updateRequired: false }),
 }));
 jest.mock("@convex-dev/auth/react", () => ({
   ConvexAuthProvider: ({ children }: PropsWithChildren) => children,
@@ -21,6 +25,7 @@ jest.mock("@/components/database-gate", () => ({
 jest.mock("@/lib/convex-client", () => ({ convex: {} }));
 jest.mock("@/lib/installation-storage", () => ({ installationStorage: {} }));
 jest.mock("@/lib/device-identity", () => ({ DeviceIdentity: () => null }));
+jest.mock("@/lib/files/photo-maintenance-lifecycle", () => ({ PhotoMaintenance: () => null }));
 jest.mock("@/lib/account/collection-sync", () => ({
   CollectionSync: () => null,
 }));
@@ -33,6 +38,7 @@ jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({
   MuseumDownloadLifecycle: () => null,
 }));
 jest.mock("@/lib/venue/use-venue", () => ({ VenueResolver: () => null }));
+jest.mock("@/lib/widgets/visit-activity-sync", () => ({ VisitActivitySync: () => null }));
 jest.mock("@/lib/widgets/widget-provider", () => ({
   WidgetProvider: ({ children }: PropsWithChildren) => children,
 }));

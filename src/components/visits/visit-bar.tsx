@@ -18,6 +18,9 @@ import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue } from "@/lib/venue/use-venue";
 
+/** The bar's content height; screens that lay out under the accessory slot reserve this much, like the mini player's. */
+export const VISIT_BAR_HEIGHT = 48;
+
 export function VisitBar() {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
@@ -37,7 +40,12 @@ export function VisitBar() {
       seedColor={Gallery.accent}
       style={{ width: "100%" }}
     >
-      <Row alignment="center" spacing={10} style={{ paddingHorizontal: 12 }} modifiers={[frame({ minHeight: 48 })]}>
+      <Row
+        alignment="center"
+        spacing={10}
+        style={{ paddingHorizontal: 12 }}
+        modifiers={[frame({ minHeight: VISIT_BAR_HEIGHT })]}
+      >
         <Button
           variant="text"
           onPress={() =>
@@ -85,7 +93,7 @@ export function VisitBar() {
             })
           }
           modifiers={[
-            accessibilityLabel("Done?"),
+            accessibilityLabel("End visit"),
             accessibilityHint("Opens a review before saving and ending the visit"),
             fixedSize({ horizontal: true, vertical: true }),
           ]}
@@ -95,7 +103,7 @@ export function VisitBar() {
             modifiers={[frame({ minHeight: 44, minWidth: 44 }), contentShape(shapes.rectangle())]}
           >
             <Text textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
-              Done?
+              End visit
             </Text>
           </Row>
         </Button>

@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 // Expo builds the extension and JS renderer; this provider keeps the local rotation running while the app is closed.
+// The bundle keeps expo-widgets' Live Activity widget, which renders the visit activity's JS layout.
 module.exports = function withArtlogWidget(config) {
   // Source-generating dangerous mods run first; patch the generated target only after those finish.
   return withXcodeProject(config, (mod) => {
@@ -10,7 +11,20 @@ module.exports = function withArtlogWidget(config) {
     fs.copyFileSync(require.resolve("./widgets/artlog-widget.swift"), path.join(target, "ArtlogWidget.swift"));
     fs.writeFileSync(
       path.join(target, "index.swift"),
-      "import SwiftUI\nimport WidgetKit\n\n@main\nstruct ArtlogWidgetBundle: WidgetBundle {\n  var body: some Widget { ArtlogWidget() }\n}\n",
+      [
+        "import SwiftUI",
+        "import WidgetKit",
+        "internal import ExpoWidgets",
+        "",
+        "@main",
+        "struct ArtlogWidgetBundle: WidgetBundle {",
+        "  var body: some Widget {",
+        "    ArtlogWidget()",
+        "    WidgetLiveActivity()",
+        "  }",
+        "}",
+        "",
+      ].join("\n"),
     );
     return mod;
   });

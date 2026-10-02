@@ -187,13 +187,19 @@ it("waits for sign-in to finish before claiming a username and closes without a 
   expect(mockCreate).not.toHaveBeenCalled();
 });
 
-it("continues a visit share after setup that started from sharing", async () => {
-  await render(<ProfileSetupScreen suggestedName="Alex Morgan" visitId="museum-visit" />);
-  await reachPhoto();
-  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Continue to sharing" }));
-  expect(mockReplace).toHaveBeenCalledWith({ pathname: "/visit-share/[visitId]", params: { visitId: "museum-visit" } });
-});
+it.each([undefined, "friends"] as const)(
+  "continues a visit share with audience %s after profile setup",
+  async (audience) => {
+    await render(<ProfileSetupScreen suggestedName="Alex Morgan" visitId="museum-visit" audience={audience} />);
+    await reachPhoto();
+    await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Continue to sharing" }));
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/visit-share/[visitId]",
+      params: { visitId: "museum-visit", ...(audience ? { audience } : {}) },
+    });
+  },
+);
 
 it("shows an existing profile instead of asking for setup again", async () => {
   mockSession.status = "ready";

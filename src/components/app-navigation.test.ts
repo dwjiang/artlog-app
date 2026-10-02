@@ -8,6 +8,7 @@ jest.mock("./visits/visit-share-flow", () => ({
 jest.mock("@/lib/widgets/widget-provider", () => ({
   WidgetProvider: ({ children }: PropsWithChildren) => children,
 }));
+jest.mock("@/lib/widgets/visit-activity-sync", () => ({ VisitActivitySync: () => null }));
 
 const config = getMockConfig("src/app");
 

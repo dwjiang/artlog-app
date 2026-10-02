@@ -37,9 +37,11 @@ const mockFlush = jest.fn();
 jest.mock("@/lib/account/collection-sync", () => ({
   flushJournal: () => mockFlush(),
 }));
+let mockOpenVisitId: string | undefined;
 jest.mock("@/lib/venue/use-venue", () => ({
   visitByDefault: (...args: unknown[]) => mockVisitByDefault(...args),
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
+  openVisitLocalId: () => mockOpenVisitId,
 }));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueNameById: async (id: string) => (id === "museum-met" ? "The Met" : undefined),
@@ -199,6 +201,7 @@ beforeEach(() => {
     updatedBy: "device",
   });
   mockVisitByDefault.mockReturnValue(true);
+  mockOpenVisitId = undefined;
   mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
     const visit = {
       localId: STARTED_VISIT,
@@ -209,6 +212,8 @@ beforeEach(() => {
       timeZone: "UTC",
     };
     await upsertVisit(visit);
+    // The controller opens the visit it starts, as the app's would.
+    mockOpenVisitId = STARTED_VISIT;
     return visit;
   });
 });
@@ -304,7 +309,12 @@ it("starts the museum visit for a venue-only capture, dated by the shutter, and 
     gallery: null,
   });
   expect(selectArtworkPhotos(localId).all()[0].visitLocalId).toBe(STARTED_VISIT);
-  expect(completion.visitLabel).toBe("Legion of Honor · 1 Jan 1970");
+  expect(completion.visit).toMatchObject({
+    localId: STARTED_VISIT,
+    venueName: "Legion of Honor",
+    visitedOn: "1970-01-01",
+    outcome: "started",
+  });
   expect(mockMutation.mock.calls[0][1]).toMatchObject({
     scanId: SCAN_ID,
     objectId: bridge.objectId,
@@ -336,7 +346,7 @@ it("saves a venue-only capture with no visit but its museum after the person end
     venueId: "museum-met",
     venueName: "The Met",
   });
-  expect(completion.visitLabel).toBeUndefined();
+  expect(completion.visit).toBeUndefined();
   expect(mockMutation).toHaveBeenCalledWith(
     "collections:saveToCollection",
     expect.objectContaining({
@@ -699,7 +709,7 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
   expect(next.completion).toMatchObject({
     savedId: first.localId,
     previewPath: "next-crop.preview.jpg",
-    visitLabel: "Other museum · 2 Jan 1970",
+    visit: { venueName: "Other museum", visitedOn: "1970-01-02", outcome: "past" },
   });
 });
 
@@ -723,7 +733,7 @@ it("can explicitly save a scan without its originally selected visit", async () 
     venueId: null,
   });
   expect(selectArtworkPhotos(result.localId).all()[0].visitLocalId).toBeNull();
-  expect(result.completion.visitLabel).toBeUndefined();
+  expect(result.completion.visit).toBeUndefined();
 });
 
 it("stops confirming a scan when saving a venue-only capture without its venue", async () => {

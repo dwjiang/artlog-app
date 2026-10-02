@@ -634,7 +634,7 @@ async function openEndReview() {
     "sign-in": () => <Text>Sign in to share this visit</Text>,
   });
   await navigation;
-  await fireEvent.press(screen.getByRole("button", { name: "Done?" }));
+  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
   return { navigation };
 }
 
@@ -668,7 +668,7 @@ it("discards end-visit edits on Back and keeps the visit open", async () => {
   expect(navigation.getPathname()).toBe("/");
   expect(mockEnd).not.toHaveBeenCalled();
   expect(save).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Done?" }));
+  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
   expect(screen.getByLabelText("Notes")).toHaveProp("value", "The afternoon light");
   expect(chip("Public")).toBeOnTheScreen();
 });

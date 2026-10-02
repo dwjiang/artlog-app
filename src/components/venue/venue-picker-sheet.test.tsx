@@ -51,6 +51,10 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
+jest.mock("./museum-map", () => ({
+  MuseumMap: () => null,
+  useOptionCoordinates: () => new Map(),
+}));
 jest.mock("expo-location", () => ({
   useForegroundPermissions: () => [mockLocation, () => mockRequestLocation()],
 }));
@@ -95,15 +99,50 @@ beforeEach(async () => {
   mockLocation = { granted: false, canAskAgain: false };
   mockRequestLocation = async () => ({ granted: true });
   mockView = {
+    hydrated: true,
     status: "choose",
     options: [seeded, neighbour],
     resolve: mockResolve,
     confirm: mockConfirm,
     dismiss: mockDismiss,
     declinePrompt: mockDeclinePrompt,
+    promptChooser: jest.fn(),
     end: mockEnd,
+    startVisit: jest.fn(),
     move: jest.fn(),
   };
+});
+
+describe("the location prompt", () => {
+  beforeEach(() => {
+    mockParams = { mode: "choose" };
+  });
+
+  it("asks on a map with the nearest museum selected and confirms the selection on Continue", async () => {
+    await render(<VenuePickerSheet />);
+    expect(screen.getByRole("header", { name: "Which museum are you in?" })).toBeOnTheScreen();
+    expect(screen.getByRole("radio", { name: seeded.name })).toBeChecked();
+    expect(screen.getByRole("radio", { name: neighbour.name })).not.toBeChecked();
+    await fireEvent.press(screen.getByRole("radio", { name: neighbour.name }));
+    expect(screen.getByRole("radio", { name: neighbour.name })).toBeChecked();
+    expect(mockConfirm).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+    expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.anything());
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the spot undecided with "Not at a museum" and can switch to the search list', async () => {
+    const view = await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole("button", { name: "Not at a museum" }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).not.toHaveBeenCalled();
+    await view.unmount();
+    expect(mockDeclinePrompt).not.toHaveBeenCalled();
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole("button", { name: "Search for another museum" }));
+    expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: seeded.name })).toBeOnTheScreen();
+  });
 });
 
 describe("choosing a museum", () => {
@@ -211,11 +250,11 @@ describe("choosing a museum", () => {
       }),
     );
     await render(<VenuePickerSheet />);
-    const confirm = screen.getByRole("button", { name: seeded.name });
+    const confirm = screen.getByRole("button", { name: "Continue" });
     await fireEvent.press(confirm);
-    expect(confirm).toBeBusy();
+    expect(confirm).toHaveAccessibilityValue({ text: "Confirming…" });
     expect(confirm).toBeDisabled();
-    await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Not at a museum" }));
     expect(mockConfirm.mock.calls[0][1].aborted).toBe(true);
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(mockEnd).not.toHaveBeenCalled();
@@ -266,7 +305,7 @@ describe("choosing a museum", () => {
   it("declines nothing when the prompt closes after a choice, or a sheet opened by hand is swiped away", async () => {
     mockParams = { mode: "choose" };
     const prompt = await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
+    await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
     await prompt.unmount();
     mockParams = {};
     const byHand = await render(<VenuePickerSheet />);
@@ -461,9 +500,10 @@ describe("the open visit", () => {
       ],
     };
     await render(<VenuePickerSheet />);
-    expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
+    expect(screen.getByRole("header", { name: "Which museum are you in?" })).toBeOnTheScreen();
+    expect(screen.getByRole("radio", { name: "Guggenheim" })).toBeChecked();
     expect(screen.queryByRole("button", { name: "Keep current visit" })).toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Not at a museum" }));
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(mockEnd).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalledTimes(1);

@@ -143,36 +143,42 @@ it("explains unavailable sign-in without preventing dismissal", async () => {
   expect(screen.getByRole("button", { name: "Not now" })).toBeEnabled();
 });
 
-it("continues to the visit editor only after the linked account has its local journal", async () => {
-  const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByRole("header", { name: "Sign in to share this visit" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
-  mockAccount.account.linked = true;
-  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(screen.getByRole("button", { name: "Continue with Apple", busy: true })).toBeDisabled();
-  expect(mockReplace).not.toHaveBeenCalled();
-  mockOwner = "account:account-a";
-  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(mockReplace).toHaveBeenCalledWith({
-    pathname: "/visit-share/[visitId]",
-    params: { visitId: "museum-visit" },
-  });
-  expect(mockBack).not.toHaveBeenCalled();
-});
+it.each([undefined, "friends"] as const)(
+  "continues to the visit editor with audience %s only after the linked journal is ready",
+  async (audience) => {
+    const view = await render(<SignInScreen context="visit" visitId="museum-visit" audience={audience} />);
+    expect(screen.getByRole("header", { name: "Sign in to share this visit" })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
+    mockAccount.account.linked = true;
+    await view.rerender(<SignInScreen context="visit" visitId="museum-visit" audience={audience} />);
+    expect(screen.getByRole("button", { name: "Continue with Apple", busy: true })).toBeDisabled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    mockOwner = "account:account-a";
+    await view.rerender(<SignInScreen context="visit" visitId="museum-visit" audience={audience} />);
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/visit-share/[visitId]",
+      params: { visitId: "museum-visit", ...(audience ? { audience } : {}) },
+    });
+    expect(mockBack).not.toHaveBeenCalled();
+  },
+);
 
-it("hands a first sign-in without a profile to setup, carrying Apple’s name and the visit", async () => {
-  const view = await render(<SignInScreen context="visit" visitId="museum-visit" />);
-  mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: false } };
-  await act(() => offerProfileSetup({ name: "Alex Morgan" }));
-  await view.rerender(<SignInScreen context="visit" visitId="museum-visit" />);
-  expect(mockReplace).toHaveBeenCalledTimes(1);
-  expect(mockReplace).toHaveBeenCalledWith({
-    pathname: "/create-profile",
-    params: { name: "Alex Morgan", visitId: "museum-visit" },
-  });
-  expect(takeProfileSetupOffer()).toBeUndefined();
-  expect(mockBack).not.toHaveBeenCalled();
-});
+it.each([undefined, "friends"] as const)(
+  "carries the name, visit and audience %s through first-time profile setup",
+  async (audience) => {
+    const view = await render(<SignInScreen context="visit" visitId="museum-visit" audience={audience} />);
+    mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: false } };
+    await act(() => offerProfileSetup({ name: "Alex Morgan" }));
+    await view.rerender(<SignInScreen context="visit" visitId="museum-visit" audience={audience} />);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: "/create-profile",
+      params: { name: "Alex Morgan", visitId: "museum-visit", ...(audience ? { audience } : {}) },
+    });
+    expect(takeProfileSetupOffer()).toBeUndefined();
+    expect(mockBack).not.toHaveBeenCalled();
+  },
+);
 
 it("closes as before when the signed-in account already has a profile", async () => {
   offerProfileSetup({ name: "Alex Morgan" });

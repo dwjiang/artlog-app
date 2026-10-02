@@ -12,7 +12,9 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useArtworkNote } from "@/hooks/use-artwork-note";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
+import type { CaptureCompletion as Completion, CompletionVisit } from "@/lib/capture/completion";
+import { formatVisitDate, formatVisitStart } from "@/lib/journal/history";
+import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { MAX_NOTE_LENGTH, NOTE_LENGTH_MESSAGE } from "@/shared/collection/collection-limits";
 
 import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
@@ -166,6 +168,7 @@ function CompletionSheet({
             <CaptureArtworkMetadata completion={completion} />
           </View>
         </View>
+        {completion.visit && <CompletionVisitRow visit={completion.visit} owner={owner} />}
         <View style={styles.noteSection}>
           <ThemedText variant="secondary" accessibilityRole="header" style={styles.noteTitle}>
             Note
@@ -220,8 +223,53 @@ function CompletionSheet({
   );
 }
 
+/** Where the save landed: the visit it started or joined, with its live artwork count, or the past visit it went to. */
+function CompletionVisitRow({ visit, owner }: { visit: CompletionVisit; owner: string }) {
+  const { works, loading, error } = useVisitWorks(visit.localId, owner);
+  const count = loading || error ? undefined : works.length;
+  const title =
+    visit.outcome === "started"
+      ? "Started your visit"
+      : visit.outcome === "joined"
+        ? "Added to today’s visit"
+        : "Added to a past visit";
+  const details = [
+    visit.venueName,
+    count === undefined ? undefined : `${count} ${count === 1 ? "artwork" : "artworks"}`,
+    visit.outcome === "past"
+      ? formatVisitDate(visit.visitedOn)
+      : visit.startedAt === null
+        ? undefined
+        : `Since ${formatVisitStart(visit.startedAt, visit.timeZone)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <View style={styles.visitRow} accessible accessibilityLabel={`${title}. ${details}`}>
+      <Image source="sf:building.columns" tintColor={Gallery.accent} style={styles.visitIcon} />
+      <View style={styles.visitText}>
+        <ThemedText style={styles.visitTitle}>{title}</ThemedText>
+        <ThemedText variant="metadata" themeColor="textSecondary">
+          {details}
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  visitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.compact,
+    padding: Spacing.compact,
+    borderRadius: Radius.button,
+    backgroundColor: Gallery.highlight,
+  },
+  visitIcon: { width: 20, height: 20 },
+  visitText: { flex: 1, gap: Spacing.half },
+  visitTitle: { fontWeight: "600" },
   header: {
     flexDirection: "row",
     alignItems: "center",

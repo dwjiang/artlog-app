@@ -45,8 +45,7 @@ it("offers a review action without implying the visit will end immediately", asy
   expect(screen.getByRole("button", { name: "Visiting Legion of Honor" })).toHaveAccessibilityValue({
     text: "18 Sep 2026 · 3 artworks",
   });
-  expect(screen.getByRole("button", { name: "Done?" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "End visit" })).toBeNull();
+  expect(screen.getByRole("button", { name: "End visit" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Visiting Legion of Honor" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
@@ -69,7 +68,7 @@ it("stays up away from the museum, since the visit is open until ended by hand",
 it.each([true, false])("opens the end-visit review directly, whether at the museum (%s) or away", async (here) => {
   if (!here) mockVenue = undefined;
   await render(<VisitBar />);
-  await fireEvent.press(screen.getByRole("button", { name: "Done?" }));
+  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
   expect(mockPush).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
@@ -86,7 +85,7 @@ it.each(["loading", "error"])(
     await render(<VisitBar />);
     expect(screen.getByText("Currently visiting")).toBeOnTheScreen();
     expect(screen.queryByText(/artworks/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Done?" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "End visit" })).toBeOnTheScreen();
   },
 );
 

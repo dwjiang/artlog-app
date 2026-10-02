@@ -303,6 +303,14 @@ export default defineSchema({
     .index("by_key", ["key"])
     .index("by_lat", ["lat"]),
 
+  // The rebuild's best catalogue guesses per museum for Home's "Don't miss"; recent saves are added when read.
+  museumPicks: defineTable({
+    venueId: v.id("museums"),
+    artworkId: v.id("artworks"),
+    objectId: v.id("objects"),
+    score: v.number(),
+  }).index("by_venue_score", ["venueId", "score"]),
+
   // One row per venue changed since the log began; venues without one are in every exported table.
   venueChanges: defineTable({
     venueId: v.id("museums"),
@@ -645,7 +653,8 @@ export default defineSchema({
     .index("by_owner_artwork_savedAt", ["owner", "artworkId", "deletedAt", "savedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"])
     .index("by_visitId", ["visitId"])
-    .index("by_artwork_deletedAt", ["artworkId", "deletedAt"]),
+    .index("by_artwork_deletedAt", ["artworkId", "deletedAt"])
+    .index("by_venue_savedAt", ["venueId", "savedAt"]),
 
   artworkPhotos: defineTable({
     ...albumPhoto.fields,

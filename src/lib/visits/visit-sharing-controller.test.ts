@@ -219,6 +219,32 @@ it("starts from the visit's audience and posts the one chosen", async () => {
   expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "friends" }), expect.anything());
 });
 
+it("seeds the requested audience without publishing and preserves subsequent edits and the published audience", async () => {
+  controller.dispose();
+  transport.getState.mockResolvedValue({ ...initial, audience: "private" });
+  controller = createVisitSharingController({
+    visitLocalId: "visit",
+    initialAudience: "friends",
+    saveLocalIds: () => ids,
+    transport,
+    flush,
+    capture: () => ({ ...captureOwner(), token: "token" }),
+    subscribeOwner,
+  });
+  controller.connect();
+  await controller.load();
+  expect(controller.getSnapshot().draft?.audience).toBe("friends");
+  expect(controller.getSnapshot().acknowledged?.audience).toBe("private");
+  expect(transport.publish).not.toHaveBeenCalled();
+  controller.edit({ audience: "private" });
+  await controller.load();
+  expect(controller.getSnapshot().draft?.audience).toBe("private");
+  transport.publish.mockResolvedValue({ ...initial, audience: "private", revision: 1 });
+  await controller.publish();
+  expect(transport.publish).toHaveBeenCalledWith(expect.objectContaining({ audience: "private" }), expect.anything());
+  expect(controller.getSnapshot().draft?.audience).toBe("private");
+});
+
 it("reports publication failures without attaching the selected artwork or reflection", async () => {
   await controller.load();
   const error = new Error("Unexpected server failure");

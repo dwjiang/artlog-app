@@ -36,9 +36,12 @@ export function useProfileSetupOffer(): ProfileSetupOffer | undefined {
   );
 }
 
-export function profileSetupRoute(offer: ProfileSetupOffer, visitId?: string) {
+export function profileSetupRoute(offer: ProfileSetupOffer, visitId?: string, audience?: "friends") {
   return {
     pathname: "/create-profile" as const,
-    params: { ...(offer.name ? { name: offer.name } : {}), ...(visitId ? { visitId } : {}) },
+    params: {
+      ...(offer.name ? { name: offer.name } : {}),
+      ...(visitId ? { visitId, ...(audience ? { audience } : {}) } : {}),
+    },
   };
 }

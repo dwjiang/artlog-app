@@ -217,7 +217,7 @@ export function LeaderboardScreen() {
                     if (audience === "friends") {
                       router.push("/people");
                     } else if (metric === "visits") {
-                      router.push("/visit-create");
+                      router.push("/visit-add");
                     } else {
                       router.dismissAll();
                       router.navigate("/scan");

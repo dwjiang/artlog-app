@@ -190,6 +190,7 @@ beforeEach(() => {
   mockPresentation = undefined;
   mockPending = 0;
   mockVenueView = {
+    hydrated: true,
     status: "resolved",
     venue: {
       kind: "seeded",
@@ -201,7 +202,9 @@ beforeEach(() => {
     confirm: jest.fn(),
     dismiss: jest.fn(),
     declinePrompt: jest.fn(),
+    promptChooser: jest.fn(),
     end: jest.fn(),
+    startVisit: jest.fn(),
     move: jest.fn(),
   };
   mockDetectorActive.length = 0;
@@ -227,6 +230,37 @@ beforeEach(() => {
   );
 });
 afterEach(() => jest.restoreAllMocks());
+
+it.each(["capturing", "processing", "revealing", "result"] as const)(
+  "defers museum choices during %s until the camera is idle again",
+  async (phase) => {
+    mockState = { phase, occupied: true, source: "camera" };
+    mockVenueView.status = "locating";
+    const view = await render(<ScanScreen />);
+    mockVenueView = { ...mockVenueView, status: "choose" };
+    await view.rerender(<ScanScreen />);
+    expect(mockVenueView.promptChooser).not.toHaveBeenCalled();
+    mockState = { phase: "searching", occupied: false };
+    await view.rerender(<ScanScreen />);
+    expect(mockVenueView.promptChooser).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("prompts for late nearby options only while the camera is active and has no chosen visit", async () => {
+  mockVenueView.status = "none";
+  mockParams = { visitId: "chosen-visit" };
+  const view = await render(<ScanScreen />);
+  expect(mockVenueView.promptChooser).not.toHaveBeenCalled();
+  mockParams = {};
+  await act(() => appStateListener("background"));
+  await view.rerender(<ScanScreen />);
+  expect(mockVenueView.promptChooser).not.toHaveBeenCalled();
+  await act(() => appStateListener("active"));
+  (mockVenueView.promptChooser as jest.Mock).mockClear();
+  mockVenueView = { ...mockVenueView, options: [mockVenueView.venue!] };
+  await view.rerender(<ScanScreen />);
+  expect(mockVenueView.promptChooser).toHaveBeenCalledTimes(1);
+});
 
 it("asks for camera access only after tapping Allow camera on the active screen", async () => {
   mockFocused = false;

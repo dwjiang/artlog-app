@@ -7,12 +7,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
+import { VISIT_BAR_HEIGHT } from "@/components/visits/visit-bar";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
 import { reportError } from "@/lib/observability";
 import { useLiftToasts } from "@/lib/ui/toast";
+import { useVenue } from "@/lib/venue/use-venue";
 
 import { CameraPermission } from "./camera-permission";
 import { CaptureControls } from "./capture-controls";
@@ -25,7 +27,11 @@ import { QueueBadge } from "./queue-badge";
 import { VenuePill } from "./venue-pill";
 
 export function ScanScreen() {
-  const audioInset = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + 16 : 0;
+  const listening = useHasListeningTrack();
+  // Scans resolve quietly, so an undecided spot asks here, once, when the camera comes up.
+  const { status: venueStatus, options: venueOptions, visit, promptChooser } = useVenue();
+  // The accessory slot above the tab bar holds one row: the narration, the open visit, or both in one bar.
+  const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : visit ? VISIT_BAR_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
@@ -107,6 +113,10 @@ export function ScanScreen() {
     const subscription = AppState.addEventListener("change", setAppState);
     return () => subscription.remove();
   }, []);
+  useEffect(() => {
+    // Opening a sheet takes focus away and cancels an unfinished capture.
+    if (active && searching && !visitId) promptChooser();
+  }, [active, searching, visitId, venueStatus, venueOptions, promptChooser]);
 
   return (
     <View

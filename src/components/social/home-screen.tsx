@@ -13,6 +13,8 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { FeedSkeleton } from "@/components/loading-skeleton";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
+import { NowCard } from "@/components/visits/now-card";
+import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
@@ -95,6 +97,7 @@ export function HomeScreen() {
   return (
     <>
       <WelcomePrompt />
+      <WrapUpPrompt />
       <Animated.FlatList
         ref={list}
         style={socialStyles.root}
@@ -150,6 +153,7 @@ export function HomeScreen() {
                 />
               </View>
             )}
+            <NowCard />
             <View style={styles.tabs}>
               <NativeSegmentedPicker
                 label="Visit feed"

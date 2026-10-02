@@ -38,6 +38,7 @@ const visit = {
 
 function view(status: VenueView["status"], venue?: VenueView["venue"], current?: VenueView["visit"]): VenueView {
   return {
+    hydrated: true,
     status,
     venue,
     visit: current,
@@ -46,7 +47,9 @@ function view(status: VenueView["status"], venue?: VenueView["venue"], current?:
     confirm: jest.fn(),
     dismiss: jest.fn(),
     declinePrompt: jest.fn(),
+    promptChooser: jest.fn(),
     end: jest.fn(),
+    startVisit: jest.fn(),
     move: jest.fn(),
   };
 }

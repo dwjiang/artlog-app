@@ -62,6 +62,14 @@ export function listSavedWorks(owner = getLocalOwner(), includeDeleted = false) 
     .orderBy(desc(savedWorks.savedAt), desc(savedWorks.localId));
 }
 
+/** Catalogue artworks the owner has kept, so suggestions can leave them out. */
+export function listSavedArtworkIds(owner = getLocalOwner()) {
+  return db
+    .selectDistinct({ artworkId: savedWorks.artworkId })
+    .from(savedWorks)
+    .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt), isNotNull(savedWorks.artworkId)));
+}
+
 export async function softDeleteSavedWork(
   localId: string,
   deletedAt = Date.now(),

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { MiniPlayer } from "@/components/audio/mini-player";
 import { TabBarVisibility } from "@/components/tab-bar-visibility";
 import { VisitBar } from "@/components/visits/visit-bar";
+import { VisitPlayerBar } from "@/components/visits/visit-player-bar";
 import { Gallery } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -42,19 +43,26 @@ function useSelectedTab(): string | undefined {
   return tabs?.routes[tabs.index ?? 0]?.name;
 }
 
+function AccessoryBar({ listening, visit }: { listening: boolean; visit: boolean }) {
+  if (listening && visit) return <VisitPlayerBar />;
+  return listening ? <MiniPlayer /> : <VisitBar />;
+}
+
 export default function TabsLayout() {
   const listening = useHasListeningTrack();
   const [hidden, setHidden] = useState(false);
   const { visit } = useVenue();
   const selectedTab = useSelectedTab();
-  // The camera has the venue pill; the bar there would crowd the shutter. Elsewhere it stays up until the visit is ended.
-  const showVisitBar = !!visit && selectedTab !== "(scan)";
+  // Home carries the visit on its Now card; the bar keeps it in view on the camera and in the collection.
+  const showVisitBar = !!visit && selectedTab !== "(home)";
   return (
     <TabBarVisibility value={setHidden}>
       <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
-        {/* One thing at a time in the system slot above the tab bar: narration while it plays, otherwise the open visit. */}
+        {/* The system slot above the tab bar holds one row, so a visit with narration shares a single bar. */}
         {!hidden && (listening || showVisitBar) && (
-          <NativeTabs.BottomAccessory>{listening ? <MiniPlayer /> : <VisitBar />}</NativeTabs.BottomAccessory>
+          <NativeTabs.BottomAccessory>
+            <AccessoryBar listening={listening} visit={showVisitBar} />
+          </NativeTabs.BottomAccessory>
         )}
         <NativeTabs.Trigger name="(home)">
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

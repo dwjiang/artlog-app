@@ -7,7 +7,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
-import { findVisitOnDay, getVisit, moveVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
+import { findVisitOnDay, getVisit, latestVisitSaveAt, moveVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
 import type { NewVisit, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { useIntroductionOver } from "@/lib/account/introduction";
@@ -16,6 +16,7 @@ import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
 import { museumDay } from "@/lib/journal/visit-date";
+import { markWrapUp } from "@/lib/journal/wrap-up";
 import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { addBreadcrumb, reportError } from "@/lib/observability";
@@ -60,7 +61,7 @@ export type VenueController = {
   subscribe: (listener: () => void) => () => void;
   getState: () => VenueState;
   getContext: () => VenueContext;
-  /** Restores the open visit from the local store, whatever day it started; one from an earlier day starts paused. */
+  /** Restores the open visit from the local store; one left open past its museum day is closed first and queued for a wrap-up. */
   hydrate: () => Promise<void>;
   /** One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit. */
   resolve: () => Promise<VenueContext>;
@@ -71,8 +72,12 @@ export type VenueController = {
   dismiss: () => void;
   /** Swiping the location prompt away declines it like `dismiss`, unless a museum resolved while it was open. */
   declinePrompt: () => void;
-  /** The only way a visit ends. Closes the open visit only while it is still `localId`; a stale end-visit review is a no-op. */
+  /** Asks for the museum sheet again while the spot is still undecided, e.g. when the camera opens. */
+  promptChooser: () => void;
+  /** Ends the open visit by hand. Closes it only while it is still `localId`; a stale end-visit review is a no-op. */
   end: (localId: string) => Promise<void>;
+  /** Opens today's visit at a museum without a save, from the Add visit sheet; later saves there join it. */
+  startVisit: (venueId: Id<"museums">) => Promise<CurrentVisit>;
   /** Moves a visit to another museum or day; the open visit carries the change into the venue state. */
   move: (localId: string, to: Pick<Visit, "venueId" | "venueName" | "visitedOn" | "timeZone">) => Promise<void>;
   /** Whether a save at this museum joins or starts its visit unless the person chooses otherwise; false for the rest of the day after "End visit" there. */
@@ -316,6 +321,16 @@ export function createVenueController(): VenueController {
     void syncRemoteVisit();
   }
 
+  /** A visit left open past its museum day ends where its saves stopped and waits on Home for a review. */
+  async function endExpiredVisit(ownership: ReturnType<typeof captureOwner>): Promise<void> {
+    const open = state.visit;
+    if (!open || !ownership.isCurrent() || isVisitToday(open, Date.now())) return;
+    const latest = await latestVisitSaveAt(open.localId, ownership.owner);
+    if (!ownership.isCurrent() || state.visit?.localId !== open.localId) return;
+    await closeVisit(open, Math.max(open.startedAt, latest ?? open.startedAt), ownership.owner);
+    await markWrapUp(ownership.owner, open.localId);
+  }
+
   function visitByDefault(venueId: Id<"museums">, at = Date.now()): boolean {
     return !endedToday(state, venueId, at);
   }
@@ -439,15 +454,18 @@ export function createVenueController(): VenueController {
     if (row && row.startedAt !== null && row.endedAt === null) {
       const manual = (await getSetting(manualVisitKey(owner))) === row.localId;
       if (!ownership.isCurrent()) return;
-      dispatch({
-        type: "hydrated",
-        at: now,
-        visit: {
-          ...currentVisit({ ...row, startedAt: row.startedAt }),
-          manual,
-        },
-        ...answers,
-      });
+      const visit = { ...currentVisit({ ...row, startedAt: row.startedAt }), manual };
+      if (!isVisitToday(visit, now)) {
+        // The visit outlived its museum day while the app was closed: it ends where its saves stopped and waits for a review.
+        const latest = await latestVisitSaveAt(row.localId, owner);
+        if (!ownership.isCurrent()) return;
+        await closeVisit(visit, Math.max(row.startedAt, latest ?? row.startedAt), owner);
+        await markWrapUp(owner, row.localId);
+        if (!ownership.isCurrent()) return;
+        dispatch({ type: "hydrated", at: now, ...answers });
+        return;
+      }
+      dispatch({ type: "hydrated", at: now, visit, ...answers });
     } else {
       if (localId) await removeSetting(currentVisitKey(owner));
       dispatch({ type: "hydrated", at: now, ended, ...answers });
@@ -458,6 +476,11 @@ export function createVenueController(): VenueController {
   // foreground resolves keep whatever the person chose on the welcome's Access page or in the museum sheet.
   async function runResolve(forScan: boolean): Promise<VenueContext> {
     void syncRemoteVisit();
+    // Coming back to the app on a later day closes yesterday's visit before the fix decides where the phone is now.
+    await updateLocally(() => endExpiredVisit(captureOwner())).catch((error: unknown) => {
+      reportError(error, "venue.visit.expire");
+      console.warn("Could not close the visit from an earlier day", error);
+    });
     // A museum picked by hand stands for the rest of its day there, visit or not; location takes over again the next day.
     if (state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) {
       return venueContext(state);
@@ -586,6 +609,14 @@ export function createVenueController(): VenueController {
     if (!state.venue) dismiss();
   }
 
+  function promptChooser(): void {
+    dispatch({ type: "prompt", at: Date.now() });
+  }
+
+  function startVisit(venueId: Id<"museums">): Promise<CurrentVisit> {
+    return visitForSave(venueId, Date.now());
+  }
+
   async function end(localId: string): Promise<void> {
     const { visit } = state;
     if (!visit || visit.localId !== localId) return;
@@ -616,7 +647,9 @@ export function createVenueController(): VenueController {
     confirm,
     dismiss,
     declinePrompt,
+    promptChooser,
     end,
+    startVisit,
     move,
     visitByDefault,
     visitForSave,
@@ -642,7 +675,13 @@ export function visitForSave(venueId: Id<"museums">, capturedAt: number): Promis
   return venueController.visitForSave(venueId, capturedAt);
 }
 
+/** The open visit's id right now, so a save can tell whether it started that visit or joined it. */
+export function openVisitLocalId(): string | undefined {
+  return venueController.getState().visit?.localId;
+}
+
 export type VenueView = {
+  hydrated: boolean;
   status: VenueState["status"];
   venue?: SeededOption;
   /** The open visit, at the resolved venue or paused while the phone is away from it. */
@@ -656,13 +695,16 @@ export type VenueView = {
   confirm: VenueController["confirm"];
   dismiss: VenueController["dismiss"];
   declinePrompt: VenueController["declinePrompt"];
+  promptChooser: VenueController["promptChooser"];
   end: VenueController["end"];
+  startVisit: VenueController["startVisit"];
   move: VenueController["move"];
 };
 
 export function useVenue(controller: VenueController = venueController): VenueView {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
   return {
+    hydrated: snapshot.hydrated,
     status: snapshot.status,
     venue: snapshot.venue,
     visit: snapshot.visit,
@@ -674,7 +716,9 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     confirm: controller.confirm,
     dismiss: controller.dismiss,
     declinePrompt: controller.declinePrompt,
+    promptChooser: controller.promptChooser,
     end: controller.end,
+    startVisit: controller.startVisit,
     move: controller.move,
   };
 }

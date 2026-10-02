@@ -50,6 +50,40 @@ function reduce(events: Parameters<typeof venueReducer>[1][], from: VenueState =
   return events.reduce(venueReducer, from);
 }
 
+describe("asking for the sheet again", () => {
+  const undecided = () =>
+    reduce([
+      { type: "locating" },
+      {
+        type: "resolved",
+        fix,
+        resolution: { kind: "choose", options: [candidate("met", 40), candidate("neue", 320)] },
+        quiet: true,
+      },
+    ]);
+
+  it("reopens the sheet from the camera while two museums are still undecided after a quiet scan resolve", () => {
+    const state = undecided();
+    expect(state.prompt).toBe(0);
+    expect(venueReducer(state, { type: "prompt", at: fix.at }).prompt).toBe(1);
+  });
+
+  it("stays quiet once a museum is resolved or the spot was turned down", () => {
+    const resolved = reduce(
+      [{ type: "chosen", option: toOption("met"), replaces: toOption("met"), day: today }],
+      undecided(),
+    );
+    expect(venueReducer(resolved, { type: "prompt", at: fix.at })).toBe(resolved);
+    const declined = venueReducer(undecided(), { type: "dismissed", at: fix.at });
+    expect(venueReducer(declined, { type: "prompt", at: fix.at })).toBe(declined);
+    expect(venueReducer(declined, { type: "prompt", at: fix.at + NOT_HERE_MS + 1 }).prompt).toBe(1);
+  });
+
+  function toOption(name: string) {
+    return { kind: "seeded" as const, venueId: `id-${name}` as Id<"museums">, name };
+  }
+});
+
 describe("resolving a fix", () => {
   it("resolves automatically and lists the venue as the only option", () => {
     const state = reduce([

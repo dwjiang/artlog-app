@@ -103,6 +103,13 @@ For an authorized backend release, the explicit deployment command is:
 npx convex deploy --env-file .context/production-target.env
 ```
 
+Home's "Don't miss" reads per-museum picks scored from placements. Rebuild them after
+the first deploy that includes `museumPicks`, and after every corpus import:
+
+```sh
+npx convex run museumPicks:rebuild --prod --env-file .context/production-target.env
+```
+
 Python imports use production `CONVEX_URL` and `CONVEX_DEPLOY_KEY` in the job
 process with a production-specific checkpoint. Keep the dev `.env.local` intact;
 the [upload todo](../todos/production-upload/README.md) owns import preparation and
