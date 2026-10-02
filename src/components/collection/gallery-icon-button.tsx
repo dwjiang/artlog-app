@@ -19,7 +19,7 @@ export function GalleryIconButton({
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
-  tone?: "accent" | "ink" | "muted";
+  tone?: "accent" | "ink" | "muted" | "surface";
   size?: number;
 }) {
   const color = Gallery[tone];

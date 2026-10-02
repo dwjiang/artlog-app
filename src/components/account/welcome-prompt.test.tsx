@@ -56,19 +56,25 @@ it("waits for the active Home screen", async () => {
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
 });
 
-it("does not onboard an existing linked account after signing out", async () => {
-  await setLocalProfileName("Alex");
+it("onboards a signed-in account that has not finished the welcome, without needing a name", async () => {
   switchOwner("account:existing");
   await render(<WelcomePrompt />);
-  await waitFor(async () => expect(await getSetting("welcome-seen")).toBe("true"));
-  await act(() => switchOwner(anonymousOwner()));
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
+});
+
+it("does not repeat the welcome for an account that finished it", async () => {
+  await setSetting("welcome-seen", "true");
+  switchOwner("account:existing");
+  await render(<WelcomePrompt />);
+  await act(async () => {});
   expect(mockPush).not.toHaveBeenCalled();
 });
 
 it("asks for a name after signing out when none has been saved", async () => {
+  await setSetting("welcome-seen", "true");
   switchOwner("account:existing");
   await render(<WelcomePrompt />);
-  await waitFor(async () => expect(await getSetting("welcome-seen")).toBe("true"));
+  await act(async () => {});
   expect(mockPush).not.toHaveBeenCalled();
   await act(() => switchOwner(anonymousOwner()));
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));

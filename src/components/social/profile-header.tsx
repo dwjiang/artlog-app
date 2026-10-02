@@ -17,6 +17,7 @@ type ProfileIdentity = {
   name: string;
   subtitle?: string;
   avatarName?: string;
+  avatarPhotoUrl?: string;
   profile?: { photoUrl?: string; bio?: string };
 };
 /** A count left undefined is still loading. */
@@ -75,7 +76,7 @@ export function ProfileHeader({
         <>
           <ProfileAvatar
             name={identity.profile ? identity.name : identity.avatarName}
-            photoUrl={identity.profile?.photoUrl}
+            photoUrl={identity.profile ? identity.profile.photoUrl : identity.avatarPhotoUrl}
             size={AVATAR_SIZE}
           />
           <View style={{ alignSelf: "stretch", alignItems: "center", gap: 6 }}>
