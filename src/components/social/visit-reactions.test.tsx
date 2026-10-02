@@ -40,6 +40,7 @@ const visit: ReactionVisit = {
     profileId: "author" as never,
     name: "Maya Park",
     username: "maya",
+    avatar: "vermeer" as const,
     publishedWallCount: 0,
   },
   venue: { venueId: "museum" as never, name: "MoMA" },

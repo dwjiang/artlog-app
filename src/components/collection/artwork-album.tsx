@@ -243,6 +243,7 @@ export function ArtworkAlbum({
               scope === "visit" && (
                 <GalleryButton
                   label="View all photos"
+                  fullWidth
                   onPress={() => {
                     setScope("all");
                     setPage(0);

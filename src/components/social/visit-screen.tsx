@@ -15,6 +15,7 @@ import { visitDate } from "@/lib/social/presentation";
 import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import type { AvatarId } from "@/shared/social/avatars";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
@@ -27,12 +28,22 @@ type Media = SharedArtwork["artwork"]["media"];
 const artworksPage = (visit: SharedVisit) => visit.artworks;
 const artworkId = (item: SharedArtwork) => item.itemId;
 
-export function VisitScreen({ postId }: { postId: string }) {
+export function VisitScreen({ postId, openComments = false }: { postId: string; openComments?: boolean }) {
   const session = useSocialSession();
-  return <VisitGallery key={`${session.key}:${postId}`} postId={postId} session={session} />;
+  return (
+    <VisitGallery key={`${session.key}:${postId}`} postId={postId} session={session} openComments={openComments} />
+  );
 }
 
-function VisitGallery({ postId, session }: { postId: string; session: ReturnType<typeof useSocialSession> }) {
+function VisitGallery({
+  postId,
+  session,
+  openComments,
+}: {
+  postId: string;
+  session: ReturnType<typeof useSocialSession>;
+  openComments: boolean;
+}) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const { fontScale } = useWindowDimensions();
@@ -93,6 +104,7 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
                   name: author.name,
                   username: author.username,
                   photoUrl: author.photoUrl,
+                  avatar: author.avatar,
                   onPress: () =>
                     router.push({
                       pathname: "/profile/[profileId]",
@@ -106,7 +118,10 @@ function VisitGallery({ postId, session }: { postId: string; session: ReturnType
                 </Text>
               )}
               <View style={{ marginBottom: 12 }}>
-                <VisitReactions visit={{ ...visit.first, media: visit.items[0]?.artwork.media }} />
+                <VisitReactions
+                  visit={{ ...visit.first, media: visit.items[0]?.artwork.media }}
+                  openComments={openComments}
+                />
               </View>
               <SharedCountHeading label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`} />
               {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}
@@ -169,12 +184,13 @@ export function SharedVisitHeading({
     name: string;
     username?: string;
     photoUrl?: string;
+    avatar?: AvatarId;
     onPress?: () => void;
   };
 }) {
   const identity = (
     <>
-      <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} size={40} />
+      <ProfileAvatar name={owner.name} photoUrl={owner.photoUrl} avatar={owner.avatar} size={40} />
       <View style={{ flex: 1 }}>
         <Text style={styles.ownerText}>{owner.name}</Text>
         {owner.username && <Text style={styles.meta}>@{owner.username}</Text>}

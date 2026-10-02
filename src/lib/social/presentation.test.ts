@@ -1,4 +1,11 @@
-import { friendshipActions, initials, peopleSearch, suggestionReasonText, visitDate } from "./presentation";
+import {
+  friendshipActions,
+  initials,
+  notificationAge,
+  peopleSearch,
+  suggestionReasonText,
+  visitDate,
+} from "./presentation";
 import type { Relationship } from "./types";
 
 it("formats calendar dates without shifting the visit into another day", () => {
@@ -6,6 +13,15 @@ it("formats calendar dates without shifting the visit into another day", () => {
   expect(visitDate("2026-01-01", "en-US", "short")).toBe("Jan 1");
   expect(visitDate("2026-02-30", "en-US")).toBe("Date unavailable");
   expect(visitDate("invalid")).toBe("Date unavailable");
+});
+
+it("ages notifications in the largest whole unit and switches to the date after a week", () => {
+  const now = Date.UTC(2026, 9, 1, 12);
+  expect(notificationAge(now - 20_000, now)).toEqual({ short: "now", spoken: "just now" });
+  expect(notificationAge(now - 60_000, now)).toEqual({ short: "1m", spoken: "1 minute ago" });
+  expect(notificationAge(now - 3 * 3_600_000 - 59_000, now)).toEqual({ short: "3h", spoken: "3 hours ago" });
+  expect(notificationAge(now - 6 * 86_400_000, now).short).toBe("6d");
+  expect(notificationAge(Date.UTC(2026, 8, 22, 12), now, "en-US").short).toBe("Sep 22");
 });
 
 it("uses first and last initials without inventing a photo", () => {
@@ -43,7 +59,13 @@ it.each([
 });
 
 it("explains each suggestion in one line, naming mutual friends by first name", () => {
-  const friend = (name: string) => ({ profileId: name as never, name, username: name, publishedWallCount: 0 });
+  const friend = (name: string) => ({
+    profileId: name as never,
+    name,
+    username: name,
+    avatar: "vermeer" as const,
+    publishedWallCount: 0,
+  });
   const mutual = (count: number, ...names: string[]) =>
     suggestionReasonText({ kind: "mutual", count, friends: names.map(friend) });
   expect(mutual(1, "Theo Alvarez")).toBe("Friends with Theo");

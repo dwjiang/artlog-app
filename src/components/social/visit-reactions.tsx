@@ -42,10 +42,24 @@ function ReactionIcon({ kind, filled = false }: { kind: keyof typeof reactionPat
   );
 }
 
-export function VisitReactions({ visit, onOpenVisit }: { visit: ReactionVisit; onOpenVisit?: () => void }) {
+export function VisitReactions({
+  visit,
+  onOpenVisit,
+  openComments = false,
+}: {
+  visit: ReactionVisit;
+  onOpenVisit?: () => void;
+  openComments?: boolean;
+}) {
   const session = useSocialSession();
   return (
-    <LiveReactions key={`${session.key}:${visit.postId}`} visit={visit} session={session} onOpenVisit={onOpenVisit} />
+    <LiveReactions
+      key={`${session.key}:${visit.postId}`}
+      visit={visit}
+      session={session}
+      onOpenVisit={onOpenVisit}
+      openComments={openComments}
+    />
   );
 }
 
@@ -53,16 +67,18 @@ function LiveReactions({
   visit,
   session,
   onOpenVisit,
+  openComments,
 }: {
   visit: ReactionVisit;
   session: SocialSession;
   onOpenVisit?: () => void;
+  openComments: boolean;
 }) {
   const router = useRouter();
   const ready = !session.offline && ["ready", "signed-out", "profile-required"].includes(session.status);
   const summary = useSocialQuery(api.visitReactions.getSummary, ready ? { postId: visit.postId } : "skip", session.key);
   const setLike = useMutation(api.visitReactions.setLike);
-  const [sheet, setSheet] = useState<"comments" | "likes" | null>(null);
+  const [sheet, setSheet] = useState<"comments" | "likes" | null>(openComments ? "comments" : null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const join = () => {

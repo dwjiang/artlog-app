@@ -47,7 +47,7 @@ export function VisitPlaceScreen() {
             detail="Your saved visits to this place will appear here."
             visual={<EmptySymbol name="building.columns" />}
           >
-            <GalleryButton label="Back to Collection" onPress={() => router.back()} />
+            <GalleryButton label="Back to Collection" fullWidth onPress={() => router.back()} />
           </EmptyState>
         </VisitPage>
       ) : (

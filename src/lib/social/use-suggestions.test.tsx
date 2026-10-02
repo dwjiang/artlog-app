@@ -33,6 +33,7 @@ const person = (name: string): Suggestion => ({
     profileId: name as never,
     name,
     username: name,
+    avatar: "vermeer" as const,
     publishedWallCount: 0,
     relationship: { state: "none", revision: 0, requesterId: null, blocked: false, blockRevision: 0 },
   },

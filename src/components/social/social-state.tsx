@@ -25,7 +25,6 @@ export function SocialState({
   onAction,
   secondaryAction,
   onSecondaryAction,
-  centered,
 }: {
   title: string;
   detail?: string;
@@ -35,7 +34,6 @@ export function SocialState({
   onSecondaryAction?: () => void;
   action?: string;
   onAction?: () => void;
-  centered?: boolean;
 }) {
   if (loading) {
     return (
@@ -45,7 +43,7 @@ export function SocialState({
     );
   }
   return (
-    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />} centered={centered}>
+    <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />}>
       <ActionStack
         textActions={
           secondaryAction

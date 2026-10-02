@@ -147,6 +147,7 @@ function AppContent() {
                     <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
                     <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
                     <Stack.Screen name="people" options={{ title: "Friends" }} />
+                    <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
                     <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
                     <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
                     <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />

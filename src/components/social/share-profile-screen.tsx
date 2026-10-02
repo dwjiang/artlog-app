@@ -109,7 +109,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
     <View collapsable={false} style={styles.root}>
       <ScrollView style={{ flex: 1 }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <View style={styles.card}>
-          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} size={52} />
+          <ProfileAvatar name={person.name} photoUrl={person.photoUrl} avatar={person.avatar} size={52} />
           <View style={styles.identity}>
             <Text variant="display" accessibilityRole="header" style={styles.center}>
               {person.name}

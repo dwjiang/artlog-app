@@ -6,8 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ActionStack } from "@/components/action-stack";
 import { EmptyState, SearchEmptyState } from "@/components/empty-state";
-import { ArtworkCollage } from "@/components/guest/artwork-preview";
-import { VisitKeepsake } from "@/components/guest/visit-keepsake";
+import { EmptyFrames, EmptyTicket } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SearchField } from "@/components/search-field";
 import { SocialState } from "@/components/social/social-state";
@@ -241,7 +240,7 @@ function LinkPicker({
                   ? "Add a museum visit, then link this artwork to it."
                   : "Scan an artwork to save it to this visit."
               }
-              visual={savedId ? <VisitKeepsake /> : <ArtworkCollage />}
+              visual={savedId ? <EmptyTicket /> : <EmptyFrames />}
             >
               <ActionStack textActions={<GalleryButton label="Not now" fullWidth onPress={() => router.back()} />}>
                 <GalleryButton

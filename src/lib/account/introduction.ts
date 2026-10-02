@@ -11,7 +11,7 @@ export const WELCOME_SEEN_SETTING = "welcome-seen";
 type Introduction = "checking" | "due" | "open" | "over";
 
 /**
- * Whether a guest's first-launch introduction is behind them. It is over at once when onboarding was completed;
+ * Whether the first-launch introduction is behind this person. It is over at once when onboarding was completed;
  * otherwise only after the welcome has opened and the stack is back on the tabs, so a sign-in it hands off to counts.
  */
 export function useIntroductionOver(owner: string): boolean {
@@ -26,7 +26,9 @@ export function useIntroductionOver(owner: string): boolean {
     let cancelled = false;
     void Promise.all([getSetting(WELCOME_SEEN_SETTING), getLocalProfileName()])
       .then(([seen, name]) => {
-        if (!cancelled) setIntroduction((seen === "true" && name) || owner.startsWith("account:") ? "over" : "due");
+        if (!cancelled) {
+          setIntroduction(seen === "true" && (name || owner.startsWith("account:")) ? "over" : "due");
+        }
       })
       .catch((cause: unknown) => {
         reportError(cause, "account.introduction.load");

@@ -12,6 +12,25 @@ export function visitDate(value: string, locale?: string, format: "full" | "shor
   }).format(new Date(`${value}T12:00:00Z`));
 }
 
+const MINUTE = 60_000;
+const UNITS = [
+  { size: 24 * 60 * MINUTE, short: "d", word: "day" },
+  { size: 60 * MINUTE, short: "h", word: "hour" },
+  { size: MINUTE, short: "m", word: "minute" },
+] as const;
+/** "5m" for the row and "5 minutes ago" for VoiceOver; a week or more shows the date instead. */
+export function notificationAge(createdAt: number, now: number, locale?: string): { short: string; spoken: string } {
+  const elapsed = Math.max(0, now - createdAt);
+  if (elapsed >= 7 * UNITS[0].size) {
+    const date = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(createdAt);
+    return { short: date, spoken: date };
+  }
+  const unit = UNITS.find(({ size }) => elapsed >= size);
+  if (!unit) return { short: "now", spoken: "just now" };
+  const count = Math.floor(elapsed / unit.size);
+  return { short: `${count}${unit.short}`, spoken: `${count} ${unit.word}${count === 1 ? "" : "s"} ago` };
+}
+
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/u).filter(Boolean);
   return (

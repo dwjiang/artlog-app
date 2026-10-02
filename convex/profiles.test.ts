@@ -59,6 +59,17 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
   expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
 });
 
+it("starts a new profile on the painting it brings, and rejects an unknown one", async () => {
+  const { account } = await fixture();
+  const owner = await account("carried-avatar");
+  await expect(
+    owner.as.mutation(api.profiles.create, { username: "carried", name: "Carried", avatar: "retired-painting" }),
+  ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
+  expect(
+    await owner.as.mutation(api.profiles.create, { username: "carried", name: "Carried", avatar: "great-wave" }),
+  ).toMatchObject({ avatar: "great-wave" });
+});
+
 it("persists a random starter color and design once when a profile is created", async () => {
   const { t, account } = await fixture();
   const owner = await account("starter-wall");
@@ -143,7 +154,14 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
   const publicResult = await t.query(api.profiles.getPublic, {
     profileId: profile.profileId,
   });
-  expect(Object.keys(publicResult!).sort()).toEqual(["bio", "name", "profileId", "publishedWallCount", "username"]);
+  expect(Object.keys(publicResult!).sort()).toEqual([
+    "avatar",
+    "bio",
+    "name",
+    "profileId",
+    "publishedWallCount",
+    "username",
+  ]);
   const found = await t.query(api.profiles.search, {
     query: "  ÉLODiE  ",
     limit: 1,

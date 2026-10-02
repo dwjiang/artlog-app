@@ -17,6 +17,9 @@ jest.mock("@/lib/social/use-social-session", () => ({
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: true }),
 }));
+jest.mock("@/lib/account/local-profile", () => ({
+  useLocalProfile: () => ({ loading: false, avatar: "great-wave" }),
+}));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
   profilePhotoBytes: jest.fn(),
@@ -35,17 +38,21 @@ async function prepare(onCreated = jest.fn()) {
   await render(<ProfileForm introduction="Create your profile." onCreated={onCreated} />);
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex ");
   await fireEvent.changeText(screen.getByLabelText("Username"), "alex");
-  await fireEvent.press(screen.getByRole("button", { name: "Add a photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   return onCreated;
 }
 
 it("creates the profile before uploading its selected photo and completing setup", async () => {
   const onCreated = await prepare();
   await fireEvent.press(screen.getByRole("button", { name: "Create public profile" }));
+  // The guest's painting stays behind the photo as the profile's fallback.
   expect(mockCreate).toHaveBeenCalledWith({
     name: "Alex",
     username: "alex",
     bio: "",
+    avatar: "great-wave",
   });
   expect(mockSavePhoto).toHaveBeenCalledWith({
     name: "Alex",

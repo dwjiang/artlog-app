@@ -7,7 +7,7 @@ import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/empty-state";
-import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { EmptyFrames } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { LoadingSkeleton, Ghost } from "@/components/loading-skeleton";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
@@ -409,7 +409,7 @@ export function CollectionWallContent({
                       : "Scan an artwork to add it to your collection."
                   }
                   footnote={wall.signedIn ? undefined : "Your wall stays private on this iPhone until you sign in."}
-                  visual={<ArtworkCollage />}
+                  visual={<EmptyFrames />}
                 >
                   <GalleryButton
                     label={

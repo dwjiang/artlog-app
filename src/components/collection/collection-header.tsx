@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 
 import { OwnProfileActions, ProfileHeader } from "@/components/social/profile-header";
-import { useLocalProfileName } from "@/lib/account/local-profile";
+import { useLocalProfile } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
@@ -20,7 +20,7 @@ export function CollectionHeader({
   loading?: boolean;
 }) {
   const session = useSocialSession();
-  const localProfile = useLocalProfileName();
+  const localProfile = useLocalProfile();
   const guest = !useLocalOwner().startsWith("account:");
   const { data: profile, error: profileError } = useSocialQuery(
     api.profiles.mine,
@@ -36,7 +36,14 @@ export function CollectionHeader({
     return (
       <ProfileHeader
         identity={
-          localProfile.loading ? undefined : { name: localProfile.name ?? "Guest", avatarName: localProfile.name }
+          localProfile.loading
+            ? undefined
+            : {
+                name: localProfile.name ?? "Guest",
+                avatarName: localProfile.name,
+                avatarPhotoUrl: localProfile.photoUrl,
+                avatar: localProfile.avatar,
+              }
         }
         stats={stats}
         accessory={settings}

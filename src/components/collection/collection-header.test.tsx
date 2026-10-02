@@ -46,7 +46,8 @@ it("shows the saved name in the shared profile header and opens settings", async
   await setLocalProfileName("Alex Rivera");
   await render(<CollectionHeader artworkCount={3} visitCount={1} />);
   expect(await screen.findByRole("header", { name: "Alex Rivera" })).toBeOnTheScreen();
-  expect(screen.getByText("AR", { includeHiddenElements: true })).toBeTruthy();
+  // A guest's painting stands in for their initials.
+  expect(screen.queryByText("AR", { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByText("Saved on this iPhone")).toBeNull();
   expect(screen.getByLabelText("3 artworks")).toBeOnTheScreen();
   expect(screen.getByLabelText("1 visit")).toBeOnTheScreen();

@@ -201,7 +201,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   title="No other artworks available."
                   detail="Save another artwork before moving this photo. Your photo and edits can stay here."
                 >
-                  <GalleryButton label="Keep it here" onPress={() => setMoving(false)} />
+                  <GalleryButton label="Keep it here" fullWidth onPress={() => setMoving(false)} />
                 </EmptyState>
               ) : null}
               {destinations.map((work) => (

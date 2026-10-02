@@ -40,6 +40,7 @@ import {
   labelReading,
   matchOutcome,
   multiplicity,
+  notificationEvent,
   objectSource,
   placementSource,
   proposalKind,
@@ -710,6 +711,8 @@ export default defineSchema({
     name: v.string(),
     bio: v.optional(v.string()),
     photoStorageId: v.optional(v.id("files")),
+    // A preset id from shared/social/avatars; plain string so retiring a preset never invalidates stored rows.
+    avatar: v.optional(v.string()),
     searchText: v.string(),
     active: v.boolean(),
     publishedWallCount: v.number(),
@@ -823,6 +826,20 @@ export default defineSchema({
   })
     .index("by_publication", ["publicationId"])
     .index("by_profile_request", ["profileId", "requestId"]),
+  // Expires after 30 days; database triggers on likes, comments, and friendships write and withdraw these rows.
+  notifications: defineTable({
+    expiresAt: v.number(),
+    recipientId: v.id("profiles"),
+    actorId: v.id("profiles"),
+    event: notificationEvent,
+  })
+    .index("by_recipient", ["recipientId"])
+    .index("by_actor_recipient_event", ["actorId", "recipientId", "event"])
+    .index("by_expiresAt", ["expiresAt"]),
+  notificationReads: defineTable({
+    profileId: v.id("profiles"),
+    seenAt: v.number(),
+  }).index("by_profileId", ["profileId"]),
   mediaAssets: defineTable({
     saveId: v.id("collections"),
     source: mediaSource,

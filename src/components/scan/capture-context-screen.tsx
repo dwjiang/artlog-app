@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
-import { VisitKeepsake } from "@/components/guest/visit-keepsake";
+import { EmptyTicket } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -179,7 +179,7 @@ function CaptureContext({
       ) : (
         noVisits && (
           <EmptyState
-            visual={<VisitKeepsake />}
+            visual={<EmptyTicket />}
             title="No visits yet."
             detail="Create a visit to remember where you saw this artwork. You can also save it on its own."
           >

@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
 import { normalizeSearch } from "../shared/journal/limits";
+import { isAvatarId } from "../shared/social/avatars";
 import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
@@ -21,6 +22,7 @@ export const save = internalMutation({
     username: v.optional(v.string()),
     bio: v.optional(v.string()),
     photo: v.optional(v.union(v.id("files"), v.null())),
+    avatar: v.optional(v.string()),
   },
   returns: publicProfile,
   handler: async (ctx, input) => {
@@ -29,6 +31,10 @@ export const save = internalMutation({
       throw new ConvexError({ code: "sync_scope_changed" });
     }
     const fields = validateProfile(input);
+    if (input.avatar !== undefined && !isAvatarId(input.avatar)) {
+      throw new ConvexError({ code: "invalid_profile" });
+    }
+    const avatar = input.avatar ?? profile.avatar;
     const username = input.username ?? profile.username;
     if (
       username !== profile.username
@@ -45,12 +51,13 @@ export const save = internalMutation({
       ...fields,
       username,
       photoStorageId,
+      avatar,
       searchText: normalizeSearch(`${username} ${fields.name}`),
       updatedAt: Date.now(),
     });
     if (profile.photoStorageId && profile.photoStorageId !== photoStorageId) {
       await fileStorage.delete(ctx, profile.photoStorageId);
     }
-    return projectProfile(ctx, { ...profile, ...fields, username, photoStorageId });
+    return projectProfile(ctx, { ...profile, ...fields, username, photoStorageId, avatar });
   },
 });

@@ -61,6 +61,12 @@ export const expireBatch = internalMutation({
       await feedbackChanged(ctx, row.objectId);
     }
     more ||= events.length === BATCH;
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_expiresAt", (q) => q.lte("expiresAt", now))
+      .take(BATCH);
+    for (const row of notifications) await ctx.db.delete("notifications", row._id);
+    more ||= notifications.length === BATCH;
     const removals = await ctx.db
       .query("deviceRemovals")
       .withIndex("by_expiresAt", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))

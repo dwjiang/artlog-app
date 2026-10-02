@@ -1,5 +1,6 @@
 import type { Infer } from "convex/values";
 
+import { defaultAvatar, isAvatarId } from "../../shared/social/avatars";
 import {
   type displayMedia,
   type publicArtwork,
@@ -20,6 +21,7 @@ export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): P
     name: profile.name,
     ...(profile.bio ? { bio: profile.bio } : {}),
     ...(photoUrl ? { photoUrl } : {}),
+    avatar: isAvatarId(profile.avatar) ? profile.avatar : defaultAvatar(profile._id),
     publishedWallCount: profile.publishedWallCount,
   };
 }
