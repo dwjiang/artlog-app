@@ -12,7 +12,10 @@
 
 ## Status
 
-**Status: TODO** — the About screen still opens a placeholder Terms URL.
+**Status: DONE in code (2026-10-02), awaiting the production deploy.** `convex/legal.ts` serves the text in
+`convex/lib/legalPages.ts` at `/privacy` and `/terms`, and Welcome and Settings open those pages in the
+in-app browser. The steps below are historical. The live URL is recorded in the
+[release todo](../release/README.md).
 
 - **Priority**: P2
 - **Effort**: M

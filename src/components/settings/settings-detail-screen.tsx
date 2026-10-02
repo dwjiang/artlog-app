@@ -13,13 +13,11 @@ import { DevTools } from "./dev-tools";
 import { GeneralPreference } from "./general-preference";
 import { LeaderboardPreference } from "./leaderboard-preference";
 import { PhotoLibraryPreference } from "./photo-library-preference";
-import { PrivacySection } from "./privacy-section";
 
 const titles = {
   account: "Account",
   general: "General",
   leaderboards: "Leaderboards",
-  privacy: "Privacy",
   about: "About",
   developer: "Developer tools",
 };
@@ -31,14 +29,6 @@ export function SettingsDetailScreen({ section }: { section: string }) {
   const me = useQuery(api.devices.me, section === "developer" && isAuthenticated ? {} : "skip");
   const health = useQuery(api.health.ping, section === "developer" ? {} : "skip");
   const title = titles[section as keyof typeof titles] ?? "Settings";
-  if (section === "privacy") {
-    return (
-      <>
-        <Stack.Screen options={{ title }} />
-        <PrivacySection />
-      </>
-    );
-  }
   if (section === "about") {
     return (
       <>

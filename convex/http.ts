@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import { download, upload } from "./collectionPhotos";
 import { download as displayMedia } from "./displayMedia";
 import { download as fileDownload } from "./files";
+import { privacy, terms } from "./legal";
 import { playlist as narrationPlaylist } from "./narration";
 
 const http = httpRouter();
@@ -14,5 +15,7 @@ http.route({ path: "/collection-photo", method: "GET", handler: download });
 http.route({ path: "/display-media", method: "GET", handler: displayMedia });
 http.route({ path: "/file", method: "GET", handler: fileDownload });
 http.route({ path: "/narration-playlist", method: "GET", handler: narrationPlaylist });
+http.route({ path: "/privacy", method: "GET", handler: privacy });
+http.route({ path: "/terms", method: "GET", handler: terms });
 
 export default http;

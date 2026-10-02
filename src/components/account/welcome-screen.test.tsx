@@ -17,6 +17,7 @@ const mockBack = jest.fn();
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockSignInWithApple = jest.fn();
+const mockOpenBrowser = jest.fn();
 let mockAccount = {
   account: { linked: false, accountId: "account-a", hasProfile: false } as
     | { linked: boolean; accountId: string; hasProfile: boolean }
@@ -72,6 +73,7 @@ jest.mock("@/lib/account/use-account", () => ({
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isConnected: true, isInternetReachable: true }),
 }));
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
   removeProfilePhotoDraft: jest.fn(),
@@ -146,6 +148,17 @@ it("asks for each permission before saving a name and completing onboarding", as
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(await getLocalProfileName()).toBe("Alex Rivera");
   expect(await settings.getSetting("welcome-seen")).toBe("true");
+});
+
+it("opens the terms and privacy policy websites from the first page", async () => {
+  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
+  await render(<WelcomeScreen />);
+  expect(screen.getByText(/By continuing, you agree to our Terms of Service/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("link", { name: "Terms of Service" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
+  await fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
+  expect(screen.getByLabelText("Page 1 of 6")).toBeOnTheScreen();
 });
 
 it("declines every permission but still requires a name or nickname", async () => {

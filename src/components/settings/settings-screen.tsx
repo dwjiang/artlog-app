@@ -12,6 +12,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
+import { openLegalPage } from "@/lib/legal-links";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
@@ -114,8 +115,9 @@ export function SettingsScreen() {
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>
       <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
-        <SettingsRow label="Privacy" icon="lock" onPress={detail("privacy")} />
         <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
+        <SettingsRow label="Privacy Policy" icon="lock" external onPress={() => void openLegalPage("privacy")} />
+        <SettingsRow label="Terms of Service" icon="doc.text" external onPress={() => void openLegalPage("terms")} />
       </SettingsGroup>
       <SettingsGroup title="Support">
         <SettingsRow label="Send feedback" icon="envelope" onPress={() => router.push("/send-feedback")} />
@@ -167,10 +169,13 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 function SettingsRow({
   label,
   icon,
+  external = false,
   onPress,
 }: {
   label: string;
   icon: ComponentProps<typeof Icon>["name"];
+  /** Opens a web page instead of another screen. */
+  external?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -188,7 +193,7 @@ function SettingsRow({
           >
             {label}
           </NativeText>
-          <Icon name="chevron.right" size={13} color={Gallery.muted} />
+          <Icon name={external ? "arrow.up.right" : "chevron.right"} size={13} color={Gallery.muted} />
         </Row>
       </Button>
     </Host>
