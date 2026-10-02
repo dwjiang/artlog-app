@@ -3,7 +3,7 @@ import { View } from "react-native";
 
 import { WallGallery } from "@/components/collection/wall-gallery";
 import { EmptyState } from "@/components/empty-state";
-import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { EmptyFrames } from "@/components/empty-state-art";
 import type { PublicWall } from "@/lib/social/types";
 
 export function PublicWallView({
@@ -21,7 +21,7 @@ export function PublicWallView({
       <EmptyState
         title="No artworks on this wall yet."
         detail={`${arrangedBy ?? "This person"} hasn’t added any artworks yet.`}
-        visual={<ArtworkCollage />}
+        visual={<EmptyFrames />}
       />
     );
   }

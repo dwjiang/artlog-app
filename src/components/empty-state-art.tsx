@@ -61,6 +61,118 @@ export function EmptyMap() {
   );
 }
 
+export function EmptyViewfinder() {
+  return (
+    <View accessibilityElementsHidden style={styles.viewfinder}>
+      {(["topLeft", "topRight", "bottomLeft", "bottomRight"] as const).map((corner) => (
+        <View key={corner} style={[styles.corner, styles[corner]]} />
+      ))}
+      <Canvas width={80} height={96} />
+    </View>
+  );
+}
+
+export function EmptyFrames() {
+  return (
+    <View accessibilityElementsHidden style={styles.frames}>
+      <View style={styles.sideFrame} />
+      <Canvas width={88} height={108} />
+      <View style={styles.sideFrame} />
+    </View>
+  );
+}
+
+export function EmptyTicket() {
+  return (
+    <View accessibilityElementsHidden style={styles.ticketArea}>
+      <View style={styles.ticket}>
+        <View style={styles.ticketMain}>
+          <Image source="sf:star.fill" tintColor={Gallery.accent} accessible={false} style={styles.ticketStar} />
+          <View style={[styles.ticketRule, { width: "80%" }]} />
+          <View style={[styles.ticketRule, { width: "50%" }]} />
+        </View>
+        <View style={styles.ticketStub}>
+          <Image
+            source="sf:building.columns.fill"
+            tintColor={Gallery.accent}
+            accessible={false}
+            style={styles.ticketMuseum}
+          />
+        </View>
+        <View style={styles.perforation}>
+          {[0, 1, 2, 3, 4, 5].map((dash) => (
+            <View key={dash} style={styles.dash} />
+          ))}
+        </View>
+        <View style={[styles.notch, { top: -9 }]} />
+        <View style={[styles.notch, { bottom: -9 }]} />
+      </View>
+    </View>
+  );
+}
+
+export function EmptyScans() {
+  return (
+    <View accessibilityElementsHidden style={styles.scans}>
+      <View style={[styles.scanBack, { transform: [{ rotate: "-9deg" }, { translateX: -14 }] }]} />
+      <View style={[styles.scanBack, { transform: [{ rotate: "7deg" }, { translateX: 14 }] }]} />
+      <View style={styles.scanFront}>
+        <Canvas width={78} height={94} />
+      </View>
+    </View>
+  );
+}
+
+/** A flat painting: highlight ground, accent sun and a soft hill. */
+function Canvas({ width, height }: { width: number; height: number }) {
+  const sun = Math.round(width * 0.2);
+  const hill = Math.round(width * 1.12);
+  return (
+    <View style={[styles.canvas, { width, height }]}>
+      <View
+        style={[
+          styles.hill,
+          { width: hill, height: hill, borderRadius: hill / 2, left: (width - hill) / 2, top: height * 0.65 },
+        ]}
+      />
+      <View style={[styles.sun, { width: sun, height: sun, borderRadius: sun / 2, top: sun, right: sun }]} />
+    </View>
+  );
+}
+
+export function EmptyFriends() {
+  return (
+    <View accessibilityElementsHidden style={styles.friends}>
+      {[56, 80, 56].map((size, index) => {
+        const center = index === 1;
+        return (
+          <View
+            key={index}
+            style={[
+              styles.friend,
+              {
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: center ? Gallery.highlight : Gallery.fill,
+                zIndex: center ? 1 : 0,
+              },
+              index > 0 && { marginLeft: -12 },
+            ]}
+          >
+            <Image
+              source="sf:person.fill"
+              tintColor={center ? Gallery.accent : Gallery.muted}
+              accessible={false}
+              style={{ width: size * 0.4, height: size * 0.4 }}
+            />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   podium: {
     height: 136,
@@ -131,5 +243,77 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: Gallery.surface,
     borderRadius: 8,
+  },
+  viewfinder: {
+    width: 160,
+    height: 136,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  corner: { position: "absolute", width: 28, height: 28, borderColor: Gallery.accent },
+  topLeft: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
+  topRight: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
+  canvas: { borderRadius: 2, backgroundColor: Gallery.highlight, overflow: "hidden" },
+  hill: { position: "absolute", backgroundColor: Gallery.accentBorder },
+  sun: { position: "absolute", backgroundColor: Gallery.accent },
+  frames: { height: 136, flexDirection: "row", alignItems: "center", gap: 12 },
+  sideFrame: { width: 56, height: 72, borderRadius: 2, backgroundColor: Gallery.fill },
+  ticketArea: { height: 136, justifyContent: "center" },
+  ticket: { width: 216, height: 100, flexDirection: "row" },
+  ticketMain: {
+    flex: 1,
+    gap: 10,
+    padding: 18,
+    justifyContent: "flex-end",
+    backgroundColor: Gallery.highlight,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  ticketStar: { position: "absolute", top: 16, left: 18, width: 16, height: 16 },
+  ticketRule: { height: 6, borderRadius: 3, backgroundColor: Gallery.accentBorder },
+  ticketStub: {
+    width: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Gallery.highlight,
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  ticketMuseum: { width: 24, height: 24 },
+  // Drawn dashes: iOS draws dashed borders only when every side has the same width.
+  perforation: {
+    position: "absolute",
+    left: 216 - 58 - 1,
+    top: 14,
+    bottom: 14,
+    justifyContent: "space-between",
+  },
+  dash: { width: 2, height: 6, borderRadius: 1, backgroundColor: Gallery.paper },
+  notch: {
+    position: "absolute",
+    // Centered on the perforation.
+    left: 216 - 58 - 9,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Gallery.paper,
+  },
+  scans: { width: 160, height: 136, alignItems: "center", justifyContent: "center" },
+  scanBack: {
+    position: "absolute",
+    width: 90,
+    height: 106,
+    borderRadius: 4,
+    backgroundColor: Gallery.avatar,
+  },
+  scanFront: { padding: 6, borderRadius: 4, backgroundColor: Gallery.paper },
+  friends: { height: 96, flexDirection: "row", alignItems: "center" },
+  friend: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: Gallery.paper,
   },
 });

@@ -2,9 +2,10 @@ import { useState, type ReactNode } from "react";
 import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { useCameraPermission } from "react-native-vision-camera";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
-import { ArtworkCollage } from "@/components/guest/artwork-preview";
+import { EmptyViewfinder } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { reportError } from "@/lib/observability";
@@ -55,24 +56,25 @@ export function CameraPermission({
   const invitation = (
     <EmptyState
       inset={false}
-      visual={compact ? <EmptySymbol name="camera" /> : <ArtworkCollage />}
-      title={canRequestPermission ? "Camera access needed" : "Camera access is off."}
+      visual={compact ? <EmptySymbol name="camera" /> : <EmptyViewfinder />}
+      title={canRequestPermission ? "Camera access needed." : "Camera access is off."}
       detail={
         canRequestPermission
           ? "Point your camera at an artwork to learn more and keep it in your collection."
           : "Allow camera access in Settings, or choose a photo from your library."
       }
     >
-      <GalleryButton
-        label={canRequestPermission ? "Allow camera" : "Open Settings"}
-        variant="filled"
-        fullWidth
-        busy={busy}
-        onPress={() => void openPermissions()}
-      />
-      {onImport && <GalleryButton label="Import a photo" variant="outlined" fullWidth onPress={onImport} />}
+      <ActionStack textActions={onImport && <GalleryButton label="Import a photo" fullWidth onPress={onImport} />}>
+        <GalleryButton
+          label={canRequestPermission ? "Allow camera" : "Open Settings"}
+          variant="filled"
+          fullWidth
+          busy={busy}
+          onPress={() => void openPermissions()}
+        />
+      </ActionStack>
       {notice && (
-        <ThemedText themeColor="error" accessibilityRole="alert">
+        <ThemedText themeColor="error" accessibilityRole="alert" style={{ textAlign: "center" }}>
           {notice}
         </ThemedText>
       )}
