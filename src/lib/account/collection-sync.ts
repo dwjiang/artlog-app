@@ -38,15 +38,24 @@ type Queue = {
   running: Promise<void> | null;
   requested: boolean;
   timer?: ReturnType<typeof setTimeout>;
+  failures: number;
+  retryAt: number;
 };
+
+const RETRY_BASE_MS = 30_000;
+const RETRY_MAX_MS = 15 * 60_000;
 
 function schedule(queue: Queue, delay: number): void {
   queue.requested = true;
   clearTimeout(queue.timer);
-  queue.timer = setTimeout(() => {
-    queue.timer = undefined;
-    void flush(queue);
-  }, delay);
+  // Local changes never shorten a failure backoff, so a persistent server error cannot retry on every save.
+  queue.timer = setTimeout(
+    () => {
+      queue.timer = undefined;
+      void flush(queue);
+    },
+    Math.max(delay, queue.retryAt - Date.now()),
+  );
 }
 
 function ready(): { context: SyncContext; token: string } | null {
@@ -63,11 +72,17 @@ async function flush(queue: Queue): Promise<unknown> {
   let failure: unknown;
   queue.running = queue
     .run(session.context, session.token, isCurrent)
+    .then(() => {
+      queue.failures = 0;
+      queue.retryAt = 0;
+    })
     .catch((error: unknown) => {
       failure = error;
       console.warn(`${queue.label} will retry`, error);
       reportError(error, queue.operation);
-      schedule(queue, 30_000);
+      queue.failures++;
+      queue.retryAt = Date.now() + Math.min(RETRY_BASE_MS * 2 ** (queue.failures - 1), RETRY_MAX_MS);
+      schedule(queue, 0);
     })
     .finally(() => {
       queue.running = null;
@@ -83,6 +98,8 @@ const transfers: Queue = {
   operation: "sync.photos",
   running: null,
   requested: false,
+  failures: 0,
+  retryAt: 0,
   run: async (context, token, isCurrent) => {
     await syncArtworkAlbums(context, token, isCurrent);
     await syncCollectionPhotos(
@@ -117,6 +134,8 @@ const recognition: Queue = {
   operation: "sync.recognition",
   running: null,
   requested: false,
+  failures: 0,
+  retryAt: 0,
   run: (context, _token, isCurrent) => syncSavedRecognition(context, isCurrent),
 };
 const sync: Queue = {
@@ -124,6 +143,8 @@ const sync: Queue = {
   operation: "sync.journal",
   running: null,
   requested: false,
+  failures: 0,
+  retryAt: 0,
   run: async (context, _token, isCurrent) => {
     if (context.accountId) await completeJournalClaim(context, isCurrent);
     if (!isCurrent()) return;
@@ -167,15 +188,25 @@ export async function completeJournalClaim(
   await setSetting("activeJournalOwner", owner);
 }
 
+const queues = [sync, transfers, recognition];
+
 function scheduleSync(delay = 500): void {
   schedule(sync, delay);
 }
 
+// Foreground and reconnect are fresh chances to succeed; a repeated failure resumes the longer backoff.
+function retrySync(): void {
+  for (const queue of queues) queue.retryAt = 0;
+  scheduleSync();
+}
+
 function stop(): void {
   generation++;
-  for (const queue of [sync, transfers, recognition]) {
+  for (const queue of queues) {
     clearTimeout(queue.timer);
     queue.timer = undefined;
+    queue.failures = 0;
+    queue.retryAt = 0;
   }
 }
 
@@ -272,10 +303,10 @@ export function CollectionSync(): null {
   useEffect(() => {
     const unsubscribe = onCollectionChange(() => scheduleSync());
     const foreground = AppState.addEventListener("change", (state) => {
-      if (state === "active") scheduleSync();
+      if (state === "active") retrySync();
     });
     const network = addNetworkStateListener((state) => {
-      if (hasInternetSignal(state)) scheduleSync();
+      if (hasInternetSignal(state)) retrySync();
     });
     return () => {
       unsubscribe();
