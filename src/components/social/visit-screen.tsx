@@ -118,10 +118,7 @@ function VisitGallery({
                 </Text>
               )}
               <View style={{ marginBottom: 12 }}>
-                <VisitReactions
-                  visit={{ ...visit.first, media: visit.items[0]?.artwork.media }}
-                  openComments={openComments}
-                />
+                <VisitReactions visit={visit.first} openComments={openComments} />
               </View>
               <SharedCountHeading label={`${countLabel} ${countLabel === "1" ? "artwork" : "artworks"} shared`} />
               {showSearch && <VisitGallerySearch value={search} onChangeText={setSearch} />}

@@ -5,7 +5,7 @@ import { leaderboardMetric, leaderboardVisibility, rankScores } from "../shared/
 import type { Doc } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
-import { acceptedRelationships, findBlock } from "./lib/friendships";
+import { acceptedRelationships, blockedEitherWay } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
@@ -96,12 +96,7 @@ export const list = query({
       ) {
         continue;
       }
-      if (
-        args.audience === "friends"
-        && viewer
-        && ((await findBlock(ctx, viewer._id, person._id))?.active
-          || (await findBlock(ctx, person._id, viewer._id))?.active)
-      ) {
+      if (args.audience === "friends" && viewer && (await blockedEitherWay(ctx, viewer._id, person._id))) {
         continue;
       }
       rows.push({

@@ -2,7 +2,15 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert } from "react-native";
 
-import { ActionRow, GroupedFooter, GroupedSection, NavigationRow, ValueRow } from "@/components/grouped-list";
+import {
+  ActionRow,
+  GroupedButtons,
+  GroupedFooter,
+  GroupedSection,
+  NavigationRow,
+  OutlinedListButton,
+  ValueRow,
+} from "@/components/grouped-list";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { useSocialSession } from "@/lib/social/use-social-session";
@@ -49,12 +57,14 @@ export function AccountSection() {
           label={profileRequired ? "Create profile" : "Edit profile"}
           onPress={() => router.push(profileRequired ? "/create-profile" : "/edit-profile")}
         />
+        {session.status === "ready" && (
+          <NavigationRow label="Blocked people" onPress={() => router.push("/blocked-people")} />
+        )}
       </GroupedSection>
-      <GroupedSection>
-        <ActionRow
+      <GroupedButtons>
+        <OutlinedListButton
           label="Sign out"
           busy={operation === "sign-out"}
-          icon="rectangle.portrait.and.arrow.right"
           disabled={busy}
           onPress={() =>
             Alert.alert(
@@ -73,12 +83,9 @@ export function AccountSection() {
             )
           }
         />
-      </GroupedSection>
-      <GroupedSection destructive>
-        <ActionRow
+        <OutlinedListButton
           label="Delete account"
           busy={operation === "delete"}
-          icon="trash"
           destructive
           disabled={busy}
           onPress={() =>
@@ -94,7 +101,7 @@ export function AccountSection() {
             ])
           }
         />
-      </GroupedSection>
+      </GroupedButtons>
     </>
   );
 }

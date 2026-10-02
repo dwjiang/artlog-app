@@ -6,9 +6,10 @@ import { isAvatarId } from "../shared/social/avatars";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
 import { randomWallStyle } from "../shared/wall/defaults";
-import { query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
-import { acceptedRelationships, findBlock } from "./lib/friendships";
+import { acceptedRelationships, blockedEitherWay, findBlock } from "./lib/friendships";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
 
@@ -59,12 +60,24 @@ export const create = mutation({
     return projectProfile(ctx, (await ctx.db.get("profiles", profileId))!);
   },
 });
+/** Browse lists leave out removed profiles and anyone blocked in either direction. */
+async function browsable(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
+  return (
+    !profile.removal
+    && !!(await ctx.db.get("accounts", profile.accountId))
+    && !(viewer && (await blockedEitherWay(ctx, viewer._id, profile._id)))
+  );
+}
 export const getPublic = query({
   args: { profileId: v.id("profiles") },
   returns: v.union(publicProfile, v.null()),
   handler: async (ctx, { profileId }) => {
     const profile = await activeProfile(ctx, profileId);
-    return profile ? projectProfile(ctx, profile) : null;
+    if (!profile) return null;
+    // A blocker can still open the profile they blocked to unblock it; the blocked person cannot.
+    const viewer = await optionalProfile(ctx);
+    if (viewer && (await findBlock(ctx, profileId, viewer._id))?.active) return null;
+    return projectProfile(ctx, profile);
   },
 });
 export const search = query({
@@ -83,9 +96,7 @@ export const search = query({
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
-      if (!profile.removal && (await ctx.db.get("accounts", profile.accountId))) {
-        page.push(await projectBrowsedProfile(ctx, viewer, profile));
-      }
+      if (await browsable(ctx, viewer, profile)) page.push(await projectBrowsedProfile(ctx, viewer, profile));
     }
     return {
       page,
@@ -110,11 +121,7 @@ export const friends = query({
     for (const edge of edges) {
       const id = edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId;
       const person = await activeProfile(ctx, id);
-      if (
-        person
-        && !(await findBlock(ctx, profile._id, id))?.active
-        && !(await findBlock(ctx, id, profile._id))?.active
-      ) {
+      if (person && !(await blockedEitherWay(ctx, profile._id, id))) {
         people.push(await projectProfile(ctx, person));
       }
     }
@@ -138,9 +145,7 @@ export const discover = query({
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
-      if (!profile.removal && (await ctx.db.get("accounts", profile.accountId))) {
-        page.push(await projectBrowsedProfile(ctx, viewer, profile));
-      }
+      if (await browsable(ctx, viewer, profile)) page.push(await projectBrowsedProfile(ctx, viewer, profile));
     }
     return {
       page,
@@ -201,11 +206,7 @@ export const requests = query({
     for (const edge of edges) {
       if (edge.requesterId === profile._id) continue;
       const person = await activeProfile(ctx, edge.requesterId);
-      if (
-        person
-        && !(await findBlock(ctx, profile._id, person._id))?.active
-        && !(await findBlock(ctx, person._id, profile._id))?.active
-      ) {
+      if (person && !(await blockedEitherWay(ctx, profile._id, person._id))) {
         requests.push(await projectBrowsedProfile(ctx, profile, person));
       }
     }

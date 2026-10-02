@@ -9,6 +9,7 @@ import { CompactFriendshipControls, FriendshipControls } from "./friendship-cont
 const mockPush = jest.fn();
 const mockAct = jest.fn();
 const mockUseFriendship = jest.fn();
+const mockUnblock = jest.fn();
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
@@ -39,7 +40,7 @@ beforeEach(() => {
 });
 
 it("lets guests request sign-in from the friend action without sending a request", async () => {
-  await render(<FriendshipControls profileId={"friend" as never} session={guest} />);
+  await render(<FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={guest} />);
   expect(mockPush).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Add friend" }));
   expect(mockPush).toHaveBeenCalledWith({
@@ -52,6 +53,7 @@ it("lets guests request sign-in from the friend action without sending a request
 it("continues to profile setup after sign-in without sending a request automatically", async () => {
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
 
       session={{ ...guest, status: "profile-required" }}
@@ -65,6 +67,7 @@ it("continues to profile setup after sign-in without sending a request automatic
 it("keeps friendship actions unavailable while offline", async () => {
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
 
       session={{ ...guest, status: "offline", offline: true }}
@@ -78,6 +81,7 @@ it("requires confirmation before removing an existing friend", async () => {
   mockState = { state: "accepted", blocked: false };
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
 
       session={{ ...guest, status: "ready", profileId: "me" as never }}
@@ -96,6 +100,7 @@ it("unsends a sent friend request from the sent button", async () => {
   mockState = { state: "pending", requesterId: "me", blocked: false, revision: 1 };
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
 
       session={{ ...guest, status: "ready", profileId: "me" as never }}
@@ -110,6 +115,7 @@ it("labels the answers to a received request as accepting or ignoring a friend",
   mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 1 };
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
 
       session={{ ...guest, status: "ready", profileId: "me" as never }}
@@ -127,6 +133,7 @@ it("shows progress inside the answer being sent", async () => {
   mockPending = "accept";
   await render(
     <FriendshipControls
+      onUnblock={mockUnblock}
       profileId={"friend" as never}
       session={{ ...guest, status: "ready", profileId: "me" as never }}
     />,
@@ -142,23 +149,41 @@ it("shows progress inside the answer being sent", async () => {
 it("keeps the trailing action beside every friendship state", async () => {
   const share = <GalleryButton label="Share profile" onPress={() => {}} />;
   const ready = { ...guest, status: "ready" as const, profileId: "me" as never };
-  const view = await render(<FriendshipControls profileId={"friend" as never} session={guest} trailing={share} />);
+  const view = await render(
+    <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={guest} trailing={share} />,
+  );
   expect(screen.getByRole("button", { name: "Add friend" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
-  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  await view.rerender(
+    <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={ready} trailing={share} />,
+  );
   expect(screen.getByLabelText("Loading friendship…")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
   mockState = { state: "pending", requesterId: "friend", blocked: false, revision: 1 };
-  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  await view.rerender(
+    <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={ready} trailing={share} />,
+  );
   expect(screen.getAllByRole("button").map((button) => button.props.accessibilityLabel)).toEqual([
     "Accept friend",
     "Ignore",
     "Share profile",
   ]);
   mockState = { state: "accepted", blocked: false };
-  await view.rerender(<FriendshipControls profileId={"friend" as never} session={ready} trailing={share} />);
+  await view.rerender(
+    <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={ready} trailing={share} />,
+  );
   expect(screen.getByRole("button", { name: "Remove friend" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  mockState = { state: "none", blocked: true };
+  await view.rerender(
+    <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={ready} trailing={share} />,
+  );
+  expect(screen.getAllByRole("button").map((button) => button.props.accessibilityLabel)).toEqual([
+    "Unblock",
+    "Share profile",
+  ]);
+  await fireEvent.press(screen.getByRole("button", { name: "Unblock" }));
+  expect(mockUnblock).toHaveBeenCalledTimes(1);
 });
 
 it("renders a known friend row without a relationship query and lets a stranger be added", async () => {

@@ -155,6 +155,8 @@ export const REPORT_REASONS = [
 ] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export const reportReason = v.union(...REPORT_REASONS.map(v.literal));
+/** Stored reasons add "blocked", which the server files when someone blocks a profile; the form never offers it. */
+export const filedReportReason = v.union(...reportReason.members, v.literal("blocked"));
 /** Each kind lists the reasons that fit it, most common first; "other" stays last. */
 export const REASONS_BY_KIND: Record<ReportKind, readonly ReportReason[]> = {
   profile: ["spam", "impersonation", "harassment", "other"],

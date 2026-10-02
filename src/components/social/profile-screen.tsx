@@ -12,6 +12,7 @@ import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
+import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import type { VisitVisibility } from "@/shared/journal/contracts";
@@ -49,14 +50,16 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const offsets = useRef({ wall: 0, visits: 0 });
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
-  const wall = useSocialQuery(api.walls.getPublic, profile.data ? args : "skip", session.key);
   const own = session.profileId === profileId;
   const relationship = useSocialQuery(
     api.friendships.getState,
     session.status === "ready" && !own ? args : "skip",
     session.key,
   );
-  const canReadVisits = !session.offline && !!profile.data && !relationship.data?.blocked;
+  const blocked = relationship.data?.blocked === true;
+  const blocking = useBlock(session);
+  const wall = useSocialQuery(api.walls.getPublic, profile.data && !blocked ? args : "skip", session.key);
+  const canReadVisits = !session.offline && !!profile.data && !blocked;
   const audiences: VisitVisibility[] = own
     ? ["private", "friends", "public"]
     : relationship.data?.state === "accepted"
@@ -89,27 +92,29 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false }));
   }
   if (session.offline) return <SocialGate session={session} />;
-  if (!profileId || profile.data === null) {
+  // The loading state leaves the bar transparent, so these states scroll under it with automatic insets.
+  if (!profileId || profile.data === null || profile.error) {
     return (
-      <SocialState
-        action="Back to Home"
-        onAction={() => {
-          router.dismissAll();
-          router.navigate("/");
-        }}
-        title="Profile unavailable."
-        detail="This public profile is no longer available."
-      />
-    );
-  }
-  if (profile.error) {
-    return (
-      <SocialState
-        title="Couldn’t load this profile."
-        detail={socialErrorMessage(profile.error) ?? "Please try again."}
-        action="Try again"
-        onAction={profile.refresh}
-      />
+      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+        {!profileId || profile.data === null ? (
+          <SocialState
+            action="Back to Home"
+            onAction={() => {
+              router.dismissAll();
+              router.navigate("/");
+            }}
+            title="Profile unavailable."
+            detail="This public profile is no longer available."
+          />
+        ) : (
+          <SocialState
+            title="Couldn’t load this profile."
+            detail={socialErrorMessage(profile.error) ?? "Please try again."}
+            action="Try again"
+            onAction={profile.refresh}
+          />
+        )}
+      </ScrollView>
     );
   }
   // The transparent bar lets the photo rise level with the back button. Past about 115% text, the longest back
@@ -131,16 +136,30 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     );
   }
   const person = profile.data;
+  const unblock = () => {
+    if (relationship.data) blocking.unblock(person, relationship.data.blockRevision);
+  };
   return (
     <GestureHandlerRootView style={socialStyles.root}>
       {bar}
       {session.status !== "loading" && session.profileId !== profileId && (
-        <ReportToolbar kind="profile" id={person.profileId} />
+        <ReportToolbar kind="profile" id={person.profileId}>
+          {session.status === "ready" && relationship.data && (
+            <Stack.Toolbar.MenuAction
+              icon="hand.raised"
+              destructive={!blocked}
+              disabled={blocking.pending !== undefined}
+              onPress={() => (blocked ? unblock() : blocking.block(person))}
+            >
+              {blocked ? "Unblock" : "Block"}
+            </Stack.Toolbar.MenuAction>
+          )}
+        </ReportToolbar>
       )}
       <Animated.ScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
-        stickyHeaderIndices={[1]}
+        stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}
         onScroll={(event) => {
           offsets.current[tab] = event.nativeEvent.contentOffset.y;
@@ -163,41 +182,46 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
                 profileId={person.profileId}
                 session={session}
                 trailing={<ShareProfileButton profileId={person.profileId} />}
+                unblocking={blocking.pending === person.profileId}
+                onUnblock={unblock}
               />
             )}
           </ProfileHeader>
-          {!own && <InCommonSection profileId={person.profileId} session={session} />}
+          {!own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}
         </Animated.View>
+        {blocked && <SocialState title={`You blocked ${person.name}.`} icon="hand.raised" />}
         {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
             spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
             tappable, and must be a style: the sticky wrapper takes this View's style but not its props. */}
-        <View
-          style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
-          onLayout={pull.onHeaderLayout}
-        >
-          <Animated.View
-            style={[
-              {
-                backgroundColor: Gallery.paper,
-                paddingHorizontal: 20,
-                paddingBottom: 12,
-                paddingTop: 4,
-              },
-              pull.headerStyle,
-            ]}
+        {!blocked && (
+          <View
+            style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
+            onLayout={pull.onHeaderLayout}
           >
-            <NativeSegmentedPicker
-              label="Profile section"
-              value={tab}
-              onChange={changeTab}
-              options={[
-                { value: "wall", label: "Wall" },
-                { value: "visits", label: "Visits" },
+            <Animated.View
+              style={[
+                {
+                  backgroundColor: Gallery.paper,
+                  paddingHorizontal: 20,
+                  paddingBottom: 12,
+                  paddingTop: 4,
+                },
+                pull.headerStyle,
               ]}
-            />
-          </Animated.View>
-        </View>
-        {tab === "wall" ? (
+            >
+              <NativeSegmentedPicker
+                label="Profile section"
+                value={tab}
+                onChange={changeTab}
+                options={[
+                  { value: "wall", label: "Wall" },
+                  { value: "visits", label: "Visits" },
+                ]}
+              />
+            </Animated.View>
+          </View>
+        )}
+        {blocked ? null : tab === "wall" ? (
           wall.error ? (
             <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
           ) : wall.data ? (
@@ -230,7 +254,13 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               </View>
             )}
             {visits.items.map((visit) => (
-              <VisitCard key={visit.postId} visit={visit} token={session.token} viewerProfileId={session.profileId} />
+              <VisitCard
+                key={visit.postId}
+                visit={visit}
+                token={session.token}
+                viewerProfileId={session.profileId}
+                onBlock={session.status === "ready" ? blocking.block : undefined}
+              />
             ))}
             {visits.done
               && !visits.loading

@@ -102,7 +102,7 @@ describe("notifications", () => {
     ]);
 
     await ana.as.mutation(api.visitReactions.deleteComment, { postId, commentId });
-    await author.as.mutation(api.friendships.block, { profileId: ben.profileId, revision: 0, blockRevision: 0 });
+    await author.as.mutation(api.friendships.block, { scope: author.scope, profileId: ben.profileId });
     expect(await kinds(author)).toEqual([]);
     expect(await unseenCount(author)).toBe(0);
   });
@@ -194,7 +194,7 @@ describe("notifications", () => {
         }
       });
     }
-    await author.as.mutation(api.friendships.block, { profileId: commenter.profileId, revision: 0, blockRevision: 0 });
+    await author.as.mutation(api.friendships.block, { scope: author.scope, profileId: commenter.profileId });
     for (const query of [api.notifications.list, api.notifications.unseen]) {
       let result = await author.as.query(query, { limit: 50 });
       for (let page = 0; page < 2; page++) {

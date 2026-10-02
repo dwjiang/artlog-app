@@ -7,6 +7,53 @@ import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/soc
 import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
+it("upgrades an automatic block report with explicit details and keeps retries idempotent", async () => {
+  const t = harness();
+  const reporter = await socialUser(t);
+  const author = await socialUser(t);
+  const target = { kind: "profile" as const, profileId: author.profileId };
+  await reporter.as.mutation(api.friendships.block, { scope: reporter.scope, profileId: author.profileId });
+  const [automatic] = (await t.query(internal.review.listReports, {})).rows;
+  await t.run((ctx) => ctx.db.patch("profiles", author.profileId, { bio: "Current public bio" }));
+  const input = { target, reason: "harassment" as const, details: "  This profile is targeting my friends.  " };
+  const submitted = await reporter.as.mutation(api.reports.submit, input);
+  expect(submitted.reportId).toBe(automatic.reportId);
+  expect(await t.query(internal.review.getReport, submitted)).toMatchObject({
+    reason: "harassment",
+    details: input.details.trim(),
+    evidence: { kind: "profile", profileId: author.profileId, bio: "Current public bio" },
+    status: "open",
+  });
+  expect(await reporter.as.mutation(api.reports.submit, input)).toEqual(submitted);
+  expect((await t.query(internal.review.listReports, {})).rows).toHaveLength(1);
+  expect(await reporter.as.query(api.friendships.getState, { profileId: author.profileId })).toMatchObject({
+    blocked: true,
+  });
+});
+
+it("counts explicit reports after blocking toward the daily limit, but not their retries", async () => {
+  const t = harness();
+  const reporter = await socialUser(t);
+  for (let i = 0; i < 10; i++) {
+    const author = await socialUser(t);
+    await reporter.as.mutation(api.friendships.block, { scope: reporter.scope, profileId: author.profileId });
+    const input = { target: { kind: "profile" as const, profileId: author.profileId }, reason: "spam" as const };
+    const submitted = await reporter.as.mutation(api.reports.submit, input);
+    expect(await reporter.as.mutation(api.reports.submit, input)).toEqual(submitted);
+  }
+  const author = await socialUser(t);
+  await reporter.as.mutation(api.friendships.block, { scope: reporter.scope, profileId: author.profileId });
+  await expect(
+    reporter.as.mutation(api.reports.submit, {
+      target: { kind: "profile", profileId: author.profileId },
+      reason: "spam",
+    }),
+  ).rejects.toMatchObject({ data: { code: "rate_limited", name: "report" } });
+  expect((await t.query(internal.review.listReports, {})).rows).toContainEqual(
+    expect.objectContaining({ target: { kind: "profile", profileId: author.profileId }, reason: "blocked" }),
+  );
+});
+
 it("accepts public reports from registered devices, deduplicates account reporters, and requires shared-visit access", async () => {
   const t = harness();
   const author = await socialUser(t);
@@ -253,9 +300,8 @@ it("reports a visible comment with its text as evidence, and removal deletes it"
     body: "Rude words",
   });
   await author.as.mutation(api.friendships.block, {
+    scope: author.scope,
     profileId: commenter.profileId,
-    revision: 0,
-    blockRevision: 0,
   });
   await expect(author.as.mutation(api.reports.submit, { target, reason: "harassment" })).rejects.toMatchObject({
     data: { code: "not_found" },

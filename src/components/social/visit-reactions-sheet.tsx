@@ -6,17 +6,17 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ToastLayer } from "@/components/toast";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
-import { visitDate } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
 import type { PublicProfile } from "@/lib/social/types";
+import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -76,22 +76,12 @@ export function VisitReactionsSheet({
             </Text>
             <GalleryIconButton label={`Close ${kind}`} icon="xmark" onPress={onDismiss} />
           </View>
-          <View style={styles.context}>
-            {kind === "comments" && visit.media && (
-              <DisplayMedia media={visit.media} label="Visit artwork" token={session.token} width={40} height={40} />
-            )}
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.contextName}>
-                {visit.author.name}’s visit to {visit.venue.name}
-              </Text>
-              {kind === "comments" && <Text style={styles.meta}>{visitDate(visit.visitedOn, undefined, "short")}</Text>}
-            </View>
-          </View>
           {kind === "comments" ? (
             <Comments visit={visit} session={session} onJoin={onJoin} onDismiss={onDismiss} />
           ) : (
             <Likes postId={visit.postId} session={session} onDismiss={onDismiss} />
           )}
+          <ToastLayer offset={0} />
         </View>
       </RNHostView>
     </BottomSheet>
@@ -106,7 +96,6 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
       data={likes.items}
       keyExtractor={profileId}
       style={styles.list}
-      contentContainerStyle={styles.listContent}
       renderItem={({ item }) => (
         <Pressable
           accessibilityRole="button"
@@ -161,6 +150,7 @@ function Comments({
   const viewer = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   const addComment = useMutation(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
+  const blocking = useBlock(session);
   const list = useRef<FlatList<Comment>>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -237,7 +227,6 @@ function Comments({
         data={comments.items}
         keyExtractor={commentId}
         style={styles.list}
-        contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         onContentSizeChange={() => {
@@ -286,18 +275,35 @@ function Comments({
                 </Pressable>
               ) : (
                 session.status !== "loading" && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Report comment: ${item.body}`}
-                    onPress={() => {
-                      // A route sheet can’t present over this native sheet, so this one closes first.
-                      onDismiss();
-                      router.push(reportHref("comment", item.commentId));
-                    }}
-                    style={styles.commentAction}
-                  >
-                    <Text style={styles.meta}>Report</Text>
-                  </Pressable>
+                  <View style={styles.commentActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Report comment: ${item.body}`}
+                      onPress={() => {
+                        // A route sheet can’t present over this native sheet, so this one closes first.
+                        onDismiss();
+                        router.push(reportHref("comment", item.commentId));
+                      }}
+                      style={styles.commentAction}
+                    >
+                      <Text style={styles.meta}>Report</Text>
+                    </Pressable>
+                    {session.status === "ready" && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Block ${item.author.name}`}
+                        accessibilityState={{
+                          disabled: blocking.pending !== undefined,
+                          busy: blocking.pending === item.author.profileId,
+                        }}
+                        disabled={blocking.pending !== undefined}
+                        onPress={() => blocking.block(item.author)}
+                        style={styles.commentAction}
+                      >
+                        <Text style={styles.meta}>Block</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 )
               )}
             </View>
@@ -413,30 +419,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   total: { color: Gallery.muted, fontWeight: "400", fontSize: 13 },
-  context: {
-    marginHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.separator,
-  },
-  contextName: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "500",
-    color: Gallery.ink,
-  },
   list: { flex: 1 },
-  listContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 8,
-  },
+  // These lists ignore contentContainerStyle inside the native sheet's RN host, so each row carries the inset.
   person: {
+    marginHorizontal: 20,
     minHeight: 69,
     flexDirection: "row",
     alignItems: "center",
@@ -444,7 +430,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.softBorder,
   },
-  comment: { flexDirection: "row", gap: 10, paddingVertical: 12 },
+  comment: { marginHorizontal: 20, flexDirection: "row", gap: 10, paddingVertical: 12 },
   byline: {
     flexDirection: "row",
     alignItems: "center",
@@ -456,6 +442,7 @@ const styles = StyleSheet.create({
   author: { fontSize: 10, lineHeight: 16, color: Gallery.accent },
   meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   body: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
+  commentActions: { flexDirection: "row", gap: 16 },
   commentAction: {
     minHeight: 44,
     minWidth: 44,

@@ -8,6 +8,7 @@ import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
+import { blockedEitherWay } from "./lib/friendships";
 import {
   activeProfile,
   optionalProfile,
@@ -103,6 +104,8 @@ export const getPublic = query({
   ),
   handler: async (ctx, { profileId }) => {
     if (!(await activeProfile(ctx, profileId))) return null;
+    const viewer = await optionalProfile(ctx);
+    if (viewer && (await blockedEitherWay(ctx, viewer._id, profileId))) return null;
     const wall = await ctx.db
       .query("walls")
       .withIndex("by_profileId", (q) => q.eq("profileId", profileId))
@@ -141,6 +144,7 @@ export const getArtwork = query({
     const current = item ? await publicWallProjection(ctx, item) : null;
     if (!current) return null;
     const viewer = await optionalProfile(ctx);
+    if (viewer && (await blockedEitherWay(ctx, viewer._id, current.profile._id))) return null;
     const photos = new Map<string, Infer<typeof displayMedia>>();
     const placements = await ctx.db
       .query("wallItems")

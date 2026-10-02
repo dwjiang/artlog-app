@@ -146,11 +146,14 @@ export function VisitCard({
   token,
   viewerProfileId,
   showAuthor = true,
+  onBlock,
 }: {
   visit: SharedVisit;
   token?: string | null;
   viewerProfileId?: string;
   showAuthor?: boolean;
+  /** Offers Block in the card's menu; signed-in viewers with a profile only. */
+  onBlock?: (author: SharedVisit["author"]) => void;
 }) {
   const router = useRouter();
   const openVisit = () =>
@@ -163,18 +166,19 @@ export function VisitCard({
       pathname: "/profile/[profileId]",
       params: { profileId: visit.author.profileId },
     });
+  const others = visit.author.profileId !== viewerProfileId;
   const actions = [
     { label: "View visit", run: openVisit },
     { label: `View ${visit.author.name}’s profile`, run: openProfile },
-    ...(visit.author.profileId === viewerProfileId
-      ? []
-      : [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }]),
+    ...(others ? [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }] : []),
+    ...(others && onBlock ? [{ label: `Block ${visit.author.name}`, run: () => onBlock(visit.author) }] : []),
   ];
   const openMenu = () =>
     ActionSheetIOS.showActionSheetWithOptions(
       {
         options: [...actions.map((action) => action.label), "Cancel"],
         cancelButtonIndex: actions.length,
+        destructiveButtonIndex: others && onBlock ? actions.length - 1 : undefined,
       },
       (index) => actions[index]?.run(),
     );
@@ -189,9 +193,7 @@ export function VisitCard({
       hasMore={!visit.artworks.isDone}
       token={token}
       showAuthor={showAuthor}
-      reactions={
-        <VisitReactions visit={{ ...visit, media: visit.artworks.page[0]?.artwork.media }} onOpenVisit={openVisit} />
-      }
+      reactions={<VisitReactions visit={visit} onOpenVisit={openVisit} />}
       onOpenVisit={openVisit}
       onOpenProfile={openProfile}
       onOpenMenu={openMenu}

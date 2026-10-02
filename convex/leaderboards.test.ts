@@ -371,9 +371,8 @@ it("joins both boards by default and enforces opt-out, friends-only, and block v
   await a.as.mutation(api.leaderboards.setPreference, { visibility: "off" });
   expect(await a.as.query(api.leaderboards.preference, {})).toBe("off");
   await a.as.mutation(api.friendships.block, {
+    scope: a.scope,
     profileId: b.profileId,
-    revision: 2,
-    blockRevision: 0,
   });
   expect((await a.as.query(api.leaderboards.list, query)).rows).toEqual([]);
 });
@@ -417,9 +416,8 @@ it("continues to hide blocked, inactive, and removed profiles from Global", asyn
     });
   }
   await viewer.as.mutation(api.friendships.block, {
+    scope: viewer.scope,
     profileId: blocked.profileId,
-    revision: 0,
-    blockRevision: 0,
   });
   await t.run((ctx) => ctx.db.patch("profiles", inactive.profileId, { active: false }));
   const query = {

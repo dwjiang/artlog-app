@@ -1,5 +1,3 @@
-import { ConvexHttpClient } from "convex/browser";
-import { fetch as expoFetch } from "expo/fetch";
 import { useEffect, useRef, useState } from "react";
 
 import { captureOwner } from "@/lib/account/owner-store";
@@ -10,6 +8,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { relationshipClient } from "./relationship-client";
 import type { FriendshipAction, Relationship } from "./types";
 import { useSocialQuery } from "./use-social-query";
 import type { SocialSession } from "./use-social-session";
@@ -45,12 +44,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
     const controller = new AbortController();
     request.current = controller;
     const current = () => owner.isCurrent() && !controller.signal.aborted;
-    // Bind the request to this account's token; never queue a friendship change through a later login.
-    const client = new ConvexHttpClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
-      auth: session.token,
-      logger: false,
-      fetch: (input, options) => expoFetch(input, { ...options, signal: controller.signal }),
-    });
+    const client = relationshipClient(session.token, controller.signal);
     setPending(action);
     setError(undefined);
     try {

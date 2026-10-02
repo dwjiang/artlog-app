@@ -11,7 +11,7 @@ import {
   publicationStatus,
   visitAudience,
   mediaSource,
-  reportReason,
+  filedReportReason,
   reportTarget,
   reportEvidence,
   audioReportEvidence,
@@ -768,6 +768,7 @@ export default defineSchema({
     active: v.boolean(),
   })
     .index("by_pair", ["blockerId", "blockedId"])
+    .index("by_blocker_active", ["blockerId", "active"])
     .index("by_blockedId", ["blockedId"]),
   suggestionDismissals: defineTable({
     profileId: v.id("profiles"),
@@ -863,7 +864,7 @@ export default defineSchema({
   reports: defineTable({
     reporter: v.optional(journalOwner),
     target: reportTarget,
-    reason: reportReason,
+    reason: filedReportReason,
     details: v.optional(v.string()),
     evidence: reportEvidence,
     review: v.optional(reportReview),

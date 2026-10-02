@@ -1,0 +1,66 @@
+import type { FunctionReturnType } from "convex/server";
+import { FlatList, StyleSheet, View } from "react-native";
+
+import { GalleryButton } from "@/components/collection/gallery-button";
+import { EmptyState } from "@/components/empty-state";
+import type { PublicProfile } from "@/lib/social/types";
+import { useBlock } from "@/lib/social/use-block";
+import { useCursorPages } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
+
+import { api } from "../../../convex/_generated/api";
+import { PageFooter, SocialGate } from "./social-state";
+import { socialStyles } from "./social-styles";
+import { ProfileIdentity } from "./visit-card";
+
+const blockedPage = (result: FunctionReturnType<typeof api.friendships.listBlocked>) => result;
+const profileId = (person: PublicProfile) => person.profileId;
+
+export function BlockedPeopleScreen() {
+  const session = useSocialSession();
+  const blocking = useBlock(session);
+  const blocked = useCursorPages(
+    api.friendships.listBlocked,
+    session.status === "ready" ? {} : "skip",
+    session.key,
+    blockedPage,
+    profileId,
+  );
+  if (session.status !== "ready") return <SocialGate session={session} />;
+  return (
+    <FlatList
+      style={socialStyles.root}
+      contentContainerStyle={socialStyles.content}
+      contentInsetAdjustmentBehavior="automatic"
+      data={blocked.items}
+      keyExtractor={profileId}
+      renderItem={({ item }) => (
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <ProfileIdentity profile={item} interactive={false} />
+          </View>
+          <GalleryButton
+            label="Unblock"
+            accessibilityLabel={`Unblock ${item.name}`}
+            variant="outlined"
+            busy={blocking.pending === item.profileId}
+            disabled={blocking.pending !== undefined}
+            onPress={() => blocking.unblock(item, item.blockRevision)}
+          />
+        </View>
+      )}
+      ListEmptyComponent={
+        blocked.done && !blocked.loading && !blocked.error ? (
+          <EmptyState title="No blocked people." detail="To block someone, tap ⋯ on their profile." />
+        ) : null
+      }
+      ListFooterComponent={<PageFooter {...blocked} count={blocked.items.length} noun="blocked people" />}
+      onEndReached={blocked.loadMore}
+      onEndReachedThreshold={0.4}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
+});

@@ -12,6 +12,7 @@ import {
   listRowBackground,
   listRowInsets,
   listRowSeparator,
+  listSectionSpacing,
   listStyle,
   multilineTextAlignment,
   padding,
@@ -36,6 +37,7 @@ export function GroupedList({ children }: { children: ReactNode }) {
       <List
         modifiers={[
           listStyle("grouped"),
+          listSectionSpacing(Spacing.four),
           padding({ horizontal: Spacing.content }),
           scrollContentBackground("hidden"),
           background(Gallery.paper),
@@ -49,29 +51,16 @@ export function GroupedList({ children }: { children: ReactNode }) {
   );
 }
 
-export function GroupedSection({
-  children,
-  modifiers = [],
-  destructive = false,
-  ...props
-}: ComponentProps<typeof Section> & { destructive?: boolean }) {
+export function GroupedSection({ children, modifiers = [], ...props }: ComponentProps<typeof Section>) {
   return (
     <Section {...props} modifiers={[listRowBackground("clear"), ...modifiers]}>
-      <GroupedCard destructive={destructive}>{children}</GroupedCard>
+      <GroupedCard>{children}</GroupedCard>
     </Section>
   );
 }
 
 /** Native grouped rows, also usable inside a Host in a mixed-content scroll view. */
-export function GroupedCard({
-  children,
-  destructive = false,
-  outlined = true,
-}: {
-  children: ReactNode;
-  destructive?: boolean;
-  outlined?: boolean;
-}) {
+export function GroupedCard({ children, outlined = true }: { children: ReactNode; outlined?: boolean }) {
   return (
     <Column
       spacing={0}
@@ -79,7 +68,7 @@ export function GroupedCard({
         listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }),
         listRowSeparator("hidden"),
         background(
-          destructive ? Gallery.destructiveFill : Gallery.surface,
+          Gallery.surface,
           shapes.roundedRectangle({
             cornerRadius: outlined ? SettingsOutline.borderRadius : Radius.sheet,
           }),
@@ -195,17 +184,15 @@ export function ActionRow({
   icon,
   onPress,
   disabled = false,
-  destructive = false,
   busy = false,
 }: {
   label: string;
   icon?: IconName;
   onPress: () => void;
   disabled?: boolean;
-  destructive?: boolean;
   busy?: boolean;
 }) {
-  const color = destructive ? Gallery.destructive : Gallery.accent;
+  const color = Gallery.accent;
   // The spacer lets SwiftUI measure a spinner inserted into an initially idle slot.
   const indicator = (
     <Row alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
@@ -241,6 +228,70 @@ export function ActionRow({
           {label}
         </Text>
         {!icon && indicator}
+      </Row>
+    </Button>
+  );
+}
+
+/** Full-width buttons styled like outlined GalleryButtons, stacked as in ActionStack, inside the native list. */
+export function GroupedButtons({ children }: { children: ReactNode }) {
+  return (
+    <Section modifiers={[listRowBackground("clear")]}>
+      <Column
+        spacing={Spacing.two}
+        modifiers={[listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }), listRowSeparator("hidden")]}
+      >
+        {children}
+      </Column>
+    </Section>
+  );
+}
+
+export function OutlinedListButton({
+  label,
+  onPress,
+  disabled = false,
+  destructive = false,
+  busy = false,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+  busy?: boolean;
+}) {
+  const color = destructive ? Gallery.destructive : Gallery.accent;
+  return (
+    <Button
+      variant="text"
+      disabled={disabled || busy}
+      onPress={onPress}
+      modifiers={[
+        accessibilityLabel(label),
+        accessibilityValue(busy ? "In progress" : ""),
+        buttonStyle("plain"),
+        tint(color),
+      ]}
+    >
+      <Row
+        spacing={Spacing.two}
+        alignment="center"
+        modifiers={[
+          frame({ maxWidth: Infinity, minHeight: 44 }),
+          padding({ horizontal: Spacing.compact }),
+          contentShape(shapes.rectangle()),
+          strokeBorder({
+            color: destructive ? Gallery.destructive : Gallery.accentBorder,
+            style: { lineWidth: 1 },
+            shape: "roundedRectangle",
+            cornerRadius: Radius.button,
+          }),
+        ]}
+      >
+        {busy && <NativeLoadingRing label={`${label} in progress`} color={color} />}
+        <Text modifiers={[font({ textStyle: "body" })]} textStyle={{ color }}>
+          {label}
+        </Text>
       </Row>
     </Button>
   );
