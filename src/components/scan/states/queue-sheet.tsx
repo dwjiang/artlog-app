@@ -1,13 +1,13 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
+import { EmptyScans } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -111,20 +111,8 @@ function QueueContent() {
         <EmptyState
           inset={false}
           title="No recent scans."
-          visual={
-            <View
-              style={{
-                width: 132,
-                height: 132,
-                borderRadius: 66,
-                backgroundColor: Gallery.highlight,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Image source="sf:checkmark" tintColor={Gallery.ink} style={{ width: 48, height: 48 }} />
-            </View>
-          }
+          detail="Scans you haven’t saved yet appear here."
+          visual={<EmptyScans />}
         >
           <GalleryButton
             label="Scan artwork"

@@ -182,7 +182,7 @@ export function LeaderboardScreen() {
               <SocialGate session={session} />
             )
           ) : board.error ? (
-            <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} centered />
+            <SocialState title="Couldn’t load the leaderboard." action="Try again" onAction={board.refresh} />
           ) : !board.data ? (
             <LeaderboardSkeleton />
           ) : (
