@@ -24,6 +24,8 @@ export type ConfirmDetailsFormProps = {
   disabled?: boolean;
   confirmDisabled?: boolean;
   error?: string;
+  /** Catalogue works these details name, offered before the owner confirms the details as their own. */
+  matches?: ReactNode;
   children?: ReactNode;
   onChange: (name: LabelFieldName, value: string) => void;
   onConfirm: () => void;
@@ -39,6 +41,7 @@ export function ConfirmDetailsForm({
   disabled = false,
   confirmDisabled = false,
   error,
+  matches,
   children,
   onChange,
   onConfirm,
@@ -62,6 +65,7 @@ export function ConfirmDetailsForm({
           {source ? "Edit anything that doesn’t look right." : "Add what you know about this work."}
         </ThemedText>
         {source?.url && <SourceChip label="Museum page" url={source.url} />}
+        {matches}
         <VerifiedFieldsForm
           key={formKey}
           state={form}

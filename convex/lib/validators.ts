@@ -253,6 +253,14 @@ export const confirmedDetails = v.object({
 export type ConfirmedDetails = Infer<typeof confirmedDetails>;
 export const confirmedDisplay = confirmedDetails.pick("source", "fields", "confirmedAt");
 
+// The owner picked the catalogue work their label or details named; recognition's own fields stay as evidence.
+export const scanLink = v.object({
+  source: confirmedSource,
+  objectId: v.id("objects"),
+  artworkId: v.id("artworks"),
+  linkedAt: v.number(),
+});
+
 // The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography.
 export const imageCheck = v.object({
   url: v.string(),

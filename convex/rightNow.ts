@@ -40,11 +40,16 @@ export const load = internalQuery({
 
 type Waiting = { scanId: Id<"scans">; generation: number };
 
-async function applyCard(ctx: MutationCtx, target: Waiting, card: RightNowCard): Promise<void> {
+async function applyCard(ctx: MutationCtx, target: Waiting, expectedArtist: string, card: RightNowCard): Promise<void> {
   const scan = await ctx.db.get("scans", target.scanId);
-  if (scan && scan.generation === target.generation && scan.status === "identified") {
-    await ctx.db.patch("scans", scan._id, { rightNow: card, updatedAt: Date.now() });
-  }
+  if (!scan || scan.generation !== target.generation) return;
+  const match =
+    scan.linked
+    ?? (!scan.confirmed && scan.status === "identified" && scan.outcome === "confident" ? scan.best : undefined);
+  if (!match) return;
+  const artwork = await ctx.db.get("artworks", match.artworkId);
+  if (!artwork || artistKey(artwork.artistId, artwork.artist) !== expectedArtist) return;
+  await ctx.db.patch("scans", scan._id, { rightNow: card, updatedAt: Date.now() });
 }
 
 // Atomic cache lookup: a fresh hit is written to the scan here; a miss either joins an in-flight
@@ -65,15 +70,11 @@ export const claim = internalMutation({
       .unique();
     if (row && row.fetchedAt > now - CACHE_MS) {
       if (row.empty) return "empty";
-      await applyCard(
-        ctx,
-        { scanId, generation },
-        {
-          text: row.text,
-          sourceUrl: row.sourceUrl,
-          sourceLabel: row.sourceLabel,
-        },
-      );
+      await applyCard(ctx, { scanId, generation }, artistId, {
+        text: row.text,
+        sourceUrl: row.sourceUrl,
+        sourceLabel: row.sourceLabel,
+      });
       return "hit";
     }
     if (row?.pendingAt !== undefined && row.pendingAt > now - PENDING_MS) {
@@ -136,7 +137,7 @@ export const write = internalMutation({
     });
     if (card) {
       for (const target of row.waiting ?? []) {
-        await applyCard(ctx, target, card);
+        await applyCard(ctx, target, artistId, card);
       }
     }
     return true;

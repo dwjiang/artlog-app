@@ -27,3 +27,12 @@ it.each(["unidentified", "failed"] as const)("keeps a percentage off a %s chip",
   await render(<ConfidenceChip kind={kind} probability={0.2} />);
   expect(screen.queryByText("20% confidence")).toBeNull();
 });
+
+it.each([
+  ["label", "Match, from the label"],
+  ["manual", "Match, from your details"],
+] as const)("says a linked %s match came from the owner instead of a percentage", async (source, label) => {
+  await render(<ConfidenceChip kind="confident" probability={0.9} source={source} />);
+  expect(screen.getByLabelText(label)).toBeOnTheScreen();
+  expect(screen.queryByText("90% confidence")).toBeNull();
+});

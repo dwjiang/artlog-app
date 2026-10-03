@@ -1099,3 +1099,56 @@ it("opens a label-only capture on its label until the owner confirms what it rea
     updatePhotoSession("device:test-installation", "photos/c1.jpg", { primaryKind: undefined });
   }
 });
+
+const { probability: _probability, ...linkedLilies } = lilies;
+const linkedFromLabel = {
+  ...missScan,
+  outcome: "confident",
+  best: linkedLilies,
+  runnerUps: [],
+  labelFlow: labelReading,
+  linked: { source: "label" },
+  docent,
+  docentStatus: "ready",
+  factSheet,
+} as const;
+
+it("names the catalogue work picked from the label as a match and saves it as that work", async () => {
+  results.set("scans:get", linkedFromLabel);
+  await render(result());
+  expect(await screen.findByLabelText("Match, from the label")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
+  expect(screen.queryByText(SHARING_NOTICE)).toBeNull();
+  // Both the header link and Scan options reopen the label the work was picked from.
+  for (const edit of screen.getAllByRole("button", { name: "Edit details" })) await fireEvent.press(edit);
+  expect(mockPush.mock.calls).toEqual([
+    [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
+    [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
+  ]);
+  await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
+  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: "Water Lilies",
+    objectId: lilies.objectId,
+    artworkId: lilies.artworkId,
+  });
+  await waitFor(() =>
+    expect(mockSaveMutation).toHaveBeenCalledWith(
+      "collections:saveToCollection",
+      expect.objectContaining({ objectId: lilies.objectId, artworkId: lilies.artworkId }),
+    ),
+  );
+});
+
+it("stops sending a label-only capture back to its label once the owner picks its work", async () => {
+  updatePhotoSession("device:test-installation", "photos/c1.jpg", { primaryKind: "label" });
+  try {
+    results.set("scans:get", linkedFromLabel);
+    await render(result());
+    expect(await screen.findByLabelText("Match, from the label")).toBeOnTheScreen();
+    expect(mockReplace).not.toHaveBeenCalled();
+  } finally {
+    updatePhotoSession("device:test-installation", "photos/c1.jpg", { primaryKind: undefined });
+  }
+});

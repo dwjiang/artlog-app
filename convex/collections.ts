@@ -81,14 +81,16 @@ export const saveToCollection = mutation({
       object
       && suggested
       && scan
-      && ![scan.best, ...(scan.runnerUps ?? [])].some((candidate) => candidate?.objectId === object._id)
+      && ![scan.best, ...(scan.runnerUps ?? []), scan.linked].some((candidate) => candidate?.objectId === object._id)
     ) {
       throw new ConvexError({ code: "invalid_object" });
     }
+    // A linked scan was named from its label, so saving it confirms nothing about recognition.
     if (
       object
       && suggested
       && scan
+      && !scan.linked
       && artwork
       && (await eligibleObject(ctx, object, scan.venueId))
       && same(snapshot.title, suggested.title)

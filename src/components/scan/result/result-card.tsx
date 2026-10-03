@@ -38,7 +38,7 @@ type ResultCardProps = {
   context?: ReactNode;
   visit?: ReactNode;
   onLabel: () => void;
-  /** Opens the details screen for an unidentified or confirmed card; without it, details are edited in place. */
+  /** Opens the details screen for an unidentified, confirmed or linked card; without it, details are edited in place. */
   onEnterDetails?: () => void;
   onRetryDocent?: () => Promise<unknown>;
   onPick: (candidate: ResultCandidate) => void;
@@ -83,8 +83,10 @@ export function ResultCard({
   const editable = !saving && !savedId;
   const named = view.kind === "confident" || view.kind === "confirmed";
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
-  // A suggested work keeps its catalogue link while its details are corrected in place.
-  const enterDetails = view.kind === "unidentified" || view.kind === "confirmed" ? onEnterDetails : undefined;
+  // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
+  // from a label or their details goes back to where they named it.
+  const enterDetails =
+    view.kind === "unidentified" || view.kind === "confirmed" || view.linked ? onEnterDetails : undefined;
   const photos = useCapturePhotos(
     captureInput
       ? {

@@ -627,6 +627,18 @@ describe("docent.retry", () => {
     expect((await artwork())?.docent?.en).toHaveLength(2);
   });
 
+  it("retries the catalogue work a missed scan was linked to", async () => {
+    const { t, user, artwork, work } = await confidentScan();
+    const linked = await t.run((ctx) =>
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        linked: { source: "label", objectId: work.objectId, artworkId: work.artworkId, linkedAt: 1 },
+      }),
+    );
+    await user.as.mutation(api.docent.retry, { scanId: linked });
+    expect(await artwork()).not.toHaveProperty("docentFailedAt");
+  });
+
   it("rejects another device and a scan without a confident work", async () => {
     const { t, user, scanId, artwork } = await confidentScan();
     const other = await seedDevice(t);
