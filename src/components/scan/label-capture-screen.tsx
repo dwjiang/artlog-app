@@ -6,7 +6,7 @@ import { useIsFocused } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Camera, usePhotoOutput } from "react-native-vision-camera";
+import { usePhotoOutput } from "react-native-vision-camera";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -39,6 +39,7 @@ import { CaptureControls, ShutterButton } from "./capture-controls";
 import { ConfirmDetailsReview } from "./label/confirm-details-review";
 import { ProgressSteps } from "./label/progress-steps";
 import { OverlayCaption } from "./overlay-caption";
+import { TapToFocusCamera } from "./tap-to-focus-camera";
 
 export const QR_FOUND = "Found a QR code";
 export const QUEUED_MESSAGE = "Saved — we’ll finish this when you’re back online";
@@ -459,8 +460,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   return (
     <View style={styles.camera}>
       <CameraPermission onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
-        <Camera
-          style={StyleSheet.absoluteFill}
+        <TapToFocusCamera
           device="back"
           orientationSource="interface"
           resizeMode="cover"
@@ -479,6 +479,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
           }}
         />
         <ScrollView
+          pointerEvents="box-none"
           style={StyleSheet.absoluteFill}
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={[styles.cameraOverlay, { paddingBottom: bottom + Spacing.three }]}
@@ -567,6 +568,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: Spacing.three },
   camera: { flex: 1, backgroundColor: Colors.light.background },
   cameraOverlay: {
+    pointerEvents: "box-none",
     flexGrow: 1,
     paddingHorizontal: Spacing.content,
     paddingTop: Spacing.four,
