@@ -88,9 +88,9 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   }, [captureError]);
   const capture = captures.find((row) => row.owner === owner);
   const loaded = scan && !(scan instanceof Error) ? scan : undefined;
-  // A label-only capture opens on its label until the owner confirms the details it read.
+  // A label-only capture opens on its label until the owner confirms the details it read or links their work.
   const labelOnly = !!capture && isLabelCapture(capture);
-  const labelCapture = labelOnly && !loaded?.confirmed;
+  const labelCapture = labelOnly && !loaded?.confirmed && !loaded?.linked;
   const [selection, setSelection] = useState<ResultSelection>({});
   const [retryError, setRetryError] = useState<string>();
   const [retrying, setRetrying] = useState(false);
@@ -113,6 +113,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   const rejection = useRef<Rejection>(undefined);
   const view: ResultViewState = toResultViewState(scan, selection);
   const { confirmed } = view;
+  const namedBy = confirmed?.source ?? view.linked;
   const labelFlow = loaded?.labelFlow;
   // Details confirmed from a verified label are shared with the save, as the label screen promised.
   const labelForm =
@@ -135,7 +136,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   }
 
   function editConfirmed() {
-    if (confirmed?.source === "label") router.push({ pathname: "/label/[scanId]", params: { scanId } });
+    if (namedBy === "label") router.push({ pathname: "/label/[scanId]", params: { scanId } });
     else enterDetails();
   }
 
@@ -255,9 +256,9 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
       probability={view.primary?.probability}
-      source={confirmed?.source}
+      source={namedBy}
       onNotRight={view.editable && view.primary && !saving && !savedId ? notRight : undefined}
-      onEditDetails={confirmed && !saving && !savedId ? editConfirmed : undefined}
+      onEditDetails={namedBy && !saving && !savedId ? editConfirmed : undefined}
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
@@ -294,7 +295,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
             onPick={pickRunnerUp}
             onEdit={() => setHasEdits(true)}
             onLabel={openLabel}
-            onEnterDetails={confirmed ? editConfirmed : enterDetails}
+            onEnterDetails={namedBy ? editConfirmed : enterDetails}
             savePhotoOnly={
               (view.kind === "unidentified" || view.kind === "soft") && !hasEdits && !selection.chosenObjectId
             }

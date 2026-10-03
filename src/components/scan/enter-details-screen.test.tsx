@@ -22,6 +22,7 @@ jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable
 jest.mock("@/lib/convex-client", () => ({
   convex: { mutation: (...args: unknown[]) => mockMutation(...args) },
 }));
+jest.mock("@/lib/result/use-corpus-matches", () => ({ useCorpusMatches: () => ({ matches: [] }) }));
 jest.mock("@/lib/result/use-scan", () => ({ useScan: () => mockScan }));
 
 beforeEach(() => {

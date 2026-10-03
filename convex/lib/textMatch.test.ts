@@ -8,6 +8,8 @@ import {
   normalizeText,
   personMatches,
   segments,
+  spellingSimilarity,
+  surnameMatches,
   titleMatches,
   titleSimilarity,
 } from "./textMatch";
@@ -90,6 +92,25 @@ describe("text matching", () => {
     ["J. M. W. Turner", "Turner, Joseph Mallord William", true],
   ])("compares person names: %s vs %s → %s", (a, b, expected) => {
     expect(personMatches(a, b)).toBe(expected);
+  });
+
+  it.each([
+    ["Van Gogh", "Vincent van Gogh", true],
+    ["da Vinci", "Leonardo da Vinci", true],
+    ["Klimt", "Gustav Klimt", true],
+    ["Van Gogh", "Theo van Gogh", true],
+    ["Van Eyck", "Vincent van Gogh", false],
+    ["Gogh", "Vincent van Gogh", true],
+    ["Theo van Gogh", "Vincent van Gogh", false],
+  ])("lets a label give only the surname with its particle: %s vs %s → %s", (label, name, expected) => {
+    expect(surnameMatches(label, name)).toBe(expected);
+  });
+
+  it("scores misread titles by their letters rather than their words", () => {
+    expect(spellingSimilarity("Adele Blochbauer", "Adele Bloch-Bauer II")).toBeGreaterThan(0.9);
+    expect(spellingSimilarity("Café Terrace", "cafe terrace!")).toBe(1);
+    expect(spellingSimilarity("Nimphee", "Nymphéas")).toBeLessThan(0.5);
+    expect(spellingSimilarity("", "Water Lilies")).toBe(0);
   });
 
   it("accepts explicit abbreviated and reordered artist names", () => {

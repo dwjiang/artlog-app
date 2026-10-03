@@ -1,9 +1,12 @@
 import { v } from "convex/values";
 
 import { guideOpening, guideResearch } from "../shared/audio/guide";
+import { internal } from "./_generated/api";
 import { query } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
+import { artworkSearchText } from "./lib/corpusMatch";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
 import { docentSentence, factChip, rightsStatus, type FactSheetEntry } from "./lib/validators";
@@ -76,5 +79,24 @@ export const enrichment = query({
       rightsStatus: artwork.rightsStatus,
       thumbnailUrl,
     };
+  },
+});
+
+const SEARCH_TEXT_PAGE = 256;
+
+// Rows written since the artworks trigger existed already carry their search text; this fills the corpus loaded before it.
+export const backfillSearchText = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.null(),
+  handler: async (ctx, { cursor }) => {
+    const page = await ctx.db.query("artworks").paginate({ cursor, numItems: SEARCH_TEXT_PAGE });
+    for (const artwork of page.page) {
+      const searchText = artworkSearchText(artwork);
+      if (artwork.searchText !== searchText) await ctx.db.patch("artworks", artwork._id, { searchText });
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.artworks.backfillSearchText, { cursor: page.continueCursor });
+    }
+    return null;
   },
 });

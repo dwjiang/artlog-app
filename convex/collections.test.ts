@@ -117,6 +117,25 @@ it.each([
   expect(await object()).toMatchObject({ confirmCount: 0 });
 });
 
+it("saves the catalogue work a scan was linked to without counting a recognition confirm", async () => {
+  const { t, args, save, rows } = await fixture();
+  const terrace = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, { artwork: { title: "Café Terrace at Night", artist: "Vincent van Gogh" } }),
+  );
+  const named = { title: "Café Terrace at Night", artist: "Vincent van Gogh" };
+  const linkedSave = { objectId: terrace.objectId, artworkId: terrace.artworkId, snapshot: { ...snapshot, ...named } };
+  await expect(save({ ...linkedSave, suggested: named })).rejects.toMatchObject({ data: { code: "invalid_object" } });
+  await t.run((ctx) =>
+    ctx.db.patch("scans", args.scanId!, {
+      linked: { source: "label", objectId: terrace.objectId, artworkId: terrace.artworkId, linkedAt: 1 },
+    }),
+  );
+  await save({ ...linkedSave, localId: crypto.randomUUID(), suggested: named });
+  expect(await rows()).toMatchObject([{ objectId: terrace.objectId, artworkId: terrace.artworkId }]);
+  expect(await t.run((ctx) => ctx.db.get("objects", terrace.objectId))).toMatchObject({ confirmCount: 0 });
+  expect(await t.run((ctx) => ctx.db.query("feedbackEvents").collect())).toEqual([]);
+});
+
 it("lists the caller’s saved works newest first and hides removed ones", async () => {
   const now = vi.spyOn(Date, "now");
   const { t, user, save, list } = await fixture();

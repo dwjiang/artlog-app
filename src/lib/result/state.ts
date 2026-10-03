@@ -4,7 +4,13 @@ import { errorMessage } from "@/lib/network-error";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { DocentSentence, DocentStatus, FactChip, RightNowCard } from "../../../convex/lib/validators";
+import type {
+  ConfirmedSource,
+  DocentSentence,
+  DocentStatus,
+  FactChip,
+  RightNowCard,
+} from "../../../convex/lib/validators";
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;
@@ -17,6 +23,8 @@ export type ResultViewState = {
   primary?: ResultCandidate;
   /** The owner's own details for a work the index couldn't name; set only on a confirmed card. */
   confirmed?: ConfirmedResult;
+  /** Where the owner named the catalogue work this card shows, when recognition didn't. */
+  linked?: ConfirmedSource;
   runnerUps: ResultCandidate[];
   docent?: DocentSentence[];
   docentStatus?: DocentStatus;
@@ -90,7 +98,7 @@ export function toResultViewState(
       factSheet: scan.factSheet,
     };
   }
-  if (scan.status === "unsupported_version") {
+  if (!scan.linked && scan.status === "unsupported_version") {
     return {
       kind: "unsupported",
       runnerUps: [],
@@ -98,7 +106,7 @@ export function toResultViewState(
       error: scan.error,
     };
   }
-  if (scan.status === "failed") {
+  if (!scan.linked && scan.status === "failed") {
     return {
       kind: "failed",
       runnerUps: [],
@@ -107,18 +115,18 @@ export function toResultViewState(
     };
   }
 
-  const { primary, runnerUps } = selectResultCandidates(scan, selection.chosenObjectId);
+  const chosenObjectId = scan.linked ? undefined : selection.chosenObjectId;
+  const { primary, runnerUps } = selectResultCandidates(scan, chosenObjectId);
   const kind: ResultKind = !primary
     ? "unidentified"
-    : primary.objectId === selection.chosenObjectId
-        || primary.identityStatus === "tentative"
-        || scan.outcome !== "confident"
+    : primary.objectId === chosenObjectId || primary.identityStatus === "tentative" || scan.outcome !== "confident"
       ? "soft"
       : "confident";
   return {
     kind,
     primary,
     runnerUps,
+    linked: scan.linked?.source,
     editable: true,
     ...(kind === "confident"
       ? {

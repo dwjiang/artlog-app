@@ -17,6 +17,7 @@ import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { bestCropIndex } from "./lib/cropChoice";
 import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
+import { scheduleMatchFollowUps } from "./lib/matchFollowUps";
 import { isSupported, validateVector } from "./lib/modelVersion";
 import { readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
@@ -268,19 +269,7 @@ async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): 
     calibratorVersion: decision.calibratorVersion,
   });
   if (decision.outcome === "confident" && top && best) {
-    // Nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
-    await ctx.scheduler.runAfter(0, internal.docent.ensure, {
-      artworkId: best.artworkId,
-      deviceId: scan.deviceId,
-    });
-    await ctx.scheduler.runAfter(0, internal.rightNow.fetch, {
-      scanId: scan._id,
-      generation: scan.generation,
-      artistId: top.candidate.artwork.artistId,
-      artist: top.candidate.artwork.artist,
-      venueId: scan.venueId,
-      deviceId: scan.deviceId,
-    });
+    await scheduleMatchFollowUps(ctx, scan, top.candidate.artwork);
   }
   return ctx.runQuery(internal.scans.getDisplay, {
     scanId: scan._id,
