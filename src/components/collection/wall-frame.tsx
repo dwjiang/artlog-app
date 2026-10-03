@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import { Canvas, createPicture, FilterMode, MipmapMode, Picture, Skia, useImage } from "@shopify/react-native-skia";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { reportError } from "@/lib/observability";
@@ -8,17 +8,28 @@ import { framePatches } from "@/lib/wall/frame-patches";
 import { wallFrameAssets } from "@/lib/wall/wall-frame-assets";
 import { wallFrameInset, WALL_FRAMES as wallFrames, type WallFrame as Frame } from "@/shared/wall/frames";
 
-export function WallFrame({ frame, children, width }: { frame: Frame; children: ReactNode; width: number }) {
+// The height comes from the artwork's proportions rather than a layout pass, so a resized frame never draws its
+// texture at the previous height.
+export function WallFrame({
+  frame,
+  children,
+  width,
+  height,
+}: {
+  frame: Frame;
+  children: ReactNode;
+  width: number;
+  height: number;
+}) {
   const finish = wallFrames.find((item) => item.value === frame)!;
   const { sculpted } = wallFrameAssets[frame];
   const inset = wallFrameInset(frame, width);
-  const [height, setHeight] = useState(0);
   const scale = Math.min(1, width / 166);
   return (
     <View
-      onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
       style={{
         width,
+        height,
         padding: inset,
         backgroundColor: sculpted ? undefined : finish.color,
         boxShadow: sculpted

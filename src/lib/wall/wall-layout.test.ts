@@ -1,11 +1,14 @@
 import {
+  arrangeWall,
   constrainLayout,
   constrainWallPiece,
+  dropWallPiece,
   nextWallLayout,
   removeWallPiece,
   resizeWallLayout,
   wallBottom,
   wallPieceBounds,
+  type WallArrangement,
   type WallPiece,
 } from "./wall-layout";
 
@@ -218,5 +221,128 @@ describe("keeping wall artworks apart", () => {
     const left = { ...neighbor, layout: { ...neighbor.layout, x: 0.25 } };
     const right = { ...neighbor, localId: "right", layout: { ...neighbor.layout, x } };
     expect(constrainWallPiece(overlapping, { x: 0.425 }, [left, right], 390)).toEqual(overlapping.layout);
+  });
+});
+
+describe("dropping an artwork", () => {
+  const hung = (localId: string, layout: Partial<WallPiece["layout"]>, aspect = 1): WallPiece => ({
+    ...piece(aspect, 1),
+    localId,
+    layout: { x: 0.05, y: 0.1, width: 0.3, layer: 0, frame: "black", ...layout },
+  });
+  const left = hung("left", {});
+  const right = hung("right", { x: 0.55, width: 0.4 }, 1.5);
+  const bottomOf = (item: WallPiece) => {
+    const bounds = wallPieceBounds(item, 390);
+    return bounds.y + bounds.height;
+  };
+  const clashes = (pieces: WallPiece[], arrangement: WallArrangement) => {
+    const placed = pieces.map((item) =>
+      wallPieceBounds({ ...item, layout: arrangement[item.localId] ?? item.layout }, 390),
+    );
+    const apart = (a: (typeof placed)[number], b: (typeof placed)[number]) =>
+      a.x + a.width + 0.025 <= b.x + 1e-9
+      || b.x + b.width + 0.025 <= a.x + 1e-9
+      || a.y + a.height + 0.16 <= b.y + 1e-9
+      || b.y + b.height + 0.16 <= a.y + 1e-9;
+    return placed.flatMap((bounds, index) => placed.slice(index + 1).filter((other) => !apart(bounds, other)));
+  };
+
+  it("trades places and sizes with the artwork it is dropped onto, reversibly", () => {
+    const swapped = dropWallPiece([left, right], "left", { x: 0.6, y: 0.05 }, 390);
+    expect(swapped).toEqual({
+      left: { ...left.layout, x: 0.55, y: 0.1, width: 0.4 },
+      right: { ...right.layout, x: 0.05, y: 0.1, width: 0.3 },
+    });
+    const after = [
+      { ...left, layout: swapped.left },
+      { ...right, layout: swapped.right },
+    ];
+    expect(dropWallPiece(after, "right", { x: 0.6, y: 0.05 }, 390)).toEqual({
+      left: left.layout,
+      right: right.layout,
+    });
+  });
+
+  it.each([
+    { edge: "left", x: 0.025, y: 0.5 },
+    { edge: "right", x: 0.78, y: 0.5 },
+    { edge: "top", x: 0.4, y: 0.04 },
+  ])("swaps a large artwork onto a smaller one at the $edge edge", ({ x, y }) => {
+    const large = hung("large", { x: 0.1, y: 2, width: 0.6 });
+    const small = hung("small", { x, y, width: 0.18 });
+    const draggedBounds = wallPieceBounds(large, 390);
+    const targetBounds = wallPieceBounds(small, 390);
+    const arrangement = dropWallPiece(
+      [large, small],
+      "large",
+      {
+        x: x + (targetBounds.width - draggedBounds.width) / 2,
+        y: y + (targetBounds.height - draggedBounds.height) / 2,
+      },
+      390,
+    );
+    expect(arrangement).toEqual({
+      large: { ...large.layout, x, y, width: small.layout.width },
+      small: { ...small.layout, x: large.layout.x, y: large.layout.y, width: large.layout.width },
+    });
+  });
+
+  it("keeps traded artworks apart when their new shapes would crowd each other", () => {
+    const wide = hung("wide", { x: 0.55, y: 0.5 }, 1.5);
+    const tall = hung("tall", { width: 0.5, y: bottomOf(wide) + 0.17 }, 0.6);
+    const arrangement = dropWallPiece([wide, tall], "tall", { x: 0.45, y: 0.19 }, 390);
+    expect(arrangement.tall).toEqual({ ...tall.layout, x: 0.55, y: 0.5, width: 0.3 });
+    expect(arrangement.wide.width).toBe(0.5);
+    expect(Math.hypot(arrangement.wide.x - 0.05, arrangement.wide.y - tall.layout.y)).toBeLessThan(0.05);
+    expect(clashes([wide, tall], arrangement)).toEqual([]);
+  });
+
+  it("lands where it is dropped on open wall, kept inside the wall, without moving other artworks", () => {
+    expect(dropWallPiece([left, right], "left", { x: 0.1, y: 1 }, 390)).toEqual({
+      left: { ...left.layout, x: 0.1, y: 1 },
+    });
+    expect(dropWallPiece([left, right], "left", { x: -1, y: 2 }, 390)).toEqual({
+      left: { ...left.layout, x: 0.025, y: 2 },
+    });
+  });
+
+  it("moves an artwork it partly covers aside when there is room beside it", () => {
+    const small = hung("small", { x: 0.6, width: 0.2 });
+    const arrangement = dropWallPiece([left, small], "left", { x: 0.4, y: 0.1 }, 390);
+    expect(arrangement.left).toEqual({ ...left.layout, x: 0.4 });
+    expect(arrangement.small.x).toBeCloseTo(0.725);
+    expect(arrangement.small.y).toBe(small.layout.y);
+    expect(clashes([left, small], arrangement)).toEqual([]);
+  });
+
+  it("moves an artwork it partly covers below it when the sides are full", () => {
+    const arrangement = dropWallPiece([left, right], "left", { x: 0.35, y: 0.1 }, 390);
+    expect(arrangement.left).toEqual({ ...left.layout, x: 0.35 });
+    expect(arrangement.right.x).toBe(right.layout.x);
+    expect(arrangement.right.y).toBeCloseTo(bottomOf(left) + 0.16);
+    expect(clashes([left, right], arrangement)).toEqual([]);
+  });
+
+  it("keeps moving artworks aside until none overlap", () => {
+    const top = hung("top", { width: 0.4 });
+    const middle = hung("middle", { width: 0.4, y: bottomOf(top) + 0.16 });
+    const lower = hung("lower", { width: 0.4, y: bottomOf(middle) + 0.16 });
+    const side = hung("side", { x: 0.55, width: 0.4 });
+    const pieces = [top, middle, lower, side];
+    const arrangement = dropWallPiece(pieces, "side", { x: 0.3, y: 0.1 }, 390);
+    expect(arrangement.side).toEqual({ ...side.layout, x: 0.3 });
+    expect(Object.keys(arrangement).length).toBeGreaterThan(2);
+    expect(clashes(pieces, arrangement)).toEqual([]);
+  });
+
+  it("makes room below an artwork whose new frame is taller", () => {
+    const upper = hung("upper", { width: 0.5 }, 2);
+    const below = hung("below", { width: 0.5, y: bottomOf(upper) + 0.16 });
+    const framed = { ...upper.layout, frame: "carved-leaf" as const };
+    const arrangement = arrangeWall([upper, below], { upper: framed }, 390);
+    expect(arrangement.upper).toEqual(framed);
+    expect(arrangement.below.y).toBeGreaterThan(below.layout.y);
+    expect(clashes([upper, below], arrangement)).toEqual([]);
   });
 });

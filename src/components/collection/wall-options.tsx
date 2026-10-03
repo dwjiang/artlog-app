@@ -109,7 +109,7 @@ export function WallFramePicker({
               width={Math.min(64, 48 * wallAspect(piece))}
             />
           ) : (
-            <WallFrame frame={finish.value} width={38}>
+            <WallFrame frame={finish.value} width={38} height={28}>
               <View
                 style={{
                   width: 38 - wallFrameInset(finish.value, 38) * 2,

@@ -18,7 +18,7 @@ import { switchOwner } from "@/lib/account/owner-store";
 import { scheduleRemoval, useRemovedWorkIds } from "@/lib/collection/pending-removals";
 import { createLocalWallRepository } from "@/lib/wall/local-wall-repository";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
-import { wallAspect, type WallPiece, type WallLayout } from "@/lib/wall/wall-layout";
+import { wallAspect, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
 import type { OwnerWall, WallTransport } from "@/lib/wall/wall-transport";
 
 import { CollectionWall } from "./collection-wall";
@@ -62,14 +62,14 @@ jest.mock("./wall-gallery", () => {
     WallGallery: ({
       pieces,
       onSelect,
-      onMove,
+      onArrange,
       onDeselect,
       selectedId,
       editing,
       children,
     }: {
       pieces: WallPiece[];
-      onMove: (id: string, layout: WallLayout) => void;
+      onArrange: (arrangement: WallArrangement) => boolean;
       onDeselect: () => void;
       selectedId?: string;
       editing: boolean;
@@ -87,9 +87,13 @@ jest.mock("./wall-gallery", () => {
             onPress={() => onSelect(piece)}
             onAccessibilityAction={({ nativeEvent: { actionName } }: { nativeEvent: { actionName: string } }) => {
               if (!editing) return;
-              onMove(piece.localId, {
-                ...piece.layout,
-                ...(actionName === "increment" ? { width: piece.layout.width + 0.04 } : { x: piece.layout.x + 0.025 }),
+              onArrange({
+                [piece.localId]: {
+                  ...piece.layout,
+                  ...(actionName === "increment"
+                    ? { width: piece.layout.width + 0.04 }
+                    : { x: piece.layout.x + 0.025 }),
+                },
               });
             }}
           >
@@ -552,30 +556,31 @@ it("persists resizing directly from the wall without opening a sheet", async () 
   expect(screen.queryByRole("header", { name: "Edit frame" })).toBeNull();
 });
 
-it.each(["moveRight", "increment"])("saves only a clear placement when %s reaches a neighbor", async (actionName) => {
-  mockTransport.getMine.mockResolvedValue({
-    ...published,
-    items: [
-      published.items[0],
-      {
-        ...published.items[0],
-        itemId: "item-b",
-        placementId: "save-b",
-        saveLocalId: "save-b",
-        layout: { ...published.items[0].layout, x: 0.53, width: 0.2, layer: 1 },
-        artwork: { ...published.items[0].artwork, title: "Sunflowers" },
-      },
-    ],
-  });
+it("moves the artwork below aside when a new frame makes one taller, saving both together", async () => {
+  const landscape = {
+    ...published.items[0],
+    layout: { x: 0.1, y: 0.2, width: 0.5, frame: "black" as const, layer: 0 },
+    artwork: { ...published.items[0].artwork, media: { kind: "placeholder" as const, width: 2, height: 1 } },
+  };
+  const below = {
+    ...published.items[0],
+    itemId: "item-b" as never,
+    placementId: "save-b",
+    saveLocalId: "save-b",
+    layout: { x: 0.1, y: 0.63, width: 0.5, frame: "black" as const, layer: 1 },
+    artwork: { ...published.items[0].artwork, title: "Sunflowers" },
+  };
+  mockTransport.getMine.mockResolvedValue({ ...published, items: [landscape, below] });
   await openWall();
   await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
-  await fireEvent(screen.getByRole("button", { name: "The Milkmaid" }), "accessibilityAction", {
-    nativeEvent: { actionName },
-  });
+  await fireEvent.press(screen.getByRole("button", { name: "The Milkmaid" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Frame" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Carved Leaf" }));
   await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
   const { items } = mockTransport.setLayout.mock.calls[0][0];
-  expect(items[0].layout.x + items[0].layout.width).toBeLessThanOrEqual(items[1].layout.x - 0.025);
-  expect(items[1].layout).toEqual({ ...published.items[0].layout, x: 0.53, width: 0.2, layer: 1 });
+  expect(items[0].layout).toEqual({ ...landscape.layout, frame: "carved-leaf" });
+  expect(items[1].layout).toEqual({ ...below.layout, y: expect.any(Number) });
+  expect(items[1].layout.y).toBeGreaterThan(below.layout.y);
 });
 
 it("shows the empty wall instead of a spinner while the account scope is still missing", async () => {

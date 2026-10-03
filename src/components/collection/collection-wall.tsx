@@ -24,12 +24,12 @@ import { reportError } from "@/lib/observability";
 import { canHangArtwork, type LibraryVisit } from "@/lib/wall/artwork-library";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import {
-  constrainWallPiece,
+  arrangeWall,
   isLightWall,
   nextWallLayout,
   removeWallPiece,
+  type WallArrangement,
   type WallDraft,
-  type WallLayout,
   type WallPiece,
   type Wallpaper,
 } from "@/lib/wall/wall-layout";
@@ -194,28 +194,30 @@ export function CollectionWallContent({
   }
   function commit(draft: WallDraft) {
     if (blocked || wall.repository.getSnapshot().pending || !wall.repository.getSnapshot().acknowledged) {
-      return;
+      return false;
     }
     wall.repository.setLayoutDraft(draft);
     void publish();
+    return true;
   }
-  function move(id: string, layout: WallLayout) {
-    if (!wall.draft || blocked) return;
-    const piece = pieces.find((item) => item.localId === id);
-    if (!piece) return;
-    const next = constrainWallPiece(piece, layout, pieces, width);
-    if (
-      next.x === piece.layout.x
-      && next.y === piece.layout.y
-      && next.width === piece.layout.width
-      && next.frame === piece.layout.frame
-    ) {
-      return;
-    }
-    commit({
-      ...wall.draft,
-      items: wall.draft.items.map((item) => (item.placementId === id ? { ...item, layout: next } : item)),
+  function arrange(layouts: WallArrangement) {
+    if (!wall.draft || blocked) return false;
+    const changed = wall.draft.items.some(({ placementId, layout }) => {
+      const next = layouts[placementId];
+      return (
+        next
+        && (next.x !== layout.x || next.y !== layout.y || next.width !== layout.width || next.frame !== layout.frame)
+      );
     });
+    return (
+      changed
+      && commit({
+        ...wall.draft,
+        items: wall.draft.items.map((item) =>
+          layouts[item.placementId] ? { ...item, layout: layouts[item.placementId] } : item,
+        ),
+      })
+    );
   }
   function remove(id: string) {
     if (!wall.draft || blocked) return;
@@ -454,11 +456,12 @@ export function CollectionWallContent({
                   minHeight={Math.max(280, room.viewport + (editing ? 0 : room.pinned) - canvasTop)}
                   bottomInset={editing && !wallpaperPreview ? paletteHeight + insets.bottom : 0}
                   backgroundBottomInset={insets.bottom}
-                  editing={editing && !blocked && !wallpaperPreview}
+                  editing={editing && !wallpaperPreview}
+                  locked={blocked}
                   scrollGesture={scrollGesture}
                   selectedId={selectedId}
                   onDeselect={() => setSelectedId(undefined)}
-                  onMove={move}
+                  onArrange={arrange}
                   onSelect={(piece) => {
                     if (editing && !wallpaperPreview) {
                       setSelectedId(piece.localId);
@@ -562,7 +565,7 @@ export function CollectionWallContent({
           disabled={blocked}
           wallpaper={wallpaper}
           onDismiss={() => setOptions(false)}
-          onChange={(layout) => move(selected.localId, layout)}
+          onChange={(layout) => arrange(arrangeWall(pieces, { [selected.localId]: layout }, width))}
         />
       )}
       {profile && (
