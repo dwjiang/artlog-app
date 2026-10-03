@@ -86,6 +86,7 @@ export function CameraPermission({
     <ScrollView
       style={{ marginBottom: bottomInset }}
       contentInsetAdjustmentBehavior="automatic"
+      alwaysBounceVertical={false}
       contentContainerStyle={{
         flexGrow: 1,
         justifyContent: "center",
