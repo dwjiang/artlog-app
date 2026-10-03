@@ -34,7 +34,7 @@ const mockVisits = new Map<string, Visit>();
 const mockLatestSaves = new Map<string, number>();
 let mockNow = 1_000_000;
 let mockUuid = 0;
-let mockIntroduced = true;
+let mockIntroduction: "pending" | "justEnded" | "over" = "over";
 
 jest.mock("expo-location", () => ({
   Accuracy: { Balanced: 3 },
@@ -44,7 +44,7 @@ jest.mock("expo-location", () => ({
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("@/lib/account/introduction", () => ({ useIntroductionOver: () => mockIntroduced }));
+jest.mock("@/lib/account/introduction", () => ({ useIntroduction: () => mockIntroduction }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => mockAuth,
   useQuery: () => (mockAuth.isAuthenticated ? "registered" : null),
@@ -194,7 +194,7 @@ beforeEach(() => {
   });
   mockNow = 1_000_000;
   mockUuid = 0;
-  mockIntroduced = true;
+  mockIntroduction = "over";
   mockAuth.isAuthenticated = true;
   mockReachable = true;
   mockSettings.clear();
@@ -397,22 +397,36 @@ describe("resolving the museum", () => {
     expect(mockMutation).not.toHaveBeenCalled();
   });
 
-  it("asks for location and opens the picker only once a first launch's welcome is behind the person", async () => {
-    mockIntroduced = false;
+  it("opens the picker on launch once onboarding is behind the person", async () => {
+    mockNearest.mockResolvedValue([metRow, neueRow]);
+    await act(async () => {
+      await render(<VenueResolver controller={controller} />);
+    });
+    await act(async () => {});
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/venue-picker",
+      params: { mode: "choose" },
+    });
+  });
+
+  it("checks location only after the welcome, and leaves the museum unasked when onboarding hands off to Home", async () => {
+    mockIntroduction = "pending";
     mockNearest.mockResolvedValue([metRow, neueRow]);
     const view = await render(<VenueResolver controller={controller} />);
     await act(async () => {});
     expect(mockGetPermission).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalled();
 
-    mockIntroduced = true;
+    mockIntroduction = "justEnded";
     await act(async () => {
       await view.rerender(<VenueResolver controller={controller} />);
     });
-    await act(async () => {
-      await controller.resolve();
-    });
+    await act(async () => {});
     expect(mockGetPermission).toHaveBeenCalledTimes(1);
+    expect(controller.getState().status).toBe("choose");
+    expect(mockPush).not.toHaveBeenCalled();
+
+    // Opening the camera still asks, as it does for anyone at an undecided spot.
+    await act(async () => controller.promptChooser());
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/venue-picker",
       params: { mode: "choose" },

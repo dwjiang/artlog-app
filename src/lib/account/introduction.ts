@@ -8,17 +8,18 @@ import { getLocalProfileName } from "./local-profile";
 
 export const WELCOME_SEEN_SETTING = "welcome-seen";
 
-type Introduction = "checking" | "due" | "open" | "over";
+type Introduction = "checking" | "due" | "open" | "justEnded" | "over";
 
 /**
- * Whether the first-launch introduction is behind this person. It is over at once when onboarding was completed;
- * otherwise only after the welcome has opened and the stack is back on the tabs, so a sign-in it hands off to counts.
+ * Where the first-launch introduction stands for this person. It is `over` at once when onboarding was completed on an
+ * earlier launch; otherwise it is `pending` until the welcome has opened and the stack is back on the tabs, so a sign-in
+ * it hands off to counts, and `justEnded` for the rest of that launch.
  */
-export function useIntroductionOver(owner: string): boolean {
+export function useIntroduction(owner: string): "pending" | "justEnded" | "over" {
   const [introduction, setIntroduction] = useState<Introduction>("checking");
   const top = useSegments()[0];
   if (introduction === "due" && top === "welcome") setIntroduction("open");
-  if (introduction === "open" && top === "(tabs)") setIntroduction("over");
+  if (introduction === "open" && top === "(tabs)") setIntroduction("justEnded");
 
   useEffect(() => {
     // Checked once per launch: a sign-in during the introduction switches the owner but must not end it early.
@@ -39,5 +40,5 @@ export function useIntroductionOver(owner: string): boolean {
     };
   }, [introduction, owner]);
 
-  return introduction === "over";
+  return introduction === "justEnded" || introduction === "over" ? introduction : "pending";
 }

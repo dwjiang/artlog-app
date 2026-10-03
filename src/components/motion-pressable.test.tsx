@@ -70,7 +70,7 @@ it("blocks disabled activation and clears feedback when an action becomes disabl
 
   const disabled = screen.getByRole("button", { name: "Save artwork" });
   expect(disabled).toBeDisabled();
-  expect(disabled).toHaveStyle({ transform: undefined });
+  expect(disabled).toHaveStyle({ transform: [{ scale: 1 }] });
   await fireEvent.press(disabled);
   expect(onPress).not.toHaveBeenCalled();
 
@@ -87,9 +87,9 @@ it("replaces press scaling with opacity as the reduced-motion preference changes
 
   jest.mocked(useReducedMotion).mockReturnValue(true);
   await screen.rerender(<MotionPressable {...props} style={style} />);
-  expect(screen.getByRole("button")).toHaveStyle({ opacity: 0.8 * 0.72, transform: [{ translateX: 3 }] });
+  expect(screen.getByRole("button")).toHaveStyle({ opacity: 0.8 * 0.72, transform: [{ translateX: 3 }, { scale: 1 }] });
   await fireEvent(screen.getByRole("button"), "pressOut");
-  expect(screen.getByRole("button")).toHaveStyle(style);
+  expect(screen.getByRole("button")).toHaveStyle({ opacity: 0.8, transform: [{ translateX: 3 }, { scale: 1 }] });
 });
 
 it("forwards the native view ref used by link previews and measurement", async () => {
