@@ -56,6 +56,7 @@ import type * as lib_calibrator_weights from "../lib/calibrator/weights.js";
 import type * as lib_collectionPhotos from "../lib/collectionPhotos.js";
 import type * as lib_collectionSiteProbe from "../lib/collectionSiteProbe.js";
 import type * as lib_cosine from "../lib/cosine.js";
+import type * as lib_cropChoice from "../lib/cropChoice.js";
 import type * as lib_databaseTriggers from "../lib/databaseTriggers.js";
 import type * as lib_displayMedia from "../lib/displayMedia.js";
 import type * as lib_docentPrompts from "../lib/docentPrompts.js";
@@ -222,6 +223,7 @@ declare const fullApi: ApiFromModules<{
   "lib/collectionPhotos": typeof lib_collectionPhotos;
   "lib/collectionSiteProbe": typeof lib_collectionSiteProbe;
   "lib/cosine": typeof lib_cosine;
+  "lib/cropChoice": typeof lib_cropChoice;
   "lib/databaseTriggers": typeof lib_databaseTriggers;
   "lib/displayMedia": typeof lib_displayMedia;
   "lib/docentPrompts": typeof lib_docentPrompts;

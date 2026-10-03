@@ -14,8 +14,15 @@ export type PreparedPainting = {
 };
 
 export type Warper = {
-  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<PreparedPainting | null>;
+  /**
+   * Warps the likeliest painting boundary first; with `nested`, also the boundaries inside it that recognition
+   * may prefer, such as a painting shown on a phone. Empty when the photo has no boundary.
+   */
+  warpCandidates(photoUri: string, quad: Quad | null, size: number, nested: boolean): Promise<PreparedPainting[]>;
 };
+
+/** Index of the crop to identify among the candidates' vectors, the likeliest boundary first. */
+export type CropRanker = (vectors: number[][]) => Promise<number>;
 
 export type Triage = {
   check(cropUri: string): Promise<{ ok: true } | { ok: false; reason: "blur" | "glare"; message: string }>;
@@ -49,7 +56,9 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   quad: Quad | null;
   source: "camera" | "library";
 };
-export type CaptureTimings = Partial<Record<"warp" | "triage" | "embed" | "orb" | "identify" | "enqueue", number>> & {
+export type CaptureTimings = Partial<
+  Record<"warp" | "embed" | "rank" | "triage" | "orb" | "identify" | "enqueue", number>
+> & {
   total: number;
 };
 export type CaptureResult = (
@@ -77,6 +86,8 @@ export type CaptureDependencies = {
   embedder: Embedder;
   orb: OrbExtractor;
   identify: (payload: CapturePayload) => Promise<IdentifyResponse>;
+  /** Online only; without it, the likeliest boundary is identified. */
+  rankCrops?: (vectors: number[][], venueId: CapturePayload["venueId"]) => Promise<number>;
   isOnline: () => boolean;
   recognizeOffline?: (payload: CapturePayload) => Promise<void>;
   /** Syncs a visit's pending edits before identification uses its museum, including visits with an existing remote ID. */
