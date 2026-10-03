@@ -12,6 +12,7 @@ import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
+import { useUprightPhoto } from "@/lib/capture/use-upright-photo";
 import { reportError } from "@/lib/observability";
 import { useLiftToasts } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -53,6 +54,7 @@ export function ScanScreen() {
   useLiftToasts(controls.bottom ? controlsBottom + controls.bottom : undefined, isFocused);
   const active = isFocused && appState === "active";
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
+  const takePhoto = useUprightPhoto(photoOutput, active);
   const capture = useCapture({
     active,
     focused: isFocused,
@@ -86,7 +88,7 @@ export function ScanScreen() {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {
-      void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
+      void capture.captureAutomatically(attempt, takePhoto);
     }
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
@@ -134,7 +136,7 @@ export function ScanScreen() {
         <Camera
           style={StyleSheet.absoluteFill}
           device="back"
-          orientationSource="interface"
+          orientationSource="custom"
           resizeMode="cover"
           isActive={cameraActive}
           outputs={outputs}
@@ -198,7 +200,7 @@ export function ScanScreen() {
                   captured={busy && source === "camera"}
                   detecting={detecting}
                   onPress={() => {
-                    void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}));
+                    void capture.captureManually(takePhoto);
                   }}
                 />
               </CaptureControls>

@@ -24,11 +24,13 @@ import { extractCaptureMeta } from "./exif";
 import { runCapture } from "./pipeline";
 import { PresentationImages } from "./presentation-images";
 import type { CaptureInput, CaptureResult, CaptureTimings, PreparedPainting } from "./stages";
+import type { UprightPhoto } from "./use-upright-photo";
 
 export type CapturePresentation = {
   attempt: CaptureAttempt;
   photoUri: string;
   source: CaptureInput["source"];
+  turns?: number;
   photo?: ImageRef;
   painting?: PreparedPainting;
   crop?: ImageRef;
@@ -175,6 +177,7 @@ export function useCapture({
         attempt,
         photoUri: input.photoUri,
         source: input.source,
+        turns: input.turns,
       });
       const photoReady = retained.load(input.photoUri).then((photo) => {
         if (current() && photo && images.current === retained) {
@@ -200,6 +203,7 @@ export function useCapture({
               attempt,
               photoUri: input.photoUri,
               source: input.source,
+              turns: input.turns,
               photo,
               crop,
               painting,
@@ -263,20 +267,18 @@ export function useCapture({
     }
   }
 
-  async function captureFromCamera(
-    attempt: CaptureAttempt | undefined,
-    takePhoto: () => Promise<{ filePath: string }>,
-  ) {
+  async function captureFromCamera(attempt: CaptureAttempt | undefined, takePhoto: () => Promise<UprightPhoto>) {
     if (!attempt) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     return capture(
       async () => {
         const capturedAt = Date.now();
-        const { filePath } = await takePhoto();
+        const { filePath, turns } = await takePhoto();
         return {
           photoUri: `file://${filePath}`,
           quad: attempt.quad,
           source: "camera",
+          turns,
           capturedAt,
         };
       },
@@ -285,12 +287,12 @@ export function useCapture({
     );
   }
 
-  function captureManually(takePhoto: () => Promise<{ filePath: string }>) {
+  function captureManually(takePhoto: () => Promise<UprightPhoto>) {
     return captureFromCamera(controller.begin("camera"), takePhoto);
   }
 
   /** Takes the still for an attempt the controller started from a steady live detection. */
-  function captureAutomatically(attempt: CaptureAttempt, takePhoto: () => Promise<{ filePath: string }>) {
+  function captureAutomatically(attempt: CaptureAttempt, takePhoto: () => Promise<UprightPhoto>) {
     AccessibilityInfo.announceForAccessibility("Artwork captured automatically.");
     return captureFromCamera(attempt, takePhoto);
   }

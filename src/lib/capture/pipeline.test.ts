@@ -11,6 +11,7 @@ const input: CaptureInput = {
   photoUri: "file:///photo.jpg",
   quad: null,
   source: "camera",
+  turns: 1,
   capturedAt: 1234,
 };
 const painting: PreparedPainting = {
@@ -71,7 +72,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   const deps = dependencies();
   const result = await runCapture(input, deps, options);
   expect(result).toMatchObject({ kind: "sent", scanId: "scan-id", response });
-  expect(deps.warper.warpAndLetterbox).toHaveBeenCalledWith(input.photoUri, null, 512);
+  expect(deps.warper.warpAndLetterbox).toHaveBeenCalledWith(input.photoUri, null, 512, 1);
   expect(deps.triage.check).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.embedder.embed).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.orb.extract).toHaveBeenCalledWith("file:///crop.jpg");

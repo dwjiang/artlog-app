@@ -6,15 +6,15 @@ import model from "@/shared/model/model-version.json";
 
 import { getVisionRect } from "../../../modules/vision-rect/src";
 import { orb } from "./features";
-import { selectCaptureQuad, toCorners, toQuad } from "./rectangle";
+import { selectCaptureQuad, toCorners, toQuad, turnQuad } from "./rectangle";
 import type { CaptureDependencies, CaptureOptions, Warper } from "./stages";
 import { triage } from "./triage";
 
 export const warper: Warper = {
-  async warpAndLetterbox(photoUri, quad, size) {
+  async warpAndLetterbox(photoUri, quad, size, turns = 0) {
     const visionRect = getVisionRect();
     const path = filePath(photoUri);
-    const still = await visionRect.detectStill(path);
+    const still = await visionRect.detectStill(path, turns);
     const selected = selectCaptureQuad(quad, still);
     if (__DEV__) {
       console.debug("Still analysis", {
@@ -28,11 +28,12 @@ export const warper: Warper = {
       });
     }
     if (!selected) return null;
-    const result = await visionRect.warpAndLetterbox(path, toCorners(selected), size);
+    const result = await visionRect.warpAndLetterbox(path, toCorners(turnQuad(selected, turns)), size);
     return {
       cropUri: `file://${result.cropPath}`,
       corners: toQuad(result.usedQuad),
-      photoSize: { width: still.width, height: still.height },
+      photoSize:
+        turns % 2 ? { width: still.height, height: still.width } : { width: still.width, height: still.height },
       contentBounds: result.contentBounds,
       cropSize: size,
     };

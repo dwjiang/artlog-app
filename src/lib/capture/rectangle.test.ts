@@ -9,6 +9,7 @@ import {
   quadArea,
   selectCaptureQuad,
   toQuad,
+  turnQuad,
 } from "./rectangle";
 import type { Quad } from "./stages";
 
@@ -172,6 +173,32 @@ describe("previewQuad", () => {
     expect(bottom).toBeCloseTo(0.75);
     expect(left).toBeLessThan(0.15);
     expect(right).toBeGreaterThan(0.85);
+  });
+});
+
+describe("turnQuad", () => {
+  // A wide painting seen in the portrait preview while the phone is held sideways: it stands on its end.
+  const onItsSide = toQuad(box(0.2, 0.1, 0.6, 0.7));
+  const rounded = (quad: Quad) => quad.map((corner) => corner.map((v) => Math.round(v * 1000) / 1000));
+
+  it.each([
+    ["a quarter turn clockwise", 1, box(0.3, 0.2, 0.9, 0.6)],
+    ["a half turn", 2, box(0.4, 0.3, 0.8, 0.9)],
+    ["a quarter turn counterclockwise", -1, box(0.1, 0.4, 0.7, 0.8)],
+  ])("moves the corners with the image over %s and puts the new top-left first", (_, turns, upright) => {
+    expect(rounded(turnQuad(onItsSide, turns))).toEqual(rounded(toQuad(upright)));
+  });
+
+  it("returns to the original corners when turned back", () => {
+    const tilted: Quad = [
+      [0.3, 0.1],
+      [0.8, 0.25],
+      [0.7, 0.9],
+      [0.15, 0.7],
+    ];
+    for (const turns of [0, 1, 2, 3]) {
+      expect(rounded(turnQuad(turnQuad(tilted, turns), -turns))).toEqual(rounded(tilted));
+    }
   });
 });
 

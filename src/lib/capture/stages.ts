@@ -14,7 +14,11 @@ export type PreparedPainting = {
 };
 
 export type Warper = {
-  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number): Promise<PreparedPainting | null>;
+  /**
+   * Finds the painting the way the portrait preview saw the photo, where `quad` was detected, and warps it
+   * from the upright photo. `turns` are clockwise quarter turns from the preview to a photo taken with the phone turned.
+   */
+  warpAndLetterbox(photoUri: string, quad: Quad | null, size: number, turns?: number): Promise<PreparedPainting | null>;
 };
 
 export type Triage = {
@@ -48,6 +52,8 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   photoUri: string;
   quad: Quad | null;
   source: "camera" | "library";
+  /** Clockwise quarter turns from the portrait preview to a camera photo taken with the phone turned. */
+  turns?: number;
 };
 export type CaptureTimings = Partial<Record<"warp" | "triage" | "embed" | "orb" | "identify" | "enqueue", number>> & {
   total: number;

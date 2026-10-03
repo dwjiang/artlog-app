@@ -47,7 +47,7 @@ export async function runCapture(
 
   try {
     const prepared = await timed("warp", () =>
-      deps.warper.warpAndLetterbox(input.photoUri, input.quad, opts.inputSize),
+      deps.warper.warpAndLetterbox(input.photoUri, input.quad, opts.inputSize, input.turns),
     );
     if (!prepared) {
       return {

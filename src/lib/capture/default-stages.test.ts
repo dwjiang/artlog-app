@@ -1,4 +1,5 @@
 import { warper } from "./default-stages";
+import { toQuad } from "./rectangle";
 import type { Quad } from "./stages";
 
 const mockStill = jest.fn();
@@ -94,4 +95,37 @@ it("warps the confirmed preview boundary when subject lifting selects an interio
   await warper.warpAndLetterbox("file:///painting.jpg", quad, 512);
 
   expect(mockWarp).toHaveBeenCalledWith("/painting.jpg", corners, 512);
+});
+
+it("finds the painting the way the portrait preview saw a photo taken with the phone turned, and warps it upright", async () => {
+  // Held turned left: the preview saw a wide painting on its side; the photo is upright and landscape.
+  const onItsSide = [
+    { x: 0.25, y: 0.125 },
+    { x: 0.625, y: 0.125 },
+    { x: 0.625, y: 0.75 },
+    { x: 0.25, y: 0.75 },
+  ];
+  const upright = [
+    { x: 0.125, y: 0.375 },
+    { x: 0.75, y: 0.375 },
+    { x: 0.75, y: 0.75 },
+    { x: 0.125, y: 0.75 },
+  ];
+  mockStill.mockResolvedValue({
+    width: 1200,
+    height: 1600,
+    rectangles: [{ corners: onItsSide, confidence: 1 }],
+    subjects: [],
+  });
+  mockWarp.mockResolvedValue({
+    cropPath: "/crop.jpg",
+    usedQuad: upright,
+    contentBounds: { x: 0, y: 0, width: 1, height: 1 },
+  });
+
+  const prepared = await warper.warpAndLetterbox("file:///turned.jpg", toQuad(onItsSide), 512, 3);
+
+  expect(mockStill).toHaveBeenCalledWith("/turned.jpg", 3);
+  expect(mockWarp).toHaveBeenCalledWith("/turned.jpg", upright, 512);
+  expect(prepared).toMatchObject({ corners: toQuad(upright), photoSize: { width: 1600, height: 1200 } });
 });
