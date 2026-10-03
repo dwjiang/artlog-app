@@ -402,9 +402,10 @@ function Comments({
                 style={styles.commentLike}
               >
                 <ReactionIcon kind="heart" filled={liked} size={16} color={Gallery.muted} />
-                {likeCount > 0 && (
-                  <Text style={[styles.likeCount, liked && { color: Gallery.accent }]}>{likeCount}</Text>
-                )}
+                {/* A hidden zero keeps the count's line, so the first like doesn't grow a one-line comment. */}
+                <Text style={[styles.likeCount, liked && { color: Gallery.accent }, likeCount === 0 && { opacity: 0 }]}>
+                  {likeCount}
+                </Text>
               </Pressable>
             </View>
           );
