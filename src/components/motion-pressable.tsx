@@ -18,13 +18,10 @@ export const MotionPressable = forwardRef<View, PressableProps>(function MotionP
   if (press.disabled !== !!disabled) setPress({ held: false, disabled: !!disabled });
   const pressed = !disabled && (press.held || !!testOnly_pressed);
   const base = StyleSheet.flatten(typeof style === "function" ? style({ pressed, hovered: false }) : style);
-  const scale = pressed ? 0.97 : 1;
+  const scale = pressed && !reduced ? 0.97 : 1;
+  // Always defined: a transitioned transform that becomes undefined reaches processTransform as null and throws.
   const transform =
-    reduced || disabled
-      ? base?.transform
-      : typeof base?.transform === "string"
-        ? `${base.transform} scale(${scale})`
-        : [...(base?.transform ?? []), { scale }];
+    typeof base?.transform === "string" ? `${base.transform} scale(${scale})` : [...(base?.transform ?? []), { scale }];
 
   return (
     <AnimatedPressable
