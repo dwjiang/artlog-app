@@ -1,12 +1,13 @@
 import { router } from "expo-router";
-import type { ReactElement } from "react";
-import { ScrollView, View, useWindowDimensions } from "react-native";
+import type { ReactElement, Ref } from "react";
+import { View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SearchEmptyState } from "@/components/empty-state";
 import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import type { PaneRoom } from "@/components/pane-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -24,6 +25,7 @@ export function CollectionVisits({
   search,
   header,
   collectionControls,
+  paneRef,
   loading,
   error,
   clearSearch,
@@ -34,6 +36,7 @@ export function CollectionVisits({
   search: string;
   header?: ReactElement;
   collectionControls?: ReactElement;
+  paneRef?: Ref<PaneRoom>;
   loading: boolean;
   error?: Error;
   clearSearch: () => void;
@@ -44,11 +47,13 @@ export function CollectionVisits({
   const shown = searchVisitSummaries(visits, search);
   if (!loading && !error && visits.length === 0 && !search.trim()) {
     return (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 24 }}>
-        {header}
-        {collectionControls}
-        <CollectionEmptyState kind="visits" />
-      </ScrollView>
+      <VisitTimeline
+        visits={[]}
+        header={header}
+        controls={collectionControls}
+        paneRef={paneRef}
+        footer={<CollectionEmptyState kind="visits" />}
+      />
     );
   }
   const controls = (
@@ -124,13 +129,14 @@ export function CollectionVisits({
       />
     );
   }
-  // Keep the native scroll view, header, and controls mounted across view changes.
+  // Keep the native scroll view, header, and controls mounted across view changes, including the empty state above.
   return (
     <VisitTimeline
       visits={mode === "list" && !message ? shown : []}
       header={header}
       controls={controls}
-      scrollResetKey={mode}
+      paneRef={paneRef}
+      pane={mode}
       footer={
         mode === "globe" ? (
           (message ?? <VisitGlobe visits={visits} onList={() => changeMode("list")} />)

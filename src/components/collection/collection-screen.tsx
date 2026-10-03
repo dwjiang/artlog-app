@@ -1,9 +1,10 @@
 import { useNetworkState } from "expo-network";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { usePaneSwitch, type PaneRoom } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { CollectionVisits } from "@/components/visits/collection-visits";
 import { Gallery } from "@/constants/theme";
@@ -65,6 +66,9 @@ function OwnedCollection({
 }) {
   const data = useCollectionData();
   const network = useNetworkState();
+  const wallPane = useRef<PaneRoom>(null);
+  const visitsPane = useRef<PaneRoom>(null);
+  const preparePane = usePaneSwitch(mode, (pane) => (pane === "collection" ? wallPane : visitsPane).current);
   const controls = (
     <View
       style={{
@@ -76,7 +80,10 @@ function OwnedCollection({
       <NativeSegmentedPicker
         label="Collection view"
         value={mode}
-        onChange={setMode}
+        onChange={(next) => {
+          preparePane(next);
+          setMode(next);
+        }}
         disabled={editing}
         options={[
           { value: "collection", label: "Wall" },
@@ -118,6 +125,7 @@ function OwnedCollection({
         collectionError={data.error ? "Your collection could not load. Close the library and try again." : undefined}
         hiddenIds={data.hiddenIds}
         onEditingChange={setEditing}
+        paneRef={wallPane}
         header={header}
         controls={controls}
       />
@@ -129,6 +137,7 @@ function OwnedCollection({
         {...data}
         header={header}
         collectionControls={controls}
+        paneRef={visitsPane}
         search={search}
         onSearchChange={setSearch}
         clearSearch={() => setSearch("")}
@@ -144,10 +153,13 @@ function OwnedCollection({
 }
 
 // Fabric never mounts `display: "none"` views, so a section shown for the first time sized its SwiftUI controls only
-// then and pushed the page down. The hidden section stays mounted, invisible and out of reach instead.
+// then and pushed the page down. The hidden section stays mounted, invisible and out of reach instead. Unless it is
+// `collapsable={false}`, Fabric flattens the shown wrapper away and reinserts its scroll view, which restores its offset
+// from shadow state; that trails a scroll `usePaneSwitch` has just made.
 function CollectionSection({ shown, children }: { shown: boolean; children: ReactNode }) {
   return (
     <View
+      collapsable={false}
       accessibilityElementsHidden={!shown}
       pointerEvents={shown ? "auto" : "none"}
       style={[StyleSheet.absoluteFill, { opacity: shown ? 1 : 0 }]}

@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import { Image, StyleSheet, View, type ScrollView } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedRef } from "react-native-reanimated";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyFrames } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { LoadingSkeleton, Ghost } from "@/components/loading-skeleton";
+import { usePaneRoom, type PaneRoom } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -53,6 +54,7 @@ type CollectionWallProps = {
   onEditingChange?: (editing: boolean) => void;
   header?: ReactElement;
   controls?: ReactElement;
+  paneRef?: Ref<PaneRoom>;
 };
 export function CollectionWall({ works, ...props }: CollectionWallProps) {
   const wall = useCollectionWall(works);
@@ -70,6 +72,7 @@ export function CollectionWallContent({
   wall,
   header,
   controls,
+  paneRef,
 }: CollectionWallProps & { wall: ReturnType<typeof useCollectionWall> }) {
   const router = useRouter();
   const owner = useLocalOwner();
@@ -77,7 +80,6 @@ export function CollectionWallContent({
   const [editing, setEditing] = useState(false);
   const [width, setWidth] = useState(0);
   useHideTabBar(editing);
-  const [viewportHeight, setViewportHeight] = useState(0);
   const [canvasTop, setCanvasTop] = useState(0);
   const [paletteHeight, setPaletteHeight] = useState(0);
   const [profile, setProfile] = useState(false);
@@ -89,6 +91,7 @@ export function CollectionWallContent({
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
   const scroll = useAnimatedRef<ScrollView>();
+  const room = usePaneRoom(scroll, paneRef);
   const scrollGesture = useMemo(() => Gesture.Native(), []);
   const wallTop = useRef(0);
   const controlsHeight = useRef(0);
@@ -322,10 +325,11 @@ export function CollectionWallContent({
           ref={scroll}
           style={{ flex: 1 }}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, minHeight: editing ? undefined : room.minHeight }}
           scrollEnabled={!wall.pending}
           stickyHeaderIndices={editing ? undefined : [header ? 1 : 0]}
-          onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+          onLayout={room.onLayout}
+          onScroll={room.onScroll}
           refreshControl={pull.refreshControl}
         >
           {/* Raised over the paper strip at the end, which would cover the header while a pull holds it up. */}
@@ -335,6 +339,7 @@ export function CollectionWallContent({
               onLayout={(event) => {
                 controlsHeight.current = event.nativeEvent.layout.height;
                 pull.onHeaderLayout(event);
+                room.onPinnedLayout(event);
               }}
             >
               <Animated.View style={[{ backgroundColor: Gallery.paper }, pull.headerStyle]}>
@@ -447,7 +452,7 @@ export function CollectionWallContent({
                   pieces={pieces}
                   wallpaper={wallpaper}
                   width={width}
-                  minHeight={Math.max(280, viewportHeight - canvasTop)}
+                  minHeight={Math.max(280, room.viewport + (editing ? 0 : room.pinned) - canvasTop)}
                   bottomInset={editing && !wallpaperPreview ? paletteHeight + insets.bottom : 0}
                   backgroundBottomInset={insets.bottom}
                   editing={editing && !blocked && !wallpaperPreview}

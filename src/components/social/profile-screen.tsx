@@ -1,6 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedRef } from "react-native-reanimated";
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
+import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
@@ -47,7 +48,8 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const [chosenAudience, setAudience] = useState<VisitAudienceFilterValue>("all");
   const [visitCount, setVisitCount] = useState<number>();
   const scroll = useAnimatedRef<ScrollView>();
-  const offsets = useRef({ wall: 0, visits: 0 });
+  const room = usePaneRoom(scroll);
+  usePaneSwitch(tab, () => room);
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const own = session.profileId === profileId;
@@ -87,10 +89,6 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   });
   // The header counts every visit the viewer can see, so it keeps the last full count while a filter is on.
   if (audience === "all" && visits.done && visits.items.length !== visitCount) setVisitCount(visits.items.length);
-  function changeTab(value: "wall" | "visits") {
-    setTab(value);
-    requestAnimationFrame(() => scroll.current?.scrollTo({ y: offsets.current[value], animated: false }));
-  }
   if (session.offline) return <SocialGate session={session} />;
   // The loading state leaves the bar transparent, so these states scroll under it with automatic insets.
   if (!profileId || profile.data === null || profile.error) {
@@ -161,10 +159,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         contentInsetAdjustmentBehavior="automatic"
         stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}
-        onScroll={(event) => {
-          offsets.current[tab] = event.nativeEvent.contentOffset.y;
-        }}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        onLayout={room.onLayout}
+        onScroll={room.onScroll}
+        contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
       >
         <Animated.View style={[pulledToSafeArea, pull.headerStyle]}>
           <ProfileHeader
@@ -196,7 +193,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         {!blocked && (
           <View
             style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
-            onLayout={pull.onHeaderLayout}
+            onLayout={(event) => {
+              pull.onHeaderLayout(event);
+              room.onPinnedLayout(event);
+            }}
           >
             <Animated.View
               style={[
@@ -212,7 +212,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               <NativeSegmentedPicker
                 label="Profile section"
                 value={tab}
-                onChange={changeTab}
+                onChange={setTab}
                 options={[
                   { value: "wall", label: "Wall" },
                   { value: "visits", label: "Visits" },
