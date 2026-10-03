@@ -6,12 +6,14 @@ import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
+import { withTimeout } from "@/lib/with-timeout";
 
 import { api } from "../../../convex/_generated/api";
 import { albumMatch } from "./album-match";
+import { chooseCrop } from "./crop-choice";
 import { captureOptions, defaultStages } from "./default-stages";
-import { extractFeatures } from "./features";
 import type { DraftPhoto } from "./photo-draft";
+import type { PreparedPainting } from "./stages";
 
 export async function checkAlbumPhoto(
   photo: DraftPhoto,
@@ -19,32 +21,35 @@ export async function checkAlbumPhoto(
 ): Promise<Pick<DraftPhoto, "review" | "recognized">> {
   const session = captureOwner();
   if (!targetObjectId || !session.scope) return { review: "uncertain" };
-  let cropUri: string | undefined;
-  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let candidates: PreparedPainting[] = [];
   try {
     const network = await getNetworkStateAsync();
     if (isOffline(network)) return { review: "uncertain" };
-    const prepared = await defaultStages.warper.warpAndLetterbox(
+    candidates = await defaultStages.warper.warpCandidates(
       captureFileUri(photo.path),
       null,
       captureOptions.inputSize,
+      true,
     );
-    if (!prepared) return { review: "uncertain" };
-    cropUri = prepared.cropUri;
-    const features = await extractFeatures(cropUri, defaultStages);
+    if (candidates.length === 0) return { review: "uncertain" };
+    const { painting, vector } = await chooseCrop(candidates, defaultStages.embedder, (vectors) =>
+      convex.action(api.identify.rankCrops, { vectors, modelVersion: captureOptions.modelVersion }),
+    );
+    const features = await defaultStages.orb.extract(painting.cropUri);
     if (!session.isCurrent()) return { review: "uncertain" };
-    const result = await Promise.race([
+    const result = await withTimeout(
       convex.action(api.identify.identify, {
-        ...features,
+        vector,
+        descriptors: features.descriptors,
+        keypoints: features.keypoints,
         scope: session.scope,
         localId: photo.localId,
         modelVersion: captureOptions.modelVersion,
         capturedAt: photo.capturedAt,
       }),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error("Recognition timed out")), 15_000);
-      }),
-    ]);
+      15_000,
+      "Recognition timed out",
+    );
     const classification = albumMatch(result, targetObjectId);
     return {
       review: classification === "same" ? undefined : classification,
@@ -62,9 +67,6 @@ export async function checkAlbumPhoto(
     reportError(error, "capture.check_album_photo", { level: "warning" });
     return { review: "uncertain" };
   } finally {
-    clearTimeout(timeout);
-    if (cropUri) {
-      removeFileIfExists(cropUri);
-    }
+    for (const candidate of candidates) removeFileIfExists(candidate.cropUri);
   }
 }

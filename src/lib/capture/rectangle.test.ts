@@ -3,6 +3,7 @@ import {
   MISS_GRACE_MS,
   NESTED_AREA_RATIO,
   RectTracker,
+  nestedQuads,
   SMOOTHING,
   STABLE_WINDOW_MS,
   previewQuad,
@@ -175,22 +176,37 @@ describe("previewQuad", () => {
   });
 });
 
+type Subject = { quad: Quad; quadFill: number; area?: number };
+const still = (rectangles: Quad[] = [], subjects: Subject[] = []) => ({
+  width: 1280,
+  height: 853,
+  rectangles: rectangles.map((quad) => ({
+    confidence: 1,
+    corners: quad.map(([x, y]) => ({ x, y })),
+  })),
+  subjects: subjects.map((subject) => ({
+    area: subject.area ?? quadArea(subject.quad),
+    quadFill: subject.quadFill,
+    quad: subject.quad.map(([x, y]) => ({ x, y })),
+  })),
+});
+
+// Mac harness corners on an iPhone photo of La Grande Jatte displayed on a laptop.
+const laptopScreen: Quad = [
+  [0.0687, 0.3582],
+  [0.8313, 0.359],
+  [0.8145, 0.7285],
+  [0.0786, 0.7048],
+];
+const jatteOnScreen: Quad = [
+  [0.2285, 0.4087],
+  [0.7677, 0.4097],
+  [0.7552, 0.6805],
+  [0.2328, 0.665],
+];
+
 describe("selectCaptureQuad", () => {
   const previewQuad = toQuad(framed);
-  type Subject = { quad: Quad; quadFill: number; area?: number };
-  const still = (rectangles: Quad[] = [], subjects: Subject[] = []) => ({
-    width: 1280,
-    height: 853,
-    rectangles: rectangles.map((quad) => ({
-      confidence: 1,
-      corners: quad.map(([x, y]) => ({ x, y })),
-    })),
-    subjects: subjects.map((subject) => ({
-      area: subject.area ?? quadArea(subject.quad),
-      quadFill: subject.quadFill,
-      quad: subject.quad.map(([x, y]) => ({ x, y })),
-    })),
-  });
   // Numbers below come from the Mac harness (`mac-harness.swift analyze`) on Wikimedia Commons gallery photographs.
   const petitPalaisPainting: Quad = [
     [0.1795, 0.2414],
@@ -431,22 +447,55 @@ describe("selectCaptureQuad", () => {
   });
 
   it("keeps an ambiguous screen boundary unless the preview targets the painting inside it", () => {
-    // iPhone photo of La Grande Jatte displayed on a laptop.
-    const screen: Quad = [
-      [0.0687, 0.3582],
-      [0.8313, 0.359],
-      [0.8145, 0.7285],
-      [0.0786, 0.7048],
-    ];
-    const painting: Quad = [
-      [0.2285, 0.4087],
-      [0.7677, 0.4097],
-      [0.7552, 0.6805],
-      [0.2328, 0.665],
-    ];
-    const detection = still([screen, painting]);
-    expect(selectCaptureQuad(null, detection)).toEqual(screen);
-    expect(selectCaptureQuad(screen, detection)).toEqual(screen);
-    expect(selectCaptureQuad(painting, detection)).toEqual(painting);
+    const detection = still([laptopScreen, jatteOnScreen]);
+    expect(selectCaptureQuad(null, detection)).toEqual(laptopScreen);
+    expect(selectCaptureQuad(laptopScreen, detection)).toEqual(laptopScreen);
+    expect(selectCaptureQuad(jatteOnScreen, detection)).toEqual(jatteOnScreen);
+  });
+});
+
+describe("nestedQuads", () => {
+  const phone = toQuad(box(0.3, 0.1, 0.7, 0.9));
+  const phoneScreen = toQuad(box(0.31, 0.12, 0.69, 0.88));
+  // Letterboxed on the screen, so its sides sit on the screen's edges, where Vision places corners a little outside.
+  const paintingOnPhone = toQuad(box(0.299, 0.35, 0.701, 0.6));
+
+  it("offers the painting shown on a laptop screen", () => {
+    expect(nestedQuads(laptopScreen, still([laptopScreen, jatteOnScreen]))).toEqual([jatteOnScreen]);
+  });
+
+  it("offers the painting on a phone, skipping a screen that is nearly the whole phone", () => {
+    expect(nestedQuads(phone, still([phone, phoneScreen, paintingOnPhone]))).toEqual([paintingOnPhone]);
+  });
+
+  it("offers lifted quadrilateral subjects but not lifted people", () => {
+    const visitor = toQuad(box(0.35, 0.3, 0.6, 0.8));
+    expect(
+      nestedQuads(
+        phone,
+        still(
+          [phone],
+          [
+            { quad: paintingOnPhone, quadFill: 1.004 },
+            { quad: visitor, quadFill: 1.3 },
+          ],
+        ),
+      ),
+    ).toEqual([paintingOnPhone]);
+  });
+
+  it("ignores rectangles reaching outside the boundary and details too small to be the painting", () => {
+    const neighbor = toQuad(box(0.6, 0.3, 0.95, 0.6));
+    const detail = toQuad(box(0.4, 0.4, 0.55, 0.55));
+    expect(nestedQuads(phone, still([phone, neighbor, detail]))).toEqual([]);
+  });
+
+  it("offers at most two crops, each clearly smaller than the one before", () => {
+    const outer = toQuad(box(0.05, 0.05, 0.95, 0.95));
+    const canvas = toQuad(box(0.1, 0.1, 0.9, 0.9));
+    const sameCanvas = toQuad(box(0.12, 0.12, 0.88, 0.88));
+    const inner = toQuad(box(0.2, 0.2, 0.8, 0.8));
+    const detail = toQuad(box(0.3, 0.3, 0.7, 0.7));
+    expect(nestedQuads(outer, still([detail, inner, sameCanvas, canvas, outer]))).toEqual([canvas, inner]);
   });
 });
