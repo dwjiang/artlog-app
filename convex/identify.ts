@@ -1,6 +1,7 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { placementProposalPayload } from "../shared/attestation/attested-payloads";
+import { MAX_CROP_CANDIDATES } from "../shared/capture/crop-limits";
 import { sameOwner } from "../shared/journal/contracts";
 import model from "../shared/model/model-version.json";
 import { decodeOrbFeatures, OrbFormatError, type OrbFeatures } from "../shared/orb/features";
@@ -14,7 +15,9 @@ import { requireDeviceFromAction } from "./lib/auth";
 import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
+import { bestCropIndex } from "./lib/cropChoice";
 import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
+import { scheduleMatchFollowUps } from "./lib/matchFollowUps";
 import { isSupported, validateVector } from "./lib/modelVersion";
 import { readObjectOrb } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
@@ -266,19 +269,7 @@ async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): 
     calibratorVersion: decision.calibratorVersion,
   });
   if (decision.outcome === "confident" && top && best) {
-    // Nothing on the card waits for a model call; prose and "Right now" arrive through the scan subscription.
-    await ctx.scheduler.runAfter(0, internal.docent.ensure, {
-      artworkId: best.artworkId,
-      deviceId: scan.deviceId,
-    });
-    await ctx.scheduler.runAfter(0, internal.rightNow.fetch, {
-      scanId: scan._id,
-      generation: scan.generation,
-      artistId: top.candidate.artwork.artistId,
-      artist: top.candidate.artwork.artist,
-      venueId: scan.venueId,
-      deviceId: scan.deviceId,
-    });
+    await scheduleMatchFollowUps(ctx, scan, top.candidate.artwork);
   }
   return ctx.runQuery(internal.scans.getDisplay, {
     scanId: scan._id,
@@ -296,6 +287,45 @@ export function decodeQuery(descriptors: ArrayBuffer, keypoints: ArrayBuffer): O
     throw error;
   }
 }
+
+export const rankCrops = action({
+  args: {
+    vectors: v.array(v.array(v.number())),
+    modelVersion: v.string(),
+    venueId: v.optional(v.id("museums")),
+  },
+  returns: v.number(),
+  handler: async (ctx, args): Promise<number> =>
+    withErrorReporting("identify.rankCrops", async () => {
+      const device = await requireDeviceFromAction(ctx);
+      await limitDevice(ctx, "rankCrops", device._id);
+      if (args.vectors.length < 2 || args.vectors.length > MAX_CROP_CANDIDATES) {
+        throw new ConvexError({ code: "bad_candidates" });
+      }
+      if (!isSupported(args.modelVersion)) return 0;
+      for (const vector of args.vectors) validateVector(vector);
+      const partitions = [undefined, ...(args.venueId ? [args.venueId] : [])].map((venueId) =>
+        recognitionPartition(args.modelVersion, venueId),
+      );
+      const similarities = await Promise.all(
+        args.vectors.map(async (vector) => {
+          const candidates = await Promise.all(
+            partitions.map(async (partition) => {
+              const matches = await searchVectorIndex(ctx, vector, partition, MAX_CANDIDATES);
+              return ctx.runQuery(internal.identify.loadCandidates, {
+                recordIds: matches.map((match) => match.id),
+                scores: matches.map((match) => match.score),
+                venueId: args.venueId,
+                now: Date.now(),
+              });
+            }),
+          );
+          return Math.max(0, ...candidates.flat().map((candidate) => candidate.similarity));
+        }),
+      );
+      return bestCropIndex(similarities);
+    }),
+});
 
 export const identify = action({
   args: {

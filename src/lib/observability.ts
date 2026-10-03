@@ -125,6 +125,17 @@ function redact(value: string): string {
     .slice(0, 1_000);
 }
 
+// Server data can hold user content; its type or key names still point at the throw site.
+function dataShape(data: unknown): string {
+  if (data === null || typeof data !== "object") return data === null ? "null" : typeof data;
+  if (Array.isArray(data)) return "array";
+  return `keys:${Object.keys(data)
+    .filter((key) => /^\w{1,40}$/.test(key))
+    .sort()
+    .join(",")
+    .slice(0, 120)}`;
+}
+
 function safeData(data: DiagnosticData | undefined): DiagnosticData | undefined {
   if (!data) return;
   return Object.fromEntries(
@@ -194,7 +205,11 @@ export function reportError(error: unknown, operation: string, options: ReportOp
     }
     Sentry.captureException(normalized, {
       level: options.level ?? "error",
-      tags: { operation, ...(code ? { error_code: code } : {}) },
+      tags: {
+        operation,
+        ...(code ? { error_code: code } : {}),
+        ...(cause instanceof ConvexError && !code ? { convex_data: dataShape(cause.data) } : {}),
+      },
       contexts: { operation: safeData(options.data) ?? {} },
     });
   } catch {

@@ -70,7 +70,7 @@ namespace margelo::nitro::visionrect {
     public:
       // Methods
       virtual std::optional<RectDetection> detect(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, double stride) = 0;
-      virtual std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath) = 0;
+      virtual std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath, double turns) = 0;
       virtual std::shared_ptr<Promise<LetterboxResult>> warpAndLetterbox(const std::string& photoPath, const std::optional<std::vector<RectPoint>>& quad, double size) = 0;
       virtual std::shared_ptr<Promise<TextRecognition>> recognizeText(const std::string& photoPath) = 0;
 

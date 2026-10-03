@@ -107,8 +107,8 @@ namespace margelo::nitro::visionrect {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath) override {
-      auto __result = _swiftPart.detectStill(photoPath);
+    inline std::shared_ptr<Promise<StillDetection>> detectStill(const std::string& photoPath, double turns) override {
+      auto __result = _swiftPart.detectStill(photoPath, std::forward<decltype(turns)>(turns));
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

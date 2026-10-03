@@ -1,4 +1,4 @@
-import type { FrameSize } from "./rectangle";
+import { turnCorners, type FrameSize } from "./rectangle";
 import type { PreparedPainting, Quad } from "./stages";
 
 export function perspectiveMatrix(width: number, height: number, quad: Quad): number[] | null {
@@ -41,7 +41,33 @@ export function perspectiveMatrix(width: number, height: number, quad: Quad): nu
 
 export function interpolateCorners(from: Quad, to: Quad, progress: number): Quad {
   "worklet";
-  return from.map(([x, y], i) => [x + (to[i][0] - x) * progress, y + (to[i][1] - y) * progress]) as Quad;
+  const fromCenter = from.reduce(([cx, cy], [x, y]) => [cx + x / 4, cy + y / 4], [0, 0]);
+  const toCenter = to.reduce(([cx, cy], [x, y]) => [cx + x / 4, cy + y / 4], [0, 0]);
+  const fromEdge = [from[1][0] - from[0][0], from[1][1] - from[0][1]];
+  const toEdge = [to[1][0] - to[0][0], to[1][1] - to[0][1]];
+  // Align the top edges before morphing the shape: a half-turn otherwise sends opposite corners through each other.
+  const rotation = Math.atan2(
+    fromEdge[1] * toEdge[0] - fromEdge[0] * toEdge[1],
+    fromEdge[0] * toEdge[0] + fromEdge[1] * toEdge[1],
+  );
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const remainingCos = Math.cos(rotation * (1 - progress));
+  const remainingSin = Math.sin(rotation * (1 - progress));
+  const centerX = fromCenter[0] + (toCenter[0] - fromCenter[0]) * progress;
+  const centerY = fromCenter[1] + (toCenter[1] - fromCenter[1]) * progress;
+  return from.map(([x, y], index) => {
+    const dx = x - fromCenter[0];
+    const dy = y - fromCenter[1];
+    const alignedX = dx * cos + dy * sin;
+    const alignedY = -dx * sin + dy * cos;
+    const nextX = alignedX + (to[index][0] - toCenter[0] - alignedX) * progress;
+    const nextY = alignedY + (to[index][1] - toCenter[1] - alignedY) * progress;
+    return [
+      centerX + nextX * remainingCos - nextY * remainingSin,
+      centerY + nextX * remainingSin + nextY * remainingCos,
+    ];
+  }) as Quad;
 }
 
 /** `image` places the crop inside the painting's box, which clips it to the painting. */
@@ -53,11 +79,13 @@ export type RevealGeometry = {
   image: { left: number; top: number; width: number; height: number };
 };
 
+/** `turns` are clockwise quarter turns from the view to the photo: a photo taken with the phone turned is shown turned back. */
 export function revealGeometry(
   painting: PreparedPainting,
   view: FrameSize,
   fit: "cover" | "contain",
   insets = { top: 0, bottom: 0 },
+  turns = 0,
 ): RevealGeometry | null {
   const { photoSize: photo, contentBounds: bounds, cropSize } = painting;
   if (
@@ -71,7 +99,12 @@ export function revealGeometry(
   ) {
     return null;
   }
-  const from = photoCorners(painting.corners, photo, view, fit);
+  const from = photoCorners(
+    turnCorners(painting.corners, -turns),
+    turns % 2 ? { width: photo.height, height: photo.width } : photo,
+    view,
+    fit,
+  );
   const { to, width, height, scale } = liftedPlacement(bounds, view, insets);
   if (!perspectiveMatrix(width, height, from) || !perspectiveMatrix(width, height, to)) {
     return null;

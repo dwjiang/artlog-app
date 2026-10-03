@@ -716,7 +716,7 @@ def test_trim_preserves_reference_marker_so_review_cannot_be_skipped():
     assert trim_sources([source]) == [{**source, "text": source["text"].strip()}]
 
 
-def test_known_artwork_reference_reaches_review_without_expanding_search_domains():
+def test_known_artwork_reference_reaches_review_as_plain_prose_without_expanding_search():
     citation = "https://auction.example/lot/1"
     text = "Carnival and Lent. Follower of Pieter Brueghel II. Oil on circular panel, diameter 26.8 cm."
     entity = {
@@ -736,7 +736,10 @@ def test_known_artwork_reference_reaches_review_without_expanding_search_domains
 
     extract = Mock(
         return_value=[
-            {"url": citation, "raw_content": text},
+            {
+                "url": citation,
+                "raw_content": text.replace("Carnival and Lent", "_Carnival and Lent_"),
+            },
             {"url": "https://unrequested.example/1", "raw_content": text},
         ]
     )

@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { formatConfidence } from "@/lib/result/confidence";
@@ -11,19 +12,25 @@ import { TentativeOriginNotice } from "./tentative-origin-notice";
 export type RunnerUpsProps = {
   candidates: ResultCandidate[];
   onPick: (candidate: ResultCandidate) => void;
+  /** The row whose pick is still being saved; every row is disabled meanwhile. */
+  busyObjectId?: ResultCandidate["objectId"];
+  disabled?: boolean;
 };
 
 /** Similar works as rows; a museum thumbnail appears only where the server hotlinked a public-domain one. */
-export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
+export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }: RunnerUpsProps) {
   return (
     <View style={styles.list}>
       {candidates.map((candidate) => {
         const confidence = formatConfidence(candidate.probability);
+        const busy = candidate.objectId === busyObjectId;
         return (
           <Pressable
             key={candidate.objectId}
             accessibilityRole="button"
             accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
+            accessibilityState={{ busy, disabled: disabled || !!busyObjectId }}
+            disabled={disabled || !!busyObjectId}
             onPress={() => onPick(candidate)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
           >
@@ -49,7 +56,11 @@ export function RunnerUps({ candidates, onPick }: RunnerUpsProps) {
               )}
               {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
             </View>
-            <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
+            {busy ? (
+              <LoadingRing size={16} color={Gallery.muted} accessible={false} />
+            ) : (
+              <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
+            )}
           </Pressable>
         );
       })}

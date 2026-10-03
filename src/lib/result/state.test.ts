@@ -143,3 +143,31 @@ it.each(["unsupported_version", "failed"] as const)("shows confirmed details aft
     editable: true,
   });
 });
+
+it.each(["identified", "unsupported_version", "failed"] as const)(
+  "names a linked catalogue work even when recognition is %s",
+  (status) => {
+    const { probability: _, ...terrace } = bridge;
+    const view = toResultViewState({
+      ...missScan,
+      status,
+      outcome: "confident",
+      best: terrace,
+      runnerUps: [],
+      linked: { source: "label" },
+      docent: confidentScan.docent,
+    });
+    expect(view).toMatchObject({ kind: "confident", primary: terrace, linked: "label", docent: confidentScan.docent });
+  },
+);
+
+it("ignores an earlier runner-up selection after the owner links that work", () => {
+  const view = toResultViewState(
+    { ...confidentScan, linked: { source: "label" }, runnerUps: [] },
+    { chosenObjectId: lilies.objectId },
+  );
+  expect(view).toMatchObject({ kind: "confident", primary: lilies, linked: "label", runnerUps: [], editable: true });
+  expect(view.docent).toBe(confidentScan.docent);
+  expect(view.factSheet).toBe(confidentScan.factSheet);
+  expect(view.rightNow).toBe(confidentScan.rightNow);
+});

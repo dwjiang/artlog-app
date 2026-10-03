@@ -50,6 +50,7 @@ import {
   orbReference,
   takedownTarget,
   rightsStatus,
+  scanLink,
   scanStatus,
   seedSource,
   vectorSource,
@@ -129,10 +130,13 @@ export default defineSchema({
     // Set when the latest docent run ended without writing, so the card can offer a retry.
     docentFailedAt: v.optional(v.number()),
     factSheetNeedsReview: v.optional(v.boolean()),
+    // Derived from title and artist by a database trigger; corpus rows written before it carry none until backfilled.
+    searchText: v.optional(v.string()),
   })
     .index("by_key", ["key"])
     .index("by_wikidataId", ["wikidataId"])
-    .index("by_factSheetNeedsReview", ["factSheetNeedsReview"]),
+    .index("by_factSheetNeedsReview", ["factSheetNeedsReview"])
+    .searchIndex("search_text", { searchField: "searchText" }),
 
   artworkContent: defineTable({
     researchConflicts: v.optional(v.array(researchConflict)),
@@ -558,6 +562,7 @@ export default defineSchema({
     rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
     confirmed: v.optional(confirmedDetails),
+    linked: v.optional(scanLink),
     error: v.optional(v.string()),
     updatedAt: v.number(),
   })

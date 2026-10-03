@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
@@ -427,5 +427,171 @@ it("exposes the label flow without raw OCR to the owner only", async () => {
   ).toEqual(confirmed);
   await expect(t.query(internal.scans.getDisplay, { scanId, deviceId: other.deviceId })).rejects.toMatchObject({
     data: { code: "scan_not_found" },
+  });
+});
+
+describe("linking a scan to the catalogue work its details name", () => {
+  async function labelled() {
+    const setup = await fixture();
+    const { t, scanId, best } = setup;
+    await t.mutation(internal.scans.setResult, {
+      scanId,
+      generation: 0,
+      status: "identified",
+      outcome: "miss",
+      best: { ...best, probability: 0.2 },
+      runnerUps: [],
+      calibratorVersion: "lr-v1",
+    });
+    const terrace = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, {
+        artwork: { title: "Café Terrace at Night", artist: "Vincent van Gogh", date: "1888", wikidataId: "Q1025704" },
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.patch("scans", scanId, {
+        labelFlow: {
+          stage: "verified",
+          fields: {
+            title: labelField("Cafe Terrace at Night", "wikidata"),
+            artist: labelField("Vincent Van Gogh", "wikidata"),
+          },
+          evidence: ["wikidata"],
+          warnings: [],
+          moderation: "clear",
+          wikidataId: "Q1025704",
+          updatedAt: 1,
+        },
+      }),
+    );
+    const fields = { title: "Cafe Terrace at Night", artist: "Vincent Van Gogh" };
+    return { ...setup, terrace, fields };
+  }
+
+  it("suggests the label's catalogue work to the scan's owner only, while its title is kept", async () => {
+    const { t, user, scanId, terrace, fields } = await labelled();
+    const matches = await user.as.query(api.scans.corpusMatches, { scanId, fields });
+    expect(matches).toEqual([
+      expect.objectContaining({
+        objectId: terrace.objectId,
+        artworkId: terrace.artworkId,
+        title: "Café Terrace at Night",
+        artist: "Vincent van Gogh",
+        thumbnailUrl: "https://museum.example/work.jpg",
+      }),
+    ]);
+    expect(matches[0]).not.toHaveProperty("probability");
+    const other = await seedDevice(t);
+    expect(await other.as.query(api.scans.corpusMatches, { scanId, fields })).toEqual([]);
+    expect(await user.as.query(api.scans.corpusMatches, { scanId, fields: { ...fields, title: " " } })).toEqual([]);
+    expect(
+      await user.as.query(api.scans.corpusMatches, { scanId, fields: { title: "Terrace", artist: "Van Gogh" } }),
+    ).toEqual([]);
+  });
+
+  it("shows a linked work as the scan's match and starts its background", async () => {
+    const { t, user, scanId, terrace, fields } = await labelled();
+    await user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields });
+    const view = await user.as.query(api.scans.get, { scanId });
+    expect(view).toMatchObject({
+      outcome: "confident",
+      best: { objectId: terrace.objectId, title: "Café Terrace at Night" },
+      runnerUps: [],
+      linked: { source: "label" },
+    });
+    expect(view?.best).not.toHaveProperty("probability");
+    expect(await t.run((ctx) => ctx.db.get("scans", scanId))).toMatchObject({
+      outcome: "miss",
+      linked: { source: "label", objectId: terrace.objectId, artworkId: terrace.artworkId },
+    });
+    const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(scheduled.map((job) => job.name)).toEqual(expect.arrayContaining(["docent:ensure", "rightNow:fetch"]));
+  });
+
+  it("refuses works the details don't name and unverified labels", async () => {
+    const { t, user, scanId, work, fields, terrace } = await labelled();
+    await expect(
+      user.as.mutation(api.scans.link, { scanId, objectId: work.objectId, source: "label", fields }),
+    ).rejects.toMatchObject({ data: { code: "invalid_object" } });
+    const other = await seedDevice(t);
+    await expect(
+      other.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "manual", fields }),
+    ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { labelFlow: undefined }));
+    await expect(
+      user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields }),
+    ).rejects.toMatchObject({ data: { code: "label_not_verified" } });
+  });
+
+  it("clears the previous artist's news when the owner links a work", async () => {
+    const { t, user, scanId, terrace, fields } = await labelled();
+    await t.run((ctx) =>
+      ctx.db.patch("scans", scanId, {
+        rightNow: { text: "Monet exhibition", sourceUrl: "https://museum.example/monet", sourceLabel: "Museum" },
+      }),
+    );
+    await user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields });
+    expect((await user.as.query(api.scans.get, { scanId }))?.rightNow).toBeUndefined();
+  });
+
+  it("keeps a linked work's news when the previous artist's request finishes later", async () => {
+    const { t, user, scanId, terrace, fields } = await labelled();
+    const previous = { artistKey: "name:claude monet", region: "US" };
+    const claim = await t.mutation(internal.rightNow.claim, { ...previous, scanId, generation: 0 });
+    if (typeof claim === "string") throw new Error("Expected an uncached request");
+    await user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields });
+    const currentCard = {
+      text: "Van Gogh exhibition",
+      sourceUrl: "https://museum.example/gogh",
+      sourceLabel: "Museum",
+    };
+    const current = { artistKey: "name:vincent van gogh", region: "US" };
+    await t.run((ctx) =>
+      ctx.db.insert("artistContext", {
+        artistId: current.artistKey,
+        region: current.region,
+        ...currentCard,
+        empty: false,
+        fetchedAt: Date.now(),
+      }),
+    );
+    await t.mutation(internal.rightNow.claim, { ...current, scanId, generation: 0 });
+    expect((await user.as.query(api.scans.get, { scanId }))?.rightNow).toEqual(currentCard);
+    await t.mutation(internal.rightNow.write, {
+      ...previous,
+      claimId: claim.claimId,
+      card: { text: "Monet exhibition", sourceUrl: "https://museum.example/monet", sourceLabel: "Museum" },
+    });
+    expect((await user.as.query(api.scans.get, { scanId }))?.rightNow).toEqual(currentCard);
+    await t.mutation(internal.rightNow.claim, { ...previous, scanId, generation: 0 });
+    expect((await user.as.query(api.scans.get, { scanId }))?.rightNow).toEqual(currentCard);
+  });
+
+  it.each(["failed", "unsupported_version"] as const)("delivers current news to a linked %s scan", async (status) => {
+    const { t, user, scanId, terrace, fields } = await labelled();
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { status }));
+    await user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields });
+    const current = { artistKey: "name:vincent van gogh", region: "US" };
+    const claim = await t.mutation(internal.rightNow.claim, { ...current, scanId, generation: 0 });
+    if (typeof claim === "string") throw new Error("Expected an uncached request");
+    const card = { text: "Van Gogh exhibition", sourceUrl: "https://museum.example/gogh", sourceLabel: "Museum" };
+    await t.mutation(internal.rightNow.write, { ...current, claimId: claim.claimId, card });
+    expect((await user.as.query(api.scans.get, { scanId }))?.rightNow).toEqual(card);
+  });
+
+  it("lets confirmed details and a link replace each other without losing the details", async () => {
+    const { user, scanId, terrace, fields } = await labelled();
+    const link = () =>
+      user.as.mutation(api.scans.link, { scanId, objectId: terrace.objectId, source: "label", fields });
+    const mine = { title: "My own title" };
+    await user.as.mutation(api.scans.confirm, { scanId, source: "manual", fields: mine });
+    await link();
+    const linked = await user.as.query(api.scans.get, { scanId });
+    expect(linked).toMatchObject({ linked: { source: "label" } });
+    expect(linked).not.toHaveProperty("confirmed");
+    await user.as.mutation(api.scans.confirm, { scanId, source: "manual", fields: mine });
+    const view = await user.as.query(api.scans.get, { scanId });
+    expect(view).toMatchObject({ outcome: "miss", confirmed: { fields: mine } });
+    expect(view).not.toHaveProperty("linked");
   });
 });

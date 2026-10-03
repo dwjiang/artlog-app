@@ -5,7 +5,7 @@ import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Camera, usePhotoOutput } from "react-native-vision-camera";
+import { usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { VISIT_BAR_HEIGHT } from "@/components/visits/visit-bar";
@@ -13,6 +13,7 @@ import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
+import { useUprightPhoto } from "@/lib/capture/use-upright-photo";
 import { reportError } from "@/lib/observability";
 import { useLiftToasts } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -25,6 +26,7 @@ import { CaptureVisitPill } from "./capture-visit-pill";
 import { DetectionLog, DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
+import { TapToFocusCamera } from "./tap-to-focus-camera";
 import { VenuePill } from "./venue-pill";
 
 export function ScanScreen() {
@@ -54,6 +56,7 @@ export function ScanScreen() {
   useLiftToasts(controls.bottom ? controlsBottom + controls.bottom : undefined, isFocused);
   const active = isFocused && appState === "active";
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
+  const takePhoto = useUprightPhoto(photoOutput, active);
   const capture = useCapture({
     active,
     focused: isFocused,
@@ -87,7 +90,7 @@ export function ScanScreen() {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {
-      void capture.captureAutomatically(attempt, () => photoOutput.capturePhotoToFile({}, {}));
+      void capture.captureAutomatically(attempt, takePhoto);
     }
   });
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
@@ -133,10 +136,9 @@ export function ScanScreen() {
         loading={cameraActive && !cameraReady && !cameraError}
       >
         <Sentry.Mask style={StyleSheet.absoluteFill}>
-          <Camera
-            style={StyleSheet.absoluteFill}
+          <TapToFocusCamera
             device="back"
-            orientationSource="interface"
+            orientationSource="custom"
             resizeMode="cover"
             isActive={cameraActive}
             outputs={outputs}
@@ -155,6 +157,7 @@ export function ScanScreen() {
         </Sentry.Mask>
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
         <ScrollView
+          pointerEvents="box-none"
           style={styles.overlay}
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={[
@@ -201,7 +204,7 @@ export function ScanScreen() {
                   captured={busy && source === "camera"}
                   detecting={detecting}
                   onPress={() => {
-                    void capture.captureManually(() => photoOutput.capturePhotoToFile({}, {}));
+                    void capture.captureManually(takePhoto);
                   }}
                 />
               </CaptureControls>
@@ -246,6 +249,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   overlayContent: {
+    pointerEvents: "box-none",
     flexGrow: 1,
     justifyContent: "flex-end",
     paddingHorizontal: Spacing.content,

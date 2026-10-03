@@ -17,6 +17,7 @@ const limits = {
   registerDevice: { kind: "fixed window", rate: 10, period: HOUR },
   attestChallenge: { kind: "fixed window", rate: 30, period: HOUR },
   identify: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
+  rankCrops: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
   contribute: { kind: "fixed window", rate: 20, period: HOUR },
   placementProposal: { kind: "fixed window", rate: 20, period: HOUR },
   rejectPerWork: { kind: "fixed window", rate: 3, period: DAY },

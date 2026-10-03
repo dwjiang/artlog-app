@@ -20,6 +20,11 @@ export const CONFIRMED_LABELS: Record<ConfirmedSource, string> = {
   label: "From the label",
   manual: "Your details",
 };
+// A linked match has no recognition score; the chip names how the owner found it instead.
+export const LINKED_DETAILS: Record<ConfirmedSource, string> = {
+  label: "from the label",
+  manual: "from your details",
+};
 
 export function ConfidenceChip({
   kind,
@@ -35,7 +40,7 @@ export function ConfidenceChip({
   const label = kind === "confirmed" ? source && CONFIRMED_LABELS[source] : CONFIDENCE_LABELS[kind];
   if (!label) return null;
   const named = kind === "confident" || kind === "soft";
-  const confidence = named ? formatConfidence(probability) : undefined;
+  const confidence = !named ? undefined : source ? LINKED_DETAILS[source] : formatConfidence(probability);
   return (
     <View
       accessible

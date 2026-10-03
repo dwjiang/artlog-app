@@ -1,3 +1,5 @@
+import { MAX_CROP_CANDIDATES } from "@/shared/capture/crop-limits";
+
 import type { RectObservation, RectPoint, StillDetection, SubjectObservation } from "../../../modules/vision-rect/src";
 import type { Quad } from "./stages";
 
@@ -37,6 +39,13 @@ export const STILL_MATCH_TOLERANCE = 0.05;
 export const SUBJECT_QUAD_FILL_TOLERANCE = 0.025;
 // Small lifted regions can be details inside an edge-to-edge painting, despite a rectangular mask.
 export const MIN_UNGUIDED_SUBJECT_AREA_FRACTION = 0.2;
+/**
+ * Share of the chosen boundary below which a rectangle inside it is a detail, not a painting worth ranking. Paintings
+ * on phone and laptop screens covered 0.19–0.61 of the screen; a 0.09 detail of an engraving matched a wrong work.
+ */
+export const MIN_NESTED_SHARE = 0.15;
+/** Normalized distance a nested corner may sit outside the chosen boundary, where the two share an edge. */
+export const NESTED_EDGE_TOLERANCE = 0.01;
 
 export type FrameSize = { width: number; height: number };
 export type Guidance = "searching" | "move-closer" | "fit-whole-painting" | "straighten" | "hold-still" | "ready";
@@ -67,6 +76,22 @@ export function toQuad(corners: RectPoint[]): Quad {
 
 export function toCorners(quad: Quad): RectPoint[] {
   return quad.map(([x, y]) => ({ x, y }));
+}
+
+/** Carries normalized corners along as their image turns clockwise by `turns` quarter turns; each keeps its index. */
+export function turnCorners(quad: Quad, turns: number): Quad {
+  const quarters = ((turns % 4) + 4) % 4;
+  return quad.map(([x, y]) => {
+    for (let turn = 0; turn < quarters; turn++) [x, y] = [1 - y, x];
+    return [x, y];
+  }) as Quad;
+}
+
+/** Turns the quad with its image and puts the corner that ends up top-left first, as detection in the turned image would. */
+export function turnQuad(quad: Quad, turns: number): Quad {
+  const turned = turnCorners(quad, turns);
+  const quarters = ((turns % 4) + 4) % 4;
+  return turned.map((_, index) => turned[(index - quarters + 4) % 4]) as Quad;
 }
 
 export function quadArea(quad: Quad, size: FrameSize = unitSize): number {
@@ -139,10 +164,11 @@ export function isUsableQuad(quad: Quad): boolean {
   });
 }
 
-export function containsPoint(quad: Quad, [x, y]: [number, number]): boolean {
+/** `tolerance` is how far outside an edge, in normalized units, a point may sit and still count. */
+export function containsPoint(quad: Quad, [x, y]: [number, number], tolerance = 0): boolean {
   return quad.every(([ax, ay], i) => {
     const [bx, by] = quad[(i + 1) % 4];
-    return (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= 0;
+    return (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= -tolerance * Math.hypot(bx - ax, by - ay);
   });
 }
 
@@ -278,6 +304,30 @@ function closestQuad(quads: Quad[], target: Quad): Quad | null {
     }
   }
   return best;
+}
+
+/**
+ * Boundaries inside the chosen one that recognition may prefer: a painting on a phone or laptop screen, a print
+ * behind its mat, a canvas in its frame. Largest first, each clearly smaller than the one before.
+ */
+export function nestedQuads(outer: Quad, still: StillDetection): Quad[] {
+  const inside = [
+    ...still.rectangles.filter((observation) => observation.corners.length === 4).map((o) => toQuad(o.corners)),
+    ...still.subjects.filter(isQuadrilateralSubject).map((subject) => toQuad(subject.quad)),
+  ]
+    .filter(
+      (quad) =>
+        isUsableQuad(quad)
+        && quadArea(quad) >= MIN_NESTED_SHARE * quadArea(outer)
+        && quad.every((corner) => containsPoint(outer, corner, NESTED_EDGE_TOLERANCE)),
+    )
+    .sort((a, b) => quadArea(b) - quadArea(a));
+  const nested: Quad[] = [];
+  for (const quad of inside) {
+    if (nested.length === MAX_CROP_CANDIDATES - 1) break;
+    if (quadArea(quad) < NESTED_AREA_RATIO * quadArea(nested.at(-1) ?? outer)) nested.push(quad);
+  }
+  return nested;
 }
 
 // Smooth paint is indistinguishable from a mat by texture alone. Keep the detected boundary

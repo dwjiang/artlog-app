@@ -186,7 +186,7 @@ export const retry = mutation({
   handler: async (ctx, { scanId }) => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get("scans", scanId);
-    if (scan?.deviceId === device._id && scan.confirmed) {
+    if (scan?.deviceId === device._id && scan.confirmed && !scan.linked) {
       const { confirmed } = scan;
       if (confirmed.docent?.length || confirmed.docentUnavailable) return null;
       await ctx.db.patch("scans", scanId, { confirmed: { ...confirmed, docentFailedAt: undefined } });
@@ -197,10 +197,11 @@ export const retry = mutation({
       });
       return null;
     }
-    if (!scan || scan.deviceId !== device._id || scan.outcome !== "confident" || !scan.best) {
+    const named = scan?.linked ?? (scan?.outcome === "confident" ? scan.best : undefined);
+    if (!scan || scan.deviceId !== device._id || !named) {
       throw new ConvexError({ code: "invalid_scan" });
     }
-    const { artworkId } = scan.best;
+    const { artworkId } = named;
     await ctx.db.patch("artworks", artworkId, { docentFailedAt: undefined });
     await ctx.scheduler.runAfter(0, internal.docent.ensure, {
       artworkId,

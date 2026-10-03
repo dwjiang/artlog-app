@@ -127,6 +127,7 @@ jest.mock("@/lib/label/use-label-capture", () => ({
     return mockCapture;
   },
 }));
+jest.mock("@/lib/result/use-corpus-matches", () => ({ useCorpusMatches: () => ({ matches: [] }) }));
 jest.mock("@/lib/result/use-scan", () => ({
   useScan: (id: string | undefined) => {
     mockUseScan(id);

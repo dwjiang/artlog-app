@@ -404,6 +404,7 @@ it("publishes the captured photo before venue lookup finishes", async () => {
   await act(async () => {
     pending = hook.result.current.captureManually(async () => ({
       filePath: "/photo.jpg",
+      turns: 0,
     }));
   });
   expect(hook.result.current.presentation?.photoUri).toBe("file:///photo.jpg");
@@ -595,6 +596,7 @@ it("captures automatically with the detected corners and announces it", async ()
     const attempt = hook.result.current.controller.begin("camera", quad)!;
     await hook.result.current.captureAutomatically(attempt, async () => ({
       filePath: "/photo.jpg",
+      turns: 0,
     }));
   });
   expect(mockPipeline.mock.calls[0][0]).toMatchObject({
@@ -606,6 +608,16 @@ it("captures automatically with the detected corners and announces it", async ()
   expect(mockWarning).toHaveBeenCalledWith("light");
 });
 
+it("hands the turn of a photo taken with the phone turned to the crop and the reveal", async () => {
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    const attempt = hook.result.current.controller.begin("camera", painting.corners)!;
+    await hook.result.current.captureAutomatically(attempt, async () => ({ filePath: "/photo.jpg", turns: 3 }));
+  });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ quad: painting.corners, turns: 3 });
+  expect(hook.result.current.presentation).toMatchObject({ painting, turns: 3 });
+});
+
 it("ignores the shutter while a capture is already running", async () => {
   let complete!: (result: CaptureResult) => void;
   mockPipeline.mockReturnValue(
@@ -614,7 +626,7 @@ it("ignores the shutter while a capture is already running", async () => {
     }),
   );
   const hook = await renderHook(useCapture);
-  const takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
+  const takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg", turns: 0 }));
   let pending!: Promise<void> | undefined;
   await act(async () => {
     pending = hook.result.current.captureManually(takePhoto);
@@ -653,6 +665,7 @@ it.each(["camera", "library"] as const)(
       } else {
         await hook.result.current.captureManually(async () => ({
           filePath: "/photo.jpg",
+          turns: 0,
         }));
       }
     });
@@ -669,7 +682,7 @@ it.each(["camera", "library"] as const)(
 it("reports an unavailable visit before taking the photo instead of assigning the scan elsewhere", async () => {
   mockVisit.mockResolvedValue(undefined);
   const onVisitUnavailable = jest.fn();
-  const takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg" }));
+  const takePhoto = jest.fn(async () => ({ filePath: "/photo.jpg", turns: 0 }));
   const hook = await renderHook(() => useCapture({ visitLocalId: "missing-visit", onVisitUnavailable }));
   await act(async () => {
     await hook.result.current.captureManually(takePhoto);

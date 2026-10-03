@@ -82,6 +82,18 @@ it("reports unexpected server codes without serializing server data", () => {
   );
 });
 
+it.each([
+  [new ConvexError("Museum unavailable: The Louvre"), "string"],
+  [new ConvexError({ reason: "a private note", calls: 1 }), "keys:calls,reason"],
+])("tags the data shape of a server error without a code, never its values", (error, shape) => {
+  reportError(error, `test.query.${shape}`);
+  expect(Sentry.captureException).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "Convex request failed" }),
+    expect.objectContaining({ tags: { operation: `test.query.${shape}`, convex_data: shape } }),
+  );
+  expect(JSON.stringify(jest.mocked(Sentry.captureException).mock.calls)).not.toMatch(/Louvre|private note/);
+});
+
 it("deduplicates propagated failures and throttles repeated retry errors, but reports again after a minute", () => {
   const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
   const failure = new Error("disk is full");

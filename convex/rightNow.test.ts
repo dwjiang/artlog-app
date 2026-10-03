@@ -6,7 +6,14 @@ import type { Id } from "./_generated/dataModel";
 import { jsonResponse } from "./lib/labelFixtures";
 import { regionDomains } from "./lib/regions";
 import { FIXTURE_NOW, rawTavily, rightNowFixtures, type RightNowFixture } from "./lib/rightNowFixtures";
-import { readSpend, seedEmbedding, seedDevice, seedMuseum, testVector } from "./lib/testFactories";
+import {
+  readSpend,
+  seedArtworkWithObject,
+  seedEmbedding,
+  seedDevice,
+  seedMuseum,
+  testVector,
+} from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 const TAVILY = "https://api.tavily.com/search";
@@ -61,8 +68,9 @@ function tavily(fixture: RightNowFixture) {
   });
 }
 
-async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museums">) {
+async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museums">, artistId?: string) {
   const now = Date.now();
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { artist: "Yayoi Kusama", artistId } }));
   return t.run(async (ctx) =>
     ctx.db.insert("scans", {
       deviceId,
@@ -74,6 +82,7 @@ async function seedScan(t: Harness, deviceId: Id<"devices">, venueId?: Id<"museu
       capturedAt: now,
       status: "identified",
       outcome: "confident",
+      best: { artworkId: work.artworkId, objectId: work.objectId, identityStatus: "established", probability: 0.99 },
       updatedAt: now,
     }),
   );
@@ -156,7 +165,7 @@ describe("rightNow.fetch", () => {
     await run({ scanId: second });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect((await scan(second))?.rightNow).toEqual(supportedCard);
-    const third = await seedScan(t, deviceId, venueId);
+    const third = await seedScan(t, deviceId, venueId, "Q231301");
     await run({ scanId: third, artistId: "Q231301" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect((await rows()).map((row) => row.artistId).sort()).toEqual(["Q231301", "name:yayoi kusama"]);

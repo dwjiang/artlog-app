@@ -60,6 +60,30 @@ export function titleQualifiersMatch(a: string, b: string): boolean {
   return left.size === right.size && [...left].every((term) => right.has(term));
 }
 
+function letterPairs(value: string): Map<string, number> {
+  const compact = normalizeText(value).replaceAll(" ", "");
+  const pairs = new Map<string, number>();
+  for (let index = 0; index < compact.length - 1; index++) {
+    const pair = compact.slice(index, index + 2);
+    pairs.set(pair, (pairs.get(pair) ?? 0) + 1);
+  }
+  return pairs;
+}
+
+// Dice over letter pairs with spaces and punctuation dropped, so a misread "Blochbauer" still meets "Bloch-Bauer".
+export function spellingSimilarity(a: string, b: string): number {
+  const left = letterPairs(a);
+  const right = letterPairs(b);
+  let total = 0;
+  let shared = 0;
+  for (const [pair, count] of left) {
+    total += count;
+    shared += Math.min(count, right.get(pair) ?? 0);
+  }
+  for (const count of right.values()) total += count;
+  return total === 0 ? 0 : (2 * shared) / total;
+}
+
 export function titleMatches(label: string, page: string): boolean {
   return titleQualifiersMatch(label, page) && titleSimilarity(label, page) >= TITLE_MATCH_THRESHOLD;
 }
@@ -112,6 +136,15 @@ export function personMatches(a: string, b: string): boolean {
     || (first.length === 1 && other.startsWith(first))
     || (other.length === 1 && first.startsWith(other))
   );
+}
+
+// Wall labels often shorten a name to its particle and surname: "Van Gogh" for "Vincent van Gogh".
+export function surnameMatches(label: string, name: string): boolean {
+  if (personMatches(label, name)) return true;
+  const short = personNameTokens(label);
+  const full = personNameTokens(name);
+  const offset = full.length - short.length;
+  return short.length > 1 && offset > 0 && short.every((token, index) => token === full[offset + index]);
 }
 
 export function artistMentioned(text: string, artist: string): boolean {

@@ -3,19 +3,22 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { docentStatusOf, scanDocentStatus } from "./docent";
 import { internalMutation, mutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
+import { findCorpusMatches, type CorpusMatch } from "./lib/corpusMatch";
 import { fileStorage } from "./lib/fileStorage";
 import { displayLabelFlow } from "./lib/labelVerify";
+import { scheduleMatchFollowUps } from "./lib/matchFollowUps";
 import { isSupported } from "./lib/modelVersion";
 import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
+import { normalizeText } from "./lib/textMatch";
 import {
   confirmedDisplay,
   confirmedFields,
@@ -27,8 +30,10 @@ import {
   factChip,
   labelFlowDisplay,
   rightsStatus,
+  scanLink,
   snapshotFields,
   type ConfirmedFields,
+  type ConfirmedSource,
 } from "./lib/validators";
 import { vectorHash, withVectorArchives } from "./lib/vectorStore";
 import { deleteEmbedding, insertExpiringEmbedding, getEmbedding } from "./scanEmbeddings";
@@ -38,7 +43,8 @@ const scanFields = schema.tables.scans.validator.fields;
 export const displayCandidate = snapshotFields.extend({
   objectId: v.id("objects"),
   artworkId: v.id("artworks"),
-  probability: v.number(),
+  // Absent on a work the owner named from a label or their details rather than recognition.
+  probability: v.optional(v.number()),
   identityStatus: schema.tables.objects.validator.fields.identityStatus,
   rightsStatus,
   thumbnailUrl: v.optional(v.string()),
@@ -64,6 +70,8 @@ export const scanDisplay = v.object({
   // The label flow is the owner's own state; the raw OCR reading stays server-side.
   labelFlow: v.optional(labelFlowDisplay),
   confirmed: v.optional(confirmedDisplay),
+  // Set while `best` is the catalogue work the owner linked rather than recognition's guess.
+  linked: v.optional(scanLink.pick("source")),
   error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
@@ -239,9 +247,11 @@ export const setResult = internalMutation({
   },
 });
 
+type CandidateRef = Omit<NonNullable<Doc<"scans">["best"]>, "probability"> & { probability?: number };
+
 export async function joinCandidate(
   ctx: QueryCtx,
-  match: NonNullable<Doc<"scans">["best"]>,
+  match: CandidateRef,
   venueId?: Doc<"scans">["venueId"],
 ): Promise<{
   candidate: Infer<typeof displayCandidate>;
@@ -279,14 +289,22 @@ export async function joinCandidate(
   };
 }
 
+function catalogueCandidate(match: Pick<CorpusMatch, "objectId" | "artworkId">): CandidateRef {
+  return { objectId: match.objectId, artworkId: match.artworkId, identityStatus: "established" };
+}
+
 async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDisplay> {
+  // A link that is no longer eligible falls back to recognition's own result.
+  const linked = scan.linked ? await joinCandidate(ctx, catalogueCandidate(scan.linked), scan.venueId) : null;
   const [best, runnerUps] = await Promise.all([
-    scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null,
-    Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
+    linked ?? (scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null),
+    linked ? [] : Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
   ]);
-  const { confirmed } = scan;
+  const outcome = linked ? "confident" : scan.outcome;
+  // Details confirmed before a link stay stored, with their docent generation, for when the owner returns to them.
+  const confirmed = linked ? undefined : scan.confirmed;
   const prose =
-    !confirmed && scan.outcome === "confident" && best?.candidate.identityStatus === "established"
+    !confirmed && outcome === "confident" && best?.candidate.identityStatus === "established"
       ? best?.artwork
       : undefined;
   const content = prose ? await readArtworkContent(ctx, prose) : null;
@@ -298,7 +316,7 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     visitId: scan.visitId,
     capturedAt: scan.capturedAt,
     status: scan.status,
-    outcome: scan.outcome,
+    outcome,
     calibratorVersion: scan.calibratorVersion,
     best: best?.candidate,
     runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
@@ -316,6 +334,7 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
       fields: confirmed.fields,
       confirmedAt: confirmed.confirmedAt,
     },
+    linked: linked && scan.linked ? { source: scan.linked.source } : undefined,
     error: scan.error,
   };
 }
@@ -332,6 +351,38 @@ function trimConfirmed(fields: ConfirmedFields): ConfirmedFields {
   return trimmed;
 }
 
+const namingFields = confirmedFields.pick("title", "artist", "date");
+type NamingFields = Infer<typeof namingFields>;
+
+function sameText(a: string | undefined, b: string | undefined): boolean {
+  return normalizeText(a ?? "") === normalizeText(b ?? "");
+}
+
+// The label's Wikidata work stands only while the owner keeps the title and artist it was found from.
+async function scanCorpusMatches(ctx: QueryCtx, scan: Doc<"scans">, fields: NamingFields): Promise<CorpusMatch[]> {
+  const flow = scan.labelFlow;
+  const wikidataId =
+    flow?.stage === "verified"
+    && flow.moderation === "clear"
+    && sameText(flow.fields.title?.value, fields.title)
+    && sameText(flow.fields.artist?.value, fields.artist)
+      ? flow.wikidataId
+      : undefined;
+  return findCorpusMatches(ctx, { ...fields, wikidataId }, scan.venueId);
+}
+
+async function requireNamingScan(ctx: QueryCtx, scanId: Id<"scans">, source: ConfirmedSource): Promise<Doc<"scans">> {
+  const device = await requireDevice(ctx);
+  const scan = await ctx.db.get("scans", scanId);
+  if (!scan || scan.deviceId !== device._id || scan.status === "pending") {
+    throw new ConvexError({ code: "invalid_scan" });
+  }
+  if (source === "label" && (scan.labelFlow?.stage !== "verified" || scan.labelFlow.moderation !== "clear")) {
+    throw new ConvexError({ code: "label_not_verified" });
+  }
+  return scan;
+}
+
 function sameFields(a: ConfirmedFields, b: ConfirmedFields): boolean {
   const names = ["title", "artist", "date", "accession", "medium", "creditLine"] as const;
   return names.every((name) => a[name] === b[name]);
@@ -343,17 +394,13 @@ export const confirm = mutation({
   args: { scanId: v.id("scans"), source: confirmedSource, fields: confirmedFields },
   returns: v.null(),
   handler: async (ctx, { scanId, source, fields }) => {
-    const device = await requireDevice(ctx);
-    const scan = await ctx.db.get("scans", scanId);
-    if (!scan || scan.deviceId !== device._id || scan.status === "pending") {
-      throw new ConvexError({ code: "invalid_scan" });
-    }
-    if (source === "label" && (scan.labelFlow?.stage !== "verified" || scan.labelFlow.moderation !== "clear")) {
-      throw new ConvexError({ code: "label_not_verified" });
-    }
+    const scan = await requireNamingScan(ctx, scanId, source);
     const trimmed = trimConfirmed(fields);
     const previous = scan.confirmed;
-    if (previous?.source === source && sameFields(previous.fields, trimmed)) return null;
+    if (previous?.source === source && sameFields(previous.fields, trimmed)) {
+      if (scan.linked) await ctx.db.patch("scans", scanId, { linked: undefined });
+      return null;
+    }
     const generation = (previous?.generation ?? 0) + 1;
     // Research needs an artist to tell the work apart from others with the same title.
     const researchable = !!trimmed.artist;
@@ -365,10 +412,62 @@ export const confirm = mutation({
         generation,
         docentUnavailable: researchable ? undefined : true,
       },
+      linked: undefined,
     });
     if (researchable) {
-      await ctx.scheduler.runAfter(0, internal.docent.ensureForScan, { scanId, deviceId: device._id, generation });
+      await ctx.scheduler.runAfter(0, internal.docent.ensureForScan, { scanId, deviceId: scan.deviceId, generation });
     }
+    return null;
+  },
+});
+
+// Catalogue works the owner's details name, for an "Is it this?" pick before they confirm them as their own.
+export const corpusMatches = query({
+  args: { scanId: v.id("scans"), fields: namingFields },
+  returns: v.array(displayCandidate),
+  handler: async (ctx, { scanId, fields }) => {
+    const device = await requireDevice(ctx);
+    const scan = await ctx.db.get("scans", scanId);
+    const title = fields.title.trim();
+    if (
+      !scan
+      || scan.deviceId !== device._id
+      || scan.status === "pending"
+      || !title
+      || Object.values(fields).some((value) => (value ?? "").length > LIMITS.snapshot)
+    ) {
+      return [];
+    }
+    const matches = await scanCorpusMatches(ctx, scan, {
+      title,
+      artist: fields.artist?.trim() || undefined,
+      date: fields.date?.trim() || undefined,
+    });
+    const joined = await Promise.all(
+      matches.map((match) => joinCandidate(ctx, catalogueCandidate(match), scan.venueId)),
+    );
+    return joined.flatMap((entry) => (entry ? [entry.candidate] : []));
+  },
+});
+
+// The owner's pick from corpusMatches: the scan now names that catalogue work, as a recognised match would.
+export const link = mutation({
+  args: { scanId: v.id("scans"), objectId: v.id("objects"), source: confirmedSource, fields: confirmedFields },
+  returns: v.null(),
+  handler: async (ctx, { scanId, objectId, source, fields }) => {
+    const scan = await requireNamingScan(ctx, scanId, source);
+    const { title, artist, date } = trimConfirmed(fields);
+    const match = (await scanCorpusMatches(ctx, scan, { title, artist, date })).find(
+      (candidate) => candidate.objectId === objectId,
+    );
+    if (!match) throw new ConvexError({ code: "invalid_object" });
+    if (scan.linked?.objectId === objectId && scan.linked.source === source) return null;
+    await ctx.db.patch("scans", scanId, {
+      linked: { source, objectId, artworkId: match.artworkId, linkedAt: Date.now() },
+      rightNow: undefined,
+    });
+    const artwork = await ctx.db.get("artworks", match.artworkId);
+    if (artwork) await scheduleMatchFollowUps(ctx, scan, artwork);
     return null;
   },
 });

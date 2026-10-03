@@ -6,8 +6,9 @@
 //     modules/vision-rect/ios/StillAnalyzer.swift modules/vision-rect/ios/Letterbox.swift \
 //     modules/vision-rect/ios/TextRecognizer.swift \
 //     modules/vision-rect/scripts/mac-harness.swift -o /tmp/vision-rect-harness
-//   /tmp/vision-rect-harness analyze <image>... [--out <dir>]
+//   /tmp/vision-rect-harness analyze <image>... [--out <dir>] [--turns <n>]
 //     --out writes <name>-analysis.png (subject quads red, bounds dotted, rectangles blue) and <name>-crop.png (top subject warped)
+//     --turns analyzes each image turned counterclockwise by n quarter turns, as the app does for a photo taken with the phone turned
 //   /tmp/vision-rect-harness letterbox <image> <size> <out.png> [--interp medium|low|high|none] [--quad x,y,x,y,x,y,x,y]
 //   /tmp/vision-rect-harness recognize-text <image>...
 //     one JSON line per image: the label reader's input (scripts/evals/token-factory/README.md, "label-ocr")
@@ -96,14 +97,20 @@ struct Harness {
   static func analyze(_ arguments: [String]) throws {
     var paths: [String] = []
     var outDir: String?
+    var turns = 0
     var index = 0
     while index < arguments.count {
-      if arguments[index] == "--out" { outDir = arguments[index + 1]; index += 2 } else { paths.append(arguments[index]); index += 1 }
+      switch arguments[index] {
+      case "--out": outDir = arguments[index + 1]; index += 2
+      case "--turns": turns = Int(arguments[index + 1]) ?? 0; index += 2
+      default: paths.append(arguments[index]); index += 1
+      }
     }
+    if outDir != nil && turns % 4 != 0 { fail("--out draws over the upright image; drop --turns") }
     for path in paths {
       let url = URL(fileURLWithPath: path)
       let started = Date()
-      let result = try StillAnalyzer.analyze(fileURL: url)
+      let result = try StillAnalyzer.analyze(fileURL: url, turns: turns)
       let elapsed = Date().timeIntervalSince(started) * 1000
       let subjects = result.subjects.map { subject -> [String: Any] in
         [

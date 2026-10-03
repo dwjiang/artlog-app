@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAX_CROP_CANDIDATES } from "../shared/capture/crop-limits";
 import model from "../shared/model/model-version.json";
 import { encodeOrbFeatures } from "../shared/orb/features";
 import { makeSyntheticPair } from "../shared/orb/test-fixtures";
@@ -23,8 +24,9 @@ import {
   seedVector,
   testVector,
 } from "./lib/testFactories";
+import { searchVectorIndex } from "./lib/vectorSearch";
 import { searchRecordId } from "./lib/vectorSyncQueue";
-import { harness, signIn } from "./test.helpers";
+import { harness, signIn, type SignedIn } from "./test.helpers";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -758,5 +760,101 @@ describe("candidate loading", () => {
     expect(candidates[0]).not.toHaveProperty("descriptors");
     expect(candidates[0]).not.toHaveProperty("keypoints");
     expect(candidates.map((c) => c.object._id)).toEqual(rows.slice(0, 20).map((r) => r.objectId));
+  });
+});
+
+describe("crop ranking", () => {
+  const rank = (user: SignedIn, vectors: number[][], venueId?: Id<"museums">) =>
+    user.as.action(api.identify.rankCrops, { vectors, modelVersion: model.modelVersion, venueId });
+
+  it("picks the nested crop that matches an artwork when the outer crop does not", async () => {
+    const { user } = await fixture();
+    expect(await rank(user, [testVector(0.3), testVector(0.6), testVector(0.99)])).toBe(2);
+  });
+
+  it("keeps the outer crop when it already matches as well as the nested ones", async () => {
+    const { user } = await fixture();
+    expect(await rank(user, [testVector(0.97), testVector(0.98)])).toBe(0);
+  });
+
+  it.each(["reverted object", "taken-down artwork", "deleted vector", "replaced vector", "ineligible vector"])(
+    "keeps the outer crop when a nested crop's best hit is invalid: %s",
+    async (reason) => {
+      const { t, user, work } = await fixture();
+      const rejected = await t.run(async (ctx) => {
+        const row = await seedArtworkWithObject(ctx);
+        if (reason === "reverted object") await ctx.db.patch("objects", row.objectId, { reverted: true });
+        if (reason === "taken-down artwork") {
+          await ctx.db.insert("takedowns", {
+            target: { kind: "artwork", artworkId: row.artworkId },
+            requester: "test",
+            receivedAt: Date.now(),
+          });
+        }
+        if (reason === "deleted vector") await ctx.db.delete("vectors", row.vectorId);
+        if (reason === "replaced vector") await ctx.db.patch("vectors", row.vectorId, { contentHash: "replaced" });
+        if (reason === "ineligible vector") await ctx.db.patch("vectors", row.vectorId, { source: "user_scan" });
+        return row;
+      });
+      vi.mocked(searchVectorIndex)
+        .mockResolvedValueOnce([{ id: work!.recordId, score: 0.7 }])
+        .mockResolvedValueOnce([{ id: rejected.recordId, score: 0.99 }]);
+
+      expect(await rank(user, [testVector(0.7), testVector(0.99)])).toBe(0);
+    },
+  );
+
+  it("finds an eligible nested match below an ineligible first hit", async () => {
+    const { t, user, work } = await fixture();
+    const rejected = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { reverted: true } }));
+    vi.mocked(searchVectorIndex).mockImplementation(async (_ctx, vector, _partition, limit) =>
+      [
+        { id: rejected.recordId, score: 0.99 },
+        { id: work!.recordId, score: vector[0] },
+      ].slice(0, limit),
+    );
+
+    expect(await rank(user, [testVector(0.7), testVector(0.9)])).toBe(1);
+  });
+
+  it("ranks against artworks recorded only at the scan's venue", async () => {
+    const { t, user, venueId } = await fixture(false);
+    const axis = (index: number) => Array.from({ length: model.embeddingDim }, (_, i) => (i === index ? 1 : 0));
+    const venueVector = axis(2);
+    await t.run(async (ctx) => {
+      const { objectId } = await seedArtworkWithObject(ctx, { vector: axis(3) });
+      await seedVector(ctx, {
+        partition: JSON.stringify([model.modelVersion, venueId]),
+        objectId,
+        modelVersion: model.modelVersion,
+        source: "corpus",
+        vector: venueVector,
+      });
+    });
+    expect(await rank(user, [testVector(0.3), venueVector], venueId)).toBe(1);
+    expect(await rank(user, [testVector(0.3), venueVector])).toBe(0);
+  });
+
+  it("keeps the outer crop for an unsupported model without searching", async () => {
+    const { user } = await fixture();
+    expect(
+      await user.as.action(api.identify.rankCrops, {
+        vectors: [testVector(0.3), testVector(0.99)],
+        modelVersion: "retired-model",
+      }),
+    ).toBe(0);
+    expect(searchVectorIndex).not.toHaveBeenCalled();
+  });
+
+  it.each([1, MAX_CROP_CANDIDATES + 1])("refuses %i crops", async (count) => {
+    const { user } = await fixture();
+    await expect(
+      rank(
+        user,
+        Array.from({ length: count }, () => testVector()),
+      ),
+    ).rejects.toMatchObject({
+      data: { code: "bad_candidates" },
+    });
   });
 });

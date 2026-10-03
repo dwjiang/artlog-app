@@ -19,7 +19,7 @@ export function CaptureReveal({
   insets?: { top: number; bottom: number };
   onComplete: () => void;
 }) {
-  const { photo, photoUri, source, painting, crop } = presentation;
+  const { photo, photoUri, source, painting, crop, turns = 0 } = presentation;
   const fit = source === "camera" ? "cover" : "contain";
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const [displayed, setDisplayed] = useState(false);
@@ -34,8 +34,8 @@ export function CaptureReveal({
     callback.current();
   }, []);
   const geometry = useMemo(
-    () => (painting ? revealGeometry(painting, layout, fit, insets) : null),
-    [painting, layout, fit, insets],
+    () => (painting ? revealGeometry(painting, layout, fit, insets, turns) : null),
+    [painting, layout, fit, insets, turns],
   );
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function CaptureReveal({
             source={photo ?? photoUri}
             contentFit={fit}
             blurRadius={blurRadius}
-            style={StyleSheet.absoluteFill}
+            style={turnedBack(layout, turns)}
             onError={finish}
             accessibilityLabel="Captured painting"
           />
@@ -76,6 +76,21 @@ export function CaptureReveal({
       />
     </View>
   );
+}
+
+/** Fills the view with a photo taken with the phone turned, turned back the way the preview showed it. */
+function turnedBack(view: { width: number; height: number }, turns: number) {
+  if (turns % 4 === 0) return StyleSheet.absoluteFill;
+  const width = turns % 2 ? view.height : view.width;
+  const height = turns % 2 ? view.width : view.height;
+  return {
+    position: "absolute",
+    left: (view.width - width) / 2,
+    top: (view.height - height) / 2,
+    width,
+    height,
+    transform: [{ rotate: `${-90 * turns}deg` }],
+  } as const;
 }
 
 const styles = StyleSheet.create({

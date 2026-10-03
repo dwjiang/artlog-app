@@ -148,9 +148,9 @@ open class HybridVisionRectSpec_cxx {
   }
   
   @inline(__always)
-  public final func detectStill(photoPath: std.string) -> bridge.Result_std__shared_ptr_Promise_StillDetection___ {
+  public final func detectStill(photoPath: std.string, turns: Double) -> bridge.Result_std__shared_ptr_Promise_StillDetection___ {
     do {
-      let __result = try self.__implementation.detectStill(photoPath: String(photoPath))
+      let __result = try self.__implementation.detectStill(photoPath: String(photoPath), turns: turns)
       let __resultCpp = { () -> bridge.std__shared_ptr_Promise_StillDetection__ in
         let __promise = bridge.create_std__shared_ptr_Promise_StillDetection__()
         let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_StillDetection__(__promise)

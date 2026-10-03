@@ -1,6 +1,7 @@
 import { Triggers } from "convex-helpers/server/triggers";
 
 import type { DataModel } from "../_generated/dataModel";
+import { artworkSearchText } from "./corpusMatch";
 import { registerFileReferences } from "./fileReferences";
 import { registerNotifications } from "./notifications";
 import { CHALLENGE_RETENTION_MS, COMPLETED_REMOVAL_RETENTION_MS, EVIDENCE_RETENTION_MS } from "./retentionPolicy";
@@ -15,6 +16,11 @@ databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation })
   if (operation === "insert") {
     await ctx.db.patch("attestChallenges", newDoc._id, { expiresAt: newDoc._creationTime + CHALLENGE_RETENTION_MS });
   }
+});
+databaseTriggers.register("artworks", async (ctx, { newDoc }) => {
+  if (!newDoc) return;
+  const searchText = artworkSearchText(newDoc);
+  if (newDoc.searchText !== searchText) await ctx.db.patch("artworks", newDoc._id, { searchText });
 });
 databaseTriggers.register("scans", async (ctx, { newDoc, oldDoc }) => {
   if (newDoc && (!oldDoc || oldDoc.updatedAt !== newDoc.updatedAt)) {
