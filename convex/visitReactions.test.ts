@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "./_generated/api";
 import { purgeSocialBatch } from "./lib/socialCleanup";
 import { setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { harness } from "./test.helpers";
+
+afterEach(() => vi.useRealTimers());
 
 async function fixture() {
   const t = harness();
@@ -27,6 +29,7 @@ describe("visit reactions", () => {
       likeCount: 1,
       commentCount: 0,
       liked: true,
+      latestComment: null,
     });
     expect((await t.query(api.visitReactions.listLikes, { postId })).page.map((p) => p.name)).toEqual(["Visitor"]);
     for (let i = 0; i < 2; i++) {
@@ -39,6 +42,7 @@ describe("visit reactions", () => {
       likeCount: 0,
       commentCount: 0,
       liked: false,
+      latestComment: null,
     });
   });
 
@@ -93,6 +97,85 @@ describe("visit reactions", () => {
       commentId: id,
     });
     expect((await t.query(api.visitReactions.getSummary, { postId })).commentCount).toBe(1);
+  });
+
+  it("hearts a comment once per person, shows each reader their own heart, and drops hearts with the comment", async () => {
+    vi.useFakeTimers();
+    const { t, author, visitor, postId } = await fixture();
+    const commentId = await author.as.mutation(api.visitReactions.addComment, {
+      postId,
+      body: "Thanks for coming.",
+      requestId: crypto.randomUUID(),
+    });
+    const third = await socialUser(t, "Third");
+    for (const reader of [visitor, visitor, third]) {
+      await reader.as.mutation(api.visitReactions.setCommentLike, { postId, commentId, liked: true });
+    }
+    expect((await visitor.as.query(api.visitReactions.listComments, { postId })).page[0]).toMatchObject({
+      likeCount: 2,
+      liked: true,
+    });
+    expect((await author.as.query(api.visitReactions.listComments, { postId })).page[0]).toMatchObject({
+      likeCount: 2,
+      liked: false,
+    });
+    await visitor.as.mutation(api.visitReactions.setCommentLike, { postId, commentId, liked: false });
+    expect((await visitor.as.query(api.visitReactions.listComments, { postId })).page[0]).toMatchObject({
+      likeCount: 1,
+      liked: false,
+    });
+    await expect(t.mutation(api.visitReactions.setCommentLike, { postId, commentId, liked: true })).rejects.toThrow(
+      "unauthenticated",
+    );
+    await author.as.mutation(api.visitReactions.deleteComment, { postId, commentId });
+    await expect(
+      visitor.as.mutation(api.visitReactions.setCommentLike, { postId, commentId, liked: true }),
+    ).rejects.toMatchObject({ data: { code: "not_found" } });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.run(async (ctx) => {
+      for (const table of ["commentLikes", "commentLikeCounts"] as const) {
+        expect(await ctx.db.query(table).take(1)).toEqual([]);
+      }
+    });
+  });
+
+  it("previews the newest comment each reader can see", async () => {
+    const { t, author, visitor, postId } = await fixture();
+    const third = await socialUser(t, "Third");
+    await author.as.mutation(api.visitReactions.addComment, {
+      postId,
+      body: "First.",
+      requestId: crypto.randomUUID(),
+    });
+    const newest = await visitor.as.mutation(api.visitReactions.addComment, {
+      postId,
+      body: "Newest.",
+      requestId: crypto.randomUUID(),
+    });
+    expect((await t.query(api.visitReactions.getSummary, { postId })).latestComment).toEqual({
+      commentId: newest,
+      authorName: "Visitor",
+      body: "Newest.",
+    });
+    await third.as.mutation(api.friendships.block, { scope: third.scope, profileId: visitor.profileId });
+    expect((await third.as.query(api.visitReactions.getSummary, { postId })).latestComment).toMatchObject({
+      authorName: "Author",
+      body: "First.",
+    });
+  });
+
+  it("refuses hearts on a comment from someone the reader blocked", async () => {
+    const { t, visitor, postId } = await fixture();
+    const third = await socialUser(t, "Third");
+    const commentId = await visitor.as.mutation(api.visitReactions.addComment, {
+      postId,
+      body: "Hello",
+      requestId: crypto.randomUUID(),
+    });
+    await third.as.mutation(api.friendships.block, { scope: third.scope, profileId: visitor.profileId });
+    await expect(
+      third.as.mutation(api.visitReactions.setCommentLike, { postId, commentId, liked: true }),
+    ).rejects.toMatchObject({ data: { code: "not_found" } });
   });
 
   it("rejects guest writes and invalid comments", async () => {
@@ -197,6 +280,7 @@ describe("visit reactions", () => {
   });
 
   it("removes a deleted account’s reactions and publication children", async () => {
+    vi.useFakeTimers();
     const { t, author, visitor, postId } = await fixture();
     await visitor.as.mutation(api.visitReactions.setLike, {
       postId,
@@ -207,13 +291,20 @@ describe("visit reactions", () => {
       body: "Hello",
       requestId: crypto.randomUUID(),
     });
+    const authorComment = await author.as.mutation(api.visitReactions.addComment, {
+      postId,
+      body: "Thanks",
+      requestId: crypto.randomUUID(),
+    });
+    await visitor.as.mutation(api.visitReactions.setCommentLike, { postId, commentId: authorComment, liked: true });
     while (await t.run((ctx) => purgeSocialBatch(ctx, visitor.accountId))) {
       /* drain bounded batches */
     }
     expect(await t.query(api.visitReactions.getSummary, { postId })).toMatchObject({
       likeCount: 0,
-      commentCount: 0,
+      commentCount: 1,
     });
+    expect((await t.query(api.visitReactions.listComments, { postId })).page[0]).toMatchObject({ likeCount: 0 });
     await author.as.mutation(api.visitReactions.setLike, {
       postId,
       liked: true,
@@ -226,10 +317,82 @@ describe("visit reactions", () => {
     while (await t.run((ctx) => purgeSocialBatch(ctx, author.accountId))) {
       /* drain bounded batches */
     }
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
     await t.run(async (ctx) => {
-      for (const table of ["visitLikes", "visitComments", "visitEngagement", "notifications"] as const) {
+      for (const table of [
+        "visitLikes",
+        "visitComments",
+        "visitEngagement",
+        "commentLikes",
+        "commentLikeCounts",
+        "notifications",
+      ] as const) {
         expect(await ctx.db.query(table).take(1)).toEqual([]);
       }
     });
   });
+
+  it.each(["writer", "visit owner"] as const)(
+    "finishes the %s’s account purge with heavily liked comments within transaction limits",
+    async (deletedAccount) => {
+      vi.useFakeTimers();
+      const t = harness({ transactionLimits: true });
+      const author = await socialUser(t, "Author");
+      const writer = await socialUser(t, "Writer");
+      const visit = await socialVisit(t, author);
+      const { postId } = await author.as.mutation(api.sharedVisits.publish, visit.selection);
+      const publicationId = await t.run(async (ctx) => {
+        const publication = await ctx.db
+          .query("sharedVisits")
+          .withIndex("by_postId", (q) => q.eq("postId", postId!))
+          .unique();
+        return publication!._id;
+      });
+      const likers = await t.run(async (ctx) => {
+        const ids = [];
+        for (let i = 0; i < 350; i++) {
+          const accountId = await ctx.db.insert("accounts", { provider: "apple", providerUserId: `liker-${i}` });
+          ids.push(
+            await ctx.db.insert("profiles", {
+              accountId,
+              username: `liker_${i}`,
+              name: `Liker ${i}`,
+              searchText: `liker ${i}`,
+              active: true,
+              leaderboardVisibility: "off",
+              publishedWallCount: 0,
+              updatedAt: Date.now(),
+            }),
+          );
+        }
+        return ids;
+      });
+      for (let i = 0; i < 50; i++) {
+        await t.run(async (ctx) => {
+          const commentId = await ctx.db.insert("visitComments", {
+            publicationId,
+            profileId: writer.profileId,
+            body: `Comment ${i}`,
+            requestId: crypto.randomUUID(),
+          });
+          for (const profileId of likers) await ctx.db.insert("commentLikes", { commentId, profileId });
+          await ctx.db.insert("commentLikeCounts", { commentId, likeCount: likers.length });
+        });
+      }
+      await t.run((ctx) => ctx.db.insert("visitEngagement", { publicationId, likeCount: 0, commentCount: 50 }));
+      const account = deletedAccount === "writer" ? writer : author;
+      while (await t.run((ctx) => purgeSocialBatch(ctx, account.accountId))) {
+        /* drain bounded batches */
+      }
+      await t.run(async (ctx) => {
+        expect(await ctx.db.get("profiles", account.profileId)).toBeNull();
+        expect(await ctx.db.query("visitComments").take(1)).toEqual([]);
+      });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      await t.run(async (ctx) => {
+        expect(await ctx.db.query("commentLikes").take(1)).toEqual([]);
+        expect(await ctx.db.query("commentLikeCounts").take(1)).toEqual([]);
+      });
+    },
+  );
 });

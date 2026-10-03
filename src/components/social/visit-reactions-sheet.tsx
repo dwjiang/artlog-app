@@ -1,10 +1,21 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import { setStringAsync } from "expo-clipboard";
 import { randomUUID } from "expo-crypto";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import {
+  ActionSheetIOS,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type ScrollViewProps,
+} from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -13,17 +24,20 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
 import { reportHref } from "@/lib/social/report";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ReactionIcon } from "./reaction-icon";
 import { PageFooter } from "./social-state";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
 
@@ -33,6 +47,7 @@ const commentsPage = (value: CommentPage) => value;
 const commentId = (value: Comment) => value.commentId;
 const likesPage = (value: FunctionReturnType<typeof api.visitReactions.listLikes>) => value;
 const profileId = (value: PublicProfile) => value.profileId;
+type CommentAction = { name: string; label: string; destructive?: boolean; run: () => void };
 
 const COMMENT_AUDIENCE = {
   private: "Only you can see this visit and its comments.",
@@ -56,6 +71,11 @@ export function VisitReactionsSheet({
   onJoin: () => void;
 }) {
   const title = kind === "comments" ? "Comments" : "Likes";
+  // Hosted content lays out at its own height, and flex children there don't follow the sheet as it resizes, so the
+  // list takes an explicit height: the sheet's measured height (which already excludes the keyboard) minus the heading.
+  const [sheetHeight, setSheetHeight] = useState<number>();
+  const [headingHeight, setHeadingHeight] = useState(0);
+  const listSpace = sheetHeight === undefined ? undefined : sheetHeight - headingHeight;
   return (
     <BottomSheet
       isPresented
@@ -64,9 +84,9 @@ export function VisitReactionsSheet({
       containerColor={Gallery.paper}
       contentPadding={{ top: 16, left: 0, right: 0, bottom: 0 }}
     >
-      <RNHostView>
+      <RNHostView onLayout={(event) => setSheetHeight(event.nativeEvent.layout.height)}>
         <View style={styles.sheet}>
-          <View style={styles.heading}>
+          <View style={styles.heading} onLayout={(event) => setHeadingHeight(event.nativeEvent.layout.height)}>
             <View style={{ width: 44 }} />
             <Text accessibilityRole="header" style={styles.title}>
               {title}{" "}
@@ -77,9 +97,9 @@ export function VisitReactionsSheet({
             <GalleryIconButton label={`Close ${kind}`} icon="xmark" onPress={onDismiss} />
           </View>
           {kind === "comments" ? (
-            <Comments visit={visit} session={session} onJoin={onJoin} onDismiss={onDismiss} />
+            <Comments visit={visit} session={session} height={listSpace} onJoin={onJoin} onDismiss={onDismiss} />
           ) : (
-            <Likes postId={visit.postId} session={session} onDismiss={onDismiss} />
+            <Likes postId={visit.postId} session={session} height={listSpace} onDismiss={onDismiss} />
           )}
           <ToastLayer offset={0} />
         </View>
@@ -88,15 +108,26 @@ export function VisitReactionsSheet({
   );
 }
 
-function Likes({ postId, session, onDismiss }: { postId: string; session: SocialSession; onDismiss: () => void }) {
+function Likes({
+  postId,
+  session,
+  height,
+  onDismiss,
+}: {
+  postId: string;
+  session: SocialSession;
+  height?: number;
+  onDismiss: () => void;
+}) {
   const router = useRouter();
   const likes = useCursorPages(api.visitReactions.listLikes, { postId }, session.key, likesPage, profileId);
   return (
-    <FlatList
-      data={likes.items}
-      keyExtractor={profileId}
-      style={styles.list}
-      renderItem={({ item }) => (
+    <SheetList
+      items={likes.items}
+      itemKey={profileId}
+      height={height}
+      onEndReached={likes.loadMore}
+      renderItem={(item) => (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`View ${item.name}’s profile`}
@@ -116,14 +147,12 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
           </View>
         </Pressable>
       )}
-      ListEmptyComponent={likes.done && !likes.loading && !likes.error ? <Empty title="No likes yet." /> : null}
-      ListFooterComponent={
+      empty={likes.done && !likes.loading && !likes.error ? <Empty title="No likes yet." /> : null}
+      footer={
         !likes.done || likes.loading || likes.error ? (
           <PageFooter {...likes} count={likes.items.length} noun="likes" />
         ) : null
       }
-      onEndReached={likes.loadMore}
-      onEndReachedThreshold={0.4}
     />
   );
 }
@@ -131,11 +160,13 @@ function Likes({ postId, session, onDismiss }: { postId: string; session: Social
 function Comments({
   visit,
   session,
+  height,
   onJoin,
   onDismiss,
 }: {
   visit: ReactionVisit;
   session: SocialSession;
+  height?: number;
   onJoin: () => void;
   onDismiss: () => void;
 }) {
@@ -150,8 +181,9 @@ function Comments({
   const viewer = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
   const addComment = useMutation(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
+  const setCommentLike = useMutation(api.visitReactions.setCommentLike);
   const blocking = useBlock(session);
-  const list = useRef<FlatList<Comment>>(null);
+  const list = useRef<ScrollView>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -165,11 +197,25 @@ function Comments({
   const [posted, setPosted] = useState<string>();
   const [deleting, setDeleting] = useState<string>();
   const [error, setError] = useState<string>();
+  const [menuFor, setMenuFor] = useState<string>();
+  const [composerHeight, setComposerHeight] = useState(0);
+  // The heart shows the requested state until the write settles, so a tap answers at once and a failure falls back.
+  const likeRequests = useRef(new Map<string, boolean>());
+  const [likeTargets, setLikeTargets] = useState<ReadonlyMap<string, boolean>>(new Map());
   const { canLoadMore, loadMore } = comments;
   const postedVisible = !!posted && comments.items.some((item) => item.commentId === posted);
   useEffect(() => {
     if (posted && !postedVisible && canLoadMore) loadMore();
   }, [posted, postedVisible, canLoadMore, loadMore]);
+  // The live list usually delivers a new comment before its mutation returns, so the reveal waits for both.
+  const [reveals, setReveals] = useState(0);
+  if (postedVisible) {
+    setPosted(undefined);
+    setReveals((count) => count + 1);
+  }
+  useEffect(() => {
+    if (reveals > 0) list.current?.scrollToEnd({ animated: true });
+  }, [reveals]);
   const send = async () => {
     const body = draft.trim();
     if (!body || pending.current || session.status !== "ready") return;
@@ -220,107 +266,157 @@ function Comments({
         },
       },
     ]);
+  const toggleLike = async (item: Comment) => {
+    if (session.status === "signed-out" || session.status === "profile-required") {
+      onJoin();
+      return;
+    }
+    if (session.status !== "ready" || likeRequests.current.has(item.commentId)) return;
+    likeRequests.current.set(item.commentId, !item.liked);
+    setLikeTargets(new Map(likeRequests.current));
+    try {
+      await setCommentLike({ postId: visit.postId, commentId: item.commentId, liked: !item.liked });
+    } catch (cause) {
+      showErrorToast(socialErrorMessage(cause) ?? "Couldn’t update your like.", () => void toggleLike(item));
+    } finally {
+      likeRequests.current.delete(item.commentId);
+      setLikeTargets(new Map(likeRequests.current));
+    }
+  };
+  const copy = async (item: Comment) => {
+    try {
+      if (await setStringAsync(item.body)) showToast("Comment copied.");
+      else showErrorToast("Couldn’t copy the comment.");
+    } catch (cause) {
+      reportError(cause, "social.comment.copy", { level: "warning" });
+      showErrorToast("Couldn’t copy the comment.");
+    }
+  };
+  const actionsFor = (item: Comment): CommentAction[] => [
+    { name: "copy", label: "Copy comment", run: () => void copy(item) },
+    ...(session.profileId === item.author.profileId
+      ? [{ name: "delete", label: "Delete comment", destructive: true, run: () => remove(item) }]
+      : session.status === "loading"
+        ? []
+        : [
+            {
+              name: "report",
+              label: "Report comment",
+              run: () => {
+                // A route sheet can’t present over this native sheet, so this one closes first.
+                onDismiss();
+                router.push(reportHref("comment", item.commentId));
+              },
+            },
+            ...(session.status === "ready"
+              ? [
+                  {
+                    name: "block",
+                    label: `Block ${item.author.name}`,
+                    destructive: true,
+                    run: () => blocking.block(item.author),
+                  },
+                ]
+              : []),
+          ]),
+  ];
+  const showActions = (item: Comment) => {
+    const actions = actionsFor(item);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setMenuFor(item.commentId);
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [...actions.map((action) => action.label), "Cancel"],
+        cancelButtonIndex: actions.length,
+        destructiveButtonIndex: actions.flatMap((action, index) => (action.destructive ? [index] : [])),
+      },
+      (index) => {
+        setMenuFor(undefined);
+        actions[index]?.run();
+      },
+    );
+  };
   return (
     <>
-      <FlatList
+      <SheetList
         ref={list}
-        data={comments.items}
-        keyExtractor={commentId}
-        style={styles.list}
+        items={comments.items}
+        itemKey={commentId}
+        height={height === undefined ? undefined : height - composerHeight}
+        onEndReached={comments.loadMore}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        onContentSizeChange={() => {
-          if (postedVisible) {
-            list.current?.scrollToEnd({ animated: true });
-            setPosted(undefined);
-          }
-        }}
-        renderItem={({ item }) => (
-          <View style={styles.comment}>
-            <ProfileAvatar
-              name={item.author.name}
-              photoUrl={item.author.photoUrl}
-              avatar={item.author.avatar}
-              size={32}
-            />
-            <View style={{ flex: 1, gap: 4 }}>
-              <View style={styles.byline}>
-                <Text style={styles.name}>{item.author.name}</Text>
-                {item.isAuthor && <Text style={styles.author}>Author</Text>}
-                <Text style={styles.meta}>
-                  {now - item.createdAt < 86_400_000
-                    ? formatRelativeTime(item.createdAt, now)
-                    : new Intl.DateTimeFormat(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      }).format(item.createdAt)}
-                </Text>
-              </View>
-              <Text selectable style={styles.body}>
-                {item.body}
-              </Text>
-              {session.profileId === item.author.profileId ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Delete comment: ${item.body}`}
-                  accessibilityState={{
-                    disabled: !!deleting || busy,
-                    busy: deleting === item.commentId,
-                  }}
-                  disabled={!!deleting || busy}
-                  onPress={() => remove(item)}
-                  style={styles.commentAction}
-                >
-                  <Text style={styles.meta}>{deleting === item.commentId ? "Deleting…" : "Delete"}</Text>
-                </Pressable>
-              ) : (
-                session.status !== "loading" && (
-                  <View style={styles.commentActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Report comment: ${item.body}`}
-                      onPress={() => {
-                        // A route sheet can’t present over this native sheet, so this one closes first.
-                        onDismiss();
-                        router.push(reportHref("comment", item.commentId));
-                      }}
-                      style={styles.commentAction}
-                    >
-                      <Text style={styles.meta}>Report</Text>
-                    </Pressable>
-                    {session.status === "ready" && (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Block ${item.author.name}`}
-                        accessibilityState={{
-                          disabled: blocking.pending !== undefined,
-                          busy: blocking.pending === item.author.profileId,
-                        }}
-                        disabled={blocking.pending !== undefined}
-                        onPress={() => blocking.block(item.author)}
-                        style={styles.commentAction}
-                      >
-                        <Text style={styles.meta}>Block</Text>
-                      </Pressable>
-                    )}
+        renderItem={(item) => {
+          const time =
+            now - item.createdAt < 86_400_000
+              ? formatRelativeTime(item.createdAt, now)
+              : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.createdAt);
+          const actions = actionsFor(item);
+          const target = likeTargets.get(item.commentId);
+          const liked = target ?? item.liked;
+          const likeCount = item.likeCount + (target === undefined || target === item.liked ? 0 : target ? 1 : -1);
+          return (
+            <View
+              style={[
+                styles.comment,
+                menuFor === item.commentId && { backgroundColor: Gallery.fill },
+                deleting === item.commentId && { opacity: 0.5 },
+              ]}
+            >
+              <Pressable
+                accessibilityLabel={`${item.author.name}${item.isAuthor ? ", author" : ""}, ${time}: ${item.body}`}
+                accessibilityState={{ busy: deleting === item.commentId }}
+                accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
+                onAccessibilityAction={({ nativeEvent }) =>
+                  actions.find((action) => action.name === nativeEvent.actionName)?.run()
+                }
+                onLongPress={() => showActions(item)}
+                style={styles.commentContent}
+              >
+                <ProfileAvatar
+                  name={item.author.name}
+                  photoUrl={item.author.photoUrl}
+                  avatar={item.author.avatar}
+                  size={28}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.byline}>
+                    <Text style={styles.name}>{item.author.name}</Text>
+                    {item.isAuthor && <Text style={styles.author}>Author</Text>}
+                    <Text style={styles.meta}>{time}</Text>
                   </View>
-                )
-              )}
+                  <Text style={styles.body}>{item.body}</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${liked ? "Unlike" : "Like"} ${item.author.name}’s comment`}
+                accessibilityValue={{ text: `${likeCount} ${likeCount === 1 ? "like" : "likes"}` }}
+                accessibilityState={{
+                  selected: liked,
+                  busy: target !== undefined,
+                  disabled: target !== undefined || session.status === "loading",
+                }}
+                disabled={target !== undefined || session.status === "loading"}
+                onPress={() => void toggleLike(item)}
+                style={styles.commentLike}
+              >
+                <ReactionIcon kind="heart" filled={liked} size={16} color={Gallery.muted} />
+                {likeCount > 0 && (
+                  <Text style={[styles.likeCount, liked && { color: Gallery.accent }]}>{likeCount}</Text>
+                )}
+              </Pressable>
             </View>
-          </View>
-        )}
-        ListEmptyComponent={
-          comments.done && !comments.loading && !comments.error ? <Empty title="No comments yet." /> : null
-        }
-        ListFooterComponent={
+          );
+        }}
+        empty={comments.done && !comments.loading && !comments.error ? <Empty title="No comments yet." /> : null}
+        footer={
           !comments.done || comments.loading || comments.error ? (
             <PageFooter {...comments} count={comments.items.length} noun="comments" />
           ) : null
         }
-        onEndReached={comments.loadMore}
-        onEndReachedThreshold={0.4}
       />
-      <View style={styles.composer}>
+      <View style={styles.composer} onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}>
         {error && (
           <Text accessibilityRole="alert" style={styles.error}>
             {error}
@@ -333,7 +429,7 @@ function Comments({
                 name={viewer.data?.name ?? "You"}
                 photoUrl={viewer.data?.photoUrl}
                 avatar={viewer.data?.avatar}
-                size={32}
+                size={28}
               />
               <View style={[styles.inputWrap, focused && { borderColor: Gallery.accent }]}>
                 <TextInput
@@ -395,6 +491,52 @@ function Comments({
   );
 }
 
+// A FlatList never scrolls inside the hosted sheet, so each list keeps its loaded pages in a ScrollView and asks for
+// the next page when the reader nears the end, or when the pages so far don't fill the list.
+function SheetList<T>({
+  items,
+  itemKey,
+  renderItem,
+  empty,
+  footer,
+  height,
+  onEndReached,
+  ref,
+  ...scroll
+}: {
+  items: T[];
+  itemKey: (item: T) => string;
+  renderItem: (item: T) => ReactNode;
+  empty: ReactNode;
+  footer: ReactNode;
+  height?: number;
+  onEndReached: () => void;
+  ref?: Ref<ScrollView>;
+} & Pick<ScrollViewProps, "keyboardShouldPersistTaps" | "keyboardDismissMode">) {
+  const nearEnd = (visible: number, offset: number, content: number) => offset + visible * 1.4 >= content;
+  return (
+    <ScrollView
+      {...scroll}
+      ref={ref}
+      style={height !== undefined && { height }}
+      scrollEventThrottle={100}
+      onScroll={({ nativeEvent }) => {
+        if (
+          nearEnd(nativeEvent.layoutMeasurement.height, nativeEvent.contentOffset.y, nativeEvent.contentSize.height)
+        ) {
+          onEndReached();
+        }
+      }}
+      onContentSizeChange={(_width, content) => {
+        if (height !== undefined && nearEnd(height, 0, content)) onEndReached();
+      }}
+    >
+      {items.length === 0 ? empty : items.map((item) => <Fragment key={itemKey(item)}>{renderItem(item)}</Fragment>)}
+      {footer}
+    </ScrollView>
+  );
+}
+
 function Empty({ title }: { title: string }) {
   return (
     <View style={styles.empty}>
@@ -404,7 +546,7 @@ function Empty({ title }: { title: string }) {
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: Gallery.paper },
+  sheet: { backgroundColor: Gallery.paper },
   heading: {
     flexDirection: "row",
     alignItems: "center",
@@ -419,7 +561,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   total: { color: Gallery.muted, fontWeight: "400", fontSize: 13 },
-  list: { flex: 1 },
   // These lists ignore contentContainerStyle inside the native sheet's RN host, so each row carries the inset.
   person: {
     marginHorizontal: 20,
@@ -430,25 +571,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.softBorder,
   },
-  comment: { marginHorizontal: 20, flexDirection: "row", gap: 10, paddingVertical: 12 },
+  comment: { flexDirection: "row", alignItems: "flex-start", paddingLeft: 20, paddingRight: 8 },
+  commentContent: { flex: 1, flexDirection: "row", gap: 10, paddingVertical: 8 },
   byline: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    columnGap: 7,
+    columnGap: 6,
     rowGap: 2,
   },
-  name: { fontSize: 13, lineHeight: 19, fontWeight: "600", color: Gallery.ink },
-  author: { fontSize: 10, lineHeight: 16, color: Gallery.accent },
-  meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
-  body: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  commentActions: { flexDirection: "row", gap: 16 },
-  commentAction: {
-    minHeight: 44,
-    minWidth: 44,
-    alignSelf: "flex-start",
-    justifyContent: "center",
+  name: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: Gallery.ink },
+  author: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "600",
+    color: Gallery.accent,
+    backgroundColor: Gallery.highlight,
+    borderRadius: 4,
+    overflow: "hidden",
+    paddingHorizontal: 5,
   },
+  meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
+  body: { fontSize: 14, lineHeight: 19, color: Gallery.ink },
+  // Centers the heart on the comment's first line: row padding 8 + name line 18 + (body line 19 − heart 16) / 2.
+  commentLike: { width: 44, minHeight: 44, paddingTop: 27.5, alignItems: "center", gap: 1 },
+  likeCount: { fontSize: 11, lineHeight: 13, color: Gallery.muted },
   empty: {
     flex: 1,
     minHeight: 180,
@@ -503,7 +650,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 16,
     color: Gallery.muted,
-    marginLeft: 41,
+    marginLeft: 37,
   },
   join: { flexDirection: "row", alignItems: "center", gap: 12 },
   error: { fontSize: 13, lineHeight: 19, color: Gallery.destructive },

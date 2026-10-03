@@ -4,13 +4,22 @@ import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid } from "../shared/journal/limits";
 import { publicProfile } from "../shared/social/contracts";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
-import { query } from "./_generated/server";
-import { mutation } from "./functions";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { internalAction, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
+import { withErrorReporting } from "./lib/observability";
 import { optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
-import { changeEngagement, engagement, visibleParticipant } from "./lib/visitReactions";
+import {
+  changeCommentLikes,
+  changeEngagement,
+  commentLikeCount,
+  engagement,
+  visibleParticipant,
+} from "./lib/visitReactions";
 
 const comment = v.object({
   commentId: v.id("visitComments"),
@@ -18,7 +27,24 @@ const comment = v.object({
   body: v.string(),
   createdAt: v.number(),
   isAuthor: v.boolean(),
+  likeCount: v.number(),
+  liked: v.boolean(),
 });
+const latestComment = v.object({
+  commentId: v.id("visitComments"),
+  authorName: v.string(),
+  body: v.string(),
+});
+// Comments from blocked writers are skipped, so the preview gives up after this many hidden ones.
+const LATEST_COMMENT_SCAN = 10;
+const COMMENT_LIKE_BATCH = 100;
+
+function viewerCommentLike(ctx: QueryCtx, commentId: Id<"visitComments">, viewerId: Id<"profiles">) {
+  return ctx.db
+    .query("commentLikes")
+    .withIndex("by_comment_profile", (q) => q.eq("commentId", commentId).eq("profileId", viewerId))
+    .unique();
+}
 const pageFields = {
   cursor: v.union(v.string(), v.null()),
   isDone: v.boolean(),
@@ -30,6 +56,7 @@ export const getSummary = query({
     likeCount: v.number(),
     commentCount: v.number(),
     liked: v.boolean(),
+    latestComment: v.union(latestComment, v.null()),
   }),
   handler: async (ctx, { postId }) => {
     const viewer = await optionalProfile(ctx);
@@ -41,10 +68,24 @@ export const getSummary = query({
         .query("visitLikes")
         .withIndex("by_publication_profile", (q) => q.eq("publicationId", publication._id).eq("profileId", viewer._id))
         .unique());
+    let latest = null;
+    let scanned = 0;
+    for await (const row of ctx.db
+      .query("visitComments")
+      .withIndex("by_publication", (q) => q.eq("publicationId", publication._id))
+      .order("desc")) {
+      const author = await visibleParticipant(ctx, row.profileId, [viewer?._id, publication.profileId]);
+      if (author) {
+        latest = { commentId: row._id, authorName: author.name, body: row.body };
+        break;
+      }
+      if (++scanned === LATEST_COMMENT_SCAN) break;
+    }
     return {
       likeCount: counts?.likeCount ?? 0,
       commentCount: counts?.commentCount ?? 0,
       liked: !!like,
+      latestComment: latest,
     };
   },
 });
@@ -118,6 +159,8 @@ export const listComments = query({
           body: row.body,
           createdAt: row._creationTime,
           isAuthor: row.profileId === publication.profileId,
+          likeCount: (await commentLikeCount(ctx, row._id))?.likeCount ?? 0,
+          liked: !!viewer && !!(await viewerCommentLike(ctx, row._id, viewer._id)),
         });
       }
     }
@@ -161,6 +204,33 @@ export const addComment = mutation({
   },
 });
 
+export const setCommentLike = mutation({
+  args: { postId: v.string(), commentId: v.id("visitComments"), liked: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { postId, commentId, liked }) => {
+    const { profile, accountId } = await requireProfile(ctx);
+    const { publication } = await requireSharedVisit(ctx, postId, profile._id);
+    const row = await ctx.db.get("visitComments", commentId);
+    if (
+      !row
+      || row.publicationId !== publication._id
+      || !(await visibleParticipant(ctx, row.profileId, [profile._id, publication.profileId]))
+    ) {
+      throw new ConvexError({ code: "not_found" });
+    }
+    const current = await viewerCommentLike(ctx, commentId, profile._id);
+    if (!!current === liked) return null;
+    await limitKey(ctx, "likeComment", accountId);
+    if (current) {
+      await ctx.db.delete("commentLikes", current._id);
+    } else {
+      await ctx.db.insert("commentLikes", { commentId, profileId: profile._id });
+    }
+    await changeCommentLikes(ctx, commentId, liked ? 1 : -1);
+    return null;
+  },
+});
+
 export const deleteComment = mutation({
   args: { postId: v.string(), commentId: v.id("visitComments") },
   returns: v.null(),
@@ -176,4 +246,29 @@ export const deleteComment = mutation({
     await changeEngagement(ctx, publication._id, "commentCount", -1);
     return null;
   },
+});
+
+export const purgeCommentLikesBatch = internalMutation({
+  args: { commentId: v.id("visitComments") },
+  returns: v.null(),
+  handler: async (ctx, { commentId }): Promise<null> => {
+    const likes = await ctx.db
+      .query("commentLikes")
+      .withIndex("by_comment_profile", (q) => q.eq("commentId", commentId))
+      .take(COMMENT_LIKE_BATCH);
+    for (const like of likes) await ctx.db.delete("commentLikes", like._id);
+    if (likes.length === COMMENT_LIKE_BATCH) {
+      await ctx.scheduler.runAfter(0, internal.visitReactions.purgeCommentLikes, { commentId });
+    }
+    return null;
+  },
+});
+
+export const purgeCommentLikes = internalAction({
+  args: { commentId: v.id("visitComments") },
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("visitReactions.purgeCommentLikes", () =>
+      ctx.runMutation(internal.visitReactions.purgeCommentLikesBatch, args),
+    ),
 });
