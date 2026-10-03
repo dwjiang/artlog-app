@@ -183,6 +183,25 @@ it("uses the strongest different object for the similarity margin", () => {
   expect(result.decision.outcome).not.toBe("confident");
 });
 
+it("leads each candidate's inliers over the best other verified candidate", () => {
+  const blank: OrbFeatures = { count: 0, descriptors: new Uint8Array(), keypoints: new Float32Array() };
+  const result = run([candidate("look-alike", 0.97, blank), candidate("painting", 0.95, pair.ref)]);
+  const lead = (id: string) =>
+    [result.decision.best!, ...result.decision.runnerUps].find((s) => s.candidate.object._id === id)!.features[
+      featureIndex("inlierLead")
+    ];
+  const inliers = result.verifications.get("painting" as Id<"objects">)!.inlierCount;
+  expect(inliers).toBeGreaterThan(15);
+  expect(lead("painting")).toBeCloseTo(Math.log1p(inliers));
+  expect(lead("look-alike")).toBeCloseTo(-Math.log1p(inliers));
+});
+
+it("marks the venue as known only when the scan has one", () => {
+  expect(run([candidate()]).decision.best!.features[featureIndex("venueKnown")]).toBe(1);
+  const away = runPipeline({ query: pair.query, candidates: [candidate()], now, inputSize: model.inputSize });
+  expect(away.decision.best!.features[featureIndex("venueKnown")]).toBe(0);
+});
+
 it("returns a miss with no candidates", () => {
   expect(run([]).decision).toMatchObject({
     outcome: "miss",

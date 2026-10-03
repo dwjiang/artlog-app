@@ -23,13 +23,14 @@ describe("DEFAULT_CALIBRATOR", () => {
       probability({
         similarity: 0.9,
         runnerUpSimilarity: 0.8,
-        candidateCount: 20,
         atVenue: true,
+        venueKnown: true,
         gallery: "same",
         onView: true,
         keypointCount: 300,
         orbInliers: 40,
         homographyValid: true,
+        runnerUpInliers: 0,
         objectPenalty: 0,
       }),
     ).toBeGreaterThan(0.99);
@@ -40,13 +41,14 @@ describe("DEFAULT_CALIBRATOR", () => {
       probability({
         similarity: 0.75,
         runnerUpSimilarity: 0.745,
-        candidateCount: 20,
         atVenue: false,
+        venueKnown: false,
         gallery: "unknown",
         onView: null,
         keypointCount: 300,
         orbInliers: 5,
         homographyValid: false,
+        runnerUpInliers: 0,
         objectPenalty: 0,
       }),
     ).toBeLessThan(DEFAULT_CALIBRATOR.thresholds.soft);

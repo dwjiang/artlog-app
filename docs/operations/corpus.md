@@ -17,6 +17,8 @@ Documents. Production was not contacted or changed during that work.
 | The same corpus with pca512 vectors                              | `jobs/scratch/merged-pca512/`                                              |
 | The 10k calibrator and development corpus with pca512 vectors    | `jobs/scratch/calibrator-corpus-10000-pca512/`                             |
 | pca512 calibrator training rows, model, and metrics              | `jobs/out/calibrator-pca512-2026-09-26/`                                   |
+| `lr-v4` training rows, manifests, model, and report              | `jobs/out/calibrator-lr-v4-2026-10-03/`                                    |
+| Real-photo calibrator test set, crops, and evaluation scripts    | `jobs/out/real-photo-eval-2026-10-03/`                                     |
 | Original metadata, raw feature shards, source snapshots, samples | `jobs/scratch/`                                                            |
 | Dedupe provenance and audits                                     | `jobs/out/02-05-2026-09-12-dedupe/`                                        |
 | v2 model, training rows, metrics, and development import audits  | `jobs/out/02-09-2026-09-12-calibrator/`                                    |
@@ -80,14 +82,13 @@ Relevant implementation, verified during planning:
 - `convex/ingest.ts:413`: ORB bytes are packed into Convex file storage,
   reused by SHA-256 when unchanged, and referenced by the `descriptors` table.
 - `convex/ingest.ts:488`: paginated venue export supplies production IDs.
-  `exportVectors` and `exportDescriptors` provide bounded feature readback.
 - `scripts/data/pipeline/seed_venues.py:180`: `export_asset` constructs the bundled
   venue SQLite from the selected deployment, starting at its latest venue change.
 - [Vector search measurements](../experiments/README.md#vector-search-scale): only 30k synthetic vectors were
   measured on Starter. Full-scale storage/latency and Pro remain unverified.
-- [Calibrator evaluation](../experiments/README.md#calibrator-v2): `lr-v2` and its pca512 refit `lr-v3` were
-  fitted against the 10k index. Its object-penalty coefficient is zero; penalties do not affect its
-  scores. Training results do not establish full-index or camera accuracy.
+- [Calibrator evaluation](../experiments/README.md#calibrator-v2): `lr-v4` is fitted against
+  this full package and checked on real gallery photos. Its object-penalty coefficient is zero;
+  penalties do not affect its scores.
 
 Code excerpts recorded at planning time for drift detection:
 

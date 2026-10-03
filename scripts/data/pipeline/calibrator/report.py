@@ -25,7 +25,7 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
     lines = [
         f"# Calibrator {VERSION} training report",
         "",
-        "Status: **STOP — no v2 artifact**"
+        f"Status: **STOP — no {VERSION} artifact**"
         if result.errors
         else "Status: **fit passed; human adoption into weights.ts is pending**",
         "",
@@ -34,9 +34,13 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
         "## Dataset and split",
         "",
         f"- Rows: {metrics['rows']} ({metrics['positiveRows']} positive)",
+        f"- Duplicate or same-composition rows set aside: {metrics['duplicateRowsSetAside']}",
         f"- Training: {metrics['trainRows']} rows / {len(metrics['trainObjectIds'])} source objects",
         f"- Held out: {metrics['heldOutRows']} rows / {len(metrics['heldOutObjectIds'])} source objects",
-        f"- Held-out queries: {metrics['queries']}; seed: {metrics['seed']}",
+        (
+            f"- Held-out queries: {metrics['queries']} ({metrics['answerableQueries']} with the "
+            f"artwork in the index); seed: {metrics['seed']}"
+        ),
         f"- Candidate-level ROC AUC: {_number(metrics['auc'])}",
         f"- True-object top-1 accuracy before thresholds: {_number(metrics['top1Accuracy'])}",
         "",
@@ -45,10 +49,12 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
         (
             "Only the highest-probability candidate is decided; ties use clamped similarity. "
             "A blocked winner is never replaced with an eligible runner-up. Recall uses every "
-            "held-out query, including queries where retrieval lost the true object."
+            "held-out query whose artwork is in the index, including queries where retrieval "
+            "lost it; precision counts every query, so a confident answer to a withheld "
+            "artwork counts as wrong."
         ),
         "",
-        "| Outcome | Queries | Correct object | Wrong object | Precision | Correct / all queries |",
+        "| Outcome | Queries | Correct artwork | Wrong artwork | Precision | Correct / all queries |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for name, row in metrics["outcomes"].items():
@@ -63,6 +69,17 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
             (
                 f"Confident + soft: precision {_number(accepted['precision'])}, "
                 f"recall {_number(accepted['recall'])}."
+            ),
+            "",
+            "## By venue context",
+            "",
+            "| Context | Queries | Confident | Wrong confident | Accepted precision | Accepted recall |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+            *(
+                f"| {name} | {part['queries']} | {part['outcomes']['confident']['count']} | "
+                f"{part['outcomes']['confident']['incorrect']} | "
+                f"{_number(part['accepted']['precision'])} | {_number(part['accepted']['recall'])} |"
+                for name, part in metrics["byVenueContext"].items()
             ),
             "",
             "## Threshold rationale",

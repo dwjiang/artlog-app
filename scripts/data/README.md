@@ -252,12 +252,14 @@ on stdout and the summary on stderr before another run.
 
 ## Calibrator training
 
-Requires an imported, stable index, Convex credentials, and the model export
-used for embedding. The default sample requires at least 5,000 eligible
-public-domain corpus objects with images, vectors, and descriptors.
+Requires the full merged corpus package (production is imported from it) and the model
+export (`scripts/model/out/fakequant_state.pt` unless `--fakequant` says otherwise).
+Sampling reads vectors and ORB references from the package, never from Convex, and
+downloads the sampled public-domain images itself.
 
 ```sh
-uv run python -m pipeline.calibrator.sample --fakequant /path/to/fakequant_state.pt
+uv run python -m pipeline.calibrator.sample \
+  --index "$HOME/Documents/Artlog Data/jobs/scratch/merged-pca512" --objects 6000
 uv run python -m pipeline.calibrator.train
 ```
 

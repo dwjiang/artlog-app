@@ -3,156 +3,203 @@
     "signals": {
       "similarity": 0,
       "runnerUpSimilarity": 0,
-      "candidateCount": 0,
       "atVenue": false,
       "gallery": "unknown",
       "onView": null,
       "keypointCount": 0,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": false
     },
-    "expectedFeatures": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "expectedFeatures": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   },
   {
     "signals": {
       "similarity": 0.9,
       "runnerUpSimilarity": 0.8,
-      "candidateCount": 20,
       "atVenue": true,
       "gallery": "same",
       "onView": true,
       "keypointCount": 300,
       "orbInliers": 40,
       "homographyValid": true,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": true
     },
     "expectedFeatures": [
-      0.9, 0.09999999999999998, 3.044522437723423, 1.0, 1.0, 0.0, 1.0, 5.707110264748875, 3.713572066704308, 1.0, 0.0
+      0.9, 0.09999999999999998, 1.0, 1.0, 0.0, 1.0, 5.707110264748875, 3.713572066704308, 1.0, 0.0, 1.0,
+      3.713572066704308
     ]
   },
   {
     "signals": {
       "similarity": 1.4,
       "runnerUpSimilarity": 0.95,
-      "candidateCount": 0,
       "atVenue": false,
       "gallery": "unknown",
       "onView": null,
       "keypointCount": 0,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": 7
+      "runnerUpInliers": 0,
+      "objectPenalty": 7,
+      "venueKnown": false
     },
-    "expectedFeatures": [1.0, 0.050000000000000044, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    "expectedFeatures": [1.0, 0.050000000000000044, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
   },
   {
     "signals": {
       "similarity": -0.2,
       "runnerUpSimilarity": -0.3,
-      "candidateCount": 0,
       "atVenue": false,
       "gallery": "unknown",
       "onView": null,
       "keypointCount": 0,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": -1
+      "runnerUpInliers": 0,
+      "objectPenalty": -1,
+      "venueKnown": false
     },
-    "expectedFeatures": [0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "expectedFeatures": [0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   },
   {
     "signals": {
       "similarity": 0.7,
       "runnerUpSimilarity": 0.9,
-      "candidateCount": 0,
       "atVenue": false,
       "gallery": "different",
       "onView": null,
       "keypointCount": 0,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": false
     },
-    "expectedFeatures": [0.7, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "expectedFeatures": [0.7, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   },
   {
     "signals": {
       "similarity": 0,
       "runnerUpSimilarity": 0,
-      "candidateCount": 32,
       "atVenue": false,
       "gallery": "unknown",
       "onView": false,
       "keypointCount": null,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": false
     },
-    "expectedFeatures": [0.0, 0.0, 3.4965075614664802, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "expectedFeatures": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   },
   {
     "signals": {
       "similarity": 0.93,
       "runnerUpSimilarity": 0.89,
-      "candidateCount": 0,
       "atVenue": true,
       "gallery": "unknown",
       "onView": null,
       "keypointCount": 79,
       "orbInliers": 0,
       "homographyValid": false,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": true
     },
-    "expectedFeatures": [0.93, 0.040000000000000036, 0.0, 1.0, 0.0, 0.0, 0.0, 4.382026634673881, 0.0, 0.0, 0.0]
+    "expectedFeatures": [0.93, 0.040000000000000036, 1.0, 0.0, 0.0, 0.0, 4.382026634673881, 0.0, 0.0, 0.0, 1.0, 0.0]
   },
   {
     "signals": {
       "similarity": 0,
       "runnerUpSimilarity": 0,
-      "candidateCount": 0,
       "atVenue": false,
       "gallery": "unknown",
       "onView": null,
       "keypointCount": 80,
       "orbInliers": 15,
       "homographyValid": true,
-      "objectPenalty": 0
-    },
-    "expectedFeatures": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4.394449154672439, 2.772588722239781, 1.0, 0.0]
-  },
-  {
-    "signals": {
-      "similarity": 0,
-      "runnerUpSimilarity": 0,
-      "candidateCount": 1,
-      "atVenue": false,
-      "gallery": "unknown",
-      "onView": null,
-      "keypointCount": 500,
-      "orbInliers": 500,
-      "homographyValid": false,
-      "objectPenalty": 0.8
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": false
     },
     "expectedFeatures": [
-      0.0, 0.0, 0.6931471805599453, 0.0, 0.0, 0.0, 0.0, 6.2166061010848646, 6.2166061010848646, 0.0, 0.8
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4.394449154672439, 2.772588722239781, 1.0, 0.0, 0.0, 2.772588722239781
     ]
   },
   {
     "signals": {
       "similarity": 0,
       "runnerUpSimilarity": 0,
-      "candidateCount": 2.5,
+      "atVenue": false,
+      "gallery": "unknown",
+      "onView": null,
+      "keypointCount": 500,
+      "orbInliers": 500,
+      "homographyValid": false,
+      "runnerUpInliers": 0,
+      "objectPenalty": 0.8,
+      "venueKnown": false
+    },
+    "expectedFeatures": [
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.2166061010848646, 6.2166061010848646, 0.0, 0.8, 0.0, 6.2166061010848646
+    ]
+  },
+  {
+    "signals": {
+      "similarity": 0,
+      "runnerUpSimilarity": 0,
       "atVenue": false,
       "gallery": "unknown",
       "onView": true,
       "keypointCount": 0.5,
       "orbInliers": 0.5,
       "homographyValid": false,
-      "objectPenalty": 0
+      "runnerUpInliers": 0,
+      "objectPenalty": 0,
+      "venueKnown": false
     },
     "expectedFeatures": [
-      0.0, 0.0, 1.252762968495368, 0.0, 0.0, 0.0, 1.0, 0.4054651081081644, 0.4054651081081644, 0.0, 0.0
+      0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.4054651081081644, 0.4054651081081644, 0.0, 0.0, 0.0, 0.4054651081081644
+    ]
+  },
+  {
+    "signals": {
+      "similarity": 0,
+      "runnerUpSimilarity": 0,
+      "atVenue": false,
+      "gallery": "unknown",
+      "onView": null,
+      "keypointCount": 0,
+      "orbInliers": 101,
+      "homographyValid": true,
+      "runnerUpInliers": 17,
+      "objectPenalty": 0,
+      "venueKnown": true
+    },
+    "expectedFeatures": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4.624972813284271, 1.0, 0.0, 1.0, 1.7346010553881062]
+  },
+  {
+    "signals": {
+      "similarity": 0,
+      "runnerUpSimilarity": 0,
+      "atVenue": false,
+      "gallery": "unknown",
+      "onView": null,
+      "keypointCount": 500,
+      "orbInliers": 6,
+      "homographyValid": false,
+      "runnerUpInliers": 140,
+      "objectPenalty": 0,
+      "venueKnown": false
+    },
+    "expectedFeatures": [
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.2166061010848646, 1.9459101490553132, 0.0, 0.0, 0.0, -3.002849741322855
     ]
   }
 ]

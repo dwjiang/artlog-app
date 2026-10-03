@@ -21,6 +21,7 @@ def make_index(count=20):
         str(i): {
             "objectId": str(i),
             "key": f"{'met' if i < count // 2 else 'aic'}:{i}",
+            "artworkKey": f"art:{i}",
             "source": "corpus",
             "imageRef": f"https://example.org/{i}.jpg",
             "rightsStatus": "public_domain",
@@ -35,6 +36,7 @@ def make_index(count=20):
         list(objects),
         objects,
         {key: Reference(OrbFeatures(b"", b"", 0), 512) for key in objects},
+        "test",
     )
 
 
@@ -52,48 +54,36 @@ def test_sampling_is_seeded_stratified_and_rejects_ineligible_images():
         select_objects(index, count=5000, seed=7)
 
 
-def test_exports_follow_empty_pages_and_preserve_zero_descriptors():
-    vector = np.zeros(EMBEDDING_DIM)
-    vector[0] = 2
-    obj = make_index(1).objects["0"]
-
-    class Writer:
-        def action(self, name, args):
-            if name == "ingest:exportVectors":
-                assert args["modelVersion"] == "test"
-                if "cursor" not in args:
-                    return {"page": [], "isDone": False, "continueCursor": "next"}
-                return {
-                    "page": [{"vector": vector.tolist(), "object": obj}],
-                    "isDone": True,
-                    "continueCursor": "end",
-                }
-            assert name == "ingest:exportDescriptors"
-            return {
-                "page": [
-                    {
-                        "objectId": "0",
-                        "descriptors": b"",
-                        "keypoints": b"",
-                        "keypointCount": 0,
-                        "inputSize": 512,
-                    }
-                ],
-                "isDone": True,
-                "continueCursor": "end",
-            }
-
-    index = load_index(Writer(), model_version="test")
+def test_local_package_keeps_every_view_one_reference_and_artwork_keys(merged_corpus):
+    index = load_index(merged_corpus())
+    assert index.vectors.shape == (3, EMBEDDING_DIM)
     assert index.vectors.dtype == np.float32
-    assert np.linalg.norm(index.vectors[0]) == 1
-    assert index.descriptors["0"].features.count == 0
+    # wikidata:Q1 merged into met:0 by accession, so its view searches as met:0.
+    assert sorted(index.object_ids) == ["met:0", "met:0", "met:1"]
+    assert index.object_rows["met:0"] == [i for i, o in enumerate(index.object_ids) if o == "met:0"]
+    assert index.objects["met:0"]["artworkKey"] == "art:0"
+    assert index.objects["met:1"]["rightsStatus"] == "public_domain"
+    assert index.descriptors["met:1"].features.count == 1
+    assert "met:2" not in index.descriptors
+    assert len(index.fingerprint) == 64
+
+
+def test_local_package_must_be_a_complete_build(merged_corpus):
+    directory = merged_corpus()
+    stats = json.loads((directory / "stats.json").read_text())
+    (directory / "stats.json").write_text(json.dumps(stats | {"completeFeatures": False}))
+    with pytest.raises(ValueError, match="complete features"):
+        load_index(directory)
 
 
 @pytest.mark.parametrize("fail", [False, True])
 def test_feature_pipeline_uses_real_preprocessing_and_cleans_images_on_success_or_failure(
-    tmp_path, fail
+    tmp_path, fail, monkeypatch
 ):
     from PIL import Image
+
+    # Every object shares one vector here, so a withheld artwork would hide them all.
+    monkeypatch.setattr("pipeline.calibrator.sample.OUT_OF_INDEX_RATE", 0)
 
     index = make_index(2)
 
@@ -106,10 +96,10 @@ def test_feature_pipeline_uses_real_preprocessing_and_cleans_images_on_success_o
 
     class Embedder:
         def embed(self, batch):
-            assert tuple(batch.shape) == (4, 3, 512, 512)
+            assert tuple(batch.shape) == (7, 3, 512, 512)
             if fail:
                 raise RuntimeError("embedding failed")
-            return np.tile(index.vectors[0], (4, 1))
+            return np.tile(index.vectors[0], (7, 1))
 
     output = tmp_path / "rows.jsonl"
     args = {
@@ -129,9 +119,11 @@ def test_feature_pipeline_uses_real_preprocessing_and_cleans_images_on_success_o
     else:
         summary = write_samples(**args)
         rows = [json.loads(line) for line in output.read_text().splitlines()]
-        assert len(rows) == 16
-        assert sum(row["label"] for row in rows) == 8
-        assert summary["queries"] == 8
+        assert len(rows) == 28
+        assert sum(row["label"] for row in rows) == 14
+        assert summary["queries"] == 14
+        assert summary["queriesWithoutTrueCandidate"] == 0
+        assert summary["outOfIndexQueries"] == 0
         assert {row["sourceObjectId"] for row in rows} == {"0", "1"}
     assert not list((tmp_path / "scratch").rglob("*.jpg"))
 
@@ -178,7 +170,7 @@ def test_retryable_downloads_are_retried_and_permanently_missing_images_are_skip
     assert summary["skipped"] == 1
     assert summary["skippedObjects"] == [{"objectId": "1", "key": "aic:1"}]
     assert [row["objectId"] for row in summary["sourceObjects"]] == ["0", "2"]
-    assert summary["queries"] == 8
+    assert summary["queries"] == 14
     rows = [json.loads(line) for line in (tmp_path / "rows.jsonl").read_text().splitlines()]
     assert {row["sourceObjectId"] for row in rows} == {"0", "2"}
 

@@ -252,3 +252,37 @@ confident precision 99.909%, accepted recall 99.864%, AUC 0.999990. TypeScript m
 Python probability (maximum difference 2e-16 over 435,150 rows). Artifacts:
 `jobs/out/calibrator-pca512-2026-09-26/`; feature SHA-256
 `4154a81f8b32d58e74ef2ff64c7f82dc1464f65d8a3b544f4e60e8b668a06723`.
+
+**`lr-v4` refits against the full 402,139-vector package and is checked on real photos
+(2026-10-03).** Training rows come from 3,643 public-domain objects searched against
+`merged-pca512` locally: the v3 nuisances plus a screen photo and two stacked gallery-photo
+variants; 30% of queries withhold the artwork, its other objects and references within cosine
+0.97, as for a work the catalogue lacks. Labels are artwork-level, and wrong answers whose
+reference is a near-copy (cosine ≥ 0.97 or a valid reference-to-reference homography) are set
+aside: replicas and catalogue copies otherwise push the confident threshold to 0.987. Half the
+queries carry a venue. Two features were added, `venueKnown` and the signed `inlierLead`
+(inliers against the best other verified candidate), and `logCandidateCount` was dropped: the
+full index nearly always returns 20 candidates, and the rare shortfall earned a −38 weight that
+small offline packages would have turned into confident answers. Holdout (729 objects, 5,103
+queries, 3,571 answerable): confident precision 0.990, accepted recall 0.992 of answerable.
+
+The independent check is 1,046 Wikimedia Commons camera photos of 919 catalogued paintings,
+excluding each reference file, cropped through the import path (vision-rect still analysis,
+`selectCaptureQuad`, warp and letterbox) and scored with no venue. Removing 23 copies of the
+reference (cosine ≥ 0.97) and 21 crops showing another catalogued painting or panel (geometric
+match to it, viewed where unclear) leaves 937 photos; retrieval reaches the true artwork in 507.
+
+| Calibrator | Confident correct | Confident wrong | Soft correct / wrong | Accepted recall |
+| ---------- | ----------------: | --------------: | -------------------: | --------------: |
+| `lr-v3`    |               405 |               6 |                4 / 2 |           0.436 |
+| `lr-v4`    |               458 |               6 |                1 / 2 |           0.490 |
+
+All six `lr-v4` wrong answers are copies or versions of the photographed composition. `lr-v3`
+mostly lost the true artwork when a look-alike led on similarity by under 0.02 despite far
+fewer inliers, and it scored every scan without a venue down by the simulated 85% venue prior.
+Replaying the 66 production scans from their stored top-six signals (assumed 500 reference
+keypoints, unknown on-view) keeps all 34 confident answers, corrects one from a Mona Lisa copy
+to Leonardo's, and turns five misses confident (Adele Bloch-Bauer I, two Mona Lisa scans, Girl
+with a Pearl Earring, and a Last Supper copy, the best catalogued match). Artifacts:
+`jobs/out/calibrator-lr-v4-2026-10-03/` (rows, manifests, report) and
+`jobs/out/real-photo-eval-2026-10-03/` (photos, crops, adjudications, scripts).
