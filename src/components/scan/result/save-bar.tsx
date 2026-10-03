@@ -18,6 +18,8 @@ export type SaveBarProps = {
   onSave: () => void;
   onViewSaved: () => void;
   visit?: ReactNode;
+  /** What else the save does, shown above the save until it completes. */
+  notice?: string;
 };
 
 export function SaveBar({
@@ -29,6 +31,7 @@ export function SaveBar({
   onSave,
   onViewSaved,
   visit,
+  notice,
 }: SaveBarProps) {
   return (
     <View>
@@ -48,6 +51,11 @@ export function SaveBar({
         </ActionStack>
       ) : (
         <>
+          {notice && (
+            <ThemedText variant="metadata" themeColor="textSecondary" style={styles.notice}>
+              {notice}
+            </ThemedText>
+          )}
           {visit}
           <View style={styles.actions}>
             <GalleryButton
@@ -79,4 +87,5 @@ export function SaveBar({
 
 const styles = StyleSheet.create({
   actions: { gap: Spacing.two },
+  notice: { paddingTop: Spacing.compact },
 });

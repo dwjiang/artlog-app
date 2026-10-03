@@ -14,10 +14,11 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
-import { canSave, draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
+import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
 import { useLiftToasts } from "@/lib/ui/toast";
 
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { DocentSection } from "./docent-section";
 import { FieldsForm } from "./fields-form";
 import { RightNowSection } from "./right-now-section";
@@ -27,6 +28,7 @@ import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
   manual?: boolean;
+  scanId?: Id<"scans">;
   captureInput?: Omit<SaveResultInput, "draft">;
   view: ResultViewState;
   saving: boolean;
@@ -36,18 +38,22 @@ type ResultCardProps = {
   context?: ReactNode;
   visit?: ReactNode;
   onLabel: () => void;
+  /** Opens the details screen for an unidentified or confirmed card; without it, details are edited in place. */
+  onEnterDetails?: () => void;
   onRetryDocent?: () => Promise<unknown>;
   onPick: (candidate: ResultCandidate) => void;
   onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
   onSavePhoto: () => void;
   savePhotoOnly: boolean;
+  saveNotice?: string;
   onViewSaved: () => void;
 };
 
 /** Keyed by the named work, so a new primary resets the draft while streamed prose leaves edits alone. */
 export function ResultCard({
   manual = false,
+  scanId,
   captureInput,
   view,
   saving,
@@ -57,21 +63,28 @@ export function ResultCard({
   context,
   visit,
   onLabel,
+  onEnterDetails,
   onRetryDocent,
   onPick,
   onEdit,
   onSave,
   onSavePhoto,
   savePhotoOnly,
+  saveNotice,
   onViewSaved,
 }: ResultCardProps) {
-  const [draft, setDraft] = useState(() => draftFromCandidate(view.primary));
+  const [draft, setDraft] = useState(() =>
+    view.confirmed ? draftFromConfirmed(view.confirmed.fields) : draftFromCandidate(view.primary),
+  );
   const [editingDetails, setEditingDetails] = useState(manual);
   const { bottom } = useSafeAreaInsets();
   const [saveBarHeight, setSaveBarHeight] = useState<number>();
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
+  const named = view.kind === "confident" || view.kind === "confirmed";
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
+  // A suggested work keeps its catalogue link while its details are corrected in place.
+  const enterDetails = view.kind === "unidentified" || view.kind === "confirmed" ? onEnterDetails : undefined;
   const photos = useCapturePhotos(
     captureInput
       ? {
@@ -94,7 +107,7 @@ export function ResultCard({
           <Stack.Toolbar.MenuAction
             icon={editingDetails ? "checkmark" : "pencil"}
             disabled={!editable}
-            onPress={() => setEditingDetails((value) => !value)}
+            onPress={enterDetails ?? (() => setEditingDetails((value) => !value))}
           >
             {editingDetails ? "Done editing" : "Edit details"}
           </Stack.Toolbar.MenuAction>
@@ -127,7 +140,7 @@ export function ResultCard({
                   {draft.date ? ` · ${draft.date}` : ""}
                 </ThemedText>
               )}
-              {view.kind === "confident" && !!draft.medium && (
+              {named && !!draft.medium && (
                 <View style={styles.metadata}>
                   <Image
                     source="sf:paintbrush.pointed"
@@ -140,7 +153,7 @@ export function ResultCard({
                   </ThemedText>
                 </View>
               )}
-              {view.kind === "confident" && !!draft.institution && (
+              {named && !!draft.institution && (
                 <View style={styles.metadata}>
                   <Image
                     source="sf:building.columns"
@@ -156,7 +169,7 @@ export function ResultCard({
             </>
           )}
         </View>
-        {view.kind !== "confident" && !manual && (
+        {!named && !manual && (
           <View style={styles.recovery}>
             <ThemedText themeColor="textSecondary">
               {view.primary
@@ -189,7 +202,7 @@ export function ResultCard({
             }}
           />
         )}
-        {view.kind === "confident" && (
+        {named && (
           <View style={styles.about}>
             <DocentSection
               title="About this work"
@@ -197,7 +210,11 @@ export function ResultCard({
               factSheet={view.factSheet}
               status={view.docentStatus}
               onRetry={onRetryDocent}
-              report={view.primary && { kind: "docent", artworkId: view.primary.artworkId }}
+              report={
+                view.primary
+                  ? { kind: "docent", artworkId: view.primary.artworkId }
+                  : scanId && { kind: "scanDocent", scanId }
+              }
             />
             {view.primary && (
               <>
@@ -234,16 +251,11 @@ export function ResultCard({
           saving={saving}
           savedId={savedId}
           error={saveError}
-          saveLabel={
-            savePhotoOnly
-              ? "Save photo for later"
-              : view.kind === "confident"
-                ? "Save to collection"
-                : "Save with these details"
-          }
+          saveLabel={savePhotoOnly ? "Save photo for later" : named ? "Save to collection" : "Save with these details"}
           onSave={() => (savePhotoOnly ? onSavePhoto() : onSave(draft))}
           onViewSaved={onViewSaved}
           visit={visit}
+          notice={saveNotice}
         />
       </View>
     </>

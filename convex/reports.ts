@@ -6,6 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
+import { requireDevice } from "./lib/auth";
 import { narrationCurrent, narrationEntry, scriptCurrent } from "./lib/narrationCache";
 import { audioEvidenceOf } from "./lib/narrationEvidence";
 import { activeProfile, optionalProfile, resolveOwner } from "./lib/ownership";
@@ -17,7 +18,7 @@ import { visibleParticipant } from "./lib/visitReactions";
 
 type ReportTarget = Infer<typeof reportInput>["target"];
 type ContentTarget = Extract<ReportTarget, { artworkId: Id<"artworks"> }>;
-type SocialTarget = Exclude<ReportTarget, ContentTarget>;
+type SocialTarget = Exclude<ReportTarget, ContentTarget | { kind: "scanDocent" }>;
 type Evidence = Infer<typeof reportEvidence>;
 
 export const submit = mutation({
@@ -28,7 +29,13 @@ export const submit = mutation({
     const { owner } = await resolveOwner(ctx);
     const { target } = input;
     let evidence: Evidence;
-    if (target.kind === "docent" || target.kind === "transcript" || target.kind === "audio") {
+    if (target.kind === "scanDocent") {
+      const device = await requireDevice(ctx);
+      const scan = await ctx.db.get("scans", target.scanId);
+      const docent = scan?.deviceId === device._id ? scan.confirmed?.docent : undefined;
+      if (!docent?.length) throw new ConvexError({ code: "not_found" });
+      evidence = { kind: "scanDocent", scanId: target.scanId, sentences: docent.map(({ sentence }) => sentence) };
+    } else if (target.kind === "docent" || target.kind === "transcript" || target.kind === "audio") {
       const artwork = await ctx.db.get("artworks", target.artworkId);
       if (!artwork) throw new ConvexError({ code: "not_found" });
       evidence = await contentEvidence(ctx, artwork, target);

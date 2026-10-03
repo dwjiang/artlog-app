@@ -14,6 +14,7 @@ import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { canShareLabel, confirmedLabelForm } from "@/lib/label/fields";
 import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import {
@@ -37,6 +38,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
+import { ContributionStatus, SHARING_NOTICE } from "./label/contribution-status";
 import { LocalScanScreen } from "./local-scan-screen";
 import { CardHeader } from "./result/card-header";
 import { NotRightSheet } from "./result/not-right-sheet";
@@ -65,12 +67,12 @@ export function ResultScreen({ scanId, manual = false }: ResultScreenProps) {
       />
     );
   }
-  return <ScanResultScreen key={`${owner}:${scanId}:${manual}`} scanId={scanId as Id<"scans">} startManual={manual} />;
+  return <ScanResultScreen key={`${owner}:${scanId}`} scanId={scanId as Id<"scans">} />;
 }
 
 type Sheet = { open: boolean; notice?: string };
 
-function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startManual: boolean }) {
+function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   const owner = useLocalOwner();
   const router = useRouter();
   const isActive = useScreenActive();
@@ -85,27 +87,57 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
     if (captureError) reportError(captureError, "result.load_capture");
   }, [captureError]);
   const capture = captures.find((row) => row.owner === owner);
-  const labelCapture = !startManual && !!capture && isLabelCapture(capture);
+  const loaded = scan && !(scan instanceof Error) ? scan : undefined;
+  // A label-only capture opens on its label until the owner confirms the details it read.
+  const labelOnly = !!capture && isLabelCapture(capture);
+  const labelCapture = labelOnly && !loaded?.confirmed;
   const [selection, setSelection] = useState<ResultSelection>({});
-  const [manual, setManual] = useState(startManual);
   const [retryError, setRetryError] = useState<string>();
   const [retrying, setRetrying] = useState(false);
   const [editingCrop, setEditingCrop] = useState(false);
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
-  const { saving, savedId, completion, error: saveError, save } = useSaveResult();
+  const {
+    saving,
+    savedId,
+    completion,
+    error: saveError,
+    save,
+    sharing,
+    shared,
+    shareError,
+    retrySharing,
+  } = useSaveResult();
   // Consume feedback before awaiting the network so revisiting a match cannot submit another resolution.
   const rejections = useRef(new Map<Id<"objects">, Rejection>());
   const rejection = useRef<Rejection>(undefined);
-  const view: ResultViewState = manual
-    ? { kind: "unidentified", editable: true, runnerUps: [] }
-    : toResultViewState(scan, selection);
+  const view: ResultViewState = toResultViewState(scan, selection);
+  const { confirmed } = view;
+  const labelFlow = loaded?.labelFlow;
+  // Details confirmed from a verified label are shared with the save, as the label screen promised.
+  const labelForm =
+    confirmed?.source === "label" && labelFlow?.stage === "verified"
+      ? confirmedLabelForm(labelFlow, confirmed.fields)
+      : undefined;
+  const contribution =
+    labelForm && capture?.venueId && !labelOnly && canShareLabel(labelForm)
+      ? { scanId, capture, state: labelForm }
+      : undefined;
 
   useEffect(() => {
-    if (isActive && labelCapture) {
+    if (isActive && labelCapture && scan !== undefined) {
       router.replace({ pathname: "/label/[scanId]", params: { scanId } });
     }
-  }, [isActive, labelCapture, router, scanId]);
+  }, [isActive, labelCapture, router, scan, scanId]);
+
+  function enterDetails() {
+    router.push({ pathname: "/enter-details/[scanId]", params: { scanId } });
+  }
+
+  function editConfirmed() {
+    if (confirmed?.source === "label") router.push({ pathname: "/label/[scanId]", params: { scanId } });
+    else enterDetails();
+  }
 
   function adjustCrop() {
     if (hasEdits) {
@@ -195,9 +227,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
     saving,
     savedId,
     saveError,
-    captureInput: capture ? { scanId, capture, view } : undefined,
+    captureInput: capture ? { scanId, capture, view, contribution } : undefined,
     onSave: (draft: SnapshotDraft) => {
-      void save({ scanId, capture, view, draft });
+      void save({ scanId, capture, view, draft, contribution });
     },
     onViewSaved: () =>
       router.push({
@@ -223,7 +255,9 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
       probability={view.primary?.probability}
+      source={confirmed?.source}
       onNotRight={view.editable && view.primary && !saving && !savedId ? notRight : undefined}
+      onEditDetails={confirmed && !saving && !savedId ? editConfirmed : undefined}
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
@@ -233,12 +267,25 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
     </ThemedText>
   );
   return (
-    <CaptureCompletion completion={completion}>
+    <CaptureCompletion
+      completion={completion}
+      sharedToIndex={shared?.status === "tentative"}
+      status={
+        <ContributionStatus
+          sharing={sharing}
+          shared={shared}
+          shareError={shareError}
+          onShare={() => {
+            void retrySharing();
+          }}
+        />
+      }
+    >
       <ThemedView style={styles.container}>
         {view.editable ? (
           <ResultCard
-            key={`${view.kind}:${view.primary?.objectId ?? "none"}:${manual}`}
-            manual={manual}
+            key={`${view.kind}:${view.primary?.objectId ?? "none"}:${confirmed?.confirmedAt ?? ""}`}
+            scanId={scanId}
             view={view}
             header={header}
             context={photoError}
@@ -247,7 +294,11 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
             onPick={pickRunnerUp}
             onEdit={() => setHasEdits(true)}
             onLabel={openLabel}
-            savePhotoOnly={view.kind !== "confident" && !hasEdits && !selection.chosenObjectId}
+            onEnterDetails={confirmed ? editConfirmed : enterDetails}
+            savePhotoOnly={
+              (view.kind === "unidentified" || view.kind === "soft") && !hasEdits && !selection.chosenObjectId
+            }
+            saveNotice={contribution && SHARING_NOTICE}
             onSavePhoto={() => {
               void save({ scanId, capture, draft: draftFromCandidate() });
             }}
@@ -323,9 +374,8 @@ function ScanResultScreen({ scanId, startManual }: { scanId: Id<"scans">; startM
           onPick={pickRunnerUp}
           onLabel={openLabel}
           onManual={() => {
-            setManual(true);
-            setHasEdits(true);
             setSheet({ open: false });
+            enterDetails();
           }}
           onSavePhoto={
             capture

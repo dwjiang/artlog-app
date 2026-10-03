@@ -12,7 +12,7 @@ import {
   selectArtworkPhotos,
 } from "@/db/repos/artwork-album";
 import { getNote, setNote } from "@/db/repos/notes";
-import { insertSavedWork } from "@/db/repos/saved-works";
+import { editSavedWork, insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -354,6 +354,53 @@ it("skips the enrichment query for a work saved without an artwork", async () =>
   expect(screen.getByText("No linked visits.")).toBeOnTheScreen();
   expect(screen.queryByText("About this work")).toBeNull();
   expect(client.watchQuery).not.toHaveBeenCalled();
+});
+
+it("shows the private description written for a work saved from confirmed details", async () => {
+  await insertSavedWork({
+    localId: "confirmed",
+    savedAt: new Date(2026, 8, 10).getTime(),
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    scanId: "scan-7" as Id<"scans">,
+  });
+  results.set("scans:get", {
+    confirmed: { source: "manual", fields: { title: "Water Lilies", artist: "Claude Monet" }, confirmedAt: 1 },
+    docent: enrichment.docent,
+    docentStatus: "ready",
+    factSheet: enrichment.factSheet,
+  });
+  await render(detail("confirmed"));
+  expect(await screen.findByText("About this work")).toBeOnTheScreen();
+  expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+  expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: "scan-7" }, {});
+  await fireEvent.press(screen.getByRole("button", { name: "Report description" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/report", params: { kind: "scanDocent", id: "scan-7" } });
+});
+
+it.each([
+  ["title", "The Starry Night"],
+  ["artist", "Vincent van Gogh"],
+  ["date", "1889"],
+] as const)("hides the scan description after editing the saved %s", async (field, value) => {
+  const localId = `edited-confirmed-${field}`;
+  const fields = { title: "Water Lilies", artist: "Claude Monet", date: "1916", medium: "Oil on canvas" };
+  await insertSavedWork({ localId, savedAt: 1, scanId: "scan-7" as Id<"scans">, ...fields });
+  results.set("scans:get", {
+    confirmed: { source: "manual", fields, confirmedAt: 1 },
+    docent: enrichment.docent,
+    docentStatus: "ready",
+    factSheet: enrichment.factSheet,
+  });
+  const view = await render(detail(localId));
+  expect(await screen.findByText(enrichment.docent[0].sentence)).toBeOnTheScreen();
+
+  editSavedWork(localId, { ...fields, [field]: value });
+  await view.unmount();
+  await render(detail(localId));
+  expect(await screen.findByText(new RegExp(value))).toBeOnTheScreen();
+  expect(screen.queryByText(enrichment.docent[0].sentence)).toBeNull();
+  expect(screen.queryByText("About this work")).toBeNull();
 });
 
 it("waits for authentication and device registration while showing the local snapshot", async () => {

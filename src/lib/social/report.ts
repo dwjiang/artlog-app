@@ -5,7 +5,7 @@ import type { ReportKind } from "@/shared/social/contracts";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { ReportReason, ReportTarget } from "./types";
 
-export type ContentReportTarget = Extract<ReportTarget, { artworkId: Id<"artworks"> }>;
+export type ContentReportTarget = Extract<ReportTarget, { artworkId: Id<"artworks"> } | { kind: "scanDocent" }>;
 
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   spam: "Spam or scam",
@@ -27,6 +27,7 @@ export const REPORT_NOUNS: Record<ReportKind, string> = {
   sharedVisit: "visit",
   comment: "comment",
   docent: "description",
+  scanDocent: "description",
   transcript: "transcript",
   audio: "audio",
 };
@@ -53,6 +54,8 @@ export function reportTarget(
     case "docent":
     case "transcript":
       return { kind, artworkId: id as Id<"artworks"> };
+    case "scanDocent":
+      return { kind, scanId: id as Id<"scans"> };
     case "audio":
       return renderId ? { kind, artworkId: id as Id<"artworks">, renderId } : undefined;
   }

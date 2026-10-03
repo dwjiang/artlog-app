@@ -25,6 +25,7 @@ import {
   candidateSignal,
   challengePurpose,
   checklistExhibition,
+  confirmedDetails,
   contributionField,
   contributionRejectedReason,
   contributionStatus,
@@ -556,6 +557,7 @@ export default defineSchema({
     candidateSignals: v.optional(v.array(candidateSignal)),
     rightNow: v.optional(rightNowCard),
     labelFlow: v.optional(labelFlow),
+    confirmed: v.optional(confirmedDetails),
     error: v.optional(v.string()),
     updatedAt: v.number(),
   })

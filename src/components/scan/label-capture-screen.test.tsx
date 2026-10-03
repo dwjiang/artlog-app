@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
 import { AccessibilityInfo, AppState, DeviceEventEmitter } from "react-native";
@@ -11,7 +12,7 @@ import { reportError } from "@/lib/observability";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import { LabelCaptureScreen, QR_FOUND, QUEUED_MESSAGE, QUEUED_ONLINE_MESSAGE } from "./label-capture-screen";
-import { SHARE_BUTTON } from "./label/label-actions";
+import { CONFIRM_BUTTON } from "./label/confirm-details-form";
 import { STEP_LABELS } from "./label/progress-steps";
 
 jest.mock("@/hooks/use-reduced-motion", () => ({
@@ -30,7 +31,6 @@ type CameraProps = {
 };
 type StageCallback = (stage: LabelStage) => void;
 
-let mockLabelOnly = false;
 let mockReachable: boolean | undefined = true;
 let mockCameraPermission = true;
 let mockCameraProps: CameraProps;
@@ -38,6 +38,7 @@ let mockQr: { enabled: boolean; onCode: (url: string) => void };
 const mockPhoto = jest.fn();
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockDismissTo = jest.fn();
 const mockBack = jest.fn();
 const mockCaptureId = jest.fn();
 const mockUseScan = jest.fn();
@@ -49,6 +50,7 @@ let mockCapture: PendingScan | undefined;
 let mockScan:
   | {
       labelFlow?: LabelFlowDisplay;
+      confirmed?: { source: "label" | "manual"; fields: { title: string; artist?: string; date?: string } };
       outcome?: "confident";
       scanId?: Id<"scans">;
     }
@@ -58,29 +60,23 @@ const mockSetLabelPhoto = jest.fn();
 const mockSetQrUrl = jest.fn();
 const mockPersistLabel = jest.fn();
 const mockRun = jest.fn();
-const mockContribute = jest.fn();
-const mockSave = jest.fn();
+const mockMutation = jest.fn();
 const mockRemove = jest.fn();
 const mockHaptic = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 
-jest.mock("@/lib/capture/photo-draft", () => ({
-  isLabelCapture: () => mockLabelOnly,
-}));
-jest.mock("./capture-context-button", () => ({
-  CaptureContextButton: () => null,
-}));
-jest.mock("./capture-photos-button", () => ({
-  CapturePhotosButton: () => null,
-}));
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     push: mockPush,
     navigate: mockPush,
     replace: mockReplace,
+    dismissTo: mockDismissTo,
     back: mockBack,
   }),
+}));
+jest.mock("@/lib/convex-client", () => ({
+  convex: { mutation: (...args: unknown[]) => mockMutation(...args) },
 }));
 jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 jest.mock("expo-network", () => ({
@@ -151,24 +147,8 @@ jest.mock("@/lib/files/photos", () => ({
 jest.mock("@/lib/label/label-deps", () => ({
   runLabelFlowForScan: (...args: unknown[]) => mockRun(...args),
 }));
-jest.mock("@/lib/label/contribute", () => ({
-  contributeLabel: (input: unknown) => mockContribute(input),
-  contributionErrorMessage: (error: Error) => `mapped: ${error.message}`,
-}));
 jest.mock("@/lib/label/crop", () => ({
   removeFile: (uri: string) => mockRemove(uri),
-}));
-jest.mock("@/lib/result/save", () => ({
-  saveResult: async (input: { contribution?: unknown }) => {
-    const result = await mockSave(input);
-    return {
-      ...result,
-      contribution: input.contribution
-        ? jest.requireActual("@/lib/label/share-saved-label").shareSavedLabel(input.contribution, result.localId)
-        : undefined,
-    };
-  },
-  saveErrorMessage: () => "Couldn’t save. Try again.",
 }));
 
 const scanId = "scan-1" as Id<"scans">;
@@ -232,8 +212,13 @@ async function start(props: Partial<Parameters<typeof LabelCaptureScreen>[0]> = 
   return view;
 }
 
+/** The details the screen confirmed, or undefined when nothing was confirmed. */
+function confirmedFields() {
+  const call = mockMutation.mock.calls.find(([fn]) => getFunctionName(fn) === "scans:confirm");
+  return call?.[1] as { scanId: string; source: string; fields: Record<string, string> } | undefined;
+}
+
 beforeEach(() => {
-  mockLabelOnly = false;
   jest.resetAllMocks();
   jest.spyOn(AccessibilityInfo, "isReduceTransparencyEnabled").mockResolvedValue(false);
   jest
@@ -255,11 +240,7 @@ beforeEach(() => {
   mockPhoto.mockResolvedValue({ filePath: "/tmp/label.jpg" });
   mockPersistLabel.mockResolvedValue("labels/cap-1.jpg");
   mockRun.mockResolvedValue(verified);
-  mockContribute.mockResolvedValue({
-    contributionId: "contrib-1",
-    status: "tentative",
-  });
-  mockSave.mockResolvedValue({ localId: "saved-1", synced: Promise.resolve() });
+  mockMutation.mockResolvedValue(null);
   mockHaptic.mockResolvedValue(undefined);
   mockPermission.mockResolvedValue({
     granted: false,
@@ -301,7 +282,7 @@ it("disables capture until the camera starts and keeps both controls busy during
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   expect(mockPhoto).toHaveBeenCalledTimes(1);
   await act(async () => finish({ filePath: "/tmp/label.jpg" }));
-  expect(await screen.findByText("Review artwork details")).toBeOnTheScreen();
+  expect(await screen.findByText("Confirm artwork details")).toBeOnTheScreen();
 });
 
 it("offers one photo import when camera permission is denied", async () => {
@@ -312,7 +293,7 @@ it("offers one photo import when camera permission is denied", async () => {
   expect(screen.queryByRole("button", { name: "Import a label photo" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Import a photo" }));
   expect(mockPicker).toHaveBeenCalledTimes(1);
-  expect(await screen.findByText("Review artwork details")).toBeOnTheScreen();
+  expect(await screen.findByText("Confirm artwork details")).toBeOnTheScreen();
 });
 
 it("shows a recoverable camera error over the preview and keeps Photos available", async () => {
@@ -342,7 +323,7 @@ it("reads a shot online, shows the stages, then locks the verified fields with t
     busy: true,
   });
   await flow.finish(verified);
-  expect(screen.getByText("Review artwork details")).toBeOnTheScreen();
+  expect(screen.getByText("Confirm artwork details")).toBeOnTheScreen();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("Water Lilies");
   expect(screen.getByLabelText("Title").props.editable).toBe(true);
   expect(screen.getByLabelText("Date").props.editable).toBe(true);
@@ -352,66 +333,62 @@ it("reads a shot online, shows the stages, then locks the verified fields with t
   expect(mockHaptic).toHaveBeenCalledWith("success");
 });
 
-it("automatically shares the confirmed work after saving without another prompt", async () => {
+it("confirms the read details and returns to the scan's result page, which now names the work", async () => {
   await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  expect(mockContribute).not.toHaveBeenCalled();
-  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
-  expect(mockContribute).toHaveBeenCalledWith({
+  await fireEvent.changeText(await screen.findByLabelText("Date"), " 1917 ");
+  await fireEvent.press(screen.getByRole("button", { name: CONFIRM_BUTTON }));
+  expect(confirmedFields()).toEqual({
     scanId,
-    capture,
-    state: expect.objectContaining({
-      title: expect.objectContaining({ value: "Water Lilies", locked: true }),
-    }),
+    source: "label",
+    fields: { title: "Water Lilies", artist: "Claude Monet", date: "1917" },
   });
+  expect(mockDismissTo).toHaveBeenCalledWith({ pathname: "/result/[scanId]", params: { scanId } });
+});
+
+it("keeps the details on screen when confirming fails, reporting only unexpected failures", async () => {
+  await start();
+  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
+  mockMutation.mockRejectedValueOnce(new TypeError("Network request failed"));
+  await fireEvent.press(await screen.findByRole("button", { name: CONFIRM_BUTTON }));
   expect(
-    await screen.findByText("Saved to the shared index as a tentative match for other visitors at this museum."),
+    screen.getByText("Couldn’t reach Artlog. You can save these details privately or try confirming again."),
   ).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
-  expect(screen.getByLabelText("Date").props.editable).toBe(false);
+  expect(screen.getByRole("button", { name: "Save to collection" })).toBeEnabled();
+  expect(reportError).not.toHaveBeenCalledWith(expect.anything(), "result.confirm_details");
+  mockMutation.mockRejectedValueOnce(new ConvexError({ code: "invalid_scan" }));
+  await fireEvent.press(screen.getByRole("button", { name: CONFIRM_BUTTON }));
+  expect(screen.getByText("Couldn’t confirm these details. Try again.")).toBeOnTheScreen();
+  expect(reportError).toHaveBeenCalledWith(expect.any(ConvexError), "result.confirm_details");
+  expect(mockDismissTo).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
 });
 
-it("surfaces a sharing failure and lets the user try again", async () => {
-  mockContribute.mockRejectedValue(new Error("boom"));
+it("reopens details confirmed from this label instead of the reading", async () => {
+  mockScan = {
+    labelFlow: verified,
+    confirmed: { source: "label", fields: { title: "Water Lilies", artist: "Claude Monet", date: "1917" } },
+  };
   await start();
-  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
-  expect(await screen.findByText("mapped: boom. Your artwork is saved to your collection.")).toBeOnTheScreen();
-  let finish!: (value: { contributionId: string; status: "tentative" }) => void;
-  mockContribute.mockReturnValue(
-    new Promise((resolve) => {
-      finish = resolve;
-    }),
-  );
-  await fireEvent.press(screen.getByRole("button", { name: SHARE_BUTTON }));
-  expect(screen.getByRole("button", { name: SHARE_BUTTON })).toBeDisabled();
-  await act(async () => finish({ contributionId: "contrib-1", status: "tentative" }));
-  expect(mockSave).toHaveBeenCalledTimes(1);
-  expect(mockContribute).toHaveBeenCalledTimes(2);
-  expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
+  expect(await screen.findByLabelText("Date")).toHaveProp("defaultValue", "1917");
+  expect(mockLoadDraft).not.toHaveBeenCalled();
 });
 
-it("saves the label result without a suggestion, then links to the collection", async () => {
-  await start();
+it("enters details by hand after an unreadable label, keeping a still-queued scan on its own card", async () => {
+  const flow = deferFlow();
+  const view = await start();
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
-  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
-  expect(mockSave).toHaveBeenCalledWith({
-    contribution: expect.objectContaining({ scanId, capture }),
-    scanId,
-    capture,
-    view: { kind: "unidentified", runnerUps: [], editable: true },
-    draft: {
-      title: "Water Lilies",
-      artist: "Claude Monet",
-      date: "1916",
-      medium: "",
-      institution: "",
-    },
-  });
-  await fireEvent.press(await screen.findByRole("link", { name: "Saved · View in collection" }));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/saved/[savedId]",
-    params: { savedId: "saved-1" },
+  await flow.fail(new LabelFlowError("nothing_read"));
+  await fireEvent.press(screen.getByRole("button", { name: "Enter details myself" }));
+  expect(mockReplace).toHaveBeenLastCalledWith({ pathname: "/enter-details/[scanId]", params: { scanId } });
+  await view.unmount();
+  mockCapture = undefined;
+  await start({ scanId: "local-cap-1" });
+  await fireEvent.press(screen.getByRole("button", { name: "Import a label photo" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Enter details myself" }));
+  expect(mockReplace).toHaveBeenLastCalledWith({
+    pathname: "/result/[scanId]",
+    params: { scanId: "local-cap-1", edit: "1" },
   });
 });
 
@@ -569,8 +546,7 @@ it("opens a persisted verified label without taking or reading another photo", a
   expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
   expect(mockRun).not.toHaveBeenCalled();
   expect(mockPhoto).not.toHaveBeenCalled();
-  expect(screen.getByRole("button", { name: "Confirm & save" })).toBeEnabled();
-  expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
+  expect(screen.getByRole("button", { name: CONFIRM_BUTTON })).toBeEnabled();
 });
 
 it("opens the form when a queued local scan finishes and preserves edits across subscription updates", async () => {
@@ -590,13 +566,8 @@ it("opens the form when a queued local scan finishes and preserves edits across 
   await fireEvent.changeText(screen.getByLabelText("Date"), "1917");
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
   await view.rerender(<LabelCaptureScreen scanId="local-cap-1" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Confirm & save" }));
-  expect(mockSave).toHaveBeenCalledWith(
-    expect.objectContaining({
-      scanId,
-      draft: expect.objectContaining({ date: "1917" }),
-    }),
-  );
+  await fireEvent.press(screen.getByRole("button", { name: CONFIRM_BUTTON }));
+  expect(confirmedFields()).toMatchObject({ scanId, fields: { date: "1917" } });
   expect(mockRun).not.toHaveBeenCalled();
 });
 
@@ -738,19 +709,17 @@ it("locks input until the picker is dismissed and releases it after cancellation
   expect(screen.getByRole("button", { name: "Import a label photo" })).toBeEnabled();
 });
 
-it("saves a title-only label without sharing incomplete details", async () => {
+it("confirms a title-only label and needs a title to continue", async () => {
   mockScan = {
     labelFlow: { ...verified, fields: { title: verified.fields.title } },
   };
   await start();
-  await fireEvent.press(await screen.findByRole("button", { name: "Confirm & save" }));
-  expect(mockContribute).not.toHaveBeenCalled();
-  expect(mockSave).toHaveBeenCalledWith(
-    expect.objectContaining({
-      contribution: undefined,
-      draft: expect.objectContaining({ artist: "" }),
-    }),
-  );
+  await fireEvent.changeText(await screen.findByLabelText("Title"), " ");
+  expect(screen.getByRole("button", { name: CONFIRM_BUTTON })).toBeDisabled();
+  expect(screen.getByText("Add a title to continue.")).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Water Lilies");
+  await fireEvent.press(screen.getByRole("button", { name: CONFIRM_BUTTON }));
+  expect(confirmedFields()?.fields).toEqual({ title: "Water Lilies" });
 });
 
 it("restores the original values and unlocks from a persisted sharing draft", async () => {
@@ -768,8 +737,8 @@ it("restores the original values and unlocks from a persisted sharing draft", as
   await start();
   expect(await screen.findByLabelText("Date")).toHaveProp("defaultValue", "1917");
   expect(screen.getByLabelText("Title")).toHaveProp("editable", true);
-  await fireEvent.press(screen.getByRole("button", { name: "Confirm & save" }));
-  expect(mockContribute).toHaveBeenCalledWith(expect.objectContaining({ state: draft }));
+  await fireEvent.press(screen.getByRole("button", { name: CONFIRM_BUTTON }));
+  expect(confirmedFields()?.fields).toMatchObject({ date: "1917" });
 });
 
 it("waits for persisted edits and offers a retry if they cannot be loaded", async () => {
@@ -777,9 +746,9 @@ it("waits for persisted edits and offers a retry if they cannot be loaded", asyn
   mockLoadDraft.mockRejectedValueOnce(new Error("Database unavailable"));
   await start();
   expect(await screen.findByText("Couldn’t load your label edits. Try again.")).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
+  expect(screen.queryByRole("button", { name: CONFIRM_BUTTON })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByRole("button", { name: "Confirm & save" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: CONFIRM_BUTTON })).toBeEnabled();
 });
 
 it("resumes a pending label before starting another capture", async () => {
@@ -792,14 +761,4 @@ it("resumes a pending label before starting another capture", async () => {
   mockScan = { labelFlow: { ...verified, updatedAt: 2 } };
   await view.rerender(<LabelCaptureScreen scanId={scanId} />);
   expect(await screen.findByLabelText("Title")).toHaveProp("defaultValue", "Water Lilies");
-});
-
-it("keeps a label-first scan out of the shared artwork index", async () => {
-  mockLabelOnly = true;
-  mockScan = { labelFlow: verified };
-  await render(<LabelCaptureScreen scanId={scanId} />);
-  expect(await screen.findByText("Review artwork details")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Confirm & save" })).toBeEnabled();
-  expect(screen.queryByRole("button", { name: SHARE_BUTTON })).toBeNull();
-  expect(mockContribute).not.toHaveBeenCalled();
 });

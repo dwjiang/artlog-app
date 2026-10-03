@@ -224,6 +224,35 @@ export type LabelFlow = Infer<typeof labelFlow>;
 export const labelFlowDisplay = labelFlow.omit("rawOcr");
 export type LabelFlowDisplay = Infer<typeof labelFlowDisplay>;
 
+export const confirmedFields = v.object({
+  title: v.string(),
+  artist: v.optional(v.string()),
+  date: v.optional(v.string()),
+  accession: v.optional(v.string()),
+  medium: v.optional(v.string()),
+  creditLine: v.optional(v.string()),
+});
+export type ConfirmedFields = Infer<typeof confirmedFields>;
+export const confirmedSource = v.union(v.literal("label"), v.literal("manual"));
+export type ConfirmedSource = Infer<typeof confirmedSource>;
+
+// The owner's own identification of a scan the index couldn't name. Its docent is private to the scan:
+// typed details never become a catalogue artwork, so they get none of the artwork-keyed content.
+export const confirmedDetails = v.object({
+  source: confirmedSource,
+  fields: confirmedFields,
+  confirmedAt: v.number(),
+  generation: v.number(),
+  docentClaimedAt: v.optional(v.number()),
+  docentFailedAt: v.optional(v.number()),
+  // No sources or conflicting research: retrying would not help.
+  docentUnavailable: v.optional(v.boolean()),
+  factSheet: v.optional(v.array(factSheetEntry)),
+  docent: v.optional(v.array(docentSentence)),
+});
+export type ConfirmedDetails = Infer<typeof confirmedDetails>;
+export const confirmedDisplay = confirmedDetails.pick("source", "fields", "confirmedAt");
+
 // The phone's verdict on a museum image: embedding cosine against the scan plus an ORB homography.
 export const imageCheck = v.object({
   url: v.string(),

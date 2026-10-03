@@ -139,6 +139,27 @@ it("distinguishes a possible match from an identified artwork", async () => {
   expect(screen.getByText("Claude Monet · 1899")).toBeOnTheScreen();
 });
 
+it.each([
+  { source: "manual", scan: softScan },
+  { source: "label", scan: softScan },
+  { source: "manual", scan: missScan },
+  { source: "label", scan: missScan },
+] as const)("shows $source confirmed details after a $scan.outcome result", async ({ source, scan }) => {
+  mockScan = {
+    ...scan,
+    confirmed: {
+      source,
+      fields: { title: "The Starry Night", artist: "Vincent van Gogh", date: "1889" },
+      confirmedAt: 1,
+    },
+  };
+  await render(<QueueRow item={{ ...row, status: "identified", scanId: scan.scanId }} now={now} {...handlers} />);
+  expect(await screen.findByText("The Starry Night")).toBeOnTheScreen();
+  expect(screen.getByText("Vincent van Gogh · 1889")).toBeOnTheScreen();
+  expect(screen.queryByText("The Japanese Footbridge")).toBeNull();
+  expect(screen.queryByText("Possible match")).toBeNull();
+});
+
 it.each([missScan, failedScan, null, new Error("Unavailable")])(
   "keeps the scan usable when no reliable artwork details are available (%#)",
   async (scan) => {

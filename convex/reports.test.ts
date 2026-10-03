@@ -4,7 +4,7 @@ import { api, internal } from "./_generated/api";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
-import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedScan } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 it("upgrades an automatic block report with explicit details and keeps retries idempotent", async () => {
@@ -488,4 +488,41 @@ it("holds an artwork's generated content for review when an operator removes a r
     docentWriting: false,
     narrationWriting: false,
   });
+});
+
+it("accepts a report on a scan's private description only from the scan's own device, and removal hides it", async () => {
+  const t = harness();
+  const owner = await seedDevice(t);
+  const other = await seedDevice(t);
+  const scanId = await t.run((ctx) =>
+    seedScan(ctx, {
+      deviceId: owner.deviceId,
+      confirmed: {
+        source: "manual",
+        fields: { title: "Water Lilies", artist: "Claude Monet" },
+        confirmedAt: 1,
+        generation: 1,
+        docent: docentFixture,
+        factSheet: factSheetFixture,
+      },
+    }),
+  );
+  const target = { kind: "scanDocent" as const, scanId };
+  await expect(other.as.mutation(api.reports.submit, { target, reason: "wrongFacts" })).rejects.toMatchObject({
+    data: { code: "not_found" },
+  });
+  const { reportId } = await owner.as.mutation(api.reports.submit, { target, reason: "wrongArtwork" });
+  expect(await t.query(internal.review.getReport, { reportId })).toMatchObject({
+    target,
+    evidence: { kind: "scanDocent", scanId, sentences: [docentFixture[0].sentence] },
+    status: "open",
+  });
+  await t.mutation(internal.review.decideReport, {
+    reportId,
+    operator: "ops",
+    decision: "remove",
+    reason: "Describes another work",
+  });
+  expect(await owner.as.query(api.scans.get, { scanId })).toMatchObject({ docentStatus: "unavailable" });
+  expect((await owner.as.query(api.scans.get, { scanId }))?.docent).toBeUndefined();
 });

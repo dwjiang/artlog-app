@@ -29,7 +29,9 @@ export function ReportableHeading({
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           onPress={() =>
             router.push(
-              reportHref(report.kind, report.artworkId, report.kind === "audio" ? report.renderId : undefined),
+              report.kind === "scanDocent"
+                ? reportHref(report.kind, report.scanId)
+                : reportHref(report.kind, report.artworkId, report.kind === "audio" ? report.renderId : undefined),
             )
           }
           style={({ pressed }) => [styles.report, { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}

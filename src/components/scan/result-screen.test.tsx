@@ -10,15 +10,19 @@ import { enqueuePendingScan, pendingScansQuery } from "@/db/repos/pending-scans"
 import { getSavedWork } from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
 import { notes, savedWorks } from "@/db/schema";
+import { updatePhotoSession } from "@/lib/capture/photo-draft";
 import { clearLabelDraft } from "@/lib/label/draft";
 import { resolveWithLabel } from "@/lib/result/feedback";
 
 import type { Id } from "../../../convex/_generated/dataModel";
+import { SHARING_NOTICE } from "./label/contribution-status";
 import { ResultScreen } from "./result-screen";
 import {
   bridge,
   confidentScan,
   confidentScanWithoutProse,
+  docent,
+  factSheet,
   failedScan,
   haystacks,
   lilies,
@@ -421,29 +425,19 @@ it("keeps optional details hidden on an unidentified card and offers every candi
   expect(await screen.findByText("Unidentified")).toBeOnTheScreen();
   expect(screen.getByText("20% confidence")).toBeOnTheScreen();
   expect(screen.getByText("31% confidence")).toBeOnTheScreen();
-  expect(screen.queryByLabelText("Title")).toBeNull();
-  await openDetails();
-  expect(screen.getByLabelText("Title").props.defaultValue).toBe("");
-  expect(screen.getByLabelText("Artist").props.defaultValue).toBe("");
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(
     screen.getByRole("button", {
       name: /^The Japanese Footbridge, Claude Monet/,
     }),
   ).toBeOnTheScreen();
-  expect(
-    screen.getByRole("button", {
-      name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
-    }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Save photo for later" })).toBeEnabled();
   expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
-  await fireEvent.changeText(screen.getByLabelText("Title"), "Pond at dusk");
-  expect(
-    screen.getByRole("button", {
-      name: /^(Save (to collection|with these details|photo for later)|Confirm & save)$/,
-    }),
-  ).toBeEnabled();
+  // Typed details are confirmed on their own screen, which then reopens this card naming the work.
+  await openDetails();
+  expect(screen.queryByLabelText("Title")).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/enter-details/[scanId]", params: { scanId: SCAN_ID } });
 });
 
 it.each([softScan, missScan, failedScan])(
@@ -545,8 +539,8 @@ it("saves an untouched confident card locally, tells the server the suggestion w
   });
 });
 
-it.each([softScan, missScan])("removes match choices after saving a $outcome card", async (scan) => {
-  results.set("scans:get", scan);
+it("removes match choices after saving a soft card", async () => {
+  results.set("scans:get", softScan);
   await render(result());
   await openDetails();
   await fireEvent.changeText(await screen.findByLabelText("Title"), "My painting");
@@ -958,16 +952,6 @@ it("saves edited tentative metadata without implying confirmation", async () => 
   expect(screen.getByText("My reading of the label")).toBeOnTheScreen();
 });
 
-it("opens a fresh manual form when recovery returns to the same scan", async () => {
-  const view = await render(result());
-  await view.rerender(result(SCAN_ID, true));
-  expect(screen.getByLabelText("Title").props.defaultValue).toBe("");
-  expect(screen.getByLabelText("Title").props.editable).toBe(true);
-  expect(screen.queryByText("About this work")).toBeNull();
-  await fireEvent.changeText(screen.getByLabelText("Title"), "My own entry");
-  expect(screen.getByLabelText("Title").props.defaultValue).toBe("My own entry");
-});
-
 it("opens and finishes editing from Scan options without losing the draft", async () => {
   await render(result());
   expect(await screen.findByText("Water Lilies")).toBeOnTheScreen();
@@ -990,4 +974,128 @@ it("shows About this work inline while keeping the save action available", async
   expect(screen.queryByRole("link", { name: "About this work" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
   expect(screen.getByRole("button", { name: "Save to collection" })).toBeEnabled();
+});
+
+const labelReading = {
+  stage: "verified",
+  evidence: ["wikidata"],
+  warnings: [],
+  moderation: "clear",
+  updatedAt: 1,
+  fields: {
+    title: { value: "Water Lilies", evidence: "wikidata", locked: true },
+    artist: { value: "Claude Monet", evidence: "wikidata", locked: true },
+    date: { value: "1915", evidence: "ocr", locked: false },
+  },
+} as const;
+const confirmedFromLabel = {
+  ...missScan,
+  labelFlow: labelReading,
+  confirmed: {
+    source: "label",
+    fields: { title: "Water Lilies", artist: "Claude Monet", date: "1916" },
+    confirmedAt: 5,
+  },
+  docent,
+  docentStatus: "ready",
+  factSheet,
+} as const;
+
+it("names a work from confirmed label details, with its own background and no match choices", async () => {
+  results.set("scans:get", confirmedFromLabel);
+  await render(result());
+  expect(await screen.findByText("From the label")).toBeOnTheScreen();
+  expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
+  expect(screen.getByText("Claude Monet · 1916")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.getByText(docent[0].sentence, { exact: false })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Report description" })).toBeOnTheScreen();
+  expect(screen.queryByText("Other possibilities")).toBeNull();
+  expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
+  expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
+  // Both the header link and Scan options reopen the label the details came from.
+  for (const edit of screen.getAllByRole("button", { name: "Edit details" })) await fireEvent.press(edit);
+  expect(mockPush.mock.calls).toEqual([
+    [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
+    [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
+  ]);
+});
+
+it("saves confirmed label details as the work and shares the label, as the notice says", async () => {
+  results.set("scans:get", confirmedFromLabel);
+  const { contributeLabel } = jest.requireMock<typeof import("@/lib/label/contribute")>("@/lib/label/contribute");
+  jest.mocked(contributeLabel).mockResolvedValue({
+    contributionId: "contrib-1" as Id<"contributions">,
+    status: "tentative",
+  });
+  await render(result());
+  expect(await screen.findByText(SHARING_NOTICE)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
+  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: "Water Lilies",
+    artist: "Claude Monet",
+    date: "1916",
+    objectId: null,
+    artworkId: null,
+    scanId: SCAN_ID,
+  });
+  expect(mockSaveMutation).toHaveBeenCalledWith(
+    "collections:saveToCollection",
+    expect.objectContaining({ suggested: null, objectId: undefined }),
+  );
+  await waitFor(() =>
+    expect(contributeLabel).toHaveBeenCalledWith({
+      scanId: SCAN_ID,
+      capture: expect.objectContaining({ localId: "capture-1" }),
+      state: expect.objectContaining({
+        title: expect.objectContaining({ value: "Water Lilies", locked: true }),
+        date: expect.objectContaining({ value: "1916", unlocked: false }),
+      }),
+    }),
+  );
+});
+
+it("keeps typed details private, shows their background being written and reopens them for editing", async () => {
+  results.set("scans:get", {
+    ...missScan,
+    confirmed: { source: "manual", fields: { title: "Pond at dusk", artist: "Unknown painter" }, confirmedAt: 5 },
+    docentStatus: "writing",
+  });
+  await render(result());
+  expect(await screen.findByText("Your details")).toBeOnTheScreen();
+  expect(screen.getByText("Pond at dusk")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.queryByText(SHARING_NOTICE)).toBeNull();
+  expect(screen.getByRole("button", { name: "Save to collection" })).toBeEnabled();
+  await openDetails();
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/enter-details/[scanId]", params: { scanId: SCAN_ID } });
+});
+
+it("enters details by hand after rejecting a match", async () => {
+  await render(result());
+  await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Enter details manually" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/enter-details/[scanId]", params: { scanId: SCAN_ID } });
+  expect(screen.queryByLabelText("Title")).toBeNull();
+});
+
+it("opens a label-only capture on its label until the owner confirms what it read", async () => {
+  updatePhotoSession("device:test-installation", "photos/c1.jpg", { primaryKind: "label" });
+  try {
+    results.set("scans:get", missScan);
+    const view = await render(result());
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith({ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }),
+    );
+    mockReplace.mockClear();
+    results.set("scans:get", confirmedFromLabel);
+    await view.rerender(result("other-scan"));
+    await view.rerender(result());
+    expect(await screen.findByText("From the label")).toBeOnTheScreen();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(screen.queryByText(SHARING_NOTICE)).toBeNull();
+  } finally {
+    updatePhotoSession("device:test-installation", "photos/c1.jpg", { primaryKind: undefined });
+  }
 });

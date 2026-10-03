@@ -33,6 +33,7 @@ import {
   docentSentence,
   factSheetEntry,
   researchConflict,
+  type ConfirmedDetails,
   type ResearchConflict,
   type DocentSentence,
   type DocentStatus,
@@ -185,6 +186,17 @@ export const retry = mutation({
   handler: async (ctx, { scanId }) => {
     const device = await requireDevice(ctx);
     const scan = await ctx.db.get("scans", scanId);
+    if (scan?.deviceId === device._id && scan.confirmed) {
+      const { confirmed } = scan;
+      if (confirmed.docent?.length || confirmed.docentUnavailable) return null;
+      await ctx.db.patch("scans", scanId, { confirmed: { ...confirmed, docentFailedAt: undefined } });
+      await ctx.scheduler.runAfter(0, internal.docent.ensureForScan, {
+        scanId,
+        deviceId: device._id,
+        generation: confirmed.generation,
+      });
+      return null;
+    }
     if (!scan || scan.deviceId !== device._id || scan.outcome !== "confident" || !scan.best) {
       throw new ConvexError({ code: "invalid_scan" });
     }
@@ -227,17 +239,27 @@ function configuredModels(): Models | null {
   return factSheet && docent ? { factSheet, docent } : null;
 }
 
-async function generate(
-  ctx: ActionCtx,
-  models: Models,
-  artwork: Doc<"artworks">,
-  context: { content: ArtworkContentFields | null; pageUrl?: string; accession?: string; owner: Doc<"museums"> | null },
-): Promise<{
+type DocentTarget = Pick<Doc<"artworks">, "title" | "artist" | "date" | "wikidataId">;
+type DocentContext = {
+  cachedFactSheet?: FactSheetEntry[];
+  pageUrl?: string;
+  accession?: string;
+  owner: Doc<"museums"> | null;
+};
+type Generated = {
   factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
   researchConflicts?: ResearchConflict[];
-} | null> {
-  const cached = context.content?.factSheet?.length ? context.content.factSheet : undefined;
+};
+
+// Only successful empty research is permanent; source failures and rejected model output stay retryable.
+async function generate(
+  ctx: ActionCtx,
+  models: Models,
+  artwork: DocentTarget,
+  context: DocentContext,
+): Promise<Generated | "no_sources" | null> {
+  const cached = context.cachedFactSheet?.length ? context.cachedFactSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
     // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.
@@ -248,7 +270,7 @@ async function generate(
       pageUrl: context.pageUrl,
       accession: context.accession,
     });
-    if (sources.sources.length === 0) return null;
+    if (sources.sources.length === 0) return sources.failures > 0 ? null : "no_sources";
   }
   const hasReferences = sources?.sources.some((source) => source.referenceUrl);
   const reserved = cached ? 2 : hasReferences ? 6 : 4;
@@ -275,7 +297,7 @@ async function generate(
       calls += result.calls;
       if (result.value.conflicts.length > 0) return { docentEn: [], researchConflicts: result.value.conflicts };
       sources!.sources = result.value.sources;
-      if (sources!.sources.length === 0) return null;
+      if (sources!.sources.length === 0) return sources!.failures > 0 ? null : "no_sources";
     }
     let factSheet = cached;
     if (!factSheet) {
@@ -353,8 +375,13 @@ export const ensure = internalAction({
         return null;
       }
       await limitDevice(ctx, "docent", deviceId);
-      const result = await generate(ctx, models, context.artwork, context);
-      if (!result) return null;
+      const result = await generate(ctx, models, context.artwork, {
+        cachedFactSheet: context.content?.factSheet,
+        pageUrl: context.pageUrl,
+        accession: context.accession,
+        owner: context.owner,
+      });
+      if (!result || result === "no_sources") return null;
       written = await ctx.runMutation(internal.docent.writeEnrichment, {
         artworkId,
         generation,
@@ -370,6 +397,160 @@ export const ensure = internalAction({
     } finally {
       if (!written) {
         await ctx.runMutation(internal.docent.fail, { artworkId, generation });
+      }
+    }
+    return null;
+  },
+});
+
+export function scanDocentStatus(confirmed: ConfirmedDetails): DocentStatus {
+  if (confirmed.docent?.length) return "ready";
+  if (confirmed.docentUnavailable) return "unavailable";
+  return confirmed.docentFailedAt === undefined ? "writing" : "failed";
+}
+
+const scanTarget = v.object({
+  title: v.string(),
+  artist: v.string(),
+  date: v.optional(v.string()),
+  wikidataId: v.optional(v.string()),
+});
+
+export const claimScan = internalMutation({
+  args: { scanId: v.id("scans"), generation: v.number() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      target: scanTarget,
+      cachedFactSheet: v.optional(v.array(factSheetEntry)),
+      pageUrl: v.optional(v.string()),
+      accession: v.optional(v.string()),
+      owner: v.union(schema.doc("museums"), v.null()),
+    }),
+  ),
+  handler: async (ctx, { scanId, generation }) => {
+    const scan = await ctx.db.get("scans", scanId);
+    const confirmed = scan?.confirmed;
+    const artist = confirmed?.fields.artist;
+    const now = Date.now();
+    if (
+      !scan
+      || !confirmed
+      || !artist
+      || confirmed.generation !== generation
+      || scanDocentStatus(confirmed) === "ready"
+      || confirmed.docentUnavailable
+      || (confirmed.docentClaimedAt !== undefined && confirmed.docentClaimedAt > now - CLAIM_MS)
+    ) {
+      return null;
+    }
+    await ctx.db.patch("scans", scanId, {
+      confirmed: { ...confirmed, docentClaimedAt: now, docentFailedAt: undefined },
+    });
+    const { fields } = confirmed;
+    const flow = scan.labelFlow;
+    // The verifier's Wikidata item and museum page name the label it read, so edits to the work drop them.
+    const verified =
+      confirmed.source === "label"
+      && flow?.stage === "verified"
+      && flow.fields.title?.value === fields.title
+      && flow.fields.artist?.value === artist;
+    const venue = scan.venueId ? await ctx.db.get("museums", scan.venueId) : null;
+    const owner = venue && !(await isVenueOptedOut(ctx, venue)) ? venue : null;
+    return {
+      target: {
+        title: fields.title,
+        artist,
+        date: fields.date,
+        wikidataId: verified ? flow.wikidataId : undefined,
+      },
+      cachedFactSheet: confirmed.factSheet,
+      pageUrl: verified ? flow.sourceUrl : undefined,
+      accession: fields.accession,
+      owner,
+    };
+  },
+});
+
+export const writeScan = internalMutation({
+  args: {
+    scanId: v.id("scans"),
+    generation: v.number(),
+    factSheet: v.optional(v.array(factSheetEntry)),
+    docentEn: v.array(docentSentence),
+    researchConflicts: v.optional(v.array(researchConflict)),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, { scanId, generation, factSheet, docentEn, researchConflicts }) => {
+    const scan = await ctx.db.get("scans", scanId);
+    const confirmed = scan?.confirmed;
+    if (!confirmed || confirmed.generation !== generation || confirmed.docentClaimedAt === undefined) return false;
+    // Conflicting references go to operators for an artwork; a private scan simply goes without prose.
+    const conflicted = !!researchConflicts?.length;
+    await ctx.db.patch("scans", scanId, {
+      confirmed: {
+        ...confirmed,
+        ...(factSheet ? { factSheet } : {}),
+        docent: conflicted ? undefined : docentEn,
+        docentUnavailable: conflicted || undefined,
+        docentClaimedAt: undefined,
+        docentFailedAt: undefined,
+      },
+    });
+    return true;
+  },
+});
+
+export const failScan = internalMutation({
+  args: { scanId: v.id("scans"), generation: v.number(), unavailable: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { scanId, generation, unavailable }) => {
+    const scan = await ctx.db.get("scans", scanId);
+    const confirmed = scan?.confirmed;
+    if (confirmed?.generation === generation) {
+      await ctx.db.patch("scans", scanId, {
+        confirmed: {
+          ...confirmed,
+          docentClaimedAt: undefined,
+          ...(unavailable ? { docentUnavailable: true } : { docentFailedAt: Date.now() }),
+        },
+      });
+    }
+    return null;
+  },
+});
+
+// Scheduled when the owner confirms a scan's details and by retry. Research that finds nothing to
+// cite settles as unavailable; any other run that writes nothing stays retryable.
+export const ensureForScan = internalAction({
+  args: { scanId: v.id("scans"), deviceId: v.id("devices"), generation: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { scanId, deviceId, generation }) => {
+    const context = await ctx.runMutation(internal.docent.claimScan, { scanId, generation });
+    if (!context) return null;
+    let written = false;
+    let unavailable = false;
+    try {
+      const models = configuredModels();
+      if (!models) {
+        console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
+        return null;
+      }
+      await limitDevice(ctx, "docent", deviceId);
+      const result = await generate(ctx, models, context.target, context);
+      if (result === "no_sources") unavailable = true;
+      if (!result || result === "no_sources") return null;
+      written = await ctx.runMutation(internal.docent.writeScan, { scanId, generation, ...result });
+    } catch (error) {
+      if (error instanceof ConvexError && (error.data.code === "spend_cap" || error.data.code === "rate_limited")) {
+        console.warn("Docent generation skipped", error.data);
+        return null;
+      }
+      await reportBackendError(error, "docent.ensureForScan");
+      throw error;
+    } finally {
+      if (!written) {
+        await ctx.runMutation(internal.docent.failScan, { scanId, generation, unavailable });
       }
     }
     return null;

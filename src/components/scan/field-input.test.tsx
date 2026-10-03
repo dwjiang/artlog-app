@@ -31,3 +31,17 @@ it.each([
   expect(onChangeText).toHaveBeenLastCalledWith(expected);
   expect(onBlur).toHaveBeenCalledTimes(1);
 });
+
+it("hands the field's text to a form that missed it when the field loses focus, and stays quiet otherwise", async () => {
+  const onChangeText = jest.fn();
+  const field = (defaultValue: string) => (
+    <FieldInput label="Title" defaultValue={defaultValue} editable autoCapitalize="words" onChangeText={onChangeText} />
+  );
+  const view = await render(field(""));
+  await fireEvent.changeText(screen.getByLabelText("Title"), "The Last Day of Pompeii");
+  await fireEvent(screen.getByLabelText("Title"), "blur");
+  expect(onChangeText.mock.calls).toEqual([["The Last Day of Pompeii"], ["The Last Day of Pompeii"]]);
+  await view.rerender(field("The Last Day of Pompeii"));
+  await fireEvent(screen.getByLabelText("Title"), "blur");
+  expect(onChangeText).toHaveBeenCalledTimes(2);
+});

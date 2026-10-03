@@ -138,6 +138,8 @@ export const reportTarget = v.union(
   v.object({ kind: v.literal("docent"), artworkId: v.id("artworks") }),
   v.object({ kind: v.literal("transcript"), artworkId: v.id("artworks") }),
   v.object({ kind: v.literal("audio"), artworkId: v.id("artworks"), renderId: v.string() }),
+  // Written for one scan's confirmed details and shown only to its owner.
+  v.object({ kind: v.literal("scanDocent"), scanId: v.id("scans") }),
 );
 export type ReportKind = Infer<typeof reportTarget>["kind"];
 export const REPORT_REASONS = [
@@ -164,6 +166,7 @@ export const REASONS_BY_KIND: Record<ReportKind, readonly ReportReason[]> = {
   sharedVisit: ["harassment", "privacy", "spam", "other"],
   comment: ["harassment", "spam", "privacy", "other"],
   docent: ["wrongFacts", "wrongArtwork", "offensive", "other"],
+  scanDocent: ["wrongFacts", "wrongArtwork", "offensive", "other"],
   transcript: ["wrongFacts", "wrongArtwork", "offensive", "other"],
   audio: ["mispronounced", "glitches", "mismatch", "other"],
 };
@@ -219,6 +222,7 @@ export const reportEvidence = v.union(
   // Keep the reported version as evidence for review, even if the generated content changes later.
   v.object({ kind: v.literal("docent"), artworkId: v.id("artworks"), sentences: v.array(v.string()) }),
   v.object({ kind: v.literal("transcript"), artworkId: v.id("artworks"), sentences: v.array(v.string()) }),
+  v.object({ kind: v.literal("scanDocent"), scanId: v.id("scans"), sentences: v.array(v.string()) }),
   audioReportEvidence,
 );
 export const reportDecision = v.union(v.literal("dismiss"), v.literal("remove"));
