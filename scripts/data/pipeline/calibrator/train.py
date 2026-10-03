@@ -16,9 +16,9 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 
 from ..model import sha256_of
-from .features import FEATURE_NAMES, featurize
+from .features import DUPLICATE_REFERENCE_COSINE, FEATURE_NAMES, featurize
 
-VERSION = "lr-v3"
+VERSION = "lr-v4"
 # Similarity cutoffs follow the model's cosine scale: retune them with every modelVersion.
 RULES = {
     "lowTextureKeypoints": 80,
@@ -89,12 +89,15 @@ def choose_soft(
     probabilities: np.ndarray,
     truth: np.ndarray,
     *,
+    answerable: int | None = None,
     target: float = 0.9,
 ) -> float | None:
-    if not len(truth):
+    """Recall counts only answerable queries: an out-of-index query has no correct answer."""
+    answerable = len(truth) if answerable is None else answerable
+    if not len(truth) or not answerable:
         return None
     thresholds, positives, _ = _thresholds(probabilities, truth)
-    passing = np.flatnonzero(positives / len(truth) >= target)
+    passing = np.flatnonzero(positives / answerable >= target)
     return float(thresholds[passing[0]]) if len(passing) else None
 
 
@@ -112,9 +115,14 @@ def _winners(rows: list[dict], probabilities: np.ndarray) -> np.ndarray:
     return np.array(list(winners.values()), dtype=int)
 
 
+def _answerable(rows: list[dict], winners: np.ndarray) -> np.ndarray:
+    return np.array([not rows[i].get("outOfIndex", False) for i in winners], dtype=bool)
+
+
 def evaluate(rows: list[dict], probabilities: np.ndarray, config: dict) -> dict:
     winners = _winners(rows, probabilities)
     truth = np.array([rows[i]["label"] for i in winners])
+    answerable = _answerable(rows, winners)
     allowed = np.array([eligible(rows[i]["signals"], config) for i in winners])
     scores = probabilities[winners]
     confident = (scores >= config["thresholds"]["confident"]) & allowed
@@ -128,12 +136,13 @@ def evaluate(rows: list[dict], probabilities: np.ndarray, config: dict) -> dict:
             "correct": correct,
             "incorrect": count - correct,
             "precision": correct / count if count else None,
-            "recall": correct / len(winners),
+            "recall": correct / answerable.sum() if answerable.any() else None,
         }
 
     return {
         "queries": len(winners),
-        "top1Accuracy": float(truth.mean()),
+        "answerableQueries": int(answerable.sum()),
+        "top1Accuracy": float(truth[answerable].mean()) if answerable.any() else None,
         "outcomes": {
             "confident": counts(confident),
             "soft": counts(soft),
@@ -161,7 +170,17 @@ def _calibration(probabilities: np.ndarray, labels: np.ndarray) -> list[dict]:
     return curve
 
 
+def ambiguous(row: dict) -> bool:
+    """A wrong-artwork row that shows the source's image or composition under another entry."""
+    return not row["label"] and (
+        row.get("referenceCosine", 0) >= DUPLICATE_REFERENCE_COSINE
+        or row.get("referenceMatch", False)
+    )
+
+
 def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
+    duplicates = sum(map(ambiguous, rows))
+    rows = [row for row in rows if not ambiguous(row)]
     if not rows:
         raise ValueError("training dataset is empty")
     features = []
@@ -201,7 +220,11 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
     winner_truth = y[held_ids][winners]
     allowed = np.array([eligible(held_rows[i]["signals"], RULES) for i in winners])
     confident = choose_confident(probabilities[winners], winner_truth, allowed)
-    soft = choose_soft(probabilities[winners], winner_truth)
+    soft = choose_soft(
+        probabilities[winners],
+        winner_truth,
+        answerable=int(_answerable(held_rows, winners).sum()),
+    )
     auc = float(roc_auc_score(y[held_ids], probabilities))
     errors = []
     if auc < 0.9:
@@ -224,6 +247,13 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
         **copy.deepcopy(RULES),
     }
     metrics = evaluate(held_rows, probabilities, config)
+    by_venue = {}
+    for known in (True, False):
+        subset = [i for i, row in enumerate(held_rows) if row["signals"]["venueKnown"] is known]
+        if subset:
+            by_venue["venueKnown" if known else "noVenue"] = evaluate(
+                [held_rows[i] for i in subset], probabilities[subset], config
+            )
     if not errors and (
         metrics["outcomes"]["confident"]["precision"] is None
         or metrics["outcomes"]["confident"]["precision"] < 0.99
@@ -249,6 +279,8 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
         auc=auc,
         seed=seed,
         rows=len(rows),
+        duplicateRowsSetAside=duplicates,
+        byVenueContext=by_venue,
         trainRows=len(train_ids),
         heldOutRows=len(held_ids),
         positiveRows=int(y.sum()),

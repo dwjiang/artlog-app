@@ -1,7 +1,11 @@
 const { execFileSync, spawnSync } = require("node:child_process");
-const { realpathSync } = require("node:fs");
-const { basename } = require("node:path");
+const { readFileSync, readdirSync, realpathSync, rmSync } = require("node:fs");
+const { homedir } = require("node:os");
+const { basename, join } = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
+
+// JS-only checks install a recent archived build instead of waiting ~15 minutes for a native one.
+const KEPT_ARCHIVED_BUILDS = 3;
 
 const workspace = process.env.CONDUCTOR_WORKSPACE_PATH;
 if (process.env.CONDUCTOR_IS_LOCAL !== "1" || !workspace) process.exit(0);
@@ -13,6 +17,13 @@ function output(command, args) {
     maxBuffer: 64 * 1024 * 1024,
     timeout: 15_000,
   });
+}
+
+function worktreePaths() {
+  return output("git", ["worktree", "list", "--porcelain", "-z"])
+    .split("\0")
+    .filter((field) => field.startsWith("worktree "))
+    .map((field) => field.slice("worktree ".length));
 }
 
 function processes() {
@@ -113,7 +124,7 @@ async function stopServers() {
   console.log(`Stopped ${stopped} workspace development process(es).`);
 }
 
-function stopSimulators() {
+function removeSimulators() {
   const normalize = (value) =>
     value
       .toLowerCase()
@@ -122,16 +133,9 @@ function stopSimulators() {
       .replace(/^\d+(?:\.\d+)+ /, "");
   const labels = [basename(workspace), process.env.CONDUCTOR_WORKSPACE_NAME].filter(Boolean);
   const current = new Set(labels.map(normalize));
-  const worktrees = output("git", ["worktree", "list", "--porcelain", "-z"]);
-  const names = [
-    ...new Set([
-      ...current,
-      ...worktrees
-        .split("\0")
-        .filter((field) => field.startsWith("worktree "))
-        .map((field) => normalize(basename(field.slice("worktree ".length)))),
-    ]),
-  ].sort((a, b) => b.length - a.length);
+  const names = [...new Set([...current, ...worktreePaths().map((path) => normalize(basename(path)))])].sort(
+    (a, b) => b.length - a.length,
+  );
   const { devices } = JSON.parse(output("xcrun", ["simctl", "list", "devices", "--json"]));
   const owned = Object.entries(devices).flatMap(([runtime, entries]) => {
     if (!runtime.startsWith("com.apple.CoreSimulator.SimRuntime.iOS-")) {
@@ -145,12 +149,12 @@ function stopSimulators() {
     });
   });
   for (const device of owned) {
-    if (device.state === "Shutdown") continue;
     try {
-      output("xcrun", ["simctl", "shutdown", device.udid]);
-      console.log(`Stopped ${device.name} (${device.udid}).`);
+      if (device.state !== "Shutdown") output("xcrun", ["simctl", "shutdown", device.udid]);
+      output("xcrun", ["simctl", "delete", device.udid]);
+      console.log(`Deleted ${device.name} (${device.udid}).`);
     } catch (error) {
-      console.error(`Could not stop ${device.name} (${device.udid}): ${error.message}`);
+      console.error(`Could not delete ${device.name} (${device.udid}): ${error.message}`);
       process.exitCode = 1;
     }
   }
@@ -180,9 +184,40 @@ end run`,
   ]);
 }
 
+function removeBuilds() {
+  const derivedData = join(homedir(), "Library/Developer/Xcode/DerivedData");
+  let entries;
+  try {
+    entries = readdirSync(derivedData);
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+  const current = realpathSync(workspace);
+  const live = worktreePaths().filter((path) => path !== current);
+  const archived = entries.flatMap((name) => {
+    if (!/^artlog-/i.test(name)) return [];
+    let info;
+    try {
+      info = readFileSync(join(derivedData, name, "info.plist"), "utf8");
+    } catch {
+      return [];
+    }
+    const value = (key) => info.match(new RegExp(`<key>${key}</key>\\s*<\\w+>([^<]*)<`))?.[1];
+    const project = value("WorkspacePath");
+    if (!project || live.some((path) => project === path || project.startsWith(`${path}/`))) return [];
+    return [{ name, accessed: value("LastAccessedDate") ?? "" }];
+  });
+  // Xcode writes ISO 8601 UTC dates, so string order is time order.
+  archived.sort((a, b) => b.accessed.localeCompare(a.accessed));
+  const removed = archived.slice(KEPT_ARCHIVED_BUILDS);
+  for (const { name } of removed) rmSync(join(derivedData, name), { recursive: true, force: true });
+  if (removed.length > 0) console.log(`Deleted ${removed.length} Xcode build(s) of archived workspaces.`);
+}
+
 function reportFailure(error) {
   console.error(`Workspace cleanup failed: ${error.message}`);
   process.exitCode = 1;
 }
 
-stopServers().catch(reportFailure).then(stopSimulators).catch(reportFailure);
+stopServers().catch(reportFailure).then(removeSimulators).catch(reportFailure).then(removeBuilds).catch(reportFailure);

@@ -934,14 +934,6 @@ describe("immediate tentative recognition", () => {
         }),
       ).toBeNull();
       expect(await t.query(internal.docent.load, { artworkId: object.artworkId })).toBeNull();
-      expect(
-        (
-          await t.action(internal.ingest.exportVectors, {
-            modelVersion: model.modelVersion,
-          })
-        ).page,
-      ).toEqual([]);
-      expect((await t.query(internal.ingest.exportDescriptorReferences, {})).page).toEqual([]);
       expect((await t.query(internal.enrich.previewBatch, { limit: 100 })).artworks).toEqual([]);
     },
   );

@@ -18,8 +18,7 @@ import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/obje
 import { withErrorReporting } from "./lib/observability";
 import { deleteOrbIfUnreferenced, loadOrb, ORB_CONTENT_TYPE } from "./lib/orbStorage";
 import { findPlacement } from "./lib/placements";
-import { eligibleObject, eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
-import { effectiveObjectPenalty } from "./lib/rejectionPenalty";
+import { recognitionPartition } from "./lib/recognitionEligibility";
 import { multiplicity, objectSource, placementSource, rightsStatus, seedSource } from "./lib/validators";
 import { insertArchivedVector, readVector, replaceArchivedVector } from "./lib/vectorStore";
 import schema from "./schema";
@@ -27,9 +26,6 @@ import { recordVenueChanges } from "./venueChanges";
 
 export const MAX_BATCH_ROWS = 500;
 export const EXPORT_PAGE_SIZE = 1000;
-// Bound vector reads and exported ORB bytes as well as row counts.
-const TRAINING_EXPORT_BYTES = 5_000_000;
-export const TRAINING_EXPORT_PAGE_SIZE = Math.min(500, Math.floor(TRAINING_EXPORT_BYTES / (model.embeddingDim * 8)));
 
 const museumRow = v.object({
   key: v.string(),
@@ -618,173 +614,6 @@ export const exportVenues = internalQuery({
       isDone: result.isDone,
     };
   },
-});
-
-const trainingObject = v.object({
-  objectId: v.id("objects"),
-  key: v.string(),
-  source: objectSource,
-  imageRef: v.optional(v.string()),
-  rightsStatus,
-  objectPenalty: v.number(),
-});
-
-export const exportVectorRows = internalQuery({
-  args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
-  returns: v.object({
-    page: v.array(
-      v.object({
-        vectorId: v.id("vectors"),
-        vector: schema.doc("vectors"),
-        object: trainingObject,
-      }),
-    ),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { modelVersion, cursor }) => {
-    const result = await ctx.db
-      .query("vectors")
-      .withIndex("by_modelVersion_source_viewKey", (q) => q.eq("modelVersion", modelVersion))
-      .paginate({
-        numItems: TRAINING_EXPORT_PAGE_SIZE,
-        cursor: cursor ?? null,
-        maximumBytesRead: TRAINING_EXPORT_BYTES,
-      });
-    const page = [];
-    for (const row of result.page) {
-      let object = await ctx.db.get("objects", row.objectId);
-      if (!object || object.identityStatus !== "established" || !(await eligibleVector(ctx, row))) {
-        continue;
-      }
-      if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
-      // Match identify.loadCandidates: only one-hop merges are part of the active index.
-      if (!object || object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) {
-        continue;
-      }
-      const artwork = await ctx.db.get("artworks", object.artworkId);
-      if (!artwork) continue;
-      const details = await readObjectDetails(ctx, object);
-      page.push({
-        vectorId: row._id,
-        vector: row,
-        object: {
-          objectId: object._id,
-          key: object.key,
-          source: object.source,
-          imageRef: details?.imageRef,
-          rightsStatus: artwork.rightsStatus,
-          objectPenalty: effectiveObjectPenalty(object),
-        },
-      });
-    }
-    return {
-      page,
-      continueCursor: result.continueCursor,
-      isDone: result.isDone,
-    };
-  },
-});
-
-export const exportVectors = internalAction({
-  args: { modelVersion: v.string(), cursor: v.optional(v.string()) },
-  returns: v.object({
-    page: v.array(v.object({ vectorId: v.id("vectors"), vector: v.array(v.float64()), object: trainingObject })),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: (
-    ctx,
-    args,
-  ): Promise<{
-    page: { vectorId: Id<"vectors">; vector: number[]; object: Infer<typeof trainingObject> }[];
-    continueCursor: string;
-    isDone: boolean;
-  }> =>
-    withErrorReporting("ingest.exportVectors", async () => {
-      const result = await ctx.runQuery(internal.ingest.exportVectorRows, args);
-      const page = [];
-      for (const row of result.page) page.push({ ...row, vector: await readVector(ctx, row.vector) });
-      return { ...result, page };
-    }),
-});
-
-export const exportDescriptorReferences = internalQuery({
-  args: { cursor: v.optional(v.string()) },
-  returns: v.object({
-    page: v.array(
-      v.object({
-        objectId: v.id("objects"),
-        storageId: v.id("files"),
-        keypointCount: v.number(),
-        inputSize: v.number(),
-      }),
-    ),
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-  }),
-  handler: async (ctx, { cursor }) => {
-    const result = await ctx.db
-      .query("objects")
-      .withIndex("by_creation_time")
-      .paginate({
-        numItems: Math.floor(TRAINING_EXPORT_BYTES / (MAX_KEYPOINTS * (DESCRIPTOR_BYTES + KEYPOINT_BYTES))),
-        cursor: cursor ?? null,
-        maximumBytesRead: TRAINING_EXPORT_BYTES,
-      });
-    const page = [];
-    for (const object of result.page) {
-      if (object.identityStatus !== "established" || !(await eligibleObject(ctx, object))) continue;
-      const row = await readObjectOrb(ctx, object);
-      if (!row) continue;
-      page.push({
-        objectId: object._id,
-        storageId: row.storageId,
-        keypointCount: row.keypointCount,
-        inputSize: row.inputSize,
-      });
-    }
-    return {
-      page,
-      continueCursor: result.continueCursor,
-      isDone: result.isDone,
-    };
-  },
-});
-
-const descriptorExport = v.object({
-  page: v.array(
-    v.object({
-      objectId: v.id("objects"),
-      descriptors: v.bytes(),
-      keypoints: v.bytes(),
-      keypointCount: v.number(),
-      inputSize: v.number(),
-    }),
-  ),
-  continueCursor: v.string(),
-  isDone: v.boolean(),
-});
-
-export const exportDescriptors = internalAction({
-  args: { cursor: v.optional(v.string()) },
-  returns: descriptorExport,
-  handler: async (ctx, args): Promise<Infer<typeof descriptorExport>> =>
-    withErrorReporting("ingest.exportDescriptors", async () => {
-      const result = await ctx.runQuery(internal.ingest.exportDescriptorReferences, args);
-      const page = [];
-      for (let start = 0; start < result.page.length; start += 8) {
-        page.push(
-          ...(await Promise.all(
-            result.page.slice(start, start + 8).map(async ({ storageId, ...row }) => ({
-              ...row,
-              ...(await loadOrb(ctx, storageId, row.keypointCount)),
-            })),
-          )),
-        );
-      }
-      return { ...result, page };
-    }),
 });
 
 export const auditThumbnails = internalQuery({

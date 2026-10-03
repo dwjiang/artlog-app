@@ -11,14 +11,13 @@ import {
   setObjectPenalty,
   EXPORT_PAGE_SIZE,
   MAX_BATCH_ROWS,
-  TRAINING_EXPORT_PAGE_SIZE,
 } from "./ingest";
 import { importTestVectors, importTestDescriptors } from "./ingest.test.helpers";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
-import { readObjectDetails, patchObjectDetails } from "./lib/objectDetails";
+import { readObjectDetails } from "./lib/objectDetails";
 import { loadOrb } from "./lib/orbStorage";
-import { readTestOrb, seedVector } from "./lib/testFactories";
+import { readTestOrb } from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
 import { harness } from "./test.helpers";
 
@@ -158,119 +157,6 @@ it("reads only requested sample identities, including actual vector and ORB byte
       rows: Array.from({ length: 33 }, () => ({ key: wheatField.key })),
     }),
   ).rejects.toMatchObject({ data: { code: "batch_too_large" } });
-});
-
-describe("calibrator training exports", () => {
-  it("exports only the requested model, resolves merged views and retains sampling rights and penalties", async () => {
-    const { t, objectId } = await seeded();
-    const { ids } = await t.mutation(internal.ingest.upsertObjects, {
-      rows: [{ ...metObject, key: "met:alias", mergedIntoKey: metObject.key }],
-    });
-    await t.run(async (ctx) => {
-      await ctx.db.patch("objects", objectId, {
-        calibratorPenalty: 0.3,
-        rejectionPenalty: 0.2,
-      });
-      for (const [id, version] of [
-        [objectId, "old"],
-        [ids["met:alias"], model.modelVersion],
-      ] as const) {
-        await seedVector(ctx, {
-          partition: JSON.stringify([version, "established"]),
-          objectId: id,
-          modelVersion: version,
-          source: "corpus",
-          vector: vector(1),
-        });
-      }
-    });
-    const page = await t.action(internal.ingest.exportVectors, {
-      modelVersion: model.modelVersion,
-    });
-    expect(page.isDone).toBe(true);
-    expect(page.page).toHaveLength(1);
-    expect(page.page[0].object).toEqual({
-      objectId,
-      key: metObject.key,
-      source: "corpus",
-      imageRef: metObject.imageRef,
-      rightsStatus: "public_domain",
-      objectPenalty: 0.5,
-    });
-    expect(page.page[0].vector).toEqual(vector(1));
-    await t.run((ctx) => ctx.db.patch("objects", objectId, { reverted: true }));
-    expect(
-      (
-        await t.action(internal.ingest.exportVectors, {
-          modelVersion: model.modelVersion,
-        })
-      ).page,
-    ).toEqual([]);
-  });
-
-  it("pages vectors without dropping or repeating views", async () => {
-    const { t, objectId } = await seeded();
-    await t.run(async (ctx) => {
-      for (let i = 0; i < TRAINING_EXPORT_PAGE_SIZE + 1; i++) {
-        await seedVector(ctx, {
-          partition: JSON.stringify([model.modelVersion, "established"]),
-          objectId,
-          modelVersion: model.modelVersion,
-          source: "corpus",
-          viewKey: String(i),
-          vector: vector(i),
-        });
-      }
-    });
-    const ids = new Set<string>();
-    let cursor: string | undefined;
-    let done = false;
-    let pages = 0;
-    while (!done) {
-      const result = await t.action(internal.ingest.exportVectors, {
-        modelVersion: model.modelVersion,
-        cursor,
-      });
-      expect(result.page.length).toBeLessThanOrEqual(TRAINING_EXPORT_PAGE_SIZE);
-      for (const row of result.page) {
-        expect(ids.has(row.vectorId)).toBe(false);
-        ids.add(row.vectorId);
-      }
-      cursor = result.continueCursor;
-      done = result.isDone;
-      pages++;
-    }
-    expect(pages).toBeGreaterThan(1);
-    expect(ids.size).toBe(TRAINING_EXPORT_PAGE_SIZE + 1);
-  });
-
-  it("preserves descriptor bytes and zero counts, excluding superseded references", async () => {
-    const { t, objectId } = await seeded();
-    await importTestDescriptors(t, {
-      rows: [
-        {
-          objectKey: metObject.key,
-          descriptors: new ArrayBuffer(0),
-          keypoints: new ArrayBuffer(0),
-          keypointCount: 0,
-          inputSize: 512,
-          extractedFrom: metObject.imageRef,
-        },
-      ],
-    });
-    const page = await t.action(internal.ingest.exportDescriptors, {});
-    expect(page.page).toEqual([
-      {
-        objectId,
-        descriptors: new ArrayBuffer(0),
-        keypoints: new ArrayBuffer(0),
-        keypointCount: 0,
-        inputSize: 512,
-      },
-    ]);
-    await t.run((ctx) => ctx.db.patch("objects", objectId, { mergedInto: objectId }));
-    expect((await t.action(internal.ingest.exportDescriptors, {})).page).toEqual([]);
-  });
 });
 
 describe("upserting museums and artworks", () => {
@@ -670,42 +556,6 @@ describe("ORB file imports", () => {
     expect(await t.query(internal.ingest.counts, {})).toMatchObject({
       descriptors: 1,
     });
-  });
-
-  it("bounds exported file bytes even though the database references are small", async () => {
-    const { t, objectId } = await seeded();
-    await importTestDescriptors(t, {
-      rows: [
-        {
-          ...orbRow,
-          descriptors: new ArrayBuffer(32_000),
-          keypoints: new ArrayBuffer(16_000),
-          keypointCount: 1000,
-        },
-      ],
-    });
-    await t.run(async (ctx) => {
-      const { _id: _objectId, _creationTime: _objectTime, ...object } = (await ctx.db.get("objects", objectId))!;
-      const reference = (await readTestOrb(ctx, objectId))!;
-      for (let i = 0; i < 104; i++) {
-        const copy = await ctx.db.insert("objects", {
-          ...object,
-          key: `met:copy:${i}`,
-        });
-        await patchObjectDetails(ctx, { _id: copy }, { orb: reference });
-      }
-    });
-    const first = await t.action(internal.ingest.exportDescriptors, {});
-    expect(first.page).toHaveLength(104);
-    expect(
-      first.page.reduce((sum, row) => sum + row.descriptors.byteLength + row.keypoints.byteLength, 0),
-    ).toBeLessThanOrEqual(5_000_000);
-    expect(first.isDone).toBe(false);
-    const last = await t.action(internal.ingest.exportDescriptors, {
-      cursor: first.continueCursor,
-    });
-    expect(last.page).toHaveLength(1);
-    expect(last.isDone).toBe(true);
   });
 });
 

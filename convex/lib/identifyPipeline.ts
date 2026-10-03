@@ -8,7 +8,7 @@ import { effectiveObjectPenalty } from "./rejectionPenalty";
 
 const GALLERY_TTL_MS = 15 * 60_000;
 export const MAX_ORB_VERIFICATIONS = 10;
-/** Candidates scoring sees. The calibrator reads it as logCandidateCount, so every caller must offer the same pool. */
+/** Candidates scoring sees: the pool calibrator training retrieves, so margins and inlier leads mean the same here. */
 export const MAX_CANDIDATES = 32;
 
 /** Everything scoring reads, so an offline package can ship these fields instead of whole documents. */
@@ -43,17 +43,21 @@ function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): Pip
   const lastGallery = input.visit?.lastConfidentGallery;
   const recentGallery = lastAt !== undefined && input.now >= lastAt && input.now - lastAt <= GALLERY_TTL_MS;
 
+  for (const candidate of candidates) {
+    if (verifications.size === MAX_ORB_VERIFICATIONS) break;
+    if (candidate.descriptors && candidate.keypoints) {
+      const reference = decodeOrbFeatures(candidate.descriptors, candidate.keypoints);
+      verifications.set(
+        candidate.object._id,
+        verifyOrb(input.query, reference, {
+          inputSize: candidate.inputSize ?? input.inputSize,
+        }),
+      );
+    }
+  }
+
   const scored = scoreCandidates(
     candidates.map((candidate) => {
-      if (verifications.size < MAX_ORB_VERIFICATIONS && candidate.descriptors && candidate.keypoints) {
-        const reference = decodeOrbFeatures(candidate.descriptors, candidate.keypoints);
-        verifications.set(
-          candidate.object._id,
-          verifyOrb(input.query, reference, {
-            inputSize: candidate.inputSize ?? input.inputSize,
-          }),
-        );
-      }
       const verification = verifications.get(candidate.object._id);
       const atVenue = input.venueId !== undefined && candidate.placement?.venueId === input.venueId;
       const candidateGallery = candidate.placement?.gallery;
@@ -63,18 +67,23 @@ function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): Pip
             ? "same"
             : "different"
           : "unknown";
+      let runnerUpInliers = 0;
+      for (const [objectId, other] of verifications) {
+        if (objectId !== candidate.object._id) runnerUpInliers = Math.max(runnerUpInliers, other.inlierCount);
+      }
       return {
         candidate,
         signals: {
           similarity: candidate.similarity,
           runnerUpSimilarity: candidates.find((other) => other.object._id !== candidate.object._id)?.similarity ?? 0,
-          candidateCount: candidates.length,
           atVenue,
+          venueKnown: input.venueId !== undefined,
           gallery,
           onView: candidate.placement?.onView ?? null,
           keypointCount: candidate.keypointCount,
           orbInliers: verification?.inlierCount ?? 0,
           homographyValid: verification?.verified ?? false,
+          runnerUpInliers,
           objectPenalty: effectiveObjectPenalty(candidate.object),
         },
       };

@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { delimiter, join } from "node:path";
 import process from "node:process";
 import { afterEach, beforeEach, test } from "node:test";
@@ -69,6 +78,8 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
     env: {
       ...process.env,
       PATH: `${directory}${delimiter}${process.env.PATH}`,
+      // Keeps build cleanup away from the developer's real DerivedData.
+      HOME: directory,
       CONDUCTOR_IS_LOCAL: "1",
       CONDUCTOR_WORKSPACE_PATH: "/workspaces/artlog-app/ndjamena",
       CONDUCTOR_WORKSPACE_NAME: "ndjamena",
@@ -102,17 +113,19 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
     ...result,
     calls,
     shutdowns: calls.filter((call) => call[0] === "xcrun" && call[2] === "shutdown").map((call) => call.slice(1)),
+    deletions: calls.filter((call) => call[0] === "xcrun" && call[2] === "delete").map((call) => call[3]),
     windows: calls.filter((call) => call[0] === "osascript").flatMap((call) => call.slice(3)),
   };
 }
 
-await test("shuts down only this workspace’s named simulators, including purpose suffixes", () => {
+await test("deletes only this workspace’s named simulators, including purpose suffixes", () => {
   const result = runArchive(["Artlog Ndjamena", "Artlog ndjamena Review", "Artlog Sanaa", "iPhone 17 Pro"]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, [
     ["simctl", "shutdown", "device-0"],
     ["simctl", "shutdown", "device-1"],
   ]);
+  assert.deepEqual(result.deletions, ["device-0", "device-1"]);
   assert.deepEqual(result.windows, ["Artlog Ndjamena", "Artlog ndjamena Review"]);
 });
 
@@ -125,6 +138,7 @@ await test("keeps similarly named workspaces and versioned workspaces running", 
   ]);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, []);
+  assert.deepEqual(result.deletions, []);
 });
 
 await test("accepts spaces and hyphens in multiword workspace names", () => {
@@ -157,7 +171,7 @@ await test("does nothing for cloud workspaces or absent ownership information", 
   }
 });
 
-await test("closes stopped iOS windows without repeating shutdown or touching non-iOS devices", () => {
+await test("deletes stopped iOS devices without repeating shutdown or touching non-iOS devices", () => {
   const result = runArchive([], {
     TEST_DEVICES: JSON.stringify({
       devices: {
@@ -172,6 +186,7 @@ await test("closes stopped iOS windows without repeating shutdown or touching no
   });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.shutdowns, []);
+  assert.deepEqual(result.deletions, ["stopped"]);
   assert.deepEqual(result.windows, ["Artlog Ndjamena"]);
 });
 
@@ -181,6 +196,7 @@ await test("reports shutdown failures and still attempts the workspace’s other
   });
   assert.equal(result.status, 1);
   assert.equal(result.shutdowns.length, 2);
+  assert.deepEqual(result.deletions, ["device-1"]);
   assert.match(result.stderr, /device-0/);
 });
 
@@ -231,6 +247,56 @@ await test("still closes simulators when process discovery fails", () => {
   assert.equal(result.status, 1);
   assert.deepEqual(result.shutdowns, [["simctl", "shutdown", "device-0"]]);
   assert.deepEqual(result.windows, ["Artlog Ndjamena"]);
+});
+
+await test("deletes archived Xcode builds beyond the newest three and keeps live and other projects’ builds", () => {
+  const workspace = join(directory, "workspace");
+  mkdirSync(workspace);
+  const derivedData = join(directory, "Library/Developer/Xcode/DerivedData");
+  const builds: [string, string, string][] = [
+    ["Artlog-current", `${workspace}/ios/Artlog.xcworkspace`, "2026-10-03T10:00:00Z"],
+    ["Artlog-recent", "/workspaces/artlog-app/lima/ios/Artlog.xcworkspace", "2026-10-03T09:00:00Z"],
+    ["artlog-lowercase", "/workspaces/artlog-app/oslo/ios/artlog.xcworkspace", "2026-10-02T09:00:00Z"],
+    ["Artlog-older", "/workspaces/artlog-app/kyiv/ios/Artlog.xcworkspace", "2026-10-01T09:00:00Z"],
+    ["Artlog-oldest", "/workspaces/artlog-app/rome/ios/Artlog.xcworkspace", "2026-09-30T09:00:00Z"],
+    ["Artlog-sibling", "/workspaces/artlog-app/ndjamena-v1/ios/Artlog.xcworkspace", "2026-09-01T09:00:00Z"],
+    ["Artlog-root", "/repos/artlog-app/ios/Artlog.xcworkspace", "2026-09-01T09:00:00Z"],
+    ["thinglet-archived", "/workspaces/thinglet/lima/ios/thinglet.xcworkspace", "2026-09-01T09:00:00Z"],
+  ];
+  for (const [name, project, accessed] of builds) {
+    mkdirSync(join(derivedData, name, "Build"), { recursive: true });
+    writeFileSync(
+      join(derivedData, name, "info.plist"),
+      `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+\t<key>LastAccessedDate</key>
+\t<date>${accessed}</date>
+\t<key>WorkspacePath</key>
+\t<string>${project}</string>
+</dict>
+</plist>
+`,
+    );
+  }
+  mkdirSync(join(derivedData, "ModuleCache.noindex"));
+  const result = runArchive([], {
+    CONDUCTOR_WORKSPACE_PATH: workspace,
+    TEST_WORKTREES: JSON.stringify(
+      `worktree /repos/artlog-app\0\0worktree ${workspace}\0\0worktree /workspaces/artlog-app/ndjamena-v1\0\0`,
+    ),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Deleted 2 Xcode build/);
+  assert.deepEqual(readdirSync(derivedData).sort(), [
+    "Artlog-current",
+    "Artlog-recent",
+    "Artlog-root",
+    "Artlog-sibling",
+    "ModuleCache.noindex",
+    "artlog-lowercase",
+    "thinglet-archived",
+  ]);
 });
 
 async function startProcess(cwd: string, title: string, stubborn = false) {

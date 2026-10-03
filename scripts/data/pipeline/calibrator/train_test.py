@@ -109,6 +109,48 @@ def test_high_scoring_ineligible_winner_is_soft_and_never_replaced_by_an_eligibl
     assert metrics["outcomes"]["soft"]["correct"] == 1
 
 
+def test_unmerged_duplicates_are_set_aside_and_holdout_splits_by_venue_context():
+    rows = separable_rows()
+    for row in rows:
+        if int(row["sourceObjectId"]) % 2:
+            s = dict(row["signals"], venueKnown=False, atVenue=False, gallery="unknown")
+            row["signals"], row["features"] = s, featurize(s).tolist()
+    duplicates = [
+        row
+        | {
+            "candidateObjectId": f"copy-{row['sourceObjectId']}",
+            "label": 0,
+            "referenceCosine": 0.97,
+        }
+        for row in rows
+        if row["label"]
+    ]
+    result = train(rows + duplicates, seed=7)
+    assert not result.errors
+    assert result.metrics["duplicateRowsSetAside"] == len(duplicates)
+    assert result.metrics["rows"] == len(rows)
+    by_venue = result.metrics["byVenueContext"]
+    assert set(by_venue) == {"venueKnown", "noVenue"}
+    assert (
+        by_venue["venueKnown"]["queries"] + by_venue["noVenue"]["queries"]
+        == result.metrics["queries"]
+    )
+
+
+def test_withheld_artwork_queries_count_against_precision_but_not_recall():
+    rows = separable_rows()
+    withheld = [
+        row | {"queryId": f"{row['queryId']}:withheld", "label": 0, "outOfIndex": True}
+        for row in rows
+        if not row["label"]
+    ]
+    result = train(rows + withheld, seed=7)
+    assert not result.errors
+    assert result.metrics["answerableQueries"] * 2 == result.metrics["queries"]
+    assert result.metrics["accepted"]["recall"] >= 0.9
+    assert result.metrics["outcomes"]["confident"]["incorrect"] == 0
+
+
 def test_bad_separation_writes_diagnostics_but_removes_stale_v2_artifact(tmp_path):
     rows = separable_rows()
     constant = signals()

@@ -1,11 +1,11 @@
-"""Export the active index, sample public-domain objects, and write augmented candidate rows."""
+"""Load the local corpus package, sample public-domain objects, and write augmented candidate rows."""
 
 import argparse
-import hashlib
 import json
 import logging
 import shutil
-from collections import Counter
+from collections import Counter, defaultdict
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,7 +15,6 @@ import torch
 from PIL import Image
 
 from ..config import get_settings, setup_logging
-from ..convex_writer import ConvexWriter
 from ..download import (
     SOURCE_RATES,
     DownloadIncomplete,
@@ -25,12 +24,13 @@ from ..download import (
     download_shard,
     image_filename,
 )
+from ..features import Features, file_hash, read_jsonl
 from ..letterbox import letterbox
 from ..model import DEFAULT_FAKEQUANT, Embedder, load_embedder, sha256_of
-from ..model_version import EMBEDDING_DIM, INPUT_SIZE, MODEL_VERSION, ORB_MAX_KEYPOINTS
+from ..model_version import INPUT_SIZE, MODEL_VERSION
 from ..orb import OrbFeatures, extract_orb, to_gray
 from .augment import augment
-from .features import candidate_rows
+from .features import OUT_OF_INDEX_RATE, candidate_rows
 
 log = logging.getLogger(__name__)
 
@@ -49,80 +49,98 @@ class Index:
     vectors: np.ndarray
     object_ids: list[str]
     objects: dict[str, dict]
-    descriptors: dict[str, Reference]
+    descriptors: Mapping[str, Reference]
+    fingerprint: str
 
-    def fingerprint(self) -> str:
-        digest = hashlib.sha256(memoryview(self.vectors))
-        digest.update(json.dumps(self.object_ids).encode())
-        digest.update(json.dumps(self.objects, sort_keys=True).encode())
-        for object_id, reference in sorted(self.descriptors.items()):
-            digest.update(
-                json.dumps([object_id, reference.input_size, reference.features.count]).encode()
-            )
-            digest.update(reference.features.descriptors)
-            digest.update(reference.features.keypoints)
-        return digest.hexdigest()
+    def __post_init__(self):
+        rows = defaultdict(list)
+        works = defaultdict(list)
+        for row, object_id in enumerate(self.object_ids):
+            rows[object_id].append(row)
+            works[self.objects[object_id]["artworkKey"]].append(row)
+        self.object_rows = dict(rows)
+        self.artwork_rows = dict(works)
+        self._withheld: dict[str, np.ndarray] = {}
+
+    def withheld_rows(self, object_id: str, duplicate_cosine: float) -> np.ndarray:
+        """Hide the source artwork and every view of objects with a reference this close to
+        the source. Cached because every variant of an object reuses it."""
+        if object_id not in self._withheld:
+            source = self.vectors[self.object_rows[object_id]]
+            hidden = (self.vectors @ source.T).max(axis=1) >= duplicate_cosine
+            duplicates = {self.object_ids[row] for row in np.flatnonzero(hidden)}
+            for duplicate in duplicates:
+                hidden[self.object_rows[duplicate]] = True
+            hidden[self.artwork_rows[self.objects[object_id]["artworkKey"]]] = True
+            self._withheld = {object_id: np.flatnonzero(hidden)}
+        return self._withheld[object_id]
 
 
-def _pages(call, name: str, args: dict):
-    cursor = None
-    while True:
-        result = call(name, args | ({"cursor": cursor} if cursor is not None else {}))
-        yield result["page"]
-        if result["isDone"]:
-            return
-        next_cursor = result["continueCursor"]
-        if not next_cursor or next_cursor == cursor:
-            raise ValueError(f"{name}: pagination did not advance")
-        cursor = next_cursor
+class PackageReferences(Mapping):
+    """Each indexed survivor's selected ORB reference, read from the shard on demand."""
 
+    def __init__(self, features: Features, views: dict[str, str]):
+        self.features = features
+        self.views = views
 
-def load_index(writer: ConvexWriter, *, model_version: str = MODEL_VERSION) -> Index:
-    chunks = []
-    object_ids = []
-    objects = {}
-    for page in _pages(writer.action, "ingest:exportVectors", {"modelVersion": model_version}):
-        if not page:
-            continue
-        chunk = np.asarray([row["vector"] for row in page], dtype=np.float32)
-        if chunk.shape != (len(page), EMBEDDING_DIM) or not np.isfinite(chunk).all():
-            raise ValueError("exported vectors have invalid dimensions or non-finite values")
-        norms = np.linalg.norm(chunk, axis=1, keepdims=True)
-        if (norms == 0).any():
-            raise ValueError("export contains a zero-norm vector")
-        chunks.append(chunk / norms)
-        for row in page:
-            obj = row["object"]
-            object_id = obj["objectId"]
-            if object_id in objects and objects[object_id] != obj:
-                raise ValueError("index changed during export; rerun against a stable index")
-            objects[object_id] = obj
-            object_ids.append(object_id)
-        log.info("exported %d vectors", len(object_ids))
-    if not chunks:
-        raise ValueError(
-            f"no indexed vectors for {model_version}; import the embedding index first"
+    def __getitem__(self, object_id: str) -> Reference:
+        row = self.features.descriptors(self.views[object_id])
+        return Reference(
+            OrbFeatures(row["descriptors"], row["keypoints"], row["keypointCount"]),
+            row["inputSize"],
         )
-    descriptors = {}
-    for page in _pages(writer.action, "ingest:exportDescriptors", {}):
-        for row in page:
-            if row["objectId"] not in objects:
-                continue
-            count = int(row["keypointCount"])
-            features = OrbFeatures(row["descriptors"], row["keypoints"], count)
-            if (
-                count != row["keypointCount"]
-                or not 0 <= count <= ORB_MAX_KEYPOINTS
-                or len(features.descriptors) != count * 32
-                or len(features.keypoints) != count * 16
-                or row["inputSize"] != INPUT_SIZE
-                or not np.isfinite(features.keypoint_array()).all()
-            ):
-                raise ValueError("exported ORB reference differs from the current model contract")
-            if row["objectId"] in descriptors:
-                raise ValueError("duplicate reference descriptors for an object")
-            descriptors[row["objectId"]] = Reference(features, int(row["inputSize"]))
-    return Index(np.concatenate(chunks), object_ids, objects, descriptors)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.views)
+
+    def __len__(self) -> int:
+        return len(self.views)
+
+    def __contains__(self, object_id: object) -> bool:
+        return object_id in self.views
+
+
+def load_index(directory: Path) -> Index:
+    """The merged corpus package that production was imported from: every indexed view, one
+    ORB reference per survivor, and artwork keys for artwork-level labels."""
+    stats = json.loads((directory / "stats.json").read_text())
+    if not stats["completeFeatures"]:
+        raise ValueError(
+            f"{directory} lacks complete features; train against the full corpus build"
+        )
+    features = Features(directory)
+    views = read_jsonl(directory / "vector-index.jsonl")
+    # A plain array: memmap-subclass results make every later row lookup slow.
+    vectors = np.ascontiguousarray(
+        np.stack([features.vectors[row["viewKey"]] for row in views]), dtype=np.float32
+    )
+    survivors = {row["objectKey"] for row in views}
+    works = {row["key"]: row for row in read_jsonl(directory / "artworks.jsonl")}
+    objects = {}
+    for row in read_jsonl(directory / "objects.jsonl"):
+        if row["key"] in survivors:
+            objects[row["key"]] = {
+                "objectId": row["key"],
+                "key": row["key"],
+                "artworkKey": row["artworkKey"],
+                "source": row["source"],
+                "imageRef": row.get("imageRef"),
+                "rightsStatus": works[row["artworkKey"]]["rightsStatus"],
+                # Hub scoring is deferred: the import writes zero corpus penalties.
+                "objectPenalty": 0,
+            }
+    if objects.keys() != survivors:
+        raise ValueError("vector-index.jsonl names objects that objects.jsonl lacks")
+    references = {
+        row["objectKey"]: row["viewKey"] for row in read_jsonl(directory / "descriptor-index.jsonl")
+    }
+    return Index(
+        vectors,
+        [row["objectKey"] for row in views],
+        objects,
+        PackageReferences(features, references),
+        file_hash(directory / "stats.json"),
+    )
 
 
 def select_objects(index: Index, *, count: int = 5000, seed: int) -> list[dict]:
@@ -194,6 +212,9 @@ def write_samples(
     out.parent.mkdir(parents=True, exist_ok=True)
     rows_written = 0
     positives = 0
+    queries = 0
+    lost = 0
+    hidden = 0
     processed: list[dict] = []
     skipped: list[dict] = []
     with TemporaryDirectory(prefix="calibrator-", dir=scratch) as work:
@@ -220,21 +241,30 @@ def write_samples(
                     with Image.open(path) as image:
                         variants = augment(image, seed=sample_seed)
                     boxed = [letterbox(variant, INPUT_SIZE) for variant in variants.values()]
+                    queries += len(boxed)
                     pixels = np.stack([np.asarray(image).transpose(2, 0, 1) for image in boxed])
                     embeddings = embedder.embed(torch.from_numpy(pixels))
+                    # One pass over the index serves every variant of this object.
+                    scores = index.vectors @ embeddings.T
                     for i, (name, image) in enumerate(zip(variants, boxed, strict=True)):
+                        rng = np.random.default_rng([sample_seed, i])
+                        out_of_index = bool(rng.random() < OUT_OF_INDEX_RATE)
                         rows = candidate_rows(
                             index,
                             embeddings[i],
                             extract_orb(to_gray(image)),
                             source_object_id=obj["objectId"],
                             query_id=f"{obj['objectId']}:{name}",
-                            rng=np.random.default_rng(sample_seed * 4 + i),
+                            rng=rng,
+                            out_of_index=out_of_index,
+                            scores=np.ascontiguousarray(scores[:, i]),
                         )
                         for row in rows:
                             body.write(json.dumps(row, allow_nan=False) + "\n")
                         rows_written += len(rows)
                         positives += sum(row["label"] for row in rows)
+                        hidden += out_of_index
+                        lost += not out_of_index and not any(row["label"] for row in rows)
                     body.flush()
                     path.unlink()
                     log.info(
@@ -255,23 +285,27 @@ def write_samples(
     return {
         "objects": len(processed),
         "skipped": len(skipped),
-        "queries": len(processed) * 4,
+        "queries": queries,
         "rows": rows_written,
         "positiveRows": positives,
-        "queriesWithoutTrueCandidate": len(processed) * 4 - positives,
+        "outOfIndexQueries": hidden,
+        "queriesWithoutTrueCandidate": lost,
         "sources": dict(Counter(obj["key"].split(":")[0] for obj in processed)),
         "sourceObjects": [{"objectId": obj["objectId"], "key": obj["key"]} for obj in processed],
         "skippedObjects": skipped,
         "seed": seed,
         "indexVectors": len(index.vectors),
         "indexObjects": len(index.objects),
-        "indexSha256": index.fingerprint(),
+        "indexSha256": index.fingerprint,
         "featuresSha256": sha256_of(out),
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--index", type=Path, required=True, help="merged corpus package, e.g. merged-pca512"
+    )
     parser.add_argument("--objects", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=20260911)
     parser.add_argument("--out", type=Path, default=Path("out/calibrator-features.jsonl"))
@@ -282,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(settings)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
-        index = load_index(ConvexWriter(settings))
+        index = load_index(args.index)
         selected = select_objects(index, count=args.objects, seed=args.seed)
         embedder = load_embedder(args.fakequant, device=settings.device, dtype=args.dtype)
         summary = write_samples(
@@ -299,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
             device=embedder.device,
             dtype=embedder.dtype_name,
             fakequantSha256=sha256_of(args.fakequant),
-            convexUrl=settings.convex_url,
+            indexSource=str(args.index),
         )
         args.out.with_suffix(".manifest.json").write_text(
             json.dumps(summary, indent=2, allow_nan=False) + "\n"

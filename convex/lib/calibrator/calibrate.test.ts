@@ -7,13 +7,14 @@ import { DEFAULT_CALIBRATOR, type CalibratorConfig } from "./weights";
 const strong: CandidateSignals = {
   similarity: 0.9,
   runnerUpSimilarity: 0.8,
-  candidateCount: 20,
   atVenue: true,
+  venueKnown: true,
   gallery: "same",
   onView: true,
   keypointCount: 300,
   orbInliers: 40,
   homographyValid: true,
+  runnerUpInliers: 0,
   objectPenalty: 0,
 };
 
@@ -109,6 +110,7 @@ describe("scoreCandidates", () => {
     const lowTexture = signals({
       keypointCount: 40,
       homographyValid: false,
+      runnerUpInliers: 0,
       orbInliers: 0,
       similarity: minSimilarity + 0.05,
       runnerUpSimilarity: minSimilarity + 0.05 - minMargin - 0.01,
@@ -128,6 +130,7 @@ describe("scoreCandidates", () => {
           similarity: minSimilarity - 0.01,
           runnerUpSimilarity: minSimilarity - 0.01 - minMargin + 0.01,
           atVenue: false,
+          venueKnown: false,
         },
       },
     ]);
@@ -179,6 +182,7 @@ describe("decide", () => {
         similarity: 0.99,
         runnerUpSimilarity: 0.8,
         homographyValid: false,
+        runnerUpInliers: 0,
         orbInliers: 0,
       }),
     );
@@ -234,9 +238,11 @@ describe("decide", () => {
         similarity: 0.7,
         runnerUpSimilarity: 0.69,
         atVenue: false,
+        venueKnown: false,
         gallery: "unknown",
         orbInliers: 3,
         homographyValid: false,
+        runnerUpInliers: 0,
       }),
     );
     expect(decision.best?.probability).toBeLessThan(DEFAULT_CALIBRATOR.thresholds.soft);
