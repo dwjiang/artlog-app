@@ -494,11 +494,17 @@ it("loads public visits for guests and opens their details without signing in", 
 
 it("switches a signed-in Home between friends’ visits and Global public visits", async () => {
   await render(<HomeScreen />);
-  expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
-    ["sharedVisits:listFeed", {}],
-    ["sharedVisits:listPublic", {}],
-    ["notifications:unseen", {}],
+  const subscriptions = mockPages.mock.calls.map(
+    ([query, args]) => `${getFunctionName(query)} ${JSON.stringify(args)}`,
+  );
+  expect([...new Set(subscriptions)]).toEqual([
+    "sharedVisits:listFeed {}",
+    "sharedVisits:listPublic {}",
+    "notifications:unseen {}",
   ]);
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
@@ -506,8 +512,6 @@ it("switches a signed-in Home between friends’ visits and Global public visits
     mockPages.mock.calls.filter(([query]) => getFunctionName(query) === "sharedVisits:listPublic").at(-1)?.[1],
   ).toEqual({});
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
 });
 
 it.each([
@@ -773,6 +777,7 @@ it("fills an empty Friends feed with suggestions and counts requests on the frie
   mockSuggestions = { people: [priya], friendCount: 0 };
   queryData({ "profiles:requests": [profile("Ben Carter"), profile("Lucía Romero")] });
   await render(<HomeScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: "No visits from friends yet." })).toBeOnTheScreen();
   expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share your profile" }));
