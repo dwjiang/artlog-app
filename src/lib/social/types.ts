@@ -5,6 +5,8 @@ import type { api } from "../../../convex/_generated/api";
 export type SharedVisit = FunctionReturnType<typeof api.sharedVisits.get>;
 export type SharedArtwork = FunctionReturnType<typeof api.sharedVisits.getArtwork>;
 export type PublicProfile = NonNullable<FunctionReturnType<typeof api.profiles.getPublic>>;
+/** A listed profile carrying the viewer's relationship, which is absent on the viewer's own row and for guests. */
+export type BrowsedProfile = NonNullable<FunctionReturnType<typeof api.profiles.friends>>[number];
 export type PublicWall = NonNullable<FunctionReturnType<typeof api.walls.getPublic>>;
 export type Relationship = FunctionReturnType<typeof api.friendships.getState>;
 export type Suggestion = FunctionReturnType<typeof api.suggestions.list>["people"][number];

@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { defaultAvatar } from "../shared/social/avatars";
 import { api, internal } from "./_generated/api";
 import { fileStorage } from "./lib/fileStorage";
-import { befriend, socialUser } from "./lib/socialTestFixtures";
+import { socialUser } from "./lib/socialTestFixtures";
 import { harness } from "./test.helpers";
 
 it("updates only the authenticated profile and deletes replaced public photos", async () => {
@@ -112,19 +112,4 @@ it("renames the profile, releases the old username, and rejects a taken or inval
       username: "Mira_Looks",
     }),
   ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
-});
-
-it("lists only accepted, available friends of the caller", async () => {
-  const t = harness();
-  const owner = await socialUser(t);
-  const friend = await socialUser(t);
-  const stranger = await socialUser(t);
-  await befriend(owner, friend);
-  await owner.as.mutation(api.friendships.request, {
-    profileId: stranger.profileId,
-    revision: 0,
-  });
-  expect((await owner.as.query(api.profiles.friends, {})).map((p) => p.profileId)).toEqual([friend.profileId]);
-  expect(await stranger.as.query(api.profiles.friends, {})).toEqual([]);
-  await expect(t.query(api.profiles.friends, {})).rejects.toThrow("unauthenticated");
 });

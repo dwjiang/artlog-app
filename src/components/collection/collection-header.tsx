@@ -1,8 +1,9 @@
 import { router } from "expo-router";
 
-import { OwnProfileActions, ProfileHeader } from "@/components/social/profile-header";
+import { friendStat, OwnProfileActions, ProfileHeader } from "@/components/social/profile-header";
 import { useLocalProfile } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { useFriends } from "@/lib/social/use-friends";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
@@ -27,6 +28,7 @@ export function CollectionHeader({
     session.status === "ready" ? {} : "skip",
     session.key,
   );
+  const friends = useFriends(session, session.profileId);
   const stats = [
     { noun: "artwork", count: loading ? undefined : artworkCount },
     { noun: "visit", count: loading ? undefined : visitCount },
@@ -66,7 +68,10 @@ export function CollectionHeader({
           ? undefined
           : { name: profile?.name ?? "Your collection", subtitle: status, profile: profile ?? undefined }
       }
-      stats={stats}
+      stats={[
+        ...stats,
+        ...friendStat(friends, () => router.push({ pathname: "/people", params: { filter: "friends" } })),
+      ]}
       accessory={settings}
     >
       {profile ? (

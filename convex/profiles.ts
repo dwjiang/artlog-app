@@ -111,18 +111,21 @@ export const mine = query({
   returns: publicProfile,
   handler: async (ctx) => projectProfile(ctx, (await requireProfile(ctx)).profile),
 });
+/** A profile's friends as the viewer may see them, each carrying the viewer's relationship to mark mutual friends. */
 export const friends = query({
-  args: {},
-  returns: v.array(publicProfile),
-  handler: async (ctx) => {
-    const { profile } = await requireProfile(ctx);
-    const edges = (await acceptedRelationships(ctx, profile._id)).slice(0, LIMITS.friends);
+  args: { profileId: v.id("profiles") },
+  returns: v.union(v.array(browsedProfile), v.null()),
+  handler: async (ctx, { profileId }) => {
+    const { profile: viewer } = await requireProfile(ctx);
+    const person = await activeProfile(ctx, profileId);
+    if (!person || (await blockedEitherWay(ctx, viewer._id, profileId))) return null;
+    const edges = (await acceptedRelationships(ctx, profileId)).slice(0, LIMITS.friends);
     const people = [];
     for (const edge of edges) {
-      const id = edge.firstProfileId === profile._id ? edge.secondProfileId : edge.firstProfileId;
-      const person = await activeProfile(ctx, id);
-      if (person && !(await blockedEitherWay(ctx, profile._id, id))) {
-        people.push(await projectProfile(ctx, person));
+      const id = edge.firstProfileId === profileId ? edge.secondProfileId : edge.firstProfileId;
+      const friend = await activeProfile(ctx, id);
+      if (friend && !(await blockedEitherWay(ctx, viewer._id, id))) {
+        people.push(await projectBrowsedProfile(ctx, viewer, friend));
       }
     }
     return people.sort((a, b) => a.name.localeCompare(b.name));

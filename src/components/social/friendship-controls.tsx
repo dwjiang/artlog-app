@@ -58,7 +58,7 @@ export function CompactFriendshipControls({
   /** Offers Ignore beside Accept on an incoming request. */
   declinable?: boolean;
 }) {
-  if (profileId === session.profileId) return null;
+  if (profileId === session.profileId) return <Text style={styles.friends}>You</Text>;
   if (friend) return <Text style={styles.friends}>Friends</Text>;
   if (session.status === "signed-out" || session.status === "profile-required") {
     return (

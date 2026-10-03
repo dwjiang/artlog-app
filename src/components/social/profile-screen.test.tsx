@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ActionSheetIOS } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
-import type { InCommon, SharedVisit } from "@/lib/social/types";
+import type { BrowsedProfile, InCommon, SharedVisit } from "@/lib/social/types";
 
 import { ProfileScreen } from "./profile-screen";
 
@@ -71,7 +71,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
             ? { likeCount: 0, commentCount: 0, liked: false }
             : mockGetFunctionName(query) === "suggestions:inCommonWith"
               ? mockInCommon
-              : { color: "#45524B", items: [] },
+              : mockGetFunctionName(query) === "profiles:friends"
+                ? mockFriends
+                : { color: "#45524B", items: [] },
     refresh: () => mockQueryRefresh(mockGetFunctionName(query)),
   }),
   useCursorPages: (...args: unknown[]) => {
@@ -86,6 +88,15 @@ jest.mock("@/lib/social/use-block", () => ({
 }));
 let mockVisits: SharedVisit[] = [];
 let mockInCommon: InCommon = { artworks: [], museums: [] };
+let mockFriends: BrowsedProfile[] | null = [];
+const friendRow = (name: string, state?: "accepted" | "none"): BrowsedProfile => ({
+  profileId: name.toLowerCase() as never,
+  username: name.toLowerCase(),
+  name,
+  avatar: "vermeer",
+  publishedWallCount: 0,
+  ...(state ? { relationship: { state, revision: 1, requesterId: null, blocked: false, blockRevision: 0 } } : {}),
+});
 const visit: SharedVisit = {
   audience: "public",
   postId: "post-a",
@@ -107,6 +118,7 @@ beforeEach(() => {
   mockRelationship = { state: "none", blocked: false };
   mockVisits = [];
   mockInCommon = { artworks: [], museums: [] };
+  mockFriends = [];
 });
 
 it("requests authorized public visits for strangers", async () => {
@@ -270,4 +282,35 @@ it("shows the artworks and museums you have in common with someone else", async 
 it("leaves In common out when nothing is shared", async () => {
   await render(<ProfileScreen profileId="friend" />);
   expect(screen.queryByText("In common")).toBeNull();
+});
+
+it("counts someone’s friends, names the ones you share, and opens their friend list from either", async () => {
+  mockFriends = [
+    friendRow("Ana Ruiz", "accepted"),
+    friendRow("Ben Ode", "accepted"),
+    friendRow("Cy Tan", "none"),
+    friendRow("Owner"),
+  ];
+  await render(<ProfileScreen profileId="friend" />);
+  const friendList = { pathname: "/profile-friends", params: { profileId: "friend" } };
+  await fireEvent.press(screen.getByRole("button", { name: "Friends with Ana and Ben" }));
+  expect(mockPush).toHaveBeenLastCalledWith(friendList);
+  mockPush.mockClear();
+  await fireEvent.press(screen.getByRole("button", { name: "4 friends" }));
+  expect(mockPush).toHaveBeenLastCalledWith(friendList);
+});
+
+it("opens your own friends from your profile’s count, with no shared-friends line", async () => {
+  mockFriends = [friendRow("Ana Ruiz", "accepted")];
+  await render(<ProfileScreen profileId="owner" />);
+  expect(screen.queryByText(/^Friends with/)).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "1 friend" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/people", params: { filter: "friends" } });
+});
+
+it("leaves friends out of the header when you can’t see them", async () => {
+  mockFriends = null;
+  await render(<ProfileScreen profileId="friend" />);
+  expect(screen.getByLabelText("0 artworks")).toBeOnTheScreen();
+  expect(screen.queryByLabelText(/friends?$/)).toBeNull();
 });

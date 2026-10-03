@@ -2,6 +2,7 @@ import type { Infer } from "convex/values";
 
 import { defaultAvatar, isAvatarId } from "../../shared/social/avatars";
 import {
+  type browsedProfile,
   type displayMedia,
   type publicArtwork,
   type publicProfile,
@@ -26,7 +27,11 @@ export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): P
   };
 }
 // Browse lists carry the viewer's relationship so each row does not need its own friendship subscription.
-export async function projectBrowsedProfile(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile: Doc<"profiles">) {
+export async function projectBrowsedProfile(
+  ctx: QueryCtx,
+  viewer: Doc<"profiles"> | null,
+  profile: Doc<"profiles">,
+): Promise<Infer<typeof browsedProfile>> {
   const person = await projectProfile(ctx, profile);
   if (!viewer || viewer._id === profile._id) return person;
   return {

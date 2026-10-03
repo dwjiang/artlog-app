@@ -186,7 +186,7 @@ it("keeps the trailing action beside every friendship state", async () => {
   expect(mockUnblock).toHaveBeenCalledTimes(1);
 });
 
-it("renders a known friend row without a relationship query and lets a stranger be added", async () => {
+it("labels your own and a known friend’s rows without a relationship query and lets a stranger be added", async () => {
   mockState = { state: "none", blocked: false, revision: 0 };
   const ready = {
     ...guest,
@@ -195,10 +195,12 @@ it("renders a known friend row without a relationship query and lets a stranger 
   };
   await render(
     <>
+      <CompactFriendshipControls profileId={"me" as never} session={ready} />
       <CompactFriendshipControls profileId={"friend" as never} session={ready} friend />
       <CompactFriendshipControls profileId={"stranger" as never} session={ready} />
     </>,
   );
+  expect(screen.getByText("You")).toBeOnTheScreen();
   expect(screen.getByText("Friends")).toBeOnTheScreen();
   expect(mockUseFriendship).toHaveBeenCalledTimes(1);
   expect(mockUseFriendship).toHaveBeenCalledWith("stranger", ready, undefined);

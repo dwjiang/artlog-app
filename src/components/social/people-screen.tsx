@@ -10,7 +10,8 @@ import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { peopleSearch } from "@/lib/social/presentation";
-import type { PublicProfile, Relationship } from "@/lib/social/types";
+import type { BrowsedProfile, PublicProfile } from "@/lib/social/types";
+import { useFriends } from "@/lib/social/use-friends";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
@@ -25,7 +26,6 @@ import { socialStyles } from "./social-styles";
 import { SuggestionList } from "./suggested-people";
 import { ProfileIdentity } from "./visit-card";
 
-type BrowsedProfile = PublicProfile & { relationship?: Relationship };
 const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
 
@@ -34,7 +34,7 @@ export function PeopleScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const [filter, setFilter] = useState<"all" | "friends">(params.filter === "friends" ? "friends" : "all");
   const guestFriends = filter === "friends" && session.status === "signed-out";
-  const friends = useSocialQuery(api.profiles.friends, session.status === "ready" ? {} : "skip", session.key);
+  const friends = useFriends(session, session.profileId);
   const requests = useSocialQuery(api.profiles.requests, session.status === "ready" ? {} : "skip", session.key);
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");

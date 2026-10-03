@@ -25,6 +25,7 @@ const ROUTE_LABELS: Record<string, string> = {
   leaderboards: "Leaderboards",
   people: "Friends",
   "profile/[profileId]": "Profile",
+  "profile-friends": "Friends",
   settings: "Settings",
   widgets: "Widgets",
   "all-artworks": "All artworks",
