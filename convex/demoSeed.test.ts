@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { fileStorage } from "./lib/fileStorage";
+import { fileStorage, retainFile } from "./lib/fileStorage";
 import { befriend, socialUser } from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
@@ -32,18 +32,14 @@ async function corpus(t: Harness) {
   });
 }
 
-function person(
-  username: string,
-  files: Id<"files">[],
-  options: { visibility: "public" | "friends"; wall?: boolean; avatar?: boolean },
-) {
+function person(username: string, files: Id<"files">[], options: { visibility: "public" | "friends"; wall?: boolean }) {
   const save = crypto.randomUUID();
   const photo = crypto.randomUUID();
   return {
     username,
     name: username.charAt(0).toUpperCase() + username.slice(1),
     bio: "Mostly here for the Dutch rooms.",
-    ...(options.avatar ? { avatarId: files[2] } : {}),
+    avatar: "vermeer" as const,
     leaderboardVisibility: "global" as const,
     joinedAt: at - 86_400_000,
     visits: [
@@ -83,7 +79,7 @@ function person(
 it("seeds people whose visits, photos, walls, friends and scores show in every social surface", async () => {
   const t = harness();
   const { files } = await corpus(t);
-  const alice = person("alice", files, { visibility: "public", wall: true, avatar: true });
+  const alice = person("alice", files, { visibility: "public", wall: true });
   const bob = person("bob", files, { visibility: "friends" });
   const aliceId = await t.mutation(internal.demoSeed.seedPerson, alice);
   await t.mutation(internal.demoSeed.seedPerson, bob);
@@ -110,7 +106,7 @@ it("seeds people whose visits, photos, walls, friends and scores show in every s
   expect(feed.page.map((post) => post.postId)).toEqual([alicePost]);
   const [card] = feed.page[0].artworks.page;
   expect(feed.page[0]).toMatchObject({
-    author: { username: "alice", photoUrl: expect.stringContaining("/file?id=") },
+    author: { username: "alice", avatar: "vermeer" },
     venue: { name: "Metropolitan Museum of Art" },
     reflection: "The cypresses look like they are still moving.",
   });
@@ -245,11 +241,38 @@ it.each([
   ]);
 });
 
+it("moves demo people from uploaded photos onto presets and leaves real profiles alone", async () => {
+  const t = harness();
+  const { files } = await corpus(t);
+  const aliceId = await t.mutation(internal.demoSeed.seedPerson, person("alice", files, { visibility: "public" }));
+  await t.run(async (ctx) => {
+    await retainFile(ctx, files[2], true);
+    await ctx.db.patch("profiles", aliceId, { photoStorageId: files[2] });
+  });
+  const viewer = await socialUser(t, "viewer");
+
+  await expect(
+    t.mutation(internal.demoSeed.setAvatars, {
+      avatars: [
+        { username: "alice", avatar: "great-wave" },
+        { username: "u_viewer", avatar: "klee" },
+      ],
+    }),
+  ).rejects.toMatchObject({ data: { code: "not_found" } });
+  await t.mutation(internal.demoSeed.setAvatars, { avatars: [{ username: "alice", avatar: "great-wave" }] });
+
+  const alice = await t.query(api.profiles.getPublic, { profileId: aliceId });
+  expect(alice).toMatchObject({ avatar: "great-wave" });
+  expect(alice).not.toHaveProperty("photoUrl");
+  expect(await t.run((ctx) => ctx.db.get("files", files[2]))).toMatchObject({ state: "deleting" });
+  expect(await t.run((ctx) => ctx.db.get("profiles", viewer.profileId))).not.toHaveProperty("avatar");
+});
+
 it("clears demo people with their journals, posts and reactions while keeping real users", async () => {
   vi.useFakeTimers();
   const t = harness();
   const { files } = await corpus(t);
-  const alice = person("alice", files, { visibility: "public", wall: true, avatar: true });
+  const alice = person("alice", files, { visibility: "public", wall: true });
   await t.mutation(internal.demoSeed.seedPerson, alice);
   const viewer = await socialUser(t, "viewer");
   const friend = await socialUser(t, "friend");
@@ -274,7 +297,7 @@ it("clears demo people with their journals, posts and reactions while keeping re
       )
     ).filter((account) => !account).length,
     friendships: (await ctx.db.query("friendships").collect()).length,
-    seededFiles: (await Promise.all(files.slice(0, 3).map((id) => ctx.db.get("files", id)))).filter(Boolean),
+    seededFiles: (await Promise.all(files.slice(0, 2).map((id) => ctx.db.get("files", id)))).filter(Boolean),
   }));
   expect(remaining).toEqual({
     profiles: ["u_friend", "u_viewer"],

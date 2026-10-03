@@ -3,6 +3,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { validateAlbumPhoto } from "../shared/collection/album";
 import { journalVisit } from "../shared/journal/contracts";
 import { isUuid, normalizeSearch } from "../shared/journal/limits";
+import { avatarId } from "../shared/social/avatars";
 import { validateProfile, validateWallItems, wallLayout, wallPattern } from "../shared/social/contracts";
 import { leaderboardVisibility } from "../shared/social/leaderboard";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
@@ -10,7 +11,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
-import { fileStorage, retainFile } from "./lib/fileStorage";
+import { fileStorage } from "./lib/fileStorage";
 import { canonicalPair } from "./lib/friendships";
 import { upsertJournalSave, upsertJournalVisit } from "./lib/journal";
 import { findOwnedSave, nextChangeVersion } from "./lib/ownership";
@@ -103,7 +104,7 @@ export const seedPerson = internalMutation({
     username: v.string(),
     name: v.string(),
     bio: v.optional(v.string()),
-    avatarId: v.optional(v.id("files")),
+    avatar: avatarId,
     leaderboardVisibility,
     joinedAt: v.number(),
     visits: v.array(demoVisit),
@@ -139,12 +140,11 @@ export const seedPerson = internalMutation({
       attestCounter: 0,
       scopeRevision: 0,
     });
-    if (input.avatarId) await retainFile(ctx, input.avatarId, true);
     const profileId = await ctx.db.insert("profiles", {
       accountId,
       username: input.username,
       ...fields,
-      photoStorageId: input.avatarId,
+      avatar: input.avatar,
       searchText: normalizeSearch(`${input.username} ${fields.name}`),
       active: true,
       publishedWallCount: 0,
@@ -360,6 +360,20 @@ export const seedSocial = internalMutation({
         requestId: crypto.randomUUID(),
       });
       await changeEngagement(ctx, publication._id, "commentCount", 1);
+    }
+    return null;
+  },
+});
+
+// Moves demo people from uploaded photos onto preset paintings.
+export const setAvatars = internalMutation({
+  args: { avatars: v.array(v.object({ username: v.string(), avatar: avatarId })) },
+  returns: v.null(),
+  handler: async (ctx, { avatars }) => {
+    for (const { username, avatar } of avatars) {
+      const profile = await demoProfile(ctx, username);
+      await ctx.db.patch("profiles", profile._id, { avatar, photoStorageId: undefined, updatedAt: Date.now() });
+      if (profile.photoStorageId) await fileStorage.delete(ctx, profile.photoStorageId);
     }
     return null;
   },
