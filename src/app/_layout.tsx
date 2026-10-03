@@ -155,7 +155,14 @@ function AppContent() {
                   <Stack.Screen name="profile-friends" options={{ title: "Friends" }} />
                   <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
-                  <Stack.Screen name="share-profile" options={{ title: "Share profile" }} />
+                  <Stack.Screen
+                    name="share-profile"
+                    options={{
+                      title: "Share profile",
+                      headerStyle: { backgroundColor: Gallery.groupedBackground },
+                      contentStyle: { backgroundColor: Gallery.groupedBackground },
+                    }}
+                  />
                   <Stack.Screen
                     name="create-profile"
                     options={{

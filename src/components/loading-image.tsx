@@ -7,7 +7,7 @@ import { reportError } from "@/lib/observability";
 
 import { ImageSkeleton } from "./loading-skeleton";
 
-type Props = Pick<ImageProps, "contentFit" | "onLoad" | "onError"> & {
+type Props = Pick<ImageProps, "contentFit" | "onLoad" | "onDisplay" | "onError"> & {
   uri: string;
   label: string;
   style: StyleProp<ViewStyle>;
@@ -17,7 +17,7 @@ export function LoadingImage(props: Props) {
   return <ImageContent key={props.uri} {...props} />;
 }
 
-function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError }: Props) {
+function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onDisplay, onError }: Props) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   return (
     <View style={[{ overflow: "hidden" }, style]}>
@@ -48,6 +48,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
             setState("ready");
             onLoad?.(event);
           }}
+          onDisplay={onDisplay}
           onError={(event) => {
             reportError(new Error(event?.error || "Image could not load"), "media.load", {
               level: "warning",
