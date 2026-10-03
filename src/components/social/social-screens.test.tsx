@@ -223,7 +223,6 @@ it("retains existing visits and shows only the pull spinner while refreshing", a
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   expect(lastRefreshControl().refreshing).toBe(true);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(screen.queryByText("All visits shown.")).toBeNull();
 });
 
 it.each([
@@ -238,16 +237,17 @@ it.each([
   expect(mockPages.mock.calls[0][1]).toBe("skip");
 });
 
-it("waits for finished pagination before showing empty or caught-up copy and offers retry", async () => {
+it("waits for finished pagination before showing empty copy, ends without a caption, and offers retry", async () => {
   mockPages.mockReturnValue(pages({ done: false, canLoadMore: true }));
   const view = await render(<HomeScreen />);
-  expect(screen.queryByText("All visits shown.")).toBeNull();
   expect(screen.queryByText("No visits from friends yet.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "More visits" }));
   expect(mockLoadMore).toHaveBeenCalled();
   mockPages.mockReturnValue(pages({ items: [visit], done: true }));
   await view.rerender(<HomeScreen />);
-  expect(screen.getByText("All visits shown.")).toBeOnTheScreen();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "More visits" })).toBeNull();
+  expect(screen.queryByText(/shown\./)).toBeNull();
   mockPages.mockReturnValue(pages({ done: false, error: new Error("offline") }));
   await view.rerender(<HomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
