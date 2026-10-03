@@ -1,8 +1,15 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
+import {
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type DimensionValue,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 
-import { Gallery, Motion } from "@/constants/theme";
+import { Gallery, Motion, Radius } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 const pulse = {
@@ -36,6 +43,11 @@ export function Ghost({
       ]}
     />
   );
+}
+
+/** A placeholder in the footprint of a 44-point button. */
+export function ButtonGhost({ width = "100%" }: { width?: DimensionValue }) {
+  return <Ghost width={width} height={44} style={{ borderRadius: Radius.button }} />;
 }
 
 export function LoadingSkeleton({
@@ -238,6 +250,35 @@ export function VisitSkeleton({ label = "Loading visit…", heading = true }: { 
           ))}
         </View>
       </View>
+    </LoadingSkeleton>
+  );
+}
+
+// The first four salon placements from nextWallLayout, in fractions of the wall's width.
+const WALL_PIECES = [
+  { x: 0.05, y: 0.06, width: 0.52, height: 0.65 },
+  { x: 0.62, y: 0.12, width: 0.3, height: 0.375 },
+  { x: 0.05, y: 0.87, width: 0.24, height: 0.24 },
+  { x: 0.34, y: 0.87, width: 0.4, height: 0.32 },
+];
+
+/** A full-bleed wall with framed pieces and their labels, as WallGallery hangs them. */
+export function WallSkeleton({ label = "Opening wall…" }: { label?: string }) {
+  const { width } = useWindowDimensions();
+  return (
+    <LoadingSkeleton label={label} style={{ height: 580 }} fill>
+      {WALL_PIECES.map((piece, index) => (
+        <View
+          key={index}
+          style={{ position: "absolute", left: piece.x * width, top: piece.y * width, width: piece.width * width }}
+        >
+          <Ghost height={piece.height * width} />
+          <View style={{ marginTop: 17, gap: 8 }}>
+            <Ghost width="55%" height={10} />
+            <Ghost width="85%" height={10} />
+          </View>
+        </View>
+      ))}
     </LoadingSkeleton>
   );
 }

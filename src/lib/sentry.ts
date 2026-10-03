@@ -18,10 +18,8 @@ Sentry.init({
   tracesSampleRate: 1,
   // The backend reports without trace continuation, so trace headers would only reach third parties.
   tracePropagationTargets: [],
+  // Keep replay unconfigured without recording consent; even zero sample rates install its integration.
   integrations: [navigationIntegration],
-  // Default masking misses camera, Skia, map and SwiftUI views; those showing private content add Sentry.Mask.
-  replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: 1,
   maxBreadcrumbs: 50,
   beforeBreadcrumb: sanitizeBreadcrumb,
   beforeSend: sanitizeEvent,

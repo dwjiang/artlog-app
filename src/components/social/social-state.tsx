@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 
@@ -189,31 +188,9 @@ export function PageFooter({
       />
     );
   }
-  if (!done) {
-    return (
-      <View style={socialStyles.footer}>
-        <GalleryButton label={canLoadMore ? `More ${noun}` : "Try again"} onPress={canLoadMore ? loadMore : refresh} />
-      </View>
-    );
-  }
-  if (count > 0 && noun === "visits") {
-    return (
-      <View
-        style={{
-          alignItems: "center",
-          paddingHorizontal: 20,
-          paddingTop: 26,
-          paddingBottom: 8,
-        }}
-      >
-        <Text style={{ fontSize: 13, lineHeight: 20, color: Gallery.muted }}>All visits shown.</Text>
-      </View>
-    );
-  }
-  return count > 0 ? (
+  return done ? null : (
     <View style={socialStyles.footer}>
-      <Image source="sf:checkmark.circle" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
-      <Text style={socialStyles.caption}>{`All ${noun} shown.`}</Text>
+      <GalleryButton label={canLoadMore ? `More ${noun}` : "Try again"} onPress={canLoadMore ? loadMore : refresh} />
     </View>
-  ) : null;
+  );
 }

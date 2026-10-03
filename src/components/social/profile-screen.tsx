@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
+import { FeedSkeleton, WallSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
@@ -24,7 +25,14 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
 import { InCommonSection } from "./in-common";
-import { friendStat, MutualFriends, OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
+import {
+  friendStat,
+  MutualFriends,
+  OwnProfileActions,
+  ProfileActionsSkeleton,
+  ProfileHeader,
+  ShareProfileButton,
+} from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
 import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
@@ -128,26 +136,17 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     <Stack.Screen options={{ title: "", headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }} />
   );
   const pulledToSafeArea = { marginTop: fontScale < 1.15 ? top - headerHeight : 0 };
-  if (!profile.data) {
-    return (
-      <>
-        {bar}
-        <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
-          <View style={pulledToSafeArea}>
-            <ProfileHeader stats={[{ noun: "artwork" }, { noun: "visit" }]} />
-          </View>
-        </ScrollView>
-      </>
-    );
-  }
+  // Until the profile arrives, the same layout draws ghosts in place of the header, actions, and the open section.
   const person = profile.data;
   const unblock = () => {
-    if (relationship.data) blocking.unblock(person, relationship.data.blockRevision);
+    if (person && relationship.data) blocking.unblock(person, relationship.data.blockRevision);
   };
+  // Unrequested pages don't keep the header loading while pagination is idle.
+  const countingVisits = !person || (canReadVisits && audience === "all" && visits.loading && !visits.error);
   return (
     <GestureHandlerRootView style={socialStyles.root}>
       {bar}
-      {session.status !== "loading" && session.profileId !== profileId && (
+      {person && session.status !== "loading" && session.profileId !== profileId && (
         <ReportToolbar kind="profile" id={person.profileId}>
           {session.status === "ready" && relationship.data && (
             <Stack.Toolbar.MenuAction
@@ -172,14 +171,16 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       >
         <Animated.View style={[pulledToSafeArea, pull.headerStyle]}>
           <ProfileHeader
-            identity={{ name: person.name, subtitle: `@${person.username}`, profile: person }}
+            identity={person && { name: person.name, subtitle: `@${person.username}`, profile: person }}
             stats={[
-              { noun: "artwork", count: person.publishedWallCount },
-              ...(visitCount !== undefined ? [{ noun: "visit", count: visitCount }] : []),
+              { noun: "artwork", count: person?.publishedWallCount },
+              ...(visitCount !== undefined || countingVisits ? [{ noun: "visit", count: visitCount }] : []),
               ...friendStat(friends, openFriends),
             ]}
           >
-            {own ? (
+            {!person ? (
+              <ProfileActionsSkeleton />
+            ) : own ? (
               <OwnProfileActions profileId={person.profileId} />
             ) : (
               <>
@@ -195,9 +196,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               </>
             )}
           </ProfileHeader>
-          {!own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}
+          {person && !own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}
         </Animated.View>
-        {blocked && <SocialState title={`You blocked ${person.name}.`} icon="hand.raised" />}
+        {blocked && person && <SocialState title={`You blocked ${person.name}.`} icon="hand.raised" />}
         {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
             spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
             tappable, and must be a style: the sticky wrapper takes this View's style but not its props. */}
@@ -235,7 +236,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         {blocked ? null : tab === "wall" ? (
           wall.error ? (
             <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
-          ) : wall.data ? (
+          ) : wall.data && person ? (
             <PublicWallView
               wall={wall.data}
               arrangedBy={person.name.split(" ")[0]}
@@ -247,8 +248,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               }
             />
           ) : (
-            <SocialState title="Opening wall…" loading />
+            <WallSkeleton />
           )
+        ) : !person ? (
+          <FeedSkeleton />
         ) : !canReadVisits ? (
           <SocialState
             title="Visits aren’t available here."
@@ -285,7 +288,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               ) : (
                 <EmptyState title={FILTERED_EMPTY[audience]} />
               ))}
-            <PageFooter {...visits} count={visits.items.length} />
+            <PageFooter {...visits} count={visits.items.length} skeleton="feed" />
           </View>
         )}
       </Animated.ScrollView>

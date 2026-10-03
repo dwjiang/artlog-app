@@ -223,7 +223,6 @@ it("retains existing visits and shows only the pull spinner while refreshing", a
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   expect(lastRefreshControl().refreshing).toBe(true);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(screen.queryByText("All visits shown.")).toBeNull();
 });
 
 it.each([
@@ -238,16 +237,17 @@ it.each([
   expect(mockPages.mock.calls[0][1]).toBe("skip");
 });
 
-it("waits for finished pagination before showing empty or caught-up copy and offers retry", async () => {
+it("waits for finished pagination before showing empty copy, ends without a caption, and offers retry", async () => {
   mockPages.mockReturnValue(pages({ done: false, canLoadMore: true }));
   const view = await render(<HomeScreen />);
-  expect(screen.queryByText("All visits shown.")).toBeNull();
   expect(screen.queryByText("No visits from friends yet.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "More visits" }));
   expect(mockLoadMore).toHaveBeenCalled();
   mockPages.mockReturnValue(pages({ items: [visit], done: true }));
   await view.rerender(<HomeScreen />);
-  expect(screen.getByText("All visits shown.")).toBeOnTheScreen();
+  expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "More visits" })).toBeNull();
+  expect(screen.queryByText(/shown\./)).toBeNull();
   mockPages.mockReturnValue(pages({ done: false, error: new Error("offline") }));
   await view.rerender(<HomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
@@ -494,11 +494,17 @@ it("loads public visits for guests and opens their details without signing in", 
 
 it("switches a signed-in Home between friends’ visits and Global public visits", async () => {
   await render(<HomeScreen />);
-  expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
-    ["sharedVisits:listFeed", {}],
-    ["sharedVisits:listPublic", {}],
-    ["notifications:unseen", {}],
+  const subscriptions = mockPages.mock.calls.map(
+    ([query, args]) => `${getFunctionName(query)} ${JSON.stringify(args)}`,
+  );
+  expect([...new Set(subscriptions)]).toEqual([
+    "sharedVisits:listFeed {}",
+    "sharedVisits:listPublic {}",
+    "notifications:unseen {}",
   ]);
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
@@ -506,8 +512,6 @@ it("switches a signed-in Home between friends’ visits and Global public visits
     mockPages.mock.calls.filter(([query]) => getFunctionName(query) === "sharedVisits:listPublic").at(-1)?.[1],
   ).toEqual({});
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(screen.getByText("No visits from friends yet.")).toBeOnTheScreen();
 });
 
 it.each([
@@ -773,6 +777,7 @@ it("fills an empty Friends feed with suggestions and counts requests on the frie
   mockSuggestions = { people: [priya], friendCount: 0 };
   queryData({ "profiles:requests": [profile("Ben Carter"), profile("Lucía Romero")] });
   await render(<HomeScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: "No visits from friends yet." })).toBeOnTheScreen();
   expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share your profile" }));

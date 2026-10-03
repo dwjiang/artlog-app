@@ -155,6 +155,16 @@ it("keeps the trailing action beside every friendship state", async () => {
   expect(screen.getByRole("button", { name: "Add friend" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
   await view.rerender(
+    <FriendshipControls
+      onUnblock={mockUnblock}
+      profileId={"friend" as never}
+      session={{ ...guest, status: "loading" }}
+      trailing={share}
+    />,
+  );
+  expect(screen.getByLabelText("Loading friendship…")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
+  await view.rerender(
     <FriendshipControls onUnblock={mockUnblock} profileId={"friend" as never} session={ready} trailing={share} />,
   );
   expect(screen.getByLabelText("Loading friendship…")).toBeOnTheScreen();

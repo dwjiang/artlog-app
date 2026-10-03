@@ -27,6 +27,7 @@ const mockPerson = {
   avatar: "vermeer" as const,
   publishedWallCount: 0,
 };
+let mockProfile: typeof mockPerson | undefined;
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
@@ -64,7 +65,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: Parameters<typeof mockGetFunctionName>[0]) => ({
     data:
       mockGetFunctionName(query) === "profiles:getPublic"
-        ? mockPerson
+        ? mockProfile
         : mockGetFunctionName(query) === "friendships:getState"
           ? mockRelationship
           : mockGetFunctionName(query) === "visitReactions:getSummary"
@@ -78,7 +79,13 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
   useCursorPages: (...args: unknown[]) => {
     mockPages(...args);
-    return { items: mockVisits, done: true, loading: false, refresh: mockVisitsRefresh };
+    return {
+      items: mockVisits,
+      done: mockVisitsDone,
+      loading: mockVisitsLoading,
+      canLoadMore: !mockVisitsDone && !mockVisitsLoading,
+      refresh: mockVisitsRefresh,
+    };
   },
 }));
 const mockBlock = jest.fn();
@@ -87,6 +94,8 @@ jest.mock("@/lib/social/use-block", () => ({
   useBlock: () => ({ block: mockBlock, unblock: mockUnblock, pending: undefined }),
 }));
 let mockVisits: SharedVisit[] = [];
+let mockVisitsDone = true;
+let mockVisitsLoading = false;
 let mockInCommon: InCommon = { artworks: [], museums: [] };
 let mockFriends: BrowsedProfile[] | null = [];
 const friendRow = (name: string, state?: "accepted" | "none"): BrowsedProfile => ({
@@ -116,7 +125,10 @@ const filterChoices = () => screen.queryAllByRole("checkbox").map((choice) => ch
 beforeEach(() => {
   jest.clearAllMocks();
   mockRelationship = { state: "none", blocked: false };
+  mockProfile = mockPerson;
   mockVisits = [];
+  mockVisitsDone = true;
+  mockVisitsLoading = false;
   mockInCommon = { artworks: [], museums: [] };
   mockFriends = [];
 });
@@ -166,10 +178,54 @@ it("requests only the selected friend’s shared visits and stops after a block"
   expect(mockPages.mock.calls.at(-1)[1]).toBe("skip");
 });
 
+it("draws the profile’s layout as ghosts until the profile arrives", async () => {
+  mockProfile = undefined;
+  const view = await render(<ProfileScreen profileId="friend" />);
+  for (const loading of ["Opening profile…", "Loading counts", "Loading profile actions…", "Opening wall…"]) {
+    expect(screen.getByRole("progressbar", { name: loading })).toBeOnTheScreen();
+  }
+  expect(screen.queryByRole("button", { name: "Report profile" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  expect(screen.getByRole("progressbar", { name: "Loading visits…" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
+  mockProfile = mockPerson;
+  await view.rerender(<ProfileScreen profileId="friend" />);
+  expect(screen.getByRole("header", { name: "Jamie Chen" })).toBeOnTheScreen();
+  expect(screen.getByText("No artworks on this wall yet.")).toBeOnTheScreen();
+  expect(screen.queryByRole("progressbar")).toBeNull();
+});
+
 it("shows an empty wall without sending the viewer back to friends", async () => {
   await render(<ProfileScreen profileId="friend" />);
   expect(screen.getByText("No artworks on this wall yet.")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Back to friends" })).not.toBeOnTheScreen();
+});
+
+it("keeps loaded counts and friend navigation available between visit pages", async () => {
+  mockRelationship = { state: "accepted", blocked: false };
+  mockFriends = [friendRow("Ana Ruiz", "none")];
+  mockVisitsDone = false;
+  mockVisitsLoading = true;
+  const view = await render(<ProfileScreen profileId="friend" />);
+  expect(screen.getByRole("progressbar", { name: "Loading counts" })).toBeOnTheScreen();
+
+  mockVisitsLoading = false;
+  mockVisits = Array.from({ length: 10 }, (_, index) => ({ ...visit, postId: `post-${index}` as never }));
+  await view.rerender(<ProfileScreen profileId="friend" />);
+  expect(screen.queryByRole("progressbar", { name: "Loading counts" })).toBeNull();
+  expect(screen.getByLabelText("0 artworks")).toBeOnTheScreen();
+  expect(screen.queryByLabelText("10 visits")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "1 friend" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile-friends", params: { profileId: "friend" } });
+
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  expect(screen.getByRole("button", { name: "More visits" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "1 friend" })).toBeOnTheScreen();
+
+  mockVisits = [...mockVisits, visit];
+  mockVisitsDone = true;
+  await view.rerender(<ProfileScreen profileId="friend" />);
+  expect(screen.getByLabelText("11 visits")).toBeOnTheScreen();
 });
 
 it("keeps the full header when switching between Wall and Visits", async () => {

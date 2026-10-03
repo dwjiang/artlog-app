@@ -53,12 +53,9 @@ export function HomeScreen() {
   const session = useSocialSession();
   const blocking = useBlock(session);
   const guest = session.status === "signed-out";
-  const tab =
-    chosenTab ?? (session.status === "ready" ? "friends" : session.status === "loading" ? undefined : "global");
   // Friends needs a profile; Global is open to guests and to accounts that have not created one yet.
   const canBrowseFriends = session.status === "ready";
   const canBrowseGlobal = canBrowseFriends || guest || session.status === "profile-required";
-  const canBrowse = tab === "global" ? canBrowseGlobal : canBrowseFriends;
   // Keep both subscriptions alive so switching feeds retains loaded pages instead of flashing the skeleton.
   const friendsFeed = useCursorPages(
     api.sharedVisits.listFeed,
@@ -74,6 +71,17 @@ export function HomeScreen() {
     feedPage,
     visitId,
   );
+  // Profiles land on Friends only when it has visits. The first answer sticks so a later friend post cannot pull the
+  // reader off Global.
+  const [landing, setLanding] = useState<{ profileId: typeof session.profileId; tab: FeedTab }>();
+  const friendsLanding =
+    friendsFeed.items.length > 0 || friendsFeed.error ? "friends" : friendsFeed.done ? "global" : undefined;
+  if (canBrowseFriends && friendsLanding && landing?.profileId !== session.profileId) {
+    setLanding({ profileId: session.profileId, tab: friendsLanding });
+  }
+  const landed = landing && landing.profileId === session.profileId ? landing.tab : undefined;
+  const tab = chosenTab ?? (canBrowseFriends ? landed : session.status === "loading" ? undefined : "global");
+  const canBrowse = tab === "global" ? canBrowseGlobal : canBrowseFriends;
   const feed = tab === "global" ? globalFeed : friendsFeed;
   const router = useRouter();
   const requests = useSocialQuery(api.profiles.requests, canBrowseFriends ? {} : "skip", session.key);

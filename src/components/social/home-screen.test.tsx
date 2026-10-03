@@ -199,3 +199,17 @@ it("opens the requested feed after posting and still lets the user switch feeds"
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Friends museum")).toBeOnTheScreen();
 });
+
+it("opens Global when friends have no visits and keeps it when a friend posts later", async () => {
+  await render(<HomeScreen />);
+  await deliver({ "sharedVisits:listPublic:first": page("Global museum") });
+  expect(screen.queryByRole("button", { name: "Friends", selected: true })).toBeNull();
+  expect(screen.queryByText("Global museum")).toBeNull();
+  await deliver({ "sharedVisits:listFeed:first": { page: [], cursor: null, isDone: true } });
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  expect(screen.getByText("Global museum")).toBeOnTheScreen();
+  await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.getByText("Friends museum")).toBeOnTheScreen();
+});

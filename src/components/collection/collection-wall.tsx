@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyFrames } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
-import { LoadingSkeleton, Ghost } from "@/components/loading-skeleton";
+import { WallSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, type PaneRoom } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
@@ -361,7 +361,6 @@ export function CollectionWallContent({
                       label="All artworks"
                       icon="chevron.right"
                       iconPosition="trailing"
-                      tone="ink"
                       disabled={blocked}
                       onPress={() => router.push("/all-artworks")}
                     />
@@ -397,12 +396,7 @@ export function CollectionWallContent({
             </View>
           )}
           {opening ? (
-            <LoadingSkeleton label="Opening your wall…" style={{ padding: 20 }}>
-              <View style={{ gap: 16 }}>
-                <Ghost height={376} />
-                <Ghost width="62%" height={16} />
-              </View>
-            </LoadingSkeleton>
+            <WallSkeleton label="Opening your wall…" />
           ) : blank ? (
             <View style={[styles.blankWall, wallpaperStyle(wallpaper)]}>
               <View style={styles.emptyPaper}>

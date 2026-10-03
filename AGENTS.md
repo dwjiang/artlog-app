@@ -6,8 +6,7 @@ Code, types, tests, and configuration are the source of implementation details.
 ## Communication
 
 - At the start of each session, read `.agents/skills/i-have-adhd/SKILL.md`
-  and apply it by default to user-facing responses. Keep it active unless the
-  user asks to stop ADHD mode or return to normal mode.
+  and apply it by default to user-facing responses.
 
 ## Maintaining agent docs
 
@@ -31,6 +30,8 @@ Code, types, tests, and configuration are the source of implementation details.
 - Choose the simplest complete implementation; avoid speculative abstractions and
   temporary stopgaps. When the same UI or logic appears in multiple places, extract
   one shared component or helper and migrate every copy to it.
+- Where a skill such as `ponytail` conflicts with this guide, this guide wins: no
+  `ponytail:` comment tags or ad-hoc self-checks; finish requested work end to end.
 - Prefer established libraries when they reduce total complexity. Check existing
   dependencies, docs, and types before adding a package or rebuilding common behavior.
 - Keep route modules thin; extract route-independent UI and behavior.
@@ -55,9 +56,8 @@ Code, types, tests, and configuration are the source of implementation details.
 - For Expo or React Native code changes, read relevant Expo SDK 57 docs at
   https://docs.expo.dev/versions/v57.0.0/ before implementation, never `/latest/`.
   Confirm APIs against installed package types; add packages with `npx expo install`.
-- Commit generated Convex output under `convex/_generated/`. Run
-  `npx convex codegen` after a Convex schema or backend function-signature
-  change.
+- Commit generated Convex output under `convex/_generated/`. Run `npx convex codegen`
+  after a Convex schema or backend function-signature change.
 - New source filenames use kebab case; Convex modules use camel case. Keep
   framework-reserved filenames and platform-specific suffixes.
 - When adding a variable to `.env.local`, document it in `.env.example` using

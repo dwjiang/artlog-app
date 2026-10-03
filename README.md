@@ -427,3 +427,8 @@ Agent guide: [AGENTS.md](AGENTS.md).
 Mozilla Public License 2.0 — see [LICENSE](LICENSE). Notices for the open source libraries in the app build are
 generated into `convex/lib/thirdPartyNotices.json` and served by the backend at `/licenses`, linked from
 Settings → About → Open source licenses.
+
+The bundled C-RADIOv3-B model is licensed separately under the
+[NVIDIA Open Model License Agreement (June 14, 2024)](modules/coreml-embed/ios/model-notices/c-radio-v3-b/nvidia-open-model-license.pdf).
+The complete agreement and required [Notice](modules/coreml-embed/ios/model-notices/c-radio-v3-b/Notice.txt)
+are included in the repository and packaged in the iOS app's `model-notices/c-radio-v3-b/` resources.

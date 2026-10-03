@@ -86,7 +86,7 @@ it("shows grouped settings and opens the matching detail", async () => {
   await render(<SettingsScreen />);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   expect(screen.queryByText("YA", { includeHiddenElements: true })).toBeNull();
-  for (const title of ["Settings", "Your journal", "Artlog", "Support", "Developer"]) {
+  for (const title of ["Settings", "App", "Legal", "Support", "Developer"]) {
     expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
   }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
