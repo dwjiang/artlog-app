@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AppState, ScrollView, StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePhotoOutput } from "react-native-vision-camera";
 
@@ -156,12 +156,10 @@ export function ScanScreen() {
           />
         </Sentry.Mask>
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-        <ScrollView
+        <View
           pointerEvents="box-none"
-          style={styles.overlay}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={[
-            styles.overlayContent,
+          style={[
+            styles.overlay,
             { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
           ]}
         >
@@ -210,7 +208,7 @@ export function ScanScreen() {
               </CaptureControls>
             )}
           </View>
-        </ScrollView>
+        </View>
       </CameraPermission>
       {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
       <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
@@ -247,10 +245,6 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 1,
-  },
-  overlayContent: {
-    pointerEvents: "box-none",
-    flexGrow: 1,
     justifyContent: "flex-end",
     paddingHorizontal: Spacing.content,
   },
