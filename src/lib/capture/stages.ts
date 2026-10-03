@@ -17,8 +17,16 @@ export type Warper = {
   /**
    * Warps the likeliest painting boundary first; with `nested`, also the boundaries inside it that recognition
    * may prefer, such as a painting shown on a phone. Empty when the photo has no boundary.
+   * Finds boundaries in preview coordinates and warps them from the upright photo; `turns` are clockwise
+   * quarter turns from the portrait preview, where `quad` was detected, to the upright photo.
    */
-  warpCandidates(photoUri: string, quad: Quad | null, size: number, nested: boolean): Promise<PreparedPainting[]>;
+  warpCandidates(
+    photoUri: string,
+    quad: Quad | null,
+    size: number,
+    nested: boolean,
+    turns?: number,
+  ): Promise<PreparedPainting[]>;
 };
 
 /** Index of the crop to identify among the candidates' vectors, the likeliest boundary first. */
@@ -55,6 +63,8 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   photoUri: string;
   quad: Quad | null;
   source: "camera" | "library";
+  /** Clockwise quarter turns from the portrait preview to a camera photo taken with the phone turned. */
+  turns?: number;
 };
 export type CaptureTimings = Partial<
   Record<"warp" | "embed" | "rank" | "triage" | "orb" | "identify" | "enqueue", number>

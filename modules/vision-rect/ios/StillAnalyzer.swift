@@ -4,7 +4,7 @@ import ImageIO
 import Vision
 
 struct StillAnalysis {
-  /// Upright size of the still in pixels.
+  /// Size of the still in pixels as analyzed: upright, then turned.
   let width: Int
   let height: Int
   /// Largest first.
@@ -16,13 +16,18 @@ struct StillAnalysis {
 }
 
 enum StillAnalyzer {
-  /// Detects rectangles and lifts foreground subjects on the still, decoded and downscaled once for both.
-  static func analyze(fileURL: URL) throws -> StillAnalysis {
+  /// Detects rectangles and lifts foreground subjects on the still, decoded and downscaled once for both. The upright
+  /// still is analyzed turned counterclockwise by `turns` quarter turns, and results are normalized to the turned image.
+  static func analyze(fileURL: URL, turns: Int = 0) throws -> StillAnalysis {
     let properties = try ImageFile.properties(of: fileURL)
     let image = try ImageFile.thumbnail(fileURL, maxPixelSize: SubjectDetectorTuning.analysisMaxPixelSize)
-    let handler = VNImageRequestHandler(cgImage: image, orientation: .up, options: [:])
-    let rectangles = try RectangleDetector.detect(cgImage: image)
-    let imageSize = CGSize(width: image.width, height: image.height)
+    // Vision finds different rectangles in the same scene once it is turned, so a still is analyzed the way the
+    // live preview saw it for its candidates to confirm the preview's.
+    let orientation = CGImagePropertyOrientation(counterclockwiseQuarterTurns: turns)
+    let sideways = orientation.swapsDimensions
+    let handler = VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:])
+    let rectangles = try RectangleDetector.detect(cgImage: image, orientation: orientation)
+    let imageSize = sideways ? CGSize(width: image.height, height: image.width) : CGSize(width: image.width, height: image.height)
     var subjects: [DetectedSubject] = []
     var subjectNote: String?
     do {
@@ -41,12 +46,24 @@ enum StillAnalyzer {
       subjectNote = error.localizedDescription
     }
     return StillAnalysis(
-      width: properties.uprightWidth,
-      height: properties.uprightHeight,
+      width: sideways ? properties.uprightHeight : properties.uprightWidth,
+      height: sideways ? properties.uprightWidth : properties.uprightHeight,
       rectangles: rectangles,
       subjects: subjects,
       subjectNote: subjectNote
     )
+  }
+}
+
+extension CGImagePropertyOrientation {
+  /// Shows upright image data turned counterclockwise by `turns` quarter turns.
+  init(counterclockwiseQuarterTurns turns: Int) {
+    switch (turns % 4 + 4) % 4 {
+    case 1: self = .left
+    case 2: self = .down
+    case 3: self = .right
+    default: self = .up
+    }
   }
 }
 

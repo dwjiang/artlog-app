@@ -78,6 +78,22 @@ export function toCorners(quad: Quad): RectPoint[] {
   return quad.map(([x, y]) => ({ x, y }));
 }
 
+/** Carries normalized corners along as their image turns clockwise by `turns` quarter turns; each keeps its index. */
+export function turnCorners(quad: Quad, turns: number): Quad {
+  const quarters = ((turns % 4) + 4) % 4;
+  return quad.map(([x, y]) => {
+    for (let turn = 0; turn < quarters; turn++) [x, y] = [1 - y, x];
+    return [x, y];
+  }) as Quad;
+}
+
+/** Turns the quad with its image and puts the corner that ends up top-left first, as detection in the turned image would. */
+export function turnQuad(quad: Quad, turns: number): Quad {
+  const turned = turnCorners(quad, turns);
+  const quarters = ((turns % 4) + 4) % 4;
+  return turned.map((_, index) => turned[(index - quarters + 4) % 4]) as Quad;
+}
+
 export function quadArea(quad: Quad, size: FrameSize = unitSize): number {
   let twiceArea = 0;
   for (let index = 0; index < 4; index++) {

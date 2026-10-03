@@ -111,3 +111,23 @@ it("does not complete a cancelled shine", async () => {
   await act(() => mockAnimations.at(-1)!.finish!(false));
   expect(complete).not.toHaveBeenCalled();
 });
+
+it("shows a photo taken with the phone turned the way the portrait preview showed it", async () => {
+  const turned: CapturePresentation = {
+    ...presentation,
+    turns: 3,
+    painting: { ...presentation.painting!, photoSize: { width: 1600, height: 1200 } },
+  };
+  await render(<CaptureReveal presentation={turned} onComplete={jest.fn()} />);
+  await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
+    nativeEvent: { layout: { width: 390, height: 844 } },
+  });
+  expect(screen.getByLabelText("Captured painting")).toHaveStyle({
+    width: 844,
+    height: 390,
+    left: -227,
+    top: 227,
+    transform: [{ rotate: "-270deg" }],
+  });
+  expect(screen.getByLabelText("Isolated painting")).toBeTruthy();
+});

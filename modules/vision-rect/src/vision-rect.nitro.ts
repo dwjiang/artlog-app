@@ -31,7 +31,7 @@ export interface SubjectObservation {
 }
 
 export interface StillDetection {
-  /** Upright image size in pixels. */
+  /** Size in pixels of the image as analyzed: upright, then turned counterclockwise by the requested quarter turns. */
   width: number;
   height: number;
   /** Rectangle candidates, largest first. */
@@ -84,8 +84,12 @@ export interface VisionRect extends HybridObject<{ ios: "swift" }> {
    * Call from the frame worklet; the caller disposes the frame.
    */
   detect(frame: Frame, stride: number): RectDetection | undefined;
-  /** Rectangle detection and subject lifting on a captured still or library photo. */
-  detectStill(photoPath: string): Promise<StillDetection>;
+  /**
+   * Rectangle detection and subject lifting on a captured still or library photo. The upright image is
+   * analyzed turned counterclockwise by `turns` quarter turns, so a photo taken with the phone turned is
+   * seen the way the portrait preview saw it; corners are normalized to that turned image.
+   */
+  detectStill(photoPath: string, turns: number): Promise<StillDetection>;
   warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;
   /** Reads printed text on a captured still or library photo with Apple Vision; nothing leaves the phone. */
   recognizeText(photoPath: string): Promise<TextRecognition>;

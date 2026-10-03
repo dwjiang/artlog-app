@@ -41,6 +41,13 @@ let mockCameraProps: {
 let appStateListener: (state: AppStateStatus) => void;
 const mockRequest = jest.fn();
 const mockPhoto = jest.fn();
+const mockPhotoOutput: { capturePhotoToFile: typeof mockPhoto; outputOrientation?: string } = {
+  capturePhotoToFile: mockPhoto,
+};
+let mockDeviceOrientation: string | undefined;
+let mockAccelerometer = true;
+const mockStartOrientationUpdates = jest.fn();
+const mockStopOrientationUpdates = jest.fn();
 const mockCapture = jest.fn();
 const mockCaptureAutomatically = jest.fn();
 const mockImport = jest.fn();
@@ -120,7 +127,19 @@ jest.mock("react-native-vision-camera", () => ({
     canRequestPermission: mockCanRequest,
     requestPermission: mockRequest,
   }),
-  usePhotoOutput: () => ({ capturePhotoToFile: mockPhoto }),
+  usePhotoOutput: () => mockPhotoOutput,
+  VisionCamera: {
+    createOrientationManager: () => ({
+      get currentOrientation() {
+        return mockAccelerometer ? mockDeviceOrientation : undefined;
+      },
+      startOrientationUpdates: () => {
+        if (!mockAccelerometer) throw new Error("Accelerometer is not available");
+        mockStartOrientationUpdates();
+      },
+      stopOrientationUpdates: () => mockStopOrientationUpdates(),
+    }),
+  },
   Camera: (props: typeof mockCameraProps): ReactNode => {
     mockCameraProps = props;
     return null;
@@ -214,6 +233,9 @@ beforeEach(() => {
     return { remove: jest.fn() };
   });
   mockPhoto.mockResolvedValue({ filePath: "/photo.jpg" });
+  mockPhotoOutput.outputOrientation = undefined;
+  mockDeviceOrientation = undefined;
+  mockAccelerometer = true;
   mockSelectionHaptic.mockResolvedValue(undefined);
   mockImpactHaptic.mockResolvedValue(undefined);
   mockRequest.mockResolvedValue(true);
@@ -284,9 +306,28 @@ it("streams frames to the detector without idle captions or an autoscan chip", a
   expect(screen.queryByText(/auto scan/i)).toBeNull();
   expect(screen.queryByRole("button", { name: "Scan label" })).toBeNull();
   expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
-  expect(mockCameraProps.orientationSource).toBe("interface");
   expect(mockCameraProps.allowHapticsAndSystemSoundsPlayback).toBe(true);
 });
+
+it.each([
+  [undefined, true, "up", 0],
+  ["left", true, "left", 3],
+  ["right", true, "right", 1],
+  ["left", false, "up", 0],
+])(
+  "takes the photo upright to how the phone is held while the preview stays portrait: %s, accelerometer %s",
+  async (device, accelerometer, orientation, turns) => {
+    mockDeviceOrientation = device;
+    mockAccelerometer = accelerometer;
+    await render(<ScanScreen />);
+    // Any Camera-managed source would re-apply one orientation to the photo output on every render.
+    expect(mockCameraProps.orientationSource).toBe("custom");
+    await act(() => mockCameraProps.onStarted());
+    await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
+    expect(mockPhotoOutput.outputOrientation).toBe(orientation);
+    await expect(mockCapture.mock.results[0].value).resolves.toEqual({ filePath: "/photo.jpg", turns });
+  },
+);
 
 it("shows Hold steady only while the detected painting is accumulating hold time", async () => {
   const view = await render(<ScanScreen />);
@@ -404,20 +445,40 @@ it("keeps the shutter as a manual fallback once the camera is ready", async () =
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
 });
 
-it("pauses the camera and detector when another screen is focused or the app backgrounds", async () => {
+it("pauses and resumes the camera, detector, and orientation updates with screen and app activity", async () => {
   const view = await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
   expect(mockCameraProps.isActive).toBe(true);
   expect(mockDetectorActive.at(-1)).toBe(true);
+  expect(mockStartOrientationUpdates).toHaveBeenCalledTimes(1);
+  expect(mockStopOrientationUpdates).not.toHaveBeenCalled();
   mockFocused = false;
   await view.rerender(<ScanScreen />);
   expect(mockCameraProps.isActive).toBe(false);
   expect(mockDetectorActive.at(-1)).toBe(false);
+  expect(mockStopOrientationUpdates).toHaveBeenCalledTimes(1);
   mockFocused = true;
   await view.rerender(<ScanScreen />);
+  expect(mockStartOrientationUpdates).toHaveBeenCalledTimes(2);
   await act(() => appStateListener("background"));
   expect(mockCameraProps.isActive).toBe(false);
   expect(mockDetectorActive.at(-1)).toBe(false);
+  expect(mockStopOrientationUpdates).toHaveBeenCalledTimes(2);
+  await act(() => appStateListener("active"));
+  expect(mockCameraProps.isActive).toBe(true);
+  expect(mockDetectorActive.at(-1)).toBe(true);
+  expect(mockStartOrientationUpdates).toHaveBeenCalledTimes(3);
+  await view.unmount();
+  expect(mockStopOrientationUpdates).toHaveBeenCalledTimes(3);
+});
+
+it("does not start orientation updates until an initially unfocused Scan becomes active", async () => {
+  mockFocused = false;
+  const view = await render(<ScanScreen />);
+  expect(mockStartOrientationUpdates).not.toHaveBeenCalled();
+  mockFocused = true;
+  await view.rerender(<ScanScreen />);
+  expect(mockStartOrientationUpdates).toHaveBeenCalledTimes(1);
 });
 
 it.each(["processing", "revealing", "result"] as const)("pauses scanning and imports during %s", async (phase) => {

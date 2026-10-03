@@ -7,15 +7,15 @@ import model from "@/shared/model/model-version.json";
 
 import { getVisionRect } from "../../../modules/vision-rect/src";
 import { orb } from "./features";
-import { nestedQuads, selectCaptureQuad, toCorners, toQuad } from "./rectangle";
+import { nestedQuads, selectCaptureQuad, toCorners, toQuad, turnQuad } from "./rectangle";
 import type { CaptureDependencies, CaptureOptions, PreparedPainting, Quad, Warper } from "./stages";
 import { triage } from "./triage";
 
 export const warper: Warper = {
-  async warpCandidates(photoUri, quad, size, nested) {
+  async warpCandidates(photoUri, quad, size, nested, turns = 0) {
     const visionRect = getVisionRect();
     const path = filePath(photoUri);
-    const still = await visionRect.detectStill(path);
+    const still = await visionRect.detectStill(path, turns);
     const selected = selectCaptureQuad(quad, still);
     const inner = selected && nested ? nestedQuads(selected, still) : [];
     if (__DEV__) {
@@ -32,11 +32,12 @@ export const warper: Warper = {
     }
     if (!selected) return [];
     const warp = async (corners: Quad): Promise<PreparedPainting> => {
-      const result = await visionRect.warpAndLetterbox(path, toCorners(corners), size);
+      const result = await visionRect.warpAndLetterbox(path, toCorners(turnQuad(corners, turns)), size);
       return {
         cropUri: `file://${result.cropPath}`,
         corners: toQuad(result.usedQuad),
-        photoSize: { width: still.width, height: still.height },
+        photoSize:
+          turns % 2 ? { width: still.height, height: still.width } : { width: still.width, height: still.height },
         contentBounds: result.contentBounds,
         cropSize: size,
       };

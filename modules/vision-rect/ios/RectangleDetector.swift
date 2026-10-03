@@ -94,9 +94,9 @@ enum RectangleDetector {
   }
 
   /// Detects at the image's own size and at each of `extraScales`.
-  static func detect(cgImage: CGImage) throws -> [DetectedRectangle] {
-    let full = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
-    return try detect(handlers: [full] + scaledHandlers(CIImage(cgImage: cgImage), orientation: .up))
+  static func detect(cgImage: CGImage, orientation: CGImagePropertyOrientation = .up) throws -> [DetectedRectangle] {
+    let full = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
+    return try detect(handlers: [full] + scaledHandlers(CIImage(cgImage: cgImage), orientation: orientation))
   }
 
   /// Largest first.

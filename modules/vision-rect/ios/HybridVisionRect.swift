@@ -26,9 +26,9 @@ final class HybridVisionRect: HybridVisionRectSpec {
     )
   }
 
-  func detectStill(photoPath: String) throws -> Promise<StillDetection> {
+  func detectStill(photoPath: String, turns: Double) throws -> Promise<StillDetection> {
     return Promise.parallel(stillQueue) {
-      let analysis = try StillAnalyzer.analyze(fileURL: URL(fileURLWithPath: photoPath))
+      let analysis = try StillAnalyzer.analyze(fileURL: URL(fileURLWithPath: photoPath), turns: Int(turns))
       return StillDetection(
         width: Double(analysis.width),
         height: Double(analysis.height),

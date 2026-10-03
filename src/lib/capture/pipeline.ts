@@ -41,7 +41,13 @@ export async function runCapture(
   try {
     const { rankCrops } = deps;
     const candidates = await timed("warp", () =>
-      deps.warper.warpCandidates(input.photoUri, input.quad, opts.inputSize, !!rankCrops && deps.isOnline()),
+      deps.warper.warpCandidates(
+        input.photoUri,
+        input.quad,
+        opts.inputSize,
+        !!rankCrops && deps.isOnline(),
+        input.turns,
+      ),
     );
     if (candidates.length === 0) {
       return {

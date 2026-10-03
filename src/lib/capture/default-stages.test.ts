@@ -1,4 +1,5 @@
 import { warper } from "./default-stages";
+import { toQuad } from "./rectangle";
 import type { Quad } from "./stages";
 
 const mockStill = jest.fn();
@@ -99,6 +100,60 @@ it("warps the confirmed preview boundary when subject lifting selects an interio
 
   expect(mockWarp).toHaveBeenCalledWith("/painting.jpg", corners, 512);
 });
+
+it.each([false, true])(
+  "warps a turned photo upright, including nested boundaries when requested: %s",
+  async (nested) => {
+    // Held turned left: the preview saw a wide painting on its side; the photo is upright and landscape.
+    const onItsSide = [
+      { x: 0.25, y: 0.125 },
+      { x: 0.625, y: 0.125 },
+      { x: 0.625, y: 0.75 },
+      { x: 0.25, y: 0.75 },
+    ];
+    const upright = [
+      { x: 0.125, y: 0.375 },
+      { x: 0.75, y: 0.375 },
+      { x: 0.75, y: 0.75 },
+      { x: 0.125, y: 0.75 },
+    ];
+    const innerOnItsSide = [
+      { x: 0.3125, y: 0.25 },
+      { x: 0.5625, y: 0.25 },
+      { x: 0.5625, y: 0.625 },
+      { x: 0.3125, y: 0.625 },
+    ];
+    const innerUpright = [
+      { x: 0.25, y: 0.4375 },
+      { x: 0.625, y: 0.4375 },
+      { x: 0.625, y: 0.6875 },
+      { x: 0.25, y: 0.6875 },
+    ];
+    mockStill.mockResolvedValue({
+      width: 1200,
+      height: 1600,
+      rectangles: [
+        { corners: onItsSide, confidence: 1 },
+        { corners: innerOnItsSide, confidence: 1 },
+      ],
+      subjects: [],
+    });
+    mockWarp.mockImplementation(async (_path: string, usedQuad: typeof corners) => ({
+      cropPath: "/crop.jpg",
+      usedQuad,
+      contentBounds: { x: 0, y: 0, width: 1, height: 1 },
+    }));
+
+    const prepared = await warper.warpCandidates("file:///turned.jpg", toQuad(onItsSide), 512, nested, 3);
+    const expected = nested ? [upright, innerUpright] : [upright];
+
+    expect(mockStill).toHaveBeenCalledWith("/turned.jpg", 3);
+    expect(mockWarp.mock.calls).toEqual(expected.map((corners) => ["/turned.jpg", corners, 512]));
+    expect(prepared).toMatchObject(
+      expected.map((corners) => ({ corners: toQuad(corners), photoSize: { width: 1600, height: 1200 } })),
+    );
+  },
+);
 
 describe("a painting shown on a phone", () => {
   const painting = [
