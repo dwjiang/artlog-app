@@ -21,6 +21,7 @@ import {
   strokeBorder,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
+import * as Sentry from "@sentry/react-native";
 import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
 
 import { Gallery, Radius, SettingsOutline, Spacing } from "@/constants/theme";
@@ -33,21 +34,23 @@ type IconName = ComponentProps<typeof Icon>["name"];
 export function GroupedList({ children }: { children: ReactNode }) {
   // Inset-grouped lists clip custom card outlines to the system corner radius.
   return (
-    <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
-      <List
-        modifiers={[
-          listStyle("grouped"),
-          listSectionSpacing(Spacing.four),
-          padding({ horizontal: Spacing.content }),
-          scrollContentBackground("hidden"),
-          background(Gallery.paper),
-          foregroundStyle(Gallery.ink),
-          tint(Gallery.accent),
-        ]}
-      >
-        {children}
-      </List>
-    </Host>
+    <Sentry.Mask style={{ flex: 1 }}>
+      <Host style={{ flex: 1 }} colorScheme="light" seedColor={Gallery.accent}>
+        <List
+          modifiers={[
+            listStyle("grouped"),
+            listSectionSpacing(Spacing.four),
+            padding({ horizontal: Spacing.content }),
+            scrollContentBackground("hidden"),
+            background(Gallery.paper),
+            foregroundStyle(Gallery.ink),
+            tint(Gallery.accent),
+          ]}
+        >
+          {children}
+        </List>
+      </Host>
+    </Sentry.Mask>
   );
 }
 

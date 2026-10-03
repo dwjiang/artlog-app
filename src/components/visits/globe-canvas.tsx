@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import {
   Canvas,
   Circle,
@@ -147,20 +148,22 @@ export function GlobeCanvas({
             pointerEvents="none"
             style={[styles.shadow, { width: width * 0.46, left: width * 0.27, top: height * 0.87 }]}
           />
-          <Canvas style={StyleSheet.absoluteFill}>
-            {image && shader && width > 0 && (
-              <>
-                <Fill>
-                  <Shader source={shader} uniforms={uniforms}>
-                    <ImageShader image={image} fit="fill" rect={{ x: 0, y: 0, width: 2048, height: 1024 }} />
-                  </Shader>
-                </Fill>
-                {pins.map((pin, index) => (
-                  <GlobeMarker key={pin.id} index={index} clusters={clusters} />
-                ))}
-              </>
-            )}
-          </Canvas>
+          <Sentry.Mask style={StyleSheet.absoluteFill}>
+            <Canvas style={StyleSheet.absoluteFill}>
+              {image && shader && width > 0 && (
+                <>
+                  <Fill>
+                    <Shader source={shader} uniforms={uniforms}>
+                      <ImageShader image={image} fit="fill" rect={{ x: 0, y: 0, width: 2048, height: 1024 }} />
+                    </Shader>
+                  </Fill>
+                  {pins.map((pin, index) => (
+                    <GlobeMarker key={pin.id} index={index} clusters={clusters} />
+                  ))}
+                </>
+              )}
+            </Canvas>
+          </Sentry.Mask>
           {!shader || imageFailed ? (
             <View style={{ padding: 20 }}>
               <ThemedText variant="secondary">

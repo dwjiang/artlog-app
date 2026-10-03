@@ -1,7 +1,21 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import { GalleryButton } from "./gallery-button";
+
+it("hides private labels from replay while preserving the accessible action", async () => {
+  const onPress = jest.fn();
+  await render(<GalleryButton label="Private artwork · Private artist" maskInReplay onPress={onPress} />);
+  const button = within(screen.getByTestId("replay-mask")).getByRole("button", {
+    name: "Private artwork · Private artist",
+  });
+  await fireEvent.press(button);
+  expect(onPress).toHaveBeenCalledTimes(1);
+
+  await screen.rerender(<GalleryButton label="Save details" onPress={onPress} />);
+  expect(screen.getByRole("button", { name: "Save details" })).toBeOnTheScreen();
+  expect(screen.queryByTestId("replay-mask")).toBeNull();
+});
 
 it("keeps its label and prevents duplicate activation while announcing progress", async () => {
   const onPress = jest.fn();

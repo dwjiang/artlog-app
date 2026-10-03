@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 
 import type { WidgetSettings } from "@/lib/widgets/widget-settings";
 
@@ -69,6 +69,11 @@ it("selects the actual visit or artwork and returns to the editor", async () => 
   await render(<WidgetsScreen />);
   await fireEvent.press(screen.getByRole("button", { name: /^Artwork source,/ }));
   await fireEvent.press(screen.getByRole("button", { name: /^A visit,/ }));
+  expect(
+    screen
+      .getAllByTestId("replay-mask")
+      .some((mask) => within(mask).queryByRole("button", { name: /^Musée de l’Orangerie,/ })),
+  ).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: /^Musée de l’Orangerie,/ }));
   expect(mockUpdate).toHaveBeenLastCalledWith({
     source: { kind: "visit", id: "paris" },
@@ -76,6 +81,11 @@ it("selects the actual visit or artwork and returns to the editor", async () => 
   expect(screen.getByRole("button", { name: /Artwork source, A visit/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: /^Artwork source,/ }));
   await fireEvent.press(screen.getByRole("button", { name: /^One artwork,/ }));
+  expect(
+    screen
+      .getAllByTestId("replay-mask")
+      .some((mask) => within(mask).queryByRole("button", { name: "Water Lilies, Claude Monet" })),
+  ).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
   expect(mockUpdate).toHaveBeenLastCalledWith({
     source: { kind: "artwork", id: "monet" },

@@ -1,3 +1,5 @@
+import type { ViewProps } from "react-native";
+
 import { initializeOwner, switchOwner } from "./src/lib/account/owner-store";
 
 // Frame geometry has pure tests; native texture rendering is checked on iOS.
@@ -20,6 +22,11 @@ jest.mock("@sentry/react-native", () => ({
   captureException: jest.fn(),
   addBreadcrumb: jest.fn(),
   setTag: jest.fn(),
+  reactNavigationIntegration: () => ({ registerNavigationContainer: jest.fn() }),
+  Mask: ({ children, ...props }: ViewProps) =>
+    jest
+      .requireActual("react")
+      .createElement(jest.requireActual("react-native").View, { ...props, testID: "replay-mask" }, children),
 }));
 
 // Native CSS animations are verified on iOS; Jest exercises their content and accessibility states.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 
@@ -113,6 +113,9 @@ it("dismisses the expanded modal into a museum chosen at a crowded pin", async (
     <VisitGlobe visits={[visit("1", "Met", "New York"), visit("2", "MoMA", "New York")]} expanded onList={jest.fn()} />,
   );
   await fireEvent.press(screen.getByRole("button", { name: "Crowded pin" }));
+  expect(
+    screen.getAllByTestId("replay-mask").some((mask) => within(mask).queryByRole("button", { name: "MoMA" })),
+  ).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: "MoMA" }));
   expect(mockDismissTo).toHaveBeenCalledWith({
     pathname: "/visit-place",

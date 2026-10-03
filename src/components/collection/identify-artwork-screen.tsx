@@ -187,6 +187,7 @@ function Editor({ work }: { work: SavedWork }) {
               <GalleryButton
                 key={target.localId}
                 label={`${target.title} · ${target.artist}`}
+                maskInReplay
                 busy={mergingInto === target.localId}
                 busyLabel="Combining artworks…"
                 disabled={busy}

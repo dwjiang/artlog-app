@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { AppleMaps } from "expo-maps";
 import { useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
@@ -54,7 +55,7 @@ export function MuseumMap({
   const canSelect = Number.parseInt(String(Platform.Version), 10) >= 18;
   return (
     <View style={styles.container}>
-      <View pointerEvents={canSelect ? "auto" : "none"} accessibilityElementsHidden={!canSelect}>
+      <Sentry.Mask pointerEvents={canSelect ? "auto" : "none"} accessibilityElementsHidden={!canSelect}>
         <AppleMaps.View
           style={styles.map}
           colorScheme={AppleMaps.MapColorScheme.LIGHT}
@@ -81,7 +82,7 @@ export function MuseumMap({
               : undefined
           }
         />
-      </View>
+      </Sentry.Mask>
       {!canSelect && (
         <ThemedText type="small" themeColor="textSecondary">
           Choose a museum from the list below.

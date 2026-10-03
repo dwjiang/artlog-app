@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
@@ -460,24 +461,26 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   return (
     <View style={styles.camera}>
       <CameraPermission onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
-        <TapToFocusCamera
-          device="back"
-          orientationSource="interface"
-          resizeMode="cover"
-          isActive={active}
-          outputs={outputs}
-          allowHapticsAndSystemSoundsPlayback
-          onStarted={() => {
-            setCameraReady(true);
-            setCameraError(undefined);
-          }}
-          onStopped={() => setCameraReady(false)}
-          onError={(error) => {
-            reportError(error, "camera.start", { data: { screen: "label" } });
-            setCameraReady(false);
-            setCameraError("Could not start the camera. You can import a label photo.");
-          }}
-        />
+        <Sentry.Mask style={StyleSheet.absoluteFill}>
+          <TapToFocusCamera
+            device="back"
+            orientationSource="interface"
+            resizeMode="cover"
+            isActive={active}
+            outputs={outputs}
+            allowHapticsAndSystemSoundsPlayback
+            onStarted={() => {
+              setCameraReady(true);
+              setCameraError(undefined);
+            }}
+            onStopped={() => setCameraReady(false)}
+            onError={(error) => {
+              reportError(error, "camera.start", { data: { screen: "label" } });
+              setCameraReady(false);
+              setCameraError("Could not start the camera. You can import a label photo.");
+            }}
+          />
+        </Sentry.Mask>
         <ScrollView
           pointerEvents="box-none"
           style={StyleSheet.absoluteFill}

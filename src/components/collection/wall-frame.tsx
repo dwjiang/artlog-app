@@ -1,6 +1,7 @@
+import * as Sentry from "@sentry/react-native";
 import { Canvas, createPicture, FilterMode, MipmapMode, Picture, Skia, useImage } from "@shopify/react-native-skia";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { reportError } from "@/lib/observability";
 import { framePatches } from "@/lib/wall/frame-patches";
@@ -77,8 +78,10 @@ function FrameTexture({ frame, width, height, inset }: { frame: Frame; width: nu
     );
   }, [asset, image, width, height, inset, scale, shadowPadding]);
   return picture ? (
-    <Canvas pointerEvents="none" accessible={false} style={{ position: "absolute", inset: -shadowPadding }}>
-      <Picture picture={picture} />
-    </Canvas>
+    <Sentry.Mask pointerEvents="none" accessible={false} style={{ position: "absolute", inset: -shadowPadding }}>
+      <Canvas style={StyleSheet.absoluteFill}>
+        <Picture picture={picture} />
+      </Canvas>
+    </Sentry.Mask>
   ) : null;
 }

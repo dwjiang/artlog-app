@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { randomUUID } from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -464,7 +465,7 @@ function PhotoSession({
         />
       ) : (
         <CameraPermission compact loading={active && !ready && !error && !busy}>
-          <View style={styles.camera}>
+          <Sentry.Mask style={styles.camera}>
             <TapToFocusCamera
               device="back"
               outputs={[output]}
@@ -480,7 +481,7 @@ function PhotoSession({
                 setError("Camera unavailable. Add photos from your library.");
               }}
             />
-          </View>
+          </Sentry.Mask>
         </CameraPermission>
       )}
       {currentPhoto ? (

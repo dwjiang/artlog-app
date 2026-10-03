@@ -1,4 +1,5 @@
 import { Button, Host, Row } from "@expo/ui";
+import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -134,24 +135,26 @@ export function ScanScreen() {
         notice={message}
         loading={cameraActive && !cameraReady && !cameraError}
       >
-        <TapToFocusCamera
-          device="back"
-          orientationSource="custom"
-          resizeMode="cover"
-          isActive={cameraActive}
-          outputs={outputs}
-          allowHapticsAndSystemSoundsPlayback
-          onStarted={() => {
-            setCameraReady(true);
-            setCameraError(undefined);
-          }}
-          onStopped={() => setCameraReady(false)}
-          onError={(error) => {
-            reportError(error, "camera.start", { data: { screen: "scan" } });
-            setCameraReady(false);
-            setCameraError("Could not start the camera. You can import a photo.");
-          }}
-        />
+        <Sentry.Mask style={StyleSheet.absoluteFill}>
+          <TapToFocusCamera
+            device="back"
+            orientationSource="custom"
+            resizeMode="cover"
+            isActive={cameraActive}
+            outputs={outputs}
+            allowHapticsAndSystemSoundsPlayback
+            onStarted={() => {
+              setCameraReady(true);
+              setCameraError(undefined);
+            }}
+            onStopped={() => setCameraReady(false)}
+            onError={(error) => {
+              reportError(error, "camera.start", { data: { screen: "scan" } });
+              setCameraReady(false);
+              setCameraError("Could not start the camera. You can import a photo.");
+            }}
+          />
+        </Sentry.Mask>
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
         <ScrollView
           pointerEvents="box-none"

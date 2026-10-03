@@ -260,3 +260,20 @@ export function sanitizeEvent<T extends Sentry.Event>(event: T): T {
     .filter((entry): entry is Sentry.Breadcrumb => entry !== null);
   return event;
 }
+
+const spanUrlAttributes = ["url", "http.url", "http.query", "http.fragment"];
+
+// Request paths and queries hold storage keys and presigned signatures; the host is enough to find slow services.
+function sanitizeSpan(span: { description?: string; data?: Record<string, unknown> }): void {
+  span.description = span.description
+    ?.replaceAll(/\b(https?:\/\/[^/\s?#]+)\S*/gi, "$1")
+    .replaceAll(/\b(?:file|ph|data):\S+/gi, "[url]");
+  for (const key of spanUrlAttributes) delete span.data?.[key];
+}
+
+export function sanitizeTransaction<T extends Sentry.Event>(event: T): T {
+  sanitizeEvent(event);
+  if (event.contexts?.trace) sanitizeSpan(event.contexts.trace);
+  for (const span of event.spans ?? []) sanitizeSpan(span);
+  return event;
+}
