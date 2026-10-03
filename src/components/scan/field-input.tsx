@@ -107,10 +107,10 @@ export function FieldInput({
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);
-        if (onBlur) {
-          onChangeText(limitTextLength(text.get(), maxLength));
-          onBlur();
-        }
+        const latest = limitTextLength(text.get(), maxLength);
+        // SwiftUI can keep a keystroke whose change event never reached JavaScript; leaving the field hands it over.
+        if (onBlur || latest !== defaultValue) onChangeText(latest);
+        onBlur?.();
       }}
       onChangeText={(value) => onChangeText(limitTextLength(value, maxLength))}
     />

@@ -7,6 +7,7 @@ import type { Id } from "./_generated/dataModel";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
+import { labelField } from "./lib/labelVerify";
 import { readSpend, seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
@@ -1102,3 +1103,197 @@ it.each(["other", "same_artwork"])(
     expect((await readArtwork(t, artworkId))?.docent?.en).toHaveLength(1);
   },
 );
+
+describe("docent for confirmed scan details", () => {
+  async function confirmedFixture(options: { verifiedTitle?: string } = {}) {
+    const setup = await fixture();
+    const user = await seedDevice(setup.t);
+    const scanId = await setup.t.run((ctx) =>
+      seedScan(ctx, {
+        deviceId: user.deviceId,
+        venueId: setup.museumId,
+        labelFlow: {
+          stage: "verified",
+          fields: {
+            title: labelField(options.verifiedTitle ?? "Wheat Field with Cypresses", "wikidata"),
+            artist: labelField("Vincent van Gogh", "wikidata"),
+          },
+          evidence: ["wikidata"],
+          warnings: [],
+          moderation: "clear",
+          sourceUrl: PAGE,
+          wikidataId: "Q18689458",
+          updatedAt: Date.now(),
+        },
+      }),
+    );
+    const confirm = (source: "label" | "manual", fields: { title: string; artist?: string; date?: string }) =>
+      user.as.mutation(api.scans.confirm, { scanId, source, fields });
+    const view = () => user.as.query(api.scans.get, { scanId });
+    const settle = async () => {
+      await setup.t.finishAllScheduledFunctions(vi.runAllTimers);
+    };
+    return { ...setup, user, scanId, confirm, view, settle };
+  }
+
+  it("writes private prose for confirmed label details from the label's museum page and Wikidata item", async () => {
+    vi.useFakeTimers();
+    const { confirm, view, settle, artwork } = await confirmedFixture();
+    everything();
+    await confirm("label", { title: " Wheat Field with Cypresses ", artist: "Vincent van Gogh", date: "1889" });
+    expect(await view()).toMatchObject({
+      docentStatus: "writing",
+      confirmed: {
+        source: "label",
+        fields: { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh", date: "1889" },
+      },
+    });
+    await settle();
+    vi.useRealTimers();
+    const shown = await view();
+    expect(shown?.docentStatus).toBe("ready");
+    expect(shown?.docent).toHaveLength(2);
+    expect(shown?.factSheet?.[0]).toEqual({ id: "f1", sourceUrl: PAGE, sourceLabel: "The Metropolitan Museum of Art" });
+    expect(calls(PAGE)).toHaveLength(1);
+    expect(calls(WIKIDATA).length).toBeGreaterThan(0);
+    // The catalogue artwork with the same name is untouched.
+    expect(await artwork()).not.toHaveProperty("docentUpdatedAt");
+  });
+
+  it("drops the label's museum page and Wikidata item once the work's name was edited", async () => {
+    vi.useFakeTimers();
+    const { confirm, view, settle } = await confirmedFixture({ verifiedTitle: "Cypresses" });
+    everything();
+    await confirm("label", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
+    await settle();
+    vi.useRealTimers();
+    expect(calls(PAGE)).toEqual([]);
+    expect(calls(WIKIDATA)).toEqual([]);
+    expect(bodies(TAVILY)[0].query).toContain('"Wheat Field with Cypresses" Vincent van Gogh');
+    expect((await view())?.docentStatus).toBe("ready");
+  });
+
+  it("settles as unavailable when research finds nothing to cite, and retry leaves it alone", async () => {
+    vi.useFakeTimers();
+    const { user, scanId, confirm, view, settle } = await confirmedFixture();
+    tavily({ results: [], usage: { credits: 1 } });
+    models();
+    await confirm("manual", { title: "Ellington, East Yorkshire", artist: "Benjamin Haughton" });
+    await settle();
+    expect((await view())?.docentStatus).toBe("unavailable");
+    const searches = calls(TAVILY).length;
+    await user.as.mutation(api.docent.retry, { scanId });
+    await settle();
+    vi.useRealTimers();
+    expect(calls(TAVILY)).toHaveLength(searches);
+    expect(calls(TOKEN_FACTORY)).toEqual([]);
+  });
+
+  it("retries research after a temporary source failure", async () => {
+    vi.useFakeTimers();
+    const { user, scanId, confirm, view, settle } = await confirmedFixture();
+    tavily({}, 503);
+    await confirm("manual", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
+    await settle();
+    expect((await view())?.docentStatus).toBe("failed");
+    const searches = calls(TAVILY).length;
+    routes = [];
+    everything();
+    await user.as.mutation(api.docent.retry, { scanId });
+    expect((await view())?.docentStatus).toBe("writing");
+    await settle();
+    vi.useRealTimers();
+    expect(calls(TAVILY).length).toBeGreaterThan(searches);
+    expect((await view())?.docentStatus).toBe("ready");
+  });
+
+  it("keeps a run whose prose was rejected retryable", async () => {
+    vi.useFakeTimers();
+    const { user, scanId, confirm, view, settle } = await confirmedFixture();
+    page(PAGE, ownerPage);
+    wikidata();
+    tavily();
+    models(facts, [{ sentence: "This sentence cites an unknown fact.", fact_ids: ["missing"] }]);
+    await confirm("label", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
+    await settle();
+    expect((await view())?.docentStatus).toBe("failed");
+    routes = [];
+    everything();
+    await user.as.mutation(api.docent.retry, { scanId });
+    expect((await view())?.docentStatus).toBe("writing");
+    await settle();
+    vi.useRealTimers();
+    expect((await view())?.docentStatus).toBe("ready");
+    // The retry reuses the cached fact sheet and only rewrites the sentences.
+    expect(bodies(TOKEN_FACTORY).at(-1)?.model).toBe(DOCENT_MODEL);
+  });
+
+  it("skips research for details without an artist and keeps prose when the same details are confirmed again", async () => {
+    vi.useFakeTimers();
+    const { t, scanId, confirm, view, settle } = await confirmedFixture();
+    everything();
+    await confirm("manual", { title: "Harbour at dusk" });
+    await settle();
+    expect((await view())?.docentStatus).toBe("unavailable");
+    expect(fetchMock).not.toHaveBeenCalled();
+    await confirm("label", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
+    await settle();
+    const generation = (await t.run((ctx) => ctx.db.get("scans", scanId)))?.confirmed?.generation;
+    await confirm("label", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
+    await settle();
+    vi.useRealTimers();
+    expect((await t.run((ctx) => ctx.db.get("scans", scanId)))?.confirmed?.generation).toBe(generation);
+    expect((await view())?.docent).toHaveLength(2);
+  });
+
+  it("ignores a run's late write once newer details were confirmed", async () => {
+    const { t, scanId, confirm } = await confirmedFixture();
+    await confirm("manual", { title: "First", artist: "Someone" });
+    const context = await t.mutation(internal.docent.claimScan, { scanId, generation: 1 });
+    expect(context?.target).toEqual({ title: "First", artist: "Someone" });
+    await confirm("manual", { title: "Second", artist: "Someone" });
+    expect(
+      await t.mutation(internal.docent.writeScan, {
+        scanId,
+        generation: 1,
+        docentEn: [{ sentence: "A stale sentence about the first work.", factIds: ["f1"] }],
+      }),
+    ).toBe(false);
+    expect((await t.run((ctx) => ctx.db.get("scans", scanId)))?.confirmed).toMatchObject({
+      generation: 2,
+      fields: { title: "Second" },
+    });
+  });
+
+  it.each(["unsupported_version", "failed"] as const)("confirms details after recognition is %s", async (status) => {
+    const { t, scanId, confirm, view } = await confirmedFixture();
+    await t.run((ctx) => ctx.db.patch("scans", scanId, { status }));
+    await confirm("label", { title: "A work read from the label" });
+    expect(await view()).toMatchObject({
+      status,
+      confirmed: { source: "label", fields: { title: "A work read from the label" } },
+      docentStatus: "unavailable",
+    });
+    await confirm("manual", { title: "My corrected title" });
+    expect(await view()).toMatchObject({
+      confirmed: { source: "manual", fields: { title: "My corrected title" } },
+    });
+  });
+
+  it("rejects another device, an unverified label, a blank title, and a scan still identifying", async () => {
+    const { t, user, scanId, confirm } = await confirmedFixture();
+    const other = await seedDevice(t);
+    await expect(
+      other.as.mutation(api.scans.confirm, { scanId, source: "manual", fields: { title: "Mine" } }),
+    ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
+    await expect(confirm("manual", { title: "   " })).rejects.toMatchObject({ data: { code: "invalid_fields" } });
+    const unread = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId }));
+    await expect(
+      user.as.mutation(api.scans.confirm, { scanId: unread, source: "label", fields: { title: "Read" } }),
+    ).rejects.toMatchObject({ data: { code: "label_not_verified" } });
+    const pending = await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, status: "pending" }));
+    await expect(
+      user.as.mutation(api.scans.confirm, { scanId: pending, source: "manual", fields: { title: "Too soon" } }),
+    ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
+  });
+});

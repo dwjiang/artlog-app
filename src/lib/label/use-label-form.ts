@@ -3,25 +3,36 @@ import { useEffect, useState } from "react";
 import { reportError } from "@/lib/observability";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { LabelFlowDisplay } from "../../../convex/lib/validators";
+import type { ConfirmedFields, LabelFlowDisplay } from "../../../convex/lib/validators";
 import { loadLabelDraft } from "./draft";
-import { formStateFromFlow, type LabelFormState } from "./fields";
+import { confirmedLabelForm, formStateFromFlow, type LabelFormState } from "./fields";
 
-export function useLabelForm(scanId: Id<"scans"> | undefined, flow: LabelFlowDisplay | undefined) {
-  const [form, setForm] = useState<LabelFormState>();
+/** The label's form: details already confirmed from this reading, else the saved draft, else the reading itself. */
+export function useLabelForm(
+  scanId: Id<"scans"> | undefined,
+  flow: LabelFlowDisplay | undefined,
+  confirmed?: ConfirmedFields,
+) {
+  const confirmedForm = () => (flow && confirmed ? confirmedLabelForm(flow, confirmed) : undefined);
+  const [form, setForm] = useState<LabelFormState | undefined>(confirmedForm);
   const [error, setError] = useState<Error>();
   const [attempt, setAttempt] = useState(0);
-  const [source, setSource] = useState({ scanId, flow, attempt });
+  const [source, setSource] = useState({ scanId, flow, confirmed, attempt });
 
-  if (source.scanId !== scanId || source.flow !== flow || source.attempt !== attempt) {
-    setSource({ scanId, flow, attempt });
-    setForm(undefined);
+  if (
+    source.scanId !== scanId
+    || source.flow !== flow
+    || source.confirmed !== confirmed
+    || source.attempt !== attempt
+  ) {
+    setSource({ scanId, flow, confirmed, attempt });
+    setForm(confirmedForm());
     setError(undefined);
   }
 
   useEffect(() => {
     let active = true;
-    if (scanId && flow) {
+    if (scanId && flow && !confirmed) {
       loadLabelDraft(scanId).then(
         (draft) => {
           if (active) setForm(draft ?? formStateFromFlow(flow));
@@ -38,7 +49,7 @@ export function useLabelForm(scanId: Id<"scans"> | undefined, flow: LabelFlowDis
     return () => {
       active = false;
     };
-  }, [scanId, flow, attempt]);
+  }, [scanId, flow, confirmed, attempt]);
 
   return {
     form,

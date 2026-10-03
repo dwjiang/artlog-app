@@ -1,6 +1,6 @@
 import { LIMITS } from "@/shared/journal/limits";
 
-import type { SnapshotFields } from "../../../convex/lib/validators";
+import type { ConfirmedFields, SnapshotFields } from "../../../convex/lib/validators";
 import type { ResultCandidate, ResultViewState } from "./state";
 
 export const SNAPSHOT_FIELDS = ["title", "artist", "date", "medium", "institution"] as const;
@@ -16,6 +16,16 @@ export function draftFromCandidate(candidate?: Pick<ResultCandidate, SnapshotFie
     date: candidate?.date ?? "",
     medium: candidate?.medium ?? "",
     institution: candidate?.institution ?? "",
+  };
+}
+
+export function draftFromConfirmed(fields: ConfirmedFields): SnapshotDraft {
+  return {
+    title: fields.title,
+    artist: fields.artist ?? "",
+    date: fields.date ?? "",
+    medium: fields.medium ?? "",
+    institution: "",
   };
 }
 

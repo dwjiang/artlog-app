@@ -1,11 +1,13 @@
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
 import {
-  canSaveLabel,
   canShareLabel,
+  confirmedLabelForm,
   differsFromFlow,
   formStateFromFlow,
+  formStateFromValues,
   isEdited,
   setFieldValue,
+  toConfirmedFields,
   toSubmittedFields,
   toVerifyInput,
   unlockField,
@@ -110,8 +112,26 @@ it("builds the contribution’s fields with per-field edit flags and needs a tit
   });
   expect(toSubmittedFields(setFieldValue(base, "artist", ""))).toBeNull();
   expect(canShareLabel(setFieldValue(base, "artist", ""))).toBe(false);
-  expect(canSaveLabel(setFieldValue(base, "artist", ""))).toBe(true);
-  expect(canSaveLabel(setFieldValue(base, "title", "  "))).toBe(false);
+});
+
+it("confirms any titled details, trimmed, and nothing without a title", () => {
+  const base = formStateFromFlow(verified);
+  expect(toConfirmedFields(setFieldValue(setFieldValue(base, "artist", ""), "title", " The Thinker "))).toEqual({
+    title: "The Thinker",
+    date: "1880",
+    medium: "bronze",
+  });
+  expect(toConfirmedFields(setFieldValue(base, "title", "  "))).toBeNull();
+  expect(toConfirmedFields(formStateFromValues({ title: "Harbour at dusk" }))).toEqual({ title: "Harbour at dusk" });
+});
+
+it("rebuilds confirmed label details against the reading, so only changed fields count as edited", () => {
+  const form = confirmedLabelForm(verified, { title: "The Thinker", artist: "Auguste Rodin", date: "1880–81" });
+  expect(toSubmittedFields(form)).toEqual({
+    title: { value: "The Thinker", edited: false },
+    artist: { value: "Auguste Rodin", edited: false },
+    date: { value: "1880–81", edited: true },
+  });
 });
 
 it("knows when the form differs from the stored flow and what to re-verify", () => {

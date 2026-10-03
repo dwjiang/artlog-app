@@ -5,6 +5,8 @@ import { Gallery, Spacing } from "@/constants/theme";
 import { formatConfidence } from "@/lib/result/confidence";
 import type { ResultKind } from "@/lib/result/state";
 
+import type { ConfirmedSource } from "../../../../convex/lib/validators";
+
 // Product voice: a soft match is a "Maybe", never presented as fact.
 export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   confident: "Match",
@@ -13,17 +15,24 @@ export const CONFIDENCE_LABELS: Partial<Record<ResultKind, string>> = {
   unsupported: "Update required",
   failed: "Identification failed",
 };
+// A confirmed card names the work from the owner's details, so its chip says where they came from.
+export const CONFIRMED_LABELS: Record<ConfirmedSource, string> = {
+  label: "From the label",
+  manual: "Your details",
+};
 
 export function ConfidenceChip({
   kind,
   probability,
+  source,
   style,
 }: {
   kind: ResultKind;
   probability?: number;
+  source?: ConfirmedSource;
   style?: StyleProp<ViewStyle>;
 }) {
-  const label = CONFIDENCE_LABELS[kind];
+  const label = kind === "confirmed" ? source && CONFIRMED_LABELS[source] : CONFIDENCE_LABELS[kind];
   if (!label) return null;
   const named = kind === "confident" || kind === "soft";
   const confidence = named ? formatConfidence(probability) : undefined;
@@ -33,7 +42,7 @@ export function ConfidenceChip({
       accessibilityLabel={confidence ? `${label}, ${confidence}` : label}
       style={[
         styles.chip,
-        kind === "confident" && styles.match,
+        (kind === "confident" || kind === "confirmed") && styles.match,
         kind === "soft" && {
           backgroundColor: "#FFF0D5",
           borderColor: "#C68A24",

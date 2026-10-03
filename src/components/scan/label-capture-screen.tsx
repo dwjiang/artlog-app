@@ -15,14 +15,13 @@ import { EmptyPaper } from "@/components/empty-state-art";
 import { FormSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Spacing } from "@/constants/theme";
 import { MAX_LABEL_ATTEMPTS, setLabelPhoto, setQrUrl } from "@/db/repos/pending-scans";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { useQrScanner } from "@/lib/capture/use-qr-scanner";
 import { persistLabelPhoto } from "@/lib/files/photos";
 import { removeFile } from "@/lib/label/crop";
-import { canSaveLabel, canShareLabel, setFieldValue } from "@/lib/label/fields";
+import { setFieldValue } from "@/lib/label/fields";
 import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
 import { runLabelFlowForScan, type LabelSource } from "@/lib/label/label-deps";
 import { useLabelCapture } from "@/lib/label/use-label-capture";
@@ -31,33 +30,20 @@ import { isTransientError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { discardPendingLabel, flushQueue, retryPendingLabel } from "@/lib/queue/queue";
-import type { ResultViewState } from "@/lib/result/state";
-import { useSaveResult } from "@/lib/result/use-save-result";
 import { useScan } from "@/lib/result/use-scan";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
+import type { ConfirmedFields, LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
 import { CameraPermission } from "./camera-permission";
-import { CaptureCompletion } from "./capture-completion";
-import { CaptureContextButton } from "./capture-context-button";
 import { CaptureControls, ShutterButton } from "./capture-controls";
-import { CapturePhotosButton } from "./capture-photos-button";
-import { ContributionStatus, LabelActions } from "./label/label-actions";
+import { ConfirmDetailsReview } from "./label/confirm-details-review";
 import { ProgressSteps } from "./label/progress-steps";
-import { VerifiedFieldsForm } from "./label/verified-fields-form";
 import { OverlayCaption } from "./overlay-caption";
-import { SourceChip } from "./result/source-chip";
 
 export const QR_FOUND = "Found a QR code";
 export const QUEUED_MESSAGE = "Saved — we’ll finish this when you’re back online";
 export const QUEUED_ONLINE_MESSAGE = "Saved — we’ll finish this label shortly";
 const MISSING_CAPTURE = "Your photo of this scan isn’t on this phone, so the label can’t be kept with it.";
-// Label saves never count as confirms of a match: the view carries no primary work, so `suggested` is null.
-const LABEL_VIEW: ResultViewState = {
-  kind: "unidentified",
-  runnerUps: [],
-  editable: true,
-};
 export type LabelCaptureScreenProps = {
   scanId: string;
 };
@@ -65,7 +51,8 @@ export type LabelCaptureScreenProps = {
 type Phase =
   | { kind: "capture"; restore?: boolean }
   | { kind: "running"; stage: LabelStage; qr: boolean }
-  | { kind: "review"; flow: LabelFlowDisplay }
+  /** `confirmed` reopens details the owner already confirmed from this reading. */
+  | { kind: "review"; flow: LabelFlowDisplay; confirmed?: ConfirmedFields }
   | { kind: "queued" }
   | { kind: "error"; message: string };
 
@@ -86,18 +73,6 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const [phase, setPhase] = useState<Phase>({ kind: "capture" });
   const [busy, setBusy] = useState(false);
   const capture = useLabelCapture(scanId);
-  const labelOnly = !!capture && isLabelCapture(capture);
-  const {
-    saving,
-    savedId,
-    completion,
-    error: saveError,
-    save,
-    sharing,
-    shared,
-    shareError,
-    retrySharing,
-  } = useSaveResult();
   const mounted = useRef(true);
   const inFlight = useRef(false);
 
@@ -106,12 +81,17 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const remoteScanId = localId ? (capture?.scanId ?? undefined) : (scanId as Id<"scans">);
   const scan = useScan(remoteScanId);
   const storedFlow = scan && !(scan instanceof Error) ? scan.labelFlow : undefined;
+  const storedConfirmed = scan && !(scan instanceof Error) ? scan.confirmed : undefined;
   const {
     form,
     setForm,
     error: formError,
     retry: retryForm,
-  } = useLabelForm(remoteScanId, phase.kind === "review" ? phase.flow : undefined);
+  } = useLabelForm(
+    remoteScanId,
+    phase.kind === "review" ? phase.flow : undefined,
+    phase.kind === "review" ? phase.confirmed : undefined,
+  );
   const pendingLabel = !!(capture?.labelPhotoPath || capture?.qrUrl);
   const offline = isOffline(network);
   const storeOnly = !remoteScanId || offline;
@@ -136,7 +116,11 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
       && storedFlow?.stage === "verified"
       && storedFlow.moderation === "clear"
     ) {
-      setPhase({ kind: "review", flow: storedFlow });
+      setPhase({
+        kind: "review",
+        flow: storedFlow,
+        confirmed: storedConfirmed?.source === "label" ? storedConfirmed.fields : undefined,
+      });
     }
   }
 
@@ -425,10 +409,10 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
               label="Enter details myself"
               fullWidth
               onPress={() =>
-                router.replace({
-                  pathname: "/result/[scanId]",
-                  params: { scanId, edit: "1" },
-                })
+                // A scan still queued on this phone has no server scan to confirm, so its card keeps typed details.
+                remoteScanId
+                  ? router.replace({ pathname: "/enter-details/[scanId]", params: { scanId: remoteScanId } })
+                  : router.replace({ pathname: "/result/[scanId]", params: { scanId, edit: "1" } })
               }
             />
           }
@@ -454,100 +438,20 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   }
 
   if (phase.kind === "review" && form) {
-    const editable = !saving && !sharing && !savedId;
-    const contribution =
-      capture?.venueId && remoteScanId && !labelOnly && canShareLabel(form)
-        ? { scanId: remoteScanId, capture, state: form }
-        : undefined;
-    const input = {
-      scanId: remoteScanId,
-      capture,
-      view: LABEL_VIEW,
-      contribution,
-      draft: {
-        title: form.title.value,
-        artist: form.artist.value,
-        date: form.date.value,
-        medium: form.medium.value,
-        institution: "",
-      },
-    };
     return (
-      <CaptureCompletion
-        completion={completion}
-        sharedToIndex={shared?.status === "tentative"}
-        status={
-          <ContributionStatus
-            sharing={sharing}
-            shared={shared}
-            shareError={shareError}
-            onShare={() => {
-              void retrySharing();
-            }}
-          />
-        }
-      >
-        <ThemedView style={styles.container}>
-          <ScrollView
-            contentInsetAdjustmentBehavior="automatic"
-            automaticallyAdjustKeyboardInsets
-            keyboardDismissMode="interactive"
-            contentContainerStyle={styles.content}
-          >
-            <ThemedText
-              type="small"
-              style={{
-                alignSelf: "flex-start",
-                padding: 6,
-                backgroundColor: Gallery.highlight,
-                color: Gallery.accent,
-              }}
-            >
-              {phase.flow.sourceUrl ? "Read from the museum page" : "Read from your photo"}
-            </ThemedText>
-            <ThemedText type="title">Review artwork details</ThemedText>
-            <ThemedText themeColor="textSecondary">
-              Check the details before saving. Edit anything that doesn’t look right.
-            </ThemedText>
-            {phase.flow.sourceUrl && <SourceChip label="Museum page" url={phase.flow.sourceUrl} />}
-            <VerifiedFieldsForm
-              key={phase.flow.updatedAt}
-              state={form}
-              warnings={phase.flow.warnings}
-              editable={editable}
-              onChange={onChange}
-            />
-            {capture && !savedId && (
-              <>
-                <CaptureContextButton capture={capture} disabled={saving} />
-                <CapturePhotosButton disabled={saving} input={{ ...input, capture }} />
-              </>
-            )}
-            <LabelActions
-              allowContribution={!!contribution}
-              canSave={canSaveLabel(form)}
-              saving={saving}
-              sharing={sharing}
-              savedId={savedId}
-              shared={shared}
-              saveError={saveError}
-              shareError={shareError}
-              onSave={() => {
-                void save(input);
-              }}
-              onShare={() => {
-                void retrySharing();
-              }}
-              onViewSaved={() =>
-                router.push({
-                  pathname: "/saved/[savedId]",
-                  params: { savedId: savedId ?? "" },
-                })
-              }
-            />
-          </ScrollView>
-        </ThemedView>
-      </CaptureCompletion>
+      <ConfirmDetailsReview
+        scanId={remoteScanId}
+        sourceKind="label"
+        capture={capture}
+        form={form}
+        source={{
+          label: phase.flow.sourceUrl ? "Read from the museum page" : "Read from your photo",
+          url: phase.flow.sourceUrl,
+        }}
+        warnings={phase.flow.warnings}
+        formKey={phase.flow.updatedAt}
+        onChange={onChange}
+      />
     );
   }
 

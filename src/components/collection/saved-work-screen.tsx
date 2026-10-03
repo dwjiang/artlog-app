@@ -22,7 +22,7 @@ import { LIMITS } from "@/shared/journal/limits";
 
 import { ArtworkAlbum } from "./artwork-album";
 import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from "./artwork-encounters";
-import { ArtworkEnrichment } from "./artwork-enrichment";
+import { ArtworkEnrichment, ScanEnrichment } from "./artwork-enrichment";
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
 import { NoteEditor } from "./note-editor";
@@ -181,7 +181,11 @@ function SavedArtwork({
           sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)}
         />
         {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
-        {work.artworkId && <ArtworkEnrichment artworkId={work.artworkId} />}
+        {work.artworkId ? (
+          <ArtworkEnrichment artworkId={work.artworkId} />
+        ) : (
+          work.scanId && <ScanEnrichment scanId={work.scanId} work={work} />
+        )}
         {!!wall.draft && (
           <>
             <Divider />

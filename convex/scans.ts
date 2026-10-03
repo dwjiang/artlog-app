@@ -1,11 +1,12 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { sameOwner } from "../shared/journal/contracts";
+import { LIMITS } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalQuery, query, type QueryCtx } from "./_generated/server";
-import { docentStatusOf } from "./docent";
-import { internalMutation } from "./functions";
+import { docentStatusOf, scanDocentStatus } from "./docent";
+import { internalMutation, mutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { fileStorage } from "./lib/fileStorage";
@@ -16,6 +17,9 @@ import { withErrorReporting } from "./lib/observability";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import {
+  confirmedDisplay,
+  confirmedFields,
+  confirmedSource,
   embedding,
   embeddingArchive,
   docentSentence,
@@ -24,6 +28,7 @@ import {
   labelFlowDisplay,
   rightsStatus,
   snapshotFields,
+  type ConfirmedFields,
 } from "./lib/validators";
 import { vectorHash, withVectorArchives } from "./lib/vectorStore";
 import { deleteEmbedding, insertExpiringEmbedding, getEmbedding } from "./scanEmbeddings";
@@ -51,13 +56,14 @@ export const scanDisplay = v.object({
   calibratorVersion: scanFields.calibratorVersion,
   best: v.optional(displayCandidate),
   runnerUps: v.optional(v.array(displayCandidate)),
-  // Docent prose and its source chips come from the artwork; only a confident card shows them.
+  // Docent prose and its source chips come from the owner's confirmed details, else from a confident match's artwork.
   docent: v.optional(v.array(docentSentence)),
   docentStatus: v.optional(docentStatus),
   factSheet: v.optional(v.array(factChip)),
   rightNow: scanFields.rightNow,
   // The label flow is the owner's own state; the raw OCR reading stays server-side.
   labelFlow: v.optional(labelFlowDisplay),
+  confirmed: v.optional(confirmedDisplay),
   error: scanFields.error,
 });
 export type ScanDisplay = Infer<typeof scanDisplay>;
@@ -278,9 +284,13 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     scan.best ? joinCandidate(ctx, scan.best, scan.venueId) : null,
     Promise.all((scan.runnerUps ?? []).map((match) => joinCandidate(ctx, match, scan.venueId))),
   ]);
+  const { confirmed } = scan;
   const prose =
-    scan.outcome === "confident" && best?.candidate.identityStatus === "established" ? best?.artwork : undefined;
+    !confirmed && scan.outcome === "confident" && best?.candidate.identityStatus === "established"
+      ? best?.artwork
+      : undefined;
   const content = prose ? await readArtworkContent(ctx, prose) : null;
+  const factSheet = confirmed ? confirmed.factSheet : content?.factSheet;
   return {
     scanId: scan._id,
     localId: scan.localId,
@@ -292,18 +302,76 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     calibratorVersion: scan.calibratorVersion,
     best: best?.candidate,
     runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
-    docent: content?.docent?.en,
-    docentStatus: prose && docentStatusOf(prose, content),
-    factSheet: content?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
+    docent: confirmed ? confirmed.docent : content?.docent?.en,
+    docentStatus: confirmed ? scanDocentStatus(confirmed) : prose && docentStatusOf(prose, content),
+    factSheet: factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
       id,
       sourceUrl,
       sourceLabel,
     })),
     rightNow: scan.rightNow,
     labelFlow: scan.labelFlow && displayLabelFlow(scan.labelFlow),
+    confirmed: confirmed && {
+      source: confirmed.source,
+      fields: confirmed.fields,
+      confirmedAt: confirmed.confirmedAt,
+    },
     error: scan.error,
   };
 }
+
+function trimConfirmed(fields: ConfirmedFields): ConfirmedFields {
+  const trimmed: ConfirmedFields = { title: fields.title.trim() };
+  for (const name of ["artist", "date", "accession", "medium", "creditLine"] as const) {
+    const value = fields[name]?.trim();
+    if (value) trimmed[name] = value;
+  }
+  if (!trimmed.title || Object.values(trimmed).some((value) => (value ?? "").length > LIMITS.snapshot)) {
+    throw new ConvexError({ code: "invalid_fields" });
+  }
+  return trimmed;
+}
+
+function sameFields(a: ConfirmedFields, b: ConfirmedFields): boolean {
+  const names = ["title", "artist", "date", "accession", "medium", "creditLine"] as const;
+  return names.every((name) => a[name] === b[name]);
+}
+
+// The owner names a work the index couldn't: from a verified label or typed by hand. Changed details
+// start a new docent run; re-confirming the same details keeps the prose already written.
+export const confirm = mutation({
+  args: { scanId: v.id("scans"), source: confirmedSource, fields: confirmedFields },
+  returns: v.null(),
+  handler: async (ctx, { scanId, source, fields }) => {
+    const device = await requireDevice(ctx);
+    const scan = await ctx.db.get("scans", scanId);
+    if (!scan || scan.deviceId !== device._id || scan.status === "pending") {
+      throw new ConvexError({ code: "invalid_scan" });
+    }
+    if (source === "label" && (scan.labelFlow?.stage !== "verified" || scan.labelFlow.moderation !== "clear")) {
+      throw new ConvexError({ code: "label_not_verified" });
+    }
+    const trimmed = trimConfirmed(fields);
+    const previous = scan.confirmed;
+    if (previous?.source === source && sameFields(previous.fields, trimmed)) return null;
+    const generation = (previous?.generation ?? 0) + 1;
+    // Research needs an artist to tell the work apart from others with the same title.
+    const researchable = !!trimmed.artist;
+    await ctx.db.patch("scans", scanId, {
+      confirmed: {
+        source,
+        fields: trimmed,
+        confirmedAt: Date.now(),
+        generation,
+        docentUnavailable: researchable ? undefined : true,
+      },
+    });
+    if (researchable) {
+      await ctx.scheduler.runAfter(0, internal.docent.ensureForScan, { scanId, deviceId: device._id, generation });
+    }
+    return null;
+  },
+});
 
 export const get = query({
   args: { scanId: v.id("scans") },

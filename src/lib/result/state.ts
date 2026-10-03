@@ -8,12 +8,15 @@ import type { DocentSentence, DocentStatus, FactChip, RightNowCard } from "../..
 
 export type ScanResult = FunctionReturnType<typeof api.scans.get>;
 export type ResultCandidate = NonNullable<NonNullable<ScanResult>["best"]>;
-export type ResultKind = "loading" | "confident" | "soft" | "unidentified" | "unsupported" | "failed";
+export type ConfirmedResult = NonNullable<NonNullable<ScanResult>["confirmed"]>;
+export type ResultKind = "loading" | "confident" | "soft" | "unidentified" | "confirmed" | "unsupported" | "failed";
 
 export type ResultViewState = {
   kind: ResultKind;
-  /** The work the card names; absent on an unidentified card, where title and artist stay blank. */
+  /** The work the card names; absent on an unidentified or confirmed card. */
   primary?: ResultCandidate;
+  /** The owner's own details for a work the index couldn't name; set only on a confirmed card. */
+  confirmed?: ConfirmedResult;
   runnerUps: ResultCandidate[];
   docent?: DocentSentence[];
   docentStatus?: DocentStatus;
@@ -75,6 +78,17 @@ export function toResultViewState(
   }
   if (scan.status === "pending") {
     return { kind: "loading", runnerUps: [], editable: false };
+  }
+  if (scan.confirmed) {
+    return {
+      kind: "confirmed",
+      confirmed: scan.confirmed,
+      runnerUps: [],
+      editable: true,
+      docent: scan.docent,
+      docentStatus: scan.docentStatus,
+      factSheet: scan.factSheet,
+    };
   }
   if (scan.status === "unsupported_version") {
     return {

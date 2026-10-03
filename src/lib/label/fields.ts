@@ -1,7 +1,13 @@
 import type { FunctionArgs } from "convex/server";
 
 import type { api } from "../../../convex/_generated/api";
-import type { LabelEvidence, LabelFieldName, LabelFlowDisplay, LabelWarning } from "../../../convex/lib/validators";
+import type {
+  ConfirmedFields,
+  LabelEvidence,
+  LabelFieldName,
+  LabelFlowDisplay,
+  LabelWarning,
+} from "../../../convex/lib/validators";
 import type { LabelInput } from "./flow";
 
 export const LABEL_FIELD_NAMES = [
@@ -54,6 +60,23 @@ export function formStateFromFlow(flow: LabelFlowDisplay): LabelFormState {
       unlocked: false,
     };
   }
+  return state;
+}
+
+/** A form with no verifier behind it: typed details, or details first confirmed by hand. */
+export function formStateFromValues(values: Partial<Record<LabelFieldName, string>> = {}): LabelFormState {
+  const state = {} as LabelFormState;
+  for (const name of LABEL_FIELD_NAMES) {
+    const value = values[name] ?? "";
+    state[name] = { value, original: value, locked: false, unlocked: false };
+  }
+  return state;
+}
+
+/** The confirmed details laid over the verifier's reading, so fields the owner changed still count as edited. */
+export function confirmedLabelForm(flow: LabelFlowDisplay, fields: ConfirmedFields): LabelFormState {
+  let state = formStateFromFlow(flow);
+  for (const name of LABEL_FIELD_NAMES) state = setFieldValue(state, name, fields[name] ?? "");
   return state;
 }
 
@@ -115,8 +138,16 @@ export function differsFromFlow(state: LabelFormState, flow: LabelFlowDisplay): 
   return LABEL_FIELD_NAMES.some((name) => state[name].value.trim() !== (flow.fields[name]?.value ?? ""));
 }
 
-export function canSaveLabel(state: LabelFormState): boolean {
-  return state.title.value.trim().length > 0;
+/** The details to confirm; `null` until there is a title. */
+export function toConfirmedFields(state: LabelFormState): ConfirmedFields | null {
+  const title = state.title.value.trim();
+  if (!title) return null;
+  const fields: ConfirmedFields = { title };
+  for (const name of ["artist", "date", "accession", "medium", "creditLine"] as const) {
+    const value = state[name].value.trim();
+    if (value) fields[name] = value;
+  }
+  return fields;
 }
 
 export function canShareLabel(state: LabelFormState): boolean {

@@ -23,12 +23,14 @@ export function useRecentScanMetadata(item: PendingScan, session: PhotoSessionDr
       : undefined,
   );
   // Match the result screen: a local match stays primary until the person opens the online result.
-  const result = offline ?? (!(scan instanceof Error) && scan?.status === "identified" ? scan : undefined);
+  const identified = !(scan instanceof Error) && scan?.status === "identified" ? scan : undefined;
+  const result = offline ?? identified;
+  const confirmed = !offline ? identified?.confirmed : undefined;
   const candidate = result && selectResultCandidates(result).primary;
-  const details = session.saveInput?.draft ?? candidate;
+  const details = session.saveInput?.draft ?? confirmed?.fields ?? candidate;
   const uncertain = session.saveInput
     ? session.saveInput.view?.kind === "soft"
-    : !!candidate && (result?.outcome !== "confident" || candidate.identityStatus === "tentative");
+    : !confirmed && !!candidate && (result?.outcome !== "confident" || candidate.identityStatus === "tentative");
 
   return {
     title: details?.title.trim() || "Artwork scan",

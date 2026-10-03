@@ -44,7 +44,7 @@ import { CameraPermission } from "./camera-permission";
 import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
-import { ContributionStatus, SHARING_NOTICE } from "./label/label-actions";
+import { ContributionStatus, SHARING_NOTICE } from "./label/contribution-status";
 
 const MAX_CHECKS_PER_BATCH = 5;
 

@@ -8,6 +8,7 @@ import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import type { ResultKind } from "@/lib/result/state";
 
+import type { ConfirmedSource } from "../../../../convex/lib/validators";
 import { ConfidenceChip } from "./confidence-chip";
 
 export type CardHeaderProps = {
@@ -17,7 +18,10 @@ export type CardHeaderProps = {
   loading?: boolean;
   kind: ResultKind;
   probability?: number;
+  source?: ConfirmedSource;
   onNotRight?: () => void;
+  /** Reopens the owner's confirmed details; replaces "Not right?" on a confirmed card. */
+  onEditDetails?: () => void;
   onAdjustCrop?: () => void;
 };
 
@@ -27,9 +31,14 @@ export function CardHeader({
   loading = false,
   kind,
   probability,
+  source,
   onNotRight,
+  onEditDetails,
   onAdjustCrop,
 }: CardHeaderProps) {
+  const correction = onEditDetails
+    ? { label: "Edit details", onPress: onEditDetails }
+    : onNotRight && { label: "Not right?", onPress: onNotRight };
   const [failedUri, setFailedUri] = useState<string>();
   const { height, fontScale } = useWindowDimensions();
   const available = cropUri && failedUri !== cropUri;
@@ -84,11 +93,11 @@ export function CardHeader({
       </View>
       {kind !== "loading" && (
         <View style={[styles.status, fontScale > 1.4 && styles.stackedStatus]}>
-          <ConfidenceChip kind={kind} probability={probability} />
-          {onNotRight && (
-            <Pressable accessibilityRole="button" onPress={onNotRight} hitSlop={8} style={styles.correction}>
+          <ConfidenceChip kind={kind} probability={probability} source={source} />
+          {correction && (
+            <Pressable accessibilityRole="button" onPress={correction.onPress} hitSlop={8} style={styles.correction}>
               <ThemedText variant="secondary" themeColor="accent">
-                Not right?
+                {correction.label}
               </ThemedText>
             </Pressable>
           )}

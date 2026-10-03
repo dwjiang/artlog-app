@@ -111,3 +111,35 @@ it("passes unsupported and failed scans through with their errors", () => {
     error: "invalid_scan",
   });
 });
+
+it("names the owner's confirmed work instead of the scan's candidates, with its own background", () => {
+  const confirmed = {
+    source: "label" as const,
+    fields: { title: "Pond at dusk", artist: "Unknown painter" },
+    confirmedAt: 5,
+  };
+  const view = toResultViewState(
+    { ...missScan, confirmed, docentStatus: "writing" },
+    {
+      chosenObjectId: missScan.runnerUps?.[0]?.objectId,
+    },
+  );
+  expect(view).toEqual({
+    kind: "confirmed",
+    confirmed,
+    runnerUps: [],
+    editable: true,
+    docent: undefined,
+    docentStatus: "writing",
+    factSheet: undefined,
+  });
+});
+
+it.each(["unsupported_version", "failed"] as const)("shows confirmed details after recognition is %s", (status) => {
+  const confirmed = { source: "manual" as const, fields: { title: "Pond" }, confirmedAt: 1 };
+  expect(toResultViewState({ ...missScan, status, confirmed })).toMatchObject({
+    kind: "confirmed",
+    confirmed,
+    editable: true,
+  });
+});

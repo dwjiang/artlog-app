@@ -269,6 +269,14 @@ export const decideReport = internalMutation({
           await ctx.db.delete("visitComments", comment._id);
           await changeEngagement(ctx, comment.publicationId, "commentCount", -1);
         }
+      } else if (target.kind === "scanDocent") {
+        // Removal leaves the owner's scan without prose; re-confirming changed details can write new prose.
+        const scan = await ctx.db.get("scans", target.scanId);
+        if (scan?.confirmed) {
+          await ctx.db.patch("scans", scan._id, {
+            confirmed: { ...scan.confirmed, docent: undefined, factSheet: undefined, docentUnavailable: true },
+          });
+        }
       } else {
         // Generated text and audio come from the artwork's research: holding it for review hides both
         // until replaceFactSheet lifts the hold.

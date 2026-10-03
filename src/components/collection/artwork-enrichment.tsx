@@ -7,6 +7,8 @@ import { ReportableHeading } from "@/components/reportable-heading";
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
+import type { SavedWork } from "@/db/schema";
+import { useScan } from "@/lib/result/use-scan";
 import type { ContentReportTarget } from "@/lib/social/report";
 import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 
@@ -42,6 +44,33 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) 
         </Section>
       )}
     </>
+  );
+}
+
+/** The private description written for a scan's confirmed details; only the scan's own device can read it. */
+export function ScanEnrichment({
+  scanId,
+  work,
+}: {
+  scanId: Id<"scans">;
+  work: Pick<SavedWork, "title" | "artist" | "date">;
+}) {
+  const scan = useScan(scanId);
+  if (!scan || scan instanceof Error || !scan.confirmed) return null;
+  const confirmed = scan.confirmed.fields;
+  if (
+    (["title", "artist", "date"] as const).some(
+      (field) => (work[field]?.trim() ?? "") !== (confirmed[field]?.trim() ?? ""),
+    )
+  ) {
+    return null;
+  }
+  const writing = scan.docentStatus === "writing";
+  if (!scan.docent?.length && !writing) return null;
+  return (
+    <Section title="About this work" report={scan.docent?.length ? { kind: "scanDocent", scanId } : undefined}>
+      <DocentSection docent={scan.docent} factSheet={scan.factSheet} status={writing ? "writing" : undefined} />
+    </Section>
   );
 }
 

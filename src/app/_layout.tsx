@@ -107,6 +107,7 @@ function AppContent() {
                     />
                     <Stack.Screen name="all-artworks" options={{ title: "", headerBackTitle: "Collection" }} />
                     <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
+                    <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
                     <Stack.Screen
                       name="sign-in"
                       dangerouslySingular
