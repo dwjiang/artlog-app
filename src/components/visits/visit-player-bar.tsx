@@ -1,8 +1,9 @@
 import { Color, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AudioIcon } from "@/components/audio/audio-icon";
 import { accessoryStyles, NarrationToggle, narrationStatus, PlayerSummary } from "@/components/audio/mini-player";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useListening } from "@/lib/audio/use-listening";
@@ -41,7 +42,7 @@ export function VisitPlayerBar() {
         </View>
       </PlayerSummary>
       <NarrationToggle audio={audio} status={status} />
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel="End visit"
         accessibilityHint="Opens a review before saving and ending the visit"
@@ -51,10 +52,10 @@ export function VisitPlayerBar() {
             params: { visitId: visit.localId, endVisit: "true" },
           })
         }
-        style={({ pressed }) => [styles.end, pressed && { opacity: 0.6 }]}
+        style={styles.end}
       >
         <Text style={{ fontSize: 15, color: Gallery.accent }}>End</Text>
-      </Pressable>
+      </MotionPressable>
     </View>
   );
 }

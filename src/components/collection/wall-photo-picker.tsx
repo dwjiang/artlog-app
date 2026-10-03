@@ -1,10 +1,11 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { useEffect } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { ScrollView, View, useWindowDimensions } from "react-native";
 
 import { LoadingImage } from "@/components/loading-image";
 import { PhotoStripSkeleton, TextSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -55,7 +56,7 @@ export function WallPhotoPicker({
           const visit = visits.data.find((visit) => visit.owner === owner && visit.localId === photo.visitLocalId);
           const kind = photo.kind === "full" ? "Full painting" : photo.kind === "detail" ? "Detail" : "Wall label";
           return (
-            <Pressable
+            <MotionPressable
               key={photo.localId}
               accessibilityRole="button"
               accessibilityLabel={`Use ${photo.kind} photo ${index + 1} on wall`}
@@ -142,7 +143,7 @@ export function WallPhotoPicker({
                   }}
                 />
               )}
-            </Pressable>
+            </MotionPressable>
           );
         })}
       </ScrollView>

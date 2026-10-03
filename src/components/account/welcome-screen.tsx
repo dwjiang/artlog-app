@@ -2,21 +2,12 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   type SharedValue,
 } from "react-native-reanimated";
@@ -25,11 +16,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { GlassSurface } from "@/components/glass-surface";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ProfilePicturePicker } from "@/components/social/profile-picture-picker";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
 import {
   setLocalProfileAvatar,
@@ -270,7 +263,7 @@ export function WelcomeScreen() {
             <Headline>Your name.</Headline>
             <View style={styles.nameRow}>
               {/* The text button below is the accessible way to change the picture. */}
-              <Pressable
+              <MotionPressable
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
                 disabled={saving}
@@ -285,7 +278,7 @@ export function WelcomeScreen() {
                 <View style={styles.photoBadge}>
                   <Image source="sf:pencil" tintColor={Gallery.surface} style={styles.photoBadgeIcon} />
                 </View>
-              </Pressable>
+              </MotionPressable>
               <TextInput
                 accessibilityLabel="Name"
                 value={name}

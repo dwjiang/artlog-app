@@ -1,10 +1,11 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingImage } from "@/components/loading-image";
 import { PhotoStripSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
@@ -91,7 +92,7 @@ export function SharePhotoPicker({
         {photos.map((photo) => {
           const on = selected.includes(photo.localId);
           return (
-            <Pressable
+            <MotionPressable
               key={photo.localId}
               accessibilityRole="checkbox"
               accessibilityLabel={`Share ${KIND_LABELS[photo.kind]} photo`}
@@ -118,7 +119,7 @@ export function SharePhotoPicker({
                   </View>
                 )}
               </ShareTileImage>
-            </Pressable>
+            </MotionPressable>
           );
         })}
       </View>

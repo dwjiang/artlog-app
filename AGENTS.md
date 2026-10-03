@@ -72,6 +72,8 @@ Code, types, tests, and configuration are the source of implementation details.
 - Read `DESIGN.md` before UI work and follow existing UI patterns. It holds the
   reusable design-language rules; token values live in `src/constants/theme.ts`,
   and component behavior belongs in code, tests, or an applicable local guide.
+- For new or changed UI interactions and transitions, use
+  `.agents/skills/expo-animation/SKILL.md` to decide what should animate and how.
 
 ## Test policy
 

@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
+import { FlatList, ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
+import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
@@ -74,7 +75,7 @@ export function VisitPlaceScreen() {
             </View>
           }
           renderItem={({ item: visit }) => (
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={`View visit on ${formatVisitDate(visit.visitedOn)}`}
               onPress={() =>
@@ -102,7 +103,7 @@ export function VisitPlaceScreen() {
                   style={{ width: "100%", height: 220 }}
                 />
               )}
-            </Pressable>
+            </MotionPressable>
           )}
           ListFooterComponent={
             <GalleryButton

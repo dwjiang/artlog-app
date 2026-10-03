@@ -1,23 +1,16 @@
 import { Image } from "expo-image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { FlatList, Keyboard, KeyboardAvoidingView, Modal, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChoiceMenu } from "@/components/choice-menu";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
 import { canHangArtwork, libraryArtworks, type ArtworkSort, type LibraryVisit } from "@/lib/wall/artwork-library";
@@ -55,6 +48,7 @@ export function WallArtworkPicker({
   onAdd: () => void;
 }) {
   const { fontScale, width } = useWindowDimensions();
+  const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [visitId, setVisitId] = useState("");
@@ -88,7 +82,7 @@ export function WallArtworkPicker({
     })),
   ];
   return (
-    <Modal animationType="slide" presentationStyle="fullScreen" onRequestClose={onDismiss}>
+    <Modal animationType={reduced ? "fade" : "slide"} presentationStyle="fullScreen" onRequestClose={onDismiss}>
       <KeyboardAvoidingView behavior="padding" style={[styles.screen, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <GalleryButton
@@ -179,7 +173,7 @@ export function WallArtworkPicker({
             const unavailable =
               hung || syncing || disabled || (!checked && count + selected.length >= LIMITS.wallItems);
             return (
-              <Pressable
+              <MotionPressable
                 accessibilityRole="checkbox"
                 accessibilityLabel={item.title}
                 accessibilityHint={hung ? "Already on your wall" : syncing ? "Available after syncing" : item.artist}
@@ -215,7 +209,7 @@ export function WallArtworkPicker({
                     {hung ? "On your wall" : "Syncing artwork…"}
                   </Text>
                 )}
-              </Pressable>
+              </MotionPressable>
             );
           }}
           ListEmptyComponent={

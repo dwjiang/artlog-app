@@ -122,3 +122,12 @@ export const NavigationTheme = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+export const Motion = {
+  press: 120,
+  state: 180,
+  enter: 240,
+  exit: 180,
+  easeOut: [0.23, 1, 0.32, 1],
+  easeInOut: [0.77, 0, 0.175, 1],
+} as const;

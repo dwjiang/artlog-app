@@ -4,10 +4,11 @@ import { randomUUID } from "expo-crypto";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { ListenActions } from "@/components/audio/listen-actions";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -205,7 +206,7 @@ function SavedArtwork({
             {hung && (
               <>
                 <Divider />
-                <Pressable
+                <MotionPressable
                   accessibilityRole="button"
                   accessibilityLabel="Wall display options"
                   onPress={() =>
@@ -229,7 +230,7 @@ function SavedArtwork({
                     style={{ width: 13, height: 13 }}
                     accessible={false}
                   />
-                </Pressable>
+                </MotionPressable>
               </>
             )}
           </>

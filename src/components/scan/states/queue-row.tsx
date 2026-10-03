@@ -2,9 +2,10 @@ import { Host, Icon } from "@expo/ui";
 import { Button, Menu } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, disabled, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
@@ -55,7 +56,7 @@ export function QueueRow({
   const photoCount = session.photos.length + 1;
   return (
     <View style={styles.row}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={[title, attribution, `Scan from ${when}`, status, uncertain && "Possible match"]
           .filter(Boolean)
@@ -63,7 +64,7 @@ export function QueueRow({
         onPress={() => onOpen(item)}
         disabled={discarding}
         accessibilityState={{ disabled: discarding, busy: discarding }}
-        style={({ pressed }) => [styles.capture, pressed && styles.pressed]}
+        style={styles.capture}
       >
         <Image
           cachePolicy="memory"
@@ -114,7 +115,7 @@ export function QueueRow({
             tintColor={Colors.light.textSecondary}
           />
         )}
-      </Pressable>
+      </MotionPressable>
       <Host matchContents colorScheme="light">
         <Menu
           label={
@@ -162,7 +163,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.three,
   },
-  pressed: { opacity: 0.6 },
   thumbnail: {
     width: 88,
     height: 88,

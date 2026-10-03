@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { useState, type Ref } from "react";
-import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 
@@ -69,13 +70,13 @@ export function SearchField({
           style={styles.input}
         />
         {!!value && (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel="Clear search"
             accessibilityState={{ disabled: !editable }}
             disabled={!editable}
             onPress={onClear}
-            style={({ pressed }) => [styles.clear, { opacity: pressed ? 0.6 : 1 }]}
+            style={styles.clear}
           >
             <Image
               source="sf:xmark.circle.fill"
@@ -83,7 +84,7 @@ export function SearchField({
               style={{ width: 19, height: 19 }}
               accessible={false}
             />
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
     </View>

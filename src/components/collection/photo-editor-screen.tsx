@@ -1,11 +1,12 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, ScrollView, TextInput, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -205,7 +206,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                 </EmptyState>
               ) : null}
               {destinations.map((work) => (
-                <Pressable
+                <MotionPressable
                   key={work.localId}
                   accessibilityRole="button"
                   accessibilityLabel={`Move photo to ${work.title}`}
@@ -225,7 +226,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                     <Text style={{ color: Gallery.muted, fontSize: 13 }}>{work.artist}</Text>
                   </View>
                   <Text style={{ color: Gallery.muted }}>›</Text>
-                </Pressable>
+                </MotionPressable>
               ))}
               <Text style={{ color: Gallery.muted, fontSize: 13 }}>The photo’s type and caption move with it.</Text>
             </View>

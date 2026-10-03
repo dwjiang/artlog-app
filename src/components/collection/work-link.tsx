@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import type { SavedWork } from "@/db/schema";
 
 type WorkLinkProps = {
@@ -20,13 +21,13 @@ export function WorkLink({ work, style, children, visitId }: WorkLinkProps) {
       }}
       asChild
     >
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`${work.title}, ${work.artist}`}
         style={StyleSheet.flatten(style)}
       >
         {children}
-      </Pressable>
+      </MotionPressable>
     </Link>
   );
 }

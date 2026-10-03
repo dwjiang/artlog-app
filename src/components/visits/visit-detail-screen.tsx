@@ -370,7 +370,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             </View>
           </VisitPage>
           {shareCheckFailed && (
-            <View pointerEvents="box-none" style={detail.toast}>
+            <View collapsable={false} pointerEvents="box-none" style={detail.toast}>
               <ToastPill
                 message="Couldn’t check the shared version."
                 actions={[retryAction(() => void controller.load())]}

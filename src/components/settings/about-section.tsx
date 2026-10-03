@@ -1,9 +1,10 @@
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
 import { openLegalPage } from "@/lib/legal-links";
@@ -104,26 +105,26 @@ export function AboutSection() {
             },
           },
         ].map(({ label, icon, action }, index) => (
-          <Pressable
+          <MotionPressable
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
             onPress={action}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: "row",
               alignItems: "center",
               gap: 12,
               padding: 16,
               minHeight: 52,
-              backgroundColor: pressed ? Gallery.fill : Gallery.surface,
+              backgroundColor: Gallery.surface,
               borderTopWidth: index ? SettingsOutline.borderWidth : 0,
               borderTopColor: SettingsOutline.borderColor,
-            })}
+            }}
           >
             <Image source={`sf:${icon}`} tintColor={Gallery.ink} style={{ width: 18, height: 18 }} />
             <ThemedText style={{ flex: 1, fontSize: 15 }}>{label}</ThemedText>
             <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 10, height: 12 }} />
-          </Pressable>
+          </MotionPressable>
         ))}
       </View>
       <ThemedText

@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { isLightWall, type Wallpaper } from "@/lib/wall/wall-layout";
@@ -31,7 +32,7 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
           {Gallery.colors.map(({ name, value: color }) => {
             const selected = color === value.color;
             return (
-              <Pressable
+              <MotionPressable
                 key={color}
                 accessibilityRole="button"
                 accessibilityLabel={name}
@@ -48,7 +49,7 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
                     />
                   )}
                 </View>
-              </Pressable>
+              </MotionPressable>
             );
           })}
         </ScrollView>
@@ -64,7 +65,7 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
           {wallPatterns.map(({ name, value: pattern }) => {
             const selected = pattern === value.pattern;
             return (
-              <Pressable
+              <MotionPressable
                 key={name}
                 accessibilityRole="button"
                 accessibilityLabel={name}
@@ -89,7 +90,7 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
                 >
                   {name}
                 </Text>
-              </Pressable>
+              </MotionPressable>
             );
           })}
         </ScrollView>

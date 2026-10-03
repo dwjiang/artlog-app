@@ -100,6 +100,8 @@ function QueueList({ current, onAdd }: { current: ListeningTrack; onAdd: () => v
             keyExtractor={trackKey}
             scrollableRef={scroll}
             hapticsEnabled
+            itemEntering={null}
+            itemExiting={null}
             onDragStart={({ key }) => blockPress(key)}
             onDragEnd={({ fromIndex, toIndex }) => audio.controller.move(fromIndex, toIndex)}
             renderItem={({ item, index }) => (

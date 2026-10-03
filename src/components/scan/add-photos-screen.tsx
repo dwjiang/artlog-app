@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
-import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
+import { AppState, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
 import { usePhotoOutput } from "react-native-vision-camera";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -12,6 +12,7 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingImage } from "@/components/loading-image";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
@@ -593,7 +594,7 @@ function PhotoSession({
       )}
       <ScrollView horizontal style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
         {photos.map((photo, i) => (
-          <Pressable
+          <MotionPressable
             key={photo.localId}
             accessibilityRole="button"
             accessibilityLabel={`Review ${photo.kind} photo ${i + 1}`}
@@ -620,7 +621,7 @@ function PhotoSession({
             <ThemedText type="small" style={styles.thumbLabel}>
               {photo.kind}
             </ThemedText>
-          </Pressable>
+          </MotionPressable>
         ))}
       </ScrollView>
       {photos.length >= 99 && (

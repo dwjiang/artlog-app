@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
 import { useState, type ReactNode } from "react";
-import { ActionSheetIOS, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { ActionSheetIOS, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
@@ -52,7 +53,7 @@ export function ProfileIdentity({
     </>
   );
   return interactive ? (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={`View ${profile.name}’s profile`}
       onPress={() =>
@@ -64,7 +65,7 @@ export function ProfileIdentity({
       style={styles.identity}
     >
       {content}
-    </Pressable>
+    </MotionPressable>
   ) : (
     <View style={styles.identity}>{content}</View>
   );
@@ -290,7 +291,7 @@ export function VisitFeedCard({
       {showAuthor ? (
         <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: "column" }]}>
           {onOpenProfile ? (
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={`View ${author.name}’s profile`}
               accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
@@ -298,7 +299,7 @@ export function VisitFeedCard({
               style={styles.feedIdentity}
             >
               {identity}
-            </Pressable>
+            </MotionPressable>
           ) : (
             <View style={styles.feedIdentity}>{identity}</View>
           )}
@@ -319,13 +320,13 @@ export function VisitFeedCard({
       )}
       {artworks.length > 0
         && (onOpenVisit ? (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel={`View ${author.name}’s visit to ${venue.name}`}
             onPress={onOpenVisit}
           >
             {art}
-          </Pressable>
+          </MotionPressable>
         ) : (
           art
         ))}

@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ImageSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -81,25 +82,30 @@ export function CardHeader({
           </View>
         )}
         {onAdjustCrop && (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel="Adjust crop"
             onPress={onAdjustCrop}
-            style={({ pressed }) => [styles.crop, pressed && styles.pressed]}
+            style={styles.crop}
           >
             <Image source="sf:crop" tintColor={Gallery.ink} style={styles.cropIcon} />
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
       {kind !== "loading" && (
         <View style={[styles.status, fontScale > 1.4 && styles.stackedStatus]}>
           <ConfidenceChip kind={kind} probability={probability} source={source} />
           {correction && (
-            <Pressable accessibilityRole="button" onPress={correction.onPress} hitSlop={8} style={styles.correction}>
+            <MotionPressable
+              accessibilityRole="button"
+              onPress={correction.onPress}
+              hitSlop={8}
+              style={styles.correction}
+            >
               <ThemedText variant="secondary" themeColor="accent">
                 {correction.label}
               </ThemedText>
-            </Pressable>
+            </MotionPressable>
           )}
         </View>
       )}
@@ -129,7 +135,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.separator,
   },
-  pressed: { opacity: 0.6 },
   cropIcon: { width: 20, height: 20 },
   status: {
     flexDirection: "row",

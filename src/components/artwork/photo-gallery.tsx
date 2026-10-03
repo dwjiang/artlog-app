@@ -1,7 +1,8 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -74,7 +75,7 @@ export function PhotoGallery<T extends Photo>({
             onContentSizeChange={() => filmstrip.current?.scrollTo({ x: filmstripOffset, animated: false })}
           >
             {photos.map((photo, index) => (
-              <Pressable
+              <MotionPressable
                 key={photo.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Show ${photo.label}`}
@@ -86,7 +87,7 @@ export function PhotoGallery<T extends Photo>({
                 <View pointerEvents="none" accessible={false} accessibilityElementsHidden style={styles.thumbnailImage}>
                   {renderThumbnail(photo, index)}
                 </View>
-              </Pressable>
+              </MotionPressable>
             ))}
             {onAddPhotos && (
               <View style={styles.addPhoto}>

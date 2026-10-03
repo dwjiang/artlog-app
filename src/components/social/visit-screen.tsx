@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { SearchEmptyState } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { matchesVisitSearch, VisitGalleryArtwork, VisitGallerySearch } from "@/components/visits/visit-gallery";
 import { VisitSymbol } from "@/components/visits/visit-ui";
@@ -199,14 +200,14 @@ export function SharedVisitHeading({
     <View style={styles.heading}>
       <View style={styles.stampRow}>
         {owner.onPress ? (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel={`View ${owner.name}’s profile`}
             style={styles.owner}
             onPress={owner.onPress}
           >
             {identity}
-          </Pressable>
+          </MotionPressable>
         ) : (
           <View style={styles.owner}>{identity}</View>
         )}
@@ -291,7 +292,7 @@ export function SharedArtworkTile({
     </VisitGalleryArtwork>
   );
   return onPress ? (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={`View ${title}`}
       accessibilityHint={`${artist || "Artist unknown"}. ${photos.length} shared photos.`}
@@ -299,7 +300,7 @@ export function SharedArtworkTile({
       onPress={onPress}
     >
       {tile}
-    </Pressable>
+    </MotionPressable>
   ) : (
     <View
       accessible

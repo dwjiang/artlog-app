@@ -1,7 +1,7 @@
 import { ImageManipulator } from "expo-image-manipulator";
 import { Stack } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -43,6 +43,16 @@ export function CropEditor({
   const [attempt, setAttempt] = useState(0);
   const active = useRef(false);
   const working = useRef(false);
+  const activeDrags = useRef(0);
+  const [dragging, setDragging] = useState(false);
+  const startDrag = useCallback(() => {
+    activeDrags.current += 1;
+    setDragging(true);
+  }, []);
+  const endDrag = useCallback(() => {
+    activeDrags.current = Math.max(0, activeDrags.current - 1);
+    setDragging(activeDrags.current > 0);
+  }, []);
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 16);
   const [stage, setStage] = useState<{ width: number; height: number }>();
@@ -92,8 +102,7 @@ export function CropEditor({
   }, [uri, attempt]);
 
   const saving = busy === "saving";
-  // Corner drags re-render this component every frame and try/finally keeps the React Compiler out of it; new header
-  // options would re-render the whole stack on each of those frames.
+  // Keep native toolbar options stable as photo loading and crop commits update the editor.
   const header = useMemo(
     () => (
       <>
@@ -112,7 +121,7 @@ export function CropEditor({
     setAttempt((value) => value + 1);
   }
   async function save() {
-    if (working.current) return;
+    if (working.current || activeDrags.current > 0) return;
     working.current = true;
     setBusy("saving");
     let crop: EditedCrop | undefined;
@@ -136,10 +145,18 @@ export function CropEditor({
     <View style={[styles.screen, { paddingBottom: bottomPadding }]}>
       {header}
       <Text style={styles.instructions}>Drag each corner onto the painting’s corners.</Text>
-      <View style={styles.stage} onLayout={({ nativeEvent: { layout } }) => setStage(layout)}>
+      <View testID="crop-stage" style={styles.stage} onLayout={({ nativeEvent: { layout } }) => setStage(layout)}>
         {photoBox ? (
           <View style={[styles.photo, { width: photoBox.width, height: photoBox.height }]}>
-            <CropCorners uri={uri} size={size} corners={corners} onChange={setCorners} />
+            <CropCorners
+              uri={uri}
+              size={size}
+              corners={corners}
+              onChange={setCorners}
+              onDragStart={startDrag}
+              onDragEnd={endDrag}
+              disabled={saving}
+            />
           </View>
         ) : (
           !size && (
@@ -159,6 +176,7 @@ export function CropEditor({
               label={saveLabel}
               variant="filled"
               fullWidth
+              disabled={dragging}
               busy={saving}
               busyLabel="Saving crop…"
               onPress={() => {

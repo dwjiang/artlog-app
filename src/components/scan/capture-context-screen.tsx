@@ -1,13 +1,14 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyTicket } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
@@ -133,17 +134,13 @@ function CaptureContext({
   function option(value: string, choice: CaptureVisitChoice, label: string, detail?: string) {
     const current = marked === value;
     return (
-      <Pressable
+      <MotionPressable
         key={value}
         accessibilityRole="button"
         accessibilityLabel={detail ? `${label} · ${detail}` : label}
         accessibilityState={{ selected: current }}
         onPress={() => choose(value, choice)}
-        style={({ pressed }) => [
-          styles.option,
-          current ? styles.selected : styles.unselected,
-          pressed && styles.pressed,
-        ]}
+        style={[styles.option, current ? styles.selected : styles.unselected]}
       >
         <View style={styles.optionText}>
           <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
@@ -154,7 +151,7 @@ function CaptureContext({
           )}
         </View>
         <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>{current ? "✓" : "○"}</ThemedText>
-      </Pressable>
+      </MotionPressable>
     );
   }
 
@@ -245,5 +242,4 @@ const styles = StyleSheet.create({
     borderColor: Gallery.separator,
   },
   selectedLabel: { fontWeight: "600" },
-  pressed: { opacity: 0.7 },
 });

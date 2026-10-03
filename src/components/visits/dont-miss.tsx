@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useMuseumPicks } from "@/lib/venue/use-museum-picks";
@@ -17,12 +18,12 @@ export function DontMiss({ venueId }: { venueId: string | undefined }) {
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {picks.map((pick) => (
-          <Pressable
+          <MotionPressable
             key={pick.artworkId}
             accessibilityRole="button"
             accessibilityLabel={`${pick.title}, ${pick.artist}`}
             onPress={() => router.push({ pathname: "/dont-miss", params: { venueId, artworkId: pick.artworkId } })}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+            style={styles.card}
           >
             <Image source={pick.thumbnailUrl} contentFit="cover" style={styles.image} accessible={false} />
             <Text numberOfLines={2} style={styles.title}>
@@ -31,7 +32,7 @@ export function DontMiss({ venueId }: { venueId: string | undefined }) {
             <Text numberOfLines={1} type="small" themeColor="textSecondary">
               {pick.artist}
             </Text>
-          </Pressable>
+          </MotionPressable>
         ))}
       </ScrollView>
     </View>
@@ -43,7 +44,6 @@ const styles = StyleSheet.create({
   heading: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.two },
   row: { paddingHorizontal: Spacing.content, gap: Spacing.compact },
   card: { width: 150, gap: 2 },
-  pressed: { opacity: 0.7 },
   image: { width: 150, height: 118, borderRadius: Radius.thumbnail, backgroundColor: Gallery.fill, marginBottom: 6 },
   title: { fontSize: 14, lineHeight: 18, fontWeight: "600", color: Gallery.ink },
 });

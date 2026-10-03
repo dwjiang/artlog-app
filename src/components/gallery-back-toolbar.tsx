@@ -1,8 +1,8 @@
 import { Image } from "expo-image";
 import { router, Stack, useNavigation } from "expo-router";
 import { useState } from "react";
-import { Pressable } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { Gallery } from "@/constants/theme";
 
 import { ThemedText } from "./themed-text";
@@ -54,7 +54,7 @@ export function GalleryBackToolbar() {
       <Stack.Screen options={{ headerBackVisible: false }} />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.View hidesSharedBackground>
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel={label === "Back" ? "Back" : `Back to ${label}`}
             onPress={() => router.back()}
@@ -67,7 +67,7 @@ export function GalleryBackToolbar() {
           >
             <Image source="sf:chevron.left" tintColor={Gallery.accent} style={{ width: 14, height: 22 }} />
             <ThemedText style={{ color: Gallery.accent, fontSize: 17 }}>{label}</ThemedText>
-          </Pressable>
+          </MotionPressable>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
     </>

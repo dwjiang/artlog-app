@@ -41,12 +41,14 @@ function deferred() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 2, 18));
   mockHydrated = false;
   mockVisit = undefined;
   mockLoading = false;
   mockCount = 1;
   mockInstances = [];
 });
+afterEach(() => jest.restoreAllMocks());
 
 it("waits for visit hydration and its artwork count before adopting the restored activity", async () => {
   const activity = { update: jest.fn().mockResolvedValue(undefined), end: jest.fn().mockResolvedValue(undefined) };

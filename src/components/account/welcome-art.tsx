@@ -2,13 +2,14 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image, type ImageSource } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions, type ViewStyle } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { cubicBezier } from "react-native-reanimated";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkCollage, introArtworks } from "@/components/guest/artwork-preview";
 import { PaintingReveal } from "@/components/scan/painting-reveal";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
+import { Fonts, Gallery, Motion, Radius, Spacing } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { configureSpokenAudio } from "@/lib/audio/spoken-audio-mode";
 import type { FrameSize } from "@/lib/capture/rectangle";
 import { liftedPlacement, perspectiveMatrix, photoCorners, type RevealGeometry } from "@/lib/capture/reveal-geometry";
@@ -16,6 +17,8 @@ import type { Quad } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 
 import type { AccessKey } from "./welcome-access";
+
+const EASE_OUT = cubicBezier(...Motion.easeOut);
 
 const museum = {
   source: require("../../../assets/images/onboarding/museum-postcard.jpg"),
@@ -68,9 +71,6 @@ const RESULT_DELAY = 2500;
 
 const DRIFT_SCALE = 1.1;
 const DRIFT_SHIFT = 6;
-const EASE_OUT = cubicBezier(0.23, 1, 0.32, 1);
-// CSS ease-out: a lone fade on the strong curve lands almost at once and reads as a pop.
-const FADE_EASE = cubicBezier(0, 0, 0.58, 1);
 
 const MOTIONS = {
   rise: {
@@ -87,7 +87,7 @@ const MOTIONS = {
   },
   fade: { from: { opacity: 0 }, to: { opacity: 1 } },
 };
-type Motion = Exclude<keyof typeof MOTIONS, "fade">;
+type EnterMotion = Exclude<keyof typeof MOTIONS, "fade">;
 
 /** Plays once on mount; Reduce Motion keeps only the fade. `style` must not carry its own transform. */
 function Enter({
@@ -96,7 +96,7 @@ function Enter({
   style,
   children,
 }: {
-  motion: Motion;
+  motion: EnterMotion;
   delay: number;
   style?: ViewStyle;
   children: ReactNode;
@@ -108,9 +108,9 @@ function Enter({
         style,
         {
           animationName: MOTIONS[reduced ? "fade" : motion],
-          animationDuration: reduced ? 250 : 450,
+          animationDuration: Motion.enter,
           animationDelay: delay,
-          animationTimingFunction: reduced ? FADE_EASE : EASE_OUT,
+          animationTimingFunction: EASE_OUT,
           animationFillMode: "backwards",
         },
       ]}
@@ -290,7 +290,11 @@ function StorySubtitles({ said }: { said: number }) {
             styles.subtitle,
             index > 0 && styles.stackedSubtitle,
             { opacity: index === shown ? 1 : 0 },
-            !reduced && { transitionProperty: "opacity", transitionDuration: 200 },
+            {
+              transitionProperty: "opacity",
+              transitionDuration: reduced ? 0 : Motion.state,
+              transitionTimingFunction: EASE_OUT,
+            },
           ]}
         >
           <Text style={styles.story}>

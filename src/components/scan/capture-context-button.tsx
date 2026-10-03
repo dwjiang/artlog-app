@@ -2,9 +2,10 @@ import tzLookup from "@photostructure/tz-lookup";
 import { Image } from "expo-image";
 import { useFocusEffect, router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { TextSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { getVisit } from "@/db/repos/visits";
@@ -109,7 +110,7 @@ export function CaptureContextButton({
   const label = summary && formatVisit(summary, variant);
   const row = variant === "row";
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={label ? `${row ? `Visit: ${label}` : label} · Change` : "Loading visit…"}
       accessibilityHint="Chooses the visit for this artwork"
@@ -126,7 +127,7 @@ export function CaptureContextButton({
           },
         })
       }
-      style={({ pressed }) => [row ? styles.row : styles.chip, pressed && styles.pressed, disabled && styles.disabled]}
+      style={[row ? styles.row : styles.chip, disabled && styles.disabled]}
     >
       <Image source="sf:mappin.and.ellipse" tintColor={Gallery.muted} style={styles.icon} />
       <View style={row ? styles.rowText : styles.chipText}>
@@ -144,7 +145,7 @@ export function CaptureContextButton({
         )}
       </View>
       <Image source={row ? "sf:chevron.right" : "sf:chevron.down"} tintColor={Gallery.muted} style={styles.chevron} />
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -173,7 +174,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: Spacing.half },
   chipText: { flexShrink: 1 },
-  pressed: { opacity: 0.6 },
   disabled: { opacity: 0.5 },
   icon: { width: 16, height: 16 },
   chevron: { width: 10, height: 10 },

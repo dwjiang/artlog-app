@@ -2,7 +2,7 @@ import { Image, type ImageProps } from "expo-image";
 import { useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { Gallery } from "@/constants/theme";
+import { Gallery, Motion } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 
 import { ImageSkeleton } from "./loading-skeleton";
@@ -43,6 +43,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onError
           cachePolicy={uri.startsWith("file:") ? "memory" : "disk"}
           accessibilityLabel={label}
           contentFit={contentFit}
+          transition={{ duration: Motion.state, effect: "cross-dissolve" }}
           style={StyleSheet.absoluteFill}
           onLoad={(event) => {
             setState("ready");

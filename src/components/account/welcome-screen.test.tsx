@@ -58,7 +58,7 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/lib/module/mock"));
 jest.mock("react-native-reanimated", () => ({
-  ...jest.requireActual("react-native-reanimated/mock"),
+  ...jest.requireMock("react-native-reanimated/mock"),
   cubicBezier: () => "ease-out",
   useReducedMotion: () => false,
 }));

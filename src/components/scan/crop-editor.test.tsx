@@ -1,11 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import type { ComponentProps } from "react";
 
 import { wholePhoto } from "@/lib/capture/crop-geometry";
 import type { Quad } from "@/lib/capture/stages";
 
+import type { CropCorners } from "./crop-corners";
 import { CropEditor } from "./crop-editor";
 
-jest.mock("./crop-corners", () => ({ CropCorners: () => null }));
+let mockCropProps: ComponentProps<typeof CropCorners> | undefined;
+jest.mock("./crop-corners", () => ({
+  CropCorners: (props: ComponentProps<typeof CropCorners>) => {
+    mockCropProps = props;
+    return null;
+  },
+}));
 const mockHeaderRender = jest.fn();
 jest.mock("expo-router", () => ({
   Stack: {
@@ -50,6 +58,7 @@ const crop = {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCropProps = undefined;
   mockPrepare.mockResolvedValue(crop);
 });
 
@@ -110,4 +119,39 @@ it("cancels without saving", async () => {
   await fireEvent.press(await screen.findByRole("button", { name: "Cancel" }));
   expect(onCancel).toHaveBeenCalled();
   expect(onSave).not.toHaveBeenCalled();
+});
+
+it.each(["release", "cancel"] as const)("blocks saving until every crop drag ends: %s", async (finish) => {
+  await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
+  await screen.findByRole("button", { name: "Save crop" });
+  await fireEvent(screen.getByTestId("crop-stage"), "layout", {
+    nativeEvent: { layout: { width: 390, height: 700 } },
+  });
+  expect(mockCropProps).toBeDefined();
+
+  await act(() => {
+    mockCropProps!.onDragStart!();
+    mockCropProps!.onDragStart!();
+  });
+  expect(screen.getByRole("button", { name: "Save crop" })).toBeDisabled();
+  await act(() => mockCropProps!.onDragEnd!());
+  expect(screen.getByRole("button", { name: "Save crop" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Save crop" }));
+  expect(mockPrepare).not.toHaveBeenCalled();
+
+  const adjusted: Quad = [
+    [0.1, 0.2],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  await act(() => {
+    if (finish === "release") mockCropProps!.onChange(adjusted);
+    mockCropProps!.onDragEnd!();
+  });
+  expect(screen.getByRole("button", { name: "Save crop" })).toBeEnabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Save crop" }));
+  await waitFor(() =>
+    expect(mockPrepare).toHaveBeenCalledWith("full.jpg", finish === "release" ? adjusted : wholePhoto),
+  );
 });

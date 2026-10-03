@@ -1,7 +1,8 @@
 import { openBrowserAsync } from "expo-web-browser";
 import { useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -30,16 +31,16 @@ export function SourceLink({
   }
   return (
     <View style={styles.container}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="link"
         accessibilityLabel={label}
         onPress={() => {
           void openSource();
         }}
-        style={({ pressed }) => [style, pressed && styles.pressed]}
+        style={style}
       >
         {children}
-      </Pressable>
+      </MotionPressable>
       {failed && (
         <ThemedText type="small" themeColor="error" accessibilityRole="alert">
           Couldn’t open this source. Tap the source to try again.
@@ -62,7 +63,6 @@ export function SourceChip({ label, url }: { label: string; url: string }) {
 
 const styles = StyleSheet.create({
   container: { maxWidth: "100%", flexShrink: 1 },
-  pressed: { opacity: 0.65 },
   chip: {
     alignSelf: "flex-start",
     minHeight: 44,
