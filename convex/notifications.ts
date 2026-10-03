@@ -29,10 +29,10 @@ const notification = v.union(
   v.object({ ...base, kind: v.literal("visitLike"), ...visit }),
   v.object({ ...base, kind: v.literal("visitComment"), ...visit, body: v.string() }),
 );
-type Notification = Infer<typeof notification>;
+export type Notification = Infer<typeof notification>;
 type VisitSummary = { postId: string; venue: string; media?: Infer<typeof displayMedia> };
 
-async function seenAt(ctx: QueryCtx, profileId: Id<"profiles">) {
+export async function seenAt(ctx: QueryCtx, profileId: Id<"profiles">) {
   const read = await ctx.db
     .query("notificationReads")
     .withIndex("by_profileId", (q) => q.eq("profileId", profileId))
@@ -40,7 +40,7 @@ async function seenAt(ctx: QueryCtx, profileId: Id<"profiles">) {
   return read?.seenAt ?? 0;
 }
 
-function received(ctx: QueryCtx, profileId: Id<"profiles">, after = 0) {
+export function received(ctx: QueryCtx, profileId: Id<"profiles">, after = 0) {
   return ctx.db
     .query("notifications")
     .withIndex("by_recipient", (q) => q.eq("recipientId", profileId).gt("_creationTime", after))
@@ -48,7 +48,7 @@ function received(ctx: QueryCtx, profileId: Id<"profiles">, after = 0) {
 }
 
 // Rows are checked against current state, so a hidden visit, a block, or a withdrawn friendship drops its rows.
-async function resolve(
+export async function resolveNotifications(
   ctx: QueryCtx,
   viewer: Doc<"profiles">,
   rows: Doc<"notifications">[],
@@ -107,7 +107,7 @@ export const list = query({
     const result = await received(ctx, profile._id).paginate(pagination(input));
     return {
       seenAt: await seenAt(ctx, profile._id),
-      page: await resolve(ctx, profile, result.page, true),
+      page: await resolveNotifications(ctx, profile, result.page, true),
       cursor: result.isDone ? null : result.continueCursor,
       isDone: result.isDone,
     };
@@ -121,7 +121,7 @@ export const unseen = query({
     const { profile } = await requireProfile(ctx);
     const result = await received(ctx, profile._id, await seenAt(ctx, profile._id)).paginate(pagination(input));
     return {
-      page: await resolve(ctx, profile, result.page, false),
+      page: await resolveNotifications(ctx, profile, result.page, false),
       cursor: result.isDone ? null : result.continueCursor,
       isDone: result.isDone,
     };

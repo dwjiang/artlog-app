@@ -12,7 +12,7 @@ import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
 import { accountProvider } from "./lib/validators";
 
-const MAX_DEVICES = 20;
+export const MAX_DEVICES = 20;
 const PURGE_BATCH = 50;
 
 export const linkAccount = mutation({

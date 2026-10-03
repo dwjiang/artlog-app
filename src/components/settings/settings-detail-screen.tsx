@@ -12,11 +12,13 @@ import { AccountSection } from "./account-section";
 import { DevTools } from "./dev-tools";
 import { GeneralPreference } from "./general-preference";
 import { LeaderboardPreference } from "./leaderboard-preference";
+import { NotificationPreferences } from "./notification-preferences";
 import { PhotoLibraryPreference } from "./photo-library-preference";
 
 const titles = {
   account: "Account",
   general: "General",
+  notifications: "Notifications",
   leaderboards: "Leaderboards",
   about: "About",
   developer: "Developer tools",
@@ -56,6 +58,7 @@ export function SettingsDetailScreen({ section }: { section: string }) {
             <PhotoLibraryPreference />
           </>
         )}
+        {section === "notifications" && <NotificationPreferences />}
         {section === "leaderboards" && <LeaderboardPreference onManage={() => setParticipation(true)} />}
         {section === "developer" && __DEV__ && (
           <>

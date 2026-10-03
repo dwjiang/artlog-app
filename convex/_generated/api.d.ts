@@ -149,6 +149,7 @@ import type * as profilePhotoData from "../profilePhotoData.js";
 import type * as profilePhotos from "../profilePhotos.js";
 import type * as profiles from "../profiles.js";
 import type * as promotion from "../promotion.js";
+import type * as push from "../push.js";
 import type * as reports from "../reports.js";
 import type * as retention from "../retention.js";
 import type * as revert from "../revert.js";
@@ -318,6 +319,7 @@ declare const fullApi: ApiFromModules<{
   profilePhotos: typeof profilePhotos;
   profiles: typeof profiles;
   promotion: typeof promotion;
+  push: typeof push;
   reports: typeof reports;
   retention: typeof retention;
   revert: typeof revert;

@@ -84,6 +84,22 @@ jest.mock("expo-media-library", () => ({
   requestPermissionsAsync: jest.fn(async () => ({ status: "denied", granted: false })),
 }));
 
+// expo-notifications warns about Expo Go on import and reaches native modules from Home, Settings, and social flows.
+jest.mock("expo-notifications", () => ({
+  IosAuthorizationStatus: { NOT_DETERMINED: 0, DENIED: 1, AUTHORIZED: 2, PROVISIONAL: 3, EPHEMERAL: 4 },
+  SchedulableTriggerInputTypes: { DATE: "date" },
+  DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",
+  getPermissionsAsync: jest.fn(async () => ({ status: "undetermined", granted: false, ios: { status: 0 } })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "denied", granted: false, ios: { status: 1 } })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ type: "expo", data: "ExponentPushToken[test]" })),
+  setBadgeCountAsync: jest.fn(async () => true),
+  scheduleNotificationAsync: jest.fn(async () => "scheduled"),
+  cancelScheduledNotificationAsync: jest.fn(async () => {}),
+  setNotificationHandler: jest.fn(),
+  useLastNotificationResponse: jest.fn(() => null),
+  clearLastNotificationResponse: jest.fn(),
+}));
+
 // Components render without the provider Expo Router mounts; router tests still read its insets.
 jest.mock("react-native-safe-area-context", () => {
   const actual = jest.requireActual("react-native-safe-area-context");

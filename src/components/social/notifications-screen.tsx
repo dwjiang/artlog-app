@@ -14,7 +14,7 @@ import { reportError } from "@/lib/observability";
 import { notificationAge } from "@/lib/social/presentation";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
-import { groupNotifications } from "@/shared/social/notifications";
+import { groupNotifications, notificationSentence } from "@/shared/social/notifications";
 
 import { api } from "../../../convex/_generated/api";
 import { CompactFriendshipControls } from "./friendship-controls";
@@ -28,7 +28,6 @@ type Item = NotificationPage["page"][number];
 const notificationPage = (result: NotificationPage) => result;
 const notificationId = (item: Item) => item.id;
 type Media = NonNullable<Extract<Item, { kind: "visitLike" }>["media"]>;
-type Segment = { text: string; bold?: boolean };
 
 const LEAD = 44;
 
@@ -130,27 +129,23 @@ export function NotificationsScreen() {
   );
 }
 
-function sentence(row: Item[]): Segment[] {
+function sentence(row: Item[]) {
   const [first] = row;
-  const name = (item: Item): Segment => ({ text: item.actor.name, bold: true });
+  const { actor } = first;
   switch (first.kind) {
     case "friendRequest":
-      return first.relationship.state === "accepted"
-        ? [{ text: "You and " }, name(first), { text: " are now friends." }]
-        : [name(first), { text: " sent you a friend request." }];
+      return notificationSentence({ kind: first.kind, actor, accepted: first.relationship.state === "accepted" });
     case "friendAccepted":
-      return [name(first), { text: " accepted your friend request." }];
-    case "visitLike": {
-      const people =
-        row.length === 1
-          ? [name(first)]
-          : row.length === 2
-            ? [name(first), { text: " and " }, name(row[1])]
-            : [name(first), { text: ` and ${row.length - 1} others` }];
-      return [...people, { text: ` liked your visit to ${first.venue}.` }];
-    }
+      return notificationSentence({ kind: first.kind, actor });
+    case "visitLike":
+      return notificationSentence({
+        kind: first.kind,
+        people: row.map((item) => item.actor),
+        count: row.length,
+        venue: first.venue,
+      });
     case "visitComment":
-      return [name(first), { text: ` commented on your visit to ${first.venue}:` }];
+      return notificationSentence({ kind: first.kind, actor, venue: first.venue });
   }
 }
 

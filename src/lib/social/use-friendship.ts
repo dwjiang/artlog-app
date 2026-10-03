@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { captureOwner } from "@/lib/account/owner-store";
 import { convexErrorCode } from "@/lib/network-error";
+import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -56,6 +57,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
       if (current()) {
         setConfirmed(result);
         if (action === "accept") showToast("You’re now friends.");
+        if (action === "request") offerNotifications();
         return true;
       }
     } catch (cause) {

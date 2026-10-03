@@ -18,6 +18,7 @@ import { signInRoute } from "@/lib/account/sign-in-context";
 import { formatVisitDate } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import { arrangeShareGrid, sharedOrder } from "@/lib/visits/share-order";
@@ -234,6 +235,7 @@ export function VisitShareScreen() {
           pathname: "/",
           params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
         });
+        if (audience !== "private") offerNotifications();
         return;
       }
       if (changed) await patchVisit(visit.localId, { visibility: previous }, visit.owner);

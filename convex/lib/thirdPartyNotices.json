@@ -344,6 +344,13 @@
       "text": 2
     },
     {
+      "name": "expo-application",
+      "version": "57.0.3",
+      "license": "MIT",
+      "source": "npm",
+      "text": 2
+    },
+    {
       "name": "expo-asset",
       "version": "57.0.18",
       "license": "MIT",
@@ -528,6 +535,13 @@
     {
       "name": "expo-network",
       "version": "57.0.2",
+      "license": "MIT",
+      "source": "npm",
+      "text": 2
+    },
+    {
+      "name": "expo-notifications",
+      "version": "57.0.21",
       "license": "MIT",
       "source": "npm",
       "text": 2
