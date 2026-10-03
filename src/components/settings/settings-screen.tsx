@@ -109,12 +109,12 @@ export function SettingsScreen() {
           />
         </View>
       )}
-      <SettingsGroup title="Your journal">
+      <SettingsGroup title="App">
         <SettingsRow label="General" icon="gearshape" onPress={detail("general")} />
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>
-      <SettingsGroup title={account?.linked ? "Your data" : "Artlog"}>
+      <SettingsGroup title="Legal">
         <SettingsRow label="About" icon="info.circle" onPress={detail("about")} />
         <SettingsRow label="Privacy Policy" icon="lock" external onPress={() => void openLegalPage("privacy")} />
         <SettingsRow label="Terms of Service" icon="doc.text" external onPress={() => void openLegalPage("terms")} />
