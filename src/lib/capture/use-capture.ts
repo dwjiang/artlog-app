@@ -41,16 +41,21 @@ type Completed = {
 };
 type VenueContext = Pick<CaptureInput, "venueId" | "visitId" | "visitLocalId">;
 
-/** `visitLocalId` pins every capture to that visit; `onVisitUnavailable` runs when it no longer exists so the caller can drop it. */
+/**
+ * `visitLocalId` pins every capture to that visit; `onVisitUnavailable` runs when it no longer exists so the caller can
+ * drop it. `view` is the cover-fitted camera preview, which shows only part of each photo.
+ */
 export function useCapture({
   active = true,
   focused = true,
   visitLocalId,
+  view,
   onVisitUnavailable,
 }: {
   active?: boolean;
   focused?: boolean;
   visitLocalId?: string;
+  view?: CaptureInput["view"];
   onVisitUnavailable?: () => void;
 } = {}) {
   const identify = useAction(api.identify.identify);
@@ -281,6 +286,7 @@ export function useCapture({
           quad: attempt.quad,
           source: "camera",
           turns,
+          view,
           capturedAt,
         };
       },

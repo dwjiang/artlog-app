@@ -12,11 +12,11 @@ import type { CaptureDependencies, CaptureOptions, PreparedPainting, Quad, Warpe
 import { triage } from "./triage";
 
 export const warper: Warper = {
-  async warpCandidates(photoUri, quad, size, nested, turns = 0) {
+  async warpCandidates(photoUri, quad, size, nested, turns = 0, view) {
     const visionRect = getVisionRect();
     const path = filePath(photoUri);
     const still = await visionRect.detectStill(path, turns);
-    const selected = selectCaptureQuad(quad, still);
+    const selected = selectCaptureQuad(quad, still, view);
     const inner = selected && nested ? nestedQuads(selected, still) : [];
     if (__DEV__) {
       console.debug("Still analysis", {

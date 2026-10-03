@@ -66,6 +66,33 @@ it("retains the exact model crop and exposes upright dimensions and native conte
   expect(mockWarp).toHaveBeenCalledTimes(1);
 });
 
+it("warps the boundary a shutter photo showed whole on the preview, not a larger one running off screen", async () => {
+  const offScreen = [
+    { x: 0.016, y: 0.073 },
+    { x: 0.812, y: 0.065 },
+    { x: 0.744, y: 0.868 },
+    { x: 0.016, y: 0.913 },
+  ];
+  const onScreen = [
+    { x: 0.273, y: 0.26 },
+    { x: 0.801, y: 0.321 },
+    { x: 0.793, y: 0.639 },
+    { x: 0.283, y: 0.626 },
+  ];
+  mockStill.mockResolvedValue({
+    width: 3024,
+    height: 4032,
+    rectangles: [
+      { corners: offScreen, confidence: 1 },
+      { corners: onScreen, confidence: 1 },
+    ],
+    subjects: [],
+  });
+  mockWarp.mockResolvedValue({ cropPath: "/crop.jpg", usedQuad: onScreen });
+  await warper.warpCandidates("file:///shutter.jpg", null, 512, false, 0, { width: 402, height: 874 });
+  expect(mockWarp).toHaveBeenCalledWith("/shutter.jpg", onScreen, 512);
+});
+
 it("does not treat a prominent internal portrait subject as the canvas boundary", async () => {
   mockStill.mockResolvedValue({
     width: 1200,

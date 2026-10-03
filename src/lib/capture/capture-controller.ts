@@ -8,6 +8,7 @@ import {
   MISS_GRACE_MS,
   previewQuad,
   RectTracker,
+  showsWhole,
   toQuad,
   type FrameSize,
   type Guidance,
@@ -208,7 +209,11 @@ export class CaptureController {
       // toward a stable window.
       if (now - this.lastCandidateAt <= MISS_GRACE_MS) return;
       this.tracker.reset();
-      const framed = largestObservation(centered);
+      // A painting inside a mat, screen or wall panel that runs off screen gets its own hint: fitting that whole
+      // boundary in view would only shrink the painting.
+      const framed =
+        largestObservation(centered.filter((o) => showsWhole(toQuad(o.corners), detection, preview)))
+        ?? largestObservation(centered);
       if (framed) {
         this.lastFramedAt = now;
         this.showFeedback({
