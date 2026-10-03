@@ -10,6 +10,7 @@ import { afterEach, beforeEach, test } from "node:test";
 let directory: string;
 let models: string;
 let compiled: string;
+let notices: string;
 const contract = {
   modelVersion: "test-v1",
   inputSize: 512,
@@ -19,9 +20,11 @@ const contract = {
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "artlog-model-test-"));
   models = join(directory, "modules/coreml-embed/ios/Models");
+  notices = join(directory, "modules/coreml-embed/ios/model-notices");
   compiled = join(models, "TestModel.mlmodelc");
   await mkdir(join(compiled, "weights"), { recursive: true });
   await mkdir(join(compiled, "analytics"));
+  await cp(new URL("../../modules/coreml-embed/ios/model-notices", import.meta.url), notices, { recursive: true });
   await mkdir(join(directory, "scripts/model"), { recursive: true });
   await mkdir(join(directory, "shared/model"), { recursive: true });
   await copyFile(new URL("./check-model.mts", import.meta.url), join(directory, "scripts/model/check-model.mts"));
@@ -103,6 +106,28 @@ await test("rejects a model whose version or dimensions do not match the app", a
 await test("rejects corrupted weights even when the model version is correct", async () => {
   await writeFile(join(compiled, "weights/weight.bin"), "wrong weights");
   assert.throws(checkModel, /weights.*SHA-256/);
+});
+
+await test("rejects a build archive missing either required NVIDIA legal resource", async () => {
+  for (const file of ["Notice.txt", "nvidia-open-model-license.pdf"]) {
+    const path = join(notices, "c-radio-v3-b", file);
+    const original = await readFile(path);
+    await rm(path);
+    assert.throws(checkModel, /Missing NVIDIA.*Restore.*model-notices/);
+    await writeFile(path, original);
+  }
+});
+
+await test("rejects an altered or truncated NVIDIA agreement", async () => {
+  const path = join(notices, "c-radio-v3-b/nvidia-open-model-license.pdf");
+  const original = await readFile(path);
+  await writeFile(path, original.subarray(0, 1024));
+  assert.throws(checkModel, /NVIDIA.*license.*SHA-256/);
+});
+
+await test("rejects a notice without NVIDIA's required attribution", async () => {
+  await writeFile(join(notices, "c-radio-v3-b/Notice.txt"), "C-RADIOv3-B by NVIDIA");
+  assert.throws(checkModel, /NVIDIA.*attribution/);
 });
 
 async function compilerFixture() {

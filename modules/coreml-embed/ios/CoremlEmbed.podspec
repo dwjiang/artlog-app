@@ -18,5 +18,5 @@ Pod::Spec.new do |s|
 
   s.source_files = '**/*.{h,m,mm,swift}'
   # Precompiled by `xcrun coremlcompiler`; Xcode does not compile CocoaPods resources.
-  s.resources = ['Models/*.mlmodelc', 'Models/model-manifest.json']
+  s.resources = ['Models/*.mlmodelc', 'Models/model-manifest.json', 'model-notices']
 end
