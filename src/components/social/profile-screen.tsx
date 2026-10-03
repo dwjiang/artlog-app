@@ -13,6 +13,7 @@ import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components
 import { Gallery } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
+import { isMutualFriend, useFriends } from "@/lib/social/use-friends";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import type { VisitVisibility } from "@/shared/journal/contracts";
@@ -22,7 +23,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
 import { InCommonSection } from "./in-common";
-import { OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
+import { friendStat, MutualFriends, OwnProfileActions, ProfileHeader, ShareProfileButton } from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
 import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
@@ -57,6 +58,11 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     session.key,
   );
   const blocked = relationship.data?.blocked === true;
+  const friends = useFriends(session, profileId ? (profileId as Id<"profiles">) : undefined);
+  const openFriends = () =>
+    own
+      ? router.push({ pathname: "/people", params: { filter: "friends" } })
+      : router.push({ pathname: "/profile-friends", params: { profileId } });
   const blocking = useBlock(session);
   const wall = useSocialQuery(api.walls.getPublic, profile.data && !blocked ? args : "skip", session.key);
   const canReadVisits = !session.offline && !!profile.data && !blocked;
@@ -80,6 +86,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     onRefresh: () => {
       profile.refresh();
       relationship.refresh();
+      friends.refresh();
       if (tab === "wall") wall.refresh();
       else visits.refresh();
     },
@@ -172,19 +179,23 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             stats={[
               { noun: "artwork", count: person.publishedWallCount },
               ...(visitCount !== undefined ? [{ noun: "visit", count: visitCount }] : []),
+              ...friendStat(friends, openFriends),
             ]}
           >
             {own ? (
               <OwnProfileActions profileId={person.profileId} />
             ) : (
-              <FriendshipControls
-                key={`${session.key}:${profileId}`}
-                profileId={person.profileId}
-                session={session}
-                trailing={<ShareProfileButton profileId={person.profileId} />}
-                unblocking={blocking.pending === person.profileId}
-                onUnblock={unblock}
-              />
+              <>
+                <MutualFriends friends={friends.data?.filter(isMutualFriend) ?? []} onPress={openFriends} />
+                <FriendshipControls
+                  key={`${session.key}:${profileId}`}
+                  profileId={person.profileId}
+                  session={session}
+                  trailing={<ShareProfileButton profileId={person.profileId} />}
+                  unblocking={blocking.pending === person.profileId}
+                  onUnblock={unblock}
+                />
+              </>
             )}
           </ProfileHeader>
           {!own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}

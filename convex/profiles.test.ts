@@ -13,6 +13,7 @@ import { STARTER_WALLS } from "../shared/wall/defaults";
 import { api, internal } from "./_generated/api";
 import { projectArtwork, projectSharedVisitCard, projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
+import { befriend, type SocialUser, socialUser } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
 import { harness } from "./test.helpers";
 
@@ -586,6 +587,43 @@ it("lists incoming requests only, removing accepted and blocked connections", as
   });
   expect(await c.as.query(api.profiles.requests, {})).toEqual([]);
   await expect(t.query(api.profiles.requests, {})).rejects.toThrow("unauthenticated");
+});
+
+it("lists a person’s friends with the viewer’s relationship, leaving out blocked people", async () => {
+  const t = harness();
+  const jamie = await socialUser(t, "Jamie");
+  const viewer = await socialUser(t, "Ada");
+  const mutual = await socialUser(t, "Ben");
+  const other = await socialUser(t, "Cy");
+  const hidden = await socialUser(t, "Dee");
+  const requester = await socialUser(t, "Eve");
+  for (const friend of [viewer, mutual, other, hidden]) await befriend(jamie, friend);
+  await befriend(viewer, mutual);
+  await requester.as.mutation(api.friendships.request, { profileId: jamie.profileId, revision: 0 });
+  await viewer.as.mutation(api.friendships.block, { scope: viewer.scope, profileId: hidden.profileId });
+  const friendsOf = async (user: SocialUser, profileId = jamie.profileId) => {
+    const people = await user.as.query(api.profiles.friends, { profileId });
+    return people === null ? null : people.map((p) => [p.name, p.relationship?.state]);
+  };
+
+  expect(await friendsOf(viewer)).toEqual([
+    ["Ada", undefined],
+    ["Ben", "accepted"],
+    ["Cy", "none"],
+  ]);
+  expect(await friendsOf(jamie)).toEqual([
+    ["Ada", "accepted"],
+    ["Ben", "accepted"],
+    ["Cy", "accepted"],
+    ["Dee", "accepted"],
+  ]);
+  expect(await friendsOf(requester, requester.profileId)).toEqual([]);
+
+  // A block in either direction hides the whole list, as it hides the wall.
+  await jamie.as.mutation(api.friendships.block, { scope: jamie.scope, profileId: requester.profileId });
+  expect(await friendsOf(requester)).toBeNull();
+  expect(await friendsOf(jamie, requester.profileId)).toBeNull();
+  await expect(t.query(api.profiles.friends, { profileId: jamie.profileId })).rejects.toThrow("unauthenticated");
 });
 
 it("embeds the viewer’s relationship in browse lists and leaves guests without one", async () => {

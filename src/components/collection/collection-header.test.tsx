@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { getFunctionName as mockGetFunctionName } from "convex/server";
 
 import { removeSetting } from "@/db/repos/settings";
 import { setLocalProfileName } from "@/lib/account/local-profile";
@@ -13,13 +14,17 @@ jest.mock("@/db/client", () => ({
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }));
-let mockSession: { status: string; key: string } = { status: "signed-out", key: "guest" };
+let mockSession: { status: string; key: string; profileId?: string } = { status: "signed-out", key: "guest" };
 let mockProfile: object | undefined;
+let mockFriends: object[] = [];
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
-  useSocialQuery: () => ({ data: mockProfile }),
+  useSocialQuery: (query: Parameters<typeof mockGetFunctionName>[0], args: unknown) => ({
+    data: args === "skip" ? undefined : mockGetFunctionName(query) === "profiles:friends" ? mockFriends : mockProfile,
+    loading: false,
+  }),
 }));
 
 beforeEach(async () => {
@@ -28,6 +33,7 @@ beforeEach(async () => {
   switchOwner(anonymousOwner());
   mockSession = { status: "signed-out", key: "guest" };
   mockProfile = undefined;
+  mockFriends = [];
 });
 
 it("does not report zero artworks before collection counts load", async () => {
@@ -73,6 +79,7 @@ it.each([0, 1])("keeps account promotion out of the guest header with %i saved a
 it("offers nothing to share from an empty guest collection", async () => {
   await render(<CollectionHeader />);
   expect(screen.getByLabelText("0 artworks")).toBeOnTheScreen();
+  expect(screen.queryByLabelText(/friends?$/)).toBeNull();
   expect(screen.queryByText("YC", { includeHiddenElements: true })).toBeNull();
   expect(screen.queryByRole("button", { name: "Share your wall" })).toBeNull();
   expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled();
@@ -81,7 +88,7 @@ it("offers nothing to share from an empty guest collection", async () => {
 describe("signed in", () => {
   beforeEach(() => {
     switchOwner("account:alex");
-    mockSession = { status: "ready", key: "alex" };
+    mockSession = { status: "ready", key: "alex", profileId: "alex" };
   });
 
   it("shows your profile the way other people see it, with your collection counts", async () => {
@@ -109,6 +116,22 @@ describe("signed in", () => {
     await act(() => switchOwner(anonymousOwner()));
     expect(await screen.findByRole("header", { name: "Local Alex" })).toBeOnTheScreen();
     expect(screen.queryByText("@alex")).toBeNull();
+  });
+
+  it("counts your friends and opens them from the count", async () => {
+    mockProfile = { profileId: "alex", name: "Alex Morgan", username: "alex", publishedWallCount: 0 };
+    mockFriends = [{ profileId: "sam" }, { profileId: "kai" }];
+    await render(<CollectionHeader artworkCount={13} visitCount={1} />);
+    await fireEvent.press(screen.getByRole("button", { name: "2 friends" }));
+    expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/people", params: { filter: "friends" } });
+  });
+
+  it("holds the friend count’s place while your session resolves", async () => {
+    mockSession = { status: "loading", key: "alex" };
+    await render(<CollectionHeader artworkCount={13} visitCount={1} />);
+    expect(screen.getByRole("progressbar", { name: "Loading counts" })).toBeOnTheScreen();
+    expect(screen.getByText("friends", { includeHiddenElements: true })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /friends?$/ })).toBeNull();
   });
 
   it("says so when your profile has no bio", async () => {

@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { View, useWindowDimensions } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { suggestionReasonText } from "@/lib/social/presentation";
 import type { PublicProfile } from "@/lib/social/types";
 import type { AvatarId } from "@/shared/social/avatars";
 
@@ -13,6 +14,7 @@ import { ProfileActionRow } from "./friendship-controls";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileBio } from "./profile-bio";
 import { socialStyles } from "./social-styles";
+import { SuggestionReasonLine } from "./suggested-people";
 
 type ProfileIdentity = {
   name: string;
@@ -23,7 +25,7 @@ type ProfileIdentity = {
   profile?: { photoUrl?: string; avatar: AvatarId; bio?: string };
 };
 /** A count left undefined is still loading. */
-type ProfileStat = { noun: string; count?: number };
+type ProfileStat = { noun: string; count?: number; onPress?: () => void };
 
 const AVATAR_SIZE = 84;
 
@@ -45,18 +47,45 @@ export function ProfileHeader({
   const large = useWindowDimensions().fontScale >= 1.6;
   const countsLoading = stats.some((stat) => stat.count === undefined);
   const statRow = (
-    <View style={{ flexDirection: "row", justifyContent: "center", gap: 36 }}>
-      {stats.map(({ noun, count }) => {
+    <View
+      style={{
+        alignSelf: "stretch",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        columnGap: 36,
+        rowGap: 12,
+      }}
+    >
+      {stats.map(({ noun, count, onPress }) => {
         const label = count === 1 ? noun : `${noun}s`;
-        return (
+        const content = (
+          <>
+            {count === undefined ? <Ghost width={32} height={38} /> : <Text variant="display">{count}</Text>}
+            <Text style={socialStyles.caption}>{label}</Text>
+          </>
+        );
+        return onPress && count !== undefined ? (
+          <Pressable
+            key={noun}
+            accessibilityRole="button"
+            accessibilityLabel={`${count} ${label}`}
+            onPress={onPress}
+            style={({ pressed }) => [
+              { alignItems: "center", minWidth: 44, maxWidth: "100%" },
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            {content}
+          </Pressable>
+        ) : (
           <View
             key={noun}
             accessible={count !== undefined}
             accessibilityLabel={count === undefined ? undefined : `${count} ${label}`}
-            style={{ alignItems: "center" }}
+            style={{ alignItems: "center", maxWidth: "100%" }}
           >
-            {count === undefined ? <Ghost width={32} height={38} /> : <Text variant="display">{count}</Text>}
-            <Text style={socialStyles.caption}>{label}</Text>
+            {content}
           </View>
         );
       })}
@@ -110,9 +139,42 @@ export function ProfileHeader({
           </View>
         </LoadingSkeleton>
       )}
-      {countsLoading ? <LoadingSkeleton label="Loading counts">{statRow}</LoadingSkeleton> : statRow}
+      {countsLoading ? (
+        <LoadingSkeleton label="Loading counts" style={{ alignSelf: "stretch" }}>
+          {statRow}
+        </LoadingSkeleton>
+      ) : (
+        statRow
+      )}
       {children && <View style={{ alignSelf: "stretch" }}>{children}</View>}
     </View>
+  );
+}
+
+/** The friend count while it loads or once the viewer may read it, and no stat where they can't. */
+export function friendStat(
+  friends: { data?: readonly unknown[] | null; loading: boolean },
+  onPress: () => void,
+): ProfileStat[] {
+  return friends.loading || friends.data ? [{ noun: "friend", count: friends.data?.length, onPress }] : [];
+}
+
+/** “Friends with Ana and 2 others” on someone else's profile, led by the first two friends you share. */
+export function MutualFriends({ friends, onPress }: { friends: PublicProfile[]; onPress: () => void }) {
+  if (friends.length === 0) return null;
+  const reason = { kind: "mutual" as const, count: friends.length, friends: friends.slice(0, 2) };
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={suggestionReasonText(reason)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        { alignSelf: "center", minHeight: 44, justifyContent: "center" },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      <SuggestionReasonLine reason={reason} />
+    </Pressable>
   );
 }
 
