@@ -12,6 +12,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, NavigationTheme, Typography } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useOwnerGeneration } from "@/lib/account/owner-store";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { formatVisitDate } from "@/lib/journal/history";
@@ -63,6 +64,7 @@ export function VisitShareLayout() {
   return <ShareProvider key={`${owner}:${visitId}`} visit={visit} />;
 }
 function ShareProvider({ visit }: { visit: VisitSummary }) {
+  const reduced = useReducedMotion();
   const { audience } = useLocalSearchParams<{ audience?: string }>();
   const sharing = useVisitSharing(
     visit.localId,
@@ -76,7 +78,7 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
   }, [controller, token, generation, visit.owner]);
   return (
     <ShareContext value={{ sharing, visit }}>
-      <Stack screenOptions={NavigationTheme}>
+      <Stack screenOptions={{ ...NavigationTheme, animation: reduced ? "fade" : "default" }}>
         <Stack.Screen name="index" options={{ title: "Share visit" }} />
         <Stack.Screen name="photos" options={{ title: "Choose photos", headerBackTitle: "Back" }} />
       </Stack>
@@ -346,6 +348,8 @@ export function VisitShareScreen() {
             scrollableRef={scrollRef}
             sortEnabled={!sharing.busy}
             hapticsEnabled
+            itemEntering={null}
+            itemExiting={null}
             onDragEnd={({ data }) =>
               arrange(
                 data.map((work) => work.localId),

@@ -6,6 +6,9 @@ import type { GlobeCamera } from "@/lib/journal/globe-geometry";
 
 import { useGlobeCamera } from "./use-globe-camera";
 
+let mockReduced = false;
+jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => mockReduced }));
+
 jest.unmock("react-native-reanimated");
 jest.mock("react-native-worklets", () => ({
   ...jest.requireActual("react-native-worklets/src/mock"),
@@ -15,6 +18,7 @@ jest.mock("react-native-worklets", () => ({
 
 setUpTests();
 beforeEach(() => {
+  mockReduced = false;
   jest.useFakeTimers();
 });
 afterEach(() => {
@@ -171,4 +175,26 @@ it("keeps direct dragging but skips momentum when Reduce Motion is enabled", asy
   expect(released.yaw).toBeGreaterThan(0);
   await act(() => jest.advanceTimersByTime(1000));
   expect(result.current.camera.get()).toEqual(released);
+});
+
+it("stops existing momentum when Reduce Motion changes and keeps direct dragging available", async () => {
+  const onChange = jest.fn();
+  const initial = { yaw: 0, pitch: 0, zoom: 1 };
+  const { result, rerender } = await renderCamera(initial, onChange);
+  await act(() => flick(result.current));
+  await act(() => jest.advanceTimersByTime(100));
+  const interrupted = result.current.camera.get();
+  expect(interrupted.yaw).toBeGreaterThan(17);
+
+  mockReduced = true;
+  await rerender({ camera: initial });
+  await act(() => jest.advanceTimersByTime(3000));
+  expect(result.current.camera.get()).toEqual(interrupted);
+  expect(onChange).toHaveBeenLastCalledWith(interrupted);
+
+  await act(() => flick(result.current));
+  const dragged = result.current.camera.get();
+  expect(dragged.yaw).toBeGreaterThan(interrupted.yaw);
+  await act(() => jest.advanceTimersByTime(1000));
+  expect(result.current.camera.get()).toEqual(dragged);
 });

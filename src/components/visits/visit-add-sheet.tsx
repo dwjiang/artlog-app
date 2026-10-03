@@ -1,9 +1,10 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
@@ -101,14 +102,14 @@ function Option({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityHint={detail}
       accessibilityState={{ busy, disabled: disabled || busy }}
       disabled={disabled || busy}
       onPress={onPress}
-      style={({ pressed }) => [styles.option, pressed && styles.pressed]}
+      style={styles.option}
     >
       <View style={styles.glyph}>
         <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={styles.glyphIcon} />
@@ -124,7 +125,7 @@ function Option({
       ) : (
         <Image source="sf:chevron.right" tintColor={Gallery.muted} style={styles.chevron} accessible={false} />
       )}
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -138,7 +139,6 @@ const styles = StyleSheet.create({
     gap: Spacing.compact,
     paddingVertical: Spacing.two,
   },
-  pressed: { opacity: 0.6 },
   glyph: {
     width: 44,
     height: 44,

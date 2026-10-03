@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable } from "react-native";
+import { Keyboard } from "react-native";
 
 import { SearchEmptyState } from "@/components/empty-state";
+import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { captureOwner } from "@/lib/account/owner-store";
@@ -168,7 +169,7 @@ export function MuseumSearch({
         />
       ) : null}
       {venues.map((row) => (
-        <Pressable
+        <MotionPressable
           key={row.id}
           accessibilityRole="button"
           accessibilityLabel={`${row.name}, ${venueLocation(row).location || row.name}`}
@@ -179,7 +180,7 @@ export function MuseumSearch({
         >
           <Text style={styles.body}>{row.name}</Text>
           <Text style={styles.caption}>{venueLocation(row).location}</Text>
-        </Pressable>
+        </MotionPressable>
       ))}
       {venues.length === 0 && places.length > 0 && (
         <>
@@ -189,7 +190,7 @@ export function MuseumSearch({
           {places.map((place) => {
             const key = `${place.name}:${place.lat}:${place.lng}`;
             return (
-              <Pressable
+              <MotionPressable
                 key={key}
                 accessibilityRole="button"
                 accessibilityLabel={`${place.name}, ${placeLocation(place) || place.name}`}
@@ -205,7 +206,7 @@ export function MuseumSearch({
               >
                 <Text style={styles.body}>{place.name}</Text>
                 <Text style={styles.caption}>{adding === key ? "Adding this museum…" : placeLocation(place)}</Text>
-              </Pressable>
+              </MotionPressable>
             );
           })}
         </>

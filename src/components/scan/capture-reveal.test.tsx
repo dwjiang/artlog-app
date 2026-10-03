@@ -7,6 +7,7 @@ import { CaptureReveal, REVEAL_TIMEOUT_MS } from "./capture-reveal";
 import { CROSSFADE_MS, HIGHLIGHT_MS, SHINE_MS, STRAIGHTEN_MS } from "./painting-reveal";
 
 let mockReduced = false;
+jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => mockReduced }));
 const mockAnimations: { duration: number; finish?: (done: boolean) => void }[] = [];
 jest.mock("react-native-worklets", () => ({
   scheduleOnRN: (fn: () => void) => fn(),
@@ -17,7 +18,6 @@ jest.mock("react-native-reanimated", () => {
   return {
     __esModule: true,
     default: { View },
-    useReducedMotion: () => mockReduced,
     useSharedValue: (initial: number) => useRef({ get: () => initial, set: jest.fn() }).current,
     useAnimatedStyle: (fn: () => unknown) => fn(),
     withTiming: (value: number, config: { duration: number }, finish?: (done: boolean) => void) => {
@@ -27,7 +27,7 @@ jest.mock("react-native-reanimated", () => {
     withDelay: (_ms: number, value: number) => value,
     cancelAnimation: jest.fn(),
     ReduceMotion: { Never: "never" },
-    Easing: { bezier: jest.fn() },
+    Easing: { bezier: jest.fn(), linear: jest.fn() },
   };
 });
 jest.mock("expo-image", () => {
@@ -110,6 +110,26 @@ it("does not complete a cancelled shine", async () => {
   await fireEvent(screen.getByLabelText("Isolated painting"), "display");
   await act(() => mockAnimations.at(-1)!.finish!(false));
   expect(complete).not.toHaveBeenCalled();
+});
+
+it("switches an in-flight reveal to a crossfade when Reduce Motion turns on", async () => {
+  const complete = jest.fn();
+  const view = await render(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await fireEvent(screen.getByLabelText("Captured painting"), "layout", {
+    nativeEvent: { layout: { width: 390, height: 844 } },
+  });
+  await fireEvent(screen.getByLabelText("Isolated painting"), "display");
+  const shine = mockAnimations.at(-1)!;
+
+  mockReduced = true;
+  await view.rerender(<CaptureReveal presentation={presentation} onComplete={complete} />);
+  await act(() => shine.finish?.(false));
+  expect(complete).not.toHaveBeenCalled();
+  expect(mockAnimations.at(-1)?.duration).toBe(CROSSFADE_MS);
+
+  await act(() => mockAnimations.at(-1)?.finish?.(true));
+  await act(() => jest.advanceTimersByTime(REVEAL_TIMEOUT_MS));
+  expect(complete).toHaveBeenCalledTimes(1);
 });
 
 it("shows a photo taken with the phone turned the way the portrait preview showed it", async () => {

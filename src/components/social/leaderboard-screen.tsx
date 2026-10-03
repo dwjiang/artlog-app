@@ -1,7 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
-import Animated, { useAnimatedRef, type CSSAnimationProperties } from "react-native-reanimated";
+import { StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 
 import { SignInActions } from "@/components/account/sign-in-actions";
 import { ActionStack } from "@/components/action-stack";
@@ -11,6 +11,7 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPodium } from "@/components/empty-state-art";
 import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -25,17 +26,6 @@ import { api } from "../../../convex/_generated/api";
 import { LeaderboardParticipation } from "./leaderboard-participation";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
-
-// FlatList never unmounts its first `initialNumToRender` rows, so only a newly loaded board fades in, not rows
-// that mount later while scrolling.
-const REVEALED_ROWS = 15;
-// `satisfies` keeps the literal type: the widened CSSAnimationProperties passes or fails Animated.View's style check
-// depending on the order TypeScript happens to evaluate the program in.
-const reveal = {
-  animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
-  animationDuration: 250,
-  animationTimingFunction: "ease-out",
-} satisfies CSSAnimationProperties;
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
@@ -90,7 +80,7 @@ export function LeaderboardScreen() {
         contentContainerStyle={{ paddingBottom: 24, minHeight: room.minHeight }}
         onLayout={room.onLayout}
         onScroll={room.onScroll}
-        initialNumToRender={REVEALED_ROWS}
+        initialNumToRender={15}
         refreshControl={pull.refreshControl}
         ListHeaderComponent={
           <Animated.View
@@ -132,8 +122,8 @@ export function LeaderboardScreen() {
           const aboveOwn = rows[index + 1]?.profile.profileId === session.profileId;
           const tied = rows[index - 1]?.rank === item.rank || rows[index + 1]?.rank === item.rank;
           return (
-            <Animated.View style={index < REVEALED_ROWS && reveal}>
-              <Pressable
+            <View>
+              <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel={`${tied ? "Tied rank" : "Rank"} ${item.rank}, ${item.profile.name}${own ? ", you" : ""}, ${item.score} ${unit}${item.score === 1 ? "" : "s"}. Open public profile.`}
                 onPress={() =>
@@ -161,8 +151,8 @@ export function LeaderboardScreen() {
                   {own && <Text style={[styles.caption, { fontWeight: "600" }]}>You</Text>}
                 </View>
                 <Text style={styles.score}>{item.score}</Text>
-              </Pressable>
-            </Animated.View>
+              </MotionPressable>
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -247,11 +237,11 @@ export function LeaderboardScreen() {
               </Text>
             )}
             {rows.length > 0 && metric === "artworks" && (
-              <Animated.View style={reveal}>
+              <View>
                 <Text style={styles.explanation}>
                   Each artwork counts once. Extra photos and encounters don’t add to the total.
                 </Text>
-              </Animated.View>
+              </View>
             )}
           </View>
         }

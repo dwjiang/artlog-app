@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { type ContentReportTarget, REPORT_NOUNS, reportHref } from "@/lib/social/report";
@@ -21,7 +22,7 @@ export function ReportableHeading({
     <View style={styles.row}>
       <View style={styles.heading}>{children}</View>
       {report && (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={`Report ${REPORT_NOUNS[report.kind]}`}
           accessibilityState={{ disabled }}
@@ -34,13 +35,13 @@ export function ReportableHeading({
                 : reportHref(report.kind, report.artworkId, report.kind === "audio" ? report.renderId : undefined),
             )
           }
-          style={({ pressed }) => [styles.report, { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
+          style={[styles.report, { opacity: disabled ? 0.4 : 1 }]}
         >
           <Image source="sf:flag" tintColor={Gallery.muted} style={styles.flag} accessible={false} />
           <ThemedText variant="secondary" themeColor="textSecondary">
             Report
           </ThemedText>
-        </Pressable>
+        </MotionPressable>
       )}
     </View>
   );

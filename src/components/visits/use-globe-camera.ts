@@ -3,6 +3,7 @@ import { Gesture } from "react-native-gesture-handler";
 import { cancelAnimation, ReduceMotion, useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { GlobeCamera } from "@/lib/journal/globe-geometry";
 
 const YAW_PER_POINT = 0.34;
@@ -10,6 +11,7 @@ const PITCH_PER_POINT = 0.28;
 const MAX_PITCH = 75;
 
 export function useGlobeCamera(initialCamera: GlobeCamera, onCameraChange?: (camera: GlobeCamera) => void) {
+  const reduced = useReducedMotion();
   const yaw = useSharedValue(initialCamera.yaw);
   const pitch = useSharedValue(initialCamera.pitch);
   const zoom = useSharedValue(initialCamera.zoom);
@@ -59,6 +61,18 @@ export function useGlobeCamera(initialCamera: GlobeCamera, onCameraChange?: (cam
     saveIfIdle();
   }
 
+  const stopMomentum = useEffectEvent(() => {
+    scheduleOnUI(() => {
+      "worklet";
+      if (remainingDecays.get() === 0) return;
+      stop();
+      saveIfIdle();
+    });
+  });
+  useEffect(() => {
+    if (reduced) stopMomentum();
+  }, [reduced]);
+
   // Session updates also reach the globe underneath the expanded modal.
   const syncCamera = useEffectEvent((value: GlobeCamera) => {
     scheduleOnUI(() => {
@@ -101,7 +115,7 @@ export function useGlobeCamera(initialCamera: GlobeCamera, onCameraChange?: (cam
       );
     })
     .onEnd((event, success) => {
-      if (!success || pinching.get()) return;
+      if (!success || pinching.get() || reduced) return;
       remainingDecays.set(2);
       yaw.set(
         withDecay(

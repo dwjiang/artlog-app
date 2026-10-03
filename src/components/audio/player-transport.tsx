@@ -1,8 +1,9 @@
 import Slider from "@react-native-community/slider";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { audioTime } from "@/lib/audio/narration";
@@ -98,7 +99,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           disabled={!seekable}
           onPress={() => void audio.controller.seek(audio.position - 15)}
         />
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={
             preparing
@@ -112,7 +113,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           accessibilityState={{ busy: preparing, disabled: preparing }}
           disabled={preparing}
           onPress={audio.controller.toggle}
-          style={({ pressed }) => [styles.play, { opacity: pressed ? 0.75 : 1 }]}
+          style={styles.play}
         >
           {preparing ? (
             <LoadingRing color={Gallery.surface} size={36} accessible={false} />
@@ -123,7 +124,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
               color={Gallery.surface}
             />
           )}
-        </Pressable>
+        </MotionPressable>
         <AudioIconButton
           name="goforward.15"
           label="Forward 15 seconds"
@@ -187,12 +188,12 @@ function TransportAction({
   children: ReactNode;
 }) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.action, selected && styles.selected, { opacity: pressed ? 0.6 : 1 }]}
+      style={[styles.action, selected && styles.selected]}
     >
       {children}
       <Text
@@ -203,7 +204,7 @@ function TransportAction({
       >
         {label}
       </Text>
-    </Pressable>
+    </MotionPressable>
   );
 }
 const styles = StyleSheet.create({

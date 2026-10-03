@@ -1,9 +1,10 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
+import Animated, { cubicBezier } from "react-native-reanimated";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Spacing } from "@/constants/theme";
+import { Colors, Motion, Spacing } from "@/constants/theme";
 import type { LabelStage } from "@/lib/label/flow";
 
 export const STEP_LABELS = {
@@ -24,6 +25,12 @@ const ORDER: Record<LabelStage, number> = {
   done: 3,
 };
 const ICON_SIZE = 20;
+const easeOut = cubicBezier(...Motion.easeOut);
+const iconTransition = {
+  transitionProperty: "opacity",
+  transitionDuration: Motion.state,
+  transitionTimingFunction: easeOut,
+} as const;
 
 function stepsFor(qr: boolean): { stage: LabelStage; label: string }[] {
   return [
@@ -54,13 +61,16 @@ export function ProgressSteps({ stage, qr }: { stage: LabelStage; qr: boolean })
             accessibilityState={{ checked: done, busy: active }}
           >
             <View style={styles.icon}>
-              {done ? (
+              <Animated.View style={[styles.iconLayer, iconTransition, { opacity: done ? 1 : 0 }]}>
                 <Image source="sf:checkmark.circle.fill" tintColor={Colors.light.success} style={styles.glyph} />
-              ) : spinner ? (
-                <LoadingRing color={Colors.light.accent} />
-              ) : (
-                <View style={[styles.dot, active && styles.dotActive]} />
-              )}
+              </Animated.View>
+              <Animated.View style={[styles.iconLayer, iconTransition, { opacity: done ? 0 : 1 }]}>
+                {spinner ? (
+                  <LoadingRing color={Colors.light.accent} />
+                ) : (
+                  <View style={[styles.dot, active && styles.dotActive]} />
+                )}
+              </Animated.View>
             </View>
             <ThemedText style={{ flex: 1 }} themeColor={done || active ? "text" : "textSecondary"}>
               {label}
@@ -82,6 +92,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   glyph: { width: ICON_SIZE, height: ICON_SIZE },
+  iconLayer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dot: {
     width: Spacing.two,
     height: Spacing.two,

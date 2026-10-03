@@ -4,9 +4,10 @@ import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { ScrollView, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
@@ -43,7 +44,7 @@ export function SettingsScreen() {
       </ThemedText>
       {account?.linked ? (
         <View style={{ gap: 12 }}>
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel={accountName}
             accessibilityHint="Manage your Artlog account"
@@ -74,7 +75,7 @@ export function SettingsScreen() {
               style={{ width: 13, height: 13 }}
               accessible={false}
             />
-          </Pressable>
+          </MotionPressable>
         </View>
       ) : (
         <View style={{ gap: 10 }}>

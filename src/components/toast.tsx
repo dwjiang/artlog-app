@@ -1,5 +1,5 @@
 import { useSegments } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -40,15 +40,26 @@ function PositionedToastLayer({
   const toast = useToast();
   const { bottom } = useSafeAreaInsets();
   const lift = useToastLift();
+  const layer = useRef<View>(null);
   const [measured, setMeasured] = useState<{ id?: number; height: number }>();
+  useLayoutEffect(() => {
+    let current = true;
+    // Replacing an equally sized toast does not fire onLayout; persistent Undo pills must stay mounted.
+    layer.current?.measure((_x, _y, _width, height) => {
+      if (current) setMeasured({ id: toast?.id, height });
+    });
+    return () => {
+      current = false;
+    };
+  }, [toast?.id]);
   const resting = bottom + offset + Spacing.content;
   const position = lifted
     ? toastLayerBottom(resting, lift, measured?.id === toast?.id ? measured?.height : undefined)
     : resting;
   return (
-    // Keyed by toast so each new one is measured before the room under a raised bar is trusted with it.
     <View
-      key={toast?.id}
+      ref={layer}
+      collapsable={false}
       pointerEvents="box-none"
       onLayout={({ nativeEvent: { layout } }) => setMeasured({ id: toast?.id, height: layout.height })}
       style={[styles.layer, position === undefined ? { bottom: resting, opacity: 0 } : { bottom: position }]}

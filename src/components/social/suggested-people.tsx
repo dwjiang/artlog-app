@@ -1,10 +1,11 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
@@ -166,7 +167,7 @@ function SuggestionCard({
   const router = useRouter();
   return (
     <View style={[styles.card, { width }]}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`View ${person.profile.name}’s profile`}
         onPress={() =>
@@ -184,7 +185,7 @@ function SuggestionCard({
           {person.profile.name}
         </Text>
         <SuggestionReasonLine reason={person.reason} token={session.token} centered />
-      </Pressable>
+      </MotionPressable>
       <CompactFriendshipControls
         profileId={person.profile.profileId}
         session={session}

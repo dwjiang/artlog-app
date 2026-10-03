@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
 import { useRef, type ReactElement, type Ref } from "react";
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch, type PaneRoom } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -42,7 +43,7 @@ export function VisitRow({
       }}
       asChild
     >
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`${visit.venueName}, ${formatVisitDate(visit.visitedOn)}, ${artworks}${isOpen ? ", visiting now" : isNew ? ", new" : ""}`}
         style={styles.visit}
@@ -57,7 +58,7 @@ export function VisitRow({
             <Text style={styles.meta}>{meta}</Text>
           </View>
         </View>
-      </Pressable>
+      </MotionPressable>
     </Link>
   );
 }

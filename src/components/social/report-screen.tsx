@@ -1,10 +1,11 @@
 import { useMutation } from "convex/react";
 import { Image } from "expo-image";
 import { useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { FormSheet, formSheetStyles } from "@/components/form-sheet";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { visitStyles } from "@/components/visits/visit-ui";
 import { Gallery, SettingsOutline, Typography } from "@/constants/theme";
@@ -61,7 +62,7 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
         {REASONS_BY_KIND[target.kind].map((value, index) => {
           const selected = value === reason;
           return (
-            <Pressable
+            <MotionPressable
               key={value}
               accessibilityRole="radio"
               accessibilityLabel={REPORT_REASON_LABELS[value]}
@@ -72,7 +73,7 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
             >
               <Text style={[styles.optionLabel, selected && styles.selected]}>{REPORT_REASON_LABELS[value]}</Text>
               {selected && <Image source="sf:checkmark" tintColor={Gallery.accent} style={styles.check} />}
-            </Pressable>
+            </MotionPressable>
           );
         })}
       </View>

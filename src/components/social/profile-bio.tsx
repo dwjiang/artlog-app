@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 
@@ -33,7 +34,7 @@ export function ProfileBio({ text }: { text?: string }) {
         {text}
       </Text>
       {long && (
-        <Pressable
+        <MotionPressable
           style={{ minHeight: 44, justifyContent: "center" }}
           accessibilityRole="button"
           onPress={() => setExpanded(!expanded)}
@@ -41,7 +42,7 @@ export function ProfileBio({ text }: { text?: string }) {
           <Text style={{ color: Gallery.accent, fontSize: 13, paddingVertical: 5 }}>
             {expanded ? "Show less" : "Read more"}
           </Text>
-        </Pressable>
+        </MotionPressable>
       )}
     </View>
   );

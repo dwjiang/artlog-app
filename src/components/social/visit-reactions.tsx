@@ -2,8 +2,9 @@ import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
@@ -93,7 +94,7 @@ function LiveReactions({
         onOpenVisit={onOpenVisit}
       />
       {summary.error && (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel="Retry reactions"
           onPress={summary.refresh}
@@ -102,7 +103,7 @@ function LiveReactions({
           <Text accessibilityRole="alert" style={styles.error}>
             Couldn’t load reactions. Tap to retry.
           </Text>
-        </Pressable>
+        </MotionPressable>
       )}
       {sheet && (
         <VisitReactionsSheet
@@ -143,7 +144,7 @@ export function VisitReactionRow({
   return (
     <View>
       <View style={styles.row}>
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike visit" : "Like visit"}
           accessibilityValue={{
@@ -160,8 +161,8 @@ export function VisitReactionRow({
         >
           <ReactionIcon kind="heart" filled={liked} />
           <Text style={[styles.count, liked && { color: Gallery.accent }]}>{summary ? count : "–"}</Text>
-        </Pressable>
-        <Pressable
+        </MotionPressable>
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={
             summary
@@ -175,9 +176,9 @@ export function VisitReactionRow({
         >
           <ReactionIcon kind="comment" />
           <Text style={[styles.count, { fontWeight: "500" }]}>{summary?.commentCount ?? "–"}</Text>
-        </Pressable>
+        </MotionPressable>
         {onOpenVisit && (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel="View visit"
             onPress={onOpenVisit}
@@ -185,11 +186,11 @@ export function VisitReactionRow({
           >
             <Text style={styles.link}>View visit</Text>
             <VisitSymbol name="arrow.right" size={15} color={Gallery.accent} />
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
       {!!summary && count > 0 && (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel="See who liked this visit"
           onPress={onLikes}
@@ -218,10 +219,10 @@ export function VisitReactionRow({
               </>
             )}
           </Text>
-        </Pressable>
+        </MotionPressable>
       )}
       {latest && (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.authorName}: ${latest.body}`}
           accessibilityState={{ disabled }}
@@ -234,7 +235,7 @@ export function VisitReactionRow({
             <Text style={styles.strong}>{latest.authorName}</Text> {latest.body}
           </Text>
           {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
-        </Pressable>
+        </MotionPressable>
       )}
     </View>
   );

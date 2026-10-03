@@ -1,9 +1,10 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, View, useWindowDimensions } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ButtonGhost, Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
@@ -68,18 +69,15 @@ export function ProfileHeader({
           </>
         );
         return onPress && count !== undefined ? (
-          <Pressable
+          <MotionPressable
             key={noun}
             accessibilityRole="button"
             accessibilityLabel={`${count} ${label}`}
             onPress={onPress}
-            style={({ pressed }) => [
-              { alignItems: "center", minWidth: 44, maxWidth: "100%" },
-              pressed && { opacity: 0.6 },
-            ]}
+            style={{ alignItems: "center", minWidth: 44, maxWidth: "100%" }}
           >
             {content}
-          </Pressable>
+          </MotionPressable>
         ) : (
           <View
             key={noun}
@@ -170,17 +168,14 @@ export function MutualFriends({ friends, onPress }: { friends: PublicProfile[]; 
   if (friends.length === 0) return null;
   const reason = { kind: "mutual" as const, count: friends.length, friends: friends.slice(0, 2) };
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={suggestionReasonText(reason)}
       onPress={onPress}
-      style={({ pressed }) => [
-        { alignSelf: "center", minHeight: 44, justifyContent: "center" },
-        pressed && { opacity: 0.6 },
-      ]}
+      style={{ alignSelf: "center", minHeight: 44, justifyContent: "center" }}
     >
       <SuggestionReasonLine reason={reason} />
-    </Pressable>
+    </MotionPressable>
   );
 }
 

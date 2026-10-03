@@ -75,6 +75,8 @@ jest.mock("react-native-reanimated", () => {
   return {
     __esModule: true,
     default: { View },
+    createAnimatedComponent: (component: unknown) => component,
+    cubicBezier: () => "ease-out",
     useSharedValue: (value: number) => useRef({ get: () => value, set: jest.fn() }).current,
     withTiming: (value: number) => value,
     cancelAnimation: jest.fn(),

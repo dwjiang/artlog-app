@@ -31,8 +31,12 @@ jest.mock("@sentry/react-native", () => ({
 
 // Native CSS animations are verified on iOS; Jest exercises their content and accessibility states.
 jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("react-native-reanimated/mock"),
   __esModule: true,
+  createAnimatedComponent: (component: unknown) => component,
+  cubicBezier: (...points: number[]) => points,
   default: {
+    createAnimatedComponent: (component: unknown) => component,
     View: jest.requireActual("react-native").View,
     ScrollView: jest.requireActual("react-native").ScrollView,
     FlatList: jest.requireActual("react-native").FlatList,
@@ -46,6 +50,13 @@ jest.mock("react-native-reanimated", () => ({
 
 // expo-router/testing-library swaps in Reanimated's official mock, which needs Worklets' mock to load.
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/lib/module/mock"));
+
+// Router tests replace the mock above; the upstream mock omits these Reanimated 4 exports.
+jest.mock("react-native-reanimated/mock", () => ({
+  ...jest.requireActual("react-native-reanimated/mock"),
+  createAnimatedComponent: (component: unknown) => component,
+  cubicBezier: (...points: number[]) => points,
+}));
 
 // Link previews and menus are native iOS views that only mount under the bridgeless runtime; Jest renders the
 // link's trigger and leaves the menu to the simulator.

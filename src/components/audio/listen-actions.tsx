@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/audio/narration";
@@ -86,7 +87,7 @@ export function ListenActions({
   }
   return (
     <View style={styles.row}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={another ? "Keeps the current audio guide playing." : "Opens the audio guide player."}
@@ -96,7 +97,7 @@ export function ListenActions({
         }}
         disabled={another && queued}
         onPress={another ? enqueue : listen}
-        style={({ pressed }) => [styles.listen, pressed && { opacity: 0.65 }]}
+        style={styles.listen}
       >
         <View style={[styles.play, another && queued && styles.queued]}>
           {preparing ? (
@@ -129,7 +130,7 @@ export function ListenActions({
               : `${duration ? `${duration}${resume ? " left" : ""} · ` : ""}AI-generated voice`}
           </ThemedText>
         </View>
-      </Pressable>
+      </MotionPressable>
       {!preparing && (
         <AudioIconButton
           name={another ? "play.fill" : queuedHere ? "checkmark" : "text.badge.plus"}

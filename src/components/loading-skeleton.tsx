@@ -7,9 +7,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { cubicBezier } from "react-native-reanimated";
 
-import { Gallery, Radius } from "@/constants/theme";
+import { Gallery, Motion, Radius } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 const pulse = {
@@ -17,6 +17,7 @@ const pulse = {
   "50%": { opacity: 0.45 },
   "100%": { opacity: 1 },
 };
+const easeInOut = cubicBezier(...Motion.easeInOut);
 
 export function Ghost({
   width = "100%",
@@ -80,7 +81,7 @@ export function LoadingSkeleton({
             : {
                 animationName: pulse,
                 animationDuration: "1400ms",
-                animationTimingFunction: "ease-in-out",
+                animationTimingFunction: easeInOut,
                 animationIterationCount: "infinite",
               },
         ]}

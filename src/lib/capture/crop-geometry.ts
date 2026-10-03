@@ -9,6 +9,7 @@ export const wholePhoto: Quad = [
 ];
 
 export function validCrop(quad: Quad): boolean {
+  "worklet";
   return quad.every(([x, y], i) => {
     const b = quad[(i + 1) % 4];
     const c = quad[(i + 2) % 4];
@@ -25,6 +26,7 @@ export function validCrop(quad: Quad): boolean {
 }
 
 export function moveCropCorner(quad: Quad, index: number, x: number, y: number): Quad {
+  "worklet";
   const next = quad.map((point, i) =>
     i === index ? [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))] : point,
   ) as Quad;

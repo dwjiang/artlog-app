@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { cubicBezier } from "react-native-reanimated";
 import { Camera, type CameraRef, type CameraViewProps } from "react-native-vision-camera";
 
-import { Colors } from "@/constants/theme";
+import { Colors, Motion } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { reportError } from "@/lib/observability";
 
 const SQUARE_SIZE = 76;
 const LINE = 1;
 const TICK = 6;
+const easeOut = cubicBezier(...Motion.easeOut);
 // The Camera app's focus box blinks while it focuses, then dims before it goes.
 const blink = {
   from: { opacity: 1 },
@@ -90,7 +91,7 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
             {
               animationName: reduced ? blink : settle,
               animationDuration: 2000,
-              animationTimingFunction: "ease-out",
+              animationTimingFunction: easeOut,
               animationFillMode: "forwards",
             },
           ]}

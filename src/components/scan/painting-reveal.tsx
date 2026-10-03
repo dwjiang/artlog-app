@@ -6,7 +6,6 @@ import Animated, {
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
@@ -14,13 +13,14 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { Colors } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { interpolateCorners, perspectiveMatrix, type RevealGeometry } from "@/lib/capture/reveal-geometry";
 
-export const HIGHLIGHT_MS = 150;
-export const STRAIGHTEN_MS = 650;
+export const HIGHLIGHT_MS = 100;
+export const STRAIGHTEN_MS = 300;
 export const CROSSFADE_MS = 150;
-export const SHINE_DELAY_MS = 350;
-export const SHINE_MS = 950;
+export const SHINE_DELAY_MS = 150;
+export const SHINE_MS = 250;
 const LIFTED_BLUR = 12;
 
 /**
@@ -57,7 +57,7 @@ export function PaintingReveal({
   useEffect(() => {
     if (!playing || !geometry) return;
     const finish = () => finished.current?.();
-    highlight.set(withTiming(1, { duration: reduced ? 0 : HIGHLIGHT_MS }));
+    highlight.set(withTiming(1, { duration: reduced ? 0 : HIGHLIGHT_MS, easing: Easing.bezier(0.23, 1, 0.32, 1) }));
     progress.set(
       withDelay(
         reduced ? 0 : HIGHLIGHT_MS,
@@ -65,7 +65,7 @@ export function PaintingReveal({
           1,
           {
             duration: reduced ? CROSSFADE_MS : STRAIGHTEN_MS,
-            easing: Easing.bezier(0.77, 0, 0.175, 1),
+            easing: reduced ? Easing.bezier(0.23, 1, 0.32, 1) : Easing.bezier(0.77, 0, 0.175, 1),
             reduceMotion: ReduceMotion.Never,
           },
           (done) => {
@@ -82,7 +82,7 @@ export function PaintingReveal({
             1,
             {
               duration: SHINE_MS,
-              easing: Easing.bezier(0.2, 0, 0.45, 1),
+              easing: Easing.linear,
             },
             (done) => {
               if (done) scheduleOnRN(finish);

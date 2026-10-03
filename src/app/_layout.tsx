@@ -14,6 +14,7 @@ import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
 import { ToastLayer } from "@/components/toast";
 import { Gallery, NavigationTheme } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { CollectionSync } from "@/lib/account/collection-sync";
 import { ListeningProvider } from "@/lib/audio/listening-provider";
 import { convex } from "@/lib/convex-client";
@@ -48,6 +49,7 @@ function RootLayout() {
 }
 
 function AppContent() {
+  const reduced = useReducedMotion();
   useEffect(warmUpEmbedder, []);
   useEffect(limitImageCache, []);
   return (
@@ -68,6 +70,8 @@ function AppContent() {
                 <Stack
                   screenOptions={{
                     ...NavigationTheme,
+                    animation: reduced ? "fade" : "default",
+                    animationMatchesGesture: true,
                     headerBackButtonDisplayMode: "default",
                   }}
                   screenLayout={({ options, children }) => (
@@ -91,7 +95,7 @@ function AppContent() {
                     options={({ route }) => ({
                       title: "",
                       animation:
-                        (route.params as { entrance?: string } | undefined)?.entrance === "capture"
+                        reduced || (route.params as { entrance?: string } | undefined)?.entrance === "capture"
                           ? "fade"
                           : "default",
                     })}

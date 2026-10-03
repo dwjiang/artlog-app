@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
 import { formatConfidence } from "@/lib/result/confidence";
@@ -25,14 +26,14 @@ export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }
         const confidence = formatConfidence(candidate.probability);
         const busy = candidate.objectId === busyObjectId;
         return (
-          <Pressable
+          <MotionPressable
             key={candidate.objectId}
             accessibilityRole="button"
             accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
             accessibilityState={{ busy, disabled: disabled || !!busyObjectId }}
             disabled={disabled || !!busyObjectId}
             onPress={() => onPick(candidate)}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            style={styles.row}
           >
             {candidate.thumbnailUrl ? (
               <Image
@@ -61,7 +62,7 @@ export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }
             ) : (
               <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
             )}
-          </Pressable>
+          </MotionPressable>
         );
       })}
     </View>
@@ -78,7 +79,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Gallery.separator,
   },
-  pressed: { opacity: 0.6 },
   thumbnail: {
     width: 56,
     height: 56,

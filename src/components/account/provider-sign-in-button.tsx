@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 
 // Matches a full-width filled GalleryButton, so provider buttons sit in the same stack as the app's own actions.
@@ -37,18 +38,13 @@ export function ProviderSignInButton({
     : { width: GOOGLE_LOGO_SIZE * fontScale, height: GOOGLE_LOGO_SIZE * fontScale };
   const dimmed = disabled && !busy;
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        { minHeight },
-        apple && styles.appleButton,
-        (pressed || dimmed) && styles.dimmed,
-      ]}
+      style={[styles.button, { minHeight }, apple && styles.appleButton, dimmed && styles.dimmed]}
     >
       {/* Hidden content keeps the button's size while the ring replaces it. */}
       <View
@@ -68,7 +64,7 @@ export function ProviderSignInButton({
       {busy && (
         <LoadingRing color={apple ? "#FFFFFF" : Gallery.ink} accessible={false} style={StyleSheet.absoluteFill} />
       )}
-    </Pressable>
+    </MotionPressable>
   );
 }
 

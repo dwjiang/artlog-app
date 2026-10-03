@@ -6,20 +6,12 @@ import { randomUUID } from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import {
-  ActionSheetIOS,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  type ScrollViewProps,
-} from "react-native";
+import { ActionSheetIOS, Alert, ScrollView, StyleSheet, TextInput, View, type ScrollViewProps } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { VisitSymbol } from "@/components/visits/visit-ui";
@@ -128,7 +120,7 @@ function Likes({
       height={height}
       onEndReached={likes.loadMore}
       renderItem={(item) => (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={`View ${item.name}’s profile`}
           style={styles.person}
@@ -145,7 +137,7 @@ function Likes({
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>@{item.username}</Text>
           </View>
-        </Pressable>
+        </MotionPressable>
       )}
       empty={likes.done && !likes.loading && !likes.error ? <Empty title="No likes yet." /> : null}
       footer={
@@ -363,7 +355,7 @@ function Comments({
                 deleting === item.commentId && { opacity: 0.5 },
               ]}
             >
-              <Pressable
+              <MotionPressable
                 accessibilityLabel={`${item.author.name}${item.isAuthor ? ", author" : ""}, ${time}: ${item.body}`}
                 accessibilityState={{ busy: deleting === item.commentId }}
                 accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
@@ -387,8 +379,8 @@ function Comments({
                   </View>
                   <Text style={styles.body}>{item.body}</Text>
                 </View>
-              </Pressable>
-              <Pressable
+              </MotionPressable>
+              <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel={`${liked ? "Unlike" : "Like"} ${item.author.name}’s comment`}
                 accessibilityValue={{ text: `${likeCount} ${likeCount === 1 ? "like" : "likes"}` }}
@@ -405,7 +397,7 @@ function Comments({
                 {likeCount > 0 && (
                   <Text style={[styles.likeCount, liked && { color: Gallery.accent }]}>{likeCount}</Text>
                 )}
-              </Pressable>
+              </MotionPressable>
             </View>
           );
         }}
@@ -445,7 +437,7 @@ function Comments({
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}
                 />
-                <Pressable
+                <MotionPressable
                   accessibilityRole="button"
                   accessibilityLabel={busy ? "Posting comment" : "Post comment"}
                   accessibilityState={{
@@ -470,7 +462,7 @@ function Comments({
                       <VisitSymbol name="arrow.up" size={18} color={draft.trim() ? Gallery.surface : Gallery.muted} />
                     )}
                   </View>
-                </Pressable>
+                </MotionPressable>
               </View>
             </View>
             <Text style={styles.audience}>{COMMENT_AUDIENCE[visit.audience]}</Text>

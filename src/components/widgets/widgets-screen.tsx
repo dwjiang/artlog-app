@@ -1,12 +1,13 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
 import { Image } from "expo-image";
 import { useState } from "react";
-import { FlatList, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { FlatList, ScrollView, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
@@ -208,7 +209,7 @@ export function WidgetsScreen() {
                 <Text variant="display" accessibilityRole="header" style={{ flex: 1, fontSize: 29, lineHeight: 36 }}>
                   {sheetTitles[sheet]}
                 </Text>
-                <Pressable
+                <MotionPressable
                   accessibilityRole="button"
                   accessibilityLabel={hasParent ? "Back to artwork source" : "Close instructions and settings"}
                   onPress={hasParent ? () => setSheet("source") : close}
@@ -225,7 +226,7 @@ export function WidgetsScreen() {
                     accessible={false}
                     style={{ width: 18, height: 18 }}
                   />
-                </Pressable>
+                </MotionPressable>
               </View>
             </View>
             {sheet === "visit" ? (

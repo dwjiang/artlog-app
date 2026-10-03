@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ArtworkPreviews, VisitSymbol } from "@/components/visits/visit-ui";
@@ -89,7 +90,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
       contentContainerStyle={styles.content}
       bounces={false}
     >
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`${visit.venueName}, ${meta}`}
         accessibilityHint="Opens the visit"
@@ -99,7 +100,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
             params: { visitId: visit.localId },
           })
         }
-        style={({ pressed }) => [styles.header, pressed && styles.pressed]}
+        style={styles.header}
       >
         <View style={styles.headerText}>
           <ThemedText type="title">{visit.venueName}</ThemedText>
@@ -107,7 +108,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
           {!details && <TextSkeleton label="Loading visit artwork count" width={180} />}
         </View>
         <VisitSymbol name="chevron.right" size={13} />
-      </Pressable>
+      </MotionPressable>
       {works.length > 0 && <ArtworkPreviews works={works} overflow />}
       <View style={stacked ? styles.stackedActions : styles.actions}>
         <View style={stacked ? undefined : styles.action}>
@@ -270,7 +271,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
             const key = venueOptionKey(option);
             const checked = key === selectedKey;
             return (
-              <Pressable
+              <MotionPressable
                 key={key}
                 accessibilityRole="radio"
                 accessibilityLabel={option.name}
@@ -288,18 +289,18 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
                 <View style={[styles.radio, checked && styles.radioChecked]}>
                   {checked && <View style={styles.radioDot} />}
                 </View>
-              </Pressable>
+              </MotionPressable>
             );
           })}
           {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel="Not at a museum"
             onPress={notHere}
             style={styles.option}
           >
             <ThemedText themeColor="textSecondary">Not at a museum</ThemedText>
-          </Pressable>
+          </MotionPressable>
         </View>
         {(failure ?? error) && (
           <ThemedText selectable themeColor="error" accessibilityRole="alert">
@@ -362,7 +363,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           />
         ) : (
           results.rows.map((row) => (
-            <Pressable
+            <MotionPressable
               key={row.id}
               accessibilityRole="button"
               accessibilityLabel={row.name}
@@ -385,7 +386,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
                 </ThemedText>
               </View>
               {busy === row.id && <LoadingRing />}
-            </Pressable>
+            </MotionPressable>
           ))
         )
       ) : status === "locating" ? (
@@ -439,7 +440,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
             Nearby
           </ThemedText>
           {options.map((option, index) => (
-            <Pressable
+            <MotionPressable
               key={venueOptionKey(option)}
               accessibilityRole="button"
               accessibilityLabel={option.name}
@@ -461,7 +462,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
                 </ThemedText>
               </View>
               {busy === venueOptionKey(option) && <LoadingRing />}
-            </Pressable>
+            </MotionPressable>
           ))}
         </>
       )}
@@ -480,7 +481,6 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   header: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
   headerText: { flex: 1, gap: Spacing.two },
-  pressed: { opacity: 0.6 },
   actions: { flexDirection: "row", gap: Spacing.two },
   stackedActions: { gap: Spacing.two },
   action: { flex: 1 },

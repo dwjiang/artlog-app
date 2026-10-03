@@ -2,9 +2,10 @@ import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Alert, StyleSheet, TextInput, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -152,7 +153,7 @@ export function ArtworkEncounterList({
         />
       </NoteHeading>
       {encounters.map(({ visit }) => (
-        <Pressable
+        <MotionPressable
           key={visit.localId}
           accessibilityRole="button"
           accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
@@ -180,7 +181,7 @@ export function ArtworkEncounterList({
             style={{ width: 13, height: 13 }}
             accessible={false}
           />
-        </Pressable>
+        </MotionPressable>
       ))}
       {encounters.length === 0
         && (loadError ? (

@@ -2,11 +2,12 @@ import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { Stack, useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Pressable, SectionList, StyleSheet, View } from "react-native";
+import { AppState, SectionList, StyleSheet, View } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -186,14 +187,14 @@ function NotificationRow({
   );
   return (
     <View style={styles.row}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={[segments.map((segment) => segment.text).join(""), quote, age.spoken]
           .filter(Boolean)
           .join(" ")}
         onPress={open}
         // A quoted comment runs several lines, so its row hangs from the top instead of centering on the avatar.
-        style={({ pressed }) => [styles.main, !quote && { alignItems: "center" }, pressed && { opacity: 0.6 }]}
+        style={[styles.main, !quote && { alignItems: "center" }]}
       >
         {row.length > 1 ? (
           <AvatarPair people={[row[0].actor, row[1].actor]} />
@@ -226,7 +227,7 @@ function NotificationRow({
         {(first.kind === "visitLike" || first.kind === "visitComment") && (
           <VisitThumbnail media={first.media} label={first.venue} token={session.token} />
         )}
-      </Pressable>
+      </MotionPressable>
       {first.kind === "friendRequest" && first.relationship.state === "pending" && (
         <View style={styles.controls}>
           <CompactFriendshipControls

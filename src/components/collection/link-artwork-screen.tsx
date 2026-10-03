@@ -1,13 +1,14 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ActionStack } from "@/components/action-stack";
 import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { EmptyFrames, EmptyTicket } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -180,7 +181,7 @@ function LinkPicker({
             (entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
           );
           return (
-            <Pressable
+            <MotionPressable
               accessibilityRole="checkbox"
               accessibilityState={{
                 checked: linked || selected.includes(row.id),
@@ -217,7 +218,7 @@ function LinkPicker({
                 </Text>
               </View>
               <Text style={{ color: Gallery.muted }}>{linked || selected.includes(row.id) ? "✓" : "○"}</Text>
-            </Pressable>
+            </MotionPressable>
           );
         }}
         ListEmptyComponent={

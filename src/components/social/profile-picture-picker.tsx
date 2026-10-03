@@ -1,11 +1,13 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Modal, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { reportError } from "@/lib/observability";
 import { AVATAR_IMAGES } from "@/lib/social/avatar-images";
 import { chooseProfilePhoto, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
@@ -34,8 +36,14 @@ export function ProfilePicturePicker({
   /** Called only for a changed picture, and takes over a chosen photo's draft file. */
   onSave: (picture: ProfilePicture) => void;
 }) {
+  const reduced = useReducedMotion();
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onCancel}>
+    <Modal
+      visible={visible}
+      animationType={reduced ? "fade" : "slide"}
+      presentationStyle="pageSheet"
+      onRequestClose={onCancel}
+    >
       <PickerSheet name={name} shown={shown} onCancel={onCancel} onSave={onSave} />
     </Modal>
   );
@@ -160,7 +168,7 @@ function PickerSheet({
               {AVATARS.filter((avatar) => avatar.group === group).map((avatar) => {
                 const selected = selection?.kind === "avatar" && selection.avatar === avatar.id;
                 return (
-                  <Pressable
+                  <MotionPressable
                     key={avatar.id}
                     accessibilityRole="button"
                     accessibilityLabel={`${avatar.title}, ${avatar.artist}`}
@@ -183,7 +191,7 @@ function PickerSheet({
                         <Image source="sf:checkmark" tintColor={Gallery.surface} style={styles.checkIcon} />
                       </View>
                     )}
-                  </Pressable>
+                  </MotionPressable>
                 );
               })}
             </View>

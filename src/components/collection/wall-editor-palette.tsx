@@ -2,8 +2,10 @@ import { Button, Column, Host, Icon, Text as NativeText } from "@expo/ui";
 import { accessibilityLabel, buttonStyle, contentShape, font, frame, shapes } from "@expo/ui/swift-ui/modifiers";
 import type { ComponentProps } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, { cubicBezier } from "react-native-reanimated";
 
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, Motion, Radius, Spacing } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { WallPiece } from "@/lib/wall/wall-layout";
 
 function Tool({
@@ -68,8 +70,19 @@ export function WallEditorPalette({
   onRemove: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
+  const reduced = useReducedMotion();
   return (
-    <View style={[styles.palette, { width: Math.min(132, 72 * fontScale) }]}>
+    <Animated.View
+      style={[
+        styles.palette,
+        {
+          width: Math.min(132, 72 * fontScale),
+          animationName: reduced ? PALETTE_FADE : PALETTE_ENTER,
+          animationDuration: Motion.state,
+          animationTimingFunction: EASE_OUT,
+        },
+      ]}
+    >
       {selected ? (
         <>
           <Tool label="Frame" icon="square" disabled={disabled} onPress={onFrame} />
@@ -96,9 +109,17 @@ export function WallEditorPalette({
           />
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }
+
+const EASE_OUT = cubicBezier(...Motion.easeOut);
+
+const PALETTE_FADE = { from: { opacity: 0 }, to: { opacity: 1 } };
+const PALETTE_ENTER = {
+  from: { opacity: 0, transform: [{ translateX: 12 }] },
+  to: { opacity: 1, transform: [{ translateX: 0 }] },
+};
 
 const styles = StyleSheet.create({
   palette: {

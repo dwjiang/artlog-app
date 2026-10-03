@@ -9,6 +9,8 @@ import { WallGallery } from "./wall-gallery";
 
 jest.mock("react-native-reanimated", () => ({
   __esModule: true,
+  cubicBezier: (...points: number[]) => points,
+  createAnimatedComponent: (component: unknown) => component,
   default: {
     View: jest.requireActual("react-native").View,
     createAnimatedComponent: (component: unknown) => component,

@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useSocialQuery } from "@/lib/social/use-social-query";
@@ -30,7 +31,7 @@ export function InCommonSection({ profileId, session }: { profileId: Id<"profile
       {data.artworks.length > 0 && (
         <View style={styles.grid}>
           {data.artworks.map(({ itemId, artwork }) => (
-            <Pressable
+            <MotionPressable
               key={itemId}
               accessibilityRole="button"
               accessibilityLabel={`${artwork.title}, ${artwork.artist}`}
@@ -46,7 +47,7 @@ export function InCommonSection({ profileId, session }: { profileId: Id<"profile
                   {artwork.artist}
                 </Text>
               </View>
-            </Pressable>
+            </MotionPressable>
           ))}
         </View>
       )}
