@@ -60,7 +60,7 @@
         "expo-media-library",
         {
           "photosPermission": "Artlog can identify paintings from photos you already took.",
-          "savePhotosPermission": "Artlog adds the full-size photos of artworks you save to your photo library."
+          "savePhotosPermission": "Artlog adds the full-size photos of artworks you save, and profile cards you save, to your photo library."
         }
       ],
       "expo-sqlite",
