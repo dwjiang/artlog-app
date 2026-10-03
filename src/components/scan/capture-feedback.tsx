@@ -132,7 +132,14 @@ export function CaptureShutter({
         style={styles.ring}
       >
         <Canvas style={StyleSheet.absoluteFill}>
-          <Path path={ring} color={Gallery.accent} style="stroke" strokeWidth={3} strokeCap="round" end={progress} />
+          <Path
+            path={ring}
+            color={Colors.light.cameraProgress}
+            style="stroke"
+            strokeWidth={3}
+            strokeCap="round"
+            end={progress}
+          />
         </Canvas>
       </View>
     </ShutterButton>
