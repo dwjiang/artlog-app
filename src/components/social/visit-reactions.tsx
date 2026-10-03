@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { Image } from "expo-image";
+import type { FunctionReturnType } from "convex/server";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -15,30 +15,11 @@ import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
+import { ReactionIcon } from "./reaction-icon";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
 export type ReactionVisit = Pick<SharedVisit, "postId" | "audience">;
-export type ReactionSummary = {
-  likeCount: number;
-  commentCount: number;
-  liked: boolean;
-};
-
-const reactionPaths = {
-  heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
-  comment: "M21 11.5a9 9 0 0 1-9 9 10 10 0 0 1-4.1-.9L3 21l1.4-4.7A9 9 0 1 1 21 11.5Z",
-};
-function ReactionIcon({ kind, filled = false }: { kind: keyof typeof reactionPaths; filled?: boolean }) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${reactionPaths[kind]}" fill="${filled ? "black" : "none"}" stroke="black" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  return (
-    <Image
-      source={{ uri: `data:image/svg+xml,${encodeURIComponent(svg)}` }}
-      tintColor={filled ? Gallery.accent : Gallery.ink}
-      accessible={false}
-      style={{ width: 22, height: 22 }}
-    />
-  );
-}
+export type ReactionSummary = FunctionReturnType<typeof api.visitReactions.getSummary>;
 
 export function VisitReactions({
   visit,
@@ -157,6 +138,8 @@ export function VisitReactionRow({
   const liked = summary?.liked ?? false;
   const count = summary?.likeCount ?? 0;
   const others = count - 1;
+  const latest = summary?.latestComment;
+  const viewAll = summary && summary.commentCount > 1 ? `View all ${summary.commentCount} comments` : undefined;
   return (
     <View>
       <View style={styles.row}>
@@ -237,6 +220,22 @@ export function VisitReactionRow({
           </Text>
         </Pressable>
       )}
+      {latest && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.authorName}: ${latest.body}`}
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onComments}
+          style={styles.latest}
+          hitSlop={{ bottom: 16 }}
+        >
+          <Text numberOfLines={2} style={styles.latestText}>
+            <Text style={styles.strong}>{latest.authorName}</Text> {latest.body}
+          </Text>
+          {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -280,6 +279,9 @@ const styles = StyleSheet.create({
   summary: { alignSelf: "flex-start", minHeight: 22, paddingTop: 2 },
   summaryText: { color: Gallery.ink, fontSize: 12, lineHeight: 18 },
   strong: { fontWeight: "600" },
+  latest: { paddingVertical: 4, gap: 2 },
+  latestText: { color: Gallery.ink, fontSize: 13, lineHeight: 18 },
+  viewAll: { color: Gallery.muted, fontSize: 12, lineHeight: 18 },
   retry: { minHeight: 44, justifyContent: "center" },
   error: { color: Gallery.destructive, fontSize: 13, lineHeight: 18 },
 });

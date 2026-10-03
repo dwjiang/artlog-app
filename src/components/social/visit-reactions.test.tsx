@@ -1,16 +1,17 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 import type { FunctionReference } from "convex/server";
+import { ActionSheetIOS } from "react-native";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { dismissToast, showErrorToast, useToast } from "@/lib/ui/toast";
 
-import { VisitReactions, type ReactionVisit } from "./visit-reactions";
+import { VisitReactions, type ReactionSummary, type ReactionVisit } from "./visit-reactions";
 
 const mockPush = jest.fn();
 const mockMutate = jest.fn();
 const mockRefresh = jest.fn();
 let mockSession: SocialSession;
-let mockSummary: { likeCount: number; commentCount: number; liked: boolean };
+let mockSummary: ReactionSummary;
 let mockComments: object[];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("convex/react", () => ({
@@ -32,6 +33,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
+jest.mock("expo-haptics", () => ({ impactAsync: async () => {}, ImpactFeedbackStyle: { Medium: "medium" } }));
+const mockCopy = jest.fn();
+jest.mock("expo-clipboard", () => ({ setStringAsync: (text: string) => mockCopy(text) }));
 const mockBlock = jest.fn();
 jest.mock("@/lib/social/use-block", () => ({ useBlock: () => ({ block: mockBlock }) }));
 
@@ -50,7 +54,7 @@ beforeEach(() => {
     error: undefined,
     refresh: mockRefresh,
   };
-  mockSummary = { likeCount: 13, commentCount: 2, liked: true };
+  mockSummary = { likeCount: 13, commentCount: 2, liked: true, latestComment: null };
   mockComments = [];
   mockMutate.mockResolvedValue("new-comment");
 });
@@ -102,12 +106,21 @@ it("lets guests read comments and asks them to sign in before reacting", async (
       body: "Beautiful light.",
       createdAt: 1,
       isAuthor: false,
+      likeCount: 0,
+      liked: false,
       author: { profileId: "friend", name: "Jules Morgan" },
     },
   ];
   await render(<VisitReactions visit={visit} />);
   await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
   expect(screen.getByText("Beautiful light.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Like Jules Morgan’s comment" }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/sign-in",
+    params: { context: "reactions" },
+  });
+  mockPush.mockClear();
+  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
   expect(screen.queryByLabelText("Add a comment")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
   expect(mockPush).toHaveBeenCalledWith({
@@ -140,64 +153,116 @@ it("opens the likes list from the compact summary and dismisses it", async () =>
   expect(screen.queryByText("@jules")).toBeNull();
 });
 
-it("reports someone else’s comment after closing the sheet, and offers Delete instead on your own", async () => {
-  mockComments = [
-    {
-      commentId: "theirs",
-      body: "Rude words.",
-      createdAt: 1,
-      isAuthor: false,
-      author: { profileId: "friend", name: "Jules Morgan" },
-    },
-    {
-      commentId: "mine",
-      body: "My note.",
-      createdAt: 2,
-      isAuthor: false,
-      author: { profileId: "me", name: "Me" },
-    },
-  ];
-  await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
-  expect(screen.queryByRole("button", { name: "Report comment: My note." })).toBeNull();
-  expect(screen.getByRole("button", { name: "Delete comment: My note." })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Report comment: Rude words." }));
+it("previews the newest comment under the visit and opens the sheet from it", async () => {
+  mockSummary = {
+    ...mockSummary,
+    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Beautiful light." },
+  };
+  const view = await render(<VisitReactions visit={visit} />);
+  expect(screen.getByText("View all 2 comments")).toBeOnTheScreen();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "View all 2 comments. Latest from Jules Morgan: Beautiful light." }),
+  );
+  expect(screen.getByRole("header", { name: "Comments 2" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Close comments" }));
+  mockSummary = { ...mockSummary, commentCount: 1 };
+  await view.rerender(<VisitReactions visit={visit} />);
+  expect(screen.queryByText(/View all/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Open comment from Jules Morgan: Beautiful light." })).toBeOnTheScreen();
+});
+
+it("shows a comment heart at once while its write is in flight", async () => {
+  let resolve!: () => void;
+  mockMutate.mockImplementation(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+  );
+  mockComments = [comment("theirs", "Beautiful light.", { profileId: "friend", name: "Jules Morgan" }, 2)];
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.press(screen.getByRole("button", { name: "Like Jules Morgan’s comment" }));
+  expect(mockMutate).toHaveBeenCalledWith("visitReactions:setCommentLike", {
+    postId: "visit-a",
+    commentId: "theirs",
+    liked: true,
+  });
+  const pending = screen.getByRole("button", {
+    name: "Unlike Jules Morgan’s comment",
+    selected: true,
+    busy: true,
+    value: { text: "3 likes" },
+  });
+  expect(pending).toBeDisabled();
+  await act(() => resolve());
+  // The mocked list never receives the saved like, so the heart falls back to the server's state.
+  expect(
+    screen.getByRole("button", { name: "Like Jules Morgan’s comment", selected: false, value: { text: "2 likes" } }),
+  ).toBeOnTheScreen();
+});
+
+const theirs = { profileId: "friend", name: "Jules Morgan" };
+function comment(commentId: string, body: string, author: { profileId: string; name: string }, likeCount = 0) {
+  return { commentId, body, createdAt: 1, isAuthor: false, likeCount, liked: false, author };
+}
+function chooseAction(label: string) {
+  return jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
+    choose(options.options.indexOf(label));
+  });
+}
+
+it("reports someone else’s comment from its touch-and-hold menu after closing the sheet", async () => {
+  mockComments = [comment("theirs", "Rude words.", theirs)];
+  const sheet = chooseAction("Report comment");
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent(screen.getByLabelText(/Rude words\.$/), "longPress");
+  expect(sheet.mock.calls[0][0]).toMatchObject({
+    options: ["Copy comment", "Report comment", "Block Jules Morgan", "Cancel"],
+    destructiveButtonIndex: [2],
+  });
   expect(screen.queryByText("Rude words.")).toBeNull();
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "comment", id: "theirs" } });
+  sheet.mockRestore();
 });
 
-it("offers Block beside Report on someone else’s comment, but not on your own or to guests", async () => {
-  const theirs = { profileId: "friend", name: "Jules Morgan" };
-  mockComments = [
-    { commentId: "theirs", body: "Rude words.", createdAt: 1, isAuthor: false, author: theirs },
-    { commentId: "mine", body: "My note.", createdAt: 2, isAuthor: false, author: { profileId: "me", name: "Me" } },
-  ];
-  const view = await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
-  expect(screen.queryByRole("button", { name: "Block Me" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Block Jules Morgan" }));
-  expect(mockBlock).toHaveBeenCalledWith(theirs);
+it("offers Delete instead of Report and Block on your own comment", async () => {
+  mockComments = [comment("mine", "My note.", { profileId: "me", name: "Me" })];
+  const sheet = chooseAction("Cancel");
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent(screen.getByLabelText(/My note\.$/), "longPress");
+  expect(sheet.mock.calls[0][0]).toMatchObject({
+    options: ["Copy comment", "Delete comment", "Cancel"],
+    destructiveButtonIndex: [1],
+  });
+  sheet.mockRestore();
+});
+
+it("copies a comment and gives guests Report without Block", async () => {
   mockSession = { ...mockSession, status: "signed-out", profileId: undefined };
-  await view.rerender(<VisitReactions visit={visit} />);
-  expect(screen.getByRole("button", { name: "Report comment: Rude words." })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Block Jules Morgan" })).toBeNull();
+  mockCopy.mockResolvedValue(true);
+  mockComments = [comment("theirs", "Beautiful light.", theirs)];
+  const sheet = chooseAction("Copy comment");
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent(screen.getByLabelText(/Beautiful light\.$/), "longPress");
+  expect(sheet.mock.calls[0][0].options).toEqual(["Copy comment", "Report comment", "Cancel"]);
+  expect(mockCopy).toHaveBeenCalledWith("Beautiful light.");
+  expect(await screen.findByText("Comment copied.")).toBeOnTheScreen();
+  sheet.mockRestore();
 });
 
-it("shows a failed block and its retry inside the open comments sheet", async () => {
+it("gives VoiceOver the same comment actions and shows a failed block inside the sheet", async () => {
   const retry = jest.fn();
   mockBlock.mockImplementationOnce(() => showErrorToast("Couldn’t block Jules Morgan.", retry));
-  mockComments = [
-    {
-      commentId: "theirs",
-      body: "A comment.",
-      createdAt: 1,
-      isAuthor: false,
-      author: { profileId: "friend", name: "Jules Morgan" },
-    },
-  ];
-  await render(<VisitReactions visit={visit} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Block Jules Morgan" }));
+  mockComments = [comment("theirs", "A comment.", theirs)];
+  await render(<VisitReactions visit={visit} openComments />);
+  const row = screen.getByLabelText(/A comment\.$/);
+  expect(row.props.accessibilityActions).toEqual([
+    { name: "copy", label: "Copy comment" },
+    { name: "report", label: "Report comment" },
+    { name: "block", label: "Block Jules Morgan" },
+  ]);
+  await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "block" } });
+  expect(mockBlock).toHaveBeenCalledWith(theirs);
   expect(screen.getByText("Couldn’t block Jules Morgan.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Close comments" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Retry" }));

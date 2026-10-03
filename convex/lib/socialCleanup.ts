@@ -2,7 +2,7 @@ import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { deleteUnreferencedPhoto } from "./collectionPhotos";
 import { fileStorage } from "./fileStorage";
-import { changeEngagement, engagement } from "./visitReactions";
+import { changeCommentLikes, changeEngagement, engagement } from "./visitReactions";
 
 const BATCH = 50;
 export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts">): Promise<boolean> {
@@ -48,6 +48,17 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     for (const like of likes) {
       await ctx.db.delete("visitLikes", like._id);
       await changeEngagement(ctx, like.publicationId, "likeCount", -1);
+    }
+    return true;
+  }
+  const commentLikes = await ctx.db
+    .query("commentLikes")
+    .withIndex("by_profile", (q) => q.eq("profileId", profile._id))
+    .take(BATCH);
+  if (commentLikes.length > 0) {
+    for (const like of commentLikes) {
+      await ctx.db.delete("commentLikes", like._id);
+      await changeCommentLikes(ctx, like.commentId, -1);
     }
     return true;
   }

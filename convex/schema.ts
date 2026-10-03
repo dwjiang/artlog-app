@@ -827,6 +827,16 @@ export default defineSchema({
   })
     .index("by_publication", ["publicationId"])
     .index("by_profile_request", ["profileId", "requestId"]),
+  commentLikes: defineTable({
+    commentId: v.id("visitComments"),
+    profileId: v.id("profiles"),
+  })
+    .index("by_comment_profile", ["commentId", "profileId"])
+    .index("by_profile", ["profileId"]),
+  commentLikeCounts: defineTable({
+    commentId: v.id("visitComments"),
+    likeCount: v.number(),
+  }).index("by_comment", ["commentId"]),
   // Expires after 30 days; database triggers on likes, comments, and friendships write and withdraw these rows.
   notifications: defineTable({
     expiresAt: v.number(),
