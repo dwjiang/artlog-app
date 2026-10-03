@@ -361,7 +361,6 @@ export function CollectionWallContent({
                       label="All artworks"
                       icon="chevron.right"
                       iconPosition="trailing"
-                      tone="ink"
                       disabled={blocked}
                       onPress={() => router.push("/all-artworks")}
                     />
