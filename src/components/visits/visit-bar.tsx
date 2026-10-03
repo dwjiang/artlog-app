@@ -9,6 +9,7 @@ import {
   frame,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
+import * as Sentry from "@sentry/react-native";
 import { useRouter } from "expo-router";
 import { useWindowDimensions } from "react-native";
 
@@ -32,82 +33,90 @@ export function VisitBar() {
   const count = loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`;
   const detail = [here ? "Currently visiting" : "Visit open", count].filter(Boolean).join(" · ");
   return (
-    <Host
-      key={fontScale}
-      matchContents={{ vertical: true }}
-      ignoreSafeArea="all"
-      colorScheme="light"
-      seedColor={Gallery.accent}
-      style={{ width: "100%" }}
-    >
-      <Row
-        alignment="center"
-        spacing={10}
-        style={{ paddingHorizontal: 12 }}
-        modifiers={[frame({ minHeight: VISIT_BAR_HEIGHT })]}
+    <Sentry.Mask style={{ width: "100%" }}>
+      <Host
+        key={fontScale}
+        matchContents={{ vertical: true }}
+        ignoreSafeArea="all"
+        colorScheme="light"
+        seedColor={Gallery.accent}
+        style={{ width: "100%" }}
       >
-        <Button
-          variant="text"
-          onPress={() =>
-            router.push({
-              pathname: "/journal/[visitId]",
-              params: { visitId: visit.localId },
-            })
-          }
-          modifiers={[
-            accessibilityLabel(here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`),
-            accessibilityValue([formatVisitStart(visit.startedAt, visit.timeZone), count].filter(Boolean).join(" · ")),
-            accessibilityHint("Opens the current visit"),
-            frame({ maxWidth: Infinity, alignment: "leading" }),
-          ]}
+        <Row
+          alignment="center"
+          spacing={10}
+          style={{ paddingHorizontal: 12 }}
+          modifiers={[frame({ minHeight: VISIT_BAR_HEIGHT })]}
         >
-          <Row
-            alignment="center"
-            spacing={10}
+          <Button
+            variant="text"
+            onPress={() =>
+              router.push({
+                pathname: "/journal/[visitId]",
+                params: { visitId: visit.localId },
+              })
+            }
             modifiers={[
-              frame({ minHeight: 44, maxWidth: Infinity, alignment: "leading" }),
-              contentShape(shapes.rectangle()),
+              accessibilityLabel(here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`),
+              accessibilityValue(
+                [formatVisitStart(visit.startedAt, visit.timeZone), count].filter(Boolean).join(" · "),
+              ),
+              accessibilityHint("Opens the current visit"),
+              frame({ maxWidth: Infinity, alignment: "leading" }),
             ]}
           >
-            <Icon name="building.columns.fill" size={22} color={Gallery.accent} />
-            <Column spacing={1} alignment="start">
-              <Text
-                numberOfLines={1}
-                textStyle={{ color: Gallery.ink }}
-                modifiers={[font({ textStyle: "subheadline", weight: "semibold" })]}
-              >
-                {visit.venueName}
-              </Text>
-              <Text numberOfLines={1} textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "caption" })]}>
-                {detail}
-              </Text>
-            </Column>
-          </Row>
-        </Button>
-        <Button
-          variant="text"
-          onPress={() =>
-            router.push({
-              pathname: "/journal/[visitId]",
-              params: { visitId: visit.localId, endVisit: "true" },
-            })
-          }
-          modifiers={[
-            accessibilityLabel("End visit"),
-            accessibilityHint("Opens a review before saving and ending the visit"),
-            fixedSize({ horizontal: true, vertical: true }),
-          ]}
-        >
-          <Row
-            alignment="center"
-            modifiers={[frame({ minHeight: 44, minWidth: 44 }), contentShape(shapes.rectangle())]}
+            <Row
+              alignment="center"
+              spacing={10}
+              modifiers={[
+                frame({ minHeight: 44, maxWidth: Infinity, alignment: "leading" }),
+                contentShape(shapes.rectangle()),
+              ]}
+            >
+              <Icon name="building.columns.fill" size={22} color={Gallery.accent} />
+              <Column spacing={1} alignment="start">
+                <Text
+                  numberOfLines={1}
+                  textStyle={{ color: Gallery.ink }}
+                  modifiers={[font({ textStyle: "subheadline", weight: "semibold" })]}
+                >
+                  {visit.venueName}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  textStyle={{ color: Gallery.muted }}
+                  modifiers={[font({ textStyle: "caption" })]}
+                >
+                  {detail}
+                </Text>
+              </Column>
+            </Row>
+          </Button>
+          <Button
+            variant="text"
+            onPress={() =>
+              router.push({
+                pathname: "/journal/[visitId]",
+                params: { visitId: visit.localId, endVisit: "true" },
+              })
+            }
+            modifiers={[
+              accessibilityLabel("End visit"),
+              accessibilityHint("Opens a review before saving and ending the visit"),
+              fixedSize({ horizontal: true, vertical: true }),
+            ]}
           >
-            <Text textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
-              End visit
-            </Text>
-          </Row>
-        </Button>
-      </Row>
-    </Host>
+            <Row
+              alignment="center"
+              modifiers={[frame({ minHeight: 44, minWidth: 44 }), contentShape(shapes.rectangle())]}
+            >
+              <Text textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
+                End visit
+              </Text>
+            </Row>
+          </Button>
+        </Row>
+      </Host>
+    </Sentry.Mask>
   );
 }

@@ -91,6 +91,7 @@ export function VisitGlobe({
                 <GalleryButton
                   key={museum.venueId}
                   label={museum.venueName}
+                  maskInReplay
                   icon="building.columns"
                   onPress={() => {
                     setClusterIds([]);

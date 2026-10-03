@@ -1,6 +1,10 @@
+// Must run before the SDK reads the clock.
+import "./sentry-clock";
 import * as Sentry from "@sentry/react-native";
 
-import { addBreadcrumb, sanitizeBreadcrumb, sanitizeEvent } from "./observability";
+import { addBreadcrumb, sanitizeBreadcrumb, sanitizeEvent, sanitizeTransaction } from "./observability";
+
+export const navigationIntegration = Sentry.reactNavigationIntegration();
 
 // Load before database/auth modules so initialization failures are captured too.
 Sentry.init({
@@ -11,12 +15,17 @@ Sentry.init({
   sendDefaultPii: false,
   attachScreenshot: false,
   attachViewHierarchy: false,
-  // Camera previews must never be recorded, including on an error.
+  tracesSampleRate: 1,
+  // The backend reports without trace continuation, so trace headers would only reach third parties.
+  tracePropagationTargets: [],
+  integrations: [navigationIntegration],
+  // Default masking misses camera, Skia, map and SwiftUI views; those showing private content add Sentry.Mask.
   replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: 0,
+  replaysOnErrorSampleRate: 1,
   maxBreadcrumbs: 50,
   beforeBreadcrumb: sanitizeBreadcrumb,
   beforeSend: sanitizeEvent,
+  beforeSendTransaction: sanitizeTransaction,
 });
 
 addBreadcrumb("app.started");

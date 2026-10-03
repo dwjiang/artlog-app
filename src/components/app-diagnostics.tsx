@@ -1,11 +1,16 @@
 import * as Sentry from "@sentry/react-native";
-import { useSegments } from "expo-router";
+import { useNavigationContainerRef, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 
 import { addBreadcrumb } from "@/lib/observability";
+import { navigationIntegration } from "@/lib/sentry";
 
 export function AppDiagnostics() {
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
   // File segments retain [scanId] rather than the actual ID or search parameters.
   const route = useSegments().join("/") || "index";
   useEffect(() => {

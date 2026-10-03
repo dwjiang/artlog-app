@@ -81,7 +81,7 @@ const privacy: LegalDocument = {
     {
       heading: "Crash reports",
       paragraphs: [
-        "When the app or our servers hit an error, a report goes to Sentry with technical details such as the error, your device model and your iOS and app versions. Reports leave out photos, notes, location and the content of your requests. An automated job on GitHub sends these reports to OpenAI’s coding tools to analyze them and suggest fixes.",
+        "When the app or our servers hit an error, a report goes to Sentry with technical details such as the error, your device model and your iOS and app versions. Reports leave out photos, notes, location and the content of your requests. An app error report also includes a screen recording that starts about a minute before the error, with text, photos, the camera view and maps hidden; only the app’s own button labels stay visible. The app also records how long screens and requests take. An automated job on GitHub sends these reports to OpenAI’s coding tools to analyze them and suggest fixes.",
       ],
     },
     {

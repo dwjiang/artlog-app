@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { ConvexError } from "convex/values";
 
-import { addBreadcrumb, reportError, sanitizeBreadcrumb, sanitizeEvent } from "./observability";
+import { addBreadcrumb, reportError, sanitizeBreadcrumb, sanitizeEvent, sanitizeTransaction } from "./observability";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -169,6 +169,43 @@ it("scrubs credentials, image payloads, SQL parameters and request data before s
   ]) {
     expect(payload).not.toContain(secret);
   }
+});
+
+it("keeps only the host, method and status of traced requests", () => {
+  const event = sanitizeTransaction({
+    type: "transaction",
+    transaction: "scan/[scanId]",
+    user: { email: "visitor@example.com" },
+    contexts: { trace: { trace_id: "t", span_id: "s", data: { url: "https://example.com/photo?token=secret" } } },
+    spans: [
+      {
+        span_id: "a",
+        trace_id: "t",
+        start_timestamp: 0,
+        op: "http.client",
+        description: "GET https://bucket.example.com/photos/private-key.jpg?X-Amz-Signature=secret#crop",
+        data: {
+          url: "https://bucket.example.com/photos/private-key.jpg?X-Amz-Signature=secret#crop",
+          "http.url": "https://bucket.example.com/photos/private-key.jpg",
+          "http.query": "?X-Amz-Signature=secret",
+          "http.fragment": "#crop",
+          "http.method": "GET",
+          "http.response.status_code": 403,
+          "server.address": "bucket.example.com",
+        },
+      },
+      { span_id: "b", trace_id: "t", start_timestamp: 0, description: "GET file:///private/photo.jpg", data: {} },
+    ],
+  });
+  const payload = JSON.stringify(event);
+  for (const secret of ["visitor@example.com", "secret", "private-key", "#crop", "private/photo.jpg"]) {
+    expect(payload).not.toContain(secret);
+  }
+  expect(event.transaction).toBe("scan/[scanId]");
+  expect(event.spans?.[0]).toMatchObject({
+    description: "GET https://bucket.example.com",
+    data: { "http.method": "GET", "http.response.status_code": 403, "server.address": "bucket.example.com" },
+  });
 });
 
 it("telemetry failures cannot interrupt saving or recovery", () => {

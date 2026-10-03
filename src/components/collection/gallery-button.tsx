@@ -12,6 +12,7 @@ import {
   shapes,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
+import * as Sentry from "@sentry/react-native";
 import { type ComponentProps, useEffect } from "react";
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 
@@ -37,6 +38,7 @@ export function GalleryButton({
   minHeight: minHeightOverride,
   iconOnly = false,
   cornerRadius = Radius.button,
+  maskInReplay = false,
 }: {
   label: string;
   accessibilityLabel?: string;
@@ -58,6 +60,7 @@ export function GalleryButton({
   /** Draws only `icon`; `label` remains the accessible name. */
   iconOnly?: boolean;
   cornerRadius?: number;
+  maskInReplay?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const expand = fullWidth ?? fontScale >= 1.5;
@@ -77,10 +80,11 @@ export function GalleryButton({
       AccessibilityInfo.announceForAccessibility(`${accessibilityLabel}. In progress.`);
     }
   }, [busy, accessibilityLabel]);
+  const Container = maskInReplay ? Sentry.Mask : View;
 
   // The row lets the inner view hug the native button so the overlay covers only it, while a centered parent can still center the whole row.
   return (
-    <View
+    <Container
       style={{
         flexDirection: "row",
         maxWidth: "100%",
@@ -179,6 +183,6 @@ export function GalleryButton({
           </View>
         )}
       </View>
-    </View>
+    </Container>
   );
 }

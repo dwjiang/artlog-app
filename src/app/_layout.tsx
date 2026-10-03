@@ -38,9 +38,12 @@ export const unstable_settings = {
 
 function RootLayout() {
   return (
-    <AppUpdateGate>
-      <AppContent />
-    </AppUpdateGate>
+    <>
+      <AppDiagnostics />
+      <AppUpdateGate>
+        <AppContent />
+      </AppUpdateGate>
+    </>
   );
 }
 
@@ -48,209 +51,206 @@ function AppContent() {
   useEffect(warmUpEmbedder, []);
   useEffect(limitImageCache, []);
   return (
-    <>
-      <AppDiagnostics />
-      <DatabaseGate>
-        <PhotoMaintenance />
-        <ConvexAuthProvider client={convex} storage={installationStorage}>
-          <DeviceIdentity />
-          <CollectionSync />
-          <ProfileSetupPrompt />
-          <QueueFlusher />
-          <MuseumDownloadLifecycle />
-          <VenueResolver />
-          <VisitActivitySync />
-          <WidgetProvider>
-            <ThemeProvider value={navigationTheme}>
-              <ListeningProvider>
-                <ListeningRoot>
-                  <Stack
-                    screenOptions={{
-                      ...NavigationTheme,
-                      headerBackButtonDisplayMode: "default",
+    <DatabaseGate>
+      <PhotoMaintenance />
+      <ConvexAuthProvider client={convex} storage={installationStorage}>
+        <DeviceIdentity />
+        <CollectionSync />
+        <ProfileSetupPrompt />
+        <QueueFlusher />
+        <MuseumDownloadLifecycle />
+        <VenueResolver />
+        <VisitActivitySync />
+        <WidgetProvider>
+          <ThemeProvider value={navigationTheme}>
+            <ListeningProvider>
+              <ListeningRoot>
+                <Stack
+                  screenOptions={{
+                    ...NavigationTheme,
+                    headerBackButtonDisplayMode: "default",
+                  }}
+                  screenLayout={({ options, children }) => (
+                    <DockedPlayerInsets modal={!!options.presentation && options.presentation !== "card"}>
+                      {children}
+                    </DockedPlayerInsets>
+                  )}
+                >
+                  <Stack.Screen
+                    name="now-playing"
+                    dangerouslySingular
+                    options={{
+                      presentation: "modal",
+                      headerShown: false,
+                      contentStyle: { backgroundColor: Gallery.paper },
                     }}
-                    screenLayout={({ options, children }) => (
-                      <DockedPlayerInsets modal={!!options.presentation && options.presentation !== "card"}>
-                        {children}
-                      </DockedPlayerInsets>
-                    )}
-                  >
-                    <Stack.Screen
-                      name="now-playing"
-                      dangerouslySingular
-                      options={{
-                        presentation: "modal",
-                        headerShown: false,
-                        contentStyle: { backgroundColor: Gallery.paper },
-                      }}
-                    />
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Back" }} />
-                    <Stack.Screen
-                      name="result/[scanId]"
-                      options={({ route }) => ({
-                        title: "",
-                        animation:
-                          (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                            ? "fade"
-                            : "default",
-                      })}
-                      listeners={({ navigation, route }) => ({
-                        transitionEnd: ({ data }) => {
-                          if (
-                            !data.closing
-                            && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                          ) {
-                            navigation.setParams({ entrance: undefined });
-                          }
-                        },
-                      })}
-                    />
-                    <Stack.Screen name="all-artworks" options={{ title: "", headerBackTitle: "Collection" }} />
-                    <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
-                    <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
-                    <Stack.Screen
-                      name="sign-in"
-                      dangerouslySingular
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="welcome"
-                      options={{
-                        presentation: "fullScreenModal",
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen name="settings-detail" options={{ title: "Settings" }} />
-                    <Stack.Screen name="settings" options={{ title: "", headerBackTitle: "Collection" }} />
-                    <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
-                    <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />
-                    <Stack.Screen name="wall-display" options={{ title: "" }} />
-                    <Stack.Screen
-                      name="journal/[visitId]"
-                      options={{
-                        title: "Visit details",
-                        headerLargeTitle: true,
-                        headerTransparent: true,
-                        headerStyle: { backgroundColor: Gallery.groupedBackground },
-                        // An opaque large-header background hides the re-expanded title on iOS 26.
-                        headerLargeStyle: { backgroundColor: "transparent" },
-                        headerLargeTitleShadowVisible: false,
-                        contentStyle: { backgroundColor: Gallery.groupedBackground },
-                      }}
-                    />
-                    <Stack.Screen name="adjust-crop" options={{ title: "Adjust crop", gestureEnabled: false }} />
-                    <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
-                    <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
-                    <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
-                    <Stack.Screen name="people" options={{ title: "Friends" }} />
-                    <Stack.Screen name="blocked-people" options={{ title: "Blocked people" }} />
-                    <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-                    <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
-                    <Stack.Screen name="profile-friends" options={{ title: "Friends" }} />
-                    <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
-                    <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
-                    <Stack.Screen name="share-profile" options={{ title: "Share profile" }} />
-                    <Stack.Screen
-                      name="create-profile"
-                      options={{
-                        presentation: "fullScreenModal",
-                        headerShown: false,
-                        gestureEnabled: false,
-                      }}
-                    />
-                    <Stack.Screen name="artwork" options={{ title: "" }} />
-                    <Stack.Screen name="visit-create" options={{ ...visitSheet, title: "Add visit" }} />
-                    <Stack.Screen name="visit-museum" options={{ ...visitSheet, title: "Change museum" }} />
-                    <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="visit-globe"
-                      options={{
-                        presentation: "modal",
-                        title: "Visited museums",
-                        headerTintColor: Gallery.accent,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="venue-picker"
-                      dangerouslySingular
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="visit-add"
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="dont-miss"
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="visit-wrap-up"
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="send-feedback"
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="report"
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="queue"
-                      dangerouslySingular
-                      options={{
-                        presentation: "formSheet",
-                        sheetAllowedDetents: "fitToContents",
-                        sheetGrabberVisible: true,
-                        headerShown: false,
-                      }}
-                    />
-                  </Stack>
-                </ListeningRoot>
-              </ListeningProvider>
-              <ToastLayer>
-                <RemovalToast />
-              </ToastLayer>
-            </ThemeProvider>
-          </WidgetProvider>
-        </ConvexAuthProvider>
-      </DatabaseGate>
-    </>
+                  />
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Back" }} />
+                  <Stack.Screen
+                    name="result/[scanId]"
+                    options={({ route }) => ({
+                      title: "",
+                      animation:
+                        (route.params as { entrance?: string } | undefined)?.entrance === "capture"
+                          ? "fade"
+                          : "default",
+                    })}
+                    listeners={({ navigation, route }) => ({
+                      transitionEnd: ({ data }) => {
+                        if (
+                          !data.closing
+                          && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
+                        ) {
+                          navigation.setParams({ entrance: undefined });
+                        }
+                      },
+                    })}
+                  />
+                  <Stack.Screen name="all-artworks" options={{ title: "", headerBackTitle: "Collection" }} />
+                  <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
+                  <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
+                  <Stack.Screen
+                    name="sign-in"
+                    dangerouslySingular
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="welcome"
+                    options={{
+                      presentation: "fullScreenModal",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen name="settings-detail" options={{ title: "Settings" }} />
+                  <Stack.Screen name="settings" options={{ title: "", headerBackTitle: "Collection" }} />
+                  <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
+                  <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />
+                  <Stack.Screen name="wall-display" options={{ title: "" }} />
+                  <Stack.Screen
+                    name="journal/[visitId]"
+                    options={{
+                      title: "Visit details",
+                      headerLargeTitle: true,
+                      headerTransparent: true,
+                      headerStyle: { backgroundColor: Gallery.groupedBackground },
+                      // An opaque large-header background hides the re-expanded title on iOS 26.
+                      headerLargeStyle: { backgroundColor: "transparent" },
+                      headerLargeTitleShadowVisible: false,
+                      contentStyle: { backgroundColor: Gallery.groupedBackground },
+                    }}
+                  />
+                  <Stack.Screen name="adjust-crop" options={{ title: "Adjust crop", gestureEnabled: false }} />
+                  <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
+                  <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
+                  <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
+                  <Stack.Screen name="people" options={{ title: "Friends" }} />
+                  <Stack.Screen name="blocked-people" options={{ title: "Blocked people" }} />
+                  <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+                  <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
+                  <Stack.Screen name="profile-friends" options={{ title: "Friends" }} />
+                  <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
+                  <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
+                  <Stack.Screen name="share-profile" options={{ title: "Share profile" }} />
+                  <Stack.Screen
+                    name="create-profile"
+                    options={{
+                      presentation: "fullScreenModal",
+                      headerShown: false,
+                      gestureEnabled: false,
+                    }}
+                  />
+                  <Stack.Screen name="artwork" options={{ title: "" }} />
+                  <Stack.Screen name="visit-create" options={{ ...visitSheet, title: "Add visit" }} />
+                  <Stack.Screen name="visit-museum" options={{ ...visitSheet, title: "Change museum" }} />
+                  <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="visit-globe"
+                    options={{
+                      presentation: "modal",
+                      title: "Visited museums",
+                      headerTintColor: Gallery.accent,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="venue-picker"
+                    dangerouslySingular
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="visit-add"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="dont-miss"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="visit-wrap-up"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="send-feedback"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="report"
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="queue"
+                    dangerouslySingular
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                </Stack>
+              </ListeningRoot>
+            </ListeningProvider>
+            <ToastLayer>
+              <RemovalToast />
+            </ToastLayer>
+          </ThemeProvider>
+        </WidgetProvider>
+      </ConvexAuthProvider>
+    </DatabaseGate>
   );
 }
 

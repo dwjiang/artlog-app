@@ -383,7 +383,11 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
 - **Crash and handled-error reports go to Sentry.** Reports include stack traces, device model,
   OS and app version, operation names, route templates and diagnostic breadcrumbs. Console
   output and request payloads are excluded; URLs, credentials and SQL parameters are redacted.
-  No photos, screenshots, session replays or location fixes are attached.
+  No photos, screenshots or location fixes are attached. An error also uploads a screen replay
+  starting about a minute before it. Sentry masks text and images; camera previews,
+  Skia canvases, maps and SwiftUI hosts showing personal data sit inside `Sentry.Mask`, so only
+  fixed control labels stay readable. Traces time app start and screen loads; request spans keep
+  only the host.
   Backend actions send allowlisted error codes and code locations directly to Sentry. Configure
   `SENTRY_DSN` and `SENTRY_ENVIRONMENT` on each Convex deployment (no Pro integration needed).
   Backend reports omit raw error messages, function arguments and console output. Delivery

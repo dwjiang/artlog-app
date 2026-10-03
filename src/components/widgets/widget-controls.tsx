@@ -8,6 +8,7 @@ import {
   frame,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
+import * as Sentry from "@sentry/react-native";
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { View } from "react-native";
@@ -32,7 +33,7 @@ export function WidgetSettingRow({
   children?: ReactNode;
 }) {
   return (
-    <View style={{ borderBottomWidth: 0.5, borderBottomColor: Gallery.softBorder }}>
+    <Sentry.Mask style={{ borderBottomWidth: 0.5, borderBottomColor: Gallery.softBorder }}>
       <Host matchContents={{ vertical: true }} colorScheme="light" ignoreSafeArea="all" style={{ width: "100%" }}>
         <Button
           variant="text"
@@ -117,7 +118,7 @@ export function WidgetSettingRow({
           </Row>
         </Button>
       </Host>
-    </View>
+    </Sentry.Mask>
   );
 }
 

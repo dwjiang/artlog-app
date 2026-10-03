@@ -10,6 +10,7 @@ import {
   shapes,
   textSelection,
 } from "@expo/ui/swift-ui/modifiers";
+import * as Sentry from "@sentry/react-native";
 import { useEffect, useState } from "react";
 import { AppState, useWindowDimensions } from "react-native";
 
@@ -68,79 +69,81 @@ export function VisitDetailsFields({
   );
   const row = [frame({ minHeight: 44, maxWidth: Infinity, alignment: "leading" }), contentShape(shapes.rectangle())];
   return (
-    <Host matchContents={{ vertical: true }} ignoreSafeArea="all" colorScheme="light">
-      <GroupedCard outlined={false}>
-        <Button
-          onPress={onMuseum}
-          disabled={disabled}
-          modifiers={[
-            accessibilityLabel(visit.venueName),
-            accessibilityHint("Changes the museum"),
-            buttonStyle("plain"),
-          ]}
-        >
-          <Row spacing={Spacing.compact} alignment="center" modifiers={row}>
-            {symbol("building.columns")}
-            <Column alignment="start" spacing={3}>
-              <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body", weight: "semibold" })]}>
-                {visit.venueName}
-              </Text>
-              {visit.location ? (
-                <Text
-                  textStyle={{ color: Gallery.muted }}
-                  modifiers={[font({ textStyle: "footnote" }), textSelection(true)]}
-                >
-                  {visit.location}
-                </Text>
-              ) : null}
-            </Column>
-            <Spacer />
-            <Icon name="chevron.right" size={13 * fontScale} color={Gallery.muted} />
-          </Row>
-        </Button>
-        <FieldLayout spacing={Spacing.compact} alignment={stacked ? "start" : "center"} modifiers={row}>
-          <Row spacing={Spacing.compact} alignment="center">
-            {symbol("calendar")}
-            <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
-              Date
-            </Text>
-          </Row>
-          {!stacked && <Spacer />}
-          <VisitDateField
-            value={visit.visitedOn}
-            latest={calendarDate(now, visit.timeZone)}
-            showLabel={false}
+    <Sentry.Mask>
+      <Host matchContents={{ vertical: true }} ignoreSafeArea="all" colorScheme="light">
+        <GroupedCard outlined={false}>
+          <Button
+            onPress={onMuseum}
             disabled={disabled}
-            onChange={onDate}
-          />
-        </FieldLayout>
-        <NativeChoiceMenu
-          label="Visibility"
-          value={visibility}
-          disabled={visibilityDisabled}
-          onChange={onVisibility}
-          options={(Object.keys(VISIT_VISIBILITY) as VisitVisibility[]).map((value) => ({
-            value,
-            label: VISIT_VISIBILITY[value].label,
-          }))}
-        >
+            modifiers={[
+              accessibilityLabel(visit.venueName),
+              accessibilityHint("Changes the museum"),
+              buttonStyle("plain"),
+            ]}
+          >
+            <Row spacing={Spacing.compact} alignment="center" modifiers={row}>
+              {symbol("building.columns")}
+              <Column alignment="start" spacing={3}>
+                <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body", weight: "semibold" })]}>
+                  {visit.venueName}
+                </Text>
+                {visit.location ? (
+                  <Text
+                    textStyle={{ color: Gallery.muted }}
+                    modifiers={[font({ textStyle: "footnote" }), textSelection(true)]}
+                  >
+                    {visit.location}
+                  </Text>
+                ) : null}
+              </Column>
+              <Spacer />
+              <Icon name="chevron.right" size={13 * fontScale} color={Gallery.muted} />
+            </Row>
+          </Button>
           <FieldLayout spacing={Spacing.compact} alignment={stacked ? "start" : "center"} modifiers={row}>
             <Row spacing={Spacing.compact} alignment="center">
-              {symbol(VISIT_VISIBILITY[visibility].icon)}
+              {symbol("calendar")}
               <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
-                Visibility
+                Date
               </Text>
             </Row>
             {!stacked && <Spacer />}
-            <Row spacing={Spacing.compact} alignment="center">
-              <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "body" })]}>
-                {VISIT_VISIBILITY[visibility].label}
-              </Text>
-              <Icon name="chevron.up.chevron.down" size={12 * fontScale} color={Gallery.muted} />
-            </Row>
+            <VisitDateField
+              value={visit.visitedOn}
+              latest={calendarDate(now, visit.timeZone)}
+              showLabel={false}
+              disabled={disabled}
+              onChange={onDate}
+            />
           </FieldLayout>
-        </NativeChoiceMenu>
-      </GroupedCard>
-    </Host>
+          <NativeChoiceMenu
+            label="Visibility"
+            value={visibility}
+            disabled={visibilityDisabled}
+            onChange={onVisibility}
+            options={(Object.keys(VISIT_VISIBILITY) as VisitVisibility[]).map((value) => ({
+              value,
+              label: VISIT_VISIBILITY[value].label,
+            }))}
+          >
+            <FieldLayout spacing={Spacing.compact} alignment={stacked ? "start" : "center"} modifiers={row}>
+              <Row spacing={Spacing.compact} alignment="center">
+                {symbol(VISIT_VISIBILITY[visibility].icon)}
+                <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
+                  Visibility
+                </Text>
+              </Row>
+              {!stacked && <Spacer />}
+              <Row spacing={Spacing.compact} alignment="center">
+                <Text textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "body" })]}>
+                  {VISIT_VISIBILITY[visibility].label}
+                </Text>
+                <Icon name="chevron.up.chevron.down" size={12 * fontScale} color={Gallery.muted} />
+              </Row>
+            </FieldLayout>
+          </NativeChoiceMenu>
+        </GroupedCard>
+      </Host>
+    </Sentry.Mask>
   );
 }
