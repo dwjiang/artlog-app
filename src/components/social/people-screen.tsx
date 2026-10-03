@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SearchEmptyState } from "@/components/empty-state";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -86,6 +87,9 @@ export function PeopleScreen() {
   // Browse pages embed the viewer's relationship per row; a row only opens its own subscription when a page lacks it.
   const relationship = (person: BrowsedProfile, refresh: () => void) =>
     person.relationship ? { data: person.relationship, refresh } : undefined;
+  const list = useRef<FlatList<BrowsedProfile>>(null);
+  const room = usePaneRoom(list);
+  usePaneSwitch(filter, () => room);
   return (
     <>
       <Stack.Screen options={{ title: "" }} />
@@ -101,9 +105,12 @@ export function PeopleScreen() {
         </Stack.Toolbar>
       )}
       <FlatList
+        ref={list}
         style={socialStyles.root}
-        contentContainerStyle={socialStyles.content}
+        contentContainerStyle={[socialStyles.content, { minHeight: room.minHeight }]}
         contentInsetAdjustmentBehavior="automatic"
+        onLayout={room.onLayout}
+        onScroll={room.onScroll}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         data={
@@ -170,15 +177,18 @@ export function PeopleScreen() {
                 showLabel={false}
                 editable={filter === "all" || session.status === "ready"}
               />
-              <NativeSegmentedPicker
-                label="Friends filter"
-                value={filter}
-                onChange={setFilter}
-                options={[
-                  { value: "all", label: "Explore" },
-                  { value: "friends", label: "Friends" },
-                ]}
-              />
+              {/* Requests and the friend count below the switch belong to one filter each. */}
+              <View onLayout={room.onHeaderLayout}>
+                <NativeSegmentedPicker
+                  label="Friends filter"
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: "all", label: "Explore" },
+                    { value: "friends", label: "Friends" },
+                  ]}
+                />
+              </View>
               {exploring && !!requests.data?.length && (
                 <View style={{ gap: 10, paddingTop: 12 }}>
                   <Text variant="section" accessibilityRole="header">

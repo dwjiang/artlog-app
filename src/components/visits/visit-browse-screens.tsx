@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FlatList, Pressable, ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
+import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -132,19 +133,28 @@ function ExpandedGlobe() {
   const counts = visitCounts(visits);
   const citiesKnown = visits.every((visit) => !!visit.city);
   const places = new Set(visits.map((visit) => placeIdentity(visit).key)).size;
+  const scroll = useRef<ScrollView>(null);
+  const room = usePaneRoom(scroll);
+  usePaneSwitch(mode, () => room);
   return (
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 30 }}>
+      <ScrollView
+        ref={scroll}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
+        onLayout={room.onLayout}
+        onScroll={room.onScroll}
+      >
         {loading || error ? (
           <VisitMessage loading={loading && !error}>
             {error ? "Globe locations could not load." : "Loading globe…"}
           </VisitMessage>
         ) : (
           <>
-            <View style={{ padding: 20, gap: 12 }}>
+            <View style={{ padding: 20, gap: 12 }} onLayout={room.onHeaderLayout}>
               <Text style={{ color: Gallery.muted }}>
                 {counts.museums} {counts.museums === 1 ? "museum" : "museums"} · {places}{" "}
                 {citiesKnown ? (places === 1 ? "city" : "cities") : places === 1 ? "place" : "places"}

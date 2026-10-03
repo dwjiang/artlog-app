@@ -11,6 +11,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { FeedSkeleton } from "@/components/loading-skeleton";
+import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard } from "@/components/visits/now-card";
@@ -90,6 +91,8 @@ export function HomeScreen() {
     && suggestions.friendCount < STRIP_FRIEND_LIMIT
     && suggestions.people.length > 0;
   const list = useAnimatedRef<FlatList<SharedVisit>>();
+  const room = usePaneRoom(list);
+  usePaneSwitch(tab ?? "", () => room);
   const pull = usePullToRefresh(list, {
     enabled: canBrowse,
     refreshing: feed.refreshing,
@@ -103,8 +106,10 @@ export function HomeScreen() {
       <Animated.FlatList
         ref={list}
         style={socialStyles.root}
-        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 }]}
+        contentContainerStyle={[socialStyles.content, { paddingBottom: 28, minHeight: room.minHeight }]}
         contentInsetAdjustmentBehavior="automatic"
+        onLayout={room.onLayout}
+        onScroll={room.onScroll}
         data={canBrowse ? feed.items : []}
         keyExtractor={visitId}
         initialNumToRender={4}
@@ -163,7 +168,8 @@ export function HomeScreen() {
               </View>
             )}
             <NowCard />
-            <View style={styles.tabs}>
+            {/* Each feed starts below the switch; the suggestion strip under it belongs to Friends. */}
+            <View style={styles.tabs} onLayout={room.onHeaderLayout}>
               <NativeSegmentedPicker
                 label="Visit feed"
                 value={tab}

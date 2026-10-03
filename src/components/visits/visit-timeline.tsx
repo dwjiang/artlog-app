@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
-import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
+import { useRef, type ReactElement, type Ref } from "react";
 import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { usePaneRoom, usePaneSwitch, type PaneRoom } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -66,30 +67,22 @@ export function VisitTimeline({
   controls,
   footer,
   groupByMuseum = false,
-  scrollResetKey,
+  pane,
+  paneRef,
 }: {
   visits: VisitSummary[];
   header?: ReactElement;
   controls?: ReactElement;
   footer?: ReactElement;
   groupByMuseum?: boolean;
-  scrollResetKey?: string;
+  /** The view shown below the controls; changing it keeps the header still. */
+  pane?: string;
+  paneRef?: Ref<PaneRoom>;
 }) {
   const { fontScale } = useWindowDimensions();
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [headerHeight, setHeaderHeight] = useState(0);
   const list = useRef<FlatList<Row>>(null);
-  const scrollOffset = useRef(0);
-  const previousKey = useRef(scrollResetKey);
-  useLayoutEffect(() => {
-    if (previousKey.current === scrollResetKey) return;
-    previousKey.current = scrollResetKey;
-    // Reveal the new view's content while preserving the header's collapsed position.
-    list.current?.scrollToOffset({
-      offset: Math.min(scrollOffset.current, headerHeight),
-      animated: false,
-    });
-  }, [headerHeight, scrollResetKey]);
+  const room = usePaneRoom(list, paneRef);
+  usePaneSwitch(pane ?? "", () => room);
   const session = useSocialSession();
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === "ready" ? {} : "skip", session.key);
   const shared = new Set(sharing.data);
@@ -125,22 +118,14 @@ export function VisitTimeline({
       data={rows}
       keyExtractor={(row) => row.key}
       contentInsetAdjustmentBehavior="automatic"
-      onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-      onScroll={(event) => {
-        scrollOffset.current = event.nativeEvent.contentOffset.y;
-      }}
+      onLayout={room.onLayout}
+      onScroll={room.onScroll}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
-      ListHeaderComponent={
-        header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>
-      }
+      ListHeaderComponent={header && <View onLayout={room.onHeaderLayout}>{header}</View>}
       stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
-      // Shorter content must still let the header scroll away without moving pinned controls.
-      contentContainerStyle={{
-        paddingBottom: 30,
-        minHeight: controls ? viewportHeight + headerHeight : undefined,
-      }}
+      contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
       ListFooterComponent={footer}
       renderItem={({ item }) =>
         item.kind === "element" ? (

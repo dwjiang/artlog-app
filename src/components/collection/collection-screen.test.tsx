@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactNode } from "react";
-import { StyleSheet } from "react-native";
+import { FlatList, StyleSheet } from "react-native";
 
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
@@ -80,15 +80,23 @@ jest.mock("expo-router", () => {
   };
 });
 jest.mock("./collection-wall", () => {
-  const { Text, View } = jest.requireActual("react-native");
+  const { ScrollView, Text, View } = jest.requireActual("react-native");
+  const { useRef } = jest.requireActual("react");
+  const { usePaneRoom } = jest.requireActual("@/components/pane-scroll");
   return {
-    CollectionWall: ({ header, controls }: { header: ReactNode; controls: ReactNode }) => (
-      <View>
-        {header}
-        {controls}
-        <Text>Collection wall</Text>
-      </View>
-    ),
+    CollectionWall: ({ header, controls, paneRef }: { header: ReactNode; controls: ReactNode; paneRef: unknown }) => {
+      const scroll = useRef(null);
+      const room = usePaneRoom(scroll, paneRef);
+      return (
+        <ScrollView ref={scroll} testID="wall" onLayout={room.onLayout} onScroll={room.onScroll}>
+          {header}
+          <View testID="wall-controls" onLayout={room.onPinnedLayout}>
+            {controls}
+          </View>
+          <Text>Collection wall</Text>
+        </ScrollView>
+      );
+    },
   };
 });
 async function renderArchive() {
@@ -119,6 +127,22 @@ it("keeps the public wall as the account collection view", async () => {
   expect(screen.getByText("Collection wall")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Wall" })).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
+});
+
+it("opens Visits with the header where the scrolled wall left it", async () => {
+  const scrollToOffset = jest.spyOn(FlatList.prototype, "scrollToOffset");
+  try {
+    await render(<CollectionScreen />);
+    await fireEvent(screen.getByTestId("wall-controls"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 300, width: 402, height: 60 } },
+    });
+    await fireEvent.scroll(screen.getByTestId("wall"), { nativeEvent: { contentOffset: { x: 0, y: 83 } } });
+    await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+    expect(await screen.findByText("No visits yet.")).toBeVisible();
+    expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 83, animated: false });
+  } finally {
+    scrollToOffset.mockRestore();
+  }
 });
 
 it("keeps the hidden section laid out behind the shown one", async () => {

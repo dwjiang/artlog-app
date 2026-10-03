@@ -11,6 +11,7 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPodium } from "@/components/empty-state-art";
 import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -58,6 +59,8 @@ export function LeaderboardScreen() {
   }
   const rows = board.data?.rows ?? [];
   const list = useAnimatedRef<FlatList<(typeof rows)[number]>>();
+  const room = usePaneRoom(list);
+  usePaneSwitch(`${audience}:${metric}`, () => room);
   const pull = usePullToRefresh(list, {
     enabled: canBrowse,
     refreshing: board.refreshing,
@@ -84,11 +87,19 @@ export function LeaderboardScreen() {
       <Animated.FlatList
         ref={list}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 24, minHeight: room.minHeight }}
+        onLayout={room.onLayout}
+        onScroll={room.onScroll}
         initialNumToRender={REVEALED_ROWS}
         refreshControl={pull.refreshControl}
         ListHeaderComponent={
-          <Animated.View style={[styles.filters, pull.headerStyle]} onLayout={pull.onHeaderLayout}>
+          <Animated.View
+            style={[styles.filters, pull.headerStyle]}
+            onLayout={(event) => {
+              pull.onHeaderLayout(event);
+              room.onHeaderLayout(event);
+            }}
+          >
             <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>
               Leaderboards
             </Text>
