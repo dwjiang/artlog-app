@@ -4,7 +4,7 @@ import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Camera, usePhotoOutput } from "react-native-vision-camera";
+import { usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { VISIT_BAR_HEIGHT } from "@/components/visits/visit-bar";
@@ -24,6 +24,7 @@ import { CaptureVisitPill } from "./capture-visit-pill";
 import { DetectionLog, DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
+import { TapToFocusCamera } from "./tap-to-focus-camera";
 import { VenuePill } from "./venue-pill";
 
 export function ScanScreen() {
@@ -131,8 +132,7 @@ export function ScanScreen() {
         notice={message}
         loading={cameraActive && !cameraReady && !cameraError}
       >
-        <Camera
-          style={StyleSheet.absoluteFill}
+        <TapToFocusCamera
           device="back"
           orientationSource="interface"
           resizeMode="cover"
@@ -152,6 +152,7 @@ export function ScanScreen() {
         />
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
         <ScrollView
+          pointerEvents="box-none"
           style={styles.overlay}
           contentInsetAdjustmentBehavior="never"
           contentContainerStyle={[
@@ -243,6 +244,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   overlayContent: {
+    pointerEvents: "box-none",
     flexGrow: 1,
     justifyContent: "flex-end",
     paddingHorizontal: Spacing.content,
