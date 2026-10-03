@@ -2,7 +2,7 @@ import { Color, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AudioIcon } from "@/components/audio/audio-icon";
-import { accessoryStyles, NarrationToggle, narrationStatus, openPlayer } from "@/components/audio/mini-player";
+import { accessoryStyles, NarrationToggle, narrationStatus, PlayerSummary } from "@/components/audio/mini-player";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useListening } from "@/lib/audio/use-listening";
@@ -18,12 +18,10 @@ export function VisitPlayerBar() {
   const here = visit.venueId === venue?.venueId;
   return (
     <View style={accessoryStyles.row}>
-      <Pressable
-        accessibilityRole="button"
+      <PlayerSummary
+        audio={audio}
         accessibilityLabel={`Open player, ${audio.current.work.title}, ${status}`}
         accessibilityValue={{ text: here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}` }}
-        onPress={() => openPlayer()}
-        style={accessoryStyles.summary}
       >
         <AudioIcon name="building.columns.fill" size={22} color={Gallery.accent} />
         <View style={{ flex: 1, gap: 2 }}>
@@ -41,7 +39,7 @@ export function VisitPlayerBar() {
             </Text>
           </View>
         </View>
-      </Pressable>
+      </PlayerSummary>
       <NarrationToggle audio={audio} status={status} />
       <Pressable
         accessibilityRole="button"

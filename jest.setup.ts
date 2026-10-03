@@ -37,6 +37,16 @@ jest.mock("react-native-reanimated", () => ({
   useScrollOffset: () => ({ value: 0 }),
 }));
 
+// expo-router/testing-library swaps in Reanimated's official mock, which needs Worklets' mock to load.
+jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/lib/module/mock"));
+
+// Link previews and menus are native iOS views that only mount under the bridgeless runtime; Jest renders the
+// link's trigger and leaves the menu to the simulator.
+jest.mock("expo-router/build/link/preview/native", () => ({
+  ...jest.requireActual("expo-router/build/link/preview/native"),
+  NativeLinkPreview: ({ children }: { children: unknown }) => children,
+}));
+
 // expo-audio patches its native player class on import, which jest-expo does not mock; route tests load it through the root layout.
 jest.mock("expo-audio", () => ({
   createAudioPlayer: jest.fn(),

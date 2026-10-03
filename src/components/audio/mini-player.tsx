@@ -1,4 +1,5 @@
-import { Color, router } from "expo-router";
+import { Color, Link, type LinkMenuActionProps, router } from "expo-router";
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
@@ -35,18 +36,63 @@ export function NarrationToggle({ audio, status }: { audio: Listening; status: s
     />
   );
 }
+/** The bar's tappable summary: a tap opens the player, a long press offers listening actions without opening it. */
+export function PlayerSummary({
+  audio,
+  accessibilityLabel,
+  accessibilityValue,
+  children,
+}: {
+  audio: Listening;
+  accessibilityLabel: string;
+  accessibilityValue?: { text: string };
+  children: ReactNode;
+}) {
+  const queueActions: { name: string; label: string; icon: LinkMenuActionProps["icon"]; run: () => void }[] = [
+    { name: "upNext", label: "Up next", icon: "list.bullet", run: () => openPlayer("queue") },
+    { name: "restart", label: "Restart narration", icon: "arrow.counterclockwise", run: audio.controller.restart },
+  ];
+  const stop = { name: "stop", label: "Stop listening", run: audio.controller.stop };
+  const actions = [...queueActions, stop];
+  return (
+    <Link href={{ pathname: "/now-playing", params: { view: "player" } }} push asChild>
+      <Link.Trigger>
+        <Pressable
+          // Link hands its child role="link"; the summary opens a sheet, so it stays a button.
+          role="button"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityValue={accessibilityValue}
+          accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
+          onAccessibilityAction={({ nativeEvent }) =>
+            actions.find((action) => action.name === nativeEvent.actionName)?.run()
+          }
+          style={accessoryStyles.summary}
+        >
+          {children}
+        </Pressable>
+      </Link.Trigger>
+      <Link.Menu>
+        {queueActions.map((action) => (
+          <Link.MenuAction key={action.name} icon={action.icon} onPress={action.run}>
+            {action.label}
+          </Link.MenuAction>
+        ))}
+        <Link.Menu inline>
+          <Link.MenuAction icon="stop" destructive onPress={stop.run}>
+            {stop.label}
+          </Link.MenuAction>
+        </Link.Menu>
+      </Link.Menu>
+    </Link>
+  );
+}
 export function MiniPlayer() {
   const audio = useListening();
   if (!audio.current) return null;
   const subtitle = narrationStatus(audio);
   return (
     <View style={accessoryStyles.row}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open player, ${audio.current.work.title}, ${subtitle}`}
-        onPress={() => openPlayer()}
-        style={accessoryStyles.summary}
-      >
+      <PlayerSummary audio={audio} accessibilityLabel={`Open player, ${audio.current.work.title}, ${subtitle}`}>
         <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
         <View style={{ flex: 1, gap: 2 }}>
           {/* Native colors follow the glass accessory's contrast, even while the app stays in light mode. */}
@@ -60,7 +106,7 @@ export function MiniPlayer() {
             {subtitle}
           </Text>
         </View>
-      </Pressable>
+      </PlayerSummary>
       <NarrationToggle audio={audio} status={subtitle} />
       <AudioIconButton
         name="list.bullet"
