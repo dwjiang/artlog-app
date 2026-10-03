@@ -54,6 +54,7 @@ export function useCapture({
   onVisitUnavailable?: () => void;
 } = {}) {
   const identify = useAction(api.identify.identify);
+  const rankCrops = useAction(api.identify.rankCrops);
   const network = useNetworkState();
   const offline = isOffline(network);
   const online = useRef(!offline);
@@ -225,6 +226,7 @@ export function useCapture({
             }
             return identify({ ...payload, scope });
           },
+          rankCrops: (vectors, venueId) => rankCrops({ vectors, venueId, modelVersion: captureOptions.modelVersion }),
           isOnline: () => online.current,
           resolveVisitId: resolveScanVisit,
         },

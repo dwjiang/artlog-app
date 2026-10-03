@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from "react-native";
-import { Camera, usePhotoOutput } from "react-native-vision-camera";
+import { usePhotoOutput } from "react-native-vision-camera";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -45,6 +45,7 @@ import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
 import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
 import { ContributionStatus, SHARING_NOTICE } from "./label/contribution-status";
+import { TapToFocusCamera } from "./tap-to-focus-camera";
 
 const MAX_CHECKS_PER_BATCH = 5;
 
@@ -464,8 +465,7 @@ function PhotoSession({
       ) : (
         <CameraPermission compact loading={active && !ready && !error && !busy}>
           <View style={styles.camera}>
-            <Camera
-              style={StyleSheet.absoluteFill}
+            <TapToFocusCamera
               device="back"
               outputs={[output]}
               isActive={active}

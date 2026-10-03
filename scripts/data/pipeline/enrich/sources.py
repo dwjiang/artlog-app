@@ -122,7 +122,7 @@ def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
     return False
 
 
-# Search pages as plain prose, so facts copied verbatim match (convex/lib/docentSources.ts).
+# Search and reference pages as plain prose so verbatim copies match (convex/lib/docentSources.ts).
 def plain_markdown(text: str) -> str:
     text = re.sub(r"!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)", "", text)
     text = re.sub(r"\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)", r"\1", text)
@@ -620,12 +620,13 @@ class SourceGatherer:
                 for result in self.extract(list(selected)):
                     reference = selected.get(result.get("url"))
                     text = result.get("raw_content")
-                    if reference and isinstance(text, str) and len(text.strip()) >= 80:
+                    text = plain_markdown(text).strip() if isinstance(text, str) else ""
+                    if reference and len(text) >= 80:
                         sources[source_identity(reference["url"])] = {
                             **reference,
                             "label": host(reference["url"]),
                             "score": SCORES["domains"]["wikidata.org"],
-                            "text": text.strip()[:MAX_CHARS],
+                            "text": text[:MAX_CHARS],
                         }
             except (httpx.HTTPError, RuntimeError, ValueError) as error:
                 log.warning("Reference extraction unavailable: %s", error)

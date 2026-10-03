@@ -593,8 +593,9 @@ const styles = StyleSheet.create({
   },
   meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   body: { fontSize: 14, lineHeight: 19, color: Gallery.ink },
-  // Centers the heart on the comment's first line: row padding 8 + name line 18 + (body line 19 − heart 16) / 2.
-  commentLike: { width: 44, minHeight: 44, paddingTop: 27.5, alignItems: "center", gap: 1 },
+  // Centers the heart and count on the name line and first body line: row padding 8 + (name line 18 + body line 19) / 2
+  // − (heart 16 + gap 1 + count 13) / 2. That ends at 41.5, inside a one-line comment's 53, so a first like never grows it.
+  commentLike: { width: 44, minHeight: 44, paddingTop: 11.5, alignItems: "center", gap: 1 },
   likeCount: { fontSize: 11, lineHeight: 13, color: Gallery.muted },
   empty: {
     flex: 1,

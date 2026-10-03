@@ -3,8 +3,9 @@ import { randomUUID } from "expo-crypto";
 import { captureOwner } from "@/lib/account/owner-store";
 import { errorMessage, isNetworkError, isTransientError } from "@/lib/network-error";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { TimeoutError, withTimeout } from "@/lib/with-timeout";
 
-import { roundVector } from "./features";
+import { chooseCrop } from "./crop-choice";
 import type {
   CaptureDependencies,
   CaptureInput,
@@ -16,14 +17,6 @@ import type {
 
 /** A visit sync slower than this sends the scan to the queue; the flusher finishes it. */
 export const VISIT_SYNC_TIMEOUT_MS = 4000;
-
-function withTimeout<T>(task: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const expiry = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("Visit sync timed out")), ms);
-  });
-  return Promise.race([task, expiry]).finally(() => clearTimeout(timer));
-}
 
 export async function runCapture(
   input: CaptureInput,
@@ -46,10 +39,17 @@ export async function runCapture(
   }
 
   try {
-    const prepared = await timed("warp", () =>
-      deps.warper.warpAndLetterbox(input.photoUri, input.quad, opts.inputSize, input.turns),
+    const { rankCrops } = deps;
+    const candidates = await timed("warp", () =>
+      deps.warper.warpCandidates(
+        input.photoUri,
+        input.quad,
+        opts.inputSize,
+        !!rankCrops && deps.isOnline(),
+        input.turns,
+      ),
     );
-    if (!prepared) {
+    if (candidates.length === 0) {
       return {
         kind: "retake",
         reason: "boundary",
@@ -60,6 +60,12 @@ export async function runCapture(
             : "Fit the whole painting in view, including all four corners, and hold steady.",
       };
     }
+    const { painting: prepared, vector } = await chooseCrop(
+      candidates,
+      deps.embedder,
+      rankCrops && ((vectors) => rankCrops(vectors, input.venueId)),
+      timed,
+    );
     const { cropUri } = prepared;
     const triage = await timed("triage", () => deps.triage.check(cropUri));
     if (!triage.ok) {
@@ -77,13 +83,12 @@ export async function runCapture(
           level: "warning",
         });
       });
-    const embedding = await timed("embed", () => deps.embedder.embed(cropUri));
     const features = await timed("orb", () => deps.orb.extract(cropUri));
     const payload: CapturePayload = {
       owner: current.owner,
       scope: current.scope,
       localId: randomUUID(),
-      vector: roundVector(embedding),
+      vector,
       descriptors: features.descriptors,
       keypoints: features.keypoints,
       modelVersion: opts.modelVersion,
@@ -99,16 +104,18 @@ export async function runCapture(
     if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
     if (online && payload.visitLocalId && payload.venueId && deps.resolveVisitId) {
-      payload.visitId = await withTimeout(deps.resolveVisitId(payload.visitLocalId), VISIT_SYNC_TIMEOUT_MS).catch(
-        (error: unknown) => {
-          if (!isTransientError(error) && !(error instanceof Error && error.message === "Visit sync timed out")) {
-            reportError(error, "capture.sync_visit", { level: "warning" });
-          }
-          addBreadcrumb("capture.queued", { reason: "visit_sync" });
-          console.warn("The visit has not synced yet; queuing the scan", error);
-          return undefined;
-        },
-      );
+      payload.visitId = await withTimeout(
+        deps.resolveVisitId(payload.visitLocalId),
+        VISIT_SYNC_TIMEOUT_MS,
+        "Visit sync timed out",
+      ).catch((error: unknown) => {
+        if (!isTransientError(error) && !(error instanceof TimeoutError)) {
+          reportError(error, "capture.sync_visit", { level: "warning" });
+        }
+        addBreadcrumb("capture.queued", { reason: "visit_sync" });
+        console.warn("The visit has not synced yet; queuing the scan", error);
+        return undefined;
+      });
       if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     }
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);

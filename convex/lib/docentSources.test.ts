@@ -403,7 +403,7 @@ it("stops the text sent at the budget, best sources first", () => {
   ]);
 });
 
-it("follows only known-item citations without expanding search domains or crawling extracted links", async () => {
+it("reads known-item citations as plain prose without expanding search domains or crawling their links", async () => {
   const cited = "https://auction.example/lot/1";
   const text = "A catalogue essay for the target painting. ".repeat(5);
   vi.mocked(getEntity).mockResolvedValue({
@@ -419,7 +419,7 @@ it("follows only known-item citations without expanding search domains or crawli
   vi.mocked(searchWithCredit).mockResolvedValue({ images: [], results: [] });
   vi.mocked(extractWithCredit).mockResolvedValue({
     results: [
-      { url: cited, text },
+      { url: cited, text: text.replaceAll("target painting", "_target painting_") },
       { url: "https://unrequested.example/3", text },
     ],
     failures: 0,

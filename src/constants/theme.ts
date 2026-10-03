@@ -42,6 +42,8 @@ export const Colors = {
     separator: Gallery.separator,
     overlayScrim: "rgba(17, 17, 17, 0.72)",
     overlayText: "#FFFFFF",
+    // The Camera app's focus-box yellow, so tap-to-focus reads as the familiar system control.
+    cameraFocus: "#FFD60A",
   },
   dark: {
     text: "#ffffff",

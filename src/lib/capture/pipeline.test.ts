@@ -6,6 +6,8 @@ import { runCapture } from "./pipeline";
 import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from "./stages";
 
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "capture-uuid") }));
+const mockRemove = jest.fn();
+jest.mock("@/lib/files/remove-file", () => ({ removeFileIfExists: (uri: string) => mockRemove(uri) }));
 
 const input: CaptureInput = {
   photoUri: "file:///photo.jpg",
@@ -37,7 +39,7 @@ const response = {
 function dependencies() {
   return {
     warper: {
-      warpAndLetterbox: jest.fn(async (): Promise<PreparedPainting | null> => painting),
+      warpCandidates: jest.fn(async (): Promise<PreparedPainting[]> => [painting]),
     },
     triage: { check: jest.fn(async () => ({ ok: true as const })) },
     embedder: {
@@ -52,6 +54,7 @@ function dependencies() {
       })),
     },
     identify: jest.fn(async (_payload: CapturePayload) => response),
+    rankCrops: jest.fn(async (_vectors: number[][], _venueId: CaptureInput["venueId"]) => 0),
     isOnline: jest.fn(() => true),
     store: {
       enqueue: jest.fn(async (_payload: CapturePayload, _status: "queued" | "identifying") => {}),
@@ -72,7 +75,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   const deps = dependencies();
   const result = await runCapture(input, deps, options);
   expect(result).toMatchObject({ kind: "sent", scanId: "scan-id", response });
-  expect(deps.warper.warpAndLetterbox).toHaveBeenCalledWith(input.photoUri, null, 512, 1);
+  expect(deps.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, true, 1);
   expect(deps.triage.check).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.embedder.embed).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.orb.extract).toHaveBeenCalledWith("file:///crop.jpg");
@@ -88,9 +91,9 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   expect(deps.identify).toHaveBeenCalledWith(payload);
   expect(deps.store.recordResult).toHaveBeenCalledWith("capture-uuid", response, "device:test-installation");
   const calls = [
-    deps.warper.warpAndLetterbox,
-    deps.triage.check,
+    deps.warper.warpCandidates,
     deps.embedder.embed,
+    deps.triage.check,
     deps.orb.extract,
     deps.store.enqueue,
     deps.identify,
@@ -100,8 +103,8 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   expect(deps.store.requeue).not.toHaveBeenCalled();
   expect(result.timings).toEqual({
     warp: expect.any(Number),
-    triage: expect.any(Number),
     embed: expect.any(Number),
+    triage: expect.any(Number),
     orb: expect.any(Number),
     enqueue: expect.any(Number),
     identify: expect.any(Number),
@@ -123,7 +126,7 @@ it.each(["blur", "glare"] as const)("returns a retake for %s before extracting f
     message: "Try again",
     timings: { triage: expect.any(Number) },
   });
-  expect(deps.embedder.embed).not.toHaveBeenCalled();
+  expect(deps.orb.extract).not.toHaveBeenCalled();
   expect(deps.identify).not.toHaveBeenCalled();
   expect(deps.store.enqueue).not.toHaveBeenCalled();
 });
@@ -281,7 +284,7 @@ it("rejects a model mismatch before processing the photo", async () => {
   const deps = dependencies();
   deps.embedder.modelVersion = "other-model";
   await expect(runCapture(input, deps, options)).rejects.toThrow("model version");
-  expect(deps.warper.warpAndLetterbox).not.toHaveBeenCalled();
+  expect(deps.warper.warpCandidates).not.toHaveBeenCalled();
 });
 
 it("keeps a capture made before registration when the same installation becomes ready", async () => {
@@ -305,7 +308,7 @@ it.each([
   "requires a still boundary before quality checks, recognition, or persistence: %s",
   async (source, message) => {
     const deps = dependencies();
-    deps.warper.warpAndLetterbox.mockResolvedValue(null);
+    deps.warper.warpCandidates.mockResolvedValue([]);
     expect(await runCapture({ ...input, source }, deps, options)).toMatchObject({
       kind: "retake",
       reason: "boundary",
@@ -402,4 +405,40 @@ it("retains the reconnect queue if a downloaded package is unavailable", async (
   );
   expect(result.kind).toBe("queued");
   expect(deps.store.enqueue).toHaveBeenCalled();
+});
+
+describe("a painting inside a larger boundary, such as a phone screen", () => {
+  const inner: PreparedPainting = { ...painting, cropUri: "file:///inner.jpg" };
+
+  it("identifies the nested crop the server ranks best and discards the outer one", async () => {
+    const deps = dependencies();
+    deps.warper.warpCandidates.mockResolvedValue([painting, inner]);
+    deps.rankCrops.mockResolvedValue(1);
+    const onPrepared = jest.fn(async () => {});
+    const venueId = "museum-1" as CaptureInput["venueId"];
+    const result = await runCapture({ ...input, venueId }, { ...deps, onPrepared }, options);
+    expect(result).toMatchObject({ kind: "sent", timings: { rank: expect.any(Number) } });
+    expect(deps.rankCrops).toHaveBeenCalledWith(
+      [
+        [0.12346, -0.98765],
+        [0.12346, -0.98765],
+      ],
+      venueId,
+    );
+    expect(deps.triage.check).toHaveBeenCalledWith(inner.cropUri);
+    expect(onPrepared).toHaveBeenCalledWith(inner);
+    expect(deps.orb.extract).toHaveBeenCalledWith(inner.cropUri);
+    expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ cropUri: inner.cropUri }));
+    expect(mockRemove.mock.calls).toEqual([[painting.cropUri]]);
+  });
+
+  it("asks for nested crops only when it can rank them", async () => {
+    const offline = dependencies();
+    offline.isOnline.mockReturnValue(false);
+    await runCapture(input, offline, options);
+    expect(offline.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1);
+    const { rankCrops: _rankCrops, ...unranked } = dependencies();
+    await runCapture(input, unranked, options);
+    expect(unranked.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1);
+  });
 });
