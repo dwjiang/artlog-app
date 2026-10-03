@@ -15,7 +15,7 @@ import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
-import { TextSkeleton } from "@/components/loading-skeleton";
+import { ButtonGhost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -241,6 +241,11 @@ export function FriendshipControls({
     );
   };
   const available = ready && state ? friendshipActions(state, session.profileId!) : [];
+  const loading = (
+    <LoadingSkeleton key="loading" label="Loading friendship…">
+      <ButtonGhost />
+    </LoadingSkeleton>
+  );
   const actions =
     session.status === "signed-out" || session.status === "profile-required"
       ? [
@@ -253,7 +258,9 @@ export function FriendshipControls({
           />,
         ]
       : !ready
-        ? []
+        ? session.status === "loading"
+          ? [loading]
+          : []
         : state?.blocked
           ? [
               <GalleryButton
@@ -296,7 +303,7 @@ export function FriendshipControls({
               ? available.filter((action) => action !== "decline").map(actionButton)
               : error
                 ? []
-                : [<TextSkeleton key="loading" label="Loading friendship…" width="100%" height={44} />];
+                : [loading];
   return (
     <View style={{ gap: Spacing.two }}>
       <ProfileActionRow

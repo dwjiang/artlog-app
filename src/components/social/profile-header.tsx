@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
+import { ButtonGhost, Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
@@ -28,6 +28,8 @@ type ProfileIdentity = {
 type ProfileStat = { noun: string; count?: number; onPress?: () => void };
 
 const AVATAR_SIZE = 84;
+// An icon-only GalleryButton: a 44-point icon frame inside 12-point padding.
+const SHARE_WIDTH = 68;
 
 /**
  * Leaving `identity` undefined draws the loading state. The top edge sits at the safe area so the corners line up
@@ -61,7 +63,7 @@ export function ProfileHeader({
         const label = count === 1 ? noun : `${noun}s`;
         const content = (
           <>
-            {count === undefined ? <Ghost width={32} height={38} /> : <Text variant="display">{count}</Text>}
+            {count === undefined ? <Ghost width={32} height={39} /> : <Text variant="display">{count}</Text>}
             <Text style={socialStyles.caption}>{label}</Text>
           </>
         );
@@ -130,11 +132,15 @@ export function ProfileHeader({
         </>
       ) : (
         <LoadingSkeleton label="Opening profile…">
+          {/* Margins fill each ghost out to its text's line height, so loading and loaded headers match. */}
           <View style={{ alignItems: "center", gap: 12 }}>
             <Ghost width={AVATAR_SIZE} height={AVATAR_SIZE} round />
-            <View style={{ alignItems: "center", gap: 8 }}>
-              <Ghost width={180} height={30} />
-              <Ghost width={110} />
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <View style={{ alignItems: "center" }}>
+                <Ghost width={180} height={26} style={{ marginVertical: 6.5 }} />
+                <Ghost width={96} height={12} style={{ marginVertical: 3 }} />
+              </View>
+              <Ghost width={220} height={14} style={{ marginVertical: 5 }} />
             </View>
           </View>
         </LoadingSkeleton>
@@ -192,6 +198,19 @@ export function OwnProfileActions({ profileId }: { profileId: PublicProfile["pro
       ]}
       trailing={<ShareProfileButton profileId={profileId} />}
     />
+  );
+}
+
+/** The action row while the profile loads: a full-width action beside Share. */
+export function ProfileActionsSkeleton() {
+  const stacked = useWindowDimensions().fontScale >= 1.5;
+  return (
+    <LoadingSkeleton label="Loading profile actions…">
+      <ProfileActionRow
+        actions={[<ButtonGhost key="action" />]}
+        trailing={<ButtonGhost width={stacked ? "100%" : SHARE_WIDTH} />}
+      />
+    </LoadingSkeleton>
   );
 }
 
