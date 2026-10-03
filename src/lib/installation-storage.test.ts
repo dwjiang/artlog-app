@@ -33,6 +33,7 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: (...args: unknown[]) => mockGetItem(...args),
   setItemAsync: (...args: unknown[]) => mockSetItem(...args),
   deleteItemAsync: (...args: unknown[]) => mockDeleteItem(...args),
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
 }));
 
@@ -80,7 +81,8 @@ it("keeps auth tokens, the installation credential, and the attestation key acro
   expect(await next.storage.getItem("appAttestKeyId")).toBe("native-key");
   expect(mockRandomUUID).toHaveBeenCalledTimes(1);
   expect(mockRandomBytes).toHaveBeenCalledTimes(1);
-  expect(mockSetItem.mock.calls.every((call) => call[2].keychainAccessible === 6)).toBe(true);
+  // Readable while the phone is locked, so a background token refresh still finds the session.
+  expect(mockSetItem.mock.calls.every((call) => call[2].keychainAccessible === 1)).toBe(true);
 });
 
 it("starts a new identity after reinstall even when the old Keychain entries survive", async () => {

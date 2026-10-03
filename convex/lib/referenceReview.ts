@@ -11,6 +11,19 @@ export function referenceReviewInput(sources: SourceDoc[], target: { title: stri
   };
 }
 
+// Models copying a caption drop its punctuation (MoMA's "The Starry Night. Saint Rémy" came back
+// as "The Starry Night\nSaint Rémy"), so a quote must repeat the page's words in order, not its characters.
+function quoteWords(text: string): string {
+  // Han and kana have no required spaces; keep character boundaries without splitting Latin words or numbers.
+  return ` ${normalizePassage(text)
+    .replaceAll(
+      /([\u3000-\u30ff\u31f0-\u31ff\u3400-\u9fff\uf900-\ufaff\u{1aff0}-\u{1b16f}\u{20000}-\u{3347f}])/gu,
+      " $1 ",
+    )
+    .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()} `;
+}
+
 export function applyReferenceReview(
   value: unknown,
   sources: SourceDoc[],
@@ -25,9 +38,7 @@ export function applyReferenceReview(
   const accepted = new Set<SourceDoc>();
   const conflicts: ResearchConflict[] = [];
   const quoted = (text: unknown, source: SourceDoc): text is string =>
-    typeof text === "string"
-    && !!normalizePassage(text)
-    && normalizePassage(source.text).includes(normalizePassage(text));
+    typeof text === "string" && !!quoteWords(text).trim() && quoteWords(source.text).includes(quoteWords(text));
   for (const row of value.reviews) {
     if (!row || typeof row !== "object") return invalid();
     const source = references.get(row.source);

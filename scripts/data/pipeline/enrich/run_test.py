@@ -275,7 +275,7 @@ def test_fact_sheet_budget_applies_after_reference_review(rig, monkeypatch, rela
             "label": "Auction",
             "score": 0.8,
             "referenceUrl": "https://www.wikidata.org/wiki/Q1",
-            "text": str(i) * 24_000,
+            "text": f"{i} " * 12_000,
         }
         for i in range(2)
     ]
@@ -291,7 +291,7 @@ def test_fact_sheet_budget_applies_after_reference_review(rig, monkeypatch, rela
             {
                 "source": f"s{i + 1}",
                 "relation": relation,
-                "evidence": str(i) * 80,
+                "evidence": f"{i} " * 40,
                 "comparison": "Compared the object details.",
                 "conflicts": [],
             }
