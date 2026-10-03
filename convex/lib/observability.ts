@@ -112,6 +112,7 @@ const errorTypes = new Set([
 const parseStack = createStackParser(nodeStackLineParser());
 const TIMEOUT_MS = 1500;
 let cached: { dsn: string; transport: Transport } | undefined;
+const reported = new WeakSet<object>();
 
 function errorData(error: unknown): { code?: string; reason?: string } {
   if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") {
@@ -191,12 +192,20 @@ export async function reportBackendError(error: unknown, operation: string): Pro
     if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
       return null;
     }
+    // A rethrown error reaches every enclosing reporter; the innermost operation names it best.
+    if (typeof error === "object" && error !== null) {
+      if (reported.has(error)) return null;
+      reported.add(error);
+    }
     const transport = transportFor(dsn);
     if (!transport) return null;
     const eventId = crypto.randomUUID().replaceAll("-", "");
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
-      reason && /^(http_[45]\d\d|bad_response|truncated|timeout|network|invalid_output)$/.test(reason)
+      reason
+      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output)$/.test(
+        reason,
+      )
         ? reason
         : undefined;
     // Error messages, ConvexError.data, arguments and SDK global scopes can contain user content.

@@ -25,8 +25,10 @@ export const installationStorage = {
     return SecureStore.getItemAsync(storageKey(key));
   },
   async setItem(key: string, value: string): Promise<void> {
+    // Convex Auth also refreshes its token while the app runs in the background on a locked phone,
+    // where reading a when-unlocked item fails with "User interaction is not allowed".
     await SecureStore.setItemAsync(storageKey(key), value, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
     });
   },
   async removeItem(key: string): Promise<void> {

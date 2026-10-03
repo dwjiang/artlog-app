@@ -181,8 +181,9 @@ function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): bo
   });
 }
 
-// Search pages arrive as markdown so their links can identify the artwork. The model gets plain
-// prose: facts must be copied verbatim, and a copy that drops `*` or `[text](url)` would not match.
+// Search and extracted reference pages arrive as markdown; search links can identify the artwork. The
+// model gets plain prose: quotes must be copied verbatim, and a copy that drops `*` or `[text](url)`
+// would not match.
 function plainMarkdown(text: string): string {
   return text
     .replaceAll(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, "")
@@ -469,12 +470,13 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
     failures += extracted?.failures ?? selected.length;
     for (const result of extracted?.results ?? []) {
       const reference = selected.find((reference) => reference.url === result.url);
-      if (!reference || result.text.trim().length < MIN_PAGE_CHARS) continue;
+      const text = plainMarkdown(result.text).trim();
+      if (!reference || text.length < MIN_PAGE_CHARS) continue;
       sources.push({
         ...reference,
         label: bareHost(result.url),
         score: wikidataScore(),
-        text: result.text.trim().slice(0, MAX_SOURCE_CHARS),
+        text: text.slice(0, MAX_SOURCE_CHARS),
       });
     }
   }

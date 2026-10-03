@@ -78,6 +78,18 @@ def commons_references(html, reference_url):
     ]
 
 
+def quote_words(text):
+    # Models copying a caption drop its punctuation, so a quote must repeat the words in order.
+    # Han and kana need character boundaries; Latin words and numbers stay whole, as in referenceReview.ts.
+    text = re.sub(
+        r"([\u3000-\u30ff\u31f0-\u31ff\u3400-\u9fff\uf900-\ufaff"
+        r"\U0001aff0-\U0001b16f\U00020000-\U0003347f])",
+        r" \1 ",
+        source_passage(text),
+    )
+    return f" {' '.join(re.findall(r'[^\W_]+', text))} "
+
+
 def review_references(provider, sources, artwork):
     references = {
         f"s{i + 1}": source for i, source in enumerate(sources) if source.get("referenceUrl")
@@ -107,8 +119,8 @@ def review_references(provider, sources, artwork):
     def quoted(text, source):
         return (
             isinstance(text, str)
-            and bool(source_passage(text))
-            and source_passage(text) in source_passage(source["text"])
+            and bool(quote_words(text).strip())
+            and quote_words(text) in quote_words(source["text"])
         )
 
     for row in value["reviews"]:

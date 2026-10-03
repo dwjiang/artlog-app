@@ -85,6 +85,25 @@ it("reports provider failures using only known codes and safe status reasons", a
   expect(JSON.stringify(event)).not.toContain("private text");
 });
 
+it.each(["schema", "bad_json", "fetch_failed"])("tags the %s failure reason", async (reason) => {
+  await reportBackendError(new ConvexError({ code: "model_error", reason }), "docent.ensure");
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({ error_code: "model_error", reason });
+});
+
+it("reports a rethrown error once, under the innermost operation", async () => {
+  const failure = new TypeError("upload failed");
+  await expect(
+    withErrorReporting("collectionPhotos.upload", () =>
+      withErrorReporting("files.store", () => Promise.reject(failure)),
+    ),
+  ).rejects.toBe(failure);
+  await reportBackendError(failure, "collectionPhotos.upload");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags.operation).toBe("files.store");
+});
+
 it("preserves the operation result and original error when reporting fails", async () => {
   fetchMock.mockRejectedValue(new Error("Sentry unavailable"));
   const failure = new Error("operation failed");
