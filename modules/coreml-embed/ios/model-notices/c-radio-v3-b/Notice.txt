@@ -1,0 +1,12 @@
+C-RADIOv3-B
+
+Licensed by NVIDIA Corporation under the NVIDIA Open Model License
+
+Model: https://huggingface.co/nvidia/C-RADIOv3-B
+License: NVIDIA Open Model License Agreement, June 14, 2024
+License source: https://developer.download.nvidia.com/licenses/nvidia-open-model-license-agreement-june-2024.pdf
+The complete agreement is included in nvidia-open-model-license.pdf.
+
+Artlog's bundled Core ML model is derived from C-RADIOv3-B, using its
+DINOv2 adaptor summary, a corpus-fitted PCA projection to 512 dimensions,
+int8 weight quantization, and fp16 compute.
