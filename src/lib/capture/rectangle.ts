@@ -181,6 +181,11 @@ export function previewQuad(quad: Quad, frame: FrameSize, preview: FrameSize): Q
   ]) as Quad;
 }
 
+/** Whether every corner shows on the cover-fitted preview. */
+export function showsWhole(quad: Quad, frame: FrameSize, preview: FrameSize): boolean {
+  return isUsableQuad(previewQuad(quad, frame, preview));
+}
+
 /** With a `preview`, corners the cover-fitted preview crops off screen also count as cut off. */
 export function framingGuidance(
   quad: Quad,
@@ -190,7 +195,7 @@ export function framingGuidance(
   if (quadArea(quad, size) < MIN_AREA_FRACTION * size.width * size.height) {
     return "move-closer";
   }
-  if (isCutOff(quad) || (preview && !isUsableQuad(previewQuad(quad, size, preview)))) return "fit-whole-painting";
+  if (isCutOff(quad) || (preview && !showsWhole(quad, size, preview))) return "fit-whole-painting";
   const [topLeft, topRight, bottomRight, bottomLeft] = quad;
   const ratio = (a: number, b: number) => Math.max(a, b) / Math.max(Math.min(a, b), Number.EPSILON);
   const horizontal = ratio(distance(topLeft, topRight, size), distance(bottomLeft, bottomRight, size));
@@ -330,9 +335,14 @@ export function nestedQuads(outer: Quad, still: StillDetection): Quad[] {
   return nested;
 }
 
-// Smooth paint is indistinguishable from a mat by texture alone. Keep the detected boundary
-// instead of recursively shrinking into textured details, and confirm preview corners on the still.
-export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection): Quad | null {
+/**
+ * Smooth paint is indistinguishable from a mat by texture alone. Keep the detected boundary instead of recursively
+ * shrinking into textured details, and confirm preview corners on the still.
+ *
+ * `view` is the preview a camera photo was framed on. The 4:3 still extends past its cover-fitted edges, so a boundary
+ * the preview did not match must, like live framing, hold the aimed-at center and show whole on screen.
+ */
+export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetection, view?: FrameSize): Quad | null {
   const rectangles = still.rectangles
     .filter((observation) => observation.corners.length === 4)
     .map((observation) => toQuad(observation.corners))
@@ -355,10 +365,12 @@ export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetectio
     const match = closestQuad(subjects, previewQuad) ?? closestQuad(rectangles, previewQuad);
     if (match) return match;
   }
+  const framed = (quad: Quad) =>
+    !view?.width || !view.height || (containsPoint(quad, [0.5, 0.5]) && showsWhole(quad, still, view));
   return (
-    (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad)))
-    ?? subjects[0]
-    ?? largestQuad(rectangles)
+    (previewQuad && subjects.find((quad) => enclosesCentroid(previewQuad, quad) && framed(quad)))
+    ?? subjects.find(framed)
+    ?? largestQuad(rectangles.filter(framed))
     ?? null
   );
 }

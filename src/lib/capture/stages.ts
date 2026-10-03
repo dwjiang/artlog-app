@@ -26,6 +26,7 @@ export type Warper = {
     size: number,
     nested: boolean,
     turns?: number,
+    view?: { width: number; height: number },
   ): Promise<PreparedPainting[]>;
 };
 
@@ -65,6 +66,8 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   source: "camera" | "library";
   /** Clockwise quarter turns from the portrait preview to a camera photo taken with the phone turned. */
   turns?: number;
+  /** The preview a camera photo was framed on. */
+  view?: { width: number; height: number };
 };
 export type CaptureTimings = Partial<
   Record<"warp" | "embed" | "rank" | "triage" | "orb" | "identify" | "enqueue", number>

@@ -14,6 +14,7 @@ const input: CaptureInput = {
   quad: null,
   source: "camera",
   turns: 1,
+  view: { width: 402, height: 874 },
   capturedAt: 1234,
 };
 const painting: PreparedPainting = {
@@ -75,7 +76,7 @@ it("warps, checks, embeds, extracts and stores the capture before sending rounde
   const deps = dependencies();
   const result = await runCapture(input, deps, options);
   expect(result).toMatchObject({ kind: "sent", scanId: "scan-id", response });
-  expect(deps.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, true, 1);
+  expect(deps.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, true, 1, input.view);
   expect(deps.triage.check).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.embedder.embed).toHaveBeenCalledWith("file:///crop.jpg");
   expect(deps.orb.extract).toHaveBeenCalledWith("file:///crop.jpg");
@@ -436,9 +437,9 @@ describe("a painting inside a larger boundary, such as a phone screen", () => {
     const offline = dependencies();
     offline.isOnline.mockReturnValue(false);
     await runCapture(input, offline, options);
-    expect(offline.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1);
+    expect(offline.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1, input.view);
     const { rankCrops: _rankCrops, ...unranked } = dependencies();
     await runCapture(input, unranked, options);
-    expect(unranked.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1);
+    expect(unranked.warper.warpCandidates).toHaveBeenCalledWith(input.photoUri, null, 512, false, 1, input.view);
   });
 });

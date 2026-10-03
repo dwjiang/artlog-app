@@ -61,6 +61,7 @@ export function ScanScreen() {
     active,
     focused: isFocused,
     visitLocalId: visitId,
+    view: preview,
     onVisitUnavailable: () => navigation.setParams({ visitId: undefined }),
   });
   const { phase, occupied, source, message, rearm } = capture.state;

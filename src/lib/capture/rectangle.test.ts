@@ -409,6 +409,34 @@ describe("selectCaptureQuad", () => {
     expect(selectCaptureQuad(null, still([], [{ quad: tilted, quadFill: 1.013 }]))).toBeNull();
   });
 
+  it("crops a camera photo only to a boundary that holds the preview's center and shows whole on it", () => {
+    // iPhone 17 Pro shutter captures (2026-10-03 logs): the 4:3 still shows about 0.19–0.81 of its width on screen.
+    const phone = { width: 402, height: 874 };
+    const portrait = (rectangles: Quad[]) => ({ ...still(rectangles), width: 3024, height: 4032 });
+    const pastLeftEdge: Quad = [
+      [0.016, 0.073],
+      [0.812, 0.065],
+      [0.744, 0.868],
+      [0.016, 0.913],
+    ];
+    const offCenter: Quad = [
+      [0.624, 0.474],
+      [0.93, 0.499],
+      [0.91, 0.697],
+      [0.703, 0.673],
+    ];
+    const onScreen: Quad = [
+      [0.273, 0.26],
+      [0.801, 0.321],
+      [0.793, 0.639],
+      [0.283, 0.626],
+    ];
+    expect(selectCaptureQuad(null, portrait([pastLeftEdge, offCenter, onScreen]), phone)).toEqual(onScreen);
+    expect(selectCaptureQuad(null, portrait([pastLeftEdge, offCenter]), phone)).toBeNull();
+    // An imported photo was framed whole, so its largest boundary stands.
+    expect(selectCaptureQuad(null, portrait([pastLeftEdge, onScreen]))).toEqual(pastLeftEdge);
+  });
+
   it("refines the preview quad with the still rectangle closest to it when nothing was lifted", () => {
     const detection = still([toQuad(shifted(framed, 0.02)), toQuad(box(0.2, 0.05, 0.9, 0.2))]);
     expect(selectCaptureQuad(previewQuad, detection)).toEqual(toQuad(shifted(framed, 0.02)));

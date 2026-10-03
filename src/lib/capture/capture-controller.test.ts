@@ -144,6 +144,36 @@ it("asks to fit a painting that runs past the sides of the cover-fitted preview"
   });
 });
 
+it("hints at a painting that shows whole inside a boundary running off screen, not at that boundary", () => {
+  const controller = new CaptureController();
+  const phone = { width: 390, height: 844 };
+  // `painting` runs past the sides of the phone preview, like a mat or screen around the small artwork.
+  expect(hold(controller, 0, [painting, small], phone)).toBeUndefined();
+  expect(controller.getFeedback()).toEqual({
+    quad: previewQuad(small, frame, phone),
+    progress: 0,
+    guidance: "move-closer",
+  });
+});
+
+it.each([true, false])("does not prefer a small clipped boundary (whole painting visible: %s)", (visible) => {
+  const controller = new CaptureController();
+  const phone = { width: 390, height: 844 };
+  const clipped: Quad = [
+    [0.17, 0.41],
+    [0.7, 0.41],
+    [0.7, 0.59],
+    [0.17, 0.59],
+  ];
+  const quads = visible ? [painting, clipped, small] : [painting, clipped];
+  expect(hold(controller, 0, quads, phone)).toBeUndefined();
+  expect(controller.getFeedback()).toEqual({
+    quad: previewQuad(visible ? small : painting, frame, phone),
+    progress: 0,
+    guidance: visible ? "move-closer" : "fit-whole-painting",
+  });
+});
+
 it("clears feedback when pausing or starting either capture path", () => {
   const controller = new CaptureController();
   observe(controller, 0);

@@ -47,6 +47,7 @@ export async function runCapture(
         opts.inputSize,
         !!rankCrops && deps.isOnline(),
         input.turns,
+        input.view,
       ),
     );
     if (candidates.length === 0) {
