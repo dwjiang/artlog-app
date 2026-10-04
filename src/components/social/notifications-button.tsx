@@ -1,4 +1,5 @@
 import type { FunctionReturnType } from "convex/server";
+import { setBadgeCountAsync } from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -6,6 +7,7 @@ import { StyleSheet, View } from "react-native";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { groupNotifications } from "@/shared/social/notifications";
@@ -30,6 +32,12 @@ export function NotificationsButton({ session }: { session: SocialSession }) {
   useEffect(() => {
     if (unseen < 100 && canLoadMore) loadMore();
   }, [unseen, canLoadMore, loadMore]);
+  // Pushes set the icon badge to the server's unseen count; while Artlog runs, the badge follows this bell.
+  useEffect(() => {
+    setBadgeCountAsync(unseen).catch((cause: unknown) =>
+      reportError(cause, "notifications.badge", { level: "warning" }),
+    );
+  }, [unseen]);
   return (
     <View>
       <GalleryIconButton

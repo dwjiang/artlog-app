@@ -14,7 +14,9 @@ const mockMutation = jest.fn();
 const mockOptions = jest.fn();
 const mockRefresh = jest.fn();
 const mockQueryArgs = jest.fn();
+const mockOfferNotifications = jest.fn();
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
+jest.mock("@/lib/notifications/offer", () => ({ offerNotifications: () => mockOfferNotifications() }));
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function (_url: string, options: object) {
     mockOptions(options);
@@ -76,6 +78,7 @@ it("requests and cancels using the server revision and the captured account toke
   });
   expect(mockOptions).toHaveBeenCalledWith(expect.objectContaining({ auth: "token-a" }));
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["cancel"]);
+  expect(mockOfferNotifications).toHaveBeenCalledTimes(1);
   await act(() => result.current.act("cancel"));
   expect(mockMutation.mock.calls[1][1].revision).toBe(1);
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["request"]);

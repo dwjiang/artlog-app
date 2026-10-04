@@ -13,6 +13,7 @@ const mockDismissAll = jest.fn();
 const mockNavigate = jest.fn();
 const mockReplace = jest.fn();
 const mockToast = jest.fn();
+const mockOfferNotifications = jest.fn();
 const mockController = {
   load: jest.fn(),
   edit: jest.fn(),
@@ -52,6 +53,7 @@ jest.mock("@/db/repos/visits", () => ({
 jest.mock("@/lib/ui/toast", () => ({
   showToast: (...args: unknown[]) => mockToast(...args),
 }));
+jest.mock("@/lib/notifications/offer", () => ({ offerNotifications: () => mockOfferNotifications() }));
 let mockPage: "index" | "photos" = "index";
 let mockSharing: ReturnType<typeof useVisitSharing>;
 let mockPhotos: ArtworkPhoto[] = [];
@@ -438,6 +440,7 @@ it("posts with the chosen audience, restores the visit's visibility when posting
   await fireEvent.press(screen.getByRole("button", { name: "Post" }));
   expect(mockPatchVisit.mock.calls).toEqual([["visit", { visibility: "friends" }, "account:a"]]);
   expect(mockToast).toHaveBeenCalledWith("Shared with friends.");
+  expect(mockOfferNotifications).toHaveBeenCalledTimes(1);
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockNavigate).toHaveBeenCalledWith({
     pathname: "/",
@@ -455,6 +458,7 @@ it("updates an already shared visit and posts a private visit without changing i
   expect(mockPatchVisit).not.toHaveBeenCalled();
   expect(mockController.publish).toHaveBeenCalledTimes(1);
   expect(mockToast).toHaveBeenCalledWith("Visit posted. Only you can see it.");
+  expect(mockOfferNotifications).not.toHaveBeenCalled();
   expect(mockNavigate).toHaveBeenCalledWith({
     pathname: "/",
     params: { feed: "friends", posted: expect.any(String) },

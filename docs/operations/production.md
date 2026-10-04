@@ -79,6 +79,11 @@ the current import runs fresh public recognition API checks after readback.
 Keep “Right now” off for the recorded
 [grounding limitations](../experiments/README.md#tavily-and-right-now).
 
+Push notifications go through Expo's push service and need no Convex variable. Apple
+delivers them only after an APNs key for `app.artlog.ios` is in the project's EAS
+credentials (`eas credentials -p ios`, Push Notifications). Without it, every receipt
+fails and Sentry records `push_invalid_credentials` under `push.receipts`.
+
 ## Selecting production explicitly
 
 The normal `.env.local` targets dev and contains a dev deployment key. Keys take

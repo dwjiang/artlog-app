@@ -99,6 +99,11 @@ const diagnosticCodes = new Set([
   "vector_payload_missing",
   "import_upload_mismatch",
   "bad_candidates",
+  "push_send_failed",
+  "push_invalid_credentials",
+  "push_message_too_big",
+  "push_rate_exceeded",
+  "push_rejected",
 ]);
 const errorTypes = new Set([
   "Error",

@@ -112,6 +112,7 @@ export function SettingsScreen() {
       )}
       <SettingsGroup title="App">
         <SettingsRow label="General" icon="gearshape" onPress={detail("general")} />
+        <SettingsRow label="Notifications" icon="bell" onPress={detail("notifications")} />
         <SettingsRow label="Widgets" icon="square.grid.2x2" onPress={() => router.push("/widgets")} />
         {account?.linked && <SettingsRow label="Leaderboards" icon="trophy" onPress={detail("leaderboards")} />}
       </SettingsGroup>

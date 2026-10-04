@@ -110,11 +110,13 @@ it("splits unseen rows into New, collapses likes per visit, and marks the page s
   await render(<NotificationsScreen />);
   expect(screen.getByRole("header", { name: "New" })).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Earlier" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: /^Ben and Ana liked your visit to AIC\./ })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: /^Lucía sent you a friend request\./ })).toBeOnTheScreen();
+  expect(
+    screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked your visit to AIC\./ }),
+  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Lucía \(@lucía\) sent you a friend request\./ })).toBeOnTheScreen();
   expect(screen.getByText("Accept")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: /^Sam accepted your friend request\./ })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: /^Priya liked your visit to The Met\./ })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Sam \(@sam\) accepted your friend request\./ })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Priya \(@priya\) liked your visit to The Met\./ })).toBeOnTheScreen();
   expect(mockMarkSeen).toHaveBeenCalledTimes(1);
   expect(mockMarkSeen).toHaveBeenCalledWith({ through: 3_000 });
 });
@@ -122,7 +124,7 @@ it("splits unseen rows into New, collapses likes per visit, and marks the page s
 it("leaves new arrivals unread behind another route and acknowledges them on return", async () => {
   mockList = { data: { seenAt: 3_000, items }, loading: false, refresh: jest.fn() };
   const view = await render(<NotificationsScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: /^Ben and Ana liked/ }));
+  await fireEvent.press(screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked/ }));
   mockFocused = false;
   mockList = {
     data: { seenAt: 3_000, items: [{ ...items[1], id: "new-comment", createdAt: 4_000 }, ...items] },
@@ -153,20 +155,20 @@ it.each(["inactive", "background"] as const)("does not acknowledge arrivals whil
 
 it("opens the visit for likes, its comments for a comment, and the profile for a friend", async () => {
   await render(<NotificationsScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: /^Ben and Ana liked/ }));
+  await fireEvent.press(screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked/ }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/visit/[postId]", params: { postId: "aic" } });
   await fireEvent.press(
-    screen.getByRole("button", { name: /^Hana commented on your visit to AIC: “The Seurat is huge\.”/ }),
+    screen.getByRole("button", { name: /^Hana \(@hana\) commented on your visit to AIC: “The Seurat is huge\.”/ }),
   );
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/visit/[postId]", params: { postId: "aic", comments: "1" } });
-  await fireEvent.press(screen.getByRole("button", { name: /^Sam accepted/ }));
+  await fireEvent.press(screen.getByRole("button", { name: /^Sam \(@sam\) accepted/ }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Sam" } });
 });
 
 it("rewrites an accepted request in place", async () => {
   mockList = { data: { seenAt: 2_000, items: [request("accepted")] }, loading: false, refresh: jest.fn() };
   await render(<NotificationsScreen />);
-  expect(screen.getByRole("button", { name: /^You and Lucía are now friends\./ })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^You and Lucía \(@lucía\) are now friends\./ })).toBeOnTheScreen();
   expect(screen.queryByText("Friends")).toBeNull();
   expect(screen.queryByRole("header", { name: "New" })).toBeNull();
   expect(mockMarkSeen).not.toHaveBeenCalled();
@@ -188,14 +190,14 @@ it("continues past an empty hidden page before showing the empty state", async (
   mockCanLoadMore = false;
   mockList = { data: { seenAt: 0, items: [request("pending")] }, loading: false, refresh: jest.fn() };
   await view.rerender(<NotificationsScreen />);
-  expect(screen.getByRole("button", { name: /^Lucía sent you a friend request/ })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: /^Lucía \(@lucía\) sent you a friend request/ })).toBeOnTheScreen();
 });
 
 it.each(["resume", "focus", "minute"] as const)("refreshes notification ages on %s", async (event) => {
   jest.useFakeTimers({ now: 3_000 });
   try {
     const view = await render(<NotificationsScreen />);
-    expect(screen.getByRole("button", { name: /^Ben and Ana liked.*just now$/ })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked.*just now$/ })).toBeOnTheScreen();
     if (event === "resume") {
       await act(() => changeAppState("background"));
       jest.setSystemTime(183_000);
@@ -209,7 +211,9 @@ it.each(["resume", "focus", "minute"] as const)("refreshes notification ages on 
     } else {
       await act(() => jest.advanceTimersByTime(180_000));
     }
-    expect(screen.getByRole("button", { name: /^Ben and Ana liked.*3 minutes ago$/ })).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked.*3 minutes ago$/ }),
+    ).toBeOnTheScreen();
     await view.unmount();
   } finally {
     jest.useRealTimers();

@@ -817,6 +817,7 @@ export default defineSchema({
     publicationId: v.id("sharedVisits"),
     likeCount: v.number(),
     commentCount: v.number(),
+    likePushedAt: v.optional(v.number()),
   }).index("by_publication", ["publicationId"]),
   visitLikes: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -858,6 +859,15 @@ export default defineSchema({
     profileId: v.id("profiles"),
     seenAt: v.number(),
   }).index("by_profileId", ["profileId"]),
+  // One Expo push token per installation; pushes reach the devices linked to the recipient's account.
+  pushTokens: defineTable({
+    deviceId: v.id("devices"),
+    token: v.string(),
+    friends: v.boolean(),
+    reactions: v.boolean(),
+  })
+    .index("by_deviceId", ["deviceId"])
+    .index("by_token", ["token"]),
   mediaAssets: defineTable({
     saveId: v.id("collections"),
     source: mediaSource,

@@ -24,6 +24,9 @@ import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { limitImageCache } from "@/lib/image-cache";
 import { installationStorage } from "@/lib/installation-storage";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
+import { NotificationResponder } from "@/lib/notifications/notification-responder";
+import { PushRegistration } from "@/lib/notifications/push-registration";
+import { VisitReminderSync } from "@/lib/notifications/visit-reminder-sync";
 import { QueueFlusher } from "@/lib/queue/use-queue";
 import { VenueResolver } from "@/lib/venue/use-venue";
 import { VisitActivitySync } from "@/lib/widgets/visit-activity-sync";
@@ -63,6 +66,8 @@ function AppContent() {
         <MuseumDownloadLifecycle />
         <VenueResolver />
         <VisitActivitySync />
+        <VisitReminderSync />
+        <PushRegistration />
         <WidgetProvider>
           <ThemeProvider value={navigationTheme}>
             <ListeningProvider>
@@ -225,6 +230,16 @@ function AppContent() {
                     }}
                   />
                   <Stack.Screen
+                    name="turn-on-notifications"
+                    dangerouslySingular
+                    options={{
+                      presentation: "formSheet",
+                      sheetAllowedDetents: "fitToContents",
+                      sheetGrabberVisible: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
                     name="send-feedback"
                     options={{
                       presentation: "formSheet",
@@ -253,6 +268,7 @@ function AppContent() {
                     }}
                   />
                 </Stack>
+                <NotificationResponder />
               </ListeningRoot>
             </ListeningProvider>
             <ToastLayer>

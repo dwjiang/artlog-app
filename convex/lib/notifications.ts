@@ -1,9 +1,13 @@
 import type { Triggers } from "convex-helpers/server/triggers";
 
+import { internal } from "../_generated/api";
 import type { DataModel, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { NOTIFICATION_RETENTION_MS } from "./retentionPolicy";
 import type { NotificationEvent } from "./validators";
+
+// A like taken back or a request withdrawn within this window deletes its row before anyone's phone hears of it.
+export const PUSH_GRACE_MS = 30_000;
 
 async function notify(
   ctx: MutationCtx,
@@ -12,11 +16,15 @@ async function notify(
   event: NotificationEvent,
 ) {
   if (actorId === recipientId) return;
-  await ctx.db.insert("notifications", {
+  const notificationId = await ctx.db.insert("notifications", {
     actorId,
     recipientId,
     event,
     expiresAt: Date.now() + NOTIFICATION_RETENTION_MS,
+  });
+  const notification = (await ctx.db.get("notifications", notificationId))!;
+  await ctx.scheduler.runAt(Math.ceil(notification._creationTime + PUSH_GRACE_MS), internal.push.prepare, {
+    notificationId,
   });
 }
 
