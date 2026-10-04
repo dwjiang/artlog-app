@@ -15,7 +15,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { VisitSymbol } from "@/components/visits/visit-ui";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
 import { reportHref } from "@/lib/social/report";
@@ -601,8 +601,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.separator,
+    ...PinnedFooterBorder,
   },
   inputRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   inputWrap: {

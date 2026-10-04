@@ -14,7 +14,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { ArtworkPreviews, VisitSymbol } from "@/components/visits/visit-ui";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
@@ -135,6 +135,7 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
 function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted: boolean; keepVisit?: () => void }) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix } = view;
   // The location prompt asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
@@ -250,58 +251,10 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       return coordinate ? [{ key, name: option.name, ...coordinate }] : [];
     });
     const center = fix ?? pins[0];
-    return (
-      <ScrollView
-        style={sheetStyle}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.content}
-        bounces={false}
-      >
-        <ThemedText type="title" accessibilityRole="header">
-          Which museum are you in?
-        </ThemedText>
-        <ThemedText themeColor="textSecondary">
-          {options.length > 1
-            ? "More than one museum is within a short walk."
-            : "The nearest museum is a short walk away."}
-        </ThemedText>
-        {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
-        <View>
-          {options.map((option, index) => {
-            const key = venueOptionKey(option);
-            const checked = key === selectedKey;
-            return (
-              <MotionPressable
-                key={key}
-                accessibilityRole="radio"
-                accessibilityLabel={option.name}
-                accessibilityState={{ checked, disabled: !!busy }}
-                disabled={!!busy}
-                onPress={() => setSelectedKey(key)}
-                style={[styles.option, styles.unselectedOption]}
-              >
-                <View style={styles.optionText}>
-                  <ThemedText style={checked && styles.checkedLabel}>{option.name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
-                  </ThemedText>
-                </View>
-                <View style={[styles.radio, checked && styles.radioChecked]}>
-                  {checked && <View style={styles.radioDot} />}
-                </View>
-              </MotionPressable>
-            );
-          })}
-          {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel="Not at a museum"
-            onPress={notHere}
-            style={styles.option}
-          >
-            <ThemedText themeColor="textSecondary">Not at a museum</ThemedText>
-          </MotionPressable>
-        </View>
+    // Large text would leave the pinned actions little room to list museums above them.
+    const pinned = fontScale <= 1.4;
+    const actions = (
+      <>
         {(failure ?? error) && (
           <ThemedText selectable themeColor="error" accessibilityRole="alert">
             {failure ?? error}
@@ -322,7 +275,69 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
             }}
           />
         </ActionStack>
-      </ScrollView>
+      </>
+    );
+    // react-native-screens stretches a scroll view directly under the sheet, or first along its first-subview path, to
+    // the whole sheet, under the pinned actions. The unflattened wrapper and empty first view keep this one off both.
+    return (
+      <View collapsable={false} style={sheetStyle}>
+        <View collapsable={false} />
+        <ScrollView
+          accessibilityLabel="Nearby museums"
+          style={styles.pickerScroll}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[styles.content, pinned && styles.pinnedContent]}
+          bounces={false}
+        >
+          <ThemedText type="title" accessibilityRole="header">
+            Which museum are you in?
+          </ThemedText>
+          <ThemedText themeColor="textSecondary">
+            {options.length > 1
+              ? "More than one museum is within a short walk."
+              : "The nearest museum is a short walk away."}
+          </ThemedText>
+          {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
+          <View>
+            {options.map((option, index) => {
+              const key = venueOptionKey(option);
+              const checked = key === selectedKey;
+              return (
+                <MotionPressable
+                  key={key}
+                  accessibilityRole="radio"
+                  accessibilityLabel={option.name}
+                  accessibilityState={{ checked, disabled: !!busy }}
+                  disabled={!!busy}
+                  onPress={() => setSelectedKey(key)}
+                  style={[styles.option, styles.unselectedOption]}
+                >
+                  <View style={styles.optionText}>
+                    <ThemedText style={checked && styles.checkedLabel}>{option.name}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
+                    </ThemedText>
+                  </View>
+                  <View style={[styles.radio, checked && styles.radioChecked]}>
+                    {checked && <View style={styles.radioDot} />}
+                  </View>
+                </MotionPressable>
+              );
+            })}
+            {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Not at a museum"
+              onPress={notHere}
+              style={styles.option}
+            >
+              <ThemedText themeColor="textSecondary">Not at a museum</ThemedText>
+            </MotionPressable>
+          </View>
+          {!pinned && actions}
+        </ScrollView>
+        {pinned && <View style={styles.pickerFooter}>{actions}</View>}
+      </View>
     );
   }
   return (
@@ -479,6 +494,14 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 const styles = StyleSheet.create({
   container: { backgroundColor: Colors.light.background },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
+  pickerScroll: { flexGrow: 0 },
+  pinnedContent: { paddingBottom: 0 },
+  pickerFooter: {
+    padding: Spacing.content,
+    paddingTop: Spacing.three,
+    gap: Spacing.three,
+    ...PinnedFooterBorder,
+  },
   header: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
   headerText: { flex: 1, gap: Spacing.two },
   actions: { flexDirection: "row", gap: Spacing.two },

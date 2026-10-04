@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Spacing } from "@/constants/theme";
+import { Colors, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import type { ResultCandidate } from "@/lib/result/state";
 
@@ -44,7 +44,7 @@ export function NotRightSheet({
     </View>
   );
   const footer = (
-    <View style={styles.footer} onLayout={fitted.onFooterLayout}>
+    <View style={[styles.footer, !scrollAll && styles.pinnedFooter]} onLayout={fitted.onFooterLayout}>
       <GalleryButton label="Scan the museum label" variant="filled" fullWidth onPress={onLabel} />
       {onManual && (
         <GalleryButton
@@ -122,4 +122,5 @@ const styles = StyleSheet.create({
     padding: Spacing.content,
     paddingTop: Spacing.three,
   },
+  pinnedFooter: PinnedFooterBorder,
 });

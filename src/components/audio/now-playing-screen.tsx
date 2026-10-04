@@ -12,7 +12,7 @@ import { ReportableHeading } from "@/components/reportable-heading";
 import { DocentSection } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useListening } from "@/lib/audio/use-listening";
 
 import { AddSavedWorks } from "./add-saved-works";
@@ -211,8 +211,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, lineHeight: 36 },
   footer: {
     backgroundColor: Gallery.paper,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Gallery.softBorder,
+    ...PinnedFooterBorder,
   },
   empty: {
     flex: 1,

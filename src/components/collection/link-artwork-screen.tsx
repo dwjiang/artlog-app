@@ -12,7 +12,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
@@ -271,6 +271,7 @@ function LinkPicker({
             padding: 20,
             paddingBottom: Math.max(bottom, 20),
             backgroundColor: Gallery.paper,
+            ...PinnedFooterBorder,
           }}
         >
           <GalleryButton

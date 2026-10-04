@@ -14,7 +14,7 @@ import { usePaneRoom, type PaneRoom } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
@@ -631,8 +631,7 @@ const styles = StyleSheet.create({
   palette: { position: "absolute", right: 16 },
   tray: {
     backgroundColor: Gallery.paper,
-    borderTopWidth: 0.5,
-    borderTopColor: Gallery.separator,
+    ...PinnedFooterBorder,
   },
   trayHeading: {
     flexDirection: "row",

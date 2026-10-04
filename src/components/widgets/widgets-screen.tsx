@@ -9,7 +9,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
@@ -492,8 +492,9 @@ export function WidgetsScreen() {
                 <View
                   style={{
                     paddingHorizontal: 20,
-                    paddingTop: 4,
+                    paddingTop: Spacing.compact,
                     paddingBottom: sheet === "help" ? 20 : 16,
+                    ...PinnedFooterBorder,
                   }}
                 >
                   <GalleryButton
