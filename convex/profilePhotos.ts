@@ -8,6 +8,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 import { fileStorage } from "./lib/fileStorage";
+import { requireAllowedBio } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 
 export const save = action({
@@ -23,6 +24,7 @@ export const save = action({
     withErrorReporting("profilePhotos.save", async () => {
       validateProfile(input);
       const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
+      await requireAllowedBio(input.bio);
       let photo: Id<"files"> | null | undefined = input.photo === null ? null : undefined;
       if (input.photo) {
         if (input.photo.byteLength > 512 * 1024) {

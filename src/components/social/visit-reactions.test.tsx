@@ -14,10 +14,11 @@ let mockSession: SocialSession;
 let mockSummary: ReactionSummary;
 let mockComments: object[];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("convex/react", () => ({
-  useMutation: (query: FunctionReference<"mutation">) => (args: unknown) =>
-    mockMutate(jest.requireActual("convex/server").getFunctionName(query), args),
-}));
+jest.mock("convex/react", () => {
+  const call = (query: FunctionReference<"mutation" | "action">) => (args: unknown) =>
+    mockMutate(jest.requireActual("convex/server").getFunctionName(query), args);
+  return { useMutation: call, useAction: call };
+});
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
 }));
@@ -151,6 +152,15 @@ it("opens the likes list from the compact summary and dismisses it", async () =>
   expect(screen.getByText("@jules")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Close likes" }));
   expect(screen.queryByText("@jules")).toBeNull();
+});
+
+it("closes the likes sheet before opening a liker’s profile", async () => {
+  mockComments = [{ profileId: "friend", name: "Jules Morgan", username: "jules" }];
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "See who liked this visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "View Jules Morgan’s profile" }));
+  expect(screen.queryByText("@jules")).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "friend" } });
 });
 
 it("previews the newest comment under the visit and opens the sheet from it", async () => {

@@ -19,10 +19,7 @@ export function createVisitSharingTransport(url: string, fetcher: typeof globalT
   return {
     getState: (args: FunctionArgs<typeof api.sharedVisits.getState>, context: RequestContext) =>
       client(context).query(api.sharedVisits.getState, args),
-    publish: (args: ShareSelection, context: RequestContext) =>
-      client(context).mutation(api.sharedVisits.publish, args, {
-        skipQueue: true,
-      }),
+    publish: (args: ShareSelection, context: RequestContext) => client(context).action(api.sharedVisits.publish, args),
   };
 }
 export type VisitSharingTransport = ReturnType<typeof createVisitSharingTransport>;

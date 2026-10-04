@@ -8,8 +8,8 @@ import { ProfileForm } from "./profile-form";
 const mockCreate = jest.fn();
 const mockSavePhoto = jest.fn();
 jest.mock("convex/react", () => ({
-  useMutation: () => mockCreate,
-  useAction: () => mockSavePhoto,
+  useAction: (action: unknown) =>
+    jest.requireActual("convex/server").getFunctionName(action) === "profiles:create" ? mockCreate : mockSavePhoto,
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ key: "account:a" }),

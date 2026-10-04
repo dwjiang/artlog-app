@@ -18,7 +18,7 @@ import type { QueryCtx } from "../_generated/server";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
 import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
-import { projectProfile, projectSharedVisitCard } from "./projections";
+import { matchesRecord, projectProfile, projectSharedVisitCard } from "./projections";
 
 export const publicationHeader = v.object({
   audience: visitAudience,
@@ -327,7 +327,13 @@ export async function projectVisitAlbum(
   save: Doc<"collections">,
   postId: string,
 ): Promise<Infer<typeof sharedVisitCard>> {
-  const card = projectSharedVisitCard(item, save, await resolveDisplayAsset(ctx, save), postId);
+  const card = projectSharedVisitCard(
+    item,
+    save,
+    await resolveDisplayAsset(ctx, save),
+    postId,
+    await matchesRecord(ctx, save),
+  );
   const photos = [];
   for (const localId of item.photoLocalIds ?? []) {
     try {

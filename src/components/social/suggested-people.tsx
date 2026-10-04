@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { ListSection } from "@/components/list-row";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
@@ -14,7 +15,7 @@ import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { CompactFriendshipControls } from "./friendship-controls";
 import { ProfileAvatar } from "./profile-avatar";
-import { ProfileIdentity } from "./visit-card";
+import { ProfileRow } from "./profile-row";
 
 type SuggestionActions = {
   session: SocialSession;
@@ -98,24 +99,31 @@ function DismissButton({ person, onDismiss }: { person: Suggestion; onDismiss: (
   );
 }
 
-export function SuggestionRow({ person, session, onDismiss, refresh }: SuggestionActions & { person: Suggestion }) {
+function SuggestionRow({
+  person,
+  session,
+  onDismiss,
+  refresh,
+  first,
+  last,
+}: SuggestionActions & { person: Suggestion; first: boolean; last: boolean }) {
   return (
-    <View style={styles.row}>
-      <View style={{ flex: 1 }}>
-        <ProfileIdentity
-          profile={person.profile}
-          detail={<SuggestionReasonLine reason={person.reason} token={session.token} />}
-        />
-      </View>
-      <View style={styles.rowActions}>
-        <CompactFriendshipControls
-          profileId={person.profile.profileId}
-          session={session}
-          relationship={relationshipOf(person, refresh)}
-        />
-        <DismissButton person={person} onDismiss={onDismiss} />
-      </View>
-    </View>
+    <ProfileRow
+      profile={person.profile}
+      subtitle={<SuggestionReasonLine reason={person.reason} token={session.token} />}
+      first={first}
+      last={last}
+      trailing={
+        <View style={styles.rowActions}>
+          <CompactFriendshipControls
+            profileId={person.profile.profileId}
+            session={session}
+            relationship={relationshipOf(person, refresh)}
+          />
+          <DismissButton person={person} onDismiss={onDismiss} />
+        </View>
+      }
+    />
   );
 }
 
@@ -141,18 +149,37 @@ function SuggestionHeading({
 export function SuggestionList({
   people,
   seeAll,
+  grouped = false,
   ...actions
-}: SuggestionActions & { people: Suggestion[]; seeAll?: () => void }) {
+}: SuggestionActions & {
+  people: Suggestion[];
+  seeAll?: () => void;
+  /** On a grouped (gray) page the card needs no outline. */
+  grouped?: boolean;
+}) {
   if (people.length === 0) return null;
-  return (
+  const rows = people.map((person, index) => (
+    <SuggestionRow
+      key={person.profile.profileId}
+      person={person}
+      first={index === 0}
+      last={index === people.length - 1}
+      {...actions}
+    />
+  ));
+  // A section eyebrow has no room for See all, so that case keeps the heading the suggestion strip uses.
+  return seeAll ? (
     <View>
-      <SuggestionHeading action={seeAll && { label: "See all", onPress: seeAll }} />
-      {people.map((person, index) => (
-        <View key={person.profile.profileId}>
-          {index > 0 && <View style={styles.separator} />}
-          <SuggestionRow person={person} {...actions} />
-        </View>
-      ))}
+      <SuggestionHeading action={{ label: "See all", onPress: seeAll }} />
+      <View style={styles.list}>
+        <ListSection outlined={!grouped}>{rows}</ListSection>
+      </View>
+    </View>
+  ) : (
+    <View style={[styles.list, styles.listTop]}>
+      <ListSection title="Suggested" outlined={!grouped}>
+        {rows}
+      </ListSection>
     </View>
   );
 }
@@ -247,16 +274,10 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
     minHeight: 44,
   },
-  // Matches the request rows above, whose Ignore button sits flush against Accept.
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.compact,
-    paddingHorizontal: Spacing.content,
-    paddingVertical: Spacing.compact,
-  },
+  list: { paddingHorizontal: Spacing.content },
+  listTop: { paddingTop: Spacing.four },
+  // No gap, matching the request rows, whose Ignore button sits flush against Accept.
   rowActions: { flexDirection: "row", alignItems: "center" },
-  separator: { height: 0.5, marginHorizontal: 24, backgroundColor: Gallery.separator },
   reason: { flexDirection: "row", alignItems: "center", gap: 6 },
   reasonCentered: { alignItems: "center", gap: 6 },
   reasonText: { ...Typography.metadata, color: Gallery.muted, flexShrink: 1 },

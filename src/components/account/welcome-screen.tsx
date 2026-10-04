@@ -290,7 +290,6 @@ export function WelcomeScreen() {
                 maxLength={LIMITS.name}
                 textContentType="name"
                 autoCapitalize="words"
-                autoCorrect={false}
                 returnKeyType="done"
                 editable={!saving && !localProfile.loading}
                 onSubmitEditing={() => void finish()}

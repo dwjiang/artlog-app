@@ -10,7 +10,18 @@ import { Gallery, Typography } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 
 /** The page of a `fitToContents` form sheet route: a display title and Close over its scrolling form. */
-export function FormSheet({ title, busy, children }: { title: string; busy: boolean; children: ReactNode }) {
+export function FormSheet({
+  title,
+  busy,
+  grouped = false,
+  children,
+}: {
+  title: string;
+  busy: boolean;
+  /** Paints the sheet gray for content in grouped `ListRow` cards. */
+  grouped?: boolean;
+  children: ReactNode;
+}) {
   const { fontScale } = useWindowDimensions();
   const sheetStyle = useFittedFormSheetStyle();
   const { bottom } = useSafeAreaInsets();
@@ -18,7 +29,7 @@ export function FormSheet({ title, busy, children }: { title: string; busy: bool
     <>
       <Stack.Screen options={{ gestureEnabled: !busy }} />
       <ScrollView
-        style={[styles.root, sheetStyle]}
+        style={[styles.root, grouped && styles.grouped, sheetStyle]}
         bounces={false}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -55,6 +66,7 @@ export const formSheetStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root: { backgroundColor: Gallery.paper },
+  grouped: { backgroundColor: Gallery.groupedBackground },
   content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20, gap: 12 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 4 },
   title: { ...Typography.display, fontSize: 36, lineHeight: 42, flex: 1, color: Gallery.ink },

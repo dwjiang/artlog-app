@@ -3,7 +3,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
 import { WALL_FRAMES } from "../wall/frames";
 import { avatarId } from "./avatars";
-import { isAllowedIdentity, isOffensive } from "./profile-text";
+import { isAllowedIdentity } from "./offensive-text";
 import { isUsername } from "./username";
 
 export const publicProfile = v.object({
@@ -259,11 +259,8 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
   ) {
     throw new ConvexError({ code: "invalid_profile" });
   }
-  if (
-    !isAllowedIdentity(name)
-    || (bio !== undefined && isOffensive(bio))
-    || (input.username !== undefined && !isAllowedIdentity(input.username))
-  ) {
+  // Bios need OpenAI, so the server checks them separately.
+  if (!isAllowedIdentity(name) || (input.username !== undefined && !isAllowedIdentity(input.username))) {
     throw new ConvexError({ code: "profile_not_allowed" });
   }
   return { name, bio };
@@ -272,7 +269,7 @@ export function validateSearch(query: string): string {
   const normalized = normalizeSearch(query);
   if (
     query.length > LIMITS.searchMax
-    || normalized.length < LIMITS.searchMin
+    || !normalized
     || normalized.length > LIMITS.searchMax
     || normalized.split(" ").length > 16
   ) {

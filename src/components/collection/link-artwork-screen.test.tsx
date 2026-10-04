@@ -149,6 +149,7 @@ it("links multiple selected artworks only after confirmation", async () => {
   await render(<LinkArtworkScreen />);
   await fireEvent.press(screen.getByRole("checkbox", { name: "Select Garden" }));
   await fireEvent.press(screen.getByRole("checkbox", { name: "Select Night" }));
+  expect(screen.getByRole("checkbox", { name: "Select Garden" })).toBeChecked();
   expect(mockLink).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Link 2 artworks" }));
   expect(mockLink).toHaveBeenCalledWith(["garden", "night"], "paris", "device:guest");

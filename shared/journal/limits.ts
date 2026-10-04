@@ -12,7 +12,6 @@ export const LIMITS = {
   bio: 160,
   usernameMin: 3,
   usernameMax: 30,
-  searchMin: 2,
   searchMax: 100,
   wallItems: 100,
   selectedSaves: 50,

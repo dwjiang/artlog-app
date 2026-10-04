@@ -22,9 +22,7 @@ export function createWallTransport(url: string, fetcher: typeof globalThis.fetc
     setLayout: (args: LayoutInput, context: RequestContext) =>
       client(context).mutation(api.walls.setLayout, args, { skipQueue: true }),
     setNoteVisibility: (args: VisibilityInput, context: RequestContext) =>
-      client(context).mutation(api.walls.setNoteVisibility, args, {
-        skipQueue: true,
-      }),
+      client(context).action(api.walls.setNoteVisibility, args),
   };
 }
 export type WallTransport = ReturnType<typeof createWallTransport>;

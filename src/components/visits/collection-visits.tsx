@@ -14,6 +14,7 @@ import { Gallery } from "@/constants/theme";
 import { searchTerm } from "@/lib/journal/query";
 import { useVisitView } from "@/lib/journal/use-visit-view";
 import { searchVisitSummaries, type VisitSummary } from "@/lib/journal/visit-summaries";
+import { LIMITS } from "@/shared/journal/limits";
 
 import { VisitGlobe } from "./visit-globe";
 import { VisitTimeline } from "./visit-timeline";
@@ -123,7 +124,7 @@ export function CollectionVisits({
       <SearchEmptyState
         title="No visits found."
         detail={
-          searchTerm(search) === null ? "Enter between 2 and 100 characters to search." : "Try a museum, city, or date."
+          searchTerm(search) === null ? `Use up to ${LIMITS.searchMax} characters.` : "Try a museum, city, or date."
         }
         onClear={clearSearch}
       />

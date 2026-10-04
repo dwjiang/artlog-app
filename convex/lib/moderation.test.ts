@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { completion } from "./labelFixtures";
-import { blocklistFlags, checkText } from "./moderation";
+import { blocklistFlags, checkText, flaggedUserTexts } from "./moderation";
 
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
@@ -81,5 +81,68 @@ describe("text moderation", () => {
     expect(blocklistFlags("A BadWord in the title")).toBe(true);
     expect(blocklistFlags("Worse phrase here")).toBe(true);
     expect(blocklistFlags("badwords are not matched")).toBe(false);
+  });
+});
+
+describe("shared text moderation", () => {
+  const verdicts = (...flags: boolean[]) => Response.json({ results: flags.map((flagged) => ({ flagged })) });
+  beforeEach(() => vi.stubEnv("OPENAI_API_KEY", "test-openai-key"));
+
+  it("follows OpenAI over the word list after swapping linked record titles out", async () => {
+    fetchMock.mockResolvedValueOnce(verdicts(false, false, false, true));
+    await expect(
+      flaggedUserTexts(
+        [
+          "The vagina imagery in The Dinner Party",
+          "PAY ATTENTION MOTHERFUCKERS is still loud in person",
+          "Show me more like this",
+          "you idiot",
+        ],
+        ["Pay Attention Motherfuckers", "Me"],
+      ),
+    ).resolves.toEqual([false, false, false, true]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.openai.com/v1/moderations");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      model: "omni-moderation-latest",
+      input: [
+        "The vagina imagery in The Dinner Party",
+        "the artwork is still loud in person",
+        "Show me more like this",
+        "you idiot",
+      ],
+    });
+  });
+
+  it("falls back to the word list when OpenAI fails, times out, answers oddly or is not configured", async () => {
+    const failures = [
+      async () => new Response("down", { status: 500 }),
+      async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      },
+      async () => Response.json({ results: [] }),
+    ];
+    for (const failure of failures) {
+      fetchMock.mockImplementationOnce(failure);
+      await expect(flaggedUserTexts(["What a load of shit", "Water Lilies"], [])).resolves.toEqual([true, false]);
+    }
+    vi.stubEnv("OPENAI_API_KEY", "");
+    await expect(
+      flaggedUserTexts(["fuck you", "Pay Attention Motherfuckers is loud"], ["Pay Attention Motherfuckers"]),
+    ).resolves.toEqual([true, false]);
+    expect(fetchMock).toHaveBeenCalledTimes(failures.length);
+  });
+
+  it("blocks slurs and the strongest swearing that OpenAI lets through, without asking about them", async () => {
+    fetchMock.mockResolvedValueOnce(verdicts(false));
+    await expect(
+      flaggedUserTexts(["fuck this museum", "Water Lilies", "what a faggot"], ["Pay Attention Motherfuckers"]),
+    ).resolves.toEqual([true, false, true]);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).input).toEqual(["Water Lilies"]);
+  });
+
+  it("passes empty text without asking OpenAI", async () => {
+    await expect(flaggedUserTexts(["", "  "], [])).resolves.toEqual([false, false]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

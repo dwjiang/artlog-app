@@ -16,8 +16,8 @@ let mockSuggestion: string | null;
 let mockTaken: Set<string>;
 let mockMine: { username: string; name: string; photoUrl?: string } | undefined;
 jest.mock("convex/react", () => ({
-  useMutation: () => mockCreate,
-  useAction: () => mockSavePhoto,
+  useAction: (action: unknown) =>
+    jest.requireActual("convex/server").getFunctionName(action) === "profiles:create" ? mockCreate : mockSavePhoto,
 }));
 jest.mock("expo-router", () => ({
   useRouter: () => ({ back: mockBack, dismissTo: mockDismissTo, replace: mockReplace }),

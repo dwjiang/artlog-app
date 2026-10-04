@@ -107,7 +107,8 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: Gallery.fill,
+    // Avatar blue, not fill, so the circle still shows on grouped (gray) pages.
+    backgroundColor: Gallery.avatar,
     alignItems: "center",
     justifyContent: "center",
   },

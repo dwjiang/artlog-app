@@ -79,6 +79,7 @@ export const Typography = {
   body: { fontSize: 16, lineHeight: 24 },
   secondary: { fontSize: 14, lineHeight: 21 },
   metadata: { fontSize: 12, lineHeight: 18 },
+  eyebrow: { fontSize: 13, lineHeight: 18, fontWeight: "500", letterSpacing: 1.1, textTransform: "uppercase" },
   button: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
 } as const satisfies Record<string, TextStyle>;
 

@@ -5,6 +5,7 @@ import { Keyboard, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
@@ -29,7 +30,7 @@ function VisitFormPage({ children }: { children: ReactNode }) {
   const { bottom } = useSafeAreaInsets();
   return (
     <>
-      <VisitPage>{children}</VisitPage>
+      <VisitPage style={{ backgroundColor: Gallery.groupedBackground }}>{children}</VisitPage>
       <ToastLayer offset={-bottom} />
     </>
   );
@@ -263,10 +264,10 @@ export function VisitMuseumScreen() {
               }}
             />
           </>
+        ) : loading && !error ? (
+          <ListSkeleton label="Loading visit…" rows={3} card />
         ) : (
-          <VisitMessage loading={loading && !error} skeleton="list">
-            {error ? "This visit could not load." : loading ? "Loading visit…" : "This visit is unavailable."}
-          </VisitMessage>
+          <VisitMessage>{error ? "This visit could not load." : "This visit is unavailable."}</VisitMessage>
         )}
       </VisitFormPage>
     </>

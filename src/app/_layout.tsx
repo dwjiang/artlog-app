@@ -157,21 +157,14 @@ function AppContent() {
                   <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
                   <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
                   <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
-                  <Stack.Screen name="people" options={{ title: "Friends" }} />
-                  <Stack.Screen name="blocked-people" options={{ title: "Blocked people" }} />
+                  <Stack.Screen name="people" options={{ ...groupedScreen, title: "Friends" }} />
+                  <Stack.Screen name="blocked-people" options={{ ...groupedScreen, title: "Blocked people" }} />
                   <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
                   <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
-                  <Stack.Screen name="profile-friends" options={{ title: "Friends" }} />
+                  <Stack.Screen name="profile-friends" options={{ ...groupedScreen, title: "Friends" }} />
                   <Stack.Screen name="visit/[postId]" options={{ title: "Post" }} />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
-                  <Stack.Screen
-                    name="share-profile"
-                    options={{
-                      title: "Share profile",
-                      headerStyle: { backgroundColor: Gallery.groupedBackground },
-                      contentStyle: { backgroundColor: Gallery.groupedBackground },
-                    }}
-                  />
+                  <Stack.Screen name="share-profile" options={{ ...groupedScreen, title: "Share profile" }} />
                   <Stack.Screen
                     name="create-profile"
                     options={{
@@ -181,8 +174,13 @@ function AppContent() {
                     }}
                   />
                   <Stack.Screen name="artwork" options={{ title: "" }} />
-                  <Stack.Screen name="visit-create" options={{ ...visitSheet, title: "Add visit" }} />
-                  <Stack.Screen name="visit-museum" options={{ ...visitSheet, title: "Change museum" }} />
+                  <Stack.Screen name="visit-create" options={{ ...visitSheet, ...groupedScreen, title: "Add visit" }} />
+                  <Stack.Screen name="capture-context" options={groupedScreen} />
+                  <Stack.Screen name="link-artwork" options={groupedScreen} />
+                  <Stack.Screen
+                    name="visit-museum"
+                    options={{ ...visitSheet, ...groupedScreen, title: "Change museum" }}
+                  />
                   <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
                   <Stack.Screen
                     name="visit-globe"
@@ -200,6 +198,7 @@ function AppContent() {
                       sheetAllowedDetents: "fitToContents",
                       sheetGrabberVisible: true,
                       headerShown: false,
+                      ...groupedScreen,
                     }}
                   />
                   <Stack.Screen
@@ -209,6 +208,7 @@ function AppContent() {
                       sheetAllowedDetents: "fitToContents",
                       sheetGrabberVisible: true,
                       headerShown: false,
+                      ...groupedScreen,
                     }}
                   />
                   <Stack.Screen
@@ -255,6 +255,7 @@ function AppContent() {
                       sheetAllowedDetents: "fitToContents",
                       sheetGrabberVisible: true,
                       headerShown: false,
+                      ...groupedScreen,
                     }}
                   />
                   <Stack.Screen
@@ -280,6 +281,12 @@ function AppContent() {
     </DatabaseGate>
   );
 }
+
+/** Gray page behind the white cards of `ListRow` lists. */
+const groupedScreen = {
+  headerStyle: { backgroundColor: Gallery.groupedBackground },
+  contentStyle: { backgroundColor: Gallery.groupedBackground },
+};
 
 const visitSheet = {
   presentation: "formSheet" as const,

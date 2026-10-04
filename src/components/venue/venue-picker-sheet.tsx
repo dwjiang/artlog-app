@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +7,7 @@ import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
+import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { LoadingRing } from "@/components/loading-ring";
 import { TextSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
@@ -22,6 +22,7 @@ import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
+import { showToast } from "@/lib/ui/toast";
 import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
 import { searchVenues } from "@/lib/venue/search-venues";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
@@ -30,18 +31,22 @@ import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from
 
 import { MuseumMap, useOptionCoordinates } from "./museum-map";
 
-function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits | undefined): string {
-  const parts = [units ? formatDistance(option.distanceM ?? Number.NaN, units) : ""];
-  if (option.kind === "poi" && option.category !== "unknown") {
-    parts.push(option.category);
-  }
-  if (nearest) parts.push("nearest");
-  return parts.filter(Boolean).join(" · ");
+function optionDistance(option: VenueOption, units: MeasurementUnits | undefined): string | undefined {
+  return (units && formatDistance(option.distanceM ?? Number.NaN, units)) || undefined;
+}
+
+function optionNote(option: VenueOption, nearest: boolean): string | undefined {
+  const parts = [
+    option.kind === "poi" && option.category !== "unknown" ? option.category : "",
+    nearest ? "Nearest" : "",
+  ];
+  return parts.filter(Boolean).join(" · ") || undefined;
 }
 
 /**
  * One sheet for the venue pill, the visit bar and the location prompt: the visit open at this museum, or the chooser.
- * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone.
+ * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone. A museum
+ * chosen from the prompt starts a visit there, ending one paused elsewhere.
  */
 export function VenuePickerSheet() {
   const view = useVenue();
@@ -134,10 +139,11 @@ function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => 
 
 function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted: boolean; keepVisit?: () => void }) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
+  const displayUnits = units ?? (unitsFailed ? "metric" : undefined);
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
-  const sheetStyle = [styles.container, useFittedFormSheetStyle()];
-  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix } = view;
+  const sheetStyle = [styles.groupedContainer, useFittedFormSheetStyle()];
+  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
   // The location prompt asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
   const [picking, setPicking] = useState(() => prompted && view.options.length > 0);
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
@@ -153,7 +159,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     rows: VenueRow[];
     error?: string;
   }>();
-  const searching = query.trim().length >= 2;
+  const searching = !!query.trim();
   useEffect(() => {
     if (!searching) return;
     let active = true;
@@ -198,15 +204,32 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     pending.current = request;
     setBusy(venueOptionKey(option));
     setFailure(undefined);
+    let starting = false;
     try {
-      await confirm(option, request.signal);
+      const venueId = await confirm(option, request.signal);
       if (request.signal.aborted) return;
+      if (venueId) setSelectedKey(venueId);
+      if (prompted && venueId) {
+        starting = true;
+        const started = await startVisit(venueId, {
+          signal: request.signal,
+          replaceVisitLocalId: visit?.localId,
+        });
+        if (request.signal.aborted) return;
+        if (started.localId !== visit?.localId) showToast("Visit started.");
+      }
       answered.current = true;
       router.back();
     } catch (cause) {
-      if (!request.signal.aborted) reportError(cause, "venue.confirm");
+      if (!request.signal.aborted) reportError(cause, starting ? "visit.start" : "venue.confirm");
       if (!request.signal.aborted) {
-        setFailure(cause instanceof Error ? cause.message : "Could not confirm the venue. Try again.");
+        setFailure(
+          starting
+            ? "Couldn’t start the visit. Try again."
+            : cause instanceof Error
+              ? cause.message
+              : "Could not confirm the venue. Try again.",
+        );
       }
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
@@ -231,11 +254,11 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     router.back();
   }
 
-  const hasQuery = !!query.trim();
   const emptyDetail = keepVisit
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
-  const nearbyEmpty = !hasQuery && status !== "locating" && options.length === 0;
+  const nearbyEmpty = !searching && status !== "locating" && options.length === 0;
+  const endsVisit = prompted && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
   const leaveButton = (
     <GalleryButton
       label={keepVisit ? "Keep current visit" : "Continue without a museum"}
@@ -264,12 +287,12 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           textActions={<GalleryButton label="Search for another museum" fullWidth onPress={() => setPicking(false)} />}
         >
           <GalleryButton
-            label="Continue"
+            label="Start visit"
             variant="filled"
             fullWidth
             disabled={!selected}
             busy={!!busy}
-            busyLabel="Confirming…"
+            busyLabel="Starting…"
             onPress={() => {
               if (selected) void choose(selected);
             }}
@@ -290,50 +313,38 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           bounces={false}
         >
           <ThemedText type="title" accessibilityRole="header">
-            Which museum are you in?
+            Start a visit?
           </ThemedText>
           <ThemedText themeColor="textSecondary">
             {options.length > 1
               ? "More than one museum is within a short walk."
               : "The nearest museum is a short walk away."}
+            {endsVisit && ` ${endsVisit}`}
           </ThemedText>
           {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
-          <View>
+          <ListSection>
             {options.map((option, index) => {
               const key = venueOptionKey(option);
-              const checked = key === selectedKey;
               return (
-                <MotionPressable
+                <ListRow
                   key={key}
+                  first={index === 0}
+                  last={index === options.length - 1}
+                  title={option.name}
+                  subtitle={optionNote(option, index === 0)}
+                  detail={optionDistance(option, displayUnits)}
+                  leading={<ListIcon name="building.columns" />}
+                  accessory="check"
                   accessibilityRole="radio"
-                  accessibilityLabel={option.name}
-                  accessibilityState={{ checked, disabled: !!busy }}
+                  selected={key === selectedKey}
                   disabled={!!busy}
                   onPress={() => setSelectedKey(key)}
-                  style={[styles.option, styles.unselectedOption]}
-                >
-                  <View style={styles.optionText}>
-                    <ThemedText style={checked && styles.checkedLabel}>{option.name}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
-                    </ThemedText>
-                  </View>
-                  <View style={[styles.radio, checked && styles.radioChecked]}>
-                    {checked && <View style={styles.radioDot} />}
-                  </View>
-                </MotionPressable>
+                />
               );
             })}
-            {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
-            <MotionPressable
-              accessibilityRole="button"
-              accessibilityLabel="Not at a museum"
-              onPress={notHere}
-              style={styles.option}
-            >
-              <ThemedText themeColor="textSecondary">Not at a museum</ThemedText>
-            </MotionPressable>
-          </View>
+          </ListSection>
+          {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
+          <ListRow first last title="Not at a museum" onPress={notHere} />
           {!pinned && actions}
         </ScrollView>
         {pinned && <View style={styles.pickerFooter}>{actions}</View>}
@@ -350,20 +361,18 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       <ThemedText type="title" accessibilityRole="header">
         Choose museum
       </ThemedText>
+      {endsVisit && <ThemedText themeColor="textSecondary">{endsVisit}</ThemedText>}
       <SearchField
         inputRef={searchInput}
         value={query}
         label="Search museums"
         placeholder="Museum or city"
         showLabel={false}
-        filled
         onChange={setQuery}
         onClear={() => setQuery("")}
       />
-      {hasQuery ? (
-        !searching ? (
-          <ThemedText themeColor="textSecondary">Enter at least two characters.</ThemedText>
-        ) : results?.query !== query ? (
+      {searching ? (
+        results?.query !== query ? (
           <LoadingRing accessibilityLabel="Searching museums" />
         ) : results.error ? (
           <ThemedText themeColor="error" accessibilityRole="alert">
@@ -377,32 +386,30 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
             visual={<EmptyMap />}
           />
         ) : (
-          results.rows.map((row) => (
-            <MotionPressable
-              key={row.id}
-              accessibilityRole="button"
-              accessibilityLabel={row.name}
-              disabled={!!busy}
-              onPress={() => {
-                void choose({
-                  kind: "seeded",
-                  venueId: row.id,
-                  name: row.name,
-                  manual: museumDay(row, Date.now()),
-                });
-              }}
-              style={styles.option}
-            >
-              <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
-              <View style={styles.optionText}>
-                <ThemedText>{row.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {venueLocation(row).location}
-                </ThemedText>
-              </View>
-              {busy === row.id && <LoadingRing />}
-            </MotionPressable>
-          ))
+          <ListSection>
+            {results.rows.map((row, index) => (
+              <ListRow
+                key={row.id}
+                first={index === 0}
+                last={index === results.rows.length - 1}
+                title={row.name}
+                query={query}
+                subtitle={venueLocation(row).location}
+                leading={<ListIcon name="building.columns" />}
+                accessory="chevron"
+                busy={busy === row.id}
+                disabled={!!busy}
+                onPress={() => {
+                  void choose({
+                    kind: "seeded",
+                    venueId: row.id,
+                    name: row.name,
+                    manual: museumDay(row, Date.now()),
+                  });
+                }}
+              />
+            ))}
+          </ListSection>
         )
       ) : status === "locating" ? (
         <LoadingRing accessibilityLabel="Locating your museum" />
@@ -450,36 +457,25 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           </ActionStack>
         </EmptyState>
       ) : (
-        <>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Nearby
-          </ThemedText>
+        <ListSection title="Nearby">
           {options.map((option, index) => (
-            <MotionPressable
+            <ListRow
               key={venueOptionKey(option)}
-              accessibilityRole="button"
-              accessibilityLabel={option.name}
-              accessibilityState={{
-                busy: busy === venueOptionKey(option),
-                disabled: !!busy,
-              }}
+              first={index === 0}
+              last={index === options.length - 1}
+              title={option.name}
+              subtitle={optionNote(option, index === 0)}
+              detail={optionDistance(option, displayUnits)}
+              leading={<ListIcon name="building.columns" />}
+              accessory="chevron"
+              busy={busy === venueOptionKey(option)}
               disabled={!!busy}
               onPress={() => {
                 void choose(option);
               }}
-              style={[styles.option, styles.unselectedOption]}
-            >
-              <Image source="sf:building.columns" tintColor={Gallery.muted} style={{ width: 22, height: 22 }} />
-              <View style={styles.optionText}>
-                <ThemedText>{option.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {detail(option, index === 0, units ?? (unitsFailed ? "metric" : undefined))}
-                </ThemedText>
-              </View>
-              {busy === venueOptionKey(option) && <LoadingRing />}
-            </MotionPressable>
+            />
           ))}
-        </>
+        </ListSection>
       )}
       {(failure ?? error) && (
         <ThemedText selectable themeColor="error" accessibilityRole="alert">
@@ -493,6 +489,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 
 const styles = StyleSheet.create({
   container: { backgroundColor: Colors.light.background },
+  groupedContainer: { backgroundColor: Gallery.groupedBackground },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   pickerScroll: { flexGrow: 0 },
   pinnedContent: { paddingBottom: 0 },
@@ -507,28 +504,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: Spacing.two },
   stackedActions: { gap: Spacing.two },
   action: { flex: 1 },
-  option: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  unselectedOption: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Gallery.separator,
-  },
-  optionText: { flex: 1, gap: Spacing.half },
-  checkedLabel: { fontWeight: "600" },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: Gallery.controlBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioChecked: { borderColor: Gallery.accent, backgroundColor: Gallery.accent },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Gallery.paper },
 });
