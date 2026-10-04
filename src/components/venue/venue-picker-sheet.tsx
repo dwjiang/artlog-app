@@ -22,6 +22,7 @@ import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
+import { showToast } from "@/lib/ui/toast";
 import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
 import { searchVenues } from "@/lib/venue/search-venues";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
@@ -41,7 +42,8 @@ function detail(option: VenueOption, nearest: boolean, units: MeasurementUnits |
 
 /**
  * One sheet for the venue pill, the visit bar and the location prompt: the visit open at this museum, or the chooser.
- * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone.
+ * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone. A museum
+ * chosen from the prompt starts a visit there, ending one paused elsewhere.
  */
 export function VenuePickerSheet() {
   const view = useVenue();
@@ -137,7 +139,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
-  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix } = view;
+  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
   // The location prompt asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
   const [picking, setPicking] = useState(() => prompted && view.options.length > 0);
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
@@ -198,15 +200,32 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     pending.current = request;
     setBusy(venueOptionKey(option));
     setFailure(undefined);
+    let starting = false;
     try {
-      await confirm(option, request.signal);
+      const venueId = await confirm(option, request.signal);
       if (request.signal.aborted) return;
+      if (venueId) setSelectedKey(venueId);
+      if (prompted && venueId) {
+        starting = true;
+        const started = await startVisit(venueId, {
+          signal: request.signal,
+          replaceVisitLocalId: visit?.localId,
+        });
+        if (request.signal.aborted) return;
+        if (started.localId !== visit?.localId) showToast("Visit started.");
+      }
       answered.current = true;
       router.back();
     } catch (cause) {
-      if (!request.signal.aborted) reportError(cause, "venue.confirm");
+      if (!request.signal.aborted) reportError(cause, starting ? "visit.start" : "venue.confirm");
       if (!request.signal.aborted) {
-        setFailure(cause instanceof Error ? cause.message : "Could not confirm the venue. Try again.");
+        setFailure(
+          starting
+            ? "Couldn’t start the visit. Try again."
+            : cause instanceof Error
+              ? cause.message
+              : "Could not confirm the venue. Try again.",
+        );
       }
     } finally {
       if (!request.signal.aborted) setBusy(undefined);
@@ -236,6 +255,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
   const nearbyEmpty = !hasQuery && status !== "locating" && options.length === 0;
+  const endsVisit = prompted && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
   const leaveButton = (
     <GalleryButton
       label={keepVisit ? "Keep current visit" : "Continue without a museum"}
@@ -264,12 +284,12 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           textActions={<GalleryButton label="Search for another museum" fullWidth onPress={() => setPicking(false)} />}
         >
           <GalleryButton
-            label="Continue"
+            label="Start visit"
             variant="filled"
             fullWidth
             disabled={!selected}
             busy={!!busy}
-            busyLabel="Confirming…"
+            busyLabel="Starting…"
             onPress={() => {
               if (selected) void choose(selected);
             }}
@@ -290,12 +310,13 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
           bounces={false}
         >
           <ThemedText type="title" accessibilityRole="header">
-            Which museum are you in?
+            Start a visit?
           </ThemedText>
           <ThemedText themeColor="textSecondary">
             {options.length > 1
               ? "More than one museum is within a short walk."
               : "The nearest museum is a short walk away."}
+            {endsVisit && ` ${endsVisit}`}
           </ThemedText>
           {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
           <View>
@@ -350,6 +371,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       <ThemedText type="title" accessibilityRole="header">
         Choose museum
       </ThemedText>
+      {endsVisit && <ThemedText themeColor="textSecondary">{endsVisit}</ThemedText>}
       <SearchField
         inputRef={searchInput}
         value={query}
