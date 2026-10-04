@@ -25,10 +25,10 @@ it("saves a visibility without publishing and publishes only to the visit's curr
   expect(await save("public")).toMatchObject({ visibility: "public" });
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
   await save("private");
-  await expect(owner.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({
+  await expect(owner.as.action(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject({
     data: { code: "conflict" },
   });
-  const published = await owner.as.mutation(api.sharedVisits.publish, { ...draft.selection, audience: "private" });
+  const published = await owner.as.action(api.sharedVisits.publish, { ...draft.selection, audience: "private" });
   expect(published).toMatchObject({ status: "active", audience: "private" });
   const postId = published.postId!;
   await expect(owner.as.query(api.sharedVisits.get, { postId })).resolves.toMatchObject({ audience: "private" });
@@ -45,7 +45,7 @@ it("keeps a Private publication for its owner alone and shares it again when the
   const friend = await socialUser(t);
   await befriend(owner, friend);
   const draft = await socialVisit(t, owner, 1);
-  const published = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
+  const published = await owner.as.action(api.sharedVisits.publish, draft.selection);
   const postId = published.postId!;
   const visible = await t.query(api.sharedVisits.get, { postId });
   const [{ itemId }] = visible.artworks.page;
@@ -75,7 +75,7 @@ it("shows a Friends visit only to the owner and accepted friends", async () => {
   const draft = await socialVisit(t, owner);
   const media = await socialDerivative(t, owner, draft.saves[0].id);
   expect(await setVisitVisibility(t, owner, draft.visit._id, "friends")).toMatchObject({ audience: "friends" });
-  const { postId } = await owner.as.mutation(api.sharedVisits.publish, { ...draft.selection, audience: "friends" });
+  const { postId } = await owner.as.action(api.sharedVisits.publish, { ...draft.selection, audience: "friends" });
   const post = await friend.as.query(api.sharedVisits.get, { postId: postId! });
   expect(post.audience).toBe("friends");
   await expect(owner.as.query(api.sharedVisits.get, { postId: postId! })).resolves.toMatchObject({ postId });
@@ -98,7 +98,7 @@ it("moves a published visit between Friends and Public without republishing", as
   const t = harness();
   const owner = await socialUser(t);
   const draft = await socialVisit(t, owner);
-  const published = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
+  const published = await owner.as.action(api.sharedVisits.publish, draft.selection);
   const postId = published.postId!;
   const hidden = await setVisitVisibility(t, owner, draft.visit._id, "friends");
   expect(hidden).toMatchObject({ audience: "friends", status: "active", revision: published.revision });
@@ -128,7 +128,7 @@ it("filters a profile's visits by audience within what the viewer may read", asy
   for (const [index, audience] of (["private", "friends", "public"] as const).entries()) {
     const draft = await socialVisit(t, owner, 1, `2026-09-0${index + 1}`);
     await setVisitVisibility(t, owner, draft.visit._id, audience);
-    posts[audience] = (await owner.as.mutation(api.sharedVisits.publish, { ...draft.selection, audience })).postId!;
+    posts[audience] = (await owner.as.action(api.sharedVisits.publish, { ...draft.selection, audience })).postId!;
   }
   const list = async (viewer: typeof t | typeof owner.as, audience?: "private" | "friends" | "public") =>
     (await viewer.query(api.sharedVisits.listByProfile, { profileId: owner.profileId, audience })).page.map(

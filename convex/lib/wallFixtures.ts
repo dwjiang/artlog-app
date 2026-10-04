@@ -25,7 +25,7 @@ export async function wallFixture(t: Harness, sub = String(++readers)) {
   while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {
     /* Finish the fixture's claim. */
   }
-  const profile = await device.as.mutation(api.profiles.create, {
+  const profile = await device.as.action(api.profiles.create, {
     username: `reader_${sub}`,
     name: "Reader",
   });

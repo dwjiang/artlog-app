@@ -51,7 +51,7 @@ it("reports published placements and shared visits for each photo, without treat
     color: "#45524B",
     items,
   });
-  await owner.as.mutation(api.sharedVisits.publish, {
+  await owner.as.action(api.sharedVisits.publish, {
     ...visit.selection,
     photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }],
   });
@@ -73,7 +73,7 @@ it("stops counting unpublished visits and removed wall placements", async () => 
     color: "#45524B",
     items,
   });
-  await owner.as.mutation(api.sharedVisits.publish, {
+  await owner.as.action(api.sharedVisits.publish, {
     ...visit.selection,
     photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }],
   });
@@ -118,7 +118,7 @@ it("reports any explicitly published photo that the shared-media endpoint can se
     ],
   });
   for (const draft of [visit, otherVisit]) {
-    await owner.as.mutation(api.sharedVisits.publish, {
+    await owner.as.action(api.sharedVisits.publish, {
       ...draft.selection,
       saveLocalIds: [args.savedLocalId],
       photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }],
@@ -138,7 +138,7 @@ it.each(["inactive-profile", "removed-profile", "removed-post", "removed-placeme
       color: "#45524B",
       items,
     });
-    const post = await owner.as.mutation(api.sharedVisits.publish, {
+    const post = await owner.as.action(api.sharedVisits.publish, {
       ...visit.selection,
       photoSelections: [{ saveLocalId: args.savedLocalId, photoLocalIds: [photos[0].localId] }],
     });
@@ -189,7 +189,7 @@ it("omits deleted photos and stops counting a visit after its encounter is unlin
     color: "#45524B",
     items,
   });
-  await owner.as.mutation(api.sharedVisits.publish, {
+  await owner.as.action(api.sharedVisits.publish, {
     ...visit.selection,
     photoSelections: [
       {

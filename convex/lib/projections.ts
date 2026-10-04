@@ -9,10 +9,12 @@ import {
   type displayMediaContext,
   validateMedia,
 } from "../../shared/social/contracts";
+import { isSevere } from "../../shared/social/offensive-text";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
 import { relationshipSnapshot } from "./friendships";
+import { normalizeText } from "./textMatch";
 
 export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
   const photoUrl = profile.photoStorageId ? await fileStorage.getUrl(ctx, profile.photoStorageId) : null;
@@ -39,10 +41,25 @@ export async function projectBrowsedProfile(
     relationship: (await relationshipSnapshot(ctx, viewer._id, profile._id)).state,
   };
 }
+/** Whether the save's title and artist still read as its linked museum or community record, not as typed text. */
+export async function matchesRecord(ctx: QueryCtx, save: Pick<Doc<"collections">, "artworkId" | "snapshot">) {
+  const artwork = save.artworkId ? await ctx.db.get("artworks", save.artworkId) : null;
+  return (
+    !!artwork
+    && normalizeText(artwork.title) === normalizeText(save.snapshot.title)
+    && normalizeText(artwork.artist) === normalizeText(save.snapshot.artist)
+  );
+}
+export async function recordTitles(ctx: QueryCtx, saves: Pick<Doc<"collections">, "artworkId" | "snapshot">[]) {
+  const titles = [];
+  for (const save of saves) if (await matchesRecord(ctx, save)) titles.push(save.snapshot.title);
+  return titles;
+}
 export function projectArtwork(
   save: Pick<Doc<"collections">, "_id" | "snapshot">,
   asset?: Doc<"mediaAssets"> | null,
   reference?: Infer<typeof displayMediaContext>,
+  fromRecord = false,
 ): Infer<typeof publicArtwork> {
   let media: Infer<typeof displayMedia> = {
     kind: "placeholder",
@@ -74,12 +91,14 @@ export function projectArtwork(
       /* Ineligible media renders the same placeholder as missing media. */
     }
   }
+  // Typed details sync without review, so public copies drop slurs and the strongest swearing instead of failing the
+  // sync. Crude words stay, because real titles use them ("Bitch", "Piss Flowers").
   const { title, artist, date, medium } = save.snapshot;
   return {
-    title,
-    artist,
-    ...(date ? { date } : {}),
-    ...(medium ? { medium } : {}),
+    title: !fromRecord && isSevere(title) ? "Untitled" : title,
+    artist: !fromRecord && isSevere(artist) ? "" : artist,
+    ...(date && !isSevere(date) ? { date } : {}),
+    ...(medium && !isSevere(medium) ? { medium } : {}),
     media,
   };
 }
@@ -87,14 +106,20 @@ export function projectWallArtwork(
   item: Doc<"wallItems">,
   save: Doc<"collections">,
   asset?: Doc<"mediaAssets"> | null,
+  fromRecord?: boolean,
 ) {
   return {
     itemId: item._id,
     layout: item.layout,
-    artwork: projectArtwork(save, asset, {
-      kind: "wallItem",
-      itemId: item._id,
-    }),
+    artwork: projectArtwork(
+      save,
+      asset,
+      {
+        kind: "wallItem",
+        itemId: item._id,
+      },
+      fromRecord,
+    ),
     ...(item.noteVisible && save.note?.trim() ? { note: save.note } : {}),
   };
 }
@@ -103,9 +128,15 @@ export function projectSharedVisitCard(
   save: Doc<"collections">,
   asset?: Doc<"mediaAssets"> | null,
   postId?: string,
+  fromRecord?: boolean,
 ) {
   return {
     itemId: item._id,
-    artwork: projectArtwork(save, asset, postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined),
+    artwork: projectArtwork(
+      save,
+      asset,
+      postId ? { kind: "sharedVisit", postId, itemId: item._id } : undefined,
+      fromRecord,
+    ),
   };
 }

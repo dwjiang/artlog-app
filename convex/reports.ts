@@ -10,7 +10,7 @@ import { requireDevice } from "./lib/auth";
 import { narrationCurrent, narrationEntry, scriptCurrent } from "./lib/narrationCache";
 import { audioEvidenceOf } from "./lib/narrationEvidence";
 import { activeProfile, optionalProfile, resolveOwner } from "./lib/ownership";
-import { projectWallArtwork } from "./lib/projections";
+import { matchesRecord, projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
 import { findOpenReport, profileEvidence } from "./lib/reports";
@@ -109,7 +109,7 @@ async function socialEvidence(
   }
   if (target.kind === "wallItem") {
     const { item, profile, save } = await requirePublicWallItem(ctx, target.itemId);
-    const { artwork, note } = projectWallArtwork(item, save);
+    const { artwork, note } = projectWallArtwork(item, save, undefined, await matchesRecord(ctx, save));
     return {
       kind: "wallItem",
       profileId: profile._id,

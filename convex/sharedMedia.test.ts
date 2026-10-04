@@ -15,7 +15,7 @@ async function fixture() {
   const asset = await socialDerivative(t, a, draft.saves[0].id);
   const transport = (user = a) => ({ runQuery: user.as.query as ActionCtx["runQuery"] });
   const publish = async () => {
-    const state = await a.as.mutation(api.sharedVisits.publish, draft.selection);
+    const state = await a.as.action(api.sharedVisits.publish, draft.selection);
     const post = await a.as.query(api.sharedVisits.get, {
       postId: state.postId!,
     });
@@ -35,7 +35,7 @@ it("serves public media without friendship and rechecks publication, selection, 
   await t.run((ctx) => ctx.db.patch("mediaAssets", asset.id, { revokedAt: 1 }));
   expect((await serveSharedMedia(transport(b), context)).status).toBe(404);
   await t.run((ctx) => ctx.db.patch("mediaAssets", asset.id, { revokedAt: undefined }));
-  await a.as.mutation(api.sharedVisits.publish, {
+  await a.as.action(api.sharedVisits.publish, {
     ...draft.selection,
     saveLocalIds: [],
     revision: 1,

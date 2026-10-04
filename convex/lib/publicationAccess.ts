@@ -13,9 +13,10 @@ import { deleteSavedRecognition } from "./savedRecognition";
 import { deactivateWallItem } from "./wallItems";
 
 type ReadCtx = QueryCtx | MutationCtx;
-export async function clearEmptyNoteVisibility(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
+// A changed note was never checked or shared in its new form: it goes private, and opt-ins sent for the old text fail.
+export async function resetNoteSharing(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
   const save = await ctx.db.get("collections", saveId);
-  if (!save || save.note?.trim()) return;
+  if (!save) return;
   const items = await ctx.db
     .query("wallItems")
     .withIndex("by_save_active", (q) => q.eq("saveId", saveId).eq("active", true))

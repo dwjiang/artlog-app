@@ -5,6 +5,7 @@ import { readArtworkContent } from "./lib/artworkContent";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedDevice, seedScan } from "./lib/testFactories";
+import { wallFixture } from "./lib/wallFixtures";
 import { harness, signIn } from "./test.helpers";
 
 it("upgrades an automatic block report with explicit details and keeps retries idempotent", async () => {
@@ -79,7 +80,7 @@ it("accepts public reports from registered devices, deduplicates account reporte
   expect((await sibling.as.mutation(api.reports.submit, { target, reason: "spam" })).reportId).toBe(first);
   const draft = await socialVisit(t, author);
   await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection: "Public evidence" }));
-  const post = await author.as.mutation(api.sharedVisits.publish, {
+  const post = await author.as.action(api.sharedVisits.publish, {
     ...draft.selection,
     reflection: "Public evidence",
   });
@@ -112,7 +113,7 @@ it("records operator decisions and permanently removes a publication without cha
   const b = await socialUser(t);
   const draft = await socialVisit(t, a);
   await befriend(a, b);
-  const post = await a.as.mutation(api.sharedVisits.publish, draft.selection);
+  const post = await a.as.action(api.sharedVisits.publish, draft.selection);
   const { reportId } = await b.as.mutation(api.reports.submit, {
     target: { kind: "sharedVisit", postId: post.postId! },
     reason: "harassment",
@@ -145,7 +146,7 @@ it("records operator decisions and permanently removes a publication without cha
     revision: 2,
   });
   await expect(
-    a.as.mutation(api.sharedVisits.publish, {
+    a.as.action(api.sharedVisits.publish, {
       ...draft.selection,
       revision: state.revision,
     }),
@@ -212,6 +213,30 @@ it("captures only published wall text and retains removal even if an active flag
   expect((await t.run((ctx) => ctx.db.get("profiles", a.profileId)))?.publishedWallCount).toBe(0);
 });
 
+it.each([false, true])("preserves the displayed wall title in report evidence when linked=%s", async (linked) => {
+  const t = harness();
+  const owner = await wallFixture(t, "owner");
+  const reporter = await socialUser(t, "Reporter");
+  const record = { title: "Pay Attention Motherfuckers", artist: "Bruce Nauman" };
+  await t.run(async (ctx) => {
+    const { artworkId } = await seedArtworkWithObject(ctx, { artwork: record });
+    await ctx.db.patch("collections", owner.saveId, { artworkId: linked ? artworkId : undefined, snapshot: record });
+  });
+  const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
+  const { itemId } = wall.items[0];
+  const visible = await t.query(api.walls.getArtwork, { itemId });
+  expect(visible?.artwork.title).toBe(linked ? record.title : "Untitled");
+  const report = await reporter.as.mutation(api.reports.submit, {
+    target: { kind: "wallItem", itemId },
+    reason: "other",
+    details: "Please review this title.",
+  });
+  await t.run((ctx) => ctx.db.patch("collections", owner.saveId, { snapshot: { ...record, title: "Edited" } }));
+  expect(await t.query(internal.review.getReport, report)).toMatchObject({
+    evidence: { title: visible!.artwork.title, artist: visible!.artwork.artist },
+  });
+});
+
 it("dismisses without removing content and prevents a disabled profile from recreating itself", async () => {
   const t = harness();
   const a = await socialUser(t);
@@ -240,7 +265,7 @@ it("dismisses without removing content and prevents a disabled profile from recr
     reason: "Confirmed",
   });
   await expect(
-    a.as.mutation(api.profiles.create, {
+    a.as.action(api.profiles.create, {
       username: "another_name",
       name: "New",
     }),
@@ -284,8 +309,8 @@ it("reports a visible comment with its text as evidence, and removal deletes it"
   const commenter = await socialUser(t);
   const guest = await seedDevice(t);
   const draft = await socialVisit(t, author);
-  const { postId } = await author.as.mutation(api.sharedVisits.publish, draft.selection);
-  const commentId = await commenter.as.mutation(api.visitReactions.addComment, {
+  const { postId } = await author.as.action(api.sharedVisits.publish, draft.selection);
+  const commentId = await commenter.as.action(api.visitReactions.addComment, {
     postId: postId!,
     body: "Rude words",
     requestId: crypto.randomUUID(),
@@ -324,8 +349,8 @@ it("rejects reports of the reporter's own content and a bare “other” reason"
   const author = await socialUser(t);
   const reporter = await socialUser(t);
   const draft = await socialVisit(t, author);
-  const { postId } = await author.as.mutation(api.sharedVisits.publish, draft.selection);
-  const commentId = await author.as.mutation(api.visitReactions.addComment, {
+  const { postId } = await author.as.action(api.sharedVisits.publish, draft.selection);
+  const commentId = await author.as.action(api.visitReactions.addComment, {
     postId: postId!,
     body: "My own note",
     requestId: crypto.randomUUID(),

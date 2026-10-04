@@ -6,11 +6,23 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { fileStorage } from "./lib/fileStorage";
 import { upsertJournalSave } from "./lib/journal";
-import { clearEmptyNoteVisibility } from "./lib/publicationAccess";
+import { resetNoteSharing } from "./lib/publicationAccess";
 import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
-import { seedDevice } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { wallFixture } from "./lib/wallFixtures";
-import { harness } from "./test.helpers";
+import { type Harness, harness } from "./test.helpers";
+
+async function syncNote(t: Harness, a: Awaited<ReturnType<typeof wallFixture>>, note: string) {
+  await t.run(async (ctx) => {
+    const save = (await ctx.db.get("collections", a.saveId))!;
+    await upsertJournalSave(ctx, save.owner, a.deviceId, {
+      localId: save.localId,
+      savedAt: save.savedAt,
+      snapshot: save.snapshot,
+      note,
+    });
+  });
+}
 
 it("updates the starter wall, normalizes color and acknowledges unchanged retries", async () => {
   const t = harness();
@@ -209,7 +221,7 @@ it("keeps note consent independent of layout, preserves identity on re-add and r
   const a = await wallFixture(t, "a");
   const original = await a.as.mutation(api.walls.setLayout, a.input);
   const { itemId } = original.items[0];
-  const visible = await a.as.mutation(api.walls.setNoteVisibility, {
+  const visible = await a.as.action(api.walls.setNoteVisibility, {
     scope: a.scope,
     changes: [{ itemId, noteRevision: 0, visible: true }],
   });
@@ -239,51 +251,110 @@ it("keeps note consent independent of layout, preserves identity on re-add and r
     noteRevision: 2,
   });
   await expect(
-    a.as.mutation(api.walls.setNoteVisibility, {
+    a.as.action(api.walls.setNoteVisibility, {
       scope: a.scope,
       changes: [{ itemId, noteRevision: 1, visible: true }],
     }),
   ).rejects.toMatchObject({ data: { code: "conflict" } });
 });
 
-it("shows full current notes and never restores consent after emptying and later editing a note", async () => {
+it("makes a shared note private whenever it changes until it is shared again", async () => {
   const t = harness();
   const a = await wallFixture(t, "a");
   const {
     items: [item],
   } = await a.as.mutation(api.walls.setLayout, a.input);
-  await a.as.mutation(api.walls.setNoteVisibility, {
-    scope: a.scope,
-    changes: [{ itemId: item.itemId, noteRevision: 0, visible: true }],
-  });
-  async function note(value: string) {
-    await t.run(async (ctx) => {
-      const save = (await ctx.db.get("collections", a.saveId))!;
-      await upsertJournalSave(ctx, save.owner, a.deviceId, {
-        localId: save.localId,
-        savedAt: save.savedAt,
-        snapshot: save.snapshot,
-        note: value,
-      });
+  const share = (noteRevision: number) =>
+    a.as.action(api.walls.setNoteVisibility, {
+      scope: a.scope,
+      changes: [{ itemId: item.itemId, noteRevision, visible: true }],
     });
-  }
-  await note("Long current note ".repeat(100));
+  await share(0);
+  await syncNote(t, a, "Long current note ".repeat(100));
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).not.toHaveProperty("note");
+  expect((await a.as.query(api.walls.getMine, {})).items[0]).toMatchObject({ noteVisible: false, noteRevision: 2 });
+  await expect(share(1)).rejects.toMatchObject({ data: { code: "conflict" } });
+  await share(2);
   expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({
     note: "Long current note ".repeat(100),
   });
-  await note(" ");
-  await expect(
-    a.as.mutation(api.walls.setNoteVisibility, {
+  await syncNote(t, a, " ");
+  await expect(share(4)).rejects.toThrow("invalid_wall");
+});
+
+it("refuses to share an offensive note but lets a note name its museum-titled artwork", async () => {
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const {
+    items: [item],
+  } = await a.as.mutation(api.walls.setLayout, a.input);
+  const share = async () =>
+    a.as.action(api.walls.setNoteVisibility, {
       scope: a.scope,
-      changes: [{ itemId: item.itemId, noteRevision: 2, visible: true }],
-    }),
-  ).rejects.toThrow("invalid_wall");
-  await note("New private note");
+      changes: [
+        {
+          itemId: item.itemId,
+          noteRevision: (await a.as.query(api.walls.getMine, {})).items[0].noteRevision,
+          visible: true,
+        },
+      ],
+    });
+  await syncNote(t, a, "What a piece of shit");
+  await expect(share()).rejects.toMatchObject({ data: { code: "note_not_allowed" } });
   expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).not.toHaveProperty("note");
-  expect((await a.as.query(api.walls.getMine, {})).items[0]).toMatchObject({
-    noteVisible: false,
-    noteRevision: 2,
+  const record = { title: "Pay Attention Motherfuckers", artist: "Bruce Nauman" };
+  await t.run(async (ctx) => {
+    const { artworkId } = await seedArtworkWithObject(ctx, { artwork: record });
+    await ctx.db.patch("collections", a.saveId, { artworkId, snapshot: record });
   });
+  await syncNote(t, a, "Pay Attention Motherfuckers is still loud in person");
+  await share();
+  expect(await t.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({
+    note: "Pay Attention Motherfuckers is still loud in person",
+  });
+});
+
+it("keeps slurs and the strongest swearing in typed artwork details off public walls", async () => {
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  await t.run((ctx) =>
+    ctx.db.patch("collections", a.saveId, {
+      snapshot: { title: "Fuck on canvas", artist: "Some cunt", date: "1900", medium: "Fucking oil" },
+    }),
+  );
+  await a.as.mutation(api.walls.setLayout, a.input);
+  const publicWall = await t.query(api.walls.getPublic, { profileId: a.profile.profileId });
+  expect(publicWall!.items[0].artwork).toEqual({
+    title: "Untitled",
+    artist: "",
+    date: "1900",
+    media: { kind: "placeholder", width: 1, height: 1 },
+  });
+  expect((await a.as.query(api.walls.getMine, {})).items[0].artwork.title).toBe("Untitled");
+  const crude = { title: "Piss Flowers", artist: "Helen Chadwick", medium: "Shitty bronze" };
+  await t.run((ctx) => ctx.db.patch("collections", a.saveId, { snapshot: crude }));
+  expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))!.items[0].artwork).toMatchObject(
+    crude,
+  );
+});
+
+it("keeps the museum's own title on public walls even when it contains flagged words", async () => {
+  const t = harness();
+  const a = await wallFixture(t, "a");
+  const record = { title: "Pay Attention Motherfuckers", artist: "Bruce Nauman" };
+  await t.run(async (ctx) => {
+    const { artworkId } = await seedArtworkWithObject(ctx, { artwork: record });
+    await ctx.db.patch("collections", a.saveId, { artworkId, snapshot: { ...record, date: "1973" } });
+  });
+  await a.as.mutation(api.walls.setLayout, a.input);
+  const publicWall = await t.query(api.walls.getPublic, { profileId: a.profile.profileId });
+  expect(publicWall!.items[0].artwork).toMatchObject({ ...record, date: "1973" });
+  await t.run((ctx) =>
+    ctx.db.patch("collections", a.saveId, { snapshot: { ...record, title: "Pay attention, you motherfuckers" } }),
+  );
+  expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))!.items[0].artwork.title).toBe(
+    "Untitled",
+  );
 });
 
 it("makes visibility batches atomic and refuses another owner’s item", async () => {
@@ -297,7 +368,7 @@ it("makes visibility batches atomic and refuses another owner’s item", async (
     items: [second],
   } = await b.as.mutation(api.walls.setLayout, b.input);
   await expect(
-    a.as.mutation(api.walls.setNoteVisibility, {
+    a.as.action(api.walls.setNoteVisibility, {
       scope: a.scope,
       changes: [first, second].map((item) => ({
         itemId: item.itemId,
@@ -435,15 +506,15 @@ it("invalidates a pending opt-in when a private note is emptied and later rewrit
       ...fields,
       note: "",
     });
-    await clearEmptyNoteVisibility(ctx, save._id);
+    await resetNoteSharing(ctx, save._id);
     await upsertJournalSave(ctx, save.owner, a.deviceId, {
       ...fields,
       note: "Replacement private note",
     });
   });
-  expect((await a.as.query(api.walls.getMine, {})).items[0].noteRevision).toBe(1);
+  expect((await a.as.query(api.walls.getMine, {})).items[0].noteRevision).toBe(2);
   await expect(
-    a.as.mutation(api.walls.setNoteVisibility, {
+    a.as.action(api.walls.setNoteVisibility, {
       scope: a.scope,
       changes: [{ itemId: item.itemId, noteRevision: 0, visible: true }],
     }),
@@ -578,7 +649,7 @@ it("shows the linked crop on the public wall and opens the full photo without pu
 
 it("includes only photos already shared with this viewer and revokes them when visit access changes", async () => {
   const f = await galleryFixture();
-  await f.owner.as.mutation(api.sharedVisits.publish, {
+  await f.owner.as.action(api.sharedVisits.publish, {
     ...f.visit.selection,
     photoSelections: [{ saveLocalId: f.save.localId, photoLocalIds: [f.photos[0].localId, f.photos[1].localId] }],
   });

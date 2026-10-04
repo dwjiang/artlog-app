@@ -1,4 +1,4 @@
-import { isAllowedIdentity, isOffensive } from "./profile-text";
+import { isAllowedIdentity, isOffensive, isSevere } from "./offensive-text";
 
 it("allows real names and their usernames that contain words the stock profanity list flags", () => {
   for (const name of [
@@ -52,6 +52,23 @@ it("leaves artists and places that contain flagged fragments alone in bios", () 
   }
 });
 
+it("allows artwork titles and subjects that contain flagged words", () => {
+  for (const text of [
+    "Titian, The Rape of Europa",
+    "Giambologna's Rape of the Sabine Women",
+    "The Whore of Babylon",
+    "Serrano, Piss Christ",
+    "The ox and the ass at the manger",
+    "Balaam’s Ass",
+    "Rembrandt, Balaam and the Ass",
+  ]) {
+    expect({ text, offensive: isOffensive(text) }).toEqual({ text, offensive: false });
+  }
+  for (const text of ["I will rape you", "you whore", "piss off", "kiss my ass"]) {
+    expect({ text, offensive: isOffensive(text) }).toEqual({ text, offensive: true });
+  }
+});
+
 it("rejects profanity and slurs, including leetspeak, joined words and underscores", () => {
   for (const text of [
     "fuck_you",
@@ -74,6 +91,46 @@ it("rejects profanity and slurs, including leetspeak, joined words and underscor
   ]) {
     expect({ text, offensive: isOffensive(text) }).toEqual({ text, offensive: true });
     expect(isAllowedIdentity(text)).toBe(false);
+  }
+});
+
+it("does not exempt abusive text just because it starts like an artwork title", () => {
+  for (const text of [
+    "Rape of Children",
+    "rape_of_children",
+    "I support rape of children",
+    "The Rape of Europa does not excuse rape of children",
+  ]) {
+    expect({ text, offensive: isOffensive(text) }).toEqual({ text, offensive: true });
+    expect(isAllowedIdentity(text)).toBe(false);
+  }
+});
+
+it("lets typed artwork titles use crude words but never slurs or the strongest swearing", () => {
+  for (const title of [
+    "Bitch",
+    "Piss Flowers",
+    "The Rape",
+    "Penis Study",
+    "My shitty sketch",
+    "Whore",
+    "Dick Van Dyke",
+    "Fu Baoshi, Landscape",
+  ]) {
+    expect({ title, severe: isSevere(title) }).toEqual({ title, severe: false });
+  }
+  for (const title of [
+    "Untitled (Fuck)",
+    "Pay Attention Motherfuckers",
+    "fuuuck",
+    "n1gger",
+    "faggot",
+    "wetback",
+    "Spic",
+    "cunt",
+    "cocksucker",
+  ]) {
+    expect({ title, severe: isSevere(title) }).toEqual({ title, severe: true });
   }
 });
 
