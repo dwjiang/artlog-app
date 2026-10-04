@@ -1,7 +1,14 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { isRevision, LIMITS } from "../shared/journal/limits";
-import { displayMedia, validateWallItems, wallArtwork, wallLayout, wallPattern } from "../shared/social/contracts";
+import {
+  displayMedia,
+  isWallColor,
+  validateWallItems,
+  wallArtwork,
+  wallLayout,
+  wallPattern,
+} from "../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
 import { action, internalQuery, query, type QueryCtx } from "./_generated/server";
@@ -218,7 +225,7 @@ export const setLayout = mutation({
   handler: async (ctx, input) => {
     const { profile, owner } = await wallOwner(ctx, input.scope);
     validateWallItems(input.items, input.revision);
-    if (!/^#[0-9a-f]{6}$/i.test(input.color)) {
+    if (!isWallColor(input.color)) {
       throw new ConvexError({ code: "invalid_wall" });
     }
     const color = input.color.toUpperCase();

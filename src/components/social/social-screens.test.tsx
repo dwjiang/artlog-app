@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
-import { ConvexError } from "convex/values";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import { Gallery } from "@/constants/theme";
@@ -10,8 +9,6 @@ import type { SocialSession } from "@/lib/social/use-social-session";
 import { ArtworkScreen } from "./artwork-screen";
 import { HomeScreen } from "./home-screen";
 import { PeopleScreen } from "./people-screen";
-import { VisitArtworks } from "./visit-card";
-import { VisitScreen } from "./visit-screen";
 
 const mockPush = jest.fn();
 const mockDismissAll = jest.fn();
@@ -101,6 +98,7 @@ const visit: SharedVisit = {
   reflection: "I kept coming back to the blue.",
   publishedAt: 1,
   revision: 1,
+  color: "#FCFCF9",
   artworks: {
     page: [
       {
@@ -159,19 +157,11 @@ it("opens visits, authors, and people from Home", async () => {
   expect(screen.queryByText("Newest visit first")).toBeNull();
   expect(screen.queryByText("1+ artworks")).toBeNull();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View visit" }));
+  expect(screen.queryByRole("button", { name: "View visit" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "View Blue afternoon" }));
   expect(mockPush).toHaveBeenLastCalledWith({
-    pathname: "/visit/[postId]",
-    params: { postId: visit.postId },
-  });
-  await fireEvent.press(
-    screen.getByRole("button", {
-      name: "View Alex Chen’s visit to Museum of Modern Art",
-    }),
-  );
-  expect(mockPush).toHaveBeenLastCalledWith({
-    pathname: "/visit/[postId]",
-    params: { postId: visit.postId },
+    pathname: "/artwork",
+    params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "View Alex Chen’s profile" }));
@@ -223,7 +213,7 @@ it("retains existing visits and shows only the pull spinner while refreshing", a
   await view.rerender(<HomeScreen />);
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
   expect(lastRefreshControl().refreshing).toBe(true);
-  expect(screen.queryByRole("progressbar")).toBeNull();
+  expect(screen.queryByRole("progressbar", { name: /visit/i })).toBeNull();
 });
 
 it.each([
@@ -272,20 +262,6 @@ it("debounces people search for 300 ms and skips invalid searches", async () => 
   jest.useRealTimers();
 });
 
-it("opens read-only artwork details from a visit and handles revoked posts", async () => {
-  mockPages.mockReturnValue(pages({ items: visit.artworks.page, first: visit }));
-  const view = await render(<VisitScreen postId={visit.postId} />);
-  await fireEvent.press(screen.getByRole("button", { name: "View Blue afternoon" }));
-  expect(mockPush).toHaveBeenLastCalledWith({
-    pathname: "/artwork",
-    params: { kind: "visit", postId: "post-a", itemId: "art-a" },
-  });
-  mockPages.mockReturnValue(pages({ error: new ConvexError({ code: "not_found" }), done: false }));
-  await view.rerender(<VisitScreen postId={visit.postId} />);
-  expect(screen.getByText("Visit unavailable.")).toBeOnTheScreen();
-  expect(screen.queryByText(visit.reflection)).toBeNull();
-});
-
 it("shows only the public wall note and never a visit’s private note", async () => {
   mockQuery.mockImplementation((query) => ({
     data:
@@ -305,75 +281,37 @@ it("shows only the public wall note and never a visit’s private note", async (
   expect(screen.queryByText("Private note")).toBeNull();
 });
 
-it.each([false, true])(
-  "keeps artwork proportions, credentials, and the unavailable-image fallback (compact: %s)",
-  async (compact) => {
-    const item = {
-      ...visit.artworks.page[0],
-      artwork: {
-        ...visit.artworks.page[0].artwork,
-        media: {
-          kind: "derivative" as const,
-          rights: "contributor_consent" as const,
-          width: 128,
-          height: 256,
-          reference: {
-            kind: "sharedVisit" as const,
-            postId: "post-a",
-            itemId: "art-a" as never,
-          },
-        },
-      },
-    };
-    await render(<VisitArtworks artworks={[item]} token="private-token" compact={compact} />);
-    await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
-      nativeEvent: { layout: { width: 390 } },
-    });
-    const image = screen.getByRole("image", { name: "Blue afternoon" });
-    expect(image.props.style.height / image.props.style.width).toBe(2);
-    expect(image.props.contentFit).toBe("contain");
-    expect(image.props.cachePolicy).toBe("memory");
-    expect(image.props.source.headers).toEqual({
-      Authorization: "Bearer private-token",
-    });
-    await fireEvent(image, "error");
-    expect(screen.getByRole("image", { name: "Blue afternoon: image unavailable" })).toBeOnTheScreen();
-  },
-);
-
-it("shows fewer previews rather than letting landscape photos overflow the card", async () => {
-  const landscape = (itemId: string) => ({
+it("keeps artwork proportions, credentials, and the unavailable-image fallback on the wall row", async () => {
+  const item = {
     ...visit.artworks.page[0],
-    itemId: itemId as never,
     artwork: {
       ...visit.artworks.page[0].artwork,
-      title: itemId,
       media: {
         kind: "derivative" as const,
         rights: "contributor_consent" as const,
-        width: 400,
-        height: 300,
+        width: 128,
+        height: 256,
         reference: {
           kind: "sharedVisit" as const,
           postId: "post-a",
-          itemId: itemId as never,
+          itemId: "art-a" as never,
         },
       },
     },
+  };
+  mockPages.mockReturnValue(pages({ items: [{ ...visit, artworks: { ...visit.artworks, page: [item] } }] }));
+  await render(<HomeScreen />);
+  const image = screen.getByRole("image", { name: "Blue afternoon" });
+  expect(image.props.style.height / image.props.style.width).toBe(2);
+  expect(image.props.cachePolicy).toBe("memory");
+  expect(image.props.source.headers).toEqual({
+    Authorization: "Bearer private-token",
   });
-  await render(<VisitArtworks artworks={["one", "two", "three"].map(landscape)} compact />);
-  await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
-    nativeEvent: { layout: { width: 350 } },
-  });
-  expect(screen.getByRole("image", { name: "one" })).toBeOnTheScreen();
-  expect(screen.getByRole("image", { name: "two" })).toBeOnTheScreen();
-  expect(screen.queryByRole("image", { name: "three" })).toBeNull();
-  const image = screen.getByRole("image", { name: "one" });
-  expect(image.props.style.width * 2 + 8).toBeLessThanOrEqual(350);
-  expect(image.props.style.height).toBeGreaterThanOrEqual(100);
+  await fireEvent(image, "error");
+  expect(screen.getByRole("image", { name: "Blue afternoon: image unavailable" })).toBeOnTheScreen();
 });
 
-it("gives all selected photos in a visit the same height, including an unavailable photo", async () => {
+it("shows each artwork once on the row, by its first shared photo", async () => {
   const item = visit.artworks.page[0];
   const photo = {
     kind: "catalog" as const,
@@ -383,110 +321,47 @@ it("gives all selected photos in a visit the same height, including an unavailab
     width: 300,
     height: 400,
   };
-  await render(
-    <VisitArtworks
-      artworks={[
+  mockPages.mockReturnValue(
+    pages({
+      items: [
         {
-          ...item,
-          photos: [
-            photo,
-            {
-              ...photo,
-              url: "https://example.com/detail.jpg",
-              width: 500,
-              height: 300,
-            },
-          ],
+          ...visit,
+          artworks: {
+            ...visit.artworks,
+            page: [
+              { ...item, photos: [photo, { ...photo, url: "https://example.com/detail.jpg" }] },
+              { ...item, itemId: "art-b" as never, artwork: { ...item.artwork, title: "Second highlight" } },
+            ],
+          },
         },
-      ]}
-      compact
-    />,
-  );
-  await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
-    nativeEvent: { layout: { width: 350 } },
-  });
-  const full = screen.getByRole("image", { name: item.artwork.title });
-  const detail = screen.getByRole("image", {
-    name: `${item.artwork.title}, photo 2`,
-  });
-  expect(full.props.style.height).toBe(detail.props.style.height);
-  await fireEvent(detail, "error");
-  expect(
-    screen.getByRole("image", {
-      name: `${item.artwork.title}, photo 2: image unavailable`,
-    }),
-  ).toHaveStyle({ height: full.props.style.height });
-});
-
-const highlightArtworks = () => {
-  const item = visit.artworks.page[0];
-  const photo = {
-    kind: "catalog" as const,
-    url: "https://example.com/full.jpg",
-    sourceUrl: "https://example.com/artwork",
-    rights: "public_domain" as const,
-    width: 300,
-    height: 400,
-  };
-  return [
-    {
-      ...item,
-      photos: [
-        photo,
-        { ...photo, url: "https://example.com/second.jpg" },
-        { ...photo, url: "https://example.com/third.jpg" },
       ],
-    },
-    {
-      ...item,
-      itemId: "art-b" as never,
-      artwork: { ...item.artwork, title: "Second highlight" },
-    },
-    {
-      ...item,
-      itemId: "art-c" as never,
-      artwork: { ...item.artwork, title: "Third highlight" },
-    },
-  ];
-};
-
-it("keeps a feed slot for every leading artwork even when the first one has several photos", async () => {
-  await render(<VisitArtworks artworks={highlightArtworks()} compact />);
-  await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
-    nativeEvent: { layout: { width: 350 } },
-  });
-  for (const title of ["Blue afternoon", "Second highlight", "Third highlight"]) {
-    expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
-  }
-  expect(screen.queryByRole("image", { name: "Blue afternoon, photo 2" })).toBeNull();
-});
-
-it("fills spare feed slots with extra photos when fewer than three artworks lead the visit", async () => {
-  await render(<VisitArtworks artworks={highlightArtworks().slice(0, 2)} compact />);
-  await fireEvent(screen.getByTestId("visit-artworks"), "layout", {
-    nativeEvent: { layout: { width: 350 } },
-  });
-  for (const title of ["Blue afternoon", "Blue afternoon, photo 2", "Second highlight"]) {
-    expect(screen.getByRole("image", { name: title })).toBeOnTheScreen();
-  }
-  expect(screen.queryByRole("image", { name: "Blue afternoon, photo 3" })).toBeNull();
+    }),
+  );
+  await render(<HomeScreen />);
+  expect(screen.getByRole("image", { name: "Blue afternoon" }).props.source.uri).toBe("https://example.com/full.jpg");
+  expect(screen.getAllByRole("image", { name: "Blue afternoon" })).toHaveLength(1);
+  expect(screen.getByRole("image", { name: "Second highlight" })).toBeOnTheScreen();
 });
 
 it("loads public visits for guests and opens their details without signing in", async () => {
   mockSession = { ...mockSession, status: "signed-out", token: null };
   mockPages.mockReturnValue(pages({ items: [{ ...visit, audience: "public" }] }));
   await render(<HomeScreen />);
-  expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
+  expect(
+    mockPages.mock.calls
+      .map(([query, args]) => [getFunctionName(query), args])
+      .filter(([name]) => name !== "sharedVisits:get"),
+  ).toEqual([
     ["sharedVisits:listFeed", "skip"],
     ["sharedVisits:listPublic", {}],
     ["notifications:unseen", "skip"],
   ]);
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "View Blue afternoon" }));
   expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/visit/[postId]",
-    params: { postId: visit.postId },
+    pathname: "/artwork",
+    params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
@@ -570,11 +445,7 @@ it("keeps the date and reflection without count metadata, including reflection-o
   expect(screen.queryByText("+5 more")).toBeNull();
   expect(screen.queryByText("6 artworks")).toBeNull();
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View visit" }));
-  expect(mockPush).toHaveBeenLastCalledWith({
-    pathname: "/visit/[postId]",
-    params: { postId: visit.postId },
-  });
+  expect(screen.getByTestId("art-band")).toBeOnTheScreen();
   mockPages.mockReturnValue(
     pages({
       items: [
@@ -587,9 +458,8 @@ it("keeps the date and reflection without count metadata, including reflection-o
     }),
   );
   await view.rerender(<HomeScreen />);
-  expect(screen.queryByTestId("visit-artworks")).toBeNull();
+  expect(screen.queryByTestId("art-band")).toBeNull();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
 });
 
 it.each(["wall", "visit"])("renders sourced artwork stories in %s details", async (kind) => {

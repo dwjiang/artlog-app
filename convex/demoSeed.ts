@@ -7,6 +7,7 @@ import { avatarId } from "../shared/social/avatars";
 import { validateProfile, validateWallItems, wallLayout, wallPattern } from "../shared/social/contracts";
 import { leaderboardVisibility } from "../shared/social/leaderboard";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
+import { randomWallStyle } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
@@ -179,6 +180,7 @@ export const seedPerson = internalMutation({
           publishedAt: post.publishedAt,
           updatedAt: post.publishedAt,
           publicationRevision: 1,
+          ...randomWallStyle(),
         });
         for (const [position, { row, photoLocalIds }] of saveRows.entries()) {
           await ctx.db.insert("sharedVisitItems", {

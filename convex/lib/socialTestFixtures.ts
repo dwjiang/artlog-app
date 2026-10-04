@@ -81,6 +81,8 @@ export async function socialVisit(
         saveLocalIds: saves.map((s) => s.localId),
         reflection: "",
         revision: 0,
+        color: "#CDD0CA",
+        pattern: "stripe" as const,
       },
     };
   });

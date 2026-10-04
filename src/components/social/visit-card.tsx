@@ -1,90 +1,84 @@
 import { useRouter } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { ActionSheetIOS, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
+import { ArtBand } from "@/components/visits/art-band";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
-import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
+import type { SharedVisit } from "@/lib/social/types";
+import { useCursorPages } from "@/lib/social/use-social-query";
+import { useSocialSession } from "@/lib/social/use-social-session";
 
+import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
-import { socialStyles } from "./social-styles";
+import { PageFooter } from "./social-state";
 import { VisitReactions } from "./visit-reactions";
 
-const GAP = 8;
-const MIN_HEIGHT = 100;
-const aspect = ({ media }: { media: SharedArtwork["artwork"]["media"] }) =>
-  media.width > 0 && media.height > 0 ? media.width / media.height : 1;
+const artworksPage = (visit: SharedVisit) => visit.artworks;
+const artworkId = (item: SharedVisit["artworks"]["page"][number]) => item.itemId;
+// Feed pages scan only the original highlights, so a finished page can still omit surviving artworks.
+const hasMoreArtworks = (visit: SharedVisit) =>
+  !visit.artworks.isDone || (visit.artworkCount ?? 0) > visit.artworks.page.length;
 
-type Candidate = {
-  key: string;
-  media: SharedArtwork["artwork"]["media"];
-  title: string;
-};
-
-/** One slot per leading artwork, so every ranked highlight appears; spare slots take their extra selected photos. */
-function previewCandidates(artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[]): Candidate[] {
-  const shown = artworks.slice(0, 3);
-  const candidates: Candidate[] = [];
-  shown.forEach(({ itemId, artwork, photos }, index) => {
-    const reserved = shown.length - index - 1;
-    const limit = Math.max(1, 3 - candidates.length - reserved);
-    (photos?.length ? photos : [artwork.media]).slice(0, limit).forEach((media, photo) =>
-      candidates.push({
-        key: `${itemId ?? index}:${photo}`,
-        media,
-        title: photo ? `${artwork.title}, photo ${photo + 1}` : artwork.title,
-      }),
-    );
-  });
-  return candidates;
-}
-
-/** Fit selected photos into an equal-height row while preserving each photo's proportions. */
-export function VisitArtworks({
-  artworks,
-  token,
-  compact = false,
-}: {
-  artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[];
-  token?: string | null;
-  compact?: boolean;
-}) {
-  const [width, setWidth] = useState(0);
-  const candidates = previewCandidates(artworks);
-  const fit = (count: number) =>
-    (width - GAP * (count - 1)) / candidates.slice(0, count).reduce((sum, item) => sum + aspect(item), 0);
-  const count = [3, 2].find((n) => n <= candidates.length && fit(n) >= MIN_HEIGHT) ?? Math.min(1, candidates.length);
-  const preview = candidates.slice(0, count);
-  const ratios = preview.map(aspect);
-  const height = Math.min(count === 1 ? width * 1.25 : compact ? 236 : 300, Math.max(0, fit(count)));
+/** The visit's artworks on its wallpaper. The card arrives with the first few; the rest load at the end of the row. */
+function VisitArt({ visit, token }: { visit: SharedVisit; token?: string | null }) {
+  const router = useRouter();
+  const session = useSocialSession();
+  const [more, setMore] = useState(false);
+  const loadRest = more || visit.artworks.page.length === 0;
+  const rest = useCursorPages(
+    api.sharedVisits.get,
+    loadRest ? { postId: visit.postId } : "skip",
+    session.key,
+    artworksPage,
+    artworkId,
+  );
+  const first = new Set(visit.artworks.page.map(artworkId));
+  const extra = loadRest ? rest.items.filter((item) => !first.has(item.itemId)) : [];
+  const artworks = [...visit.artworks.page, ...extra];
+  const { canLoadMore, loadMore } = rest;
+  // Later pages start over from the first artwork, so keep loading until one adds an artwork the card lacks.
+  const repeating = loadRest && extra.length === 0;
+  useEffect(() => {
+    if (repeating && canLoadMore) loadMore();
+  }, [repeating, canLoadMore, loadMore]);
   return (
-    <View
-      testID="visit-artworks"
-      style={[styles.strip, { gap: GAP }]}
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-    >
-      {width > 0
-        && preview.map(({ key, media, title }, index) => (
-          <View
-            key={key}
-            style={{
-              width: height * ratios[index],
-              height,
-              overflow: "hidden",
-            }}
-          >
-            <DisplayMedia media={media} label={title} token={token} width={height * ratios[index]} height={height} />
-          </View>
-        ))}
-      {preview.length === 0 && <Text style={socialStyles.caption}>No artwork previews.</Text>}
-    </View>
+    <>
+      <ArtBand
+        wallpaper={visit}
+        artworks={artworks.map(({ itemId, artwork, photos }) => {
+          const media = photos?.[0] ?? artwork.media;
+          return {
+            key: itemId,
+            title: artwork.title,
+            artist: artwork.artist,
+            aspect: media.width / media.height,
+            photoCount: photos?.length,
+            onPress: () =>
+              router.push({
+                pathname: "/artwork",
+                params: { kind: "visit", postId: visit.postId, itemId },
+              }),
+            renderImage: (size) => <DisplayMedia media={media} label={artwork.title} token={token} {...size} />,
+          };
+        })}
+        onEndReached={() => {
+          if (!hasMoreArtworks(visit)) return;
+          if (loadRest) loadMore();
+          else setMore(true);
+        }}
+        footer={loadRest && rest.loading ? <LoadingRing accessibilityLabel="Loading more artworks" /> : undefined}
+      />
+      {loadRest && rest.error && <PageFooter {...rest} count={artworks.length} noun="artworks" />}
+    </>
   );
 }
 
@@ -92,33 +86,30 @@ export function VisitCard({
   visit,
   token,
   viewerProfileId,
-  showAuthor = true,
+  openComments = false,
   onBlock,
 }: {
   visit: SharedVisit;
   token?: string | null;
   viewerProfileId?: string;
-  showAuthor?: boolean;
+  openComments?: boolean;
   /** Offers Block in the card's menu; signed-in viewers with a profile only. */
   onBlock?: (author: SharedVisit["author"]) => void;
 }) {
   const router = useRouter();
-  const openVisit = () =>
-    router.push({
-      pathname: "/visit/[postId]",
-      params: { postId: visit.postId },
-    });
+  const { fontScale } = useWindowDimensions();
+  const { author, venue, visitedOn, audience } = visit;
+  const hasArtworks = visit.artworks.page.length > 0 || hasMoreArtworks(visit);
   const openProfile = () =>
     router.push({
       pathname: "/profile/[profileId]",
-      params: { profileId: visit.author.profileId },
+      params: { profileId: author.profileId },
     });
-  const others = visit.author.profileId !== viewerProfileId;
+  const others = author.profileId !== viewerProfileId;
   const actions = [
-    { label: "View visit", run: openVisit },
-    { label: `View ${visit.author.name}’s profile`, run: openProfile },
+    { label: `View ${author.name}’s profile`, run: openProfile },
     ...(others ? [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }] : []),
-    ...(others && onBlock ? [{ label: `Block ${visit.author.name}`, run: () => onBlock(visit.author) }] : []),
+    ...(others && onBlock ? [{ label: `Block ${author.name}`, run: () => onBlock(author) }] : []),
   ];
   const openMenu = () =>
     ActionSheetIOS.showActionSheetWithOptions(
@@ -129,58 +120,6 @@ export function VisitCard({
       },
       (index) => actions[index]?.run(),
     );
-  return (
-    <VisitFeedCard
-      audience={visit.audience}
-      author={visit.author}
-      venue={visit.venue}
-      visitedOn={visit.visitedOn}
-      notes={visit.reflection}
-      artworks={visit.artworks.page}
-      hasMore={!visit.artworks.isDone}
-      token={token}
-      showAuthor={showAuthor}
-      reactions={<VisitReactions visit={visit} onOpenVisit={openVisit} />}
-      onOpenVisit={openVisit}
-      onOpenProfile={openProfile}
-      onOpenMenu={openMenu}
-    />
-  );
-}
-
-export function VisitFeedCard({
-  audience,
-  author,
-  venue,
-  visitedOn,
-  notes,
-  artworks,
-  hasMore = false,
-  token,
-  showAuthor = true,
-  inset = true,
-  reactions,
-  onOpenVisit,
-  onOpenProfile,
-  onOpenMenu,
-}: {
-  audience: SharedVisit["audience"];
-  author: Pick<PublicProfile, "name" | "photoUrl" | "avatar">;
-  venue: { name: string; city?: string };
-  visitedOn: string;
-  notes: string;
-  artworks: (Pick<SharedArtwork, "artwork" | "photos"> & { itemId?: string })[];
-  hasMore?: boolean;
-  token?: string | null;
-  showAuthor?: boolean;
-  inset?: boolean;
-  onOpenVisit?: () => void;
-  onOpenProfile?: () => void;
-  onOpenMenu?: () => void;
-  reactions?: ReactNode;
-}) {
-  const { fontScale } = useWindowDimensions();
-  const photoCount = artworks.reduce((sum, item) => sum + (item.photos?.length ?? 0), 0);
   const date = (
     <Text accessibilityLabel={visitDate(visitedOn)} style={styles.feedDate}>
       {visitDate(visitedOn, undefined, "short")}
@@ -193,95 +132,48 @@ export function VisitFeedCard({
       <Text style={styles.feedDate}>{audience === "private" ? "Only you" : "Friends"}</Text>
     </View>
   );
-  const location = (
-    <View style={styles.location}>
-      <VisitSymbol name="mappin.and.ellipse" size={12} />
-      <Text numberOfLines={1} style={styles.locationText}>
-        {venue.name}
-        {venue.city ? ` · ${venue.city}` : ""}
-      </Text>
-    </View>
-  );
-  const identity = (
-    <>
-      <ProfileAvatar name={author.name} photoUrl={author.photoUrl} avatar={author.avatar} size={40} />
-      <View style={{ flex: 1, gap: 1 }}>
-        <View style={styles.nameRow}>
-          <Text style={styles.feedName}>{author.name}</Text>
-          <Text accessible={false} style={styles.feedDate}>
-            ·
-          </Text>
-          {date}
-          {reach}
-        </View>
-        {location}
-      </View>
-    </>
-  );
-  const art = (
-    <View>
-      <VisitArtworks artworks={artworks} token={token} compact />
-      {photoCount > 0 && (
-        <View accessible={false} pointerEvents="none" style={styles.photoBadge}>
-          <VisitSymbol name="photo" size={12} color={Gallery.ink} />
-          <Text style={styles.photoBadgeText}>
-            {photoCount}
-            {hasMore ? "+" : ""}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
   return (
-    <View style={[styles.card, !inset && { marginHorizontal: 0 }]}>
-      {showAuthor ? (
-        <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: "column" }]}>
-          {onOpenProfile ? (
-            <MotionPressable
-              accessibilityRole="button"
-              accessibilityLabel={`View ${author.name}’s profile`}
-              accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
-              onPress={onOpenProfile}
-              style={styles.feedIdentity}
-            >
-              {identity}
-            </MotionPressable>
-          ) : (
-            <View style={styles.feedIdentity}>{identity}</View>
-          )}
-          {onOpenMenu ? (
-            <GalleryIconButton icon="ellipsis" label="More options" onPress={onOpenMenu} />
-          ) : (
-            <Text style={styles.feedDate} accessible={false}>
-              ···
-            </Text>
-          )}
-        </View>
-      ) : (
-        <View style={[styles.feedHeading, { flexWrap: "wrap" }]}>
-          {location}
-          {date}
-          {reach}
+    <View style={styles.card}>
+      <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: "column" }]}>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${author.name}’s profile`}
+          accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
+          onPress={openProfile}
+          style={styles.feedIdentity}
+        >
+          <ProfileAvatar name={author.name} photoUrl={author.photoUrl} avatar={author.avatar} size={40} />
+          <View style={{ flex: 1, gap: 1 }}>
+            <View style={styles.nameRow}>
+              <Text style={styles.feedName}>{author.name}</Text>
+              <Text accessible={false} style={styles.feedDate}>
+                ·
+              </Text>
+              {date}
+              {reach}
+            </View>
+            <View style={styles.location}>
+              <VisitSymbol name="mappin.and.ellipse" size={12} />
+              <Text numberOfLines={1} style={styles.locationText}>
+                {venue.name}
+                {venue.city ? ` · ${venue.city}` : ""}
+              </Text>
+            </View>
+          </View>
+        </MotionPressable>
+        <GalleryIconButton icon="ellipsis" label="More options" onPress={openMenu} />
+      </View>
+      {hasArtworks && (
+        <View style={styles.art}>
+          <VisitArt visit={visit} token={token} />
         </View>
       )}
-      {artworks.length > 0
-        && (onOpenVisit ? (
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel={`View ${author.name}’s visit to ${venue.name}`}
-            onPress={onOpenVisit}
-          >
-            {art}
-          </MotionPressable>
-        ) : (
-          art
-        ))}
-      {!!notes && (
-        <Text selectable style={[styles.notes, artworks.length > 0 && { marginTop: 8 }]}>
-          {notes}
+      {!!visit.reflection && (
+        <Text selectable style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
+          {visit.reflection}
         </Text>
       )}
-      {reactions}
+      <VisitReactions visit={visit} openComments={openComments} />
     </View>
   );
 }
@@ -334,22 +226,5 @@ const styles = StyleSheet.create({
   },
   feedDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   notes: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  strip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Gallery.paper,
-  },
-  photoBadge: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
-    backgroundColor: Gallery.paper,
-    borderRadius: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  photoBadgeText: { fontSize: 11, lineHeight: 14, color: Gallery.ink },
+  art: { marginHorizontal: -20 },
 });

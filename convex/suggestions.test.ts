@@ -70,6 +70,7 @@ async function share(t: Harness, user: SocialUser, visit: VisitRef) {
     saveLocalIds: [saveLocalId],
     reflection: "",
     revision: 0,
+    color: "#CDD0CA",
   });
   return state.postId!;
 }

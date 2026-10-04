@@ -509,6 +509,7 @@ it("enforces shared selection, profile, and geography boundaries", () => {
       saveLocalIds: [id],
       reflection: "",
       revision: 0,
+      color: "#cdd0ca",
     }),
   ).not.toThrow();
   for (const input of [
@@ -516,8 +517,9 @@ it("enforces shared selection, profile, and geography boundaries", () => {
     { saveLocalIds: [], reflection: "x".repeat(20_001), revision: 0 },
     { saveLocalIds: ["bad"], reflection: "", revision: 0 },
     { saveLocalIds: [], reflection: "", revision: -1 },
+    { saveLocalIds: [], reflection: "", revision: 0, color: "sage" },
   ]) {
-    expect(() => validateSelection({ ...input, audience: "public" })).toThrow("invalid_post");
+    expect(() => validateSelection({ color: "#CDD0CA", ...input, audience: "public" })).toThrow("invalid_post");
   }
   expect(() => validateWallItems([], Infinity)).toThrow("invalid_wall");
   for (const input of [{ name: " " }, { name: "x".repeat(61) }, { name: "Reader", bio: "x".repeat(161) }]) {
