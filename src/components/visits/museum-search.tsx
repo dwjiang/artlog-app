@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Keyboard } from "react-native";
 
 import { SearchEmptyState } from "@/components/empty-state";
-import { MotionPressable } from "@/components/motion-pressable";
+import { ListIcon, ListRow, ListSection } from "@/components/list-row";
+import { ListSkeleton } from "@/components/loading-skeleton";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { captureOwner } from "@/lib/account/owner-store";
@@ -68,10 +69,11 @@ export function MuseumSearch({
   const venues = currentResults?.rows ?? [];
   const places = currentResults?.places ?? [];
   const searchError = currentResults?.error;
-  const searching = query.trim().length >= 2 && !currentResults;
+  const hasQuery = !!query.trim();
+  const searching = hasQuery && !currentResults;
   useEffect(() => {
     let active = true;
-    if (query.trim().length < 2) return;
+    if (!query.trim()) return;
     const timer = setTimeout(() => {
       void searchVenues(query)
         .then(async (rows) => {
@@ -148,16 +150,12 @@ export function MuseumSearch({
         onClear={() => setQuery("")}
       />
       {searching ? (
-        <VisitMessage loading skeleton="list">
-          Searching museums…
-        </VisitMessage>
+        <ListSkeleton label="Searching museums…" rows={3} card />
       ) : searchError ? (
         <VisitMessage action="Try again" onAction={() => setRetry((value) => value + 1)}>
           {searchError}
         </VisitMessage>
-      ) : query.trim().length < 2 ? (
-        <Text style={styles.caption}>Enter at least two characters.</Text>
-      ) : venues.length === 0 && places.length === 0 ? (
+      ) : hasQuery && venues.length === 0 && places.length === 0 ? (
         <SearchEmptyState
           title="No museums found."
           detail={
@@ -168,48 +166,52 @@ export function MuseumSearch({
           onClear={() => setQuery("")}
         />
       ) : null}
-      {venues.map((row) => (
-        <MotionPressable
-          key={row.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${row.name}, ${venueLocation(row).location || row.name}`}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          style={styles.card}
-          onPress={() => choose(row)}
-        >
-          <Text style={styles.body}>{row.name}</Text>
-          <Text style={styles.caption}>{venueLocation(row).location}</Text>
-        </MotionPressable>
-      ))}
+      {venues.length > 0 && (
+        <ListSection>
+          {venues.map((row, index) => {
+            const { location } = venueLocation(row);
+            return (
+              <ListRow
+                key={row.id}
+                first={index === 0}
+                last={index === venues.length - 1}
+                title={row.name}
+                query={query}
+                subtitle={location}
+                leading={<ListIcon name="building.columns" />}
+                accessory="chevron"
+                accessibilityLabel={`${row.name}, ${location || row.name}`}
+                disabled={disabled}
+                onPress={() => choose(row)}
+              />
+            );
+          })}
+        </ListSection>
+      )}
       {venues.length === 0 && places.length > 0 && (
-        <>
-          <Text accessibilityRole="header" style={styles.caption}>
-            From Apple Maps
-          </Text>
-          {places.map((place) => {
+        <ListSection title="From Apple Maps">
+          {places.map((place, index) => {
             const key = `${place.name}:${place.lat}:${place.lng}`;
             return (
-              <MotionPressable
+              <ListRow
                 key={key}
-                accessibilityRole="button"
+                first={index === 0}
+                last={index === places.length - 1}
+                title={place.name}
+                query={query}
+                subtitle={adding === key ? "Adding this museum…" : placeLocation(place)}
+                leading={<ListIcon name="mappin.and.ellipse" />}
+                accessory="chevron"
+                busy={adding === key}
                 accessibilityLabel={`${place.name}, ${placeLocation(place) || place.name}`}
-                accessibilityState={{
-                  busy: adding === key,
-                  disabled: disabled || !!adding,
-                }}
                 disabled={disabled || !!adding}
-                style={styles.card}
                 onPress={() => {
                   void choosePlace(place);
                 }}
-              >
-                <Text style={styles.body}>{place.name}</Text>
-                <Text style={styles.caption}>{adding === key ? "Adding this museum…" : placeLocation(place)}</Text>
-              </MotionPressable>
+              />
             );
           })}
-        </>
+        </ListSection>
       )}
       {venues.length === MUSEUM_SEARCH_LIMIT && (
         <Text style={styles.caption}>

@@ -1,12 +1,10 @@
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 
-import { LoadingRing } from "@/components/loading-ring";
-import { MotionPressable } from "@/components/motion-pressable";
+import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
@@ -29,6 +27,11 @@ export function VisitAddSheet() {
     here?.distanceM === undefined
       ? undefined
       : formatDistance(here.distanceM, units ?? (unitsFailed ? "metric" : "metric"));
+
+  const startDetail = here
+    ? `${here.name}${distance ? ` · ${distance}` : ""}. Artworks you scan there join it until you end it.`
+    : undefined;
+  const pastDetail = "Pick the museum and the day. Link artworks later.";
 
   async function start() {
     if (!here || busy) return;
@@ -56,27 +59,37 @@ export function VisitAddSheet() {
       <ThemedText type="subtitle" accessibilityRole="header">
         Add visit
       </ThemedText>
-      {here && (
-        <Option
-          icon="building.columns"
-          title="Start a visit here"
-          detail={`${here.name}${distance ? ` · ${distance}` : ""}. Artworks you scan there join it until you end it.`}
-          busy={busy}
-          onPress={() => void start()}
-        />
-      )}
       {visit && (
         <ThemedText variant="secondary" themeColor="textSecondary">
           Your visit to {visit.venueName} is in progress.
         </ThemedText>
       )}
-      <Option
-        icon="calendar"
-        title="Log a past visit"
-        detail="Pick the museum and the day. Link artworks later."
-        disabled={busy}
-        onPress={() => router.replace("/visit-create")}
-      />
+      <ListSection>
+        {here && (
+          <ListRow
+            first
+            title="Start a visit here"
+            subtitle={startDetail}
+            accessibilityHint={startDetail}
+            leading={<ListIcon name="building.columns" />}
+            accessory="chevron"
+            busy={busy}
+            disabled={busy}
+            onPress={() => void start()}
+          />
+        )}
+        <ListRow
+          first={!here}
+          last
+          title="Log a past visit"
+          subtitle={pastDetail}
+          accessibilityHint={pastDetail}
+          leading={<ListIcon name="calendar" />}
+          accessory="chevron"
+          disabled={busy}
+          onPress={() => router.replace("/visit-create")}
+        />
+      </ListSection>
       {error && (
         <ThemedText themeColor="error" accessibilityRole="alert">
           {error}
@@ -86,69 +99,7 @@ export function VisitAddSheet() {
   );
 }
 
-function Option({
-  icon,
-  title,
-  detail,
-  busy = false,
-  disabled = false,
-  onPress,
-}: {
-  icon: string;
-  title: string;
-  detail: string;
-  busy?: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <MotionPressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityHint={detail}
-      accessibilityState={{ busy, disabled: disabled || busy }}
-      disabled={disabled || busy}
-      onPress={onPress}
-      style={styles.option}
-    >
-      <View style={styles.glyph}>
-        <Image source={`sf:${icon}`} tintColor={Gallery.accent} style={styles.glyphIcon} />
-      </View>
-      <View style={styles.optionText}>
-        <ThemedText style={styles.optionTitle}>{title}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {detail}
-        </ThemedText>
-      </View>
-      {busy ? (
-        <LoadingRing accessibilityLabel="Starting the visit" />
-      ) : (
-        <Image source="sf:chevron.right" tintColor={Gallery.muted} style={styles.chevron} accessible={false} />
-      )}
-    </MotionPressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { backgroundColor: Colors.light.background },
+  container: { backgroundColor: Gallery.groupedBackground },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
-  option: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.compact,
-    paddingVertical: Spacing.two,
-  },
-  glyph: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.full,
-    backgroundColor: Gallery.highlight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  glyphIcon: { width: 22, height: 22 },
-  optionText: { flex: 1, gap: Spacing.half },
-  optionTitle: { fontWeight: "600" },
-  chevron: { width: 10, height: 16 },
 });

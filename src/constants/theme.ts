@@ -1,4 +1,4 @@
-import { Platform, type TextStyle } from "react-native";
+import { Platform, StyleSheet, type TextStyle } from "react-native";
 
 import { WALL_COLORS } from "@/shared/wall/defaults";
 
@@ -79,6 +79,7 @@ export const Typography = {
   body: { fontSize: 16, lineHeight: 24 },
   secondary: { fontSize: 14, lineHeight: 21 },
   metadata: { fontSize: 12, lineHeight: 18 },
+  eyebrow: { fontSize: 13, lineHeight: 18, fontWeight: "500", letterSpacing: 1.1, textTransform: "uppercase" },
   button: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
 } as const satisfies Record<string, TextStyle>;
 
@@ -110,6 +111,11 @@ export const SettingsOutline = {
   borderWidth: 0.5,
   borderColor: Gallery.separator,
   borderRadius: Radius.card,
+} as const;
+
+export const PinnedFooterBorder = {
+  borderTopWidth: StyleSheet.hairlineWidth,
+  borderTopColor: Gallery.separator,
 } as const;
 
 export const NavigationTheme = {

@@ -6,6 +6,7 @@ import { reportError } from "@/lib/observability";
 
 import { cleanupCameraTempFiles } from "./camera-temp";
 import { keepPhotos, type KeptPhoto } from "./kept-photos";
+import { PHOTO_FOLDERS } from "./photo-folders";
 
 const EXISTING_ORIGINALS = "existing-photo-originals";
 let running: Promise<void> | undefined;
@@ -23,11 +24,11 @@ async function maintainPhotos(): Promise<void> {
       // Later launches only add newly kept photos; unsaved captures keep their originals.
       const kinds = new Map(saved.map((photo) => [photo.path, photo.kind]));
       existing = [];
-      const directory = new Directory(Paths.document, "photos");
+      const directory = new Directory(Paths.document, PHOTO_FOLDERS.capture);
       if (directory.exists) {
         for (const file of directory.list()) {
           if (!(file instanceof File) || !/\.(?:jpe?g|png|heic)$/i.test(file.name)) continue;
-          const path = `photos/${file.name}`;
+          const path = `${PHOTO_FOLDERS.capture}/${file.name}`;
           existing.push({ path, kind: kinds.get(path) ?? "full" });
         }
       }

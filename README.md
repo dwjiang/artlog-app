@@ -215,6 +215,9 @@ rows and suspends their queued work; signing into the same account restores them
 finishes its claim before disconnecting. Unlink and account deletion reject incomplete claims
 with `claim_required`; unlink drops the device's finished claim, and account deletion waits for
 every claim on the account, then immediately revokes profile/publication access. Account-owned data is never claimed into a different account.
+Deleting data, by a guest or an account, retires each affected device: its auth user goes, so the phone signs in again
+as a new device, and the deleting phone erases its local data. Journals, sessions and contribution crops are purged in
+the background; scans and contribution label details stay on the unlinked device row.
 
 Implemented APIs (derive wire types from `convex/_generated/api` or the shared validators):
 

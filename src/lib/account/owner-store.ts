@@ -13,6 +13,9 @@ export function initializeOwner(installationId: string, restoredOwner?: string):
   ownerGeneration++;
   serverScope = undefined;
   generation++;
+  // Startup has no subscribers yet; erasing the installation does.
+  for (const listener of ownerListeners) listener();
+  for (const listener of listeners) listener();
 }
 export function anonymousOwner(): string {
   if (!installationOwner) throw new Error("Journal owner is not initialized");

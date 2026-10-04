@@ -592,6 +592,8 @@ export default defineSchema({
     attestPublicKey: v.optional(v.string()),
     attestCounter: v.number(),
     lastContributionId: v.optional(v.id("contributions")),
+    // Set when its owner deleted their data; the row stays, unlinked, so its recognition evidence still counts.
+    retiredAt: v.optional(v.number()),
   })
     .index("by_keyId", ["appAttestKeyId"])
     .index("by_authUserId", ["authUserId"])

@@ -1,14 +1,13 @@
 import { useMutation } from "convex/react";
-import { Image } from "expo-image";
 import { useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { FormSheet, formSheetStyles } from "@/components/form-sheet";
-import { MotionPressable } from "@/components/motion-pressable";
+import { ListRow } from "@/components/list-row";
 import { ThemedText as Text } from "@/components/themed-text";
 import { visitStyles } from "@/components/visits/visit-ui";
-import { Gallery, SettingsOutline, Typography } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { REPORT_NOUNS, REPORT_REASON_LABELS, reportTarget } from "@/lib/social/report";
@@ -56,26 +55,23 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
     );
   }
   const needsDetails = reason === "other";
+  const reasons = REASONS_BY_KIND[target.kind];
   return (
-    <FormSheet title={`Report ${noun}`} busy={busy}>
-      <View accessibilityRole="radiogroup" accessibilityLabel="Reason" style={styles.card}>
-        {REASONS_BY_KIND[target.kind].map((value, index) => {
-          const selected = value === reason;
-          return (
-            <MotionPressable
-              key={value}
-              accessibilityRole="radio"
-              accessibilityLabel={REPORT_REASON_LABELS[value]}
-              accessibilityState={{ checked: selected, disabled: busy }}
-              disabled={busy}
-              onPress={() => setReason(value)}
-              style={[styles.option, index > 0 && styles.separator]}
-            >
-              <Text style={[styles.optionLabel, selected && styles.selected]}>{REPORT_REASON_LABELS[value]}</Text>
-              {selected && <Image source="sf:checkmark" tintColor={Gallery.accent} style={styles.check} />}
-            </MotionPressable>
-          );
-        })}
+    <FormSheet title={`Report ${noun}`} busy={busy} grouped>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Reason">
+        {reasons.map((value, index) => (
+          <ListRow
+            key={value}
+            title={REPORT_REASON_LABELS[value]}
+            accessibilityRole="radio"
+            accessory="check"
+            selected={value === reason}
+            disabled={busy}
+            first={index === 0}
+            last={index === reasons.length - 1}
+            onPress={() => setReason(value)}
+          />
+        ))}
       </View>
       <TextInput
         accessibilityLabel={needsDetails ? "Details" : "Details (optional)"}
@@ -105,20 +101,3 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
     </FormSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { ...SettingsOutline, backgroundColor: Gallery.surface },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minHeight: 48,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  // A hairline between rows at fractional offsets can round away entirely.
-  separator: { borderTopWidth: SettingsOutline.borderWidth, borderColor: SettingsOutline.borderColor },
-  optionLabel: { ...Typography.body, flex: 1, color: Gallery.ink },
-  selected: { fontWeight: "600" },
-  check: { width: 17, height: 17 },
-});

@@ -161,12 +161,30 @@ export function ListSkeleton({
   rows = 4,
   avatar = false,
   grouped = false,
+  card = false,
 }: {
   label: string;
   rows?: number;
   avatar?: boolean;
   grouped?: boolean;
+  /** Mirrors a `ListRow` card on a grouped page instead of plain rows on paper. */
+  card?: boolean;
 }) {
+  if (card) {
+    return (
+      <LoadingSkeleton label={label} style={styles.listCard}>
+        {Array.from({ length: rows }, (_, index) => (
+          <View key={index} style={[styles.cardRow, index < rows - 1 && styles.cardSeparator]}>
+            <Ghost width={avatar ? 40 : 32} height={avatar ? 40 : 32} round={avatar} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <Ghost width={index % 2 ? "58%" : "72%"} height={16} />
+              <Ghost width="46%" height={12} />
+            </View>
+          </View>
+        ))}
+      </LoadingSkeleton>
+    );
+  }
   return (
     <LoadingSkeleton label={label} style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
       {grouped && <Ghost width="38%" height={20} style={{ marginBottom: 12 }} />}
@@ -284,6 +302,9 @@ export function WallSkeleton({ label = "Opening wall…" }: { label?: string }) 
 }
 
 const styles = StyleSheet.create({
+  listCard: { paddingHorizontal: 16, borderRadius: Radius.card, backgroundColor: Gallery.surface },
+  cardRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
+  cardSeparator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   row: {
     flexDirection: "row",
     alignItems: "center",

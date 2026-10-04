@@ -3,6 +3,7 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
+import { Gallery } from "@/constants/theme";
 import type { SharedVisit, Suggestion } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
@@ -741,17 +742,29 @@ it("leads Explore with requests and suggestions, each saying why, above the newe
   expect(screen.getByRole("button", { name: "Accept" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Ignore request" })).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
-  expect(screen.getByText("Friends with Theo and 2 others")).toBeOnTheScreen();
-  expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
+  expect(screen.getByText("Friends with Theo and 2 others", { includeHiddenElements: true })).toBeOnTheScreen();
+  expect(screen.getByText("Also saved Blue afternoon", { includeHiddenElements: true })).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "New on Artlog" })).toBeOnTheScreen();
-  expect(screen.getByText("Ruth Mendel")).toBeOnTheScreen();
-  expect(screen.getAllByText("Maya Chen")).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "View Ruth Mendel’s profile" })).toBeOnTheScreen();
+  expect(screen.getAllByRole("button", { name: "View Maya Chen’s profile" })).toHaveLength(1);
   await fireEvent.press(screen.getByRole("button", { name: "Hide Maya Chen from suggestions" }));
   expect(mockDismissSuggestion).toHaveBeenCalledWith(maya);
 
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.queryByRole("header", { name: "Requests" })).toBeNull();
-  expect(screen.queryByText("Friends with Theo and 2 others")).toBeNull();
+  expect(screen.queryByText("Friends with Theo and 2 others", { includeHiddenElements: true })).toBeNull();
+});
+
+it("narrows your friends as you type, highlighting the match, and opens a friend’s profile", async () => {
+  queryData({ "profiles:friends": [profile("Maya Chen"), profile("Ruth Mendel")], "profiles:requests": [] });
+  await render(<PeopleScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.getByRole("header", { name: "Your friends 2" })).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("Name or username"), "ruth");
+  expect(screen.queryByRole("button", { name: "View Maya Chen’s profile" })).toBeNull();
+  expect(screen.getByText("Ruth", { includeHiddenElements: true })).toHaveStyle({ backgroundColor: Gallery.highlight });
+  await fireEvent.press(screen.getByRole("button", { name: "View Ruth Mendel’s profile" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "ruth-mendel" } });
 });
 
 it("shows suggestion cards above a short Friends feed, ending with an invitation", async () => {
@@ -760,7 +773,7 @@ it("shows suggestion cards above a short Friends feed, ending with an invitation
   mockPages.mockReturnValue(pages({ items: [visit] }));
   const view = await render(<HomeScreen />);
   expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
-  expect(screen.getByText("Friends with Theo and 2 others")).toBeOnTheScreen();
+  expect(screen.getByText("Friends with Theo and 2 others", { includeHiddenElements: true })).toBeOnTheScreen();
   expect(screen.getByText("Invite friends")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share" }));
   expect(mockPush).toHaveBeenLastCalledWith("/share-profile");
@@ -779,7 +792,7 @@ it("fills an empty Friends feed with suggestions and counts requests on the frie
   await render(<HomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: "No visits from friends yet." })).toBeOnTheScreen();
-  expect(screen.getByText("Also saved Blue afternoon")).toBeOnTheScreen();
+  expect(screen.getByText("Also saved Blue afternoon", { includeHiddenElements: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share your profile" }));
   expect(mockPush).toHaveBeenLastCalledWith("/share-profile");
   await fireEvent.press(screen.getByRole("button", { name: "Find friends, 2 requests" }));

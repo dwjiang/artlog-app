@@ -73,7 +73,8 @@ positioning controls.
 ## Elevation & Depth
 
 Flat by default: hierarchy comes from type weight, ink versus muted, separators,
-and cool gray grouping surfaces. Notes use plain text and quiet separators. Interface surfaces carry no gradients. Soft paper shadows
+and cool gray grouping surfaces. Notes use plain text and quiet separators. A footer pinned under scrolling content
+takes a hairline separator on its top edge. Interface surfaces carry no gradients. Soft paper shadows
 lift prints, postcards, empty-state papers, and the visit bar. Material finishes
 stay on decorative wall frames, functional camera scrims, and the globe; onboarding
 artwork shown full-bleed under a white sheet takes the camera's scrim and glass

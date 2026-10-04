@@ -10,6 +10,7 @@ import type { VenueCandidate } from "./resolve";
 import { createVenueController, VenueResolver, VisitInProgressError, type VenueController } from "./use-venue";
 import { NOT_HERE_MS } from "./venue-reducer";
 
+const mockActivateVisit = jest.fn();
 const mockRequestPermission = jest.fn();
 const mockGetPermission = jest.fn();
 const mockGetPosition = jest.fn();
@@ -71,6 +72,14 @@ jest.mock("@/db/repos/settings", () => ({
   removeSetting: async (key: string) => {
     mockSettings.delete(key);
   },
+}));
+jest.mock("@/db/repos/current-visit", () => ({
+  activateVisit: (...args: unknown[]) => mockActivateVisit(...args),
+  visitSettingKeys: (owner: string) => ({
+    current: `currentVisit:${owner}`,
+    manual: `manualVisit:${owner}`,
+    ended: `endedVisit:${owner}`,
+  }),
 }));
 jest.mock("@/db/repos/visits", () => ({
   upsertVisit: async (visit: NewVisit) => {
@@ -200,6 +209,36 @@ beforeEach(() => {
   mockSettings.clear();
   mockVisits.clear();
   mockLatestSaves.clear();
+  mockActivateVisit.mockImplementation(
+    (
+      visit: NewVisit,
+      owner: string,
+      options: {
+        manual?: boolean;
+        endPrevious?: { localId: string; at: number };
+      },
+    ) => {
+      const old = options.endPrevious && mockVisits.get(options.endPrevious.localId);
+      if (old) mockVisits.set(old.localId, { ...old, endedAt: options.endPrevious!.at, syncedAt: null });
+      const existing = mockVisits.get(visit.localId);
+      mockVisits.set(visit.localId, {
+        owner,
+        endedAt: null,
+        remoteVisitId: null,
+        reflection: null,
+        syncedAt: null,
+        syncedBy: null,
+        revision: 0,
+        ...Object.fromEntries(Object.entries(visit).filter(([, value]) => value !== undefined)),
+        ...existing,
+        startedAt: visit.startedAt,
+      } as Visit);
+      mockSettings.delete(`endedVisit:${owner}`);
+      mockSettings.delete(`manualVisit:${owner}`);
+      if (options.manual) mockSettings.set(`manualVisit:${owner}`, visit.localId);
+      mockSettings.set(`currentVisit:${owner}`, visit.localId);
+    },
+  );
   mockRequestPermission.mockResolvedValue({ granted: true });
   mockGetPermission.mockResolvedValue({ granted: true });
   mockGetPosition.mockResolvedValue({
@@ -328,7 +367,7 @@ describe("resolving the museum", () => {
     expect(controller.getContext()).toEqual({});
     const option = controller.getState().options[1];
     await act(async () => {
-      await controller.confirm(option);
+      await expect(controller.confirm(option)).resolves.toBe("id-neue");
     });
     expect(controller.getState().status).toBe("resolved");
     expect(controller.getContext()).toEqual({ venueId: "id-neue" });
@@ -1152,7 +1191,7 @@ describe("the sheet", () => {
       assertionBase64: "assertion",
       payloadJson: "{}",
     });
-    await confirming;
+    await expect(confirming).resolves.toBeUndefined();
     expect(controller.getContext()).toEqual({});
     expect(mockMutation).not.toHaveBeenCalled();
   });
@@ -1536,4 +1575,73 @@ it("keeps an unrelated manually selected museum when the open visit moves", asyn
     timeZone: open.timeZone,
   });
   expect(await controller.resolveForScan(mockNow)).toEqual({ venueId: elsewhere });
+});
+
+describe("starting a visit from the museum prompt", () => {
+  async function prepareReplacement() {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    const previous = await controller.startVisit(metId);
+    await controller.confirm({ kind: "seeded", venueId: neueId, name: neueRow.name });
+    return previous;
+  }
+
+  it("replaces only the visit the prompt offered to end", async () => {
+    const previous = await prepareReplacement();
+    await expect(controller.startVisit(neueId, { replaceVisitLocalId: "stale-visit" })).rejects.toBeInstanceOf(
+      VisitInProgressError,
+    );
+    expect(mockVisits.get(previous.localId)?.endedAt).toBeNull();
+    const next = await controller.startVisit(neueId, { replaceVisitLocalId: previous.localId });
+    expect(mockVisits.get(previous.localId)?.endedAt).toBe(mockNow);
+    expect(controller.getState().visit?.localId).toBe(next.localId);
+    expect(mockSettings.get(CURRENT)).toBe(next.localId);
+  });
+
+  it.each([false, true])(
+    "cancels during the venue lookup without changing visits (replacement: %s)",
+    async (replace) => {
+      const previous = replace ? await prepareReplacement() : undefined;
+      if (!replace) await controller.confirm({ kind: "seeded", venueId: neueId, name: neueRow.name });
+      const coordinates = deferred<{ lat: number; lng: number }>();
+      const locating = deferred<void>();
+      mockCoordinates.mockImplementationOnce(() => {
+        locating.resolve();
+        return coordinates.promise;
+      });
+      const abort = new AbortController();
+      const starting = controller.startVisit(neueId, { signal: abort.signal, replaceVisitLocalId: previous?.localId });
+      await locating.promise;
+      abort.abort();
+      controller.dismiss();
+      coordinates.resolve(met);
+      await expect(starting).rejects.toMatchObject({ name: "AbortError" });
+      expect(controller.getState().visit?.localId).toBe(previous?.localId);
+      expect([...mockVisits.values()].map(({ localId, endedAt }) => ({ localId, endedAt }))).toEqual(
+        previous ? [{ localId: previous.localId, endedAt: null }] : [],
+      );
+    },
+  );
+
+  it.each(["lookup", "commit"])(
+    "preserves the previous visit after a %s failure and permits retry",
+    async (failure) => {
+      const previous = await prepareReplacement();
+      if (failure === "lookup") {
+        mockCoordinates.mockRejectedValueOnce(new Error("storage failure"));
+      } else {
+        mockActivateVisit.mockImplementationOnce(() => {
+          throw new Error("storage failure");
+        });
+      }
+      await expect(controller.startVisit(neueId, { replaceVisitLocalId: previous.localId })).rejects.toThrow(
+        "storage failure",
+      );
+      expect(controller.getState().visit?.localId).toBe(previous.localId);
+      expect(mockVisits.get(previous.localId)?.endedAt).toBeNull();
+      expect(mockSettings.get(CURRENT)).toBe(previous.localId);
+      const next = await controller.startVisit(neueId, { replaceVisitLocalId: previous.localId });
+      expect(controller.getState().visit?.localId).toBe(next.localId);
+    },
+  );
 });

@@ -7,12 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ActionStack } from "@/components/action-stack";
 import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { EmptyFrames, EmptyTicket } from "@/components/empty-state-art";
+import { ListRow } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
-import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
 import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
@@ -115,7 +115,7 @@ function LinkPicker({
   }
   if (!!savedId === !!visitId) {
     return (
-      <View style={{ flex: 1, backgroundColor: Gallery.paper }}>
+      <View style={{ flex: 1, backgroundColor: Gallery.groupedBackground }}>
         <SocialState
           title="Link unavailable."
           detail="Open an artwork or visit before linking."
@@ -129,11 +129,11 @@ function LinkPicker({
     <>
       <Stack.Screen options={{ title: savedId ? "Link a visit" : "Link artworks" }} />
       <FlatList
-        style={{ backgroundColor: Gallery.paper }}
+        style={{ backgroundColor: Gallery.groupedBackground }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: Spacing.content, paddingBottom: 32 }}
         data={filtered}
         keyExtractor={(row) => row.id}
         ListHeaderComponent={
@@ -174,58 +174,46 @@ function LinkPicker({
             )}
           </View>
         }
-        renderItem={({ item: row }) => {
+        renderItem={({ item: row, index }) => {
           const work = savedId ?? row.id;
           const visit = visitId ?? row.id;
           const linked = encounters.data.some(
             (entry) => entry.owner === owner && entry.savedLocalId === work && entry.visitLocalId === visit,
           );
           return (
-            <MotionPressable
+            <ListRow
+              title={row.title}
+              query={search}
+              subtitle={linked ? `${row.subtitle} · Linked` : row.subtitle}
+              leading={
+                !savedId && (
+                  <SavedWorkImage
+                    path={row.path}
+                    syncing={row.syncing}
+                    title={row.title}
+                    contain
+                    style={{ width: 56, height: 56, borderRadius: Radius.thumbnail }}
+                  />
+                )
+              }
               accessibilityRole="checkbox"
-              accessibilityState={{
-                checked: linked || selected.includes(row.id),
-                disabled: linked,
-              }}
               accessibilityLabel={`${linked ? "Linked: " : "Select "}${row.title}`}
+              accessory="toggle"
+              selected={linked || selected.includes(row.id)}
               disabled={linked}
+              first={index === 0}
+              last={index === filtered.length - 1}
               onPress={() => {
                 setSelected((ids) => (ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id]));
               }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderColor: Gallery.separator,
-              }}
-            >
-              {!savedId && (
-                <SavedWorkImage
-                  path={row.path}
-                  syncing={row.syncing}
-                  title={row.title}
-                  contain
-                  style={{ width: 56, height: 56, borderRadius: 2 }}
-                />
-              )}
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ fontSize: 17, lineHeight: 25, color: Gallery.ink }}>{row.title}</Text>
-                <Text style={{ fontSize: 13, color: Gallery.muted }}>
-                  {row.subtitle}
-                  {linked ? " · Linked" : ""}
-                </Text>
-              </View>
-              <Text style={{ color: Gallery.muted }}>{linked || selected.includes(row.id) ? "✓" : "○"}</Text>
-            </MotionPressable>
+            />
           );
         }}
         ListEmptyComponent={
           query.error || encounters.error ? (
             <SocialState title="Couldn’t load your collection." action="Try again" onAction={onRetry} />
           ) : !query.updatedAt && rows.length === 0 ? (
-            <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} />
+            <ListSkeleton label={savedId ? "Loading visits…" : "Loading artworks…"} card />
           ) : search.trim() ? (
             <SearchEmptyState
               title="No matches."
@@ -270,7 +258,8 @@ function LinkPicker({
           style={{
             padding: 20,
             paddingBottom: Math.max(bottom, 20),
-            backgroundColor: Gallery.paper,
+            backgroundColor: Gallery.groupedBackground,
+            ...PinnedFooterBorder,
           }}
         >
           <GalleryButton
