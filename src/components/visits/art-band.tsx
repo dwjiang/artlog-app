@@ -86,12 +86,8 @@ function BandPiece({ artwork, maxWidth, labelColor }: { artwork: BandArtwork; ma
         </View>
       </View>
       <View style={styles.label}>
-        <Text maxFontSizeMultiplier={1.3} numberOfLines={2} style={[styles.artist, { color: labelColor }]}>
-          {artist}
-        </Text>
-        <Text maxFontSizeMultiplier={1.3} numberOfLines={2} style={[styles.title, { color: labelColor }]}>
-          {title}
-        </Text>
+        <Text style={[styles.artist, { color: labelColor }]}>{artist}</Text>
+        <Text style={[styles.title, { color: labelColor }]}>{title}</Text>
       </View>
     </>
   );
