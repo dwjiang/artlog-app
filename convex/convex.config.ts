@@ -32,7 +32,6 @@ const app = defineApp({
     R2_ACCESS_KEY_ID: optional,
     R2_SECRET_ACCESS_KEY: optional,
     SENTRY_DSN: optional,
-    SENTRY_ENVIRONMENT: optional,
     SUPPORTED_MODEL_VERSIONS: optional,
     TAVILY_API_KEY: optional,
   },

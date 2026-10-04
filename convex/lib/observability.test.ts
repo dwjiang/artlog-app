@@ -7,7 +7,6 @@ const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
   vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
-  vi.stubEnv("SENTRY_ENVIRONMENT", "test");
   fetchMock.mockReset().mockResolvedValue(new Response("{}", { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -29,7 +28,7 @@ it("sends code locations and operation names without error text, input, or crede
   const body = String(init?.body);
   const event = JSON.parse(body.split("\n")[2]);
   expect(event).toMatchObject({
-    environment: "test",
+    environment: "production",
     tags: { operation: "docent.ensure", runtime: "convex" },
     exception: {
       values: [

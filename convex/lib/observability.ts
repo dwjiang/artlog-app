@@ -198,6 +198,7 @@ function transportFor(dsn: string): Transport | undefined {
 
 export async function reportBackendError(error: unknown, operation: string): Promise<string | null> {
   try {
+    // Only the production deployment sets a DSN, so every other deployment stays silent.
     const dsn = env.SENTRY_DSN;
     if (!dsn) return null;
     const { code, reason } = errorData(error);
@@ -227,7 +228,7 @@ export async function reportBackendError(error: unknown, operation: string): Pro
       timestamp: Date.now() / 1000,
       platform: "javascript",
       level: "error",
-      environment: env.SENTRY_ENVIRONMENT ?? "backend",
+      environment: "production",
       tags: {
         runtime: "convex",
         operation,
