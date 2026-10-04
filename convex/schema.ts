@@ -798,6 +798,9 @@ export default defineSchema({
     publishedAt: v.number(),
     updatedAt: v.number(),
     publicationRevision: v.number(),
+    // Absent on posts published before visit wallpapers, which show the default wall color.
+    color: v.optional(v.string()),
+    pattern: v.optional(wallPattern),
   })
     .index("by_postId", ["postId"])
     .index("by_profile_visit", ["profileId", "visitLocalId"])

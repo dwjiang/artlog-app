@@ -18,6 +18,7 @@ it("uses the captured token and abort signal for every sharing operation", async
     saveLocalIds: [],
     reflection: "",
     revision: 0,
+    color: "#FCFCF9",
   };
   await transport.getState({ visitLocalId: "visit" }, context);
   await transport.publish(args, context);

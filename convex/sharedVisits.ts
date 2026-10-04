@@ -82,6 +82,8 @@ export const publish = mutation({
       publicationRevision: input.revision + 1,
       updatedAt: Date.now(),
       publishedAt: publication?.publishedAt || Date.now(),
+      color: input.color.toUpperCase(),
+      pattern: input.pattern,
     };
     const publicationId =
       publication?._id

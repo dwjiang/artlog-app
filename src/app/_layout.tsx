@@ -162,7 +162,7 @@ function AppContent() {
                   <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
                   <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
                   <Stack.Screen name="profile-friends" options={{ title: "Friends" }} />
-                  <Stack.Screen name="visit/[postId]" options={{ title: "Visit" }} />
+                  <Stack.Screen name="visit/[postId]" options={{ title: "Post" }} />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
                   <Stack.Screen
                     name="share-profile"

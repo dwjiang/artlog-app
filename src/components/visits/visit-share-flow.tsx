@@ -1,15 +1,21 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { Image } from "expo-image";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { createContext, use, useEffect, useRef, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedRef } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Sortable from "react-native-sortables";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { WallpaperEditor } from "@/components/collection/wallpaper-editor";
+import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileForm } from "@/components/social/profile-form";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, NavigationTheme, Typography } from "@/constants/theme";
+import { Gallery, NavigationTheme, PinnedFooterBorder, Spacing, Typography } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -26,6 +32,7 @@ import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import type { VisitVisibility } from "@/shared/journal/contracts";
 import { LIMITS } from "@/shared/journal/limits";
 
+import { ArtBand, type BandArtwork } from "./art-band";
 import { ShareArtworkTile } from "./share-artwork-tile";
 import { SharePhotoPicker } from "./share-photo-picker";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
@@ -123,6 +130,12 @@ export function VisitShareScreen() {
   const notes = useRef<VisitNotesHandle>(null);
   const { width, fontScale } = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+  const reduced = useReducedMotion();
+  const [styling, setStyling] = useState(false);
+  const bandTop = useRef(0);
+  const [aspects, setAspects] = useState<Record<string, number>>({});
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   useEffect(() => {
     if (photos.error) reportError(photos.error, "visit.share-photos.load");
@@ -175,22 +188,23 @@ export function VisitShareScreen() {
   const ranks = new Map(sharedOrder(grid, selected).map((id, rank) => [id, rank]));
   const photoTotal = (saveLocalId: string) =>
     photos.data.filter((photo) => photo.savedLocalId === saveLocalId && photo.visitLocalId === visit.localId).length;
-  // An included artwork shows only a photo chosen for sharing; one left out shows the photo including it would add.
-  function tilePhotoPath(saveLocalId: string, isIncluded: boolean) {
-    const visitPhotos = photos.data.filter(
+  const visitPhotos = (saveLocalId: string) =>
+    photos.data.filter(
       (row) =>
         row.owner === visit.owner
         && row.savedLocalId === saveLocalId
         && row.visitLocalId === visit.localId
         && row.deletedAt === null,
     );
-    if (!isIncluded) return visitPhotos.find((photo) => photo.kind !== "label")?.path ?? null;
+  function sharedPhotos(saveLocalId: string) {
+    const available = visitPhotos(saveLocalId);
     const selectedIds = draft!.photoSelections?.find((row) => row.saveLocalId === saveLocalId)?.photoLocalIds ?? [];
-    for (const localId of selectedIds) {
-      const photo = visitPhotos.find((row) => row.localId === localId);
-      if (photo) return photo.path;
-    }
-    return null;
+    return selectedIds.flatMap((localId) => available.find((row) => row.localId === localId) ?? []);
+  }
+  // An included artwork shows only a photo chosen for sharing; one left out shows the photo including it would add.
+  function tilePhotoPath(saveLocalId: string, isIncluded: boolean) {
+    if (!isIncluded) return visitPhotos(saveLocalId).find((photo) => photo.kind !== "label")?.path ?? null;
+    return sharedPhotos(saveLocalId)[0]?.path ?? null;
   }
   function arrange(next: string[], included: ReadonlySet<string>) {
     setLayout(next);
@@ -247,6 +261,37 @@ export function VisitShareScreen() {
       setPosting(false);
     }
   }
+  const band = [...ranks.keys()].flatMap((id): BandArtwork[] => {
+    const work = worksById.get(id);
+    if (!work) return [];
+    const shared = sharedPhotos(id);
+    const path = shared[0]?.path ?? null;
+    return [
+      {
+        key: id,
+        title: work.title,
+        artist: work.artist,
+        aspect: path ? aspects[path] : undefined,
+        photoCount: shared.length,
+        renderImage: (size) => (
+          <SavedWorkImage
+            contain
+            path={path}
+            title={work.title}
+            style={size}
+            onLoad={(image) => {
+              if (path) setAspects((known) => ({ ...known, [path]: image.width / image.height }));
+            }}
+          />
+        ),
+      },
+    ];
+  });
+  /** Opens the wall's wallpaper picker with the band scrolled up into view above it. */
+  function openStyle() {
+    setStyling(true);
+    scrollRef.current?.scrollTo({ y: bandTop.current - headerHeight, animated: !reduced });
+  }
   const columns = fontScale > 1.4 ? 1 : 2;
   const tileSize = (width - 2 * GUTTER - (columns - 1) * TILE_GAP) / columns;
   const active = acknowledged?.status === "active";
@@ -280,12 +325,13 @@ export function VisitShareScreen() {
         <Stack.Toolbar.Button
           tintColor={Gallery.accent}
           hidesSharedBackground
-          disabled={posting || sharing.busy || acknowledged?.removed}
+          disabled={!styling && (posting || sharing.busy || acknowledged?.removed)}
           onPress={() => {
-            void post();
+            if (styling) setStyling(false);
+            else void post();
           }}
         >
-          {posting ? "Posting…" : active ? "Update" : "Post"}
+          {styling ? "Done" : posting ? "Posting…" : active ? "Update" : "Post"}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Animated.ScrollView
@@ -340,6 +386,29 @@ export function VisitShareScreen() {
             </View>
           )}
         </View>
+        {!acknowledged?.removed && band.length > 0 && (
+          <View style={share.band} onLayout={(event) => (bandTop.current = event.nativeEvent.layout.y)}>
+            <ArtBand
+              wallpaper={draft}
+              artworks={band}
+              accessory={
+                !styling && (
+                  <MotionPressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Style wallpaper"
+                    disabled={sharing.busy}
+                    hitSlop={6}
+                    onPress={openStyle}
+                    style={share.style}
+                  >
+                    <Image source="sf:paintpalette" tintColor={Gallery.ink} style={{ width: 16, height: 16 }} />
+                    <Text style={share.styleLabel}>Style</Text>
+                  </MotionPressable>
+                )
+              }
+            />
+          </View>
+        )}
         {!acknowledged?.removed && (
           <Sortable.Grid
             data={grid.flatMap((id) => worksById.get(id) ?? [])}
@@ -362,6 +431,14 @@ export function VisitShareScreen() {
           />
         )}
       </Animated.ScrollView>
+      {styling && (
+        <View style={[share.tray, { paddingBottom: insets.bottom }]}>
+          <WallpaperEditor
+            value={{ color: draft.color, pattern: draft.pattern }}
+            onChange={({ color, pattern }) => controller.edit({ color, pattern })}
+          />
+        </View>
+      )}
     </GestureHandlerRootView>
   );
 }
@@ -411,4 +488,20 @@ const share = StyleSheet.create({
     alignItems: "baseline",
     gap: 8,
   },
+  band: { marginHorizontal: -GUTTER, marginBottom: 20 },
+  style: {
+    position: "absolute",
+    top: Spacing.compact,
+    right: Spacing.compact,
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 13,
+    borderRadius: 18,
+    backgroundColor: Gallery.paper,
+    boxShadow: "0 3px 12px rgba(0,0,0,0.14)",
+  },
+  styleLabel: { fontSize: 14, lineHeight: 18, fontWeight: "600", color: Gallery.ink },
+  tray: { backgroundColor: Gallery.paper, ...PinnedFooterBorder },
 });

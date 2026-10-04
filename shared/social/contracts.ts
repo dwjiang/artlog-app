@@ -17,6 +17,7 @@ export const publicProfile = v.object({
   publishedWallCount: v.number(),
 });
 export const frame = v.union(...WALL_FRAMES.map((finish) => v.literal(finish.value)));
+export const isWallColor = (color: string) => /^#[0-9a-f]{6}$/i.test(color);
 /** A wall without a pattern is plain color. */
 export const wallPattern = v.union(
   ...(["stripe", "pinstripe", "grid", "dots", "check", "trellis"] as const).map(v.literal),
@@ -244,6 +245,8 @@ export const sharedSelection = v.object({
   reflection: v.string(),
   revision: v.number(),
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
+  color: v.string(),
+  pattern: v.optional(wallPattern),
 });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
@@ -344,6 +347,7 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
     || input.saveLocalIds.some((id) => !isUuid(id))
     || input.reflection.length > LIMITS.note
     || !isRevision(input.revision)
+    || !isWallColor(input.color)
   ) {
     throw new ConvexError({ code: "invalid_post" });
   }

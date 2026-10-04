@@ -10,7 +10,9 @@ import {
   sharedPhotoSelection,
   type sharedSelection,
   validateSelection,
+  wallPattern,
 } from "../../shared/social/contracts";
+import { DEFAULT_WALL_COLOR } from "../../shared/wall/defaults";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
@@ -32,6 +34,8 @@ export const publicationHeader = v.object({
   reflection: v.string(),
   publishedAt: v.number(),
   revision: v.number(),
+  color: v.string(),
+  pattern: v.optional(wallPattern),
 });
 export const artworkPage = v.object({
   page: v.array(sharedVisitCard),
@@ -51,6 +55,9 @@ export const publicationState = v.object({
   reflection: v.string(),
   saveLocalIds: v.array(v.string()),
   revision: v.number(),
+  /** The published wallpaper; absent until the visit is first posted. */
+  color: v.optional(v.string()),
+  pattern: v.optional(wallPattern),
 });
 export const PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_ARTWORKS = 50;
@@ -124,7 +131,11 @@ export async function header(
     reflection: publication.reflection,
     publishedAt: publication.publishedAt,
     revision: publication.publicationRevision,
+    ...publicationWallpaper(publication),
   };
+}
+function publicationWallpaper({ color, pattern }: Doc<"sharedVisits">) {
+  return { color: color ?? DEFAULT_WALL_COLOR, ...(pattern ? { pattern } : {}) };
 }
 export async function stateForPublication(
   ctx: QueryCtx,
@@ -146,6 +157,7 @@ export async function stateForPublication(
     reflection: visit.reflection ?? "",
     revision: publication?.publicationRevision ?? 0,
     saveLocalIds: items.map((item) => item.saveLocalId),
+    ...(publication ? publicationWallpaper(publication) : {}),
   };
 }
 export function checkPublicationRevision(observed: number, current: number) {

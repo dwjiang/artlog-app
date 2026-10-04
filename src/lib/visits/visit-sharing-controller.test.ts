@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 
 import { captureOwner, subscribeOwner, switchOwner } from "@/lib/account/owner-store";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+import { STARTER_WALLS } from "@/shared/wall/defaults";
 
 import { createVisitSharingController } from "./visit-sharing-controller";
 import type { ShareState, VisitSharingTransport } from "./visit-sharing-transport";
@@ -76,7 +77,28 @@ it("selects at most 50 artworks, uses the saved public notes, and allows zero", 
       reflection: "For friends",
       revision: 0,
       photoSelections: [],
+      color: expect.stringMatching(/^#[0-9A-F]{6}$/),
+      pattern: expect.any(String),
     },
+    expect.anything(),
+  );
+});
+
+it("starts a first post on a starter wallpaper, keeps a posted visit's wallpaper, and posts the chosen one", async () => {
+  await controller.load();
+  expect(STARTER_WALLS).toContainEqual({
+    color: controller.getSnapshot().draft?.color,
+    pattern: controller.getSnapshot().draft?.pattern,
+  });
+  controller.dispose();
+  transport.getState.mockResolvedValue({ ...initial, status: "active", postId: "post", revision: 2, color: "#4C5B6B" });
+  controller.connect();
+  await controller.load();
+  expect(controller.getSnapshot().draft).toMatchObject({ color: "#4C5B6B", pattern: undefined });
+  controller.edit({ color: "#6C2F2B", pattern: "dots" });
+  await controller.publish();
+  expect(transport.publish).toHaveBeenCalledWith(
+    expect.objectContaining({ color: "#6C2F2B", pattern: "dots" }),
     expect.anything(),
   );
 });

@@ -20,7 +20,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "visit-place": "Visits",
   "saved/[savedId]": "Artwork",
   "journal/[visitId]": "Visit",
-  "visit/[postId]": "Visit",
+  "visit/[postId]": "Post",
   "result/[scanId]": "Result",
   leaderboards: "Leaderboards",
   people: "Friends",

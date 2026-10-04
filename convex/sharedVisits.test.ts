@@ -2,6 +2,7 @@ import type { FunctionReturnType } from "convex/server";
 import { expect, it } from "vitest";
 
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
+import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { api, internal } from "./_generated/api";
 import { compareHistory, PAGE_BYTES } from "./lib/sharedPublications";
 import { befriend, setVisitVisibility, socialUser, socialVisit } from "./lib/socialTestFixtures";
@@ -31,6 +32,8 @@ it("publishes in the chosen order without private fields", async () => {
     "artworks",
     "audience",
     "author",
+    "color",
+    "pattern",
     "postId",
     "publishedAt",
     "reflection",
@@ -80,6 +83,40 @@ it("rejects forged selections, private visits, duplicate UUIDs, and missing shar
     localId: draft.saves[0].localId,
   });
   await expect(a.as.mutation(api.sharedVisits.publish, draft.selection)).rejects.toMatchObject(notFound);
+});
+
+it("shows the chosen wallpaper on the post, its feed card, and the owner's next share", async () => {
+  const t = harness();
+  const a = await socialUser(t);
+  const draft = await socialVisit(t, a);
+  expect((await a.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId })).color).toBeUndefined();
+  await expect(a.as.mutation(api.sharedVisits.publish, { ...draft.selection, color: "forest" })).rejects.toMatchObject({
+    data: { code: "invalid_post" },
+  });
+  const { postId } = await a.as.mutation(api.sharedVisits.publish, {
+    ...draft.selection,
+    color: "#45524b",
+    pattern: "trellis",
+  });
+  const wallpaper = { color: "#45524B", pattern: "trellis" };
+  expect(await a.as.query(api.sharedVisits.get, { postId: postId! })).toMatchObject(wallpaper);
+  expect((await t.query(api.sharedVisits.listPublic, {})).page[0]).toMatchObject(wallpaper);
+  expect(await a.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId })).toMatchObject(wallpaper);
+  await a.as.mutation(api.sharedVisits.publish, {
+    ...draft.selection,
+    revision: 1,
+    color: "#FCFCF9",
+    pattern: undefined,
+  });
+  expect(await a.as.query(api.sharedVisits.get, { postId: postId! })).not.toHaveProperty("pattern");
+  const publication = await t.run((ctx) =>
+    ctx.db
+      .query("sharedVisits")
+      .withIndex("by_postId", (q) => q.eq("postId", postId!))
+      .unique(),
+  );
+  await t.run((ctx) => ctx.db.patch("sharedVisits", publication!._id, { color: undefined }));
+  expect((await a.as.query(api.sharedVisits.get, { postId: postId! })).color).toBe(DEFAULT_WALL_COLOR);
 });
 
 it("allows empty posts and preserves identity and first publication time through edit and reshare", async () => {

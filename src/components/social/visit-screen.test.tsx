@@ -1,5 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
+import { ActionSheetIOS } from "react-native";
 
+import { Gallery } from "@/constants/theme";
 import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
 
 import { VisitScreen } from "./visit-screen";
@@ -7,7 +10,9 @@ import { VisitScreen } from "./visit-screen";
 const mockPush = jest.fn();
 const mockLoadMore = jest.fn();
 const mockRefresh = jest.fn();
+const mockArtworkRefresh = jest.fn();
 const mockPages = jest.fn();
+let mockVisit: { data?: SharedVisit; error?: Error };
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
@@ -17,18 +22,24 @@ jest.mock("@/lib/social/use-social-session", () => ({
     status: "ready",
     key: "viewer",
     token: "visit-token",
+    profileId: "viewer",
+    offline: false,
   }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useCursorPages: (...args: unknown[]) => mockPages(...args),
-  useSocialQuery: () => ({ data: undefined }),
+  useSocialQuery: (query: never) =>
+    jest.requireActual("convex/server").getFunctionName(query) === "sharedVisits:get"
+      ? { ...mockVisit, refresh: mockRefresh }
+      : { data: undefined, refresh: mockRefresh },
 }));
+jest.mock("@/lib/social/use-block", () => ({ useBlock: () => ({ block: jest.fn() }) }));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
 jest.mock("expo-router", () => ({
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
-  router: { push: (...args: unknown[]) => mockPush(...args) },
+  router: { push: (...args: unknown[]) => mockPush(...args), dismissAll: jest.fn(), navigate: jest.fn() },
   useRouter: () => ({ push: mockPush }),
 }));
 jest.mock("expo-image", () => ({
@@ -76,115 +87,164 @@ const visit: SharedVisit = {
   publishedAt: 1,
   revision: 1,
   artworkCount: 5,
-  artworks: { page: works, cursor: null, isDone: true },
+  color: "#CDD0CA",
+  pattern: "stripe",
+  artworks: { page: works.slice(0, 3), cursor: "more", isDone: false },
 };
 const pages = (patch: object = {}) => ({
-  items: works,
-  first: visit,
+  items: [],
   loading: false,
   refreshing: false,
-  done: true,
+  done: false,
   canLoadMore: false,
   loadMore: mockLoadMore,
-  refresh: mockRefresh,
+  refresh: mockArtworkRefresh,
   ...patch,
 });
+const restArgs = () => mockPages.mock.calls.at(-1)?.[1];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockVisit = { data: visit };
   mockPages.mockReturnValue(pages());
 });
 
-it("shows the shared status, owner, place, reflection, and full artwork count", async () => {
+it("shows the shared visit as its feed card, opening each artwork and the author’s profile", async () => {
   await render(<VisitScreen postId="post-a" />);
-  expect(screen.getByText("Public")).toBeOnTheScreen();
-  expect(screen.getByText("Musée d’Orsay")).toBeOnTheScreen();
-  expect(screen.getByText(/September 12, 2026.*Paris/s)).toBeOnTheScreen();
+  expect(screen.getByText("Musée d’Orsay · Paris")).toBeOnTheScreen();
   expect(screen.getByText("The small details always win.")).toBeOnTheScreen();
-  expect(screen.getByText("5 artworks shared")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "View visit" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "View Still Life" }));
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/artwork",
+    params: { kind: "visit", postId: "post-a", itemId: "c" },
+  });
   await fireEvent.press(screen.getByRole("button", { name: "View Alex Chen’s profile" }));
-  expect(mockPush).toHaveBeenCalledWith({
+  expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/profile/[profileId]",
     params: { profileId: "alex" },
   });
 });
 
-it("reports someone else’s visit from the header menu", async () => {
+it("marks an artwork that has more than one shared photo", async () => {
+  const photos = [1, 2, 3].map(() => works[0].artwork.media);
+  mockVisit = {
+    data: { ...visit, artworks: { ...visit.artworks, page: [{ ...works[0], photos }, works[1], works[2]] } },
+  };
   await render(<VisitScreen postId="post-a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Report visit" }));
+  expect(screen.getByRole("button", { name: "View Water Lilies, 3 photos" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "View The Dance" })).toBeOnTheScreen();
+});
+
+it("labels artworks in ink that stays legible on light and dark wallpapers", async () => {
+  const view = await render(<VisitScreen postId="post-a" />);
+  expect(screen.getByText("Henri Matisse")).toHaveStyle({ color: Gallery.ink });
+  mockVisit = { data: { ...visit, color: "#45524B", pattern: "trellis" } };
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(screen.getByText("Henri Matisse")).toHaveStyle({ color: Gallery.paper });
+});
+
+it("loads the rest of the artworks at the end of the row without repeating the first ones", async () => {
+  const view = await render(<VisitScreen postId="post-a" />);
+  expect(restArgs()).toBe("skip");
+  await fireEvent(screen.getByTestId("art-band"), "endReached");
+  expect(restArgs()).toEqual({ postId: "post-a" });
+  // A later page that only repeats the card's artworks keeps loading.
+  mockPages.mockReturnValue(pages({ items: works.slice(0, 3), canLoadMore: true }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(mockLoadMore).toHaveBeenCalled();
+  mockPages.mockReturnValue(pages({ items: works, done: true }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(screen.getAllByRole("button", { name: "View Water Lilies" })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "View The Garden" })).toBeOnTheScreen();
+});
+
+it.each([0, 2])("loads remaining artworks when only %i original highlights survive", async (highlightCount) => {
+  const remaining = works.slice(0, highlightCount + 2);
+  mockVisit = {
+    data: {
+      ...visit,
+      artworkCount: remaining.length,
+      artworks: { page: remaining.slice(0, highlightCount), cursor: null, isDone: true },
+    },
+  };
+  const view = await render(<VisitScreen postId="post-a" />);
+  expect(restArgs()).toEqual(highlightCount > 0 ? "skip" : { postId: "post-a" });
+  if (highlightCount > 0) {
+    await fireEvent(screen.getByTestId("art-band"), "endReached");
+  }
+  expect(restArgs()).toEqual({ postId: "post-a" });
+  mockPages.mockReturnValue(pages({ items: remaining, done: true }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  for (const item of remaining) {
+    expect(screen.getAllByRole("button", { name: `View ${item.artwork.title}` })).toHaveLength(1);
+  }
+});
+
+it("does not fetch more when the card already contains every artwork", async () => {
+  mockVisit = {
+    data: {
+      ...visit,
+      artworkCount: 3,
+      artworks: { page: works.slice(0, 3), cursor: null, isDone: true },
+    },
+  };
+  await render(<VisitScreen postId="post-a" />);
+  await fireEvent(screen.getByTestId("art-band"), "endReached");
+  expect(restArgs()).toBe("skip");
+  expect(mockLoadMore).not.toHaveBeenCalled();
+});
+
+it.each([0, 4])("retries a failed artwork page while keeping %i loaded artworks visible", async (loadedCount) => {
+  if (loadedCount === 0) {
+    mockVisit = { data: { ...visit, artworks: { page: [], cursor: null, isDone: true } } };
+  }
+  const view = await render(<VisitScreen postId="post-a" />);
+  if (loadedCount > 0) await fireEvent(screen.getByTestId("art-band"), "endReached");
+  const items = works.slice(0, loadedCount);
+  mockPages.mockReturnValue(pages({ items, error: new TypeError("Network request failed") }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(screen.getByText(loadedCount ? "Couldn’t load more artworks." : "Couldn’t load artworks.")).toBeOnTheScreen();
+  for (const item of items) {
+    expect(screen.getByRole("button", { name: `View ${item.artwork.title}` })).toBeOnTheScreen();
+  }
+  await fireEvent.press(screen.getByRole("button", { name: loadedCount ? "Try loading more" : "Try again" }));
+  expect(mockArtworkRefresh).toHaveBeenCalledTimes(1);
+  expect(mockRefresh).not.toHaveBeenCalled();
+  mockPages.mockReturnValue(pages({ items, loading: true, refreshing: true }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(screen.getByLabelText("Loading more artworks")).toBeOnTheScreen();
+  for (const item of items) {
+    expect(screen.getByRole("button", { name: `View ${item.artwork.title}` })).toBeOnTheScreen();
+  }
+  mockPages.mockReturnValue(pages({ items: works, done: true }));
+  await view.rerender(<VisitScreen postId="post-a" />);
+  expect(screen.getByRole("button", { name: "View The Garden" })).toBeOnTheScreen();
+  expect(screen.queryByText(/Couldn’t load.*artworks/)).toBeNull();
+});
+
+it("offers the author’s profile and reporting from the card menu, without a visit link", async () => {
+  const sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
+    choose(options.options.indexOf("Report visit"));
+  });
+  await render(<VisitScreen postId="post-a" />);
+  await fireEvent.press(screen.getByRole("button", { name: "More options" }));
+  expect(sheet.mock.calls[0][0].options).toEqual([
+    "View Alex Chen’s profile",
+    "Report visit",
+    "Block Alex Chen",
+    "Cancel",
+  ]);
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "sharedVisit", id: "post-a" } });
 });
 
-it("marks a Friends visit as shared with friends", async () => {
-  mockPages.mockReturnValue(pages({ first: { ...visit, audience: "friends" } }));
-  await render(<VisitScreen postId="post-a" />);
-  expect(screen.getByText("Friends")).toBeOnTheScreen();
-  expect(screen.queryByText("Public")).toBeNull();
-});
-
-it("offers search at five artworks and matches titles or artists without case or accent sensitivity", async () => {
+it("explains a revoked post and offers a retry for other failures", async () => {
+  mockVisit = { error: new ConvexError({ code: "not_found" }) };
   const view = await render(<VisitScreen postId="post-a" />);
-  const search = screen.getByLabelText("Search visit artworks");
-  await fireEvent.changeText(search, "  LILIES  ");
-  expect(screen.getByRole("button", { name: "View Water Lilies" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "View The Dance" })).toBeNull();
-  await fireEvent.changeText(search, "cezanne");
-  expect(screen.getByRole("button", { name: "View Still Life" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "View Water Lilies" })).toBeNull();
-  await fireEvent.changeText(search, "no match");
-  expect(screen.getByText("No artworks found.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
-  expect(screen.getByLabelText("Search visit artworks")).toHaveProp("value", "");
-  mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 4 }, items: works.slice(0, 4) }));
-  await view.rerender(<VisitScreen postId="post-b" />);
-  expect(screen.queryByLabelText("Search visit artworks")).toBeNull();
-});
-
-it("searches later pages and waits until all pages arrive before declaring no matches", async () => {
-  mockPages.mockReturnValue(
-    pages({
-      first: { ...visit, artworkCount: 6 },
-      done: false,
-      canLoadMore: true,
-    }),
-  );
-  const view = await render(<VisitScreen postId="post-a" />);
-  mockLoadMore.mockClear();
-  await fireEvent.changeText(screen.getByLabelText("Search visit artworks"), "Starry");
-  expect(mockLoadMore).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText("No artworks found.")).toBeNull();
-  mockPages.mockReturnValue(pages({ first: { ...visit, artworkCount: 6 }, done: false, loading: true }));
+  expect(screen.getByText("Visit unavailable.")).toBeOnTheScreen();
+  expect(screen.queryByText(visit.reflection)).toBeNull();
+  mockVisit = { error: new Error("offline") };
   await view.rerender(<VisitScreen postId="post-a" />);
-  expect(screen.getByLabelText("Loading artworks…")).toBeOnTheScreen();
-  expect(screen.queryByText("No artworks found.")).toBeNull();
-  mockPages.mockReturnValue(
-    pages({
-      first: { ...visit, artworkCount: 6 },
-      items: [...works, artwork("f", "Starry Night", "Vincent van Gogh")],
-    }),
-  );
-  await view.rerender(<VisitScreen postId="post-a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "View Starry Night" }));
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: "/artwork",
-    params: { kind: "visit", postId: "post-a", itemId: "f" },
-  });
-  expect(screen.queryByText("No artworks found.")).toBeNull();
-});
-
-it("distinguishes a visit without photos from a visit without artworks", async () => {
-  const { media } = works[0].artwork;
-  mockPages.mockReturnValue(
-    pages({
-      items: [{ ...works[0], photos: [media, media] }, works[1]],
-      first: { ...visit, artworkCount: 2 },
-    }),
-  );
-  const view = await render(<VisitScreen postId="post-a" />);
-  expect(screen.getByText("2 photos")).toBeOnTheScreen();
-  expect(screen.getByText("No photos")).toBeOnTheScreen();
-  mockPages.mockReturnValue(pages({ items: [], first: { ...visit, artworkCount: 0 } }));
-  await view.rerender(<VisitScreen postId="post-a" />);
-  expect(screen.queryByText("A visit worth remembering.")).toBeNull();
-  expect(screen.getByText("This visit was shared without artworks.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(mockRefresh).toHaveBeenCalled();
 });
