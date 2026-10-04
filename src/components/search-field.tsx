@@ -108,7 +108,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 44,
     paddingVertical: Spacing.two,
-    ...Typography.body,
+    // Native single-line metrics keep the placeholder and typed text centered with the icons on iOS.
+    fontSize: Typography.body.fontSize,
     color: Gallery.ink,
   },
   clear: {
