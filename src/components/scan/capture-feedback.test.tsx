@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
 
 import type { CaptureController, CaptureFeedback as Feedback } from "@/lib/capture/capture-controller";
 import type { Quad } from "@/lib/capture/stages";
@@ -76,31 +76,77 @@ const feedback = (props: Partial<{ detecting: boolean; busy: boolean }>) => (
   <CaptureFeedback controller={controller} detecting busy={false} {...props} />
 );
 
+const settle = (ms: number) => act(() => jest.advanceTimersByTime(ms));
+const show = async (view: Awaited<ReturnType<typeof render>>, next: Feedback, props = {}) => {
+  mockFeedback = next;
+  await view.rerender(feedback(props));
+};
+
 describe("capture caption", () => {
-  it("explains automatic capture before detection and then names the framing problem", async () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it("names a framing problem only once it has persisted", async () => {
     const view = await render(feedback({}));
-    expect(screen.getByText("Point at an artwork")).toBeOnTheScreen();
-    expect(screen.getByText("Hold steady to scan automatically")).toBeOnTheScreen();
-    mockFeedback = { quad, progress: 0, guidance: "move-closer" };
-    await view.rerender(feedback({}));
+    await show(view, { quad, progress: 0, guidance: "move-closer" });
+    await settle(599);
+    expect(screen.queryByText("Move closer")).toBeNull();
+    await settle(1);
     expect(screen.getByText("Move closer")).toBeOnTheScreen();
-    mockFeedback = { quad, progress: 0, guidance: "fit-whole-painting" };
-    await view.rerender(feedback({}));
+    await show(view, { quad, progress: 0, guidance: "fit-whole-painting" });
+    await settle(600);
     expect(screen.getByText("Fit the whole artwork in view")).toBeOnTheScreen();
-    mockFeedback = { quad, progress: 0, guidance: "straighten" };
-    await view.rerender(feedback({}));
+    await show(view, { quad, progress: 0, guidance: "straighten" });
+    await settle(600);
     expect(screen.getByText("Face the artwork straight on")).toBeOnTheScreen();
-    mockFeedback = { quad, progress: 0.25, guidance: "hold-still" };
-    await view.rerender(feedback({}));
-    expect(screen.getByText("Hold steady")).toBeOnTheScreen();
+  });
+
+  it("keeps the current hint through brief framing changes", async () => {
+    const view = await render(feedback({}));
+    await show(view, { quad, progress: 0, guidance: "move-closer" });
+    await settle(600);
+    for (const guidance of ["hold-still", "straighten", "move-closer", "ready", "move-closer"] as const) {
+      await show(view, { quad, progress: 0, guidance });
+      await settle(300);
+      expect(screen.getByText("Move closer")).toBeOnTheScreen();
+    }
+    await show(view, null);
+    await settle(600);
+    expect(screen.queryByText("Move closer")).toBeNull();
+  });
+
+  it("suppresses a transient problem already present when detection starts", async () => {
+    mockFeedback = { quad, progress: 0, guidance: "move-closer" };
+    const view = await render(feedback({}));
+    expect(screen.queryByText("Move closer")).toBeNull();
+    await settle(300);
+    await show(view, null);
+    await settle(600);
+    expect(screen.queryByText("Move closer")).toBeNull();
+  });
+
+  it("never captions searching or a steady hold", async () => {
+    const view = await render(feedback({}));
+    for (const guidance of ["searching", "hold-still", "ready"] as const) {
+      await show(view, { quad, progress: 0.25, guidance });
+      await settle(600);
+      expect(screen.queryByText(/./)).toBeNull();
+    }
+  });
+
+  it("clears the hint as soon as detection stops", async () => {
+    const view = await render(feedback({}));
+    await show(view, { quad, progress: 0, guidance: "straighten" });
+    await settle(600);
     await view.rerender(feedback({ detecting: false }));
-    expect(screen.queryByText("Hold steady")).toBeNull();
+    expect(screen.queryByText("Face the artwork straight on")).toBeNull();
   });
 
   it("shows only the identifying caption while a capture is busy", async () => {
     mockFeedback = { quad, progress: 0, guidance: "move-closer" };
     await render(feedback({ busy: true }));
     expect(screen.getByText("Identifying artwork")).toBeOnTheScreen();
+    await settle(600);
     expect(screen.queryByText("Move closer")).toBeNull();
   });
 });
