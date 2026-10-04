@@ -94,6 +94,18 @@ it("rejects profanity and slurs, including leetspeak, joined words and underscor
   }
 });
 
+it("does not exempt abusive text just because it starts like an artwork title", () => {
+  for (const text of [
+    "Rape of Children",
+    "rape_of_children",
+    "I support rape of children",
+    "The Rape of Europa does not excuse rape of children",
+  ]) {
+    expect({ text, offensive: isOffensive(text) }).toEqual({ text, offensive: true });
+    expect(isAllowedIdentity(text)).toBe(false);
+  }
+});
+
 it("lets typed artwork titles use crude words but never slurs or the strongest swearing", () => {
   for (const title of [
     "Bitch",

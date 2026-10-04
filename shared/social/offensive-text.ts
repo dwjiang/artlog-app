@@ -76,7 +76,8 @@ const WHITELIST = [
   "ox and ass",
   "ox and the ass",
   "piss christ",
-  "rape of",
+  "rape of europa",
+  "rape of the sabine women",
   "whore of babylon",
 ];
 
