@@ -384,21 +384,24 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
   Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
   device and stay private until promoted. Sign in with Apple is optional and only syncs the
   collection between devices; an account is never required to scan, save or contribute.
-- **Crash and handled-error reports go to Sentry.** Reports include stack traces, device model,
-  OS and app version, operation names, route templates and diagnostic breadcrumbs. Console
-  output and request payloads are excluded; URLs, credentials and SQL parameters are redacted.
+- **Crash and handled-error reports from production go to Sentry.** Only the EAS production
+  environment (`EXPO_PUBLIC_SENTRY_DSN`) and the production Convex deployment (`SENTRY_DSN`) set a
+  DSN; leave both unset everywhere else so other builds and deployments send nothing. Reports
+  include stack traces, device model, OS and app version, operation names, route templates and
+  diagnostic breadcrumbs. Console output and request payloads are excluded; URLs, credentials and
+  SQL parameters are redacted.
   No photos, screenshots or location fixes are attached. An error also uploads a screen replay
   starting about a minute before it. Sentry masks text and images; camera previews,
   Skia canvases, maps and SwiftUI hosts showing personal data sit inside `Sentry.Mask`, so only
   fixed control labels stay readable. Traces time app start and screen loads; request spans keep
   only the host.
-  Backend actions send allowlisted error codes and code locations directly to Sentry. Configure
-  `SENTRY_DSN` and `SENTRY_ENVIRONMENT` on each Convex deployment (no Pro integration needed).
+  Backend actions send allowlisted error codes and code locations directly to Sentry (no Pro
+  integration needed).
   Backend reports omit raw error messages, function arguments and console output. Delivery
   is best-effort and bounded to 1.5 seconds; Convex logs remain the fallback. Direct query
   and mutation failures reach app Sentry with Convex's production redaction. Background mutation
   failures and hard timeouts remain in Convex logs; no follow-up monitoring jobs are scheduled.
-  Run `npx convex run observability:verify` on dev to check delivery.
+  Run `observability:verify` on production to check delivery.
 - **The collection is local-first**, in SQLite on the phone. Saved photos and crops back up privately to Cloudflare R2; collection rows reference Convex file metadata. Authenticated `/collection-photo` uploads and downloads check the caller's collection ownership. Cloud copies are JPEGs (up to 1,080 px wide for photos, 512 px for crops), without camera/location metadata. Linked devices download them for offline viewing; originals remain on the capturing phone. Retries are idempotent, and deletion removes stored files once no active collection copy references them.
 
 ## Development
