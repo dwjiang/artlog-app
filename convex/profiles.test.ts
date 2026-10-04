@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 
 import {
   validateLayout,
@@ -49,7 +49,7 @@ it("requires Apple linkage; signing in alone creates no profile or publication",
   const { t, account } = await fixture();
   const anonymous = await seedDevice(t);
   await expect(
-    anonymous.as.mutation(api.profiles.create, {
+    anonymous.as.action(api.profiles.create, {
       username: "reader",
       name: "Reader",
     }),
@@ -64,10 +64,10 @@ it("starts a new profile on the painting it brings, and rejects an unknown one",
   const { account } = await fixture();
   const owner = await account("carried-avatar");
   await expect(
-    owner.as.mutation(api.profiles.create, { username: "carried", name: "Carried", avatar: "retired-painting" }),
+    owner.as.action(api.profiles.create, { username: "carried", name: "Carried", avatar: "retired-painting" }),
   ).rejects.toMatchObject({ data: { code: "invalid_profile" } });
   expect(
-    await owner.as.mutation(api.profiles.create, { username: "carried", name: "Carried", avatar: "great-wave" }),
+    await owner.as.action(api.profiles.create, { username: "carried", name: "Carried", avatar: "great-wave" }),
   ).toMatchObject({ avatar: "great-wave" });
 });
 
@@ -75,7 +75,7 @@ it("persists a random starter color and design once when a profile is created", 
   const { t, account } = await fixture();
   const owner = await account("starter-wall");
   const input = { username: "starter_wall", name: "Starter" };
-  const profile = await owner.as.mutation(api.profiles.create, input);
+  const profile = await owner.as.action(api.profiles.create, input);
   const first = await owner.as.query(api.walls.getMine, {});
   expect(first.items).toEqual([]);
   expect(first.revision).toBe(0);
@@ -93,7 +93,7 @@ it("persists a random starter color and design once when a profile is created", 
     pattern: "grid",
     items: [],
   });
-  await owner.as.mutation(api.profiles.create, input);
+  await owner.as.action(api.profiles.create, input);
   expect(await owner.as.query(api.walls.getMine, {})).toMatchObject({ color: "#6C2F2B", pattern: "grid", revision: 1 });
   expect(
     await t.run((ctx) =>
@@ -111,7 +111,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
   const b = await account("b");
   const requests = await Promise.allSettled(
     [a, b].map((user) =>
-      user.as.mutation(api.profiles.create, {
+      user.as.action(api.profiles.create, {
         username: "same_reader",
         name: " Reader ",
       }),
@@ -122,7 +122,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
     reason: { data: { code: "username_taken" } },
   });
   const winner = requests[0].status === "fulfilled" ? a : b;
-  const again = await winner.as.mutation(api.profiles.create, {
+  const again = await winner.as.action(api.profiles.create, {
     username: "new_name",
     name: "Other",
   });
@@ -147,7 +147,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
 it("normalizes accents, case, and whitespace; paginates bounded public allowlists", async () => {
   const { t, account } = await fixture();
   const a = await account("a");
-  const profile = await a.as.mutation(api.profiles.create, {
+  const profile = await a.as.action(api.profiles.create, {
     username: "elodie_art",
     name: " Élodie  Martin ",
     bio: "Art",
@@ -179,7 +179,7 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
 it.each(["ab", "abc-d", "Abcd", "a.bcd", "élodie", "a".repeat(31)])("rejects invalid username %s", async (username) => {
   const { account } = await fixture();
   const user = await account("a");
-  await expect(user.as.mutation(api.profiles.create, { username, name: "Reader" })).rejects.toMatchObject({
+  await expect(user.as.action(api.profiles.create, { username, name: "Reader" })).rejects.toMatchObject({
     data: { code: "invalid_profile" },
   });
 });
@@ -189,24 +189,53 @@ it.each([
   { username: "artlog_support", name: "Reader" },
   { username: "reader", name: "N1gger" },
   { username: "reader", name: "Artlog Team" },
-  { username: "reader", name: "Reader", bio: "shit art only" },
-])("refuses a profile that is offensive or poses as staff: %o", async (input) => {
+])("refuses a name or username that is offensive or poses as staff: %o", async (input) => {
   const { account } = await fixture();
   const user = await account("a");
-  await expect(user.as.mutation(api.profiles.create, input)).rejects.toMatchObject({
+  await expect(user.as.action(api.profiles.create, input)).rejects.toMatchObject({
     data: { code: "profile_not_allowed" },
   });
-  const profile = await user.as.mutation(api.profiles.create, { username: "dick_van_dyke", name: "Dick Van Dyke" });
+  const profile = await user.as.action(api.profiles.create, { username: "dick_van_dyke", name: "Dick Van Dyke" });
   expect(profile).toMatchObject({ username: "dick_van_dyke" });
   await expect(
     user.as.mutation(internal.profilePhotoData.save, { profileId: profile.profileId, ...input }),
   ).rejects.toMatchObject({ data: { code: "profile_not_allowed" } });
 });
 
+it("lets OpenAI judge bios when creating and editing a profile, with the word list as fallback", async () => {
+  const { account } = await fixture();
+  const user = await account("a");
+  await expect(
+    user.as.action(api.profiles.create, { username: "reader", name: "Reader", bio: "shit art only" }),
+  ).rejects.toMatchObject({ data: { code: "profile_not_allowed" } });
+  vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+  const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+    const [bio] = JSON.parse(String(init?.body)).input as string[];
+    return Response.json({ results: [{ flagged: bio.includes("hate") }] });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    const hateful = "I hate people like you";
+    await expect(
+      user.as.action(api.profiles.create, { username: "reader", name: "Reader", bio: hateful }),
+    ).rejects.toMatchObject({ data: { code: "profile_not_allowed" } });
+    await user.as.action(api.profiles.create, { username: "reader", name: "Reader" });
+    await expect(user.as.action(api.profilePhotos.save, { name: "Reader", bio: hateful })).rejects.toMatchObject({
+      data: { code: "profile_not_allowed" },
+    });
+    const bio = "Writing about the vagina imagery in The Dinner Party";
+    await expect(user.as.action(api.profilePhotos.save, { name: "Reader", bio })).resolves.toMatchObject({ bio });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+
 it("deletion revokes profile and publication access immediately", async () => {
   const { t, account } = await fixture();
   const user = await account("a");
-  const profile = await user.as.mutation(api.profiles.create, {
+  const profile = await user.as.action(api.profiles.create, {
     username: "reader",
     name: "Reader",
   });
@@ -296,7 +325,7 @@ it("projects only permitted artwork fields, no artwork notes on shared cards, an
 it("invalidates reverse save references, consent and revisions while keeping the visit and empty post", async () => {
   const { t, account } = await fixture();
   const user = await account("a");
-  const profile = await user.as.mutation(api.profiles.create, {
+  const profile = await user.as.action(api.profiles.create, {
     username: "reader",
     name: "Reader",
   });
@@ -509,7 +538,7 @@ it("checks username availability for an account without reserving it", async () 
       username: "available_name",
     }),
   ).toBe(true);
-  await b.as.mutation(api.profiles.create, {
+  await b.as.action(api.profiles.create, {
     username: "available_name",
     name: "B",
   });
@@ -531,7 +560,7 @@ it("suggests the first free username for a display name without reserving it", a
   const a = await account("suggest-a");
   const b = await account("suggest-b");
   expect(await a.as.query(api.profiles.suggestUsername, { name: " Élodie Martin " })).toBe("elodie_martin");
-  await b.as.mutation(api.profiles.create, { username: "elodie_martin", name: "B" });
+  await b.as.action(api.profiles.create, { username: "elodie_martin", name: "B" });
   expect(await a.as.query(api.profiles.suggestUsername, { name: "Élodie Martin" })).toBe("elodie_martin_2");
   expect(await a.as.query(api.profiles.suggestUsername, { name: "张伟" })).toBeNull();
   expect(await a.as.query(api.profiles.suggestUsername, { name: "x".repeat(61) })).toBeNull();
@@ -543,15 +572,15 @@ it("lists incoming requests only, removing accepted and blocked connections", as
   const a = await account("requests-a");
   const b = await account("requests-b");
   const c = await account("requests-c");
-  const pa = await a.as.mutation(api.profiles.create, {
+  const pa = await a.as.action(api.profiles.create, {
     name: "A",
     username: "requests_a",
   });
-  const pb = await b.as.mutation(api.profiles.create, {
+  const pb = await b.as.action(api.profiles.create, {
     name: "B",
     username: "requests_b",
   });
-  const pc = await c.as.mutation(api.profiles.create, {
+  const pc = await c.as.action(api.profiles.create, {
     name: "C",
     username: "requests_c",
   });
@@ -630,11 +659,11 @@ it("embeds the viewer’s relationship in browse lists and leaves guests without
   const { t, account } = await fixture();
   const a = await account("browse-a");
   const b = await account("browse-b");
-  const pa = await a.as.mutation(api.profiles.create, {
+  const pa = await a.as.action(api.profiles.create, {
     name: "A",
     username: "browse_a",
   });
-  const pb = await b.as.mutation(api.profiles.create, {
+  const pb = await b.as.action(api.profiles.create, {
     name: "B",
     username: "browse_b",
   });

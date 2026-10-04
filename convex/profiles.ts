@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
@@ -6,16 +6,44 @@ import { isAvatarId } from "../shared/social/avatars";
 import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
 import { randomWallStyle } from "../shared/wall/defaults";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
-import { mutation } from "./functions";
+import { action, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { acceptedRelationships, blockedEitherWay, findBlock } from "./lib/friendships";
+import { requireAllowedBio } from "./lib/moderation";
+import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
 
-export const create = mutation({
-  // `avatar` carries over the painting someone already had as a guest.
-  args: { username: v.string(), name: v.string(), bio: v.optional(v.string()), avatar: v.optional(v.string()) },
+// `avatar` carries over the painting someone already had as a guest.
+const createArgs = {
+  username: v.string(),
+  name: v.string(),
+  bio: v.optional(v.string()),
+  avatar: v.optional(v.string()),
+};
+export const create = action({
+  args: createArgs,
+  returns: publicProfile,
+  handler: (ctx, input): Promise<Infer<typeof publicProfile>> =>
+    withErrorReporting("profiles.create", async () => {
+      validateProfile(input);
+      await ctx.runQuery(internal.profiles.requireSignedIn, {});
+      await requireAllowedBio(input.bio);
+      return ctx.runMutation(internal.profiles.insert, input);
+    }),
+});
+export const requireSignedIn = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireAccount(ctx);
+    return null;
+  },
+});
+export const insert = internalMutation({
+  args: createArgs,
   returns: publicProfile,
   handler: async (ctx, input) => {
     const { accountId } = await requireAccount(ctx);

@@ -10,14 +10,14 @@ export type ThirdPartyNotices = {
   texts: string[];
 };
 
-const UPDATED = "October 2, 2026";
+const UPDATED = "October 4, 2026";
 const EMAIL = "danieljiang1999@gmail.com";
 const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Send feedback in Artlog.`;
 
 // Every statement here describes current app and backend behavior; update it with any change to what leaves the phone.
 const privacy: LegalDocument = {
   title: "Privacy Policy",
-  updated: "October 3, 2026",
+  updated: "October 4, 2026",
   intro: [
     "This policy explains what Artlog collects, how it’s used and shared, and the choices you have. Artlog is made by Daniel Jiang (“we”, “us”).",
     "Artlog doesn’t show ads, sell your information or track you across other companies’ apps and websites.",
@@ -88,7 +88,7 @@ const privacy: LegalDocument = {
       heading: "Service providers",
       paragraphs: [
         "These providers run parts of Artlog for us and use your information only to provide their service:",
-        "Convex hosts Artlog’s servers and database. Cloudflare stores backed-up photos, profile photos, shared index crops, fingerprints and audio. Pinecone searches artwork fingerprints. Nebius runs the AI models that read label text and write guides. Tavily searches the web for artwork information. OpenAI turns guides into narration and helps analyze crash reports. Sentry receives crash reports, and GitHub runs the job that analyzes them. Apple provides Sign in with Apple, App Attest and Maps search. Google provides Google sign-in.",
+        "Convex hosts Artlog’s servers and database. Cloudflare stores backed-up photos, profile photos, shared index crops, fingerprints and audio. Pinecone searches artwork fingerprints. Nebius runs the AI models that read label text and write guides. Tavily searches the web for artwork information. OpenAI turns guides into narration, checks the comments, reflections, notes and profile bios you share for harmful content, and helps analyze crash reports. Sentry receives crash reports, and GitHub runs the job that analyzes them. Apple provides Sign in with Apple, App Attest and Maps search. Google provides Google sign-in.",
         "To look up artworks, our servers also send label details such as the title and artist, but nothing about you, to Wikidata, Wikipedia, Wikimedia Commons, the Art Institute of Chicago and museum websites. The app also loads artwork images and information directly from museums, Wikimedia and other public sources, which see your iPhone’s IP address as any website would.",
         "We may disclose information when the law requires it or to protect Artlog and its users. If Artlog changes ownership, this policy continues to apply to your information.",
       ],
@@ -172,6 +172,7 @@ const terms: LegalDocument = {
     {
       heading: "Acceptable use",
       paragraphs: [
+        "We don’t tolerate objectionable content or abusive users. Artlog automatically checks the comments, reflections, notes, artwork details and profiles you share, and won’t post or show content it finds offensive.",
         "Don’t use Artlog to break the law or a museum’s photography rules; to post content that harasses, threatens or demeans others, or is sexually explicit, violent or hateful; to share other people’s private information, or photos of them without their permission; to impersonate anyone; to post spam; or to infringe anyone’s rights.",
         "Don’t interfere with Artlog: no scraping, overloading, probing for vulnerabilities, getting around limits, or accessing accounts or data that aren’t yours.",
       ],
@@ -179,7 +180,7 @@ const terms: LegalDocument = {
     {
       heading: "Reports and moderation",
       paragraphs: [
-        "You can report people, posts and AI-generated content in the app. We may review, hide or remove content, and suspend or end accounts that break these terms.",
+        "You can report people, posts, comments and AI-generated content in the app, and block anyone. We review reports within 24 hours and remove content that breaks these terms. We may also suspend or end the accounts that posted it.",
       ],
     },
     {

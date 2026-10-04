@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid } from "../shared/journal/limits";
@@ -6,13 +6,15 @@ import { publicProfile } from "../shared/social/contracts";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalAction, query, type QueryCtx } from "./_generated/server";
+import { action, internalAction, query, type QueryCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
+import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { optionalProfile, requireProfile } from "./lib/ownership";
-import { projectProfile } from "./lib/projections";
+import { projectProfile, recordTitles } from "./lib/projections";
 import { requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
+import { publicationItems } from "./lib/sharedPublications";
 import {
   changeCommentLikes,
   changeEngagement,
@@ -172,27 +174,57 @@ export const listComments = query({
   },
 });
 
-export const addComment = mutation({
-  args: { postId: v.string(), body: v.string(), requestId: v.string() },
+const commentInput = v.object({ postId: v.string(), body: v.string(), requestId: v.string() });
+async function readCommentRequest(ctx: QueryCtx, input: Infer<typeof commentInput>) {
+  const { profile, accountId } = await requireProfile(ctx);
+  const { publication } = await requireSharedVisit(ctx, input.postId, profile._id);
+  const body = input.body.trim();
+  if (!body || body.length > MAX_COMMENT_LENGTH || !isUuid(input.requestId)) {
+    throw new ConvexError({ code: "invalid_comment" });
+  }
+  const existing = await ctx.db
+    .query("visitComments")
+    .withIndex("by_profile_request", (q) => q.eq("profileId", profile._id).eq("requestId", input.requestId))
+    .unique();
+  if (existing && (existing.publicationId !== publication._id || existing.body !== body)) {
+    throw new ConvexError({ code: "invalid_comment" });
+  }
+  return { profile, accountId, publication, body, existing };
+}
+export const addComment = action({
+  args: commentInput.fields,
+  returns: v.id("visitComments"),
+  handler: (ctx, input): Promise<Id<"visitComments">> =>
+    withErrorReporting("visitReactions.addComment", async () => {
+      const { commentId, titles } = await ctx.runMutation(internal.visitReactions.prepareComment, input);
+      if (commentId) return commentId;
+      const [flagged] = await flaggedUserTexts([input.body], titles);
+      if (flagged) throw new ConvexError({ code: "comment_not_allowed" });
+      return ctx.runMutation(internal.visitReactions.insertComment, input);
+    }),
+});
+export const prepareComment = internalMutation({
+  args: commentInput.fields,
+  returns: v.object({ commentId: v.union(v.id("visitComments"), v.null()), titles: v.array(v.string()) }),
+  handler: async (ctx, input) => {
+    const { publication, accountId, existing } = await readCommentRequest(ctx, input);
+    if (existing) return { commentId: existing._id, titles: [] };
+    // Commit the attempt before moderation, so rejected text also consumes the quota.
+    await limitKey(ctx, "commentVisit", accountId);
+    const saves = [];
+    for (const item of await publicationItems(ctx, publication._id)) {
+      const save = await ctx.db.get("collections", item.saveId);
+      if (save) saves.push(save);
+    }
+    return { commentId: null, titles: await recordTitles(ctx, saves) };
+  },
+});
+export const insertComment = internalMutation({
+  args: commentInput.fields,
   returns: v.id("visitComments"),
   handler: async (ctx, input) => {
-    const { profile, accountId } = await requireProfile(ctx);
-    const { publication } = await requireSharedVisit(ctx, input.postId, profile._id);
-    const body = input.body.trim();
-    if (!body || body.length > MAX_COMMENT_LENGTH || !isUuid(input.requestId)) {
-      throw new ConvexError({ code: "invalid_comment" });
-    }
-    const existing = await ctx.db
-      .query("visitComments")
-      .withIndex("by_profile_request", (q) => q.eq("profileId", profile._id).eq("requestId", input.requestId))
-      .unique();
-    if (existing) {
-      if (existing.publicationId !== publication._id || existing.body !== body) {
-        throw new ConvexError({ code: "invalid_comment" });
-      }
-      return existing._id;
-    }
-    await limitKey(ctx, "commentVisit", accountId);
+    const { profile, publication, body, existing } = await readCommentRequest(ctx, input);
+    if (existing) return existing._id;
     const id = await ctx.db.insert("visitComments", {
       publicationId: publication._id,
       profileId: profile._id,

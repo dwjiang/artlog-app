@@ -1,4 +1,4 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useRouter } from "expo-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
@@ -19,7 +19,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
-import { isAllowedIdentity } from "@/shared/social/profile-text";
+import { isAllowedIdentity } from "@/shared/social/offensive-text";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
@@ -40,7 +40,7 @@ export function ProfileSetupScreen({
 }) {
   const router = useRouter();
   const session = useSocialSession();
-  const create = useMutation(api.profiles.create);
+  const create = useAction(api.profiles.create);
   const saveProfile = useAction(api.profilePhotos.save);
   const [step, setStep] = useState(0);
   const [name, setName] = useState(suggestedName.slice(0, LIMITS.name));

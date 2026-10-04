@@ -9,9 +9,11 @@ import { Gallery } from "@/constants/theme";
 import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
+import { ERROR_MESSAGES } from "@/shared/social/errors";
 import { WALL_FRAMES as wallFrames } from "@/shared/wall/frames";
 
 import { ArtworkQueryState } from "./artwork-query-state";
@@ -96,7 +98,11 @@ function WallDisplay({ work }: { work: SavedWork }) {
       await wall.repository.publishNotes();
     } catch (cause) {
       reportError(cause, "wall.notes.publish");
-      wall.setError("This note could not be shared. Refresh to review the latest synced note and try again.");
+      wall.setError(
+        convexErrorCode(cause) === "note_not_allowed"
+          ? ERROR_MESSAGES.note_not_allowed
+          : "This note could not be shared. Refresh to review the latest synced note and try again.",
+      );
     }
   }
   return (

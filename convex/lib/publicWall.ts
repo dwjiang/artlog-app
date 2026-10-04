@@ -5,7 +5,7 @@ import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
-import { projectWallArtwork } from "./projections";
+import { matchesRecord, projectWallArtwork } from "./projections";
 import { requirePublicWallItem } from "./publicationAccess";
 
 export async function activeWallItems(ctx: QueryCtx, wall: Doc<"walls"> | null) {
@@ -20,7 +20,12 @@ export async function activeWallItems(ctx: QueryCtx, wall: Doc<"walls"> | null) 
 export async function publicWallProjection(ctx: QueryCtx, item: Doc<"wallItems">) {
   try {
     const current = await requirePublicWallItem(ctx, item._id);
-    const projection = projectWallArtwork(current.item, current.save, await resolveDisplayAsset(ctx, current.save));
+    const projection = projectWallArtwork(
+      current.item,
+      current.save,
+      await resolveDisplayAsset(ctx, current.save),
+      await matchesRecord(ctx, current.save),
+    );
     if (item.photoLocalId) {
       projection.artwork.media = await selectedPhotoMedia(ctx, current.save, item.photoLocalId, {
         kind: "wallItem",

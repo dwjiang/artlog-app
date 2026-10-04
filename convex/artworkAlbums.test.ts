@@ -130,7 +130,7 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
     `/display-media?kind=wallItem&itemId=${wall.items[0].itemId}&photoLocalId=${photoId}`;
   expect((await t.fetch(url(photos[0].localId))).status).toBe(200);
   expect((await t.fetch(url(photos[2].localId))).status).toBe(404);
-  const published = await owner.as.mutation(api.sharedVisits.publish, {
+  const published = await owner.as.action(api.sharedVisits.publish, {
     ...first.selection,
     photoSelections: [
       {
@@ -176,7 +176,7 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
       },
     ],
   });
-  await owner.as.mutation(api.walls.setNoteVisibility, {
+  await owner.as.action(api.walls.setNoteVisibility, {
     scope: owner.scope,
     changes: [{ itemId: wall.items[0].itemId, noteRevision: 0, visible: true }],
   });

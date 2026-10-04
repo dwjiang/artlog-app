@@ -1,5 +1,5 @@
 import { BottomSheet, RNHostView } from "@expo/ui";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { setStringAsync } from "expo-clipboard";
 import { randomUUID } from "expo-crypto";
@@ -171,7 +171,7 @@ function Comments({
     commentId,
   );
   const viewer = useSocialQuery(api.profiles.mine, session.status === "ready" ? {} : "skip", session.key);
-  const addComment = useMutation(api.visitReactions.addComment);
+  const addComment = useAction(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
   const setCommentLike = useMutation(api.visitReactions.setCommentLike);
   const blocking = useBlock(session);

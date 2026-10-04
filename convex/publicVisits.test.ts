@@ -14,7 +14,7 @@ it("exposes only published visits and revokes detail, artwork, and media access 
   const publicVisit = await socialVisit(t, author);
   await setVisitVisibility(t, author, privateVisit.visit._id, "private");
   const media = await socialDerivative(t, author, publicVisit.saves[0].id);
-  const published = await author.as.mutation(api.sharedVisits.publish, {
+  const published = await author.as.action(api.sharedVisits.publish, {
     ...publicVisit.selection,
     audience: "public",
   });
@@ -52,7 +52,7 @@ it("paginates public visits with tied dates, filters blocked authors, and honors
   const ids: string[] = [];
   for (let i = 0; i < 3; i++) {
     const draft = await socialVisit(t, author);
-    const state = await author.as.mutation(api.sharedVisits.publish, {
+    const state = await author.as.action(api.sharedVisits.publish, {
       ...draft.selection,
       audience: "public",
     });
@@ -84,7 +84,7 @@ it("paginates public visits with tied dates, filters blocked authors, and honors
     ).toEqual({ page: [], cursor: null, isDone: true });
   }
   const draft = await socialVisit(t, author);
-  const state = await author.as.mutation(api.sharedVisits.publish, {
+  const state = await author.as.action(api.sharedVisits.publish, {
     ...draft.selection,
     audience: "public",
   });
