@@ -75,6 +75,39 @@ describe("anonymous installation credentials", () => {
     expect(await t.run((ctx) => ctx.db.query("devices").collect())).toHaveLength(1);
   });
 
+  it("signs the same secret in as a new device after its owner deletes their data", async () => {
+    vi.useFakeTimers();
+    const t = harness();
+    const first = await authenticate(t);
+    const { deviceId } = await first.as.mutation(api.devices.registerDevice, { platform: "ios" });
+    await first.as.mutation(internal.devices.markAttested, {
+      deviceId,
+      keyId: "install-key",
+      publicKeySpkiBase64: "verified-key",
+      counter: 0,
+    });
+
+    await first.as.mutation(api.accounts.deleteAccount, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect((await t.action(api.auth.signIn, { refreshToken: first.tokens.refreshToken })).tokens).toBeNull();
+    const renewed = await authenticate(t);
+    expect(renewed.userId).not.toBe(first.userId);
+    const registration = await renewed.as.mutation(api.devices.registerDevice, { platform: "ios" });
+    expect(registration.deviceId).not.toBe(deviceId);
+    // The retired row gives up its App Attest key, so the new device can attest without a conflict.
+    await renewed.as.mutation(internal.devices.markAttested, {
+      deviceId: registration.deviceId,
+      keyId: "install-key",
+      publicKeySpkiBase64: "verified-key",
+      counter: 0,
+    });
+    expect(await t.run((ctx) => ctx.db.query("authSessions").collect())).toEqual([
+      expect.objectContaining({ userId: renewed.userId }),
+    ]);
+    vi.useRealTimers();
+  });
+
   it("deduplicates concurrent sign-ins and stores only a hash of the credential", async () => {
     const t = harness();
     const [first, second] = await Promise.all([authenticate(t), authenticate(t)]);

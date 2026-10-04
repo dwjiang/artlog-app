@@ -3,6 +3,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef } from "expo-image-manipulator";
 
 import type { CropContentBounds } from "../../../modules/vision-rect/src";
+import { PHOTO_FOLDERS } from "./photo-folders";
 import { removeFileIfExists } from "./remove-file";
 
 export type CaptureFiles = { photoPath: string; cropPath: string };
@@ -37,13 +38,13 @@ export function scanPreviewPath(cropPath: string): string {
 }
 
 export async function persistArtworkPhoto(uri: string, localId: string): Promise<string> {
-  return moveInto("artwork-photos", uri, localId);
+  return moveInto(PHOTO_FOLDERS.artwork, uri, localId);
 }
 
 export async function copyArtworkPhoto(uri: string, localId: string): Promise<string> {
-  const directory = new Directory(Paths.document, "artwork-photos");
+  const directory = new Directory(Paths.document, PHOTO_FOLDERS.artwork);
   directory.create({ intermediates: true, idempotent: true });
-  const path = `artwork-photos/${localId}${extension(uri)}`;
+  const path = `${PHOTO_FOLDERS.artwork}/${localId}${extension(uri)}`;
   await new File(uri).copy(new File(captureFileUri(path)));
   return path;
 }
@@ -68,8 +69,8 @@ export async function persistCapture({
       format: SaveFormat.JPEG,
       compress: 1,
     });
-    const photoPath = await moveInto("photos", photoUri, localId);
-    const cropPath = await moveInto("crops", cropUri, localId);
+    const photoPath = await moveInto(PHOTO_FOLDERS.capture, photoUri, localId);
+    const cropPath = await moveInto(PHOTO_FOLDERS.crop, cropUri, localId);
     await new File(preview.uri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
     return { photoPath, cropPath };
   } finally {
@@ -80,7 +81,7 @@ export async function persistCapture({
 
 /** Keeps a label photo captured offline beside the scan until the queue reads it. */
 export async function persistLabelPhoto({ photoUri, localId }: { photoUri: string; localId: string }): Promise<string> {
-  return moveInto("labels", photoUri, `${localId}-${randomUUID()}`);
+  return moveInto(PHOTO_FOLDERS.label, photoUri, `${localId}-${randomUUID()}`);
 }
 
 export function deleteCapture(paths: CapturePaths): void {

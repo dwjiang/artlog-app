@@ -26,23 +26,54 @@ export function AccountSection() {
       setOperation(undefined);
     }
   }
+  const confirmDelete = (title: string, message: string, action: string) =>
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: action,
+        style: "destructive",
+        onPress: () => {
+          void disconnect(true);
+        },
+      },
+    ]);
   const session = useSocialSession();
   const profileRequired = session.status === "profile-required";
   const status = error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
   // Offline, the account query never resolves; keep the sign-in row instead of an endless indicator.
   if (!account?.linked) {
     return (
-      <GroupedSection footer={status}>
-        {(account === undefined && !session.offline) || busy ? (
-          <ValueRow label="Account" loading />
-        ) : (
-          <ActionRow
-            label="Sign in to Artlog"
-            icon="person.crop.circle"
-            onPress={() => router.push(signInRoute("account"))}
-          />
+      <>
+        <GroupedSection footer={status}>
+          {(account === undefined && !session.offline) || (busy && operation !== "delete") ? (
+            <ValueRow label="Account" loading />
+          ) : (
+            <ActionRow
+              label="Sign in to Artlog"
+              icon="person.crop.circle"
+              disabled={busy}
+              onPress={() => router.push(signInRoute("account"))}
+            />
+          )}
+        </GroupedSection>
+        {(account || operation === "delete") && (
+          <GroupedButtons>
+            <OutlinedListButton
+              label="Delete my data"
+              busy={operation === "delete"}
+              destructive
+              disabled={busy}
+              onPress={() =>
+                confirmDelete(
+                  "Delete your data?",
+                  "Your collection, visits and photos will be erased from this iPhone and from Artlog. This can’t be undone.",
+                  "Delete",
+                )
+              }
+            />
+          </GroupedButtons>
         )}
-      </GroupedSection>
+      </>
     );
   }
   return (
@@ -89,16 +120,11 @@ export function AccountSection() {
           destructive
           disabled={busy}
           onPress={() =>
-            Alert.alert("Delete account?", "This disconnects all your devices. Saved works stay on each phone.", [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete account",
-                style: "destructive",
-                onPress: () => {
-                  void disconnect(true);
-                },
-              },
-            ])
+            confirmDelete(
+              "Delete account?",
+              "Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out. This can’t be undone.",
+              "Delete account",
+            )
           }
         />
       </GroupedButtons>

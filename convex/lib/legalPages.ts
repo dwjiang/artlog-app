@@ -10,7 +10,7 @@ export type ThirdPartyNotices = {
   texts: string[];
 };
 
-const UPDATED = "October 2, 2026";
+const UPDATED = "October 3, 2026";
 const EMAIL = "danieljiang1999@gmail.com";
 const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Send feedback in Artlog.`;
 
@@ -46,7 +46,7 @@ const privacy: LegalDocument = {
     {
       heading: "Helping other visitors",
       paragraphs: [
-        "Saving an artwork confirmed from its wall label contributes the label’s details, the artwork’s numeric fingerprint and a small crop of your photo, at most 256 pixels wide, to a shared index. The crop may be shown to other visitors as the artwork’s thumbnail. Contributions don’t show who made them, and they stay in the index after you delete your account.",
+        "Saving an artwork confirmed from its wall label contributes the label’s details, the artwork’s numeric fingerprint and a small crop of your photo, at most 256 pixels wide, to a shared index. The crop may be shown to other visitors as the artwork’s thumbnail. Contributions don’t show who made them. When you delete your data, the crop is deleted; the label’s details and the fingerprint stay in the index, no longer linked to you.",
       ],
     },
     {
@@ -96,15 +96,15 @@ const privacy: LegalDocument = {
     {
       heading: "How long we keep information",
       paragraphs: [
-        "We keep your collection backup until you delete your account or ask us to delete your anonymous backup. Records of deleted artworks remain in the backup, including their artwork details, private notes and visit information, and continue to sync across your devices. Deleting your account also removes your profile and posts.",
+        "We keep your collection backup until you delete your data. Records of deleted artworks remain in the backup, including their artwork details, private notes and visit information, and continue to sync across your devices. Deleting your account also removes your profile and posts.",
         "Scan fingerprints are deleted after 180 days unless they’ve been added to the shared index, and notifications after 30 days. We keep scan results, reports, feedback and shared index contributions to run and improve Artlog. Sentry keeps crash reports for a limited time.",
       ],
     },
     {
       heading: "Deleting your information",
       paragraphs: [
-        "Deleting an artwork or photo removes the affected backed-up photo files. The artwork records described above remain. To delete your account, open Settings → Account → Delete account. This deletes your profile, friends, posts, wall, likes, comments, notifications and the collection backed up with your account.",
-        "Shared index contributions and scan results remain, no longer linked to your account, and reports and feedback you sent are kept without your name. Information on your iPhone stays until you delete the app. To delete the backup of an iPhone used without an account, contact us.",
+        "Deleting an artwork or photo removes the affected backed-up photo files. The artwork records described above remain. To delete your account, open Settings → Account → Delete account. This deletes your profile, friends, posts, wall, likes, comments, notifications and the collection backed up with your account, and signs out your other devices. Without an account, open Settings → Your collection → Delete my data to delete this iPhone’s backup.",
+        "Either way, Artlog also erases its data on this iPhone and deletes the photo crops you added to the shared index. Their label details and fingerprints, and your scan results, remain without any link to you, and reports and feedback you sent are kept without your name. Artlog data on your other devices stays until you delete the app there.",
       ],
     },
     {
@@ -166,7 +166,7 @@ const terms: LegalDocument = {
     {
       heading: "Shared index contributions",
       paragraphs: [
-        "Saving an artwork confirmed from its wall label adds the label’s details, a numeric fingerprint and a small crop of your photo to a shared index that helps others identify the same work. You give us a perpetual, irrevocable, worldwide, royalty-free license to use, store, modify and display these contributions in Artlog, including after you delete your account.",
+        "Saving an artwork confirmed from its wall label adds the label’s details, a numeric fingerprint and a small crop of your photo to a shared index that helps others identify the same work. You give us a perpetual, irrevocable, worldwide, royalty-free license to use, store, modify and display these contributions in Artlog. When you delete your data, we delete your photo crops; the license continues for the label details and fingerprints.",
       ],
     },
     {

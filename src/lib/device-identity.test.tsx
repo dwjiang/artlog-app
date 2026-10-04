@@ -1,8 +1,11 @@
 import { act, renderHook } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 import * as React from "react";
 
 const mockAuth = { isAuthenticated: false, isLoading: true };
 const mockSignIn = jest.fn();
+const mockSignOut = jest.fn();
+let mockRevoked: boolean | undefined;
 const mockRegister = jest.fn();
 const mockChallenge = jest.fn();
 const mockAttest = jest.fn();
@@ -19,12 +22,13 @@ const mockAppAttest = {
 };
 
 jest.mock("@convex-dev/auth/react", () => ({
-  useAuthActions: () => ({ signIn: mockSignIn }),
+  useAuthActions: () => ({ signIn: mockSignIn, signOut: mockSignOut }),
 }));
 jest.mock("convex/react", () => ({
   useConvexAuth: () => mockAuth,
   useMutation: (ref: string) => (ref === "register" ? mockRegister : mockChallenge),
   useAction: () => mockAttest,
+  useQuery: (_ref: string, args: unknown) => (args === "skip" ? undefined : mockRevoked),
 }));
 jest.mock("../../convex/_generated/api", () => ({
   api: {
@@ -32,6 +36,7 @@ jest.mock("../../convex/_generated/api", () => ({
       registerDevice: "register",
       createChallenge: "challenge",
       attestDevice: "attest",
+      sessionRevoked: "sessionRevoked",
     },
   },
 }));
@@ -55,7 +60,8 @@ jest.mock("@/lib/observability", () => ({
   addBreadcrumb: jest.fn(),
 }));
 
-let useDeviceIdentity: typeof import("./device-identity").useDeviceIdentity;
+let identity: typeof import("./device-identity");
+let useDeviceIdentity: typeof identity.useDeviceIdentity;
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -63,7 +69,9 @@ beforeEach(() => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
   mockAuth.isAuthenticated = false;
   mockAuth.isLoading = true;
+  mockRevoked = false;
   mockSignIn.mockResolvedValue({ signingIn: true });
+  mockSignOut.mockResolvedValue(undefined);
   mockStorage.clear();
   mockGetItem.mockImplementation(async (key: string) => mockStorage.get(key) ?? null);
   mockSetItem.mockImplementation(async (key: string, value: string) => {
@@ -85,7 +93,8 @@ beforeEach(() => {
   // Each isolated module represents a fresh process; remounts within a test share its promises.
   jest.isolateModules(() => {
     jest.doMock("react", () => React);
-    ({ useDeviceIdentity } = jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+    identity = jest.requireActual<typeof import("./device-identity")>("./device-identity");
+    ({ useDeviceIdentity } = identity);
   });
 });
 
@@ -115,6 +124,36 @@ it("waits for stored auth, signs in anonymously, and registers once across remou
   await first.unmount();
   await renderHook(useDeviceIdentity);
   expect(mockRegister).toHaveBeenCalledTimes(1);
+});
+
+it("signs a session revoked by data deletion out, then signs the installation in again", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockRevoked = true;
+  mockRegister.mockRejectedValue(new ConvexError({ code: "session_revoked" }));
+  const view = await renderHook(useDeviceIdentity);
+  expect(mockSignOut).toHaveBeenCalledTimes(1);
+
+  mockAuth.isAuthenticated = false;
+  mockRevoked = undefined;
+  await view.rerender(undefined);
+  expect(mockSignIn).toHaveBeenCalledWith("anonymous", { secret: "a1".repeat(32) });
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("holds sign-in while the installation is erased, then signs in with a new secret", async () => {
+  mockAuth.isLoading = false;
+  mockStorage.set("deviceAuthSecret", "a1".repeat(32));
+  mockStorage.set("appAttestKeyId", "old-key");
+  identity.suspendDeviceIdentity();
+  await renderHook(useDeviceIdentity);
+  expect(mockSignIn).not.toHaveBeenCalled();
+
+  await identity.forgetDeviceIdentity();
+  mockRandomBytes.mockResolvedValue(new Uint8Array(32).fill(0xb2));
+  await act(() => identity.resumeDeviceIdentity());
+  expect(mockStorage.has("appAttestKeyId")).toBe(false);
+  expect(mockSignIn).toHaveBeenCalledWith("anonymous", { secret: "b2".repeat(32) });
 });
 
 it("restores an existing session and passes the saved attestation key without signing in again", async () => {
@@ -327,7 +366,8 @@ it("recovers after a process exits between native attestation and server registr
   const first = await renderHook(useDeviceIdentity);
   await first.unmount();
   jest.isolateModules(() => {
-    ({ useDeviceIdentity } = jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+    identity = jest.requireActual<typeof import("./device-identity")>("./device-identity");
+    ({ useDeviceIdentity } = identity);
   });
   await renderHook(useDeviceIdentity);
   expect(mockAttest).toHaveBeenCalledTimes(2);
@@ -381,7 +421,8 @@ it("reuses the installation credential after session expiry and a process restar
 
   mockAuth.isAuthenticated = false;
   jest.isolateModules(() => {
-    ({ useDeviceIdentity } = jest.requireActual<typeof import("./device-identity")>("./device-identity"));
+    identity = jest.requireActual<typeof import("./device-identity")>("./device-identity");
+    ({ useDeviceIdentity } = identity);
   });
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).toHaveBeenCalledTimes(2);

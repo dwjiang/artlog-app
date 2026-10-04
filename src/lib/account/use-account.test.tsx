@@ -17,6 +17,11 @@ const mockAvailable = jest.fn();
 const mockReportError = jest.fn();
 const mockBreadcrumb = jest.fn();
 const mockClearImages = jest.fn();
+const mockErase = jest.fn();
+const mockSuspend = jest.fn();
+const mockResumeIdentity = jest.fn();
+const mockDismissAll = jest.fn();
+const mockNavigate = jest.fn();
 let mockAccount: {
   linked: boolean;
   deviceCount: number;
@@ -55,6 +60,12 @@ jest.mock("@/lib/attested-write", () => ({
 }));
 jest.mock("@/lib/device-identity", () => ({
   signInAnonymously: (signIn: unknown) => mockAnonymous(signIn),
+  suspendDeviceIdentity: () => mockSuspend(),
+  resumeDeviceIdentity: () => mockResumeIdentity(),
+}));
+jest.mock("./erase-local-data", () => ({ eraseLocalData: () => mockErase() }));
+jest.mock("expo-router", () => ({
+  router: { dismissAll: () => mockDismissAll(), navigate: (href: string) => mockNavigate(href) },
 }));
 jest.mock("./collection-sync", () => ({
   completeJournalClaim: (account: unknown) => mockClaim(account),
@@ -268,12 +279,26 @@ it("leaves the session intact when unlink fails", async () => {
   expect(result.current.error).toContain("try again");
 });
 
-it("deletes the account before restoring the anonymous device identity", async () => {
+it("deletes on the server, then erases this iPhone while identity setup waits, and returns home", async () => {
   const { result } = await renderHook(useAccount);
   await act(() => result.current.deleteAccount());
+  const order = [mockSuspend, mockMutation, mockEndSession, mockErase, mockResumeIdentity, mockDismissAll].map(
+    (mock) => mock.mock.invocationCallOrder[0],
+  );
+  expect(order).toEqual([...order].sort((a, b) => a - b));
   expect(mockMutation).toHaveBeenCalledWith("accounts:deleteAccount", {});
-  expect(mockClearImages).toHaveBeenCalledTimes(1);
-  expect(mockAnonymous).toHaveBeenCalledWith(mockSignIn);
+  expect(mockNavigate).toHaveBeenCalledWith("/");
+  expect(result.current.error).toBeUndefined();
+});
+
+it("keeps this iPhone's data and resumes identity setup when the server deletion fails", async () => {
+  mockMutation.mockRejectedValueOnce(new Error("offline"));
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.deleteAccount());
+  expect(mockErase).not.toHaveBeenCalled();
+  expect(mockResumeIdentity).toHaveBeenCalledTimes(1);
+  expect(mockDismissAll).not.toHaveBeenCalled();
+  expect(result.current.error).toContain("try again");
 });
 
 it("finishes an interrupted claim before disconnecting the account", async () => {

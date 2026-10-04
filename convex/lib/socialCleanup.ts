@@ -1,3 +1,4 @@
+import type { JournalOwner } from "../../shared/journal/contracts";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { deleteUnreferencedPhoto } from "./collectionPhotos";
@@ -14,27 +15,7 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
     for (const row of scores) await ctx.db.delete("leaderboardScores", row._id);
     return true;
   }
-  const owner = { kind: "account" as const, accountId };
-  const reports = await ctx.db
-    .query("reports")
-    .withIndex("by_reporter_target_status", (q) => q.eq("reporter", owner))
-    .take(BATCH);
-  if (reports.length > 0) {
-    for (const report of reports) {
-      await ctx.db.patch("reports", report._id, { reporter: undefined });
-    }
-    return true;
-  }
-  const feedback = await ctx.db
-    .query("appFeedback")
-    .withIndex("by_owner", (q) => q.eq("owner", owner))
-    .take(BATCH);
-  if (feedback.length > 0) {
-    for (const row of feedback) {
-      await ctx.db.patch("appFeedback", row._id, { owner: undefined });
-    }
-    return true;
-  }
+  if (await clearAttributionBatch(ctx, { kind: "account", accountId })) return true;
   const profile = await ctx.db
     .query("profiles")
     .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
@@ -185,6 +166,28 @@ export async function purgeSocialBatch(ctx: MutationCtx, accountId: Id<"accounts
   await ctx.db.delete("profiles", profile._id);
   return true;
 }
+// Reports and feedback stay for review without saying who sent them.
+export async function clearAttributionBatch(ctx: MutationCtx, owner: JournalOwner): Promise<boolean> {
+  const reports = await ctx.db
+    .query("reports")
+    .withIndex("by_reporter_target_status", (q) => q.eq("reporter", owner))
+    .take(BATCH);
+  if (reports.length > 0) {
+    for (const report of reports) {
+      await ctx.db.patch("reports", report._id, { reporter: undefined });
+    }
+    return true;
+  }
+  const feedback = await ctx.db
+    .query("appFeedback")
+    .withIndex("by_owner", (q) => q.eq("owner", owner))
+    .take(BATCH);
+  for (const row of feedback) {
+    await ctx.db.patch("appFeedback", row._id, { owner: undefined });
+  }
+  return feedback.length > 0;
+}
+
 // True when a full batch was removed and more rows may remain.
 export async function purgeSaveMediaBatch(ctx: MutationCtx, saveId: Id<"collections">): Promise<boolean> {
   const photos = await ctx.db

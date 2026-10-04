@@ -16,6 +16,14 @@ export function getInstallationId(): string {
   return installationId;
 }
 
+/** Continues as a fresh install: keychain items under the previous id are no longer read. */
+export function startNewInstallation(): string {
+  const id = randomUUID();
+  new File(Paths.document, "installation-id").write(id);
+  installationId = id;
+  return id;
+}
+
 function storageKey(key: string): string {
   return `${getInstallationId()}.${key}`;
 }

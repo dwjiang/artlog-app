@@ -2,18 +2,20 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import { setSetting } from "@/db/repos/settings";
 import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
-import { signInAnonymously } from "@/lib/device-identity";
+import { resumeDeviceIdentity, signInAnonymously, suspendDeviceIdentity } from "@/lib/device-identity";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from "./collection-sync";
+import { eraseLocalData } from "./erase-local-data";
 import { googleSignIn, googleSignInAvailable } from "./google-sign-in";
 import { anonymousOwner, switchOwner } from "./owner-store";
 import { offerProfileSetup } from "./profile-setup-offer";
@@ -106,15 +108,31 @@ export function useAccount() {
       await linkIdentity("google", credential.user, credential.name);
     });
 
-  const disconnect = (remove: boolean) =>
-    perform(remove ? "auth.delete_account" : "auth.sign_out", async () => {
+  const signOut = () =>
+    perform("auth.sign_out", async () => {
       if (account?.accountId) await completeJournalClaim(account);
-      await convex.mutation(remove ? api.accounts.deleteAccount : api.accounts.unlink, {});
+      await convex.mutation(api.accounts.unlink, {});
       switchOwner(anonymousOwner());
       await setSetting("activeJournalOwner", anonymousOwner());
       await endSession();
       await Image.clearMemoryCache();
       await signInAnonymously(signIn);
+    });
+
+  // Guests and accounts alike: the server forgets this identity, then the phone continues as a fresh install.
+  const deleteAccount = () =>
+    perform("auth.delete_account", async () => {
+      if (account?.accountId) await completeJournalClaim(account);
+      suspendDeviceIdentity();
+      try {
+        await convex.mutation(api.accounts.deleteAccount, {});
+        await endSession();
+        await eraseLocalData();
+      } finally {
+        resumeDeviceIdentity();
+      }
+      router.dismissAll();
+      router.navigate("/");
     });
 
   return {
@@ -126,7 +144,7 @@ export function useAccount() {
     ready,
     signInWithApple,
     signInWithGoogle,
-    signOut: () => disconnect(false),
-    deleteAccount: () => disconnect(true),
+    signOut,
+    deleteAccount,
   };
 }

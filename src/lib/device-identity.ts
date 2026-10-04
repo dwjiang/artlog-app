@@ -1,10 +1,10 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useAction, useConvexAuth, useMutation, type ReactAction, type ReactMutation } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery, type ReactAction, type ReactMutation } from "convex/react";
 import * as Device from "expo-device";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { APP_ATTEST_KEY_ID, getAppAttest } from "@/lib/app-attest";
-import { getDeviceAuthSecret } from "@/lib/device-credentials";
+import { forgetDeviceAuthSecret, getDeviceAuthSecret } from "@/lib/device-credentials";
 import { installationStorage } from "@/lib/installation-storage";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 
@@ -90,7 +90,8 @@ function errorCode(error: unknown): string | undefined {
 
 function canRetrySetup(error: unknown): boolean {
   const code = errorCode(error);
-  if (requiresNewKey(code)) return false;
+  // A revoked session is replaced by signing in again, not by retrying registration with it.
+  if (requiresNewKey(code) || code === "session_revoked") return false;
   // DeviceCheck configuration/key failures need investigation, not an endless loop of new keys.
   return !code?.startsWith("ERR_APP_INTEGRITY_") || code === "ERR_APP_INTEGRITY_SERVER_UNAVAILABLE";
 }
@@ -108,21 +109,56 @@ export function signInAnonymously(signIn: ReturnType<typeof useAuthActions>["sig
   return signInInFlight;
 }
 
+// Erasing the installation holds identity setup so the retired secret is not signed straight back in.
+let suspended = false;
+const suspensionListeners = new Set<() => void>();
+
+function setSuspended(value: boolean): void {
+  suspended = value;
+  for (const listener of suspensionListeners) listener();
+}
+
+export const suspendDeviceIdentity = () => setSuspended(true);
+export const resumeDeviceIdentity = () => setSuspended(false);
+
+function useSuspended(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      suspensionListeners.add(listener);
+      return () => suspensionListeners.delete(listener);
+    },
+    () => suspended,
+  );
+}
+
+/** The next sign-in creates a new secret and App Attest key, as on a fresh install. */
+export async function forgetDeviceIdentity(): Promise<void> {
+  pendingAttestation = null;
+  await installationStorage.removeItem(APP_ATTEST_KEY_ID);
+  await forgetDeviceAuthSecret();
+}
+
 export function useDeviceIdentity(): void {
   const [attempt, setAttempt] = useState(0);
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signIn } = useAuthActions();
+  const { signIn, signOut } = useAuthActions();
   const registerDevice = useMutation(api.devices.registerDevice);
   const createChallenge = useMutation(api.devices.createChallenge);
   const attestDevice = useAction(api.devices.attestDevice);
+  const paused = useSuspended();
+  // Data deletion on any of the account's phones retires this device's user while its token is still valid.
+  const revoked = useQuery(api.devices.sessionRevoked, isAuthenticated ? {} : "skip") === true;
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || paused) return;
     let pending: Promise<unknown>;
     if (!isAuthenticated) {
       registration = null;
       pendingAttestation = null;
       pending = signInAnonymously(signIn);
+    } else if (revoked) {
+      registration = null;
+      pending = signOut();
     } else {
       registration ??= registerAndAttest({
         registerDevice,
@@ -138,7 +174,7 @@ export function useDeviceIdentity(): void {
     let active = true;
     let retry: ReturnType<typeof setTimeout> | undefined;
     void pending.catch((error: unknown) => {
-      if (!active) return;
+      if (!active || errorCode(error) === "session_revoked") return;
       console.warn("Device identity setup failed", error);
       const retrying = canRetrySetup(error);
       reportError(error, isAuthenticated ? "auth.device_registration" : "auth.anonymous_sign_in", {
@@ -151,7 +187,18 @@ export function useDeviceIdentity(): void {
       active = false;
       clearTimeout(retry);
     };
-  }, [isAuthenticated, isLoading, signIn, registerDevice, createChallenge, attestDevice, attempt]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    paused,
+    revoked,
+    signIn,
+    signOut,
+    registerDevice,
+    createChallenge,
+    attestDevice,
+    attempt,
+  ]);
 }
 
 export function DeviceIdentity(): null {

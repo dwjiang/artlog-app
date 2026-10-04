@@ -1,8 +1,9 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, internalQuery, query, type MutationCtx, env } from "./_generated/server";
+import { action, internalQuery, query, type MutationCtx, type QueryCtx, env } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
 import { findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -31,6 +32,13 @@ function isAttested(device: Doc<"devices">, keyId?: string): boolean {
   return keyId === undefined || keyId === device.appAttestKeyId;
 }
 
+// A retired user's token stays valid until it expires; the phone must sign in again as a new device.
+async function requireLiveUser(ctx: QueryCtx): Promise<Id<"users">> {
+  const userId = await requireAuthUserId(ctx);
+  if (!(await ctx.db.get("users", userId))) throw new ConvexError({ code: "session_revoked" });
+  return userId;
+}
+
 export const registerDevice = mutation({
   args: { platform: devicePlatform, appAttestKeyId: v.optional(v.string()) },
   returns: v.object({
@@ -39,7 +47,7 @@ export const registerDevice = mutation({
     attestRequired: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const userId = await requireLiveUser(ctx);
     await limitKey(ctx, "registerDevice", userId);
     const existing = await findDeviceForUser(ctx, userId);
     if (existing) {
@@ -92,6 +100,16 @@ export const me = query({
       attested: isAttested(device),
       trustWeight: device.trustWeight,
     };
+  },
+});
+
+// Never throws: several screens read it during the moment between data deletion and signing in again.
+export const sessionRevoked = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    return userId !== null && !(await ctx.db.get("users", userId));
   },
 });
 
