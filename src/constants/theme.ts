@@ -1,4 +1,4 @@
-import { Platform, type TextStyle } from "react-native";
+import { Platform, StyleSheet, type TextStyle } from "react-native";
 
 import { WALL_COLORS } from "@/shared/wall/defaults";
 
@@ -110,6 +110,11 @@ export const SettingsOutline = {
   borderWidth: 0.5,
   borderColor: Gallery.separator,
   borderRadius: Radius.card,
+} as const;
+
+export const PinnedFooterBorder = {
+  borderTopWidth: StyleSheet.hairlineWidth,
+  borderTopColor: Gallery.separator,
 } as const;
 
 export const NavigationTheme = {

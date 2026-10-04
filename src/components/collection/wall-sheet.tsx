@@ -11,7 +11,7 @@ import { ScrollView, View } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
-import { Gallery } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 
 import { GalleryButton } from "./gallery-button";
@@ -46,6 +46,7 @@ export function WallSheet({
 }) {
   const fitted = useFittedSheetHeight({ scrollAll });
   const fit = size === "fit";
+  const pinned = !fit || !scrollAll;
   const heading = (
     <View onLayout={fitted.onHeaderLayout}>
       {header ?? (
@@ -58,7 +59,11 @@ export function WallSheet({
       )}
     </View>
   );
-  const actions = footer && <View onLayout={fitted.onFooterLayout}>{footer}</View>;
+  const actions = footer && (
+    <View onLayout={fitted.onFooterLayout} style={pinned && PinnedFooterBorder}>
+      {footer}
+    </View>
+  );
   return (
     <Host style={{ position: "absolute" }} pointerEvents="none">
       <BottomSheet
@@ -80,7 +85,7 @@ export function WallSheet({
           {/* Presented content needs its own React Native touch and measurement root. */}
           <RNHostView>
             <View style={{ height: fit ? fitted.height : fitted.maxHeight }}>
-              {(!fit || !scrollAll) && heading}
+              {pinned && heading}
               {fit ? (
                 <ScrollView
                   accessibilityLabel={title}
@@ -95,7 +100,7 @@ export function WallSheet({
               ) : (
                 children
               )}
-              {(!fit || !scrollAll) && actions}
+              {pinned && actions}
               <ToastLayer offset={0} />
             </View>
           </RNHostView>

@@ -8,7 +8,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cropSyncing } from "@/lib/account/photo-sync";
@@ -366,8 +366,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.content,
     paddingTop: Spacing.two,
     gap: Spacing.two,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Gallery.separator,
+    ...PinnedFooterBorder,
   },
   selectionRow: {
     flexDirection: "row",

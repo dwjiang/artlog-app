@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Dimensions, Linking } from "react-native";
 
 import { removeSetting } from "@/db/repos/settings";
 import { setMeasurementUnits } from "@/lib/settings/measurement-units";
@@ -142,6 +142,24 @@ describe("the location prompt", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Search for another museum" }));
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: seeded.name })).toBeOnTheScreen();
+  });
+
+  it("pins Continue and the search below a long museum list, and scrolls them with it at accessibility text sizes", async () => {
+    const window = Dimensions.get("window");
+    mockView.options = Array.from({ length: 12 }, (_, index) => ({ ...neighbour, name: `Gallery ${index + 1}` }));
+    try {
+      Dimensions.set({ window: { ...window, fontScale: 1 } });
+      await render(<VenuePickerSheet />);
+      const list = () => within(screen.getByLabelText("Nearby museums"));
+      expect(list().getByRole("radio", { name: "Gallery 12" })).toBeOnTheScreen();
+      expect(list().queryByRole("button", { name: "Continue" })).toBeNull();
+      expect(list().queryByRole("button", { name: "Search for another museum" })).toBeNull();
+      await act(() => Dimensions.set({ window: { ...window, fontScale: 3.12 } }));
+      expect(list().getByRole("button", { name: "Continue" })).toBeOnTheScreen();
+      expect(list().getByRole("button", { name: "Search for another museum" })).toBeOnTheScreen();
+    } finally {
+      Dimensions.set({ window });
+    }
   });
 });
 

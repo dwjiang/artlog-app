@@ -11,7 +11,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
 import { useCapturePhotos } from "@/components/scan/capture-photos-button";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } from "@/lib/result/snapshot";
@@ -281,8 +281,7 @@ const styles = StyleSheet.create({
   about: { gap: Spacing.three },
   save: {
     paddingHorizontal: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Gallery.separator,
+    ...PinnedFooterBorder,
     backgroundColor: Gallery.paper,
   },
 });
