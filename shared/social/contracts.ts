@@ -269,7 +269,7 @@ export function validateSearch(query: string): string {
   const normalized = normalizeSearch(query);
   if (
     query.length > LIMITS.searchMax
-    || normalized.length < LIMITS.searchMin
+    || !normalized
     || normalized.length > LIMITS.searchMax
     || normalized.split(" ").length > 16
   ) {

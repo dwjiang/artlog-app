@@ -8,7 +8,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
-import { Gallery, Typography } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
 import { visitDate } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
 import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/types";
@@ -16,60 +16,6 @@ import type { PublicProfile, SharedArtwork, SharedVisit } from "@/lib/social/typ
 import { ProfileAvatar } from "./profile-avatar";
 import { socialStyles } from "./social-styles";
 import { VisitReactions } from "./visit-reactions";
-
-export function ProfileIdentity({
-  profile,
-  interactive = true,
-  showChevron = false,
-  friend = false,
-  detail,
-}: {
-  profile: PublicProfile;
-  interactive?: boolean;
-  showChevron?: boolean;
-  friend?: boolean;
-  /** Replaces the @username line, for example with why a person is suggested. */
-  detail?: ReactNode;
-}) {
-  const router = useRouter();
-  const content = (
-    <>
-      <ProfileAvatar
-        name={profile.name}
-        photoUrl={profile.photoUrl}
-        avatar={profile.avatar}
-        size={showChevron ? 64 : 44}
-      />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[styles.name, showChevron && { fontSize: 24, lineHeight: 28 }]}>{profile.name}</Text>
-        {detail ?? <Text style={socialStyles.caption}>@{profile.username}</Text>}
-      </View>
-      {friend && <Text style={{ color: Gallery.accent, fontSize: 13 }}>✓ Friends</Text>}
-      {showChevron && (
-        <Text style={{ color: Gallery.muted }} accessible={false}>
-          ›
-        </Text>
-      )}
-    </>
-  );
-  return interactive ? (
-    <MotionPressable
-      accessibilityRole="button"
-      accessibilityLabel={`View ${profile.name}’s profile`}
-      onPress={() =>
-        router.push({
-          pathname: "/profile/[profileId]",
-          params: { profileId: profile.profileId },
-        })
-      }
-      style={styles.identity}
-    >
-      {content}
-    </MotionPressable>
-  ) : (
-    <View style={styles.identity}>{content}</View>
-  );
-}
 
 const GAP = 8;
 const MIN_HEIGHT = 100;
@@ -388,13 +334,6 @@ const styles = StyleSheet.create({
   },
   feedDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
   notes: { fontSize: 14, lineHeight: 21, color: Gallery.ink },
-  identity: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minHeight: 44,
-  },
-  name: { ...Typography.secondary, fontWeight: "600", color: Gallery.ink },
   strip: {
     flexDirection: "row",
     alignItems: "center",

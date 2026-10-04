@@ -153,6 +153,15 @@ it("opens the likes list from the compact summary and dismisses it", async () =>
   expect(screen.queryByText("@jules")).toBeNull();
 });
 
+it("closes the likes sheet before opening a liker’s profile", async () => {
+  mockComments = [{ profileId: "friend", name: "Jules Morgan", username: "jules" }];
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "See who liked this visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "View Jules Morgan’s profile" }));
+  expect(screen.queryByText("@jules")).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "friend" } });
+});
+
 it("previews the newest comment under the visit and opens the sheet from it", async () => {
   mockSummary = {
     ...mockSummary,

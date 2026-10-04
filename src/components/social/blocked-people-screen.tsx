@@ -3,15 +3,16 @@ import { FlatList, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
+import { Gallery, Spacing } from "@/constants/theme";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
 import { api } from "../../../convex/_generated/api";
+import { ProfileRow } from "./profile-row";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
-import { ProfileIdentity } from "./visit-card";
 
 const blockedPage = (result: FunctionReturnType<typeof api.friendships.listBlocked>) => result;
 const profileId = (person: PublicProfile) => person.profileId;
@@ -29,23 +30,28 @@ export function BlockedPeopleScreen() {
   if (session.status !== "ready") return <SocialGate session={session} />;
   return (
     <FlatList
-      style={socialStyles.root}
-      contentContainerStyle={socialStyles.content}
+      style={styles.page}
+      contentContainerStyle={[socialStyles.content, styles.content]}
       contentInsetAdjustmentBehavior="automatic"
       data={blocked.items}
       keyExtractor={profileId}
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <ProfileIdentity profile={item} interactive={false} />
-          </View>
-          <GalleryButton
-            label="Unblock"
-            accessibilityLabel={`Unblock ${item.name}`}
-            variant="outlined"
-            busy={blocking.pending === item.profileId}
-            disabled={blocking.pending !== undefined}
-            onPress={() => blocking.unblock(item, item.blockRevision)}
+      renderItem={({ item, index }) => (
+        <View style={styles.inset}>
+          <ProfileRow
+            profile={item}
+            interactive={false}
+            first={index === 0}
+            last={index === blocked.items.length - 1}
+            trailing={
+              <GalleryButton
+                label="Unblock"
+                accessibilityLabel={`Unblock ${item.name}`}
+                variant="outlined"
+                busy={blocking.pending === item.profileId}
+                disabled={blocking.pending !== undefined}
+                onPress={() => blocking.unblock(item, item.blockRevision)}
+              />
+            }
           />
         </View>
       )}
@@ -54,7 +60,9 @@ export function BlockedPeopleScreen() {
           <EmptyState title="No blocked people." detail="To block someone, tap ⋯ on their profile." />
         ) : null
       }
-      ListFooterComponent={<PageFooter {...blocked} count={blocked.items.length} noun="blocked people" />}
+      ListFooterComponent={
+        <PageFooter {...blocked} count={blocked.items.length} noun="blocked people" skeleton="card" />
+      }
       onEndReached={blocked.loadMore}
       onEndReachedThreshold={0.4}
     />
@@ -62,5 +70,7 @@ export function BlockedPeopleScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  page: { flex: 1, backgroundColor: Gallery.groupedBackground },
+  content: { paddingTop: Spacing.three },
+  inset: { paddingHorizontal: Spacing.content },
 });

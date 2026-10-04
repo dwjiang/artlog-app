@@ -8,7 +8,7 @@ export type Page<T> = { page: T[]; cursor: string | null; isDone: boolean };
 
 export function searchTerm(query = ""): string | null {
   const term = normalizeSearch(query);
-  return term && (term.length < LIMITS.searchMin || term.length > LIMITS.searchMax) ? null : term;
+  return term.length > LIMITS.searchMax ? null : term;
 }
 
 export function matchesSearch(fields: (string | null | undefined)[], term: string): boolean {

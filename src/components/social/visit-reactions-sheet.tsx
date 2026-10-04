@@ -29,6 +29,7 @@ import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileRow } from "./profile-row";
 import { ReactionIcon } from "./reaction-icon";
 import { PageFooter } from "./social-state";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
@@ -68,16 +69,17 @@ export function VisitReactionsSheet({
   const [sheetHeight, setSheetHeight] = useState<number>();
   const [headingHeight, setHeadingHeight] = useState(0);
   const listSpace = sheetHeight === undefined ? undefined : sheetHeight - headingHeight;
+  const background = kind === "likes" ? Gallery.groupedBackground : Gallery.paper;
   return (
     <BottomSheet
       isPresented
       onDismiss={onDismiss}
       snapPoints={[{ fraction: 0.78 }, "full"]}
-      containerColor={Gallery.paper}
+      containerColor={background}
       contentPadding={{ top: 16, left: 0, right: 0, bottom: 0 }}
     >
       <RNHostView onLayout={(event) => setSheetHeight(event.nativeEvent.layout.height)}>
-        <View style={styles.sheet}>
+        <View style={{ backgroundColor: background }}>
           <View style={styles.heading} onLayout={(event) => setHeadingHeight(event.nativeEvent.layout.height)}>
             <View style={{ width: 44 }} />
             <Text accessibilityRole="header" style={styles.title}>
@@ -111,7 +113,6 @@ function Likes({
   height?: number;
   onDismiss: () => void;
 }) {
-  const router = useRouter();
   const likes = useCursorPages(api.visitReactions.listLikes, { postId }, session.key, likesPage, profileId);
   return (
     <SheetList
@@ -119,30 +120,15 @@ function Likes({
       itemKey={profileId}
       height={height}
       onEndReached={likes.loadMore}
-      renderItem={(item) => (
-        <MotionPressable
-          accessibilityRole="button"
-          accessibilityLabel={`View ${item.name}’s profile`}
-          style={styles.person}
-          onPress={() => {
-            onDismiss();
-            router.push({
-              pathname: "/profile/[profileId]",
-              params: { profileId: item.profileId },
-            });
-          }}
-        >
-          <ProfileAvatar name={item.name} photoUrl={item.photoUrl} avatar={item.avatar} size={40} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>@{item.username}</Text>
-          </View>
-        </MotionPressable>
+      renderItem={(item, index) => (
+        <View style={styles.person}>
+          <ProfileRow profile={item} first={index === 0} last={index === likes.items.length - 1} onOpen={onDismiss} />
+        </View>
       )}
       empty={likes.done && !likes.loading && !likes.error ? <Empty title="No likes yet." /> : null}
       footer={
         !likes.done || likes.loading || likes.error ? (
-          <PageFooter {...likes} count={likes.items.length} noun="likes" />
+          <PageFooter {...likes} count={likes.items.length} noun="likes" skeleton="card" />
         ) : null
       }
     />
@@ -498,7 +484,7 @@ function SheetList<T>({
 }: {
   items: T[];
   itemKey: (item: T) => string;
-  renderItem: (item: T) => ReactNode;
+  renderItem: (item: T, index: number) => ReactNode;
   empty: ReactNode;
   footer: ReactNode;
   height?: number;
@@ -523,7 +509,9 @@ function SheetList<T>({
         if (height !== undefined && nearEnd(height, 0, content)) onEndReached();
       }}
     >
-      {items.length === 0 ? empty : items.map((item) => <Fragment key={itemKey(item)}>{renderItem(item)}</Fragment>)}
+      {items.length === 0
+        ? empty
+        : items.map((item, index) => <Fragment key={itemKey(item)}>{renderItem(item, index)}</Fragment>)}
       {footer}
     </ScrollView>
   );
@@ -538,7 +526,6 @@ function Empty({ title }: { title: string }) {
 }
 
 const styles = StyleSheet.create({
-  sheet: { backgroundColor: Gallery.paper },
   heading: {
     flexDirection: "row",
     alignItems: "center",
@@ -554,15 +541,7 @@ const styles = StyleSheet.create({
   },
   total: { color: Gallery.muted, fontWeight: "400", fontSize: 13 },
   // These lists ignore contentContainerStyle inside the native sheet's RN host, so each row carries the inset.
-  person: {
-    marginHorizontal: 20,
-    minHeight: 69,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.softBorder,
-  },
+  person: { marginHorizontal: 20 },
   comment: { flexDirection: "row", alignItems: "flex-start", paddingLeft: 20, paddingRight: 8 },
   commentContent: { flex: 1, flexDirection: "row", gap: 10, paddingVertical: 8 },
   byline: {

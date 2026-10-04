@@ -26,3 +26,15 @@ it("shows a museum thumbnail only when the server hotlinked one", async () => {
   ]);
   expect(screen.queryByLabelText("Museum image of Haystacks")).toBeNull();
 });
+
+it("announces the pick being saved and blocks every row meanwhile", async () => {
+  const onPick = jest.fn();
+  await render(<RunnerUps candidates={[bridge, haystacks]} onPick={onPick} busyObjectId={haystacks.objectId} />);
+  const saving = screen.getByRole("button", { name: "Haystacks, Claude Monet, 12% confidence" });
+  expect(saving).toBeBusy();
+  expect(saving).toBeDisabled();
+  const other = screen.getByRole("button", { name: /^The Japanese Footbridge/ });
+  expect(other).not.toBeBusy();
+  await fireEvent.press(other);
+  expect(onPick).not.toHaveBeenCalled();
+});

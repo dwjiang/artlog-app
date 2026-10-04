@@ -1,15 +1,16 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SearchEmptyState } from "@/components/empty-state";
+import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { peopleSearch } from "@/lib/social/presentation";
 import type { BrowsedProfile, PublicProfile } from "@/lib/social/types";
@@ -22,11 +23,11 @@ import { LIMITS } from "@/shared/journal/limits";
 import { api } from "../../../convex/_generated/api";
 import { FriendsInvitation } from "./friends-invitation";
 import { CompactFriendshipControls } from "./friendship-controls";
+import { ProfileRow } from "./profile-row";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { SuggestionList } from "./suggested-people";
-import { ProfileIdentity } from "./visit-card";
 
 const searchPage = (result: { page: BrowsedProfile[]; cursor: string | null; isDone: boolean }) => result;
 const profileId = (profile: PublicProfile) => profile.profileId;
@@ -84,6 +85,24 @@ export function PeopleScreen() {
   // Browse pages embed the viewer's relationship per row; a row only opens its own subscription when a page lacks it.
   const relationship = (person: BrowsedProfile, refresh: () => void) =>
     person.relationship ? { data: person.relationship, refresh } : undefined;
+  const rows = guestFriends
+    ? []
+    : filter === "friends"
+      ? (friends.data ?? []).filter(
+          (person) =>
+            !text.trim() || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase()),
+        )
+      : searching
+        ? results.items
+        : !text.trim()
+          ? newest
+          : [];
+  const listTitle =
+    filter === "friends" && friends.data?.length
+      ? `Your friends ${friends.data.length}`
+      : exploring && newest.length > 0 && listedAbove.size > 0
+        ? "New on Artlog"
+        : undefined;
   const list = useRef<FlatList<BrowsedProfile>>(null);
   const room = usePaneRoom(list);
   usePaneSwitch(filter, () => room);
@@ -103,70 +122,45 @@ export function PeopleScreen() {
       )}
       <FlatList
         ref={list}
-        style={socialStyles.root}
+        style={styles.page}
         contentContainerStyle={[socialStyles.content, { minHeight: room.minHeight }]}
         contentInsetAdjustmentBehavior="automatic"
         onLayout={room.onLayout}
         onScroll={room.onScroll}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        data={
-          guestFriends
-            ? []
-            : filter === "friends"
-              ? (friends.data ?? []).filter(
-                  (person) =>
-                    !text.trim()
-                    || `${person.name} ${person.username}`.toLowerCase().includes(text.trim().toLowerCase()),
-                )
-              : searching
-                ? results.items
-                : !text.trim()
-                  ? newest
-                  : []
-        }
+        data={rows}
         keyExtractor={profileId}
-        renderItem={({ item }: { item: BrowsedProfile }) => (
-          <View
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <ProfileIdentity profile={item} />
-            </View>
-            <CompactFriendshipControls
-              onChanged={changed}
-              profileId={item.profileId}
-              session={session}
-              relationship={relationship(item, people.refresh)}
-              friend={
-                filter === "friends"
-                || item.relationship?.state === "accepted"
-                || friends.data?.some((friend) => friend.profileId === item.profileId)
+        renderItem={({ item, index }) => (
+          <View style={styles.inset}>
+            <ProfileRow
+              profile={item}
+              query={text}
+              first={index === 0}
+              last={index === rows.length - 1}
+              trailing={
+                <CompactFriendshipControls
+                  onChanged={changed}
+                  profileId={item.profileId}
+                  session={session}
+                  relationship={relationship(item, people.refresh)}
+                  friend={
+                    filter === "friends"
+                    || item.relationship?.state === "accepted"
+                    || friends.data?.some((friend) => friend.profileId === item.profileId)
+                  }
+                />
               }
             />
           </View>
         )}
         ListHeaderComponent={
           <>
-            <View
-              style={{
-                paddingHorizontal: 20,
-                paddingTop: 4,
-                paddingBottom: 12,
-                gap: 12,
-              }}
-            >
+            <View style={styles.header}>
               <Text variant="pageTitle" accessibilityRole="header">
                 Friends
               </Text>
               <SearchField
-                filled
                 label="Name or username"
                 value={text}
                 onChange={setText}
@@ -174,9 +168,9 @@ export function PeopleScreen() {
                 showLabel={false}
                 editable={filter === "all" || session.status === "ready"}
               />
-              {/* Requests and the friend count below the switch belong to one filter each. */}
               <View onLayout={room.onHeaderLayout}>
                 <NativeSegmentedPicker
+                  grouped
                   label="Friends filter"
                   value={filter}
                   onChange={setFilter}
@@ -186,67 +180,47 @@ export function PeopleScreen() {
                   ]}
                 />
               </View>
-              {exploring && !!requests.data?.length && (
-                <View style={{ gap: 10, paddingTop: 12 }}>
-                  <Text variant="section" accessibilityRole="header">
-                    Requests
-                  </Text>
-                  {requests.data.map((person) => (
-                    <View
-                      key={person.profileId}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <ProfileIdentity profile={person} />
-                      </View>
-                      <CompactFriendshipControls
-                        onChanged={changed}
-                        profileId={person.profileId}
-                        session={session}
-                        relationship={relationship(person, requests.refresh)}
-                        declinable
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-              {filter === "friends" && !!friends.data?.length && (
-                <Text variant="section">
-                  Your friends <Text style={{ color: Gallery.muted }}>{friends.data.length}</Text>
-                </Text>
-              )}
               {exploring && requests.error && (
                 <GalleryButton label="Retry friend requests" onPress={requests.refresh} />
               )}
             </View>
+            {/* Requests and the friend count below the switch belong to one filter each. */}
+            {exploring && !!requests.data?.length && (
+              <View style={styles.section}>
+                <ListSection title="Requests">
+                  {requests.data.map((person, index, all) => (
+                    <ProfileRow
+                      key={person.profileId}
+                      profile={person}
+                      first={index === 0}
+                      last={index === all.length - 1}
+                      trailing={
+                        <CompactFriendshipControls
+                          onChanged={changed}
+                          profileId={person.profileId}
+                          session={session}
+                          relationship={relationship(person, requests.refresh)}
+                          declinable
+                        />
+                      }
+                    />
+                  ))}
+                </ListSection>
+              </View>
+            )}
             {exploring && (
               <SuggestionList
+                grouped
                 people={suggestions.people}
                 session={session}
                 onDismiss={suggestions.dismiss}
                 refresh={suggestions.refresh}
               />
             )}
-            {exploring && newest.length > 0 && listedAbove.size > 0 && (
-              <Text variant="section" accessibilityRole="header" style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-                New on Artlog
-              </Text>
-            )}
+            {/* The list's rows, skeleton, or empty state follow as FlatList parts, so this holds only their heading. */}
+            <View style={styles.section}>{listTitle && <ListSection title={listTitle}>{null}</ListSection>}</View>
           </>
         }
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              height: 0.5,
-              marginHorizontal: 24,
-              backgroundColor: Gallery.separator,
-            }}
-          />
-        )}
         ListEmptyComponent={
           guestFriends ? (
             <FriendsInvitation onExplore={explore} />
@@ -254,7 +228,9 @@ export function PeopleScreen() {
             session.status !== "ready" ? (
               <SocialGate session={session} />
             ) : friends.loading && !friends.error ? (
-              <ListSkeleton label="Opening friends…" avatar />
+              <View style={styles.inset}>
+                <ListSkeleton card label="Opening friends…" avatar />
+              </View>
             ) : friends.error ? (
               <SocialState title="Couldn’t load your friends." action="Try again" onAction={friends.refresh} />
             ) : emptyFriends ? (
@@ -294,10 +270,12 @@ export function PeopleScreen() {
             <SocialState
               title="Check your search."
               icon="person.2"
-              detail={`Search by name or username. Use ${LIMITS.searchMin}–${LIMITS.searchMax} characters and up to 16 words.`}
+              detail={`Search by name or username. Use up to ${LIMITS.searchMax} characters and 16 words.`}
             />
           ) : text !== debounced ? (
-            <ListSkeleton label="Searching…" avatar />
+            <View style={styles.inset}>
+              <ListSkeleton card label="Searching…" avatar />
+            </View>
           ) : results.done && !results.loading && !results.error ? (
             <SearchEmptyState
               title="No friends found."
@@ -309,14 +287,14 @@ export function PeopleScreen() {
         ListFooterComponent={
           filter === "all" ? (
             searching ? (
-              <PageFooter {...results} count={results.items.length} noun="friends" />
+              <PageFooter {...results} count={results.items.length} noun="friends" skeleton="card" />
             ) : !text.trim() ? (
               discovery.done && !discovery.error ? (
                 discovery.items.length > 0 ? (
                   <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text>
                 ) : null
               ) : (
-                <PageFooter {...discovery} count={discovery.items.length} noun="friends" />
+                <PageFooter {...discovery} count={discovery.items.length} noun="friends" skeleton="card" />
               )
             ) : null
           ) : null
@@ -329,3 +307,10 @@ export function PeopleScreen() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: Gallery.groupedBackground },
+  header: { paddingHorizontal: Spacing.content, paddingTop: Spacing.one, gap: Spacing.compact },
+  section: { paddingHorizontal: Spacing.content, paddingTop: Spacing.four },
+  inset: { paddingHorizontal: Spacing.content },
+});

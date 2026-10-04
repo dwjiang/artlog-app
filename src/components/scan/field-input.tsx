@@ -92,7 +92,6 @@ export function FieldInput({
       placeholder={placeholder}
       editable={editable}
       autoCapitalize={autoCapitalize}
-      autoCorrect={false}
       multiline
       maxLength={maxLength}
       numberOfLines={numberOfLines}

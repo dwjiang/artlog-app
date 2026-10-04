@@ -45,7 +45,7 @@ export function initials(name: string): string {
 export function peopleSearch(value: string): string | undefined {
   const normalized = normalizeSearch(value);
   return value.length <= LIMITS.searchMax
-    && normalized.length >= LIMITS.searchMin
+    && !!normalized
     && normalized.length <= LIMITS.searchMax
     && normalized.split(" ").length <= 16
     ? normalized
