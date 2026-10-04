@@ -168,17 +168,20 @@ describe("choosing a museum", () => {
     await setMeasurementUnits("imperial");
     mockView.options = [seeded, { ...poi, distanceM: 3218.688 }];
     await render(<VenuePickerSheet />);
-    expect(await screen.findByText("140 ft · nearest")).toBeOnTheScreen();
-    expect(screen.getByText("2.0 mi · landmark")).toBeOnTheScreen();
+    expect(await screen.findByText("140 ft")).toBeOnTheScreen();
+    expect(screen.getByText("2.0 mi")).toBeOnTheScreen();
     await act(() => setMeasurementUnits("metric"));
-    expect(screen.getByText("40 m · nearest")).toBeOnTheScreen();
-    expect(screen.getByText("3.2 km · landmark")).toBeOnTheScreen();
+    expect(screen.getByText("40 m")).toBeOnTheScreen();
+    expect(screen.getByText("3.2 km")).toBeOnTheScreen();
+    expect(screen.getByText("Nearest")).toBeOnTheScreen();
+    expect(screen.getByText("landmark")).toBeOnTheScreen();
   });
 
   it("lists nearby museums and confirms the tapped museum", async () => {
     await render(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByText("40 m · nearest")).toBeOnTheScreen();
+    expect(screen.getByText("40 m")).toBeOnTheScreen();
+    expect(screen.getByText("Nearest")).toBeOnTheScreen();
     expect(screen.getByText("310 m")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
     expect(mockConfirm).toHaveBeenCalledWith(seeded, expect.any(AbortSignal));
@@ -240,7 +243,7 @@ describe("choosing a museum", () => {
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
     expect(screen.getAllByText(seeded.name)).toHaveLength(1);
     expect(screen.getByRole("button", { name: seeded.name })).toBeOnTheScreen();
-    expect(screen.getByText("300 m · nearest")).toBeOnTheScreen();
+    expect(screen.getByText("300 m")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
     expect(mockConfirm).toHaveBeenCalledWith(mockView.options[0], expect.any(AbortSignal));
     expect(mockBack).toHaveBeenCalledTimes(1);
@@ -286,14 +289,14 @@ describe("choosing a museum", () => {
     mockView = { ...mockView, status: "none", options: [poi] };
     const view = await render(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByText("1.3 km · landmark · nearest")).toBeOnTheScreen();
+    expect(screen.getByText("landmark · Nearest")).toBeOnTheScreen();
     mockView = {
       ...mockView,
       options: [poi, { ...poi, name: "Side Street Studio", distanceM: 1400 }],
     };
     await view.rerender(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByText("1.3 km · landmark · nearest")).toBeOnTheScreen();
+    expect(screen.getByText("landmark · Nearest")).toBeOnTheScreen();
   });
 
   it("keeps the sheet open with the reason when confirmation fails", async () => {

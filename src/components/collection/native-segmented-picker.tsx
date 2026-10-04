@@ -23,6 +23,7 @@ export function NativeSegmentedPicker<T extends string>({
   onChange,
   disabled = false,
   compact = false,
+  grouped = false,
 }: {
   label: string;
   value?: T;
@@ -34,6 +35,8 @@ export function NativeSegmentedPicker<T extends string>({
   onChange: (value: T) => void;
   disabled?: boolean;
   compact?: boolean;
+  /** Darkens the track, which otherwise matches a grouped (gray) page. */
+  grouped?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= 1.5;
@@ -50,7 +53,7 @@ export function NativeSegmentedPicker<T extends string>({
         alignment="center"
         spacing={Spacing.one}
         style={{
-          backgroundColor: Gallery.segmentTrack,
+          backgroundColor: grouped ? Gallery.separator : Gallery.segmentTrack,
           borderRadius: Radius.input,
           padding: Spacing.one,
         }}

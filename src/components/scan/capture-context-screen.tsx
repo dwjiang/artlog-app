@@ -1,14 +1,14 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyTicket } from "@/components/empty-state-art";
+import { ListRow, ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
-import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
@@ -26,6 +26,8 @@ import { venueVisitLabel } from "./capture-context-button";
 
 /** The museum option is the venue itself: the visit there starts or resumes with the save. */
 const VENUE_OPTION = "venue";
+
+type Option = { value: string; choice: CaptureVisitChoice; label: string; detail?: string };
 
 function optionValue(choice: CaptureVisitChoice): string {
   return choice.kind === "none" ? "none" : choice.kind === "visit" ? choice.localId : VENUE_OPTION;
@@ -131,29 +133,43 @@ function CaptureContext({
     }
   }
 
-  function option(value: string, choice: CaptureVisitChoice, label: string, detail?: string) {
-    const current = marked === value;
-    return (
-      <MotionPressable
+  function options(rows: Option[]) {
+    return rows.map(({ value, choice, label, detail }, index) => (
+      <ListRow
         key={value}
-        accessibilityRole="button"
+        title={label}
+        subtitle={detail}
         accessibilityLabel={detail ? `${label} · ${detail}` : label}
-        accessibilityState={{ selected: current }}
+        accessory="check"
+        selected={marked === value}
+        first={index === 0}
+        last={index === rows.length - 1}
         onPress={() => choose(value, choice)}
-        style={[styles.option, current ? styles.selected : styles.unselected]}
-      >
-        <View style={styles.optionText}>
-          <ThemedText style={current && styles.selectedLabel}>{label}</ThemedText>
-          {detail && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {detail}
-            </ThemedText>
-          )}
-        </View>
-        <ThemedText style={{ color: current ? Gallery.accent : Gallery.muted }}>{current ? "✓" : "○"}</ThemedText>
-      </MotionPressable>
-    );
+      />
+    ));
   }
+
+  const visitOptions: Option[] = [
+    ...(venueOption && venue && !venueVisit
+      ? [
+          {
+            value: VENUE_OPTION,
+            choice: { kind: "venue", venueId: venueOption } as const,
+            label: venue.name,
+            detail: `${venue.day} · Starts with this artwork`,
+          },
+        ]
+      : []),
+    ...availableVisits.map((visit) => ({
+      value: visit.localId,
+      choice: { kind: "visit", localId: visit.localId } as const,
+      label: visit.venueName,
+      detail:
+        open?.localId === visit.localId
+          ? `Since ${formatVisitStart(open.startedAt, open.timeZone)}`
+          : formatVisitDate(visit.visitedOn),
+    })),
+  ];
 
   return (
     <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
@@ -161,85 +177,50 @@ function CaptureContext({
       <ThemedText themeColor="textSecondary">
         Only this artwork changes. The next scan joins the visit you are at.
       </ThemedText>
-      <View>{option("none", { kind: "none" }, "Artwork only")}</View>
-      {!noVisits && (
+      {options([{ value: "none", choice: { kind: "none" }, label: "Artwork only" }])}
+      {noVisits ? (
+        <EmptyState
+          visual={<EmptyTicket />}
+          title="No visits yet."
+          detail="Create a visit to remember where you saw this artwork. You can also save it on its own."
+        >
+          <ActionStack
+            textActions={
+              <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
+            }
+          >
+            <GalleryButton
+              label="Create a visit"
+              icon="plus"
+              variant="filled"
+              fullWidth
+              onPress={() => router.push("/visit-create")}
+            />
+          </ActionStack>
+        </EmptyState>
+      ) : (
         <>
-          <ThemedText type="subtitle">Your visits</ThemedText>
+          <ListSection title="Your visits">
+            {visits.error && (
+              <ThemedText themeColor="error" accessibilityRole="alert" style={styles.alert}>
+                Couldn’t load your visits. Close this screen and reopen it to try again.
+              </ThemedText>
+            )}
+            {!visits.error && !visits.updatedAt ? (
+              <ListSkeleton label="Loading visits…" rows={3} card />
+            ) : (
+              options(visitOptions)
+            )}
+          </ListSection>
+          <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push("/visit-create")} />
         </>
       )}
-      {visits.error ? (
-        <ThemedText themeColor="error" accessibilityRole="alert">
-          Couldn’t load your visits. Close this screen and reopen it to try again.
-        </ThemedText>
-      ) : !visits.updatedAt ? (
-        <ListSkeleton label="Loading visits…" rows={3} />
-      ) : (
-        noVisits && (
-          <EmptyState
-            visual={<EmptyTicket />}
-            title="No visits yet."
-            detail="Create a visit to remember where you saw this artwork. You can also save it on its own."
-          >
-            <ActionStack
-              textActions={
-                <GalleryButton label="Save artwork only" fullWidth onPress={() => choose("none", { kind: "none" })} />
-              }
-            >
-              <GalleryButton
-                label="Create a visit"
-                icon="plus"
-                variant="filled"
-                fullWidth
-                onPress={() => router.push("/visit-create")}
-              />
-            </ActionStack>
-          </EmptyState>
-        )
-      )}
-      <View>
-        {venueOption
-          && venue
-          && !venueVisit
-          && option(
-            VENUE_OPTION,
-            { kind: "venue", venueId: venueOption },
-            venue.name,
-            `${venue.day} · Starts with this artwork`,
-          )}
-        {availableVisits.map((visit) =>
-          option(
-            visit.localId,
-            { kind: "visit", localId: visit.localId },
-            visit.venueName,
-            open?.localId === visit.localId
-              ? `Since ${formatVisitStart(open.startedAt, open.timeZone)}`
-              : formatVisitDate(visit.visitedOn),
-          ),
-        )}
-      </View>
-      {!noVisits && <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push("/visit-create")} />}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Gallery.paper },
+  screen: { flex: 1, backgroundColor: Gallery.groupedBackground },
   content: { padding: Spacing.content, gap: Spacing.four },
-  option: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  unselected: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Gallery.separator,
-  },
-  optionText: { flex: 1, gap: Spacing.one },
-  selected: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.separator,
-  },
-  selectedLabel: { fontWeight: "600" },
+  alert: { marginBottom: Spacing.two },
 });

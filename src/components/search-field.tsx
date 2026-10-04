@@ -64,7 +64,6 @@ export function SearchField({
           keyboardAppearance="light"
           selectionColor={Gallery.accent}
           placeholderTextColor={Gallery.muted}
-          autoCorrect={false}
           returnKeyType="search"
           clearButtonMode="never"
           style={styles.input}

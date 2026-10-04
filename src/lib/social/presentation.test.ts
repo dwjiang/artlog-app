@@ -31,7 +31,8 @@ it("uses first and last initials without inventing a photo", () => {
 });
 
 it("enforces existing search limits before sending a request", () => {
-  expect(peopleSearch("a")).toBeUndefined();
+  expect(peopleSearch(" ")).toBeUndefined();
+  expect(peopleSearch("A")).toBe("a");
   expect(peopleSearch("a".repeat(201))).toBeUndefined();
   expect(peopleSearch(Array(17).fill("word").join(" "))).toBeUndefined();
   expect(peopleSearch(" Alex  Chen ")).toBe("alex chen");

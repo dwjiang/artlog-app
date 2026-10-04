@@ -27,6 +27,7 @@ beforeEach(() => {
 afterEach(() => sql.close());
 
 it("finds accent-insensitive museum names, city words, and prefixes", async () => {
+  expect((await searchVenues("o", db)).map((row) => row.id)).toEqual(["orsay"]);
   expect((await searchVenues("musee par", db)).map((row) => row.id)).toEqual(["orsay"]);
   expect(await searchVenues("new york", db)).toHaveLength(MUSEUM_SEARCH_LIMIT);
   expect((await searchVenues("met new york", db)).map((row) => row.id)).toEqual(["met"]);
@@ -34,7 +35,6 @@ it("finds accent-insensitive museum names, city words, and prefixes", async () =
 
 it("bounds result size and rejects invalid queries without executing SQL", async () => {
   expect(await searchVenues("museum", db)).toHaveLength(MUSEUM_SEARCH_LIMIT);
-  expect(await searchVenues("x", db)).toEqual([]);
   expect(await searchVenues("x".repeat(101), db)).toEqual([]);
   expect((await searchVenues('%_ OR "*', db)).map((row) => row.id)).toEqual(["orsay"]);
 });

@@ -7,7 +7,7 @@ import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
 import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute, type SignInContext } from "@/lib/account/sign-in-context";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -147,7 +147,8 @@ export function PageFooter({
   refresh: () => void;
   canLoadMore: boolean;
   noun?: string;
-  skeleton?: "feed" | "list" | "gallery";
+  /** `card` mirrors the white `ListRow` card of a grouped (gray) page. */
+  skeleton?: "feed" | "list" | "card" | "gallery";
 }) {
   const router = useRouter();
   if (loading && !error) {
@@ -162,6 +163,13 @@ export function PageFooter({
     if (skeleton === "feed") return <FeedSkeleton label={label} />;
     if (skeleton === "gallery") {
       return <VisitSkeleton label={label} heading={false} />;
+    }
+    if (skeleton === "card") {
+      return (
+        <View style={{ paddingHorizontal: Spacing.content }}>
+          <ListSkeleton card label={label} avatar={noun === "friends"} />
+        </View>
+      );
     }
     return <ListSkeleton label={label} avatar={noun === "friends"} />;
   }

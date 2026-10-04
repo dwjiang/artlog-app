@@ -1,10 +1,9 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 
-import { LoadingRing } from "@/components/loading-ring";
-import { MotionPressable } from "@/components/motion-pressable";
+import { ListRow, ListSection } from "@/components/list-row";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { Colors, Gallery, Radius, Typography } from "@/constants/theme";
 import { formatConfidence } from "@/lib/result/confidence";
 import type { ResultCandidate } from "@/lib/result/state";
 
@@ -21,74 +20,58 @@ export type RunnerUpsProps = {
 /** Similar works as rows; a museum thumbnail appears only where the server hotlinked a public-domain one. */
 export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }: RunnerUpsProps) {
   return (
-    <View style={styles.list}>
-      {candidates.map((candidate) => {
+    <ListSection outlined>
+      {candidates.map((candidate, index) => {
         const confidence = formatConfidence(candidate.probability);
-        const busy = candidate.objectId === busyObjectId;
+        const byline = [candidate.artist, candidate.institution].filter(Boolean).join(" · ");
         return (
-          <MotionPressable
+          <ListRow
             key={candidate.objectId}
-            accessibilityRole="button"
+            title={candidate.title}
+            subtitle={
+              <>
+                {!!byline && <ThemedText style={styles.subtitle}>{byline}</ThemedText>}
+                {confidence && <ThemedText style={[styles.subtitle, styles.confidence]}>{confidence}</ThemedText>}
+                {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
+              </>
+            }
+            leading={
+              candidate.thumbnailUrl ? (
+                <Image
+                  source={candidate.thumbnailUrl}
+                  contentFit="cover"
+                  accessibilityLabel={`${candidate.identityStatus === "tentative" ? "Visitor" : "Museum"} image of ${candidate.title}`}
+                  style={styles.thumbnail}
+                />
+              ) : (
+                <View style={[styles.thumbnail, styles.placeholder]} />
+              )
+            }
             accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
-            accessibilityState={{ busy, disabled: disabled || !!busyObjectId }}
+            accessory="chevron"
+            busy={candidate.objectId === busyObjectId}
             disabled={disabled || !!busyObjectId}
+            first={index === 0}
+            last={index === candidates.length - 1}
             onPress={() => onPick(candidate)}
-            style={styles.row}
-          >
-            {candidate.thumbnailUrl ? (
-              <Image
-                source={candidate.thumbnailUrl}
-                contentFit="cover"
-                accessibilityLabel={`${candidate.identityStatus === "tentative" ? "Visitor" : "Museum"} image of ${candidate.title}`}
-                style={styles.thumbnail}
-              />
-            ) : (
-              <View style={[styles.thumbnail, styles.placeholder]} />
-            )}
-            <View style={styles.text}>
-              <ThemedText>{candidate.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[candidate.artist, candidate.institution].filter(Boolean).join(" · ")}
-              </ThemedText>
-              {confidence && (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.confidence}>
-                  {confidence}
-                </ThemedText>
-              )}
-              {candidate.identityStatus === "tentative" && <TentativeOriginNotice />}
-            </View>
-            {busy ? (
-              <LoadingRing size={16} color={Gallery.muted} accessible={false} />
-            ) : (
-              <Image source="sf:chevron.right" tintColor={Gallery.muted} style={{ width: 12, height: 12 }} />
-            )}
-          </MotionPressable>
+          />
         );
       })}
-    </View>
+    </ListSection>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 0 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Gallery.separator,
-  },
   thumbnail: {
     width: 56,
     height: 56,
-    borderRadius: 2,
+    borderRadius: Radius.thumbnail,
     backgroundColor: Colors.light.backgroundElement,
   },
   placeholder: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Gallery.separator,
   },
-  text: { flex: 1, gap: Spacing.half },
+  subtitle: { ...Typography.secondary, color: Gallery.muted },
   confidence: { fontVariant: ["tabular-nums"] },
 });

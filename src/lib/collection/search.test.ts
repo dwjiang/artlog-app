@@ -99,6 +99,7 @@ it("normalizes accents and whitespace and searches dates, venue names and cities
   for (const query of ["nympheas", "  MUSEE  ", "1916", "paris", "Claude   Monet"]) {
     expect(filterWorks(works, query)).toEqual(works);
   }
-  expect(filterWorks(works, "m")).toEqual([]);
+  expect(filterWorks(works, "m")).toEqual(works);
+  expect(filterWorks(works, "z")).toEqual([]);
   expect(filterWorks(works, "x".repeat(101))).toEqual([]);
 });

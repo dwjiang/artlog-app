@@ -168,7 +168,8 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
     limit: 1,
   });
   expect(found.page).toEqual([profile]);
-  for (const query of ["x", "x".repeat(101)]) {
+  expect((await t.query(api.profiles.search, { query: "é", limit: 1 })).page).toEqual([profile]);
+  for (const query of [" ", "x".repeat(101)]) {
     await expect(t.query(api.profiles.search, { query })).rejects.toThrow("invalid_profile");
   }
   for (const page of [{ limit: 51 }, { cursor: "x".repeat(8193) }]) {

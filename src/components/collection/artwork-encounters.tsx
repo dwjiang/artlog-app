@@ -1,11 +1,10 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, StyleSheet, TextInput, View } from "react-native";
 
+import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { LoadingRing } from "@/components/loading-ring";
-import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -152,37 +151,28 @@ export function ArtworkEncounterList({
           onPress={() => router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })}
         />
       </NoteHeading>
-      {encounters.map(({ visit }) => (
-        <MotionPressable
-          key={visit.localId}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
-          onPress={() =>
-            router.push({
-              pathname: "/journal/[visitId]",
-              params: { visitId: visit.localId },
-            })
-          }
-          style={styles.visit}
-        >
-          <Image
-            source="sf:mappin.and.ellipse"
-            tintColor={Gallery.ink}
-            style={{ width: 16, height: 16 }}
-            accessible={false}
-          />
-          <Text style={styles.visitName} numberOfLines={2}>
-            {visit.venueName}
-          </Text>
-          <Text style={styles.visitDate}>{formatVisitDate(visit.visitedOn)}</Text>
-          <Image
-            source="sf:chevron.right"
-            tintColor={Gallery.muted}
-            style={{ width: 13, height: 13 }}
-            accessible={false}
-          />
-        </MotionPressable>
-      ))}
+      {encounters.length > 0 && (
+        <ListSection outlined>
+          {encounters.map(({ visit }, index) => (
+            <ListRow
+              key={visit.localId}
+              title={visit.venueName}
+              subtitle={formatVisitDate(visit.visitedOn)}
+              leading={<ListIcon name="mappin.and.ellipse" />}
+              accessibilityLabel={`View ${work.title} at ${visit.venueName}, ${formatVisitDate(visit.visitedOn)}`}
+              accessory="chevron"
+              first={index === 0}
+              last={index === encounters.length - 1}
+              onPress={() =>
+                router.push({
+                  pathname: "/journal/[visitId]",
+                  params: { visitId: visit.localId },
+                })
+              }
+            />
+          ))}
+        </ListSection>
+      )}
       {encounters.length === 0
         && (loadError ? (
           <Text accessibilityRole="alert" style={styles.caption}>
@@ -235,18 +225,4 @@ const styles = StyleSheet.create({
     gap: 8,
     marginLeft: 24,
   },
-  visit: {
-    minHeight: 64,
-    padding: 14,
-    marginBottom: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: Gallery.softBorder,
-    backgroundColor: Gallery.surface,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  visitName: { flex: 1, fontSize: 15, lineHeight: 20, color: Gallery.ink },
-  visitDate: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
 });

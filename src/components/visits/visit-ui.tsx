@@ -156,14 +156,7 @@ export const visitStyles = StyleSheet.create({
     justifyContent: "center",
   },
   moreLabel: { fontSize: 13, color: Gallery.muted },
-  eyebrow: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "500",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    color: Gallery.muted,
-  },
+  eyebrow: { ...Typography.eyebrow, color: Gallery.muted },
   fine: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   sectionLabel: {
     flexDirection: "row",
