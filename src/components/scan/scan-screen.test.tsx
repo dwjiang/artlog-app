@@ -4,7 +4,7 @@ import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppState
 
 import { Spacing } from "@/constants/theme";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
-import type { CaptureTimings } from "@/lib/capture/stages";
+import type { CaptureTimings, Quad } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 import { useToastLift } from "@/lib/ui/toast";
 import type { VenueView } from "@/lib/venue/use-venue";
@@ -303,8 +303,8 @@ it("streams frames to the detector without idle captions or an autoscan chip", a
   await render(<ScanScreen />);
   expect(mockCameraProps.outputs).toContain(mockFrameOutput);
   await act(() => mockCameraProps.onStarted());
-  expect(screen.queryByText("Point at an artwork. Hold steady to scan.")).toBeNull();
-  expect(screen.queryByText("Hold steady")).toBeNull();
+  expect(screen.queryByText("Point at an artwork")).toBeNull();
+  expect(screen.queryByText("Hold steady to scan automatically")).toBeNull();
   expect(screen.queryByText(/auto scan/i)).toBeNull();
   expect(screen.queryByRole("button", { name: "Scan label" })).toBeNull();
   expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
@@ -331,24 +331,57 @@ it.each([
   },
 );
 
-it("shows Hold steady only while the detected painting is accumulating hold time", async () => {
+it("captions a framing problem but not a painting that is holding steady", async () => {
+  jest.useFakeTimers();
   const view = await render(<ScanScreen />);
   await act(() => mockCameraProps.onStarted());
-  mockFeedback = {
-    quad: [
-      [0.2, 0.2],
-      [0.8, 0.2],
-      [0.8, 0.8],
-      [0.2, 0.8],
-    ],
-    progress: 0.5,
-    guidance: "hold-still",
-  };
+  const quad: Quad = [
+    [0.2, 0.2],
+    [0.8, 0.2],
+    [0.8, 0.8],
+    [0.2, 0.8],
+  ];
+  mockFeedback = { quad, progress: 0, guidance: "move-closer" };
   await view.rerender(<ScanScreen />);
-  expect(screen.getByText("Hold steady")).toBeOnTheScreen();
-  mockFeedback = null;
+  await act(() => jest.advanceTimersByTime(600));
+  expect(screen.getByText("Move closer")).toBeOnTheScreen();
+  mockFeedback = { quad, progress: 0.5, guidance: "hold-still" };
   await view.rerender(<ScanScreen />);
+  await act(() => jest.advanceTimersByTime(600));
+  expect(screen.queryByText("Move closer")).toBeNull();
   expect(screen.queryByText("Hold steady")).toBeNull();
+  jest.useRealTimers();
+});
+
+it("waits for a framing problem to settle after a retry message clears", async () => {
+  jest.useFakeTimers();
+  try {
+    mockState = { phase: "retry", occupied: false, source: "camera", rearm: "reframe" };
+    mockMessage = "Reframe and try again";
+    const view = await render(<ScanScreen />);
+    await act(() => mockCameraProps.onStarted());
+    expect(screen.getByText("Reframe and try again")).toBeOnTheScreen();
+    mockState = { phase: "searching", occupied: false };
+    mockMessage = undefined;
+    mockFeedback = {
+      quad: [
+        [0.4, 0.4],
+        [0.6, 0.4],
+        [0.6, 0.6],
+        [0.4, 0.6],
+      ],
+      progress: 0,
+      guidance: "move-closer",
+    };
+    await view.rerender(<ScanScreen />);
+    expect(screen.queryByText("Move closer")).toBeNull();
+    await act(() => jest.advanceTimersByTime(599));
+    expect(screen.queryByText("Move closer")).toBeNull();
+    await act(() => jest.advanceTimersByTime(1));
+    expect(screen.getByText("Move closer")).toBeOnTheScreen();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it("takes a still only when the controller accepts a detection", async () => {

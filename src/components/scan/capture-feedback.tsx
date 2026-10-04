@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { cancelAnimation, Easing, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { Colors, Gallery } from "@/constants/theme";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { CaptureController } from "@/lib/capture/capture-controller";
 import type { FrameSize, Guidance } from "@/lib/capture/rectangle";
@@ -14,14 +15,13 @@ import { OverlayCaption } from "./overlay-caption";
 const RING_SIZE = SHUTTER_SIZE + 14;
 const RING_RADIUS = RING_SIZE / 2 - 2;
 const ring = `M ${RING_SIZE / 2} 2 a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${RING_RADIUS * 2} a ${RING_RADIUS} ${RING_RADIUS} 0 1 1 0 ${-RING_RADIUS * 2}`;
-const GUIDANCE_LABELS: Record<Guidance, string | undefined> = {
-  searching: "Point at an artwork",
+const FRAMING_PROBLEMS: Partial<Record<Guidance, string>> = {
   "move-closer": "Move closer",
   "fit-whole-painting": "Fit the whole artwork in view",
   straighten: "Face the artwork straight on",
-  "hold-still": "Hold steady",
-  ready: "Hold steady",
 };
+// Detection reclassifies the framing every frame; a hint appears, switches or clears only once it holds this long.
+const HINT_SETTLE_MS = 600;
 
 export function CaptureFeedback({
   controller,
@@ -32,21 +32,24 @@ export function CaptureFeedback({
   detecting: boolean;
   busy: boolean;
 }) {
-  const guidance = useSyncExternalStore(controller.subscribeFeedback, () =>
-    detecting ? controller.getFeedback()?.guidance : undefined,
-  );
-  const label = busy ? "Identifying artwork" : detecting ? GUIDANCE_LABELS[guidance ?? "searching"] : undefined;
   return (
     <View style={styles.feedback} accessibilityLiveRegion="polite">
-      {label && (
-        <OverlayCaption
-          hint={detecting && (!guidance || guidance === "searching") ? "Hold steady to scan automatically" : undefined}
-        >
-          {label}
-        </OverlayCaption>
+      {busy ? (
+        <OverlayCaption>Identifying artwork</OverlayCaption>
+      ) : (
+        detecting && <FramingHint controller={controller} />
       )}
     </View>
   );
+}
+
+function FramingHint({ controller }: { controller: CaptureController }) {
+  const problem = useSyncExternalStore(controller.subscribeFeedback, () => {
+    const guidance = controller.getFeedback()?.guidance;
+    return guidance && FRAMING_PROBLEMS[guidance];
+  });
+  const hint = useDebouncedValue(problem, HINT_SETTLE_MS, undefined);
+  return hint ? <OverlayCaption>{hint}</OverlayCaption> : null;
 }
 
 export function CaptureOutline({ controller, preview }: { controller: CaptureController; preview: FrameSize }) {
