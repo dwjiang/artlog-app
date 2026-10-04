@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { FlatList, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -10,6 +10,7 @@ import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { peopleSearch } from "@/lib/social/presentation";
 import type { BrowsedProfile, PublicProfile } from "@/lib/social/types";
 import { useFriends } from "@/lib/social/use-friends";
@@ -38,11 +39,7 @@ export function PeopleScreen() {
   const friends = useFriends(session, session.profileId);
   const requests = useSocialQuery(api.profiles.requests, session.status === "ready" ? {} : "skip", session.key);
   const [text, setText] = useState("");
-  const [debounced, setDebounced] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(text), 300);
-    return () => clearTimeout(timer);
-  }, [text]);
+  const debounced = useDebouncedValue(text, 300, "");
   const query = peopleSearch(debounced);
   const searching = text === debounced && !!query && !session.offline;
   const results = useCursorPages(
