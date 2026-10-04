@@ -1182,6 +1182,45 @@ describe("precise contribution removal", () => {
     },
   );
 
+  it("deleting Alice’s data withdraws her crop and moves the entry to Bob, keeping her label and fingerprint", async () => {
+    vi.useFakeTimers();
+    const { t, user: alice, contribute, venueId, cropStorageId } = await fixture();
+    const own = (await t.run(async (ctx) => ctx.db.get("contributions", (await contribute()).contributionId)))!;
+    const bob = await shareAs(t, venueId);
+
+    await alice.as.mutation(api.accounts.deleteAccount, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect((await t.fetch(`/file?id=${cropStorageId}`)).status).toBe(404);
+    expect(await r2.get(cropStorageId)).toBeNull();
+    const kept = await t.run((ctx) => ctx.db.get("contributions", own._id));
+    expect(kept).toMatchObject({ fields: own.fields, orbStorageId: own.orbStorageId, status: "tentative" });
+    expect(kept).not.toHaveProperty("cropStorageId");
+    expect(await t.run((ctx) => fileStorage.getMetadata(ctx, own.orbStorageId!))).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("devices", own.deviceId))).not.toHaveProperty("authUserId");
+    const object = (await t.run((ctx) => ctx.db.get("objects", own.indexedObjectId!)))!;
+    expect(object).toMatchObject({ reverted: false, sourceContributionId: bob.contributionId });
+    expect(await t.run((ctx) => readObjectDetails(ctx, object))).toMatchObject({
+      thumbnailStorageId: bob.cropStorageId,
+    });
+  });
+
+  it("deleting the only backer’s data retires the entry and keeps only the label details", async () => {
+    vi.useFakeTimers();
+    const { t, user: alice, contribute, cropStorageId } = await fixture();
+    const own = (await t.run(async (ctx) => ctx.db.get("contributions", (await contribute()).contributionId)))!;
+
+    await alice.as.mutation(api.accounts.deleteAccount, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await r2.get(cropStorageId)).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("objects", own.indexedObjectId!))).toMatchObject({ reverted: true });
+    expect(await t.run((ctx) => ctx.db.get("contributions", own._id))).toMatchObject({
+      fields: own.fields,
+      status: "rejected",
+    });
+  });
+
   it.each(["withdraw", "ban"] as const)(
     "%s removes Alice’s exact material and rebuilds the entry from Bob’s complete reference",
     async (kind) => {

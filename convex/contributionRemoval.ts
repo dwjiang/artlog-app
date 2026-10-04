@@ -69,6 +69,26 @@ export async function removeContribution(
   }
 }
 
+// Data deletion withdraws the photo crop, the only part of a contribution other visitors see. The label details and
+// fingerprint stay with the retired device, but without a crop the contribution no longer backs its entry, so the
+// rebuild moves the thumbnail to another backer or retires the entry.
+export async function withdrawContributionCrop(ctx: MutationCtx, row: Doc<"contributions">): Promise<void> {
+  if (!row.cropStorageId) return;
+  await ctx.db.patch("contributions", row._id, { cropStorageId: undefined });
+  await revokeContributionMedia(ctx, row._id);
+  await revokeFileDownload(ctx, row.cropStorageId);
+  await fileStorage.delete(ctx, row.cropStorageId);
+  const object = row.indexedObjectId ? await ctx.db.get("objects", row.indexedObjectId) : null;
+  if (object) {
+    await ctx.db.patch("objects", object._id, { supportRevision: object.supportRevision + 1 });
+    if (object.identityStatus === "tentative" && !object.reverted) await queueEntryRebuild(ctx, object._id);
+  }
+  const venue = await ctx.db.get("museums", row.venueId);
+  if (venue) {
+    await ctx.db.patch("museums", venue._id, { contributionRevision: venue.contributionRevision + 1 });
+  }
+}
+
 export async function queueEntryRebuild(ctx: MutationCtx, objectId: Id<"objects">) {
   const existing = await ctx.db
     .query("entryRebuilds")

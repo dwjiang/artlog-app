@@ -59,6 +59,7 @@ import type * as lib_corpusMatch from "../lib/corpusMatch.js";
 import type * as lib_cosine from "../lib/cosine.js";
 import type * as lib_cropChoice from "../lib/cropChoice.js";
 import type * as lib_databaseTriggers from "../lib/databaseTriggers.js";
+import type * as lib_deviceRetirement from "../lib/deviceRetirement.js";
 import type * as lib_displayMedia from "../lib/displayMedia.js";
 import type * as lib_docentPrompts from "../lib/docentPrompts.js";
 import type * as lib_docentSources from "../lib/docentSources.js";
@@ -229,6 +230,7 @@ declare const fullApi: ApiFromModules<{
   "lib/cosine": typeof lib_cosine;
   "lib/cropChoice": typeof lib_cropChoice;
   "lib/databaseTriggers": typeof lib_databaseTriggers;
+  "lib/deviceRetirement": typeof lib_deviceRetirement;
   "lib/displayMedia": typeof lib_displayMedia;
   "lib/docentPrompts": typeof lib_docentPrompts;
   "lib/docentSources": typeof lib_docentSources;

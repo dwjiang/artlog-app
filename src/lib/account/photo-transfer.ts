@@ -1,6 +1,7 @@
 import { Directory, File, Paths, UploadType } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
+import { PHOTO_FOLDERS } from "@/lib/files/photo-folders";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import {
@@ -87,9 +88,9 @@ export async function downloadCollectionPhoto(
   storageId: string,
   photoId?: string,
 ): Promise<string> {
-  const directory = new Directory(Paths.document, "collection-photos");
+  const directory = new Directory(Paths.document, PHOTO_FOLDERS.backup);
   directory.create({ intermediates: true, idempotent: true });
-  const path = `collection-photos/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${photoId ?? kind}-${storageId}.jpg`;
+  const path = `${PHOTO_FOLDERS.backup}/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${photoId ?? kind}-${storageId}.jpg`;
   await File.downloadFileAsync(endpoint(scope, localId, kind, photoId), new File(captureFileUri(path)), {
     headers: { Authorization: `Bearer ${token}` },
     idempotent: true,

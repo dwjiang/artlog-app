@@ -14,3 +14,7 @@ export async function getDeviceAuthSecret(): Promise<string> {
   await installationStorage.setItem(DEVICE_AUTH_SECRET, secret);
   return secret;
 }
+
+export async function forgetDeviceAuthSecret(): Promise<void> {
+  await installationStorage.removeItem(DEVICE_AUTH_SECRET);
+}

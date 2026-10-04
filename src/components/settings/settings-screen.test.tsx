@@ -153,6 +153,18 @@ it("opens contextual sign-in while keeping the guest journal available", async (
   });
 });
 
+it("lets a guest delete their data from the account page behind their collection card", async () => {
+  mockAccount = { linked: false, deviceCount: 0 };
+  await render(<SettingsScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Your collection" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/settings-detail", params: { section: "account" } });
+  await render(<SettingsDetailScreen section="account" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Delete my data" }));
+  expect(mockDelete).not.toHaveBeenCalled();
+  await confirmDestructive();
+  expect(mockDelete).toHaveBeenCalledTimes(1);
+});
+
 it("holds the account row behind a ghost only while the account can still load", async () => {
   mockAccount = undefined;
   const view = await render(<SettingsDetailScreen section="account" />);
@@ -170,7 +182,9 @@ it("shows account details and controls without device counts or sync copy", asyn
   expect(screen.queryByText("Devices")).toBeNull();
   expect(screen.queryByText(/devices|sync privately/i)).toBeNull();
   expect(screen.getByText("visitor@example.com")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Delete account" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Delete account" }));
+  await confirmDestructive();
+  expect(mockDelete).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
   expect(mockSignOut).not.toHaveBeenCalled();
   await confirmDestructive();

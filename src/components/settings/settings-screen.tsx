@@ -79,7 +79,11 @@ export function SettingsScreen() {
         </View>
       ) : (
         <View style={{ gap: 10 }}>
-          <View
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel="Your collection"
+            accessibilityHint="Manage your data"
+            onPress={detail("account")}
             style={{
               padding: 16,
               gap: 12,
@@ -98,7 +102,13 @@ export function SettingsScreen() {
                 Saved on this iPhone
               </ThemedText>
             </View>
-          </View>
+            <Image
+              source="sf:chevron.right"
+              tintColor={Gallery.muted}
+              style={{ width: 13, height: 13 }}
+              accessible={false}
+            />
+          </MotionPressable>
           <ThemedText variant="body" themeColor="textSecondary">
             Sign in to share your wall and connect with friends.
           </ThemedText>

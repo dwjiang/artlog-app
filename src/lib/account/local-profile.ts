@@ -3,6 +3,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { useEffect, useState } from "react";
 
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
+import { PHOTO_FOLDERS } from "@/lib/files/photo-folders";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { reportError } from "@/lib/observability";
@@ -12,7 +13,6 @@ import { AVATARS, type AvatarId, isAvatarId } from "@/shared/social/avatars";
 const NAME_KEY = "local-profile-name";
 const PHOTO_KEY = "local-profile-photo";
 const AVATAR_KEY = "local-profile-avatar";
-const PHOTO_FOLDER = "profile";
 const listeners = new Set<() => void>();
 let assigningAvatar: Promise<AvatarId> | undefined;
 
@@ -52,9 +52,9 @@ export async function setLocalProfileName(value: string): Promise<void> {
 
 export async function setLocalProfilePhoto(uri: string): Promise<void> {
   const previous = await getSetting(PHOTO_KEY);
-  new Directory(Paths.document, PHOTO_FOLDER).create({ intermediates: true, idempotent: true });
+  new Directory(Paths.document, PHOTO_FOLDERS.profile).create({ intermediates: true, idempotent: true });
   // A new filename each time: expo-image caches local files by URI and would keep showing the old photo.
-  const path = `${PHOTO_FOLDER}/${randomUUID()}.jpg`;
+  const path = `${PHOTO_FOLDERS.profile}/${randomUUID()}.jpg`;
   const target = captureFileUri(path);
   // Keep the draft available for retry until the new path has been committed.
   try {
