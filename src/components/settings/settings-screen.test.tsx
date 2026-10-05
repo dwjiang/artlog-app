@@ -135,7 +135,6 @@ it("opens account management from the profile row", async () => {
 it("keeps About details accessible", async () => {
   await render(<SettingsDetailScreen section="about" />);
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Source code" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Open source licenses" }));
   expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/licenses");

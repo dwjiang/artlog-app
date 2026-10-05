@@ -11,7 +11,6 @@ import { openLegalPage } from "@/lib/legal-links";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
-const SOURCE_URL = "https://github.com/dwjiang/artlog-app";
 const SPACE_GROTESK_LICENSE_URL = "https://github.com/google/fonts/blob/main/ofl/spacegrotesk/OFL.txt";
 
 export function AboutSection() {
@@ -83,13 +82,6 @@ export function AboutSection() {
       </View>
       <View style={{ ...SettingsOutline, overflow: "hidden" }}>
         {[
-          {
-            label: "Source code",
-            icon: "chevron.left.forwardslash.chevron.right",
-            action: () => {
-              void open(SOURCE_URL);
-            },
-          },
           {
             label: "Open source licenses",
             icon: "doc.plaintext",
