@@ -51,6 +51,19 @@ it("sends the chosen reason and trimmed details for a comment, then closes", asy
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
+it.each([
+  ["profile", "Report profile"],
+  ["wallItem", "Report artwork"],
+  ["sharedVisit", "Report visit"],
+  ["comment", "Report comment"],
+])("lets people report a %s as offensive", async (kind, title) => {
+  await render(<ReportScreen kind={kind} id="item-1" />);
+  expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("radio", { name: "Offensive or inappropriate" }));
+  await send();
+  expect(mockSubmit).toHaveBeenCalledWith(expect.objectContaining({ reason: "offensive" }));
+});
+
 it("needs details before sending “Something else”", async () => {
   await render(<ReportScreen kind="profile" id="profile-1" />);
   expect(screen.getByRole("header", { name: "Report profile" })).toBeOnTheScreen();

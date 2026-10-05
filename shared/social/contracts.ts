@@ -162,10 +162,10 @@ export const reportReason = v.union(...REPORT_REASONS.map(v.literal));
 export const filedReportReason = v.union(...reportReason.members, v.literal("blocked"));
 /** Each kind lists the reasons that fit it, most common first; "other" stays last. */
 export const REASONS_BY_KIND: Record<ReportKind, readonly ReportReason[]> = {
-  profile: ["spam", "impersonation", "harassment", "other"],
-  wallItem: ["spam", "harassment", "other"],
-  sharedVisit: ["harassment", "privacy", "spam", "other"],
-  comment: ["harassment", "spam", "privacy", "other"],
+  profile: ["spam", "impersonation", "harassment", "offensive", "other"],
+  wallItem: ["offensive", "spam", "harassment", "other"],
+  sharedVisit: ["harassment", "offensive", "privacy", "spam", "other"],
+  comment: ["harassment", "offensive", "spam", "privacy", "other"],
   docent: ["wrongFacts", "wrongArtwork", "offensive", "other"],
   scanDocent: ["wrongFacts", "wrongArtwork", "offensive", "other"],
   transcript: ["wrongFacts", "wrongArtwork", "offensive", "other"],
