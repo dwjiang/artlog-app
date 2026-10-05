@@ -41,7 +41,7 @@ const pushTokens = (t: Harness) => t.run((ctx) => ctx.db.query("pushTokens").col
 
 async function publishedVisit(t: Harness, author: SocialUser) {
   const visit = await socialVisit(t, author);
-  return (await author.as.mutation(api.sharedVisits.publish, visit.selection)).postId!;
+  return (await author.as.action(api.sharedVisits.publish, visit.selection)).postId!;
 }
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe("push notifications", () => {
     expect(sent).toEqual([]);
 
     await author.as.mutation(api.push.register, { token: token("author"), friends: true, reactions: false });
-    await ana.as.mutation(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
+    await ana.as.action(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
     await flush(t);
     expect(sent).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("push notifications", () => {
     const postId = await publishedVisit(t, author);
     await author.as.mutation(api.push.register, { token: token("author"), ...everything });
 
-    await ana.as.mutation(api.visitReactions.addComment, {
+    await ana.as.action(api.visitReactions.addComment, {
       postId,
       body: "The Seurat is huge.",
       requestId: crypto.randomUUID(),
@@ -251,7 +251,7 @@ describe("push notifications", () => {
           }
         },
       });
-      await ana.as.mutation(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
+      await ana.as.action(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
       await flush(t);
       expect(sent.flat().map(({ to }) => to)).toEqual(change === "delete account" ? [] : [token("other")]);
     },
@@ -265,7 +265,7 @@ describe("push notifications", () => {
     const ben = await socialUser(t, "Ben");
     const postId = await publishedVisit(t, author);
     await author.as.mutation(api.push.register, { token: token("author"), ...everything });
-    await ben.as.mutation(api.visitReactions.addComment, { postId, body: "Hidden.", requestId: crypto.randomUUID() });
+    await ben.as.action(api.visitReactions.addComment, { postId, body: "Hidden.", requestId: crypto.randomUUID() });
     await author.as.mutation(api.friendships.block, { scope: author.scope, profileId: ben.profileId });
     await ana.as.mutation(api.friendships.request, { profileId: author.profileId, revision: 0 });
     expect((await author.as.query(api.notifications.unseen, {})).page).toHaveLength(1);
@@ -279,7 +279,7 @@ describe("push notifications", () => {
     const ana = await socialUser(t, "Ana");
     const postId = await publishedVisit(t, author);
     await author.as.mutation(api.push.register, { token: token("author"), ...everything });
-    const commentId = await ana.as.mutation(api.visitReactions.addComment, {
+    const commentId = await ana.as.action(api.visitReactions.addComment, {
       postId,
       body: "Lovely.",
       requestId: crypto.randomUUID(),
@@ -307,7 +307,7 @@ describe("push notifications", () => {
     const ana = await socialUser(t, "Ana");
     const postId = await publishedVisit(t, author);
     await author.as.mutation(api.push.register, { token: token("author"), ...everything });
-    await ana.as.mutation(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
+    await ana.as.action(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
     const sent = stubExpo({
       sendStatus: [503],
       beforeFailure: async () => {

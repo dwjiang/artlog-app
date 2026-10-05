@@ -6,7 +6,6 @@ import { StyleSheet, View } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
-import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
@@ -22,36 +21,20 @@ import { VisitReactionsSheet } from "./visit-reactions-sheet";
 export type ReactionVisit = Pick<SharedVisit, "postId" | "audience">;
 export type ReactionSummary = FunctionReturnType<typeof api.visitReactions.getSummary>;
 
-export function VisitReactions({
-  visit,
-  onOpenVisit,
-  openComments = false,
-}: {
-  visit: ReactionVisit;
-  onOpenVisit?: () => void;
-  openComments?: boolean;
-}) {
+export function VisitReactions({ visit, openComments = false }: { visit: ReactionVisit; openComments?: boolean }) {
   const session = useSocialSession();
   return (
-    <LiveReactions
-      key={`${session.key}:${visit.postId}`}
-      visit={visit}
-      session={session}
-      onOpenVisit={onOpenVisit}
-      openComments={openComments}
-    />
+    <LiveReactions key={`${session.key}:${visit.postId}`} visit={visit} session={session} openComments={openComments} />
   );
 }
 
 function LiveReactions({
   visit,
   session,
-  onOpenVisit,
   openComments,
 }: {
   visit: ReactionVisit;
   session: SocialSession;
-  onOpenVisit?: () => void;
   openComments: boolean;
 }) {
   const router = useRouter();
@@ -91,7 +74,6 @@ function LiveReactions({
         onLike={() => void like()}
         onComments={() => setSheet("comments")}
         onLikes={() => setSheet("likes")}
-        onOpenVisit={onOpenVisit}
       />
       {summary.error && (
         <MotionPressable
@@ -126,7 +108,6 @@ export function VisitReactionRow({
   onLike,
   onComments,
   onLikes,
-  onOpenVisit,
 }: {
   summary?: ReactionSummary;
   busy?: boolean;
@@ -134,7 +115,6 @@ export function VisitReactionRow({
   onLike: () => void;
   onComments: () => void;
   onLikes: () => void;
-  onOpenVisit?: () => void;
 }) {
   const liked = summary?.liked ?? false;
   const count = summary?.likeCount ?? 0;
@@ -177,17 +157,6 @@ export function VisitReactionRow({
           <ReactionIcon kind="comment" />
           <Text style={[styles.count, { fontWeight: "500" }]}>{summary?.commentCount ?? "–"}</Text>
         </MotionPressable>
-        {onOpenVisit && (
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel="View visit"
-            onPress={onOpenVisit}
-            style={styles.visit}
-          >
-            <Text style={styles.link}>View visit</Text>
-            <VisitSymbol name="arrow.right" size={15} color={Gallery.accent} />
-          </MotionPressable>
-        )}
       </View>
       {!!summary && count > 0 && (
         <MotionPressable
@@ -260,20 +229,6 @@ const styles = StyleSheet.create({
   count: {
     color: Gallery.ink,
     fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  visit: {
-    marginLeft: "auto",
-    minHeight: 44,
-    paddingTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-  link: {
-    color: Gallery.accent,
-    fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
   },

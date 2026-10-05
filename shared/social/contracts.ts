@@ -3,7 +3,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { isCountry, isRevision, isUuid, LIMITS, normalizeSearch } from "../journal/limits";
 import { WALL_FRAMES } from "../wall/frames";
 import { avatarId } from "./avatars";
-import { isAllowedIdentity, isOffensive } from "./profile-text";
+import { isAllowedIdentity } from "./offensive-text";
 import { isUsername } from "./username";
 
 export const publicProfile = v.object({
@@ -17,6 +17,7 @@ export const publicProfile = v.object({
   publishedWallCount: v.number(),
 });
 export const frame = v.union(...WALL_FRAMES.map((finish) => v.literal(finish.value)));
+export const isWallColor = (color: string) => /^#[0-9a-f]{6}$/i.test(color);
 /** A wall without a pattern is plain color. */
 export const wallPattern = v.union(
   ...(["stripe", "pinstripe", "grid", "dots", "check", "trellis"] as const).map(v.literal),
@@ -244,6 +245,8 @@ export const sharedSelection = v.object({
   reflection: v.string(),
   revision: v.number(),
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
+  color: v.string(),
+  pattern: v.optional(wallPattern),
 });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
@@ -256,11 +259,8 @@ export function validateProfile(input: { username?: string; name: string; bio?: 
   ) {
     throw new ConvexError({ code: "invalid_profile" });
   }
-  if (
-    !isAllowedIdentity(name)
-    || (bio !== undefined && isOffensive(bio))
-    || (input.username !== undefined && !isAllowedIdentity(input.username))
-  ) {
+  // Bios need OpenAI, so the server checks them separately.
+  if (!isAllowedIdentity(name) || (input.username !== undefined && !isAllowedIdentity(input.username))) {
     throw new ConvexError({ code: "profile_not_allowed" });
   }
   return { name, bio };
@@ -344,6 +344,7 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
     || input.saveLocalIds.some((id) => !isUuid(id))
     || input.reflection.length > LIMITS.note
     || !isRevision(input.revision)
+    || !isWallColor(input.color)
   ) {
     throw new ConvexError({ code: "invalid_post" });
   }

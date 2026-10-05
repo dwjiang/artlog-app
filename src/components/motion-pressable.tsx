@@ -17,7 +17,8 @@ export const MotionPressable = forwardRef<View, PressableProps>(function MotionP
   // Disabling can cancel a touch before native press-out reaches the control.
   if (press.disabled !== !!disabled) setPress({ held: false, disabled: !!disabled });
   const pressed = !disabled && (press.held || !!testOnly_pressed);
-  const base = StyleSheet.flatten(typeof style === "function" ? style({ pressed, hovered: false }) : style);
+  const pressState = { pressed, hovered: false };
+  const base = StyleSheet.flatten(typeof style === "function" ? style(pressState) : style);
   const scale = pressed && !reduced ? 0.97 : 1;
   // Always defined: a transitioned transform that becomes undefined reaches processTransform as null and throws.
   const transform =

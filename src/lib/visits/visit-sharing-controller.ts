@@ -5,6 +5,7 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 import type { RequestContext } from "@/lib/wall/wall-transport";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
+import { randomWallStyle } from "@/shared/wall/defaults";
 
 import type { ShareSelection, ShareState, VisitSharingTransport } from "./visit-sharing-transport";
 
@@ -141,6 +142,7 @@ export function createVisitSharingController({
             : photoSelections().filter((row) =>
                 [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId),
               ),
+          ...(acknowledged.color ? { color: acknowledged.color, pattern: acknowledged.pattern } : randomWallStyle()),
         };
     draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
     emit({
@@ -174,7 +176,7 @@ export function createVisitSharingController({
         const result = await transport.getState({ visitLocalId }, context);
         if (current()) accept(result);
       }),
-    edit(patch: Partial<Pick<ShareSelection, "audience" | "saveLocalIds" | "photoSelections">>) {
+    edit(patch: Partial<Pick<ShareSelection, "audience" | "saveLocalIds" | "photoSelections" | "color" | "pattern">>) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;

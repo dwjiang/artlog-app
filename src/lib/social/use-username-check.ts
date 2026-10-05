@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { LIMITS } from "@/shared/journal/limits";
-import { isAllowedIdentity } from "@/shared/social/profile-text";
+import { isAllowedIdentity } from "@/shared/social/offensive-text";
 import { isUsername } from "@/shared/social/username";
 
 import { api } from "../../../convex/_generated/api";

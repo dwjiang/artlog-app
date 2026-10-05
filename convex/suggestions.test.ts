@@ -64,12 +64,13 @@ async function visitAt(t: Harness, user: SocialUser, venueId: Id<"museums">, vis
 }
 async function share(t: Harness, user: SocialUser, visit: VisitRef) {
   const saveLocalId = await save(t, user, await artwork(t, "Nighthawks"), "Nighthawks", visit);
-  const state = await user.as.mutation(api.sharedVisits.publish, {
+  const state = await user.as.action(api.sharedVisits.publish, {
     audience: visit.visibility,
     visitLocalId: visit.localId,
     saveLocalIds: [saveLocalId],
     reflection: "",
     revision: 0,
+    color: "#CDD0CA",
   });
   return state.postId!;
 }

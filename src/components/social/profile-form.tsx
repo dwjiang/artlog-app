@@ -1,4 +1,4 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 
@@ -22,7 +22,7 @@ import { ProfileField, UsernameField } from "./profile-fields";
 import { ProfilePicturePicker } from "./profile-picture-picker";
 
 export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
-  const create = useMutation(api.profiles.create);
+  const create = useAction(api.profiles.create);
   const savePhoto = useAction(api.profilePhotos.save);
   const localProfile = useLocalProfile();
   const { picture, choose } = useProfilePictureDraft();

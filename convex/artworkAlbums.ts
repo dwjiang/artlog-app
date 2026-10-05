@@ -7,7 +7,7 @@ import { invalidateAlbumPhoto } from "./lib/albumMedia";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, requireJournalOwner } from "./lib/ownership";
-import { invalidateDeletedSave } from "./lib/publicationAccess";
+import { invalidateDeletedSave, resetNoteSharing } from "./lib/publicationAccess";
 import { advancePublicationRevision } from "./lib/publicationUpdates";
 import { limitDevice } from "./lib/rateLimits";
 import { mergeSavedRecognition } from "./lib/savedRecognition";
@@ -237,20 +237,6 @@ export const merge = mutation({
       if (note.length > LIMITS.note) {
         throw new ConvexError({ code: "note_too_long" });
       }
-      if (note !== target.note) {
-        const placements = await ctx.db
-          .query("wallItems")
-          .withIndex("by_save_active", (q) => q.eq("saveId", target._id).eq("active", true))
-          .take(LIMITS.wallItems);
-        for (const item of placements) {
-          if (item.noteVisible) {
-            await ctx.db.patch("wallItems", item._id, {
-              noteVisible: false,
-              noteRevision: item.noteRevision + 1,
-            });
-          }
-        }
-      }
       for (const photo of sourcePhotos) {
         if (photo.deletedAt === undefined) {
           await invalidateAlbumPhoto(ctx, photo);
@@ -295,6 +281,7 @@ export const merge = mutation({
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
+      if ((note || undefined) !== target.note) await resetNoteSharing(ctx, target._id);
       await mergeSavedRecognition(ctx, source._id, target._id);
       await ctx.db.patch("collections", source._id, {
         deletedAt: Date.now(),

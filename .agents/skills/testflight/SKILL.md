@@ -19,9 +19,10 @@ build credits. Keep outputs in `.context/testflight/`.
    packs the working tree, not the commit.
 2. **Check the target.** `npx eas-cli env:list production` must show
    `EXPO_PUBLIC_CONVEX_URL=https://admired-goldfinch-660.convex.cloud` and
-   `EXPO_PUBLIC_CONVEX_SITE_URL=https://admired-goldfinch-660.convex.site`. Stop on any other
-   deployment. Keep the dev `.env.local` intact; the production build uses the EAS production
-   environment. Run `npm run model:check`.
+   `EXPO_PUBLIC_CONVEX_SITE_URL=https://admired-goldfinch-660.convex.site`, plus
+   `EXPO_PUBLIC_SENTRY_DSN`. Stop on any other deployment or a missing DSN. Keep the dev
+   `.env.local` intact; the production build uses the EAS production environment.
+   Run `npm run model:check`.
 3. **Check production compatibility before building.** Follow the explicit production targeting
    instructions in `docs/operations/production.md`: use a separate env file and unset
    `CONVEX_DEPLOY_KEY` and `CONVEX_DEPLOYMENT_TOKEN` in the command environment. All checks below

@@ -108,6 +108,7 @@ const visit: SharedVisit = {
     city: "New York",
   },
   visitedOn: "2026-09-12",
+  color: "#FCFCF9",
   artworks: { page: [], cursor: null, isDone: true },
 };
 const filterChoices = () => {
@@ -311,7 +312,6 @@ it("uses the same shared visit card as Home", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
   expect(screen.getByText("Museum of Modern Art · New York")).toBeOnTheScreen();
   expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "View visit" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "View Jamie Chen’s profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "More options" })).toBeOnTheScreen();
 });
@@ -324,10 +324,10 @@ it("offers Block in a visit card’s menu after Report", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "More options" }));
   const [options, choose] = sheet.mock.calls[0];
   expect(options).toMatchObject({
-    options: ["View visit", "View Jamie Chen’s profile", "Report visit", "Block Jamie Chen", "Cancel"],
-    destructiveButtonIndex: 3,
+    options: ["View Jamie Chen’s profile", "Report visit", "Block Jamie Chen", "Cancel"],
+    destructiveButtonIndex: 2,
   });
-  choose(3);
+  choose(2);
   expect(mockBlock).toHaveBeenCalledWith(mockPerson);
   sheet.mockRestore();
 });

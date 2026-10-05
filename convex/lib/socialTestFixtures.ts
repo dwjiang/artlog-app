@@ -21,7 +21,7 @@ export async function socialUser(t: Harness, name = `user${++users}`): Promise<S
     await ctx.db.patch("devices", device.deviceId, { accountId: id });
     return id;
   });
-  const profile = await device.as.mutation(api.profiles.create, {
+  const profile = await device.as.action(api.profiles.create, {
     username: `u_${name
       .toLowerCase()
       .replaceAll(/[^a-z0-9]/g, "_")
@@ -81,6 +81,8 @@ export async function socialVisit(
         saveLocalIds: saves.map((s) => s.localId),
         reflection: "",
         revision: 0,
+        color: "#CDD0CA",
+        pattern: "stripe" as const,
       },
     };
   });

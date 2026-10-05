@@ -80,6 +80,7 @@ jest.mock("@/lib/journal/use-visits", () => ({
     loading: false,
   }),
 }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
 }));
@@ -185,6 +186,8 @@ beforeEach(() => {
       revision: 0,
       saveLocalIds: ["save"],
       reflection: "",
+      color: "#CDD0CA",
+      pattern: "stripe",
     },
     profileRequired: false,
     conflict: false,
@@ -209,7 +212,7 @@ it("shows visual progress before sharing starts and replaces a load failure with
   expect(mockDismiss).toHaveBeenCalledTimes(1);
 });
 
-it("uses the explicitly selected visit photo in the feed preview, including an explicitly selected label", async () => {
+it("uses the explicitly selected visit photo on the tile and the wallpaper row, including a selected label", async () => {
   mockVisit.works[0].cropPath = "private-original.jpg";
   mockPhotos = [
     {
@@ -224,11 +227,26 @@ it("uses the explicitly selected visit photo in the feed preview, including an e
   ];
   mockSharing.draft!.photoSelections = [{ saveLocalId: "save", photoLocalIds: ["chosen-label"] }];
   const view = await render(<VisitShareLayout />);
-  expect(screen.getByText("Water Lilies: selected-label.jpg")).toBeOnTheScreen();
+  expect(screen.getAllByText("Water Lilies: selected-label.jpg")).toHaveLength(2);
   mockSharing.draft!.photoSelections = [];
   await view.rerender(<VisitShareLayout />);
   expect(screen.queryByText("Water Lilies: selected-label.jpg")).toBeNull();
-  expect(screen.getByText("Water Lilies: no selected photo")).toBeOnTheScreen();
+  expect(screen.getAllByText("Water Lilies: no selected photo")).toHaveLength(2);
+});
+
+it("counts only the selected photos that are still available on the wallpaper row", async () => {
+  const photo = { owner: "account:a", savedLocalId: "save", visitLocalId: "visit", kind: "full", deletedAt: null };
+  mockPhotos = [
+    { ...photo, localId: "front", path: "front.jpg" },
+    { ...photo, localId: "detail", path: "detail.jpg" },
+    { ...photo, localId: "gone", path: "gone.jpg", deletedAt: 1 },
+  ] as ArtworkPhoto[];
+  mockSharing.draft!.photoSelections = [{ saveLocalId: "save", photoLocalIds: ["front", "detail", "gone"] }];
+  const view = await render(<VisitShareLayout />);
+  expect(screen.getByLabelText("Water Lilies, Claude Monet, 2 photos")).toBeOnTheScreen();
+  mockSharing.draft!.photoSelections = [{ saveLocalId: "save", photoLocalIds: ["front", "gone"] }];
+  await view.rerender(<VisitShareLayout />);
+  expect(screen.getByLabelText("Water Lilies, Claude Monet")).toBeOnTheScreen();
 });
 
 it("does not use another owner, visit, artwork, deleted, or unselected photo for the feed preview", async () => {
@@ -251,8 +269,8 @@ it("does not use another owner, visit, artwork, deleted, or unselected photo for
   ];
   mockSharing.draft!.photoSelections = [{ saveLocalId: "save", photoLocalIds: ["chosen"] }];
   await render(<VisitShareLayout />);
-  expect(screen.getByText("Water Lilies: no selected photo")).toBeOnTheScreen();
-  expect(screen.queryByText("Water Lilies: must-stay-private.jpg")).toBeNull();
+  expect(screen.getAllByText("Water Lilies: no selected photo")).toHaveLength(2);
+  expect(screen.queryByText(/must-stay-private|private-original/)).toBeNull();
 });
 
 it("shows a left-out artwork with the photo including it would add, never its label photo", async () => {
@@ -269,6 +287,7 @@ it("shows a left-out artwork with the photo including it would add, never its la
   mockSharing.draft = { ...mockSharing.draft!, saveLocalIds: [] };
   await render(<VisitShareLayout />);
   expect(screen.getByText("Water Lilies: artwork.jpg")).toBeOnTheScreen();
+  expect(screen.queryByTestId("art-band")).toBeNull();
   expect(screen.getByRole("checkbox", { name: "Share Water Lilies", checked: false })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /Choose photos/ })).toBeNull();
 });
@@ -408,6 +427,24 @@ it("carries the wrap-up's Friends choice into the draft and through guest sign-i
     pathname: "/sign-in",
     params: { context: "visit", visitId: "visit", audience: "friends" },
   });
+});
+
+it("styles the wallpaper row with the wall's picker, holding Post until Done", async () => {
+  await render(<VisitShareLayout />);
+  expect(screen.queryByRole("header", { name: "Wallpaper" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Style wallpaper" }));
+  expect(screen.getByRole("header", { name: "Wallpaper" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Style wallpaper" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sage", selected: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Forest" }));
+  expect(mockController.edit).toHaveBeenLastCalledWith({ color: "#45524B", pattern: "stripe" });
+  await fireEvent.press(screen.getByRole("button", { name: "Dots" }));
+  expect(mockController.edit).toHaveBeenLastCalledWith({ color: "#CDD0CA", pattern: "dots" });
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("header", { name: "Wallpaper" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Post" })).toBeOnTheScreen();
+  expect(mockController.publish).not.toHaveBeenCalled();
 });
 
 it("offers Private, Friends, and Public in the form without posting", async () => {

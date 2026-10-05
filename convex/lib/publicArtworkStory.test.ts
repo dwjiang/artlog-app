@@ -83,7 +83,7 @@ it("returns public visit stories without friendship and revokes access when made
   const reader = await socialUser(t);
   const draft = await socialVisit(t, owner, 1);
   await addStory(t, draft.saves[0].id);
-  const publication = await owner.as.mutation(api.sharedVisits.publish, draft.selection);
+  const publication = await owner.as.action(api.sharedVisits.publish, draft.selection);
   const postId = publication.postId!;
   const post = await owner.as.query(api.sharedVisits.get, { postId });
   const { itemId } = post.artworks.page[0];

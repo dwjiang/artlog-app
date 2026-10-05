@@ -32,7 +32,7 @@ it("defaults publishing to public and exposes notes only after publishing the vi
     reflection: state.reflection,
   };
   expect((await t.query(api.sharedVisits.listPublic, {})).page).toEqual([]);
-  const published = await owner.as.mutation(api.sharedVisits.publish, selection);
+  const published = await owner.as.action(api.sharedVisits.publish, selection);
   expect((await t.query(api.sharedVisits.get, { postId: published.postId! })).reflection).toBe(input.reflection);
 });
 
@@ -46,7 +46,7 @@ it("makes the whole visit private, hiding its notes and artworks from everyone b
     audience: "public" as const,
     reflection: "Visit memory",
   };
-  const published = await owner.as.mutation(api.sharedVisits.publish, selection);
+  const published = await owner.as.action(api.sharedVisits.publish, selection);
   const visible = await t.query(api.sharedVisits.get, {
     postId: published.postId!,
   });
@@ -110,10 +110,10 @@ it("refuses a stale note preview and keeps edits unpublished until an updated pu
     scope: owner.scope,
     visit: { ...input, reflection: "Edited draft" },
   });
-  await expect(owner.as.mutation(api.sharedVisits.publish, selection)).rejects.toMatchObject({
+  await expect(owner.as.action(api.sharedVisits.publish, selection)).rejects.toMatchObject({
     data: { code: "conflict" },
   });
-  const published = await owner.as.mutation(api.sharedVisits.publish, {
+  const published = await owner.as.action(api.sharedVisits.publish, {
     ...selection,
     reflection: "Edited draft",
   });

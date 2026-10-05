@@ -1,5 +1,5 @@
 import { LIMITS } from "../journal/limits";
-import { isAllowedIdentity } from "./profile-text";
+import { isAllowedIdentity } from "./offensive-text";
 
 export function isUsername(value: string): boolean {
   return value.length >= LIMITS.usernameMin && value.length <= LIMITS.usernameMax && /^[a-z0-9_]+$/.test(value);

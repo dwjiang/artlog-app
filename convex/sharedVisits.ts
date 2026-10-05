@@ -1,13 +1,17 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { sharedSelection, sharedVisitCard, visitAudience } from "../shared/social/contracts";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { query, type QueryCtx } from "./_generated/server";
-import { mutation } from "./functions";
+import { action, query, type QueryCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
+import { flaggedUserTexts } from "./lib/moderation";
+import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
+import { recordTitles } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
@@ -36,6 +40,16 @@ import {
 } from "./lib/sharedPublications";
 
 const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
+async function readPublicationRequest(ctx: QueryCtx, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
+  const { profile, owner, accountId } = await requireProfile(ctx);
+  const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
+  if (publication?.removal) throw new ConvexError({ code: "not_found" });
+  checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
+  const { visit, saves } = await selectedSaves(ctx, owner, input);
+  // The device saves the audience before publishing; a mismatch means another device changed it in between.
+  if (visit.visibility !== input.audience) throw new ConvexError({ code: "conflict" });
+  return { profile, accountId, publication, visit, saves };
+}
 export const getState = query({
   args: { visitLocalId: v.string() },
   returns: publicationState,
@@ -61,19 +75,33 @@ export const listShared = query({
       .map((publication) => publication.visitLocalId);
   },
 });
-export const publish = mutation({
+export const publish = action({
+  args: selectionArgs,
+  returns: publicationState,
+  handler: (ctx, input): Promise<Infer<typeof publicationState>> =>
+    withErrorReporting("sharedVisits.publish", async () => {
+      const titles = await ctx.runMutation(internal.sharedVisits.preparePublication, input);
+      const [flagged] = await flaggedUserTexts([input.reflection], titles);
+      if (flagged) throw new ConvexError({ code: "reflection_not_allowed" });
+      return ctx.runMutation(internal.sharedVisits.savePublication, input);
+    }),
+});
+export const preparePublication = internalMutation({
+  args: selectionArgs,
+  returns: v.array(v.string()),
+  handler: async (ctx, input) => {
+    const { accountId, saves } = await readPublicationRequest(ctx, input);
+    // Commit the attempt before moderation, so rejected text also consumes the quota.
+    await limitKey(ctx, "publishVisit", accountId);
+    return recordTitles(ctx, saves);
+  },
+});
+// The reflection must equal the visit's (`selectedSaves` checks it), so the text the action moderated is what goes out.
+export const savePublication = internalMutation({
   args: selectionArgs,
   returns: publicationState,
   handler: async (ctx, input) => {
-    const { profile, owner, accountId } = await requireProfile(ctx);
-    const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
-    if (publication?.removal) throw new ConvexError({ code: "not_found" });
-    checkPublicationRevision(input.revision, publication?.publicationRevision ?? 0);
-    const { visit, saves } = await selectedSaves(ctx, owner, input);
-    // The device saves the chosen audience as the visit's visibility before publishing, so a mismatch means another
-    // device changed it in between.
-    if (visit.visibility !== input.audience) throw new ConvexError({ code: "conflict" });
-    await limitKey(ctx, "publishVisit", accountId);
+    const { profile, publication, visit, saves } = await readPublicationRequest(ctx, input);
     const fields = {
       audience: input.audience,
       status: "active" as const,
@@ -82,6 +110,8 @@ export const publish = mutation({
       publicationRevision: input.revision + 1,
       updatedAt: Date.now(),
       publishedAt: publication?.publishedAt || Date.now(),
+      color: input.color.toUpperCase(),
+      pattern: input.pattern,
     };
     const publicationId =
       publication?._id

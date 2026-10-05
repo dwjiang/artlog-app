@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 
 import { Gallery } from "@/constants/theme";
 import { insertSavedWork } from "@/db/repos/saved-works";
@@ -67,6 +68,30 @@ it("explains why a hung work cannot share its note until the note has synced", a
   await render(<WallDisplayScreen savedId="lilies" />);
   expect(await screen.findByRole("switch", { name: "Show note on public wall" })).toBeDisabled();
   expect(screen.getByText("Add a note and let it sync before sharing it.")).toBeOnTheScreen();
+});
+
+it("says why the server refused to share a note", async () => {
+  const items = [
+    { placementId: "p", saveLocalId: "lilies", layout, itemId: "i", noteVisible: false, noteEligible: true },
+  ];
+  const setError = jest.fn();
+  mockWall = {
+    signedIn: true,
+    pieces: [],
+    draft: { color: "#FCFCF9", items },
+    acknowledged: { color: "#FCFCF9", items } as never,
+    refresh: jest.fn().mockResolvedValue(undefined),
+    repository: {
+      setNoteDraft: jest.fn(),
+      publishNotes: jest.fn().mockRejectedValue(new ConvexError({ code: "note_not_allowed" })),
+    } as never,
+    setError,
+  };
+  await render(<WallDisplayScreen savedId="lilies" />);
+  await fireEvent(await screen.findByRole("switch", { name: "Show note on public wall" }), "valueChange", true);
+  await waitFor(() =>
+    expect(setError).toHaveBeenLastCalledWith("This note includes words that aren’t allowed. Edit it to share it."),
+  );
 });
 
 it.each([

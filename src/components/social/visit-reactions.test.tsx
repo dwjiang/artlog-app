@@ -14,10 +14,11 @@ let mockSession: SocialSession;
 let mockSummary: ReactionSummary;
 let mockComments: object[];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("convex/react", () => ({
-  useMutation: (query: FunctionReference<"mutation">) => (args: unknown) =>
-    mockMutate(jest.requireActual("convex/server").getFunctionName(query), args),
-}));
+jest.mock("convex/react", () => {
+  const call = (query: FunctionReference<"mutation" | "action">) => (args: unknown) =>
+    mockMutate(jest.requireActual("convex/server").getFunctionName(query), args);
+  return { useMutation: call, useAction: call };
+});
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
 }));

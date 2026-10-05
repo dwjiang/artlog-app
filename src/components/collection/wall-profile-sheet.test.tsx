@@ -12,8 +12,8 @@ jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: true }),
 }));
 jest.mock("convex/react", () => ({
-  useMutation: () => mockCreate,
-  useAction: () => jest.fn(),
+  useAction: (action: unknown) =>
+    jest.requireActual("convex/server").getFunctionName(action) === "profiles:create" ? mockCreate : jest.fn(),
 }));
 jest.mock("./wall-sheet", () => ({
   WallSheet: ({ children }: { children: ReactNode }) => children,

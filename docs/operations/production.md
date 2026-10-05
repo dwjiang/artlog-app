@@ -69,8 +69,9 @@ backend import.
 | `DOCENT_MODEL`, `MODERATION_MODEL` | `nvidia/Nemotron-3_5-Lightning`             |
 
 Production has independent `JWT_PRIVATE_KEY` and `JWKS` plus provider credentials
-`NEBIUS_API_KEY`, `TAVILY_API_KEY`, and `OPENAI_API_KEY` (narration speech; without it
-every Listen fails with `narration_not_configured`), all outside source control. The import adds
+`NEBIUS_API_KEY`, `TAVILY_API_KEY`, and `OPENAI_API_KEY` (narration speech and post
+moderation; without it every Listen fails with `narration_not_configured` and comments,
+reflections, notes and bios fall back to the word list), all outside source control. The import adds
 `PINECONE_API_KEY`, `PINECONE_INDEX_HOST`, `R2_BUCKET`,
 `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` without changing
 authentication or provider settings. The September 13 anonymous sign-in, device
@@ -83,6 +84,19 @@ Push notifications go through Expo's push service and need no Convex variable. A
 delivers them only after an APNs key for `app.artlog.ios` is in the project's EAS
 credentials (`eas credentials -p ios`, Push Notifications). Without it, every receipt
 fails and Sentry records `push_invalid_credentials` under `push.receipts`.
+
+## Daily report review
+
+The terms promise a review of every report within 24 hours, and nothing alerts on
+new ones. Once a day, list open reports and resolve each one:
+
+```sh
+npx convex run review:listReports --prod --env-file .context/production-target.env
+npx convex run review:decideReport '{"reportId":"…","operator":"…","decision":"remove","reason":"…"}' --prod --env-file .context/production-target.env
+```
+
+`review:getReport` shows the saved copy of the reported content. `remove` deletes a
+comment, hides a wall item or post, and deactivates a profile; `dismiss` keeps it.
 
 ## Selecting production explicitly
 

@@ -8,6 +8,8 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { normalizeSearch } from "@/shared/journal/limits";
 
+const STAGE_ASPECT = 1.04;
+
 export function matchesVisitSearch(work: { title: string; artist: string | null }, query: string) {
   return normalizeSearch(`${work.title} ${work.artist ?? ""}`).includes(normalizeSearch(query));
 }
@@ -32,27 +34,22 @@ export function VisitGalleryArtwork({
   artist,
   photoCount,
   aspectRatio = 1,
-  stageAspect = 1.04,
   children,
 }: {
   title: string;
   artist: string | null;
   photoCount: number;
   aspectRatio?: number;
-  stageAspect?: number;
   children: (imageWidth: number) => ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
   const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
-  const frameWidth = Math.max(stageWidth, (stageWidth / stageAspect) * ratio);
+  const frameWidth = Math.max(stageWidth, (stageWidth / STAGE_ASPECT) * ratio);
   return (
     <>
-      <View
-        style={[styles.stage, { aspectRatio: stageAspect }]}
-        onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
-      >
+      <View style={styles.stage} onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}>
         <View style={{ width: frameWidth }}>{children(frameWidth)}</View>
         {photoCount !== 1 && (
           <View style={styles.badge}>
@@ -106,7 +103,7 @@ const styles = StyleSheet.create({
     marginBottom: 13,
   },
   stage: {
-    aspectRatio: 1.04,
+    aspectRatio: STAGE_ASPECT,
     width: "100%",
     borderRadius: 2,
     overflow: "hidden",

@@ -9,7 +9,7 @@ import { harness, type Harness } from "./test.helpers";
 
 async function publishedVisit(t: Harness, author: SocialUser) {
   const visit = await socialVisit(t, author);
-  return (await author.as.mutation(api.sharedVisits.publish, visit.selection)).postId!;
+  return (await author.as.action(api.sharedVisits.publish, visit.selection)).postId!;
 }
 const kinds = async (user: SocialUser) =>
   (await user.as.query(api.notifications.list, {})).page.map((item) => [item.kind, item.actor.name]);
@@ -86,12 +86,12 @@ describe("notifications", () => {
     const author = await socialUser(t, "Author");
     const [ana, ben] = [await socialUser(t, "Ana"), await socialUser(t, "Ben")];
     const postId = await publishedVisit(t, author);
-    const commentId = await ana.as.mutation(api.visitReactions.addComment, {
+    const commentId = await ana.as.action(api.visitReactions.addComment, {
       postId,
       body: "The Seurat is huge.",
       requestId: crypto.randomUUID(),
     });
-    await ben.as.mutation(api.visitReactions.addComment, {
+    await ben.as.action(api.visitReactions.addComment, {
       postId,
       body: "Wish I'd gone.",
       requestId: crypto.randomUUID(),
@@ -129,7 +129,7 @@ describe("notifications", () => {
     const commenter = await socialUser(t, "Commenter");
     const postId = await publishedVisit(t, author);
     const comment = (body: string) =>
-      commenter.as.mutation(api.visitReactions.addComment, { postId, body, requestId: crypto.randomUUID() });
+      commenter.as.action(api.visitReactions.addComment, { postId, body, requestId: crypto.randomUUID() });
     await comment("First");
     const first = (await author.as.query(api.notifications.list, {})).page[0].createdAt;
     await comment("Arrived after the snapshot");
@@ -161,7 +161,7 @@ describe("notifications", () => {
     const latest = (await author.as.query(api.notifications.list, {})).page[0].createdAt;
     await author.as.mutation(api.notifications.markSeen, { through: latest + 60_000 });
     expect((await author.as.query(api.notifications.list, {})).seenAt).toBe(latest);
-    await commenter.as.mutation(api.visitReactions.addComment, {
+    await commenter.as.action(api.visitReactions.addComment, {
       postId,
       body: "Arrived later",
       requestId: crypto.randomUUID(),
