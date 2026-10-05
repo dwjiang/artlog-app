@@ -35,7 +35,6 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
         icon="square.and.arrow.up"
         accessibilityLabel="Share artwork"
         tintColor={Gallery.ink}
-        hidesSharedBackground
         disabled={!work.cropPath}
         onPress={() => {
           void share();
@@ -43,13 +42,9 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
       >
         Share
       </Stack.Toolbar.Button>
-      <Stack.Toolbar.Menu
-        icon="ellipsis"
-        accessibilityLabel="More options"
-        tintColor={Gallery.ink}
-        hidesSharedBackground
-      >
+      <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More options" tintColor={Gallery.ink}>
         <Stack.Toolbar.MenuAction
+          icon="pencil"
           onPress={() =>
             router.push({
               pathname: "/identify-artwork",
@@ -57,9 +52,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
             })
           }
         >
-          {work.title === "Unidentified artwork" ? "Identify this artwork" : "Edit artwork details"}
+          {work.title === "Unidentified artwork" ? "Identify This Artwork" : "Edit Artwork Details"}
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
+          icon="photo.badge.plus"
           onPress={() =>
             router.push({
               pathname: "/add-photos",
@@ -72,9 +68,10 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
             })
           }
         >
-          Add photos
+          Add Photos
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
+          icon="link"
           onPress={() =>
             router.push({
               pathname: "/link-artwork",
@@ -82,7 +79,7 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
             })
           }
         >
-          Link visit
+          Link Visit
         </Stack.Toolbar.MenuAction>
         {owner.startsWith("account:") && (
           <Stack.Toolbar.MenuAction
@@ -94,36 +91,38 @@ export function SavedWorkToolbar({ savedId, visitId }: { savedId: string; visitI
               })
             }
           >
-            Wall display options
+            Wall Display Options
           </Stack.Toolbar.MenuAction>
         )}
-        <Stack.Toolbar.MenuAction
-          icon="trash"
-          destructive
-          onPress={() =>
-            Alert.alert(
-              "Remove this artwork?",
-              `Remove ${work.title} from your collection. You can undo this immediately afterward.`,
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Remove artwork",
-                  style: "destructive",
-                  onPress: () => {
-                    scheduleRemoval({
-                      owner: work.owner,
-                      localId: work.localId,
-                      title: work.title,
-                    });
-                    router.back();
+        <Stack.Toolbar.Menu inline>
+          <Stack.Toolbar.MenuAction
+            icon="trash"
+            destructive
+            onPress={() =>
+              Alert.alert(
+                "Remove this artwork?",
+                `Remove ${work.title} from your collection. You can undo this immediately afterward.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Remove artwork",
+                    style: "destructive",
+                    onPress: () => {
+                      scheduleRemoval({
+                        owner: work.owner,
+                        localId: work.localId,
+                        title: work.title,
+                      });
+                      router.back();
+                    },
                   },
-                },
-              ],
-            )
-          }
-        >
-          Remove from collection
-        </Stack.Toolbar.MenuAction>
+                ],
+              )
+            }
+          >
+            Remove from Collection…
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
   );

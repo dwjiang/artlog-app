@@ -1,9 +1,8 @@
 import { randomUUID } from "expo-crypto";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
-import { Image, StyleSheet, View, type ScrollView } from "react-native";
+import { Image, ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/empty-state";
@@ -90,7 +89,7 @@ export function CollectionWallContent({
   const addingRef = useRef(false);
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
-  const scroll = useAnimatedRef<ScrollView>();
+  const scroll = useRef<ScrollView>(null);
   const room = usePaneRoom(scroll, paneRef);
   const scrollGesture = useMemo(() => Gesture.Native(), []);
   const wallTop = useRef(0);
@@ -108,12 +107,7 @@ export function CollectionWallContent({
   const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
   const hasSavedArt = works.some((work) => work.owner === owner && !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
-  // The gap a pull opens under the controls shows the wall color, so the spinner takes the wall's ink.
-  const pull = usePullToRefresh(scroll, {
-    enabled: wall.signedIn && !editing,
-    onRefresh: () => wall.refresh(),
-    tintColor: wallInk,
-  });
+  const pull = usePullToRefresh({ enabled: wall.signedIn && !editing, onRefresh: () => wall.refresh() });
   const available = works.filter((item) => item.owner === owner && !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave || adding;
@@ -323,7 +317,7 @@ export function CollectionWallContent({
         </View>
       )}
       <GestureDetector gesture={scrollGesture}>
-        <Animated.ScrollView
+        <ScrollView
           ref={scroll}
           style={{ flex: 1 }}
           contentInsetAdjustmentBehavior="automatic"
@@ -334,41 +328,38 @@ export function CollectionWallContent({
           onScroll={room.onScroll}
           refreshControl={pull.refreshControl}
         >
-          {/* Raised over the paper strip at the end, which would cover the header while a pull holds it up. */}
-          {!editing && header && <Animated.View style={[{ zIndex: 1 }, pull.headerStyle]}>{header}</Animated.View>}
+          {!editing && header}
           {!editing && (
             <View
+              style={{ backgroundColor: Gallery.paper }}
               onLayout={(event) => {
                 controlsHeight.current = event.nativeEvent.layout.height;
-                pull.onHeaderLayout(event);
                 room.onPinnedLayout(event);
               }}
             >
-              <Animated.View style={[{ backgroundColor: Gallery.paper }, pull.headerStyle]}>
-                {controls}
-                <View style={styles.toolbar}>
-                  {wall.draft && (
-                    <GalleryButton
-                      label="Edit wall"
-                      icon="slider.horizontal.3"
-                      disabled={blocked || !wall.draft}
-                      onPress={edit}
-                    />
+              {controls}
+              <View style={styles.toolbar}>
+                {wall.draft && (
+                  <GalleryButton
+                    label="Edit wall"
+                    icon="slider.horizontal.3"
+                    disabled={blocked || !wall.draft}
+                    onPress={edit}
+                  />
+                )}
+                <View style={styles.toolbarTrailing}>
+                  {wall.loading && wall.draft && !wall.error && !pull.refreshing && (
+                    <LoadingRing accessibilityLabel="Refreshing wall" />
                   )}
-                  <View style={styles.toolbarTrailing}>
-                    {wall.loading && wall.draft && !wall.error && !pull.refreshing && (
-                      <LoadingRing accessibilityLabel="Refreshing wall" />
-                    )}
-                    <GalleryButton
-                      label="All artworks"
-                      icon="chevron.right"
-                      iconPosition="trailing"
-                      disabled={blocked}
-                      onPress={() => router.push("/all-artworks")}
-                    />
-                  </View>
+                  <GalleryButton
+                    label="All artworks"
+                    icon="chevron.right"
+                    iconPosition="trailing"
+                    disabled={blocked}
+                    onPress={() => router.push("/all-artworks")}
+                  />
                 </View>
-              </Animated.View>
+              </View>
             </View>
           )}
           {wall.error && (
@@ -511,7 +502,7 @@ export function CollectionWallContent({
           )}
           {/* The root carries the wall color so bottom overscroll continues the wall; the header above it is paper, so top overscroll stays paper too. */}
           <View pointerEvents="none" style={styles.topOverscroll} />
-        </Animated.ScrollView>
+        </ScrollView>
       </GestureDetector>
       {editing
         && (wallpaperPreview ? (

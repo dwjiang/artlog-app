@@ -75,7 +75,7 @@ export function WallArtworkPicker({
     list.current?.scrollToOffset({ offset: 0, animated: false });
   }, [search, visitId, sort, notOnWall, review]);
   const visitOptions = [
-    { value: "", label: "All visits" },
+    { value: "", label: "All Visits" },
     ...visits.map((item) => ({
       value: item.localId,
       label: `${item.venueName} · ${formatVisitDate(item.visitedOn)}`,
@@ -113,8 +113,8 @@ export function WallArtworkPicker({
                 label="Show artworks"
                 value={notOnWall ? "available" : "all"}
                 options={[
-                  { value: "available", label: "Not on wall" },
-                  { value: "all", label: "All artworks" },
+                  { value: "available", label: "Not on Wall" },
+                  { value: "all", label: "All Artworks" },
                 ]}
                 onChange={(value) => setNotOnWall(value === "available")}
                 disabled={disabled}
@@ -158,7 +158,7 @@ export function WallArtworkPicker({
                   onChange={setSort}
                   disabled={disabled}
                   options={[
-                    { value: "recent", label: "Recently saved" },
+                    { value: "recent", label: "Recently Saved" },
                     { value: "title", label: "Title" },
                     { value: "artist", label: "Artist" },
                   ]}

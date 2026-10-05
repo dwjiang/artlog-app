@@ -28,7 +28,7 @@ jest.mock("./capture-context-button", () => ({
 jest.mock("./capture-photos-button", () => ({
   CapturePhotosButton: () => null,
   useCapturePhotos: () => ({
-    label: "Add photos",
+    photoCount: 1,
     open: jest.fn(),
     unavailable: false,
   }),
@@ -114,7 +114,7 @@ jest.mock("expo-router", () => {
       replace: mockReplace,
       dismissAll: mockDismissAll,
     }),
-    Stack: { Toolbar: Object.assign(View, { Menu: View, MenuAction: Action }) },
+    Stack: { Toolbar: Object.assign(View, { Button: Action, Menu: View, MenuAction: Action }) },
   };
 });
 jest.mock("expo-haptics", () => ({
@@ -238,7 +238,7 @@ it.each([false, true])(
     await cacheOfflineResult(localId, confidentScan);
     await render(<LocalScanScreen localId={localId} />);
     if (edited) {
-      await fireEvent.press(screen.getByRole("button", { name: "Edit details" }));
+      await fireEvent.press(screen.getByRole("button", { name: "Edit Details" }));
       await fireEvent.changeText(screen.getByLabelText("Title"), "My saved title");
     }
     await fireEvent.press(await screen.findByRole("button", { name: "Save to collection" }));

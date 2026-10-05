@@ -1,14 +1,8 @@
 import { useLocalSearchParams } from "expo-router";
 
-import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { ProfileScreen } from "@/components/social/profile-screen";
 
 export default function ProfileRoute() {
   const { profileId } = useLocalSearchParams<{ profileId: string }>();
-  return (
-    <>
-      <GalleryBackToolbar />
-      <ProfileScreen profileId={profileId} />
-    </>
-  );
+  return <ProfileScreen profileId={profileId} />;
 }

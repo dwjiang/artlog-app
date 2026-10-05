@@ -206,7 +206,7 @@ export function WelcomeScreen() {
                       busyLabel="Asking…"
                       onPress={() => void allow(current)}
                     />
-                    <GalleryButton label="Not now" fullWidth variant="filled" tone="neutral" onPress={advance} />
+                    <GalleryButton label="Not Now" fullWidth variant="filled" tone="neutral" onPress={advance} />
                   </>
                 ) : (
                   <GalleryButton label="Continue" fullWidth variant="filled" onPress={() => void allow(current)} />
@@ -228,7 +228,7 @@ export function WelcomeScreen() {
               <>
                 <SignInActions state={account} />
                 <GalleryButton
-                  label="Not now"
+                  label="Not Now"
                   fullWidth
                   variant="filled"
                   tone="neutral"

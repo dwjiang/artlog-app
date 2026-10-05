@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
-import { AccessibilityInfo, DeviceEventEmitter, Dimensions, ScrollView } from "react-native";
+import { AccessibilityInfo, DeviceEventEmitter, Dimensions, ScrollView, Text, type HostInstance } from "react-native";
 
+import { Gallery } from "@/constants/theme";
 import type { SharedArtwork } from "@/lib/social/types";
 
 import { ArtworkScreen } from "./artwork-screen";
@@ -23,7 +24,12 @@ jest.mock("./report-toolbar", () => ({ ReportToolbar: () => null }));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
-jest.mock("expo-router", () => ({ useRouter: () => ({ push: jest.fn() }) }));
+const mockSetOptions = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  useNavigation: () => ({ setOptions: mockSetOptions }),
+}));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
     const { View } = jest.requireActual("react-native");
@@ -88,6 +94,32 @@ it("navigates only the selected shared photos and preserves authenticated media 
   expect(photos.every((photo) => photo.props.cachePolicy === "memory")).toBe(true);
   expect(screen.getByText(/Vincent van Gogh/)).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Starry Night" })).toBeOnTheScreen();
+});
+
+it("names the artwork in the bar only while its title is scrolled under the bar", async () => {
+  // Native layout puts the title 500–540 pt down the scroll content.
+  const nativeScroll = {} as HostInstance;
+  const scrollRef = jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
+  const measure = jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
+    if (relativeTo === nativeScroll) onSuccess(20, 500, 362, 40);
+  });
+  try {
+    await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+    const title = screen.getByRole("header", { name: "Starry Night" });
+    await fireEvent(title, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 362, height: 40 } } });
+    const scrollTo = (y: number) => fireEvent.scroll(title, { nativeEvent: { contentOffset: { x: 0, y } } });
+    await scrollTo(-116);
+    await scrollTo(423);
+    expect(mockSetOptions).toHaveBeenCalledWith({ title: "Starry Night" });
+    expect(mockSetOptions).not.toHaveBeenCalledWith({ headerTitleStyle: expect.anything() });
+    await scrollTo(424);
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: Gallery.ink } });
+    await scrollTo(-116);
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: "transparent" } });
+  } finally {
+    scrollRef.mockRestore();
+    measure.mockRestore();
+  }
 });
 
 it("resets the gallery when a shared photo is removed and hides it when the session becomes unavailable", async () => {

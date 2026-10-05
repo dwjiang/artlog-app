@@ -108,14 +108,12 @@ export function PeopleScreen() {
   usePaneSwitch(filter, () => room);
   return (
     <>
-      <Stack.Screen options={{ title: "" }} />
       {session.status === "ready" && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon="qrcode"
             accessibilityLabel="Share your profile"
             tintColor={Gallery.ink}
-            hidesSharedBackground
             onPress={() => router.push("/share-profile")}
           />
         </Stack.Toolbar>
@@ -157,9 +155,6 @@ export function PeopleScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <Text variant="pageTitle" accessibilityRole="header">
-                Friends
-              </Text>
               <SearchField
                 label="Name or username"
                 value={text}
@@ -310,7 +305,7 @@ export function PeopleScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.groupedBackground },
-  header: { paddingHorizontal: Spacing.content, paddingTop: Spacing.one, gap: Spacing.compact },
+  header: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two, gap: Spacing.compact },
   section: { paddingHorizontal: Spacing.content, paddingTop: Spacing.four },
   inset: { paddingHorizontal: Spacing.content },
 });

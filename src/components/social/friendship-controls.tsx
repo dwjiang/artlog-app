@@ -28,11 +28,11 @@ import type { SocialSession } from "@/lib/social/use-social-session";
 import { socialStyles } from "./social-styles";
 
 const labels: Record<FriendshipAction, string> = {
-  request: "Add friend",
-  accept: "Accept friend",
+  request: "Add Friend",
+  accept: "Accept Friend",
   decline: "Ignore",
-  cancel: "Friend request sent",
-  remove: "Remove friend",
+  cancel: "Friend Request Sent",
+  remove: "Remove Friend",
 };
 
 /**
@@ -142,7 +142,7 @@ function CompactFriendshipAction({
 
 /**
  * One row of profile actions that stacks at large text sizes. `secondary` takes a smaller share than each action,
- * so "Accept friend" stays on one line beside it through XXXL text; `trailing` keeps its own width.
+ * so "Accept Friend" stays on one line beside it through XXXL text; `trailing` keeps its own width.
  */
 export function ProfileActionRow({
   actions,
@@ -197,7 +197,7 @@ function FriendsMenu({ removing, onRemove }: { removing: boolean; onRemove: () =
           </Row>
         }
       >
-        <Button label="Remove friend" role="destructive" onPress={onRemove} />
+        <Button label="Remove Friend…" role="destructive" onPress={onRemove} />
       </Menu>
     </Host>
   );
@@ -206,13 +206,11 @@ function FriendsMenu({ removing, onRemove }: { removing: boolean; onRemove: () =
 export function FriendshipControls({
   profileId,
   session,
-  trailing,
   unblocking = false,
   onUnblock,
 }: {
   profileId: PublicProfile["profileId"];
   session: SocialSession;
-  trailing?: ReactNode;
   unblocking?: boolean;
   /** Replaces the friendship actions while the viewer blocks this profile. */
   onUnblock: () => void;
@@ -251,7 +249,7 @@ export function FriendshipControls({
       ? [
           <GalleryButton
             key="add"
-            label="Add friend"
+            label="Add Friend"
             variant="outlined"
             fullWidth
             onPress={() => router.push(session.status === "signed-out" ? signInRoute("friends") : "/create-profile")}
@@ -306,11 +304,7 @@ export function FriendshipControls({
                 : [loading];
   return (
     <View style={{ gap: Spacing.two }}>
-      <ProfileActionRow
-        actions={actions}
-        secondary={available.includes("decline") && actionButton("decline")}
-        trailing={trailing}
-      />
+      <ProfileActionRow actions={actions} secondary={available.includes("decline") && actionButton("decline")} />
       {error && (
         <>
           <Text selectable accessibilityRole="alert" style={socialStyles.body}>

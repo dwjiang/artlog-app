@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 
+import { Gallery } from "@/constants/theme";
 import { insertSavedWork } from "@/db/repos/saved-works";
 
 import { WallDisplayScreen } from "./wall-display-screen";
@@ -19,6 +20,12 @@ jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("./photo-visibility", () => ({ PhotoVisibility: () => null }));
+const mockSetOptions = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ back: jest.fn() }),
+  useNavigation: () => ({ setOptions: mockSetOptions }),
+}));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 
 const layout = {
   x: 0.05,
@@ -178,6 +185,30 @@ it("previews the selected artwork and offers the approved frames without preset 
     expect(screen.queryByRole("button", { name })).toBeNull();
   }
   expect(screen.getByRole("header", { name: "Water Lilies" })).toBeOnTheScreen();
+});
+
+it("names the artwork in the bar only while its heading is scrolled under the bar", async () => {
+  mockWall = {
+    signedIn: true,
+    pieces: [],
+    draft: {
+      color: "#FCFCF9",
+      items: [{ placementId: "p", saveLocalId: "lilies", layout }],
+    },
+    setError: jest.fn(),
+  };
+  await render(<WallDisplayScreen savedId="lilies" />);
+  const heading = await screen.findByRole("header", { name: "Water Lilies" });
+  await fireEvent(heading, "layout", { nativeEvent: { layout: { x: 20, y: 240, width: 362, height: 40 } } });
+  const scrollTo = (y: number) => fireEvent.scroll(heading, { nativeEvent: { contentOffset: { x: 0, y } } });
+  await scrollTo(-116);
+  await scrollTo(163);
+  expect(mockSetOptions).toHaveBeenCalledWith({ title: "Water Lilies" });
+  expect(mockSetOptions).not.toHaveBeenCalledWith({ headerTitleStyle: expect.anything() });
+  await scrollTo(164);
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: Gallery.ink } });
+  await scrollTo(0);
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: "transparent" } });
 });
 
 it("tells the owner when the artwork is not on the wall", async () => {

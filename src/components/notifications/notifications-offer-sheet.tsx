@@ -43,7 +43,7 @@ export function NotificationsOfferSheet() {
           onPress={() => void allow()}
         />
         <GalleryButton
-          label="Not now"
+          label="Not Now"
           variant="filled"
           tone="neutral"
           fullWidth

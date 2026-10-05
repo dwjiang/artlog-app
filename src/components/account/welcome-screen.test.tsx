@@ -89,7 +89,7 @@ const allowed = { granted: true, canAskAgain: true };
 async function declineEveryPermission() {
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
   for (let page = 0; page < 4; page++) {
-    await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   }
 }
 
@@ -133,7 +133,7 @@ it("asks for each permission before saving a name and completing onboarding", as
   expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Keep the photo." })).toBeOnTheScreen();
 
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(mockRequestPhotos).not.toHaveBeenCalled();
   expect(screen.getByLabelText("Step 3 of 5")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Find the museum." })).toBeOnTheScreen();
@@ -144,7 +144,7 @@ it("asks for each permission before saving a name and completing onboarding", as
   expect(screen.getByRole("header", { name: "Save your collection." })).toBeOnTheScreen();
   expect(screen.getByText("Sync your collection, share your wall, and connect with friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(screen.getByLabelText("Step 5 of 5")).toBeOnTheScreen();
   expect(mockBack).not.toHaveBeenCalled();
   expect(await settings.getSetting("welcome-seen")).toBeUndefined();
@@ -184,7 +184,7 @@ it("declines every permission but still requires a name or nickname", async () =
 it("goes back one page at a time without answering for the visitor", async () => {
   await render(<WelcomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(screen.getByRole("header", { name: "Keep the photo." })).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Back" }));
@@ -201,7 +201,7 @@ it("moves on without asking again when a permission is already answered", async 
   mockCamera = { hasPermission: false, canRequestPermission: false };
   await render(<WelcomeScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
-  expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Not Now" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(mockRequestCamera).not.toHaveBeenCalled();
   expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
@@ -242,7 +242,7 @@ async function signInDuringOnboarding(hasProfile: boolean) {
   const view = await render(tree());
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
   for (let page = 0; page < 3; page++) {
-    await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   }
   await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   expect(mockSignInWithApple).toHaveBeenCalledTimes(1);
@@ -279,7 +279,7 @@ it("takes a signed-in account through the permissions only", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Get started" }));
   expect(screen.getByLabelText("Step 1 of 3")).toBeOnTheScreen();
   for (let page = 0; page < 3; page++) {
-    await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   }
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("header", { name: "Save your collection." })).toBeNull();

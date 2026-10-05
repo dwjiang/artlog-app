@@ -63,8 +63,8 @@ it("keeps selections across searches, visit filters, sorting, and review", async
   await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
   await fireEvent.changeText(screen.getByLabelText("Search artworks"), "monet");
   expect(screen.queryByRole("checkbox", { name: "Sunflowers" })).toBeNull();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Orsay · 20 Sep 2026" }));
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Title" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Orsay · 20 Sep 2026" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Title" }));
   await fireEvent.press(screen.getByRole("checkbox", { name: "Water Lilies" }));
   await fireEvent.press(screen.getByRole("button", { name: "Review selected artworks" }));
   expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
@@ -96,7 +96,7 @@ it("hides hung artworks by default and prevents adding hung or unsynced artworks
     />,
   );
   expect(screen.queryByRole("checkbox", { name: "Sunflowers" })).toBeNull();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "All artworks" }));
+  await fireEvent.press(screen.getByRole("button", { name: "All Artworks" }));
   expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
   expect(screen.getByRole("checkbox", { name: "New painting" })).toBeDisabled();

@@ -1,6 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
 
-import { GalleryBackToolbar } from "@/components/gallery-back-toolbar";
 import { ResultScreen } from "@/components/scan/result-screen";
 
 export default function ResultRoute() {
@@ -8,10 +7,5 @@ export default function ResultRoute() {
     scanId: string;
     edit?: string;
   }>();
-  return (
-    <>
-      <GalleryBackToolbar />
-      <ResultScreen scanId={scanId} manual={edit === "1"} />
-    </>
-  );
+  return <ResultScreen scanId={scanId} manual={edit === "1"} />;
 }

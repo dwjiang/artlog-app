@@ -1,7 +1,6 @@
 import { router, Stack } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
-import Animated, { useAnimatedRef } from "react-native-reanimated";
+import { useRef, useState } from "react";
+import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { SignInActions } from "@/components/account/sign-in-actions";
 import { ActionStack } from "@/components/action-stack";
@@ -48,10 +47,10 @@ export function LeaderboardScreen() {
     }
   }
   const rows = board.data?.rows ?? [];
-  const list = useAnimatedRef<FlatList<(typeof rows)[number]>>();
+  const list = useRef<FlatList<(typeof rows)[number]>>(null);
   const room = usePaneRoom(list);
   usePaneSwitch(`${audience}:${metric}`, () => room);
-  const pull = usePullToRefresh(list, {
+  const pull = usePullToRefresh({
     enabled: canBrowse,
     refreshing: board.refreshing,
     onRefresh: board.refresh,
@@ -62,20 +61,19 @@ export function LeaderboardScreen() {
     changeChoice(update);
   };
   return (
-    <View style={styles.root}>
-      <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
+    <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="person.2.badge.gearshape"
           accessibilityLabel={visibility === "off" ? "Join the leaderboard" : "Manage participation"}
           tintColor={Gallery.ink}
-          hidesSharedBackground
           hidden={!ready && !guest}
           onPress={manageParticipation}
         />
       </Stack.Toolbar>
-      <Animated.FlatList
+      <FlatList
         ref={list}
+        style={styles.root}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 24, minHeight: room.minHeight }}
         onLayout={room.onLayout}
@@ -83,16 +81,7 @@ export function LeaderboardScreen() {
         initialNumToRender={15}
         refreshControl={pull.refreshControl}
         ListHeaderComponent={
-          <Animated.View
-            style={[styles.filters, pull.headerStyle]}
-            onLayout={(event) => {
-              pull.onHeaderLayout(event);
-              room.onHeaderLayout(event);
-            }}
-          >
-            <Text variant="pageTitle" accessibilityRole="header" style={{ marginBottom: 12 }}>
-              Leaderboards
-            </Text>
+          <View style={styles.filters} onLayout={room.onHeaderLayout}>
             <NativeSegmentedPicker
               label="Leaderboard audience"
               value={audience}
@@ -108,12 +97,12 @@ export function LeaderboardScreen() {
                 value={metric}
                 onChange={(value) => filter({ metric: value })}
                 options={[
-                  { value: "visits", label: "Museum visits" },
+                  { value: "visits", label: "Museum Visits" },
                   { value: "artworks", label: "Artworks" },
                 ]}
               />
             </View>
-          </Animated.View>
+          </View>
         }
         data={rows}
         keyExtractor={(row) => row.profile.profileId}
@@ -247,7 +236,7 @@ export function LeaderboardScreen() {
         }
       />
       {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
-    </View>
+    </>
   );
 }
 
@@ -278,11 +267,7 @@ function LeaderboardSignIn() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  filters: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    backgroundColor: Gallery.paper,
-  },
+  filters: { paddingHorizontal: 20, paddingTop: Spacing.two },
   filterRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two, marginTop: Spacing.two },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   row: {

@@ -172,7 +172,7 @@ it("opens sign-in directly above a guest visit and preserves the visit when dism
     { initialUrl: "/journal/visit" },
   );
   await navigation;
-  await fireEvent.press(screen.getByRole("button", { name: "Share visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Share Visit…" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/sign-in"));
   expect(navigation.getSearchParams()).toMatchObject({
     context: "visit",
@@ -225,12 +225,12 @@ it("shows a published visit's status and opens its post and link from the menu",
   await navigation;
   expect(chip("Public")).toBeOnTheScreen();
   expect(screen.getByText("Posted")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Edit post" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Edit Post…" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /Link artwork/ })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Copy link" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Copy Link" }));
   expect(mockCopy).toHaveBeenCalledWith("artlog://visit/post");
   await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Visit link copied."));
-  await fireEvent.press(screen.getByRole("button", { name: "View post" }));
+  await fireEvent.press(screen.getByRole("button", { name: "View Post" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/visit/post"));
   expect(screen.getByText("Public post")).toBeOnTheScreen();
 });
@@ -243,8 +243,8 @@ it("hides the link for a private post and the share actions while a visit is bei
     { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
     { initialUrl: "/journal/visit" },
   );
-  expect(screen.getByRole("button", { name: "View post" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+  expect(screen.getByRole("button", { name: "View Post" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Copy Link" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Save & end visit" })).toBeNull();
 });
 
@@ -259,7 +259,7 @@ it("opens saved artwork from a visit and returns to its private notes", async ()
   );
   await navigation;
   expect(screen.queryByText(/Private on this device/)).toBeNull();
-  expect(screen.getByRole("button", { name: "Share visit" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Share Visit…" })).toBeOnTheScreen();
   expect(screen.getByText("The afternoon light")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "Water Lilies, Claude Monet" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/saved/painting"));
@@ -398,7 +398,7 @@ it("defaults to Public before publishing and opens the share form from the menu"
   expect(chip("Public")).toBeOnTheScreen();
   expect(screen.getByText("Not posted yet")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Save & end visit" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Share visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Share Visit…" }));
   await waitFor(() => expect(navigation.getPathname()).toBe("/visit-share/visit"));
 });
 
@@ -576,7 +576,7 @@ it("waits for pending notes to save before opening sharing", async () => {
   await navigation;
   await fireEvent.press(screen.getByRole("button", { name: "Edit note" }));
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Remember the blue room");
-  await fireEvent.press(screen.getByRole("button", { name: "Share visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Share Visit…" }));
   expect(navigation.getPathname()).toBe("/journal/visit");
   await act(async () => finish());
   await waitFor(() => expect(navigation.getPathname()).toBe("/visit-share/visit"));
@@ -591,7 +591,7 @@ it("offers only Save & end visit on the open visit, ending it in one step", asyn
     { _layout: () => <Stack />, index: () => <Text>Home</Text>, "journal/[visitId]": VisitDetailScreen },
     { initialUrl: "/journal/visit" },
   );
-  expect(screen.queryByRole("button", { name: "Share visit" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Share Visit…" })).toBeNull();
   expect(chip("Private")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   await waitFor(() => expect(mockEnd).toHaveBeenCalledWith("visit"));
@@ -642,7 +642,7 @@ it("hides the end-visit Save while the keyboard is up and restores it after the 
   mockVisit.endedAt = null;
   await openEndReview();
   expect(screen.getByRole("button", { name: "Save & end visit" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Share visit" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Share Visit…" })).toBeNull();
   const keyboard = {
     duration: 250,
     easing: "keyboard",
@@ -825,5 +825,5 @@ it("asks before a published Private visit is shown to friends", async () => {
   await fireEvent.press(screen.getByRole("checkbox", { name: "Friends" }));
   expect(jest.mocked(Alert.alert).mock.calls[0][0]).toBe("Share this visit with friends?");
   expect(save).not.toHaveBeenCalled();
-  expect(screen.getByRole("button", { name: "View post" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "View Post" })).toBeOnTheScreen();
 });

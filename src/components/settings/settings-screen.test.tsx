@@ -86,7 +86,7 @@ it("shows grouped settings and opens the matching detail", async () => {
   await render(<SettingsScreen />);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
   expect(screen.queryByText("YA", { includeHiddenElements: true })).toBeNull();
-  for (const title of ["Settings", "App", "Legal", "Support", "Developer"]) {
+  for (const title of ["App", "Legal", "Support", "Developer"]) {
     expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
   }
   expect(screen.queryByRole("button", { name: "Export journal" })).toBeNull();
@@ -189,7 +189,7 @@ it("shows account details and controls without device counts or sync copy", asyn
   expect(mockSignOut).not.toHaveBeenCalled();
   await confirmDestructive();
   expect(mockSignOut).toHaveBeenCalledTimes(1);
-  await fireEvent.press(screen.getByRole("button", { name: "Edit profile" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Edit Profile" }));
   expect(mockPush).toHaveBeenLastCalledWith("/edit-profile");
 });
 
@@ -197,7 +197,7 @@ it("offers profile creation from account settings when the account has no profil
   mockAccount = { linked: true, deviceCount: 1, email: "visitor@example.com" };
   mockSessionStatus = "profile-required";
   await render(<SettingsDetailScreen section="account" />);
-  expect(screen.queryByRole("button", { name: "Edit profile" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Create profile" }));
+  expect(screen.queryByRole("button", { name: "Edit Profile" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Create Profile" }));
   expect(mockPush).toHaveBeenLastCalledWith("/create-profile");
 });

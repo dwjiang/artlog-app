@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import type { ReactNode } from "react";
+import type { ComponentRef, ReactNode, Ref } from "react";
 import { View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -29,8 +29,6 @@ type ProfileIdentity = {
 type ProfileStat = { noun: string; count?: number; onPress?: () => void };
 
 const AVATAR_SIZE = 84;
-// An icon-only GalleryButton: a 44-point icon frame inside 12-point padding.
-const SHARE_WIDTH = 68;
 
 /**
  * Leaving `identity` undefined draws the loading state. The top edge sits at the safe area so the corners line up
@@ -40,11 +38,15 @@ export function ProfileHeader({
   identity,
   stats,
   accessory,
+  headingRef,
+  onHeadingLayout,
   children,
 }: {
   identity?: ProfileIdentity;
   stats: ProfileStat[];
   accessory?: ReactNode;
+  headingRef?: Ref<ComponentRef<typeof Text>>;
+  onHeadingLayout?: () => void;
   children?: ReactNode;
 }) {
   const large = useWindowDimensions().fontScale >= 1.6;
@@ -113,7 +115,13 @@ export function ProfileHeader({
           />
           <View style={{ alignSelf: "stretch", alignItems: "center", gap: 6 }}>
             <View style={{ alignItems: "center" }}>
-              <Text variant={large ? "section" : "display"} accessibilityRole="header" style={{ textAlign: "center" }}>
+              <Text
+                ref={headingRef}
+                variant={large ? "section" : "display"}
+                accessibilityRole="header"
+                style={{ textAlign: "center" }}
+                onLayout={onHeadingLayout}
+              >
                 {identity.name}
               </Text>
               {identity.subtitle && (
@@ -185,7 +193,7 @@ export function OwnProfileActions({ profileId }: { profileId: PublicProfile["pro
       actions={[
         <GalleryButton
           key="edit"
-          label="Edit profile"
+          label="Edit Profile"
           variant="outlined"
           fullWidth
           onPress={() => router.push("/edit-profile")}
@@ -196,23 +204,19 @@ export function OwnProfileActions({ profileId }: { profileId: PublicProfile["pro
   );
 }
 
-/** The action row while the profile loads: a full-width action beside Share. */
+/** The friendship action while someone else's profile loads. */
 export function ProfileActionsSkeleton() {
-  const stacked = useWindowDimensions().fontScale >= 1.5;
   return (
     <LoadingSkeleton label="Loading profile actions…">
-      <ProfileActionRow
-        actions={[<ButtonGhost key="action" />]}
-        trailing={<ButtonGhost width={stacked ? "100%" : SHARE_WIDTH} />}
-      />
+      <ButtonGhost />
     </LoadingSkeleton>
   );
 }
 
-export function ShareProfileButton({ profileId }: { profileId: PublicProfile["profileId"] }) {
+function ShareProfileButton({ profileId }: { profileId: PublicProfile["profileId"] }) {
   return (
     <GalleryButton
-      label="Share profile"
+      label="Share Profile"
       icon="square.and.arrow.up"
       iconOnly
       variant="outlined"

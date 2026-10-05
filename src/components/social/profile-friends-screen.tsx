@@ -13,7 +13,7 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CompactFriendshipControls } from "./friendship-controls";
 import { ProfileRow } from "./profile-row";
-import { SocialGate, SocialState } from "./social-state";
+import { SocialGate, SocialState, StateScreen } from "./social-state";
 import { socialStyles } from "./social-styles";
 
 /** Someone else's friends: you first when you're one of them, then the friends you share, then everyone else. */
@@ -26,14 +26,20 @@ export function ProfileFriendsScreen({ profileId }: { profileId: string }) {
     id && session.status === "ready" ? { profileId: id } : "skip",
     session.key,
   );
-  if (session.status !== "ready") return <SocialGate session={session} />;
+  if (session.status !== "ready") {
+    return (
+      <StateScreen grouped>
+        <SocialGate session={session} />
+      </StateScreen>
+    );
+  }
   const firstName = person.data?.name.split(" ")[0];
   const rank = (p: BrowsedProfile) => (p.profileId === session.profileId ? 0 : isMutualFriend(p) ? 1 : 2);
   // Stable sort keeps the server's alphabetical order within each group.
   const people = friends.data ? [...friends.data].sort((a, b) => rank(a) - rank(b)) : [];
   return (
     <>
-      <Stack.Screen options={{ title: firstName ? `${firstName}’s friends` : "Friends" }} />
+      <Stack.Screen options={{ title: firstName ? `${firstName}’s Friends` : "Friends" }} />
       <FlatList
         style={styles.page}
         contentContainerStyle={[socialStyles.content, styles.content]}

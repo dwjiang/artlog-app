@@ -27,7 +27,6 @@ jest.mock("@/lib/social/use-social-query", () => ({
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("convex/react", () => ({ useMutation: () => mockMarkSeen }));
 jest.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
   useRouter: () => ({ push: mockPush }),
   useIsFocused: () => mockFocused,
   useFocusEffect: (effect: () => (() => void) | undefined) => {

@@ -11,7 +11,7 @@ export function ScanCropEditor({ capture, onCancel }: { capture: PendingScan; on
   const router = useRouter();
   const navigation = useNavigation();
   useEffect(() => {
-    navigation.setOptions({ title: "Adjust crop", gestureEnabled: false });
+    navigation.setOptions({ title: "Adjust Crop", gestureEnabled: false });
     return () => navigation.setOptions({ title: "", gestureEnabled: true });
   }, [navigation]);
   return (

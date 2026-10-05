@@ -15,7 +15,14 @@ import { WallpaperEditor } from "@/components/collection/wallpaper-editor";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileForm } from "@/components/social/profile-form";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, NavigationTheme, PinnedFooterBorder, Spacing, Typography } from "@/constants/theme";
+import {
+  Gallery,
+  NavigationTheme,
+  PinnedFooterBorder,
+  Spacing,
+  TransparentHeader,
+  Typography,
+} from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -36,6 +43,7 @@ import { ArtBand, type BandArtwork } from "./art-band";
 import { ShareArtworkTile } from "./share-artwork-tile";
 import { SharePhotoPicker } from "./share-photo-picker";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
+import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 import { VisitVisibilityPicker } from "./visit-visibility-picker";
 
@@ -86,20 +94,11 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
   }, [controller, token, generation, visit.owner]);
   return (
     <ShareContext value={{ sharing, visit }}>
-      <Stack screenOptions={{ ...NavigationTheme, animation: reduced ? "fade" : "default" }}>
-        <Stack.Screen name="index" options={{ title: "Share visit" }} />
-        <Stack.Screen name="photos" options={{ title: "Choose photos", headerBackTitle: "Back" }} />
+      <Stack screenOptions={{ ...NavigationTheme, ...TransparentHeader, animation: reduced ? "fade" : "default" }}>
+        <Stack.Screen name="index" options={{ title: "Share Visit" }} />
+        <Stack.Screen name="photos" options={{ title: "Choose Photos" }} />
       </Stack>
     </ShareContext>
-  );
-}
-function CancelToolbar() {
-  return (
-    <Stack.Toolbar placement="left">
-      <Stack.Toolbar.Button tintColor={Gallery.accent} hidesSharedBackground onPress={() => router.dismiss()}>
-        Cancel
-      </Stack.Toolbar.Button>
-    </Stack.Toolbar>
   );
 }
 function ShareError({ sharing }: { sharing: Sharing }) {
@@ -119,6 +118,24 @@ function GuestVisitSignIn({ visitId }: { visitId: string }) {
       <VisitMessage loading>Opening sign-in…</VisitMessage>
     </VisitPage>
   );
+}
+/**
+ * Saves the notes, then publishes under `audience`. The server publishes a visit only to its own visibility, so the visit
+ * takes the audience for the request and gets its previous visibility back if posting fails.
+ */
+async function publishAs(
+  audience: VisitVisibility,
+  visit: VisitSummary,
+  notes: VisitNotesHandle | null,
+  controller: Sharing["controller"],
+) {
+  if (!(await notes?.save())) return false;
+  const previous = visit.visibility;
+  const changed = previous !== audience;
+  if (changed) await patchVisit(visit.localId, { visibility: audience }, visit.owner);
+  if (await controller.publish()) return true;
+  if (changed) await patchVisit(visit.localId, { visibility: previous }, visit.owner);
+  return false;
 }
 export function VisitShareScreen() {
   const { sharing, visit } = useShareFlow();
@@ -155,7 +172,7 @@ export function VisitShareScreen() {
       />
     ) : (
       <VisitPage>
-        <CancelToolbar />
+        <CancelToolbar onPress={() => router.dismiss()} />
         <Text style={styles.body}>Create a profile to publish this visit.</Text>
         <GalleryButton label="Create profile" variant="filled" onPress={() => setCreatingProfile(true)} />
       </VisitPage>
@@ -164,7 +181,7 @@ export function VisitShareScreen() {
   if (!draft) {
     return (
       <VisitPage>
-        <CancelToolbar />
+        <CancelToolbar onPress={() => router.dismiss()} />
         <VisitMessage
           loading={sharing.busy || !sharing.error}
           action="Try again"
@@ -228,38 +245,30 @@ export function VisitShareScreen() {
     [next[a], next[b]] = [next[b], next[a]];
     arrange(next, selected);
   }
+  // No try/finally here: the React Compiler skips a component that has one, and would leave the toolbar unmemoized.
   async function post() {
     if (submitting.current) return;
     submitting.current = true;
     setPosting(true);
     setPostError(undefined);
-    // The server publishes a visit only to its own visibility, so the visit takes the chosen audience for the
-    // request and gets its previous visibility back if posting fails.
-    const previous = visit.visibility;
     const { audience } = draft!;
-    const changed = previous !== audience;
-    try {
-      if (!(await notes.current?.save())) return;
-      if (changed) await patchVisit(visit.localId, { visibility: audience }, visit.owner);
-      if (await controller.publish()) {
-        // Home opens on the feed the post belongs to; feeds order posts by visit date, not by when they were posted.
-        showToast(POSTED[audience]);
-        router.dismissAll();
-        router.navigate({
-          pathname: "/",
-          params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
-        });
-        if (audience !== "private") offerNotifications();
-        return;
-      }
-      if (changed) await patchVisit(visit.localId, { visibility: previous }, visit.owner);
-    } catch (cause) {
+    const posted = await publishAs(audience, visit, notes.current, controller).catch((cause: unknown) => {
       reportError(cause, "visit.publish.visibility");
       setPostError("Your visit could not be posted. Your selection is kept. Try again.");
-    } finally {
-      submitting.current = false;
-      setPosting(false);
+      return false;
+    });
+    if (posted) {
+      // Home opens on the feed the post belongs to; feeds order posts by visit date, not by when they were posted.
+      showToast(POSTED[audience]);
+      router.dismissAll();
+      router.navigate({
+        pathname: "/",
+        params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
+      });
+      if (audience !== "private") offerNotifications();
     }
+    submitting.current = false;
+    setPosting(false);
   }
   const band = [...ranks.keys()].flatMap((id): BandArtwork[] => {
     const work = worksById.get(id);
@@ -294,46 +303,46 @@ export function VisitShareScreen() {
   }
   const columns = fontScale > 1.4 ? 1 : 2;
   const tileSize = (width - 2 * GUTTER - (columns - 1) * TILE_GAP) / columns;
-  const active = acknowledged?.status === "active";
-  const tile = (work: VisitSummary["works"][number], position = ranks.get(work.localId)) => (
-    <ShareArtworkTile
-      title={work.title}
-      artist={work.artist}
-      path={tilePhotoPath(work.localId, position !== undefined)}
-      size={tileSize}
-      position={position}
-      selectable={position !== undefined || selected.size < LIMITS.selectedSaves}
-      photos={{
-        chosen: draft.photoSelections?.find((row) => row.saveLocalId === work.localId)?.photoLocalIds.length ?? 0,
-        total: photoTotal(work.localId),
-      }}
-      disabled={sharing.busy}
-      onToggle={() => toggleSelection(work.localId)}
-      onChoosePhotos={() =>
-        router.push({
-          pathname: "/visit-share/[visitId]/photos",
-          params: { visitId: visit.localId, saveId: work.localId },
-        })
-      }
-      onMove={position === undefined ? undefined : (offset) => move(work.localId, offset)}
-    />
-  );
+  const postLabel = acknowledged?.status === "active" ? "Update" : "Post";
+  const tile = (work: VisitSummary["works"][number]) => {
+    const position = ranks.get(work.localId);
+    return (
+      <ShareArtworkTile
+        title={work.title}
+        artist={work.artist}
+        path={tilePhotoPath(work.localId, position !== undefined)}
+        size={tileSize}
+        position={position}
+        selectable={position !== undefined || selected.size < LIMITS.selectedSaves}
+        photos={{
+          chosen: draft.photoSelections?.find((row) => row.saveLocalId === work.localId)?.photoLocalIds.length ?? 0,
+          total: photoTotal(work.localId),
+        }}
+        disabled={sharing.busy}
+        onToggle={() => toggleSelection(work.localId)}
+        onChoosePhotos={() =>
+          router.push({
+            pathname: "/visit-share/[visitId]/photos",
+            params: { visitId: visit.localId, saveId: work.localId },
+          })
+        }
+        onMove={position === undefined ? undefined : (offset) => move(work.localId, offset)}
+      />
+    );
+  };
   return (
     <GestureHandlerRootView style={share.page}>
-      <CancelToolbar />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          tintColor={Gallery.accent}
-          hidesSharedBackground
-          disabled={!styling && (posting || sharing.busy || acknowledged?.removed)}
-          onPress={() => {
-            if (styling) setStyling(false);
-            else void post();
-          }}
-        >
-          {styling ? "Done" : posting ? "Posting…" : active ? "Update" : "Post"}
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <CancelToolbar disabled={posting} onPress={() => router.dismiss()} />
+      <CommitToolbar
+        label={styling ? "Done" : postLabel}
+        busyLabel="Posting"
+        busy={posting}
+        disabled={!styling && (sharing.busy || acknowledged?.removed)}
+        onPress={() => {
+          if (styling) setStyling(false);
+          else void post();
+        }}
+      />
       <Animated.ScrollView
         ref={scrollRef}
         contentInsetAdjustmentBehavior="automatic"

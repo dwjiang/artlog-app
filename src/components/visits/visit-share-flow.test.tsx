@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import type { ArtworkPhoto } from "@/db/schema";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
@@ -500,6 +500,20 @@ it("updates an already shared visit and posts a private visit without changing i
     pathname: "/",
     params: { feed: "friends", posted: expect.any(String) },
   });
+});
+
+it("holds the Post slot with a busy indicator and disables Cancel until posting settles", async () => {
+  let settle!: (posted: boolean) => void;
+  mockController.publish.mockReturnValueOnce(new Promise<boolean>((resolve) => (settle = resolve)));
+  await render(<VisitShareLayout />);
+  await fireEvent.press(screen.getByRole("button", { name: "Post" }));
+  expect(screen.getByRole("progressbar", { name: "Posting", busy: true })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await act(async () => settle(false));
+  expect(screen.queryByRole("progressbar", { name: "Posting" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Post" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
 });
 
 it("keeps the form when posting throws and lets the person cancel out", async () => {

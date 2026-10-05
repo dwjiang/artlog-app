@@ -390,12 +390,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       </View>
       {(!ending || postId) && (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon="ellipsis"
-            accessibilityLabel="Visit options"
-            hidesSharedBackground
-            tintColor={Gallery.ink}
-          >
+          <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Visit options" tintColor={Gallery.ink}>
             {!ending && (
               <Stack.Toolbar.MenuAction
                 icon="square.and.arrow.up"
@@ -403,7 +398,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   void share();
                 }}
               >
-                {published ? "Edit post" : "Share visit"}
+                {published ? "Edit Post…" : "Share Visit…"}
               </Stack.Toolbar.MenuAction>
             )}
             {postId && (
@@ -416,7 +411,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   })
                 }
               >
-                View post
+                View Post
               </Stack.Toolbar.MenuAction>
             )}
             {postId && sharing.acknowledged?.audience !== "private" && (
@@ -426,7 +421,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                   void copyLink(postId);
                 }}
               >
-                Copy link
+                Copy Link
               </Stack.Toolbar.MenuAction>
             )}
           </Stack.Toolbar.Menu>

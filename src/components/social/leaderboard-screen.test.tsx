@@ -83,7 +83,6 @@ jest.mock("expo-router", () => {
     useRouter: () => ({ push: mockPush }),
     useSegments: () => [],
     Stack: {
-      Screen: () => null,
       Toolbar: Object.assign(View, {
         Button: ({
           accessibilityLabel,
@@ -177,15 +176,13 @@ it("lets a guest move from the Friends prompt to Global rankings and open a publ
   expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBeOnTheScreen();
 });
 
-it("keeps the title, ranking filter, and participation action mounted across audiences", async () => {
+it("keeps the ranking filter and participation action mounted across audiences", async () => {
   await render(<LeaderboardScreen />);
-  const title = screen.getByRole("header", { name: "Leaderboards" });
-  const metric = screen.getByRole("checkbox", { name: "Artworks" });
+  const metric = screen.getByLabelText("Rank by");
   const participation = screen.getByRole("button", { name: "Join the leaderboard" });
   for (const name of ["Global", "Friends", "Global"]) {
     await fireEvent.press(screen.getByRole("button", { name }));
-    expect(screen.getByRole("header", { name: "Leaderboards" })).toBe(title);
-    expect(screen.getByRole("checkbox", { name: "Artworks" })).toBe(metric);
+    expect(screen.getByLabelText("Rank by")).toBe(metric);
     expect(screen.getByRole("button", { name: "Join the leaderboard" })).toBe(participation);
   }
 });
@@ -194,8 +191,9 @@ it("changes the ranking metric without time-period controls", async () => {
   mockSession.status = "ready";
   await render(<LeaderboardScreen />);
   expect(screen.queryByText("Time period")).toBeNull();
-  expect(screen.queryByRole("checkbox", { name: "This month" })).toBeNull();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
+  expect(screen.queryByRole("button", { name: "This month" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Museum Visits" })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Artworks" }));
   expect(mockQuery).toHaveBeenCalledWith("leaderboards:list", {
     audience: "friends",
     metric: "artworks",
@@ -322,7 +320,7 @@ it("offers creation for the selected metric while preserving actual participatio
   await fireEvent.press(await screen.findByRole("button", { name: "Add visit" }));
   expect(mockPush).toHaveBeenLastCalledWith("/visit-add");
   expect(screen.queryByText("LOGGED VISITS")).toBeNull();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Artworks" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Artworks" }));
   await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenLastCalledWith("/scan");

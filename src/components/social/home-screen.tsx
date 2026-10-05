@@ -1,9 +1,7 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, View, useWindowDimensions, type FlatList } from "react-native";
-import Animated, { useAnimatedRef } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { use, useRef, useState } from "react";
+import { FlatList, StyleSheet, View } from "react-native";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
 import { ActionStack } from "@/components/action-stack";
@@ -16,16 +14,17 @@ import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard } from "@/components/visits/now-card";
 import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
+import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
 
 import { api } from "../../../convex/_generated/api";
-import { NotificationsButton } from "./notifications-button";
+import { HomeToolbar } from "./home-toolbar";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
@@ -49,7 +48,6 @@ export function HomeScreen() {
     setAppliedPost(request);
     setChosenTab(requestedFeed as FeedTab);
   }
-  const { fontScale } = useWindowDimensions();
   const session = useSocialSession();
   const blocking = useBlock(session);
   const guest = session.status === "signed-out";
@@ -84,7 +82,8 @@ export function HomeScreen() {
   const canBrowse = tab === "global" ? canBrowseGlobal : canBrowseFriends;
   const feed = tab === "global" ? globalFeed : friendsFeed;
   const router = useRouter();
-  const requests = useSocialQuery(api.profiles.requests, canBrowseFriends ? {} : "skip", session.key);
+  const requests = useSocialQuery(api.profiles.requests, canBrowseFriends ? {} : "skip", session.key).data?.length ?? 0;
+  const unseen = use(UnseenNotificationCount);
   const suggestions = useSuggestions(session);
   const suggestionActions = {
     session,
@@ -98,20 +97,21 @@ export function HomeScreen() {
     && suggestions.friendCount !== undefined
     && suggestions.friendCount < STRIP_FRIEND_LIMIT
     && suggestions.people.length > 0;
-  const list = useAnimatedRef<FlatList<SharedVisit>>();
+  const list = useRef<FlatList<SharedVisit>>(null);
   const room = usePaneRoom(list);
   usePaneSwitch(tab ?? "", () => room);
-  const pull = usePullToRefresh(list, {
+  const pull = usePullToRefresh({
     enabled: canBrowse,
     refreshing: feed.refreshing,
     onRefresh: feed.refresh,
-    restInset: useSafeAreaInsets().top,
   });
   return (
     <>
+      {/* Guests see these too; each page asks them to sign in. */}
+      <HomeToolbar requests={requests} unseen={unseen} />
       <WelcomePrompt />
       <WrapUpPrompt />
-      <Animated.FlatList
+      <FlatList
         ref={list}
         style={socialStyles.root}
         contentContainerStyle={[socialStyles.content, { paddingBottom: 28, minHeight: room.minHeight }]}
@@ -131,18 +131,9 @@ export function HomeScreen() {
           />
         )}
         refreshControl={pull.refreshControl}
+        ListHeaderComponentStyle={styles.header}
         ListHeaderComponent={
-          <Animated.View style={pull.headerStyle} onLayout={pull.onHeaderLayout}>
-            <View style={[styles.masthead, fontScale > 1.4 && styles.mastheadLarge]}>
-              <Text variant={fontScale > 1.4 ? "display" : "wordmark"} accessibilityRole="header">
-                Artlog
-              </Text>
-              <View style={styles.headerActions}>
-                <GalleryIconButton icon="trophy" label="Leaderboards" onPress={() => router.push("/leaderboards")} />
-                <FriendsButton requests={requests.data?.length ?? 0} onPress={() => router.push("/people")} />
-                <NotificationsButton session={session} />
-              </View>
-            </View>
+          <>
             {guest && !dismissedPrompt && (
               <View
                 style={{
@@ -189,7 +180,7 @@ export function HomeScreen() {
               />
             </View>
             {showStrip && <SuggestionStrip people={suggestions.people} {...suggestionActions} />}
-          </Animated.View>
+          </>
         }
         ListEmptyComponent={
           !canBrowse ? (
@@ -267,60 +258,10 @@ export function HomeScreen() {
   );
 }
 
-function FriendsButton({ requests, onPress }: { requests: number; onPress: () => void }) {
-  return (
-    <View>
-      <GalleryIconButton
-        icon="person.badge.plus"
-        label={requests > 0 ? `Find friends, ${requests} ${requests === 1 ? "request" : "requests"}` : "Find friends"}
-        onPress={onPress}
-      />
-      {requests > 0 && (
-        <View style={styles.badge}>
-          <Text allowFontScaling={false} style={styles.badgeText}>
-            {requests > 9 ? "9+" : requests}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  masthead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  mastheadLarge: { flexDirection: "column", alignItems: "flex-start" },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-end",
-    paddingBottom: 12,
-  },
+  // Padding inside the header, not the content container, keeps the switch's measured offset in content coordinates.
+  header: { paddingTop: Spacing.two },
   tabs: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
-  badge: {
-    position: "absolute",
-    top: 4,
-    right: 2,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: 9,
-    backgroundColor: Gallery.accent,
-    borderWidth: 2,
-    borderColor: Gallery.paper,
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none",
-  },
-  badgeText: { color: Gallery.paper, fontSize: 11, lineHeight: 13, fontWeight: "600" },
   emptyFeed: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
   emptyFeedAction: { paddingHorizontal: 20, paddingTop: 16 },
 });

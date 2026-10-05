@@ -100,28 +100,40 @@ export function ResultCard({
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon="ellipsis"
-          accessibilityLabel="Scan options"
-          tintColor={Gallery.ink}
-          hidesSharedBackground
-        >
-          <Stack.Toolbar.MenuAction
-            icon={editingDetails ? "checkmark" : "pencil"}
-            disabled={!editable}
-            onPress={enterDetails ?? (() => setEditingDetails((value) => !value))}
-          >
-            {editingDetails ? "Done editing" : "Edit details"}
-          </Stack.Toolbar.MenuAction>
-          {view.kind === "confident" && (
-            <Stack.Toolbar.MenuAction disabled={!editable} onPress={onLabel}>
-              Scan the label
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Scan options" tintColor={Gallery.ink}>
+          {!editingDetails && (
+            <Stack.Toolbar.MenuAction
+              icon="pencil"
+              disabled={!editable}
+              onPress={enterDetails ?? (() => setEditingDetails(true))}
+            >
+              Edit Details
             </Stack.Toolbar.MenuAction>
           )}
-          <Stack.Toolbar.MenuAction disabled={photos.unavailable} onPress={photos.open}>
-            {photos.label}
+          {view.kind === "confident" && (
+            <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
+              Scan the Label
+            </Stack.Toolbar.MenuAction>
+          )}
+          <Stack.Toolbar.MenuAction
+            icon="photo.badge.plus"
+            subtitle={photos.photoCount > 1 ? `${photos.photoCount} photos` : undefined}
+            disabled={photos.unavailable}
+            onPress={photos.open}
+          >
+            Add Photos
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
+        {editingDetails && (
+          <Stack.Toolbar.Button
+            variant="done"
+            tintColor={Gallery.accent}
+            disabled={!editable}
+            onPress={() => setEditingDetails(false)}
+          >
+            Done
+          </Stack.Toolbar.Button>
+        )}
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

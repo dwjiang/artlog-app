@@ -2,8 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { AccessibilityInfo, DeviceEventEmitter } from "react-native";
+import { AccessibilityInfo, DeviceEventEmitter, ScrollView, Text, type HostInstance } from "react-native";
 
+import { Gallery } from "@/constants/theme";
 import {
   addArtworkPhoto,
   editArtworkPhoto,
@@ -35,6 +36,7 @@ jest.mock("@/lib/collection/pending-removals", () => ({
 }));
 const mockBack = jest.fn();
 const mockPush = jest.fn();
+const mockSetOptions = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let client: ConvexReactClient;
 const results = new Map<string, unknown>();
@@ -48,7 +50,12 @@ jest.mock("@/lib/files/photos", () => ({
 }));
 jest.mock("expo-router", () => ({
   useRouter: () => ({ back: mockBack, push: mockPush }),
+  useNavigation: () => ({ setOptions: mockSetOptions }),
   router: { push: (...args: unknown[]) => mockPush(...args) },
+}));
+jest.mock("expo-router/react-navigation", () => ({
+  ...jest.requireActual("expo-router/react-navigation"),
+  useHeaderHeight: () => 116,
 }));
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
@@ -165,6 +172,28 @@ it("opens in reading mode with explicit note editing", async () => {
   expect(screen.getByLabelText("full photo 1 of Water Lilies").props.source).toEqual([
     { uri: "file:///documents/photos/lilies.jpg" },
   ]);
+});
+
+it("names the artwork in the bar only while its title is scrolled under the bar", async () => {
+  // Native layout puts the title 400–440 pt down the scroll content.
+  const nativeScroll = {} as HostInstance;
+  jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
+  jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
+    if (relativeTo === nativeScroll) onSuccess(20, 400, 362, 40);
+  });
+  await render(detail("lilies"));
+  const title = await screen.findByRole("header", { name: "Water Lilies" });
+  await fireEvent(title, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 362, height: 40 } } });
+  const scrollTo = (y: number) => fireEvent.scroll(title, { nativeEvent: { contentOffset: { x: 0, y } } });
+  await scrollTo(-116);
+  await scrollTo(323);
+  expect(mockSetOptions).toHaveBeenCalledWith({ title: "Water Lilies" });
+  expect(mockSetOptions).not.toHaveBeenCalledWith({ headerTitleStyle: expect.anything() });
+  await scrollTo(324);
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: Gallery.ink } });
+  await scrollTo(-116);
+  expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: "transparent" } });
+  expect(mockSetOptions.mock.calls.filter(([options]) => options.headerTitleStyle)).toHaveLength(2);
 });
 
 it("keeps a full wall from taking another artwork", async () => {

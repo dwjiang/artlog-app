@@ -102,7 +102,7 @@ export function EditProfileForm({ profile, scope }: { profile: PublicProfile; sc
   return (
     <>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.accent} onPress={() => router.back()}>
+        <Stack.Toolbar.Button disabled={busy} tintColor={Gallery.ink} onPress={() => router.back()}>
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>

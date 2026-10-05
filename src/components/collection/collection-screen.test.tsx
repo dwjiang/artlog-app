@@ -188,7 +188,7 @@ it("shows the first saved artwork without a sync prompt", async () => {
   await renderArchive();
   expect(await screen.findByRole("button", { name: "First artwork, First artist" })).toBeOnTheScreen();
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Not Now" })).toBeNull();
 });
 
 describe("with saved works", () => {
@@ -241,7 +241,7 @@ describe("with saved works", () => {
 
   it("shows every work in artist order, each linking to its detail", async () => {
     await renderArchive();
-    await fireEvent.press(screen.getByRole("checkbox", { name: "Artist" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
     expect(await screen.findByRole("button", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
     expect(screen.getAllByRole("button", { name: /, / }).map((cell) => cell.props.accessibilityLabel)).toEqual([
       "100% Cotton, Anon",
@@ -330,7 +330,7 @@ it("shows the A–Z collection in artist order", async () => {
   switchOwner(anonymousOwner(), "scope-anonymous");
   await renderArchive();
   await screen.findByText("Water Lilies");
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Artist" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
   expect(screen.getAllByRole("button", { name: /, / }).map((row) => row.props.accessibilityLabel)).toEqual([
     "100% Cotton, Anon",
     "Water Lilies, Claude Monet",

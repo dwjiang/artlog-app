@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentRef, type Ref } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
@@ -18,12 +18,16 @@ export function PublishedArtwork({
   token,
   note,
   enrichment,
+  headingRef,
+  onHeadingLayout,
 }: {
   artwork: SharedArtwork["artwork"];
   photos: SharedArtwork["artwork"]["media"][];
   token?: string | null;
   note?: string;
   enrichment?: DocentSectionProps;
+  headingRef?: Ref<ComponentRef<typeof Text>>;
+  onHeadingLayout?: () => void;
 }) {
   const { width } = useWindowDimensions();
   return (
@@ -36,7 +40,7 @@ export function PublishedArtwork({
       />
       <View style={styles.details}>
         <View style={styles.museumLabel}>
-          <Text selectable accessibilityRole="header" style={styles.artist}>
+          <Text selectable accessibilityRole="header" style={styles.artist} ref={headingRef} onLayout={onHeadingLayout}>
             {artwork.title}
           </Text>
           <Text selectable style={styles.title}>

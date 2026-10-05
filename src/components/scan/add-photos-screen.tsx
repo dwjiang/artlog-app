@@ -410,7 +410,7 @@ function PhotoSession({
       automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: "Add photos" }} />
+      <Stack.Screen options={{ title: "Add Photos" }} />
       <View style={[styles.target, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
         <SavedWorkImage
           path={target?.cropPath ?? input?.capture.cropPath ?? null}

@@ -1,7 +1,7 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentRef, type ReactNode, type Ref } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
@@ -23,11 +23,15 @@ export function ArtworkAlbum({
   work,
   visitId,
   photoId,
+  headingRef,
+  onHeadingLayout,
   children,
 }: {
   work: SavedWork;
   visitId?: string;
   photoId?: string;
+  headingRef?: Ref<ComponentRef<typeof Text>>;
+  onHeadingLayout?: () => void;
   children?: ReactNode;
 }) {
   const photos = useLiveQuery(selectArtworkPhotos(work.localId, work.owner), [work.localId, work.owner]);
@@ -201,7 +205,7 @@ export function ArtworkAlbum({
         </View>
       )}
       <View style={{ gap: 4 }}>
-        <Text variant="display" accessibilityRole="header" selectable>
+        <Text variant="display" accessibilityRole="header" selectable ref={headingRef} onLayout={onHeadingLayout}>
           {work.title}
         </Text>
         <Text selectable style={styles.title}>

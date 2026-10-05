@@ -1,9 +1,8 @@
 import { Stack, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useState } from "react";
-import { ScrollView, View, useWindowDimensions } from "react-native";
+import { ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -13,6 +12,8 @@ import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
+import { useScrollTitle } from "@/hooks/use-scroll-title";
+import { isIOS26OrLater } from "@/lib/ios-version";
 import type { SharedVisit } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { isMutualFriend, useFriends } from "@/lib/social/use-friends";
@@ -25,17 +26,10 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { FriendshipControls } from "./friendship-controls";
 import { InCommonSection } from "./in-common";
-import {
-  friendStat,
-  MutualFriends,
-  OwnProfileActions,
-  ProfileActionsSkeleton,
-  ProfileHeader,
-  ShareProfileButton,
-} from "./profile-header";
+import { friendStat, MutualFriends, ProfileActionsSkeleton, ProfileHeader } from "./profile-header";
 import { PublicWallView } from "./public-wall-view";
 import { ReportToolbar } from "./report-toolbar";
-import { PageFooter, SocialGate, SocialState } from "./social-state";
+import { PageFooter, SocialGate, SocialState, StateScreen } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
 
@@ -52,15 +46,14 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const router = useRouter();
   const headerHeight = useHeaderHeight();
   const { top } = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
   const [tab, setTab] = useState<"wall" | "visits">("wall");
   const [chosenAudience, setAudience] = useState<VisitAudienceFilterValue>("all");
   const [visitCount, setVisitCount] = useState<number>();
-  const scroll = useAnimatedRef<ScrollView>();
-  const room = usePaneRoom(scroll);
-  usePaneSwitch(tab, () => room);
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
+  const { scrollRef, headingRef, measureHeading, onScroll: onTitleScroll } = useScrollTitle(profile.data?.name ?? "");
+  const room = usePaneRoom(scrollRef);
+  usePaneSwitch(tab, () => room);
   const own = session.profileId === profileId;
   const relationship = useSocialQuery(
     api.friendships.getState,
@@ -90,8 +83,11 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     visitPage,
     visitId,
   );
-  const pull = usePullToRefresh(scroll, {
+  // The header rises under the bar into the spinner's place, so the spinner rises with it to stay clear of the photo.
+  const raisedBy = isIOS26OrLater() ? headerHeight - top : 0;
+  const pull = usePullToRefresh({
     enabled: !!profile.data,
+    progressViewOffset: -raisedBy,
     refreshing: profile.refreshing || (tab === "wall" ? wall.refreshing : visits.refreshing),
     onRefresh: () => {
       profile.refresh();
@@ -100,15 +96,19 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       if (tab === "wall") wall.refresh();
       else visits.refresh();
     },
-    restInset: headerHeight,
   });
   // The header counts every visit the viewer can see, so it keeps the last full count while a filter is on.
   if (audience === "all" && visits.done && visits.items.length !== visitCount) setVisitCount(visits.items.length);
-  if (session.offline) return <SocialGate session={session} />;
-  // The loading state leaves the bar transparent, so these states scroll under it with automatic insets.
+  if (session.offline) {
+    return (
+      <StateScreen>
+        <SocialGate session={session} />
+      </StateScreen>
+    );
+  }
   if (!profileId || profile.data === null || profile.error) {
     return (
-      <ScrollView style={socialStyles.root} contentInsetAdjustmentBehavior="automatic">
+      <StateScreen>
         {!profileId || profile.data === null ? (
           <SocialState
             action="Back to Home"
@@ -127,15 +127,11 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             onAction={profile.refresh}
           />
         )}
-      </ScrollView>
+      </StateScreen>
     );
   }
-  // The transparent bar lets the photo rise level with the back button. Past about 115% text, the longest back
-  // label ("Leaderboards") reaches the photo, so the header stays below the bar.
-  const bar = (
-    <Stack.Screen options={{ title: "", headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }} />
-  );
-  const pulledToSafeArea = { marginTop: fontScale < 1.15 ? top - headerHeight : 0 };
+  // The photo fits between iOS 26 bar items; older bars blur their full width, so the photo stays below them.
+  const pulledToSafeArea = { marginTop: -raisedBy };
   // Until the profile arrives, the same layout draws ghosts in place of the header, actions, and the open section.
   const person = profile.data;
   const unblock = () => {
@@ -145,9 +141,33 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const countingVisits = !person || (canReadVisits && audience === "all" && visits.loading && !visits.error);
   return (
     <GestureHandlerRootView style={socialStyles.root}>
-      {bar}
-      {person && session.status !== "loading" && session.profileId !== profileId && (
-        <ReportToolbar kind="profile" id={person.profileId}>
+      {own && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="square.and.arrow.up"
+            accessibilityLabel="Share Profile"
+            tintColor={Gallery.ink}
+            onPress={() => router.push({ pathname: "/share-profile", params: { profileId } })}
+          />
+          <Stack.Toolbar.Spacer width={8} />
+          <Stack.Toolbar.Button tintColor={Gallery.ink} onPress={() => router.push("/edit-profile")}>
+            Edit
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
+      {person && session.status !== "loading" && !own && (
+        <ReportToolbar
+          kind="profile"
+          id={person.profileId}
+          leading={
+            <Stack.Toolbar.MenuAction
+              icon="square.and.arrow.up"
+              onPress={() => router.push({ pathname: "/share-profile", params: { profileId: person.profileId } })}
+            >
+              Share Profile…
+            </Stack.Toolbar.MenuAction>
+          }
+        >
           {session.status === "ready" && relationship.data && (
             <Stack.Toolbar.MenuAction
               icon="hand.raised"
@@ -155,21 +175,25 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               disabled={blocking.pending !== undefined}
               onPress={() => (blocked ? unblock() : blocking.block(person))}
             >
-              {blocked ? "Unblock" : "Block"}
+              {blocked ? "Unblock…" : "Block…"}
             </Stack.Toolbar.MenuAction>
           )}
         </ReportToolbar>
       )}
-      <Animated.ScrollView
-        ref={scroll}
+      <ScrollView
+        ref={scrollRef}
         contentInsetAdjustmentBehavior="automatic"
         stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}
         onLayout={room.onLayout}
-        onScroll={room.onScroll}
+        onContentSizeChange={measureHeading}
+        onScroll={(event) => {
+          room.onScroll(event);
+          onTitleScroll(event);
+        }}
         contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
       >
-        <Animated.View style={[pulledToSafeArea, pull.headerStyle]}>
+        <View style={pulledToSafeArea}>
           <ProfileHeader
             identity={person && { name: person.name, subtitle: `@${person.username}`, profile: person }}
             stats={[
@@ -177,27 +201,27 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               ...(visitCount !== undefined || countingVisits ? [{ noun: "visit", count: visitCount }] : []),
               ...friendStat(friends, openFriends),
             ]}
+            headingRef={headingRef}
+            onHeadingLayout={measureHeading}
           >
-            {!person ? (
-              <ProfileActionsSkeleton />
-            ) : own ? (
-              <OwnProfileActions profileId={person.profileId} />
-            ) : (
-              <>
-                <MutualFriends friends={friends.data?.filter(isMutualFriend) ?? []} onPress={openFriends} />
-                <FriendshipControls
-                  key={`${session.key}:${profileId}`}
-                  profileId={person.profileId}
-                  session={session}
-                  trailing={<ShareProfileButton profileId={person.profileId} />}
-                  unblocking={blocking.pending === person.profileId}
-                  onUnblock={unblock}
-                />
-              </>
-            )}
+            {!own
+              && (person ? (
+                <>
+                  <MutualFriends friends={friends.data?.filter(isMutualFriend) ?? []} onPress={openFriends} />
+                  <FriendshipControls
+                    key={`${session.key}:${profileId}`}
+                    profileId={person.profileId}
+                    session={session}
+                    unblocking={blocking.pending === person.profileId}
+                    onUnblock={unblock}
+                  />
+                </>
+              ) : (
+                <ProfileActionsSkeleton />
+              ))}
           </ProfileHeader>
           {person && !own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}
-        </Animated.View>
+        </View>
         {blocked && person && <SocialState title={`You blocked ${person.name}.`} icon="hand.raised" />}
         {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
             spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
@@ -205,21 +229,15 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         {!blocked && (
           <View
             style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
-            onLayout={(event) => {
-              pull.onHeaderLayout(event);
-              room.onPinnedLayout(event);
-            }}
+            onLayout={room.onPinnedLayout}
           >
-            <Animated.View
-              style={[
-                {
-                  backgroundColor: Gallery.paper,
-                  paddingHorizontal: 20,
-                  paddingBottom: 12,
-                  paddingTop: 4,
-                },
-                pull.headerStyle,
-              ]}
+            <View
+              style={{
+                backgroundColor: Gallery.paper,
+                paddingHorizontal: 20,
+                paddingBottom: 12,
+                paddingTop: 4,
+              }}
             >
               <NativeSegmentedPicker
                 label="Profile section"
@@ -230,7 +248,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
                   { value: "visits", label: "Visits" },
                 ]}
               />
-            </Animated.View>
+            </View>
           </View>
         )}
         {blocked ? null : tab === "wall" ? (
@@ -291,7 +309,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             <PageFooter {...visits} count={visits.items.length} skeleton="feed" />
           </View>
         )}
-      </Animated.ScrollView>
+      </ScrollView>
     </GestureHandlerRootView>
   );
 }

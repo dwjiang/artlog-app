@@ -8,21 +8,28 @@ import type { SaveResultInput } from "@/lib/result/save";
 import { canSave } from "@/lib/result/snapshot";
 
 export function CapturePhotosButton({ input, disabled }: { input: SaveResultInput; disabled?: boolean }) {
-  const { label, open, unavailable } = useCapturePhotos(input, disabled);
-  return <GalleryButton label={label} icon="photo.badge.plus" disabled={unavailable} onPress={open} />;
+  const { photoCount, open, unavailable } = useCapturePhotos(input, disabled);
+  return (
+    <GalleryButton
+      label={photoCount > 1 ? `${photoCount} photos · Add or review` : "Add photos"}
+      icon="photo.badge.plus"
+      disabled={unavailable}
+      onPress={open}
+    />
+  );
 }
 
 export function useCapturePhotos(input?: SaveResultInput, disabled = false) {
   const owner = useLocalOwner();
   const path = input?.capture.photoPath;
-  const [count, setCount] = useState(0);
+  const [added, setAdded] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      setCount(path ? readPhotoDraft(owner, path).length : 0);
+      setAdded(path ? readPhotoDraft(owner, path).length : 0);
     }, [owner, path]),
   );
   return {
-    label: count ? `${count + 1} photos · Add or review` : "Add photos",
+    photoCount: added + 1,
     unavailable: disabled || !input || !canSave(input.draft),
     open: () => {
       if (!input || !path) return;

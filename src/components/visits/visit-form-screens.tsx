@@ -1,5 +1,5 @@
 import { randomUUID } from "expo-crypto";
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Keyboard, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +24,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { MuseumSearch } from "./museum-search";
 import { VisitDatePicker } from "./visit-date-picker";
+import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 function VisitFormPage({ children }: { children: ReactNode }) {
@@ -123,16 +124,16 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   }
   return (
     <>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          hidesSharedBackground
-          tintColor={Gallery.accent}
-          onPress={() => router.back()}
-          disabled={busy}
-        >
-          Cancel
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <CancelToolbar disabled={busy} onPress={() => router.back()} />
+      <CommitToolbar
+        label="Add"
+        busyLabel="Adding visit"
+        busy={busy}
+        disabled={!venue || !validDate}
+        onPress={() => {
+          void save();
+        }}
+      />
 
       <VisitFormPage>
         <Text style={styles.caption}>
@@ -183,16 +184,6 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           style={[styles.input, styles.reflection]}
         />
         <Text style={styles.caption}>Your visit stays private until you share it.</Text>
-        <GalleryButton
-          label="Add visit"
-          variant="filled"
-          fullWidth
-          busy={busy}
-          disabled={busy || !venue || !validDate}
-          onPress={() => {
-            void save();
-          }}
-        />
         {error && (
           <Text accessibilityRole="alert" style={styles.error}>
             {error}
@@ -249,11 +240,7 @@ export function VisitMuseumScreen() {
   }
   return (
     <>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button hidesSharedBackground tintColor={Gallery.accent} onPress={cancel}>
-          Cancel
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <CancelToolbar onPress={cancel} />
       <VisitFormPage>
         {visit ? (
           <>

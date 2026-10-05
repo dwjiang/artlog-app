@@ -2,6 +2,7 @@ import "@/lib/sentry";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import * as Sentry from "@sentry/react-native";
 import { DefaultTheme, ThemeProvider, type ErrorBoundaryProps } from "expo-router";
+import { getFocusedRouteNameFromRoute } from "expo-router/react-navigation";
 import { Stack } from "expo-router/stack";
 import { useEffect } from "react";
 
@@ -13,7 +14,8 @@ import { DockedPlayerInsets, ListeningRoot } from "@/components/audio/listening-
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
 import { ToastLayer } from "@/components/toast";
-import { Gallery, NavigationTheme } from "@/constants/theme";
+import { TabTitles } from "@/constants/tabs";
+import { Gallery, LargeTitleHeader, NavigationTheme, ScrollTitleHeader, TransparentHeader } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { CollectionSync } from "@/lib/account/collection-sync";
 import { ListeningProvider } from "@/lib/audio/listening-provider";
@@ -32,6 +34,8 @@ import { VenueResolver } from "@/lib/venue/use-venue";
 import { VisitActivitySync } from "@/lib/widgets/visit-activity-sync";
 import { WidgetProvider } from "@/lib/widgets/widget-provider";
 
+import { setBackButtonTint } from "../../modules/back-button-tint/src";
+
 export function ErrorBoundary(props: ErrorBoundaryProps) {
   return <AppErrorBoundary {...props} />;
 }
@@ -39,6 +43,8 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
 export const unstable_settings = {
   anchor: "(tabs)",
 };
+
+setBackButtonTint(NavigationTheme.headerTintColor);
 
 function RootLayout() {
   return (
@@ -77,7 +83,6 @@ function AppContent() {
                     ...NavigationTheme,
                     animation: reduced ? "fade" : "default",
                     animationMatchesGesture: true,
-                    headerBackButtonDisplayMode: "default",
                   }}
                   screenLayout={({ options, children }) => (
                     <DockedPlayerInsets modal={!!options.presentation && options.presentation !== "card"}>
@@ -94,7 +99,13 @@ function AppContent() {
                       contentStyle: { backgroundColor: Gallery.paper },
                     }}
                   />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Back" }} />
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={({ route }) => ({
+                      headerShown: false,
+                      title: TabTitles[getFocusedRouteNameFromRoute(route) ?? "(home)"],
+                    })}
+                  />
                   <Stack.Screen
                     name="result/[scanId]"
                     options={({ route }) => ({
@@ -115,7 +126,7 @@ function AppContent() {
                       },
                     })}
                   />
-                  <Stack.Screen name="all-artworks" options={{ title: "", headerBackTitle: "Collection" }} />
+                  <Stack.Screen name="all-artworks" options={{ ...LargeTitleHeader, title: "All Artworks" }} />
                   <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
                   <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
                   <Stack.Screen
@@ -135,36 +146,37 @@ function AppContent() {
                       headerShown: false,
                     }}
                   />
-                  <Stack.Screen name="settings-detail" options={{ title: "Settings" }} />
-                  <Stack.Screen name="settings" options={{ title: "", headerBackTitle: "Collection" }} />
-                  <Stack.Screen name="widgets" options={{ title: "", headerBackTitle: "Settings" }} />
-                  <Stack.Screen name="saved/[savedId]" options={{ title: "" }} />
-                  <Stack.Screen name="wall-display" options={{ title: "" }} />
+                  <Stack.Screen name="settings-detail" options={{ ...TransparentHeader, title: "Settings" }} />
+                  <Stack.Screen name="settings" options={{ ...LargeTitleHeader, title: "Settings" }} />
+                  <Stack.Screen name="widgets" options={{ ...LargeTitleHeader, title: "Widgets" }} />
+                  <Stack.Screen name="saved/[savedId]" options={ScrollTitleHeader} />
+                  <Stack.Screen name="wall-display" options={ScrollTitleHeader} />
                   <Stack.Screen
                     name="journal/[visitId]"
-                    options={{
-                      title: "Visit details",
-                      headerLargeTitle: true,
-                      headerTransparent: true,
-                      headerStyle: { backgroundColor: Gallery.groupedBackground },
-                      // An opaque large-header background hides the re-expanded title on iOS 26.
-                      headerLargeStyle: { backgroundColor: "transparent" },
-                      headerLargeTitleShadowVisible: false,
-                      contentStyle: { backgroundColor: Gallery.groupedBackground },
-                    }}
+                    options={{ ...LargeTitleHeader, ...groupedScreen, title: "Visit Details" }}
                   />
-                  <Stack.Screen name="adjust-crop" options={{ title: "Adjust crop", gestureEnabled: false }} />
-                  <Stack.Screen name="photo-details" options={{ title: "Photo details" }} />
-                  <Stack.Screen name="identify-artwork" options={{ title: "Artwork details" }} />
-                  <Stack.Screen name="leaderboards" options={{ title: "Leaderboards" }} />
-                  <Stack.Screen name="people" options={{ ...groupedScreen, title: "Friends" }} />
-                  <Stack.Screen name="blocked-people" options={{ ...groupedScreen, title: "Blocked people" }} />
-                  <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-                  <Stack.Screen name="profile/[profileId]" options={{ title: "Profile" }} />
-                  <Stack.Screen name="profile-friends" options={{ ...groupedScreen, title: "Friends" }} />
-                  <Stack.Screen name="visit/[postId]" options={{ title: "Post" }} />
-                  <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit profile" }} />
-                  <Stack.Screen name="share-profile" options={{ ...groupedScreen, title: "Share profile" }} />
+                  <Stack.Screen name="adjust-crop" options={{ title: "Adjust Crop", gestureEnabled: false }} />
+                  <Stack.Screen name="photo-details" options={{ ...TransparentHeader, title: "Photo Details" }} />
+                  <Stack.Screen name="identify-artwork" options={{ ...TransparentHeader, title: "Artwork Details" }} />
+                  <Stack.Screen name="add-photos" options={TransparentHeader} />
+                  <Stack.Screen name="leaderboards" options={{ ...LargeTitleHeader, title: "Leaderboards" }} />
+                  <Stack.Screen name="people" options={{ ...LargeTitleHeader, ...groupedScreen, title: "Friends" }} />
+                  <Stack.Screen
+                    name="blocked-people"
+                    options={{ ...TransparentHeader, ...groupedScreen, title: "Blocked People" }}
+                  />
+                  <Stack.Screen name="notifications" options={{ ...LargeTitleHeader, title: "Notifications" }} />
+                  <Stack.Screen name="profile/[profileId]" options={ScrollTitleHeader} />
+                  <Stack.Screen
+                    name="profile-friends"
+                    options={{ ...TransparentHeader, ...groupedScreen, title: "Friends" }}
+                  />
+                  <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
+                  <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
+                  <Stack.Screen
+                    name="share-profile"
+                    options={{ ...TransparentHeader, ...groupedScreen, title: "Share Profile" }}
+                  />
                   <Stack.Screen
                     name="create-profile"
                     options={{
@@ -173,20 +185,24 @@ function AppContent() {
                       gestureEnabled: false,
                     }}
                   />
-                  <Stack.Screen name="artwork" options={{ title: "" }} />
-                  <Stack.Screen name="visit-create" options={{ ...visitSheet, ...groupedScreen, title: "Add visit" }} />
-                  <Stack.Screen name="capture-context" options={groupedScreen} />
-                  <Stack.Screen name="link-artwork" options={groupedScreen} />
+                  <Stack.Screen name="artwork" options={ScrollTitleHeader} />
+                  <Stack.Screen
+                    name="visit-create"
+                    options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Add Visit" }}
+                  />
+                  <Stack.Screen name="capture-context" options={{ ...TransparentHeader, ...groupedScreen }} />
+                  <Stack.Screen name="link-artwork" options={{ ...TransparentHeader, ...groupedScreen }} />
                   <Stack.Screen
                     name="visit-museum"
-                    options={{ ...visitSheet, ...groupedScreen, title: "Change museum" }}
+                    options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Change Museum" }}
                   />
                   <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
                   <Stack.Screen
                     name="visit-globe"
                     options={{
                       presentation: "modal",
-                      title: "Visited museums",
+                      ...TransparentHeader,
+                      title: "Visited Museums",
                       headerTintColor: Gallery.accent,
                     }}
                   />
@@ -284,7 +300,6 @@ function AppContent() {
 
 /** Gray page behind the white cards of `ListRow` lists. */
 const groupedScreen = {
-  headerStyle: { backgroundColor: Gallery.groupedBackground },
   contentStyle: { backgroundColor: Gallery.groupedBackground },
 };
 

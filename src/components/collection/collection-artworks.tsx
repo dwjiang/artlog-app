@@ -73,7 +73,6 @@ export function CollectionArtworks({
         <View style={{ paddingHorizontal: 20, paddingVertical: 6, flexDirection: "row", justifyContent: "flex-end" }}>
           <ChoiceMenu
             label="Sort by"
-            icon="arrow.up.arrow.down"
             value={sort}
             onChange={setSort}
             options={[
