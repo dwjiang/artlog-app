@@ -81,10 +81,16 @@ it("keeps the chosen name across fresh reads and account changes", async () => {
   });
 });
 
-it.each(["", "   ", "a".repeat(61)])("rejects an invalid name without replacing the saved name", async (name) => {
+it("rejects a name over the limit without replacing the saved name", async () => {
   await setLocalProfileName("Alex");
-  await expect(setLocalProfileName(name)).rejects.toThrow("Enter a name");
+  await expect(setLocalProfileName("a".repeat(61))).rejects.toThrow("Enter a name");
   expect(await getLocalProfileName()).toBe("Alex");
+});
+
+it.each(["", "   "])("clears the saved name when given a blank one", async (name) => {
+  await setLocalProfileName("Alex");
+  await setLocalProfileName(name);
+  expect(await getLocalProfileName()).toBeUndefined();
 });
 
 it("updates mounted profiles after saving and restores the name on remount", async () => {
