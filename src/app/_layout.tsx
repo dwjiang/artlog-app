@@ -172,6 +172,7 @@ function AppContent() {
                     options={{ ...TransparentHeader, ...groupedScreen, title: "Friends" }}
                   />
                   <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
+                  <Stack.Screen name="tag/[tag]" options={LargeTitleHeader} />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
                   <Stack.Screen
                     name="share-profile"

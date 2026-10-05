@@ -462,7 +462,7 @@ it("posts with the chosen audience, restores the visit's visibility when posting
   mockSharing.draft = { ...mockSharing.draft!, audience: "friends" };
   mockController.publish.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
   await render(<VisitShareLayout />);
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "PRIVATE REFLECTION");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("PRIVATE REFLECTION");
   expect(screen.queryByRole("button", { name: /Edit note|Save note/ })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Stayed for the blue.");
   expect(mockPatchVisit).not.toHaveBeenCalled();

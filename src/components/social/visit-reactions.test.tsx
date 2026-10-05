@@ -22,8 +22,16 @@ jest.mock("convex/react", () => {
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
 }));
+let mockTags: { tag: string; postCount: number }[];
+const mockTagSearch = jest.fn();
 jest.mock("@/lib/social/use-social-query", () => ({
-  useSocialQuery: () => ({ data: mockSummary, refresh: mockRefresh }),
+  useSocialQuery: (query: never, args: unknown) => {
+    if (jest.requireActual("convex/server").getFunctionName(query) !== "tags:search") {
+      return { data: mockSummary, refresh: mockRefresh };
+    }
+    if (args !== "skip") mockTagSearch(args);
+    return { data: args === "skip" ? undefined : mockTags, refresh: mockRefresh };
+  },
   useCursorPages: () => ({
     items: mockComments,
     done: true,
@@ -57,6 +65,7 @@ beforeEach(() => {
   };
   mockSummary = { likeCount: 13, commentCount: 2, liked: true, latestComment: null };
   mockComments = [];
+  mockTags = [];
   mockMutate.mockResolvedValue("new-comment");
 });
 
@@ -138,11 +147,11 @@ it("preserves a failed comment draft and reuses its request ID on retry", async 
   expect(screen.getByRole("button", { name: "Post comment" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Add a comment"), "A familiar favorite.");
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
-  expect(screen.getByLabelText("Add a comment").props.value).toBe("A familiar favorite.");
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("A familiar favorite.");
   expect(screen.getByText("Couldn’t post your comment. Your text is still here.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
   expect(mockMutate.mock.calls[0]).toEqual(mockMutate.mock.calls[1]);
-  expect(screen.getByLabelText("Add a comment").props.value).toBe("");
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("");
 });
 
 it("opens the likes list from the compact summary and dismisses it", async () => {
@@ -278,4 +287,124 @@ it("gives VoiceOver the same comment actions and shows a failed block inside the
   await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
   expect(retry).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("Couldn’t block Jules Morgan.")).toBeNull();
+});
+
+it("opens a tag from the comment preview", async () => {
+  mockSummary = {
+    ...mockSummary,
+    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Saving this for #SketchSunday" },
+  };
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("link", { name: "#SketchSunday" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "sketchsunday" } });
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+});
+
+it("closes the comments before opening a tag, by touch or with VoiceOver", async () => {
+  mockComments = [comment("theirs", "Water lilies, then the #ukiyoe room?", theirs)];
+  const view = await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.press(screen.getByRole("link", { name: "#ukiyoe" }));
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "ukiyoe" } });
+
+  mockPush.mockClear();
+  await view.unmount();
+  await render(<VisitReactions visit={visit} openComments />);
+  const row = screen.getByLabelText(/the #ukiyoe room\?$/);
+  expect(row.props.accessibilityActions).toContainEqual({ name: "tag:ukiyoe", label: "Open #ukiyoe" });
+  await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "tag:ukiyoe" } });
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "ukiyoe" } });
+});
+
+it("suggests tags in use while a comment's tag is typed and completes the chosen one", async () => {
+  jest.useFakeTimers();
+  mockTags = [
+    { tag: "ukiyoe", postCount: 37 },
+    { tag: "ukiyo", postCount: 1 },
+  ];
+  await render(<VisitReactions visit={visit} openComments />);
+  const input = screen.getByLabelText("Add a comment");
+  await fireEvent.changeText(input, "Then the room");
+  await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: 13, end: 13 } } });
+  await act(() => jest.advanceTimersByTime(200));
+  expect(mockTagSearch).not.toHaveBeenCalled();
+
+  await fireEvent.changeText(input, "Then the #Uki room");
+  await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: 13, end: 13 } } });
+  await act(() => jest.advanceTimersByTime(200));
+  expect(mockTagSearch).toHaveBeenLastCalledWith({ prefix: "uki" });
+  expect(screen.getByRole("button", { name: "#ukiyo, 1 post" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "#ukiyoe, 37 posts" }));
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("Then the #ukiyoe room");
+  expect(screen.getByLabelText("Add a comment").props.selection).toEqual({ start: 17, end: 17 });
+  expect(screen.queryByRole("button", { name: "#ukiyoe, 37 posts" })).toBeNull();
+  jest.useRealTimers();
+});
+
+it("omits completions that would exceed the comment limit while allowing one that fits", async () => {
+  jest.useFakeTimers();
+  mockTags = [
+    { tag: "impressionism", postCount: 5 },
+    { tag: "imp", postCount: 1 },
+  ];
+  await render(<VisitReactions visit={visit} openComments />);
+  const input = screen.getByLabelText("Add a comment");
+  const draft = "x".repeat(994) + " #imp";
+  await fireEvent.changeText(input, draft);
+  await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: draft.length, end: draft.length } } });
+  await act(() => jest.advanceTimersByTime(200));
+  expect(screen.queryByRole("button", { name: "#impressionism, 5 posts" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "#imp, 1 post" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+  expect(mockMutate).toHaveBeenCalledWith("visitReactions:addComment", {
+    postId: visit.postId,
+    body: draft,
+    requestId: "request-uuid",
+  });
+  jest.useRealTimers();
+});
+
+it("locks hashtag completion while posting and restores it after a failure", async () => {
+  jest.useFakeTimers();
+  try {
+    mockTags = [{ tag: "monet", postCount: 1 }];
+    let reject!: (cause: Error) => void;
+    mockMutate.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    await render(<VisitReactions visit={visit} openComments />);
+    const input = screen.getByLabelText("Add a comment");
+    await fireEvent.changeText(input, "#mon");
+    await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: 4, end: 4 } } });
+    await act(() => jest.advanceTimersByTime(200));
+    expect(screen.getByRole("button", { name: "#monet, 1 post" })).toBeEnabled();
+    await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+    expect(screen.getByLabelText("Add a comment")).toHaveProp("editable", false);
+    const suggestion = screen.getByRole("button", { name: "#monet, 1 post" });
+    expect(suggestion).toBeDisabled();
+    await fireEvent.press(suggestion);
+    expect(input).toHaveTextContent("#mon", { exact: true });
+    expect(mockMutate).toHaveBeenCalledWith("visitReactions:addComment", {
+      postId: visit.postId,
+      body: "#mon",
+      requestId: "request-uuid",
+    });
+    await act(() => reject(new Error("Network")));
+    expect(screen.getByRole("button", { name: "#monet, 1 post" })).toBeEnabled();
+    await fireEvent.press(screen.getByRole("button", { name: "#monet, 1 post" }));
+    expect(input).toHaveTextContent("#monet", { exact: true });
+    await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+    expect(mockMutate).toHaveBeenLastCalledWith("visitReactions:addComment", {
+      postId: visit.postId,
+      body: "#monet",
+      requestId: "request-uuid",
+    });
+    expect(input).toHaveTextContent("");
+  } finally {
+    jest.useRealTimers();
+  }
 });

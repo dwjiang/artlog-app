@@ -281,7 +281,7 @@ it("edits notes directly on the visit without navigating away or a save bar", as
   await fireEvent.press(screen.getByRole("button", { name: "Edit note" }));
   expect(screen.queryByRole("button", { name: "Add a note" })).toBeNull();
   expect(navigation.getPathname()).toBe("/journal/visit");
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "The afternoon light");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("The afternoon light");
   expect(screen.getByRole("link", { name: "Water Lilies, Claude Monet" })).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: "Save note" })).toHaveLength(1);
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Latest private note");
@@ -669,7 +669,7 @@ it("discards end-visit edits on Back and keeps the visit open", async () => {
   expect(mockEnd).not.toHaveBeenCalled();
   expect(save).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "The afternoon light");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("The afternoon light");
   expect(chip("Public")).toBeOnTheScreen();
 });
 
@@ -740,7 +740,7 @@ it("keeps the visit open when its note cannot save", async () => {
   expect(screen.getByRole("alert")).toHaveTextContent("Your note could not be saved. Try again.");
   expect(mockEnd).not.toHaveBeenCalled();
   expect(navigation.getPathname()).toBe("/journal/visit");
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "Keep this memory");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("Keep this memory");
 });
 
 it("moves a published visit to Friends without asking and syncs it", async () => {

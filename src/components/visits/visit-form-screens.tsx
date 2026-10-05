@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { useHashtagInput } from "@/components/social/hashtag-input";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
@@ -67,6 +68,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   }, [initialVenueId, now]);
   const [reflection, setReflection] = useState("");
   const [busy, setBusy] = useState(false);
+  const tagging = useHashtagInput(reflection, setReflection, LIMITS.note, !busy);
   const [error, setError] = useState<string>();
   const submitting = useRef(false);
   const [localId] = useState(randomUUID);
@@ -176,13 +178,11 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
           keyboardAppearance="light"
           selectionColor={Gallery.accent}
           accessibilityLabel="Notes"
-          value={reflection}
-          onChangeText={setReflection}
+          {...tagging.inputProps}
           multiline
-          maxLength={LIMITS.note}
-          editable={!busy}
           style={[styles.input, styles.reflection]}
         />
+        {tagging.suggestions}
         <Text style={styles.caption}>Your visit stays private until you share it.</Text>
         {error && (
           <Text accessibilityRole="alert" style={styles.error}>
