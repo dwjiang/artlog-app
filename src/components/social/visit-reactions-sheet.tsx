@@ -25,13 +25,16 @@ import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
+import { extractHashtags } from "@/shared/social/hashtags";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
+import { useHashtagInput } from "./hashtag-input";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
 import { ReactionIcon } from "./reaction-icon";
 import { PageFooter } from "./social-state";
+import { TaggedText, tagHref } from "./tagged-text";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
 
 type CommentPage = FunctionReturnType<typeof api.visitReactions.listComments>;
@@ -164,6 +167,7 @@ function Comments({
   const list = useRef<ScrollView>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const tagging = useHashtagInput(draft, setDraft, MAX_COMMENT_LENGTH, !busy);
   const [focused, setFocused] = useState(false);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -330,6 +334,18 @@ function Comments({
               ? formatRelativeTime(item.createdAt, now)
               : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.createdAt);
           const actions = actionsFor(item);
+          // VoiceOver reads the comment as one element, so each tag link is also one of its actions.
+          const spoken = [
+            ...actions,
+            ...extractHashtags(item.body).map((tag) => ({
+              name: `tag:${tag}`,
+              label: `Open #${tag}`,
+              run: () => {
+                onDismiss();
+                router.push(tagHref(tag));
+              },
+            })),
+          ];
           const target = likeTargets.get(item.commentId);
           const liked = target ?? item.liked;
           const likeCount = item.likeCount + (target === undefined || target === item.liked ? 0 : target ? 1 : -1);
@@ -344,9 +360,9 @@ function Comments({
               <MotionPressable
                 accessibilityLabel={`${item.author.name}${item.isAuthor ? ", author" : ""}, ${time}: ${item.body}`}
                 accessibilityState={{ busy: deleting === item.commentId }}
-                accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
+                accessibilityActions={spoken.map(({ name, label }) => ({ name, label }))}
                 onAccessibilityAction={({ nativeEvent }) =>
-                  actions.find((action) => action.name === nativeEvent.actionName)?.run()
+                  spoken.find((action) => action.name === nativeEvent.actionName)?.run()
                 }
                 onLongPress={() => showActions(item)}
                 style={styles.commentContent}
@@ -363,7 +379,9 @@ function Comments({
                     {item.isAuthor && <Text style={styles.author}>Author</Text>}
                     <Text style={styles.meta}>{time}</Text>
                   </View>
-                  <Text style={styles.body}>{item.body}</Text>
+                  <TaggedText style={styles.body} onOpenTag={onDismiss}>
+                    {item.body}
+                  </TaggedText>
                 </View>
               </MotionPressable>
               <MotionPressable
@@ -402,6 +420,7 @@ function Comments({
         )}
         {session.status === "ready" ? (
           <>
+            {tagging.suggestions}
             <View style={styles.inputRow}>
               <ProfileAvatar
                 name={viewer.data?.name ?? "You"}
@@ -414,11 +433,8 @@ function Comments({
                   accessibilityLabel="Add a comment"
                   placeholder="Add a comment…"
                   placeholderTextColor={Gallery.muted}
-                  value={draft}
-                  onChangeText={setDraft}
-                  editable={!busy}
+                  {...tagging.inputProps}
                   multiline
-                  maxLength={MAX_COMMENT_LENGTH}
                   style={styles.input}
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}

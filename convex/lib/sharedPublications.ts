@@ -1,4 +1,4 @@
-import type { IndexRange, NamedTableInfo, Query } from "convex/server";
+import type { IndexRange } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 
 import { pagination, type JournalOwner } from "../../shared/journal/contracts";
@@ -13,7 +13,7 @@ import {
   wallPattern,
 } from "../../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../../shared/wall/defaults";
-import type { DataModel, Doc, Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
@@ -278,48 +278,70 @@ export function parseHistoryCursor(scope: string, cursor?: string | null): Histo
     throw new ConvexError({ code: "invalid_pagination" });
   }
 }
-// Every history index ends in ['visitedOn', 'postId']; a stream binds the prefix so one head query serves all of them.
+// Every history index ends in ['visitedOn', 'postId']; a range binds the prefix so one head query serves all of them.
 type HistoryTail = IndexRange & {
   eq(field: "visitedOn", value: string): { lt(field: "postId", value: string): IndexRange };
   lt(field: "visitedOn", value: string): IndexRange;
 };
-export type HistoryStream = (
-  bound: (tail: HistoryTail) => IndexRange,
-) => Query<NamedTableInfo<DataModel, "sharedVisits">>;
-export const profileHistory =
-  (ctx: QueryCtx, profileId: Id<"profiles">, audience?: Infer<typeof visitAudience>): HistoryStream =>
-  (bound) =>
-    audience
-      ? ctx.db
-          .query("sharedVisits")
-          .withIndex("by_profile_audience_status_history", (q) =>
-            bound(q.eq("profileId", profileId).eq("audience", audience).eq("status", "active")),
-          )
-      : ctx.db
-          .query("sharedVisits")
-          .withIndex("by_profile_status_history", (q) => bound(q.eq("profileId", profileId).eq("status", "active")));
-export const publicHistory =
-  (ctx: QueryCtx): HistoryStream =>
-  (bound) =>
-    ctx.db
-      .query("sharedVisits")
-      .withIndex("by_audience_status_history", (q) => bound(q.eq("audience", "public").eq("status", "active")));
-export async function historyHead(stream: HistoryStream, before: HistoryKey | null) {
+type HistoryRange<D> = (bound: (tail: HistoryTail) => IndexRange) => {
+  order(order: "desc"): { first(): Promise<D | null> };
+};
+/** A stream of posts, newest visit first: answers the next post before `before`, or the newest when it is null. */
+export type HistoryStream = (before: HistoryKey | null) => Promise<Doc<"sharedVisits"> | null>;
+async function historyHead<D>(range: HistoryRange<D>, before: HistoryKey | null): Promise<D | null> {
   if (!before) {
-    return stream((tail) => tail)
+    return range((tail) => tail)
       .order("desc")
       .first();
   }
-  const sameDate = await stream((tail) => tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId))
+  const sameDate = await range((tail) => tail.eq("visitedOn", before.visitedOn).lt("postId", before.postId))
     .order("desc")
     .first();
   return (
     sameDate
-    ?? stream((tail) => tail.lt("visitedOn", before.visitedOn))
+    ?? range((tail) => tail.lt("visitedOn", before.visitedOn))
       .order("desc")
       .first()
   );
 }
+export const profileHistory =
+  (ctx: QueryCtx, profileId: Id<"profiles">, audience?: Infer<typeof visitAudience>): HistoryStream =>
+  (before) =>
+    historyHead(
+      (bound) =>
+        audience
+          ? ctx.db
+              .query("sharedVisits")
+              .withIndex("by_profile_audience_status_history", (q) =>
+                bound(q.eq("profileId", profileId).eq("audience", audience).eq("status", "active")),
+              )
+          : ctx.db
+              .query("sharedVisits")
+              .withIndex("by_profile_status_history", (q) =>
+                bound(q.eq("profileId", profileId).eq("status", "active")),
+              ),
+      before,
+    );
+export const publicHistory =
+  (ctx: QueryCtx): HistoryStream =>
+  (before) =>
+    historyHead(
+      (bound) =>
+        ctx.db
+          .query("sharedVisits")
+          .withIndex("by_audience_status_history", (q) => bound(q.eq("audience", "public").eq("status", "active"))),
+      before,
+    );
+// The sharedVisits trigger deletes a post's tag rows with the post, so every row still has its post.
+export const tagHistory =
+  (ctx: QueryCtx, tag: string): HistoryStream =>
+  async (before) => {
+    const row = await historyHead(
+      (bound) => ctx.db.query("postTags").withIndex("by_tag_history", (q) => bound(q.eq("tag", tag))),
+      before,
+    );
+    return row && ctx.db.get("sharedVisits", row.publicationId);
+  };
 
 export async function projectVisitAlbum(
   ctx: QueryCtx,

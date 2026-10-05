@@ -11,8 +11,10 @@ import { VisitNotes } from "./visit-notes";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, [effect]),
+  useRouter: () => ({ push: mockPush }),
 }));
 const mockDatabaseListeners = new Set<(event: { tableName: string }) => void>();
 jest.mock("expo-sqlite", () => ({
@@ -60,7 +62,7 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
   const view = await render(<Notes />);
   await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
   const input = await screen.findByLabelText("Notes");
-  expect(input).toHaveProp("value", "");
+  expect(input).toHaveTextContent("");
   expect(input).toHaveProp("autoFocus", true);
   expect(screen.getByRole("button", { name: "Save note" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /Public|Private/ })).toBeNull();
@@ -74,6 +76,19 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
   await view.unmount();
   await render(<Notes />);
   expect(await screen.findByText("Remember the light")).toBeOnTheScreen();
+});
+
+it("links the tags in saved notes to their pages", async () => {
+  const view = await render(<Notes />);
+  await fireEvent.press(await screen.findByRole("button", { name: /Add a note|Edit note/ }));
+  const input = await screen.findByLabelText("Notes");
+  await fireEvent.changeText(input, "Back for the #Monet room");
+  await fireEvent(input, "blur");
+  await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Back for the #Monet room"));
+  await view.unmount();
+  await render(<Notes />);
+  await fireEvent.press(await screen.findByRole("link", { name: "#Monet" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "monet" } });
 });
 
 it("autosaves after a typing pause without trimming the text under the cursor", async () => {
@@ -90,7 +105,7 @@ it("autosaves after a typing pause without trimming the text under the cursor", 
   await act(() => jest.advanceTimersByTime(200));
   expect((await visits.getVisit(localId))?.reflection).toBe("The light stayed");
   await notifyVisitChange();
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "The light stayed ");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("The light stayed ", { normalizer: (text) => text });
 });
 
 it("pushes a pause-saved note to sync only when the field blurs", async () => {
@@ -182,7 +197,7 @@ it("keeps a failed draft visible and retries without more typing", async () => {
   await fireEvent.changeText(input, "Keep this draft");
   await fireEvent(input, "blur");
   expect(await screen.findByRole("alert")).toHaveTextContent("Your note could not be saved. Try again.");
-  expect(input).toHaveProp("value", "Keep this draft");
+  expect(input).toHaveTextContent("Keep this draft");
   await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
   await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Keep this draft"));
   expect(screen.queryByRole("alert")).toBeNull();
@@ -207,11 +222,11 @@ it("accepts synced notes when idle and keeps an unsaved local draft during a ref
   const input = await screen.findByLabelText("Notes");
   await visits.patchVisit(localId, { reflection: "From another device" });
   await notifyVisitChange();
-  expect(input).toHaveProp("value", "From another device");
+  expect(input).toHaveTextContent("From another device");
   await fireEvent.changeText(input, "Local draft");
   await visits.patchVisit(localId, { reflection: "A later remote edit" });
   await notifyVisitChange();
-  expect(input).toHaveProp("value", "Local draft");
+  expect(input).toHaveTextContent("Local draft");
   await fireEvent(input, "blur");
   await waitFor(async () => expect((await visits.getVisit(localId))?.reflection).toBe("Local draft"));
 });
