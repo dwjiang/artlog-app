@@ -166,16 +166,15 @@ it("opens the terms and privacy policy websites from the first page", async () =
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
 });
 
-it("declines every permission but still requires a name or nickname", async () => {
+it("declines every permission and finishes as a guest without a name", async () => {
   await render(<WelcomeScreen />);
   await declineEveryPermission();
   expect(screen.getByRole("header", { name: "Your name." })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), "   ");
-  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
-  await fireEvent(screen.getByLabelText("Name"), "submitEditing");
-  expect(mockBack).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(await getLocalProfileName()).toBeUndefined();
+  expect(await settings.getSetting("welcome-seen")).toBe("true");
   expect(mockRequestCamera).not.toHaveBeenCalled();
   expect(mockRequestPhotos).not.toHaveBeenCalled();
   expect(mockRequestLocation).not.toHaveBeenCalled();
@@ -207,11 +206,15 @@ it("moves on without asking again when a permission is already answered", async 
   expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
 });
 
-it("prefills the saved name when onboarding is reopened", async () => {
+it("prefills the saved name when onboarding is reopened, and clears it when emptied", async () => {
   await setLocalProfileName("Alex");
   await render(<WelcomeScreen />);
   await declineEveryPermission();
   expect(await screen.findByDisplayValue("Alex")).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("Name"), "");
+  await fireEvent(screen.getByLabelText("Name"), "submitEditing");
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(await getLocalProfileName()).toBeUndefined();
 });
 
 it("keeps the entered name and retries when saving fails", async () => {

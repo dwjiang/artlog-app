@@ -42,11 +42,13 @@ async function localAvatar(): Promise<AvatarId> {
   return assigningAvatar;
 }
 
-// These are installation preferences, so changing the active journal owner cannot clear them.
+// These are installation preferences, so changing the active journal owner cannot clear them. A blank name clears
+// the saved one.
 export async function setLocalProfileName(value: string): Promise<void> {
   const name = value.trim();
-  if (!name || name.length > LIMITS.name) throw new Error("Enter a name between 1 and 60 characters.");
-  await setSetting(NAME_KEY, name);
+  if (name.length > LIMITS.name) throw new Error(`Enter a name of at most ${LIMITS.name} characters.`);
+  if (name) await setSetting(NAME_KEY, name);
+  else await removeSetting(NAME_KEY);
   for (const listener of listeners) listener();
 }
 

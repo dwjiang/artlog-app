@@ -1,8 +1,7 @@
 import { act, render, waitFor } from "@testing-library/react-native";
 
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
-import { setLocalProfileName } from "@/lib/account/local-profile";
-import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+import { anonymousOwner, initializeOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { WelcomePrompt } from "./welcome-prompt";
 
@@ -24,7 +23,7 @@ beforeEach(async () => {
   await removeSetting("local-profile-name");
 });
 
-it("returns to onboarding on relaunch until the name has been saved", async () => {
+it("returns to onboarding on relaunch until the welcome is finished", async () => {
   const first = await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
   expect(await getSetting("welcome-seen")).toBeUndefined();
@@ -33,18 +32,11 @@ it("returns to onboarding on relaunch until the name has been saved", async () =
   await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(2));
 });
 
-it("does not repeat completed onboarding", async () => {
-  await setLocalProfileName("Alex");
+it("does not repeat completed onboarding for a guest who left the name blank", async () => {
   await setSetting("welcome-seen", "true");
   await render(<WelcomePrompt />);
   await act(async () => {});
   expect(mockPush).not.toHaveBeenCalled();
-});
-
-it("asks for a missing name even when the welcome was previously seen", async () => {
-  await setSetting("welcome-seen", "true");
-  await render(<WelcomePrompt />);
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
 });
 
 it("waits for the active Home screen", async () => {
@@ -56,7 +48,7 @@ it("waits for the active Home screen", async () => {
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
 });
 
-it("onboards a signed-in account that has not finished the welcome, without needing a name", async () => {
+it("onboards a signed-in account that has not finished the welcome", async () => {
   switchOwner("account:existing");
   await render(<WelcomePrompt />);
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
@@ -70,12 +62,15 @@ it("does not repeat the welcome for an account that finished it", async () => {
   expect(mockPush).not.toHaveBeenCalled();
 });
 
-it("asks for a name after signing out when none has been saved", async () => {
+it("stays closed after signing out, and reopens for the fresh owner after local data is erased", async () => {
   await setSetting("welcome-seen", "true");
   switchOwner("account:existing");
   await render(<WelcomePrompt />);
   await act(async () => {});
-  expect(mockPush).not.toHaveBeenCalled();
   await act(() => switchOwner(anonymousOwner()));
+  await act(async () => {});
+  expect(mockPush).not.toHaveBeenCalled();
+  await removeSetting("welcome-seen");
+  await act(() => initializeOwner("erased"));
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/welcome"));
 });
