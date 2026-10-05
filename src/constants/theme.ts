@@ -1,5 +1,7 @@
+import type { NativeStackNavigationOptions } from "expo-router";
 import { Platform, StyleSheet, type TextStyle } from "react-native";
 
+import { isIOS26OrLater } from "@/lib/ios-version";
 import { WALL_COLORS } from "@/shared/wall/defaults";
 
 export const Gallery = {
@@ -21,6 +23,7 @@ export const Gallery = {
   success: "#2F6846",
   warning: "#865A15",
   destructive: "#B42318",
+  badge: "#FF3B30",
   softBorder: "#DCE1E8",
   accentBorder: "#C4D0F4",
   sage: "#CDD0CA",
@@ -72,7 +75,6 @@ export const Fonts = {
 
 export const Typography = {
   wordmark: { fontFamily: Fonts.display, fontSize: 36, lineHeight: 46, letterSpacing: -1.2 },
-  largeTitle: { fontFamily: Fonts.display, fontSize: 34, lineHeight: 44, letterSpacing: -1 },
   display: { fontFamily: Fonts.display, fontSize: 30, lineHeight: 39, letterSpacing: -0.8 },
   pageTitle: { fontFamily: Fonts.display, fontSize: 35, lineHeight: 45, letterSpacing: -1 },
   section: { fontFamily: Fonts.display, fontSize: 20, lineHeight: 26, letterSpacing: -0.4 },
@@ -120,12 +122,36 @@ export const PinnedFooterBorder = {
 
 export const NavigationTheme = {
   headerTintColor: Gallery.accent,
-  headerStyle: { backgroundColor: Gallery.paper },
+  headerBackButtonDisplayMode: "minimal",
   headerTitleStyle: { color: Gallery.ink },
   headerLargeTitleStyle: { color: Gallery.ink, fontFamily: Fonts.display },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: Gallery.paper },
-} as const;
+} as const satisfies NativeStackNavigationOptions;
+
+/** Automatic scroll insets work on every iOS version; before native scroll edges, the bar supplies its own blur. */
+export const TransparentHeader = {
+  headerTransparent: true,
+  headerBlurEffect: isIOS26OrLater() ? undefined : "systemMaterial",
+} as const satisfies NativeStackNavigationOptions;
+
+/**
+ * For detail pages under `useScrollTitle`. The bar draws its title clear while the in-content heading shows; the title
+ * itself stays set so the long-press back menu of a screen pushed from here names this page.
+ */
+export const ScrollTitleHeader = {
+  ...TransparentHeader,
+  title: "",
+  headerTitleStyle: { ...NavigationTheme.headerTitleStyle, color: "transparent" },
+} as const satisfies NativeStackNavigationOptions;
+
+export const LargeTitleHeader = {
+  ...TransparentHeader,
+  headerLargeTitleEnabled: true,
+  // An opaque large-header background hides the re-expanded title on iOS 26.
+  headerLargeStyle: { backgroundColor: "transparent" },
+  headerLargeTitleShadowVisible: false,
+} as const satisfies NativeStackNavigationOptions;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

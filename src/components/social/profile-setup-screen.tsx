@@ -242,7 +242,7 @@ export function ProfileSetupScreen({
       <View style={styles.chip}>
         <Text style={styles.chipText}>{`Step ${step + 1} of ${STEPS.length}`}</Text>
       </View>
-      <GalleryButton label="Not now" fullWidth={false} disabled={busy} onPress={close} />
+      <GalleryButton label="Not Now" fullWidth={false} disabled={busy} onPress={close} />
     </View>
   );
 

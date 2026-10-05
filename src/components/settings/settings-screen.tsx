@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
-import { ScrollView, View, useWindowDimensions } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
@@ -20,7 +20,6 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 import { api } from "../../../convex/_generated/api";
 
 export function SettingsScreen() {
-  const { fontScale } = useWindowDimensions();
   const signIn = useAccount();
   const { account } = signIn;
   const session = useSocialSession();
@@ -34,14 +33,11 @@ export function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
         paddingHorizontal: 20,
-        paddingTop: 4,
+        paddingTop: 8,
         paddingBottom: 28,
         gap: 16,
       }}
     >
-      <ThemedText variant={fontScale > 1.3 ? "display" : "pageTitle"} accessibilityRole="header">
-        Settings
-      </ThemedText>
       {account?.linked ? (
         <View style={{ gap: 12 }}>
           <MotionPressable
@@ -139,7 +135,7 @@ export function SettingsScreen() {
       </ThemedText>
       {__DEV__ && (
         <SettingsGroup title="Developer">
-          <SettingsRow label="Developer tools" icon="wrench.and.screwdriver" onPress={detail("developer")} />
+          <SettingsRow label="Developer Tools" icon="wrench.and.screwdriver" onPress={detail("developer")} />
         </SettingsGroup>
       )}
     </ScrollView>

@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { ScrollView } from "react-native";
 
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
+import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { convexErrorCode } from "@/lib/network-error";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
@@ -34,15 +35,19 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
   const { data } = result;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
   const owner = wall.data?.profileId;
+  const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(data?.artwork.title ?? "");
   return (
     <>
       {owner && session.status !== "loading" && owner !== session.profileId && (
         <ReportToolbar kind="wallItem" id={itemId} />
       )}
       <ScrollView
+        ref={scrollRef}
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={socialStyles.content}
+        onContentSizeChange={measureHeading}
+        onScroll={onScroll}
       >
         {session.offline || (shared && !sessionReady) ? (
           <SocialGate session={session} />
@@ -73,6 +78,8 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
             token={session.token}
             enrichment={data.enrichment}
             note={shared ? undefined : wall.data?.note}
+            headingRef={headingRef}
+            onHeadingLayout={measureHeading}
           />
         )}
       </ScrollView>

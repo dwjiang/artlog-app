@@ -85,11 +85,11 @@ export function AccountSection() {
       )}
       <GroupedSection footer={status}>
         <NavigationRow
-          label={profileRequired ? "Create profile" : "Edit profile"}
+          label={profileRequired ? "Create Profile" : "Edit Profile"}
           onPress={() => router.push(profileRequired ? "/create-profile" : "/edit-profile")}
         />
         {session.status === "ready" && (
-          <NavigationRow label="Blocked people" onPress={() => router.push("/blocked-people")} />
+          <NavigationRow label="Blocked People" onPress={() => router.push("/blocked-people")} />
         )}
       </GroupedSection>
       <GroupedButtons>

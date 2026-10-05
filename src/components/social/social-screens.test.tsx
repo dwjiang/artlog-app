@@ -77,6 +77,7 @@ jest.mock("expo-network", () => ({
 }));
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
+  useNavigation: () => ({ setOptions: jest.fn() }),
   useRouter: () => ({ push: mockPush, navigate: mockPush }),
   router: {
     push: (...args: unknown[]) => mockPush(...args),
@@ -85,6 +86,7 @@ jest.mock("expo-router", () => ({
   },
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
 }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 
 const visit: SharedVisit = {
   audience: "public",
@@ -179,7 +181,7 @@ it("opens visits, authors, and people from Home", async () => {
     pathname: "/profile/[profileId]",
     params: { profileId: "alex" },
   });
-  await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Find Friends" }));
   expect(mockPush).toHaveBeenLastCalledWith("/people");
   await fireEvent.press(screen.getByRole("button", { name: "Friends", selected: true }));
   expect(mockPush).toHaveBeenLastCalledWith("/people");
@@ -192,7 +194,7 @@ it("keeps Home navigation available through ghosts, loaded content, and paginati
   mockPages.mockReturnValue(pages({ loading: true, done: false }));
   const view = await render(<HomeScreen />);
   expect(screen.getByRole("progressbar", { name: "Loading visits…" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Find friends" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Find Friends" })).toBeOnTheScreen();
   expect(screen.queryByText("No visits from friends yet.")).toBeNull();
   mockPages.mockReturnValue(pages({ items: [visit], loading: true, done: false }));
   await view.rerender(<HomeScreen />);
@@ -479,7 +481,6 @@ it("loads public visits for guests and opens their details without signing in", 
   expect(mockPages.mock.calls.map(([query, args]) => [getFunctionName(query), args])).toEqual([
     ["sharedVisits:listFeed", "skip"],
     ["sharedVisits:listPublic", {}],
-    ["notifications:unseen", "skip"],
   ]);
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
@@ -498,11 +499,7 @@ it("switches a signed-in Home between friends’ visits and Global public visits
   const subscriptions = mockPages.mock.calls.map(
     ([query, args]) => `${getFunctionName(query)} ${JSON.stringify(args)}`,
   );
-  expect([...new Set(subscriptions)]).toEqual([
-    "sharedVisits:listFeed {}",
-    "sharedVisits:listPublic {}",
-    "notifications:unseen {}",
-  ]);
+  expect([...new Set(subscriptions)]).toEqual(["sharedVisits:listFeed {}", "sharedVisits:listPublic {}"]);
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
@@ -691,12 +688,10 @@ it("keeps discovery search available when a member has no friends", async () => 
 it("keeps the discovery header mounted while searching and switching filters", async () => {
   mockQuery.mockReturnValue({ data: [], loading: false, refresh: mockRefresh });
   await render(<PeopleScreen />);
-  const title = screen.getByRole("header", { name: "Friends" });
   const search = screen.getByLabelText("Name or username");
   await fireEvent.changeText(search, "alex");
   for (const name of ["Friends", "Explore"]) {
     await fireEvent.press(screen.getByRole("button", { name }));
-    expect(screen.getByRole("header", { name: "Friends" })).toBe(title);
     expect(screen.getByLabelText("Name or username")).toBe(search);
     expect(search).toHaveProp("value", "alex");
   }
@@ -795,6 +790,6 @@ it("fills an empty Friends feed with suggestions and counts requests on the frie
   expect(screen.getByText("Also saved Blue afternoon", { includeHiddenElements: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Share your profile" }));
   expect(mockPush).toHaveBeenLastCalledWith("/share-profile");
-  await fireEvent.press(screen.getByRole("button", { name: "Find friends, 2 requests" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Find Friends, 2 requests" }));
   expect(mockPush).toHaveBeenLastCalledWith("/people");
 });

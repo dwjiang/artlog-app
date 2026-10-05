@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { View } from "react-native";
+import type { ReactNode } from "react";
+import { ScrollView, View } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -14,6 +15,18 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { SocialInvitation } from "./social-invitation";
 import { socialStyles } from "./social-styles";
+
+/** Holds a full-screen state below a transparent navigation bar, on paper or on the gray of a grouped page. */
+export function StateScreen({ grouped = false, children }: { grouped?: boolean; children: ReactNode }) {
+  return (
+    <ScrollView
+      style={[socialStyles.root, grouped && { backgroundColor: Gallery.groupedBackground }]}
+      contentInsetAdjustmentBehavior="automatic"
+    >
+      {children}
+    </ScrollView>
+  );
+}
 
 export function SocialState({
   title,

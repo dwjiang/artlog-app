@@ -10,7 +10,7 @@ import { EmptyFrames, EmptyTicket } from "@/components/empty-state-art";
 import { ListRow } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SearchField } from "@/components/search-field";
-import { SocialState } from "@/components/social/social-state";
+import { SocialState, StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
 import { linkArtworkVisits, linkArtworksVisit, selectArtworkEncounters } from "@/db/repos/artwork-album";
@@ -115,19 +115,19 @@ function LinkPicker({
   }
   if (!!savedId === !!visitId) {
     return (
-      <View style={{ flex: 1, backgroundColor: Gallery.groupedBackground }}>
+      <StateScreen grouped>
         <SocialState
           title="Link unavailable."
           detail="Open an artwork or visit before linking."
           action="Go back"
           onAction={() => router.back()}
         />
-      </View>
+      </StateScreen>
     );
   }
   return (
     <>
-      <Stack.Screen options={{ title: savedId ? "Link a visit" : "Link artworks" }} />
+      <Stack.Screen options={{ title: savedId ? "Link a Visit" : "Link Artworks" }} />
       <FlatList
         style={{ backgroundColor: Gallery.groupedBackground }}
         contentInsetAdjustmentBehavior="automatic"
@@ -231,7 +231,7 @@ function LinkPicker({
               }
               visual={savedId ? <EmptyTicket /> : <EmptyFrames />}
             >
-              <ActionStack textActions={<GalleryButton label="Not now" fullWidth onPress={() => router.back()} />}>
+              <ActionStack textActions={<GalleryButton label="Not Now" fullWidth onPress={() => router.back()} />}>
                 <GalleryButton
                   label={savedId ? "Add visit" : "Scan artwork"}
                   variant="filled"

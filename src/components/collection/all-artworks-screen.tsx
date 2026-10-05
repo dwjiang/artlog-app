@@ -23,9 +23,6 @@ function AllArtworks({ onRetry }: { onRetry: () => void }) {
       onRetry={onRetry}
       header={
         <View style={{ paddingHorizontal: 20, paddingTop: 4, gap: 12 }}>
-          <ThemedText variant="pageTitle" accessibilityRole="header">
-            All artworks
-          </ThemedText>
           <ThemedText variant="metadata" themeColor="textSecondary">
             {data.works.length} {data.works.length === 1 ? "artwork" : "artworks"}
           </ThemedText>

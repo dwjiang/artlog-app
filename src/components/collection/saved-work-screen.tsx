@@ -14,6 +14,7 @@ import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
@@ -89,6 +90,7 @@ function SavedArtwork({
   editNote?: boolean;
 }) {
   const router = useRouter();
+  const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(work.title);
   const wall = useCollectionWall([work]);
   const { encounters, loading: loadingEncounters, error: encounterError } = useArtworkEncounters(work);
   const currentEncounter = encounters.find(({ visit }) => visit.localId === visitId);
@@ -135,11 +137,14 @@ function SavedArtwork({
   }
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="interactive"
       contentContainerStyle={{ paddingBottom: 35 }}
+      onContentSizeChange={measureHeading}
+      onScroll={onScroll}
     >
       <View style={{ paddingHorizontal: 20, gap: 8 }}>
         <ArtworkAlbum
@@ -147,6 +152,8 @@ function SavedArtwork({
           work={work}
           visitId={currentEncounter?.visit.localId}
           photoId={photoId}
+          headingRef={headingRef}
+          onHeadingLayout={measureHeading}
         >
           {work.artworkId && (
             <ListenActions

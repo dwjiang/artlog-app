@@ -20,7 +20,7 @@ import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ProfileAvatar } from "./profile-avatar";
-import { SocialGate, SocialState } from "./social-state";
+import { SocialGate, SocialState, StateScreen } from "./social-state";
 
 const AVATAR_SIZE = 88;
 const AVATAR_RING = 5;
@@ -36,27 +36,28 @@ export function ShareProfileScreen() {
     profileId || session.profileId ? { profileId: (profileId ?? session.profileId!) as Id<"profiles"> } : "skip",
     session.key,
   );
-  if (!profileId && session.status !== "ready") {
-    return <SocialGate session={session} />;
-  }
-  if (profile.data === null) {
+  const gated = !profileId && session.status !== "ready";
+  if (gated || !profile.data) {
     return (
-      <SocialState
-        title="Profile unavailable."
-        detail="This public profile is no longer available."
-        action="Back"
-        onAction={() => router.back()}
-      />
-    );
-  }
-  if (!profile.data) {
-    return (
-      <SocialState
-        title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
-        loading={!profile.error}
-        action={profile.error ? "Try again" : undefined}
-        onAction={profile.refresh}
-      />
+      <StateScreen grouped>
+        {gated ? (
+          <SocialGate session={session} />
+        ) : profile.data === null ? (
+          <SocialState
+            title="Profile unavailable."
+            detail="This public profile is no longer available."
+            action="Back"
+            onAction={() => router.back()}
+          />
+        ) : (
+          <SocialState
+            title={profile.error ? "Couldn’t load your profile." : "Opening your profile…"}
+            loading={!profile.error}
+            action={profile.error ? "Try again" : undefined}
+            onAction={profile.refresh}
+          />
+        )}
+      </StateScreen>
     );
   }
   return (

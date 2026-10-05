@@ -9,7 +9,8 @@ import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Typography } from "@/constants/theme";
+import { Gallery } from "@/constants/theme";
+import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitDate, placeIdentity } from "@/lib/journal/history";
 import { useVisits } from "@/lib/journal/use-visits";
@@ -27,9 +28,11 @@ export function VisitPlaceScreen() {
   }>();
   const { visits, loading, error } = useVisits();
   const matches = visitsAtPlace(visits, placeKey).filter((visit) => !venueId || visit.venueId === venueId);
+  // Museum names outgrow a one-line large title, so the name wraps in the page and moves to the bar on scroll.
+  const title = name || matches[0]?.venueName || "Visits by Museum";
+  const { onHeadingLayout, onScroll } = useScrollTitle(title);
   return (
-    <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: name || "Visits by museum" }} />
+    <>
       {error || loading ? (
         <VisitPage>
           <VisitMessage
@@ -57,10 +60,14 @@ export function VisitPlaceScreen() {
           data={matches}
           keyExtractor={(visit) => visit.localId}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ padding: 20, gap: 20 }}
+          onScroll={onScroll}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20, gap: 20 }}
           ListHeaderComponent={
-            <View style={{ gap: 12 }}>
-              <Text style={[Typography.pageTitle, { color: Gallery.ink }]}>{name || matches[0].venueName}</Text>
+            // The header starts at the content's top edge, so the heading's layout is in scroll-content coordinates.
+            <View style={{ gap: 12, paddingTop: 20 }}>
+              <Text variant="pageTitle" accessibilityRole="header" onLayout={onHeadingLayout}>
+                {title}
+              </Text>
               <Text style={{ color: Gallery.muted }}>{matches[0].location}</Text>
               <View
                 style={{
@@ -121,7 +128,7 @@ export function VisitPlaceScreen() {
           }
         />
       )}
-    </View>
+    </>
   );
 }
 export function VisitGlobeScreen() {

@@ -46,7 +46,7 @@ const rows = () =>
 it("lists someone’s friends under their name: you, then the ones you share, then the rest", async () => {
   mockFriends = [person("Ana", "none"), person("Ben", "accepted"), person("Viewer"), person("Zoe", "accepted")];
   await render(<ProfileFriendsScreen profileId="jamie" />);
-  expect(screen.getByText("Jamie’s friends")).toBeOnTheScreen();
+  expect(screen.getByText("Jamie’s Friends")).toBeOnTheScreen();
   expect(rows()).toEqual(["Viewer", "Ben", "Zoe", "Ana"]);
   expect(screen.getByText("You")).toBeOnTheScreen();
   expect(screen.getAllByText("Friends")).toHaveLength(2);

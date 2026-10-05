@@ -47,8 +47,8 @@ it("sorts by recent save and preserves artist grouping as an option", async () =
       .map((button) => button.props.accessibilityLabel)
       .filter((label) => label?.includes(", "));
   expect(titles()).toEqual(["Coast, Zora", "Garden, Alice"]);
-  expect(screen.getByRole("checkbox", { name: "Recent" })).toBeChecked();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Artist" }));
+  expect(screen.getByRole("button", { name: "Recent" })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
   expect(titles()).toEqual(["Garden, Alice", "Coast, Zora"]);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
 });

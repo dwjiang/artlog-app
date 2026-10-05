@@ -1,6 +1,6 @@
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Stack, useFocusEffect, useIsFocused, useRouter } from "expo-router";
+import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, SectionList, StyleSheet, View } from "react-native";
 
@@ -78,54 +78,50 @@ export function NotificationsScreen() {
     { title: "Earlier", data: groupNotifications(items.filter((item) => item.createdAt <= boundary)) },
   ].filter((section) => section.data.length > 0);
   return (
-    <>
-      <Stack.Screen options={{ title: "" }} />
-      <SectionList
-        style={socialStyles.root}
-        contentContainerStyle={socialStyles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        sections={ready ? sections : []}
-        keyExtractor={(row) => row[0].id}
-        stickySectionHeadersEnabled={false}
-        ListHeaderComponent={
-          <Text variant="pageTitle" accessibilityRole="header" style={styles.title}>
-            Notifications
-          </Text>
-        }
-        renderSectionHeader={({ section }) => (
-          <Text variant="section" accessibilityRole="header" style={styles.section}>
-            {section.title}
-          </Text>
-        )}
-        renderItem={({ item }) => (
-          <NotificationRow row={item} session={session} now={now} onRelationshipChanged={list.refresh} />
-        )}
-        ItemSeparatorComponent={Separator}
-        ListEmptyComponent={
-          !ready ? (
-            <SocialGate session={session} />
-          ) : list.done ? (
-            <SocialInvitation
-              title="No notifications yet."
-              detail="Friend requests, likes, and comments on your visits appear here."
-            >
-              <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
-            </SocialInvitation>
-          ) : null
-        }
-        ListFooterComponent={
-          ready && !list.done ? (
-            items.length === 0 && !list.error ? (
-              <ListSkeleton label="Loading notifications…" avatar />
-            ) : (
-              <PageFooter {...list} count={items.length} noun="notifications" />
-            )
-          ) : null
-        }
-        onEndReached={ready ? loadMore : undefined}
-        onEndReachedThreshold={0.4}
-      />
-    </>
+    <SectionList
+      style={socialStyles.root}
+      contentContainerStyle={socialStyles.content}
+      contentInsetAdjustmentBehavior="automatic"
+      sections={ready ? sections : []}
+      keyExtractor={(row) => row[0].id}
+      stickySectionHeadersEnabled={false}
+      renderSectionHeader={({ section }) => (
+        <Text
+          variant="section"
+          accessibilityRole="header"
+          style={[styles.section, section === sections[0] && { paddingTop: Spacing.two }]}
+        >
+          {section.title}
+        </Text>
+      )}
+      renderItem={({ item }) => (
+        <NotificationRow row={item} session={session} now={now} onRelationshipChanged={list.refresh} />
+      )}
+      ItemSeparatorComponent={Separator}
+      ListEmptyComponent={
+        !ready ? (
+          <SocialGate session={session} />
+        ) : list.done ? (
+          <SocialInvitation
+            title="No notifications yet."
+            detail="Friend requests, likes, and comments on your visits appear here."
+          >
+            <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
+          </SocialInvitation>
+        ) : null
+      }
+      ListFooterComponent={
+        ready && !list.done ? (
+          items.length === 0 && !list.error ? (
+            <ListSkeleton label="Loading notifications…" avatar />
+          ) : (
+            <PageFooter {...list} count={items.length} noun="notifications" />
+          )
+        ) : null
+      }
+      onEndReached={ready ? loadMore : undefined}
+      onEndReachedThreshold={0.4}
+    />
   );
 }
 
@@ -272,7 +268,6 @@ function Separator() {
 }
 
 const styles = StyleSheet.create({
-  title: { paddingHorizontal: Spacing.content, paddingTop: Spacing.one },
   section: { paddingHorizontal: Spacing.content, paddingTop: Spacing.four, paddingBottom: Spacing.one },
   row: {
     flexDirection: "row",

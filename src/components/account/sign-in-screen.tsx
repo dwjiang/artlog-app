@@ -88,7 +88,7 @@ export function SignInScreen({
         <Text style={styles.detail}>{copy.detail}</Text>
         <ActionStack
           style={styles.actions}
-          textActions={<GalleryButton label="Not now" fullWidth disabled={busy} onPress={() => router.back()} />}
+          textActions={<GalleryButton label="Not Now" fullWidth disabled={busy} onPress={() => router.back()} />}
         >
           {/* The chosen provider keeps its progress until the linked journal is ready to open. */}
           <SignInActions state={{ ...state, busy: busy || waitingForJournal }} />

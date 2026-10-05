@@ -8,6 +8,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
@@ -52,6 +53,7 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
 /** Everything about how one hung artwork appears on the wall: frame, the photo shown, and a public wall's note. */
 function WallDisplay({ work }: { work: SavedWork }) {
   const { width } = useWindowDimensions();
+  const { onHeadingLayout, onScroll } = useScrollTitle(work.title);
   const wall = useCollectionWall([work]);
   const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
   const published = wall.acknowledged?.items.find((item) => item.saveLocalId === work.localId);
@@ -104,6 +106,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      onScroll={onScroll}
     >
       {!wall.draft ? (
         <>
@@ -115,7 +118,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
         </>
       ) : !hung ? (
         <>
-          <Text variant="pageTitle" accessibilityRole="header">
+          <Text variant="pageTitle" accessibilityRole="header" onLayout={onHeadingLayout}>
             {work.title}
           </Text>
           <Text style={styles.caption}>This artwork is not on your wall.</Text>
@@ -139,6 +142,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
             adjustsFontSizeToFit
             minimumFontScale={0.6}
             style={{ color: Gallery.ink }}
+            onLayout={onHeadingLayout}
           >
             {work.title}
           </Text>

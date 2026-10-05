@@ -172,7 +172,7 @@ it("saves a painting picked on the last step", async () => {
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
 });
 
-it("waits for sign-in to finish before claiming a username and closes without a profile on Not now", async () => {
+it("waits for sign-in to finish before claiming a username and closes without a profile on Not Now", async () => {
   mockSession.status = "loading";
   const view = await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
   await screen.findByText("Username available");
@@ -182,7 +182,7 @@ it("waits for sign-in to finish before claiming a username and closes without a 
   mockSession = { ...mockSession, status: "profile-required" };
   await view.rerender(<ProfileSetupScreen suggestedName="Alex Morgan" />);
   expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(mockCreate).not.toHaveBeenCalled();
 });

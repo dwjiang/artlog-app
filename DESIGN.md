@@ -31,17 +31,17 @@ this document explains how to apply them. Dimensions are logical points.
 
 ## Colors
 
-- **Primary (ultramarine)**: actions, links, back buttons, header text
-  actions, the tab bar, and focus borders. Filled buttons carry white labels.
+- **Primary (ultramarine)**: actions, links, the back button, Done and prominent
+  bar actions, the tab bar, and focus borders. Filled buttons carry white labels.
 - **Highlight (pale blue)**: selected items, status and step chips, and completion
   marks. Segmented controls use white selections and ultramarine labels on a cool gray track.
-- **Neutral (dark ink on white)**: ink for text, header icons, and
+- **Neutral (dark ink on white)**: ink for text, other bar items, and
   structural symbols; muted ink for metadata; white for inputs and cards; fill
   for placeholders, never behind a shown photo; separators and soft borders for
   structure.
-- **Status**: success, warning, and destructive tones always pair with a word or
-  symbol. Uncertain, queued, and rejected identification stays distinct from
-  verified.
+- **Status**: success, warning, and destructive tones pair with a word or
+  symbol; badges stay system red. Uncertain, queued, and rejected identification
+  stays distinct from verified.
 
 Selection carries a weight, border, checkmark, or accessibility state; color
 never signals selection alone. Ordinary
@@ -49,7 +49,7 @@ text meets 4.5:1 against its background, including through opacity.
 
 ## Typography
 
-- **Headlines**: Space Grotesk Semibold for the wordmark, page titles, artwork
+- **Headlines**: Space Grotesk Semibold for the wordmark, large titles, artwork
   titles, prominent names, and section headings. Use the bundled face without
   synthesizing a weight; its license and attribution appear in About.
 - **Body and labels**: native SF Pro for navigation, body text, notes, forms,
@@ -57,7 +57,7 @@ text meets 4.5:1 against its background, including through opacity.
 
 Token sizes are defaults, not ceilings. Dynamic Type stays live in React Native
 and SwiftUI. At large text scales, wordmark and page-title headings fall back to
-display, and mastheads and controls stack.
+display, and controls stack.
 
 ## Layout
 
@@ -76,7 +76,7 @@ Flat by default: hierarchy comes from type weight, ink versus muted, separators,
 and cool gray grouping surfaces. Notes use plain text and quiet separators. A footer pinned under scrolling content
 takes a hairline separator on its top edge. Interface surfaces carry no gradients. Soft paper shadows
 lift prints, postcards, empty-state papers, and the visit bar. Material finishes
-stay on decorative wall frames, functional camera scrims, and the globe; onboarding
+stay on glass bars, wall frames, camera scrims, and the globe; onboarding
 artwork shown full-bleed under a white sheet takes the camera's scrim and glass
 controls. Toasts
 are opaque ink pills with white text. Reduce Transparency replaces camera glass

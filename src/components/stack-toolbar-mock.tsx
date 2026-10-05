@@ -6,6 +6,9 @@ function Toolbar({ children }: { children: ReactNode }) {
   return children;
 }
 Toolbar.View = Toolbar;
+Toolbar.Spacer = function ToolbarSpacer() {
+  return null;
+};
 Toolbar.Button = function ToolbarButton({
   children,
   onPress,
@@ -28,6 +31,10 @@ Toolbar.Button = function ToolbarButton({
       <Text>{children}</Text>
     </Pressable>
   );
+};
+// A badge reads as its button's text.
+Toolbar.Badge = function ToolbarBadge({ children }: { children: string }) {
+  return children;
 };
 
 // Menus render their actions inline, as if always open.

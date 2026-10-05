@@ -21,7 +21,7 @@ const titles = {
   notifications: "Notifications",
   leaderboards: "Leaderboards",
   about: "About",
-  developer: "Developer tools",
+  developer: "Developer Tools",
 };
 
 export function SettingsDetailScreen({ section }: { section: string }) {

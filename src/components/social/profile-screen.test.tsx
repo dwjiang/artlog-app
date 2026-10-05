@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
-import type { ReactNode } from "react";
-import { ActionSheetIOS } from "react-native";
+import { ActionSheetIOS, type HostInstance, ScrollView, Text } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
+import { Gallery } from "@/constants/theme";
 import type { BrowsedProfile, InCommon, SharedVisit } from "@/lib/social/types";
 
 import { ProfileScreen } from "./profile-screen";
@@ -29,29 +29,18 @@ const mockPerson = {
 };
 let mockProfile: typeof mockPerson | undefined;
 const mockPush = jest.fn();
+const mockSetOptions = jest.fn();
 jest.mock("expo-router", () => ({
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
   router: { push: (...args: unknown[]) => mockPush(...args) },
   useRouter: () => ({ push: mockPush }),
+  useNavigation: () => ({ setOptions: mockSetOptions }),
 }));
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("@/components/collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => {
   const { Text } = jest.requireActual("react-native");
-  return {
-    FriendshipControls: ({ trailing }: { trailing: ReactNode }) => (
-      <>
-        <Text>Friendship controls</Text>
-        {trailing}
-      </>
-    ),
-    ProfileActionRow: ({ actions, trailing }: { actions: ReactNode[]; trailing: ReactNode }) => (
-      <>
-        {actions}
-        {trailing}
-      </>
-    ),
-  };
+  return { FriendshipControls: () => <Text>Friendship controls</Text> };
 });
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({
@@ -121,7 +110,14 @@ const visit: SharedVisit = {
   visitedOn: "2026-09-12",
   artworks: { page: [], cursor: null, isDone: true },
 };
-const filterChoices = () => screen.queryAllByRole("checkbox").map((choice) => choice.props.accessibilityLabel);
+const filterChoices = () => {
+  const filter = screen.queryByLabelText("Visibility");
+  return filter
+    ? within(filter)
+        .getAllByRole("button")
+        .map((choice) => choice.props.accessibilityLabel)
+    : [];
+};
 beforeEach(() => {
   jest.clearAllMocks();
   mockRelationship = { state: "none", blocked: false };
@@ -144,13 +140,13 @@ it("filters your own visits by every visibility and keeps the full count", async
   mockVisits = [visit];
   await render(<ProfileScreen profileId="owner" />);
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
-  expect(filterChoices()).toEqual(["All visits", "Private", "Friends", "Public"]);
+  expect(filterChoices()).toEqual(["All Visits", "Private", "Friends", "Public"]);
   mockVisits = [];
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Private" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Private" }));
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: "owner", audience: "private" });
   expect(screen.getByText("No private visits.")).toBeOnTheScreen();
   expect(screen.getByLabelText("1 visit")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("checkbox", { name: "All visits" }));
+  await fireEvent.press(screen.getByRole("button", { name: "All Visits" }));
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: "owner" });
 });
 
@@ -162,8 +158,8 @@ it("offers a friend’s Friends and Public visits and no filter to strangers", a
   mockRelationship = { state: "accepted", blocked: false };
   await render(<ProfileScreen profileId="friend" />);
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
-  expect(filterChoices()).toEqual(["All visits", "Friends", "Public"]);
-  await fireEvent.press(screen.getByRole("checkbox", { name: "Friends" }));
+  expect(filterChoices()).toEqual(["All Visits", "Friends", "Public"]);
+  await fireEvent.press(within(screen.getByLabelText("Visibility")).getByRole("button", { name: "Friends" }));
   expect(mockPages.mock.calls.at(-1)[1]).toEqual({ profileId: "friend", audience: "friends" });
 });
 
@@ -184,7 +180,7 @@ it("draws the profile’s layout as ghosts until the profile arrives", async () 
   for (const loading of ["Opening profile…", "Loading counts", "Loading profile actions…", "Opening wall…"]) {
     expect(screen.getByRole("progressbar", { name: loading })).toBeOnTheScreen();
   }
-  expect(screen.queryByRole("button", { name: "Report profile" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Report Profile…" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
   expect(screen.getByRole("progressbar", { name: "Loading visits…" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Wall" }));
@@ -236,7 +232,6 @@ it("keeps the full header when switching between Wall and Visits", async () => {
     screen.getByText("artworks"),
     screen.getByText("visits"),
     screen.getByText("Friendship controls"),
-    screen.getByRole("button", { name: "Share profile" }),
   ];
   header().forEach((element) => expect(element).toBeOnTheScreen());
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
@@ -245,17 +240,49 @@ it("keeps the full header when switching between Wall and Visits", async () => {
   header().forEach((element) => expect(element).toBeOnTheScreen());
 });
 
-it("offers Share beside Edit profile on your own profile, with nothing to report", async () => {
+it("puts Share and Edit in your own profile’s bar, with nothing to report", async () => {
   await render(<ProfileScreen profileId="owner" />);
-  expect(screen.getByRole("button", { name: "Edit profile" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Share profile" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Report profile" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Share Profile" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/share-profile", params: { profileId: "owner" } });
+  await fireEvent.press(screen.getByRole("button", { name: "Edit" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/edit-profile");
+  expect(screen.queryByRole("button", { name: "Edit Profile" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Report Profile…" })).toBeNull();
 });
 
-it("reports someone else’s profile from the header menu", async () => {
+it("shares and reports someone else’s profile from the header menu, not the body", async () => {
   await render(<ProfileScreen profileId="friend" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Report profile" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "profile", id: "friend" } });
+  expect(screen.queryByRole("button", { name: "Share Profile" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Share Profile…" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/share-profile", params: { profileId: "friend" } });
+  await fireEvent.press(screen.getByRole("button", { name: "Report Profile…" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/report", params: { kind: "profile", id: "friend" } });
+});
+
+it("names the person in the bar only while their name is scrolled under it", async () => {
+  const nativeScroll = {} as HostInstance;
+  const scrollRef = jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
+  const measure = jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
+    if (relativeTo === nativeScroll) onSuccess(20, 130, 362, 39);
+  });
+  try {
+    await render(<ProfileScreen profileId="friend" />);
+    const name = screen.getByRole("header", { name: "Jamie Chen" });
+    await fireEvent(name, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 362, height: 39 } } });
+    const scrollTo = (y: number) => fireEvent.scroll(name, { nativeEvent: { contentOffset: { x: 0, y } } });
+    await scrollTo(-116);
+    await scrollTo(52);
+    expect(mockSetOptions).toHaveBeenCalledWith({ title: "Jamie Chen" });
+    expect(mockSetOptions).not.toHaveBeenCalledWith({ headerTitleStyle: expect.anything() });
+    await scrollTo(53);
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: Gallery.ink } });
+    await scrollTo(-116);
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ headerTitleStyle: { color: "transparent" } });
+  } finally {
+    scrollRef.mockRestore();
+    measure.mockRestore();
+  }
 });
 
 it("blocks from the header menu, then hides the wall, visits, and In common until unblocked", async () => {
@@ -263,7 +290,7 @@ it("blocks from the header menu, then hides the wall, visits, and In common unti
   mockInCommon = { artworks: [], museums: [{ venueId: "museum" as never, name: "Museum of Modern Art" }] };
   const view = await render(<ProfileScreen profileId="friend" />);
   expect(screen.getByText("In common")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Block" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Block…" }));
   expect(mockBlock).toHaveBeenCalledWith(expect.objectContaining({ profileId: "friend", name: "Jamie Chen" }));
   mockRelationship = { state: "none", blocked: true, blockRevision: 3 };
   await view.rerender(<ProfileScreen profileId="friend" />);
@@ -273,8 +300,8 @@ it("blocks from the header menu, then hides the wall, visits, and In common unti
     expect(screen.queryByText(hidden)).toBeNull();
   }
   expect(screen.queryByRole("button", { name: "Visits" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Block" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Unblock" }));
+  expect(screen.queryByRole("button", { name: "Block…" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Unblock…" }));
   expect(mockUnblock).toHaveBeenCalledWith(expect.objectContaining({ profileId: "friend" }), 3);
 });
 

@@ -1,7 +1,7 @@
 import { ImageManipulator } from "expo-image-manipulator";
-import { Stack } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -101,18 +101,22 @@ export function CropEditor({
     };
   }, [uri, attempt]);
 
+  const navigation = useNavigation();
+  // Cancel takes the back button's place. Navigation options outlive the component that set them, and the scan result
+  // opens this editor in place, so closing it brings the back button back.
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerBackVisible: false });
+    return () => navigation.setOptions({ headerBackVisible: undefined });
+  }, [navigation]);
   const saving = busy === "saving";
   // Keep native toolbar options stable as photo loading and crop commits update the editor.
   const header = useMemo(
     () => (
-      <>
-        <Stack.Screen options={{ headerBackVisible: false }} />
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button disabled={saving} tintColor={Gallery.accent} onPress={onCancel}>
-            Cancel
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-      </>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button disabled={saving} tintColor={Gallery.ink} onPress={onCancel}>
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     ),
     [saving, onCancel],
   );

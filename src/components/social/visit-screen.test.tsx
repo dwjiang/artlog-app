@@ -111,7 +111,7 @@ it("shows the shared status, owner, place, reflection, and full artwork count", 
 
 it("reports someone else’s visit from the header menu", async () => {
   await render(<VisitScreen postId="post-a" />);
-  await fireEvent.press(screen.getByRole("button", { name: "Report visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Report Visit…" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "sharedVisit", id: "post-a" } });
 });
 

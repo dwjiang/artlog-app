@@ -106,9 +106,9 @@ describe("signed in", () => {
     expect(screen.getByText("Slow afternoons in museums.")).toBeOnTheScreen();
     expect(screen.getByLabelText("13 artworks")).toBeOnTheScreen();
     expect(screen.getByLabelText("1 visit")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole("button", { name: "Edit profile" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Edit Profile" }));
     expect(mockPush).toHaveBeenLastCalledWith("/edit-profile");
-    await fireEvent.press(screen.getByRole("button", { name: "Share profile" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Share Profile" }));
     expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/share-profile", params: { profileId: "alex" } });
     await fireEvent.press(screen.getByRole("button", { name: "Settings" }));
     expect(mockPush).toHaveBeenLastCalledWith("/settings");
@@ -152,7 +152,7 @@ describe("signed in", () => {
     mockSession = { status: "profile-required", key: "alex" };
     await render(<CollectionHeader artworkCount={1} />);
     expect(screen.getByText("Create a profile to share your wall")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Edit profile" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit Profile" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Create profile" }));
     expect(mockPush).toHaveBeenLastCalledWith("/create-profile");
   });

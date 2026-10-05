@@ -47,7 +47,7 @@ jest.mock("./capture-context-button", () => ({
 jest.mock("./capture-photos-button", () => ({
   CapturePhotosButton: () => null,
   useCapturePhotos: () => ({
-    label: "Add photos",
+    photoCount: 1,
     open: jest.fn(),
     unavailable: false,
   }),
@@ -127,7 +127,7 @@ jest.mock("expo-router", () => {
       replace: mockReplace,
       dismissAll: mockDismissAll,
     }),
-    Stack: { Toolbar: Object.assign(View, { Menu: View, MenuAction: Action }) },
+    Stack: { Toolbar: Object.assign(View, { Button: Action, Menu: View, MenuAction: Action }) },
   };
 });
 jest.mock("expo-haptics", () => ({
@@ -256,7 +256,7 @@ function publish(scan: unknown) {
 }
 
 async function openDetails() {
-  const edit = within(screen.getByLabelText("Scan options")).queryByRole("button", { name: "Edit details" });
+  const edit = within(screen.getByLabelText("Scan options")).queryByRole("button", { name: "Edit Details" });
   if (edit) await fireEvent.press(edit);
 }
 
@@ -356,7 +356,7 @@ it("shows a confident match with its fields, chip, prose, sources and news", asy
   expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
   expect(screen.getByText("From the web")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Example News" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Scan the Label" })).toBeOnTheScreen();
   expect(screen.queryByText("Other possibilities")).toBeNull();
   expect(screen.getByRole("button", { name: "Not right?" })).toBeOnTheScreen();
   await waitFor(() =>
@@ -592,7 +592,7 @@ it.each([confidentScan, softScan])("locks the draft and match choices while savi
     ).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
     expect(screen.queryByText("Other possibilities")).toBeNull();
-    expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Scan the label$/i })).toBeDisabled();
   } finally {
     await act(async () => {
       finishVisit(visit);
@@ -952,14 +952,17 @@ it("saves edited tentative metadata without implying confirmation", async () => 
   expect(screen.getByText("My reading of the label")).toBeOnTheScreen();
 });
 
-it("opens and finishes editing from Scan options without losing the draft", async () => {
+it("opens editing from Scan options and finishes it with Done without losing the draft", async () => {
   await render(result());
   expect(await screen.findByText("Water Lilies")).toBeOnTheScreen();
   expect(screen.queryByLabelText("Title")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
   await openDetails();
+  expect(within(screen.getByLabelText("Scan options")).queryByRole("button", { name: "Edit Details" })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("Title"), "Nymphéas");
-  await fireEvent.press(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Done editing" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(screen.queryByLabelText("Title")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
   expect(screen.getByText("Nymphéas")).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("Nymphéas");
@@ -1014,7 +1017,7 @@ it("names a work from confirmed label details, with its own background and no ma
   expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
   expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
   // Both the header link and Scan options reopen the label the details came from.
-  for (const edit of screen.getAllByRole("button", { name: "Edit details" })) await fireEvent.press(edit);
+  for (const edit of screen.getAllByRole("button", { name: /^Edit details$/i })) await fireEvent.press(edit);
   expect(mockPush.mock.calls).toEqual([
     [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
     [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
@@ -1121,7 +1124,7 @@ it("names the catalogue work picked from the label as a match and saves it as th
   expect(screen.queryByRole("button", { name: "Not right?" })).toBeNull();
   expect(screen.queryByText(SHARING_NOTICE)).toBeNull();
   // Both the header link and Scan options reopen the label the work was picked from.
-  for (const edit of screen.getAllByRole("button", { name: "Edit details" })) await fireEvent.press(edit);
+  for (const edit of screen.getAllByRole("button", { name: /^Edit details$/i })) await fireEvent.press(edit);
   expect(mockPush.mock.calls).toEqual([
     [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
     [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],

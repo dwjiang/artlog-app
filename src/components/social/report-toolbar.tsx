@@ -6,22 +6,30 @@ import { REPORT_NOUNS, reportHref } from "@/lib/social/report";
 import type { ReportKind } from "@/shared/social/contracts";
 
 /**
- * The header's More menu on someone else's profile, visit, or artwork. `children` adds menu actions after Report;
- * pass `Stack.Toolbar.MenuAction` elements directly, since the menu drops anything wrapped in a fragment.
+ * The header's More menu on someone else's profile, visit, or artwork: `leading` actions, Report, then `children` in
+ * a section of their own, such as Block. Pass `Stack.Toolbar.MenuAction` elements directly, since the menu drops
+ * anything wrapped in a fragment.
  */
-export function ReportToolbar({ kind, id, children }: { kind: ReportKind; id: string; children?: ReactNode }) {
+export function ReportToolbar({
+  kind,
+  id,
+  leading,
+  children,
+}: {
+  kind: ReportKind;
+  id: string;
+  leading?: ReactNode;
+  children?: ReactNode;
+}) {
+  const noun = REPORT_NOUNS[kind];
   return (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Menu
-        icon="ellipsis"
-        accessibilityLabel="More options"
-        tintColor={Gallery.ink}
-        hidesSharedBackground
-      >
+      <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More options" tintColor={Gallery.ink}>
+        {leading}
         <Stack.Toolbar.MenuAction icon="flag" onPress={() => router.push(reportHref(kind, id))}>
-          {`Report ${REPORT_NOUNS[kind]}`}
+          {`Report ${noun[0].toUpperCase()}${noun.slice(1)}…`}
         </Stack.Toolbar.MenuAction>
-        {children}
+        {children ? <Stack.Toolbar.Menu inline>{children}</Stack.Toolbar.Menu> : null}
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
   );

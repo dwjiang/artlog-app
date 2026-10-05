@@ -11,7 +11,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileRow } from "./profile-row";
-import { PageFooter, SocialGate } from "./social-state";
+import { PageFooter, SocialGate, StateScreen } from "./social-state";
 import { socialStyles } from "./social-styles";
 
 const blockedPage = (result: FunctionReturnType<typeof api.friendships.listBlocked>) => result;
@@ -27,7 +27,13 @@ export function BlockedPeopleScreen() {
     blockedPage,
     profileId,
   );
-  if (session.status !== "ready") return <SocialGate session={session} />;
+  if (session.status !== "ready") {
+    return (
+      <StateScreen grouped>
+        <SocialGate session={session} />
+      </StateScreen>
+    );
+  }
   return (
     <FlatList
       style={styles.page}

@@ -62,11 +62,10 @@ export function VisitAudienceFilter({
   return (
     <ChoiceMenu
       label={LABEL}
-      icon="line.3.horizontal.decrease"
       value={value}
       onChange={onChange}
       options={[
-        { value: "all", label: "All visits" },
+        { value: "all", label: "All Visits" },
         ...CHOICES.filter((choice) => choices.includes(choice)).map((choice) => ({
           value: choice,
           label: VISIT_VISIBILITY[choice].label,

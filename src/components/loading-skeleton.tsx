@@ -46,8 +46,8 @@ export function Ghost({
 }
 
 /** A placeholder in the footprint of a 44-point button. */
-export function ButtonGhost({ width = "100%" }: { width?: DimensionValue }) {
-  return <Ghost width={width} height={44} style={{ borderRadius: Radius.button }} />;
+export function ButtonGhost() {
+  return <Ghost height={44} style={{ borderRadius: Radius.button }} />;
 }
 
 export function LoadingSkeleton({

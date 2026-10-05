@@ -1,13 +1,17 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import type { RequestForQueries } from "convex/react";
 import { getFunctionName } from "convex/server";
+import type { PropsWithChildren } from "react";
+import { Platform } from "react-native";
 
 import type { SharedVisit } from "@/lib/social/types";
+import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { HomeScreen } from "./home-screen";
 
 let mockSession: SocialSession;
+let mockUnseen: number;
 let mockParams: { feed?: string; posted?: string };
 let mockDelivered: Record<string, unknown>;
 const mockSubscriptions = new Map<object, RequestForQueries>();
@@ -19,10 +23,18 @@ jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => nul
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockSession.token }));
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => mockParams,
-  useRouter: () => ({ push: mockPush }),
-}));
+jest.mock("expo-router", () => {
+  const { mockStack } = jest.requireActual("@/components/stack-toolbar-mock");
+  const { Platform, Text } = jest.requireActual("react-native");
+  // UIKit ignores toolbar badges before iOS 26.
+  mockStack.Toolbar.Badge = ({ children }: { children: string }) =>
+    Number.parseInt(String(Platform.Version), 10) >= 26 ? <Text>{children}</Text> : null;
+  return {
+    useLocalSearchParams: () => mockParams,
+    useRouter: () => ({ push: mockPush }),
+    Stack: mockStack,
+  };
+});
 jest.mock("./visit-card", () => ({
   VisitCard: ({ visit }: { visit: SharedVisit }) => {
     const { Text } = jest.requireActual("react-native");
@@ -51,6 +63,12 @@ jest.mock("convex/react", () => ({
   },
 }));
 
+function UnseenCount({ children }: PropsWithChildren) {
+  return <UnseenNotificationCount value={mockUnseen}>{children}</UnseenNotificationCount>;
+}
+
+const renderHome = () => render(<HomeScreen />, { wrapper: UnseenCount });
+
 function page(name: string, cursor: string | null = null) {
   return {
     page: [{ postId: name, venue: { name } }],
@@ -71,9 +89,11 @@ async function deliver(pages: Record<string, unknown>) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Platform, "Version", "get").mockReturnValue("26.5");
   mockSubscriptions.clear();
   mockDelivered = {};
   mockParams = {};
+  mockUnseen = 0;
   mockSession = {
     status: "ready",
     key: "account-a",
@@ -86,8 +106,10 @@ beforeEach(() => {
   };
 });
 
+afterEach(() => jest.restoreAllMocks());
+
 it("switches between loaded feeds without flashing loading placeholders", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({
     "sharedVisits:listFeed:first": page("Friends museum"),
     "sharedVisits:listPublic:first": page("Global museum"),
@@ -105,20 +127,42 @@ it("switches between loaded feeds without flashing loading placeholders", async 
   }
 });
 
-it("opens friends and notifications independently from the home header", async () => {
-  await render(<HomeScreen />);
-  await deliver({
-    "profiles:requests:first": [{ profileId: "friend" }],
-    "notifications:unseen:first": { page: [{ id: "notification", kind: "friendRequest" }], cursor: null, isDone: true },
-  });
-  await fireEvent.press(screen.getByRole("button", { name: "Find friends, 1 request" }));
+it.each(["17.7", "18.7", "26.5"])("shows counts and opens each toolbar destination on iOS %s", async (version) => {
+  jest.spyOn(Platform, "Version", "get").mockReturnValue(version);
+  mockUnseen = 2;
+  await renderHome();
+  await deliver({ "profiles:requests:first": [{ profileId: "friend" }] });
+  const friends = screen.getByRole("button", { name: "Find Friends, 1 request" });
+  expect(screen.getByText("1", { includeHiddenElements: true })).toBeOnTheScreen();
+  await fireEvent.press(friends);
   expect(mockPush).toHaveBeenLastCalledWith("/people");
-  await fireEvent.press(screen.getByRole("button", { name: "Notifications, 1 new" }));
+  const notifications = screen.getByRole("button", { name: "Notifications, 2 new" });
+  expect(screen.getByText("2", { includeHiddenElements: true })).toBeOnTheScreen();
+  await fireEvent.press(notifications);
   expect(mockPush).toHaveBeenLastCalledWith("/notifications");
+  await fireEvent.press(screen.getByRole("button", { name: "Leaderboards" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/leaderboards");
+});
+
+it.each(["17.7", "18.7", "26.5"])("caps counts and removes zero badges on iOS %s", async (version) => {
+  jest.spyOn(Platform, "Version", "get").mockReturnValue(version);
+  mockUnseen = 100;
+  await renderHome();
+  await deliver({
+    "profiles:requests:first": Array.from({ length: 120 }, (_, index) => ({ profileId: `friend-${index}` })),
+  });
+  expect(screen.getByRole("button", { name: "Find Friends, 120 requests" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Notifications, 99+ new" })).toBeOnTheScreen();
+  expect(screen.getAllByText("99+", { includeHiddenElements: true })).toHaveLength(2);
+  mockUnseen = 0;
+  await deliver({ "profiles:requests:first": [] });
+  expect(within(screen.getByRole("button", { name: "Find Friends" })).queryByText(/\d/)).toBeNull();
+  expect(within(screen.getByRole("button", { name: "Notifications" })).queryByText(/\d/)).toBeNull();
+  expect(screen.queryAllByText("99+", { includeHiddenElements: true })).toHaveLength(0);
 });
 
 it("retains loaded later pages separately for each feed", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({
     "sharedVisits:listFeed:first": page("Friends museum", "friends-next"),
     "sharedVisits:listPublic:first": page("Global museum", "global-next"),
@@ -137,7 +181,7 @@ it("retains loaded later pages separately for each feed", async () => {
 });
 
 it("shows loading for a pending feed without displaying the other feed or an empty result", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
   await fireEvent.press(screen.getByRole("button", { name: "Global" }));
   expect(screen.queryByText("Friends museum")).toBeNull();
@@ -148,7 +192,7 @@ it("shows loading for a pending feed without displaying the other feed or an emp
 });
 
 it("clears both feeds when the account changes and gates Friends for guests", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({
     "sharedVisits:listFeed:first": page("Friends museum"),
     "sharedVisits:listPublic:first": page("Global museum"),
@@ -172,12 +216,13 @@ it("clears both feeds when the account changes and gates Friends for guests", as
 
 it("keeps the guest header consistent across feeds, including after dismissing the invitation", async () => {
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
-  await render(<HomeScreen />);
+  await renderHome();
   expect(screen.getByText("Sign in to connect with friends.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Sign in to connect with friends.")).toBeOnTheScreen();
-  expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Leaderboards" })).toBeOnTheScreen();
+  expect(within(screen.getByRole("button", { name: "Find Friends" })).queryByText(/\d/)).toBeNull();
+  expect(within(screen.getByRole("button", { name: "Notifications" })).queryByText(/\d/)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
   expect(screen.queryByText("Sign in to connect with friends.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Global" }));
@@ -187,7 +232,7 @@ it("keeps the guest header consistent across feeds, including after dismissing t
 });
 
 it("opens the requested feed after posting and still lets the user switch feeds", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({
     "sharedVisits:listFeed:first": page("Friends museum"),
     "sharedVisits:listPublic:first": page("Global museum"),
@@ -201,7 +246,7 @@ it("opens the requested feed after posting and still lets the user switch feeds"
 });
 
 it("opens Global when friends have no visits and keeps it when a friend posts later", async () => {
-  await render(<HomeScreen />);
+  await renderHome();
   await deliver({ "sharedVisits:listPublic:first": page("Global museum") });
   expect(screen.queryByRole("button", { name: "Friends", selected: true })).toBeNull();
   expect(screen.queryByText("Global museum")).toBeNull();

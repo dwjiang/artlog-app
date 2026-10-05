@@ -18,10 +18,10 @@ it("raises the iOS prompt only from its primary button, then closes", async () =
   await waitFor(() => expect(router.back).toHaveBeenCalled());
 });
 
-it("closes without asking when the person chooses Not now", async () => {
+it("closes without asking when the person chooses Not Now", async () => {
   await render(<NotificationsOfferSheet />);
 
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
 
   expect(router.back).toHaveBeenCalled();
   expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();

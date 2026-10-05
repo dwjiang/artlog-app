@@ -75,10 +75,11 @@ export function Button({ label, children, onPress, role, modifiers }: ButtonProp
     </Pressable>
   );
 }
-export function Picker({ selection, onSelectionChange, children, modifiers }: PickerProps) {
+// Options render inline, as if the menu were open, inside a container named by the picker's label.
+export function Picker({ label, selection, onSelectionChange, children, modifiers }: PickerProps) {
   const disabled = modifiers?.some((modifier) => modifier.$type === "disabled" && modifier.disabled === true);
   return (
-    <View>
+    <View accessibilityLabel={typeof label === "string" ? label : undefined}>
       {Children.map(children, (child) => {
         const item = child as ReactElement<{
           children: string;
@@ -86,14 +87,16 @@ export function Picker({ selection, onSelectionChange, children, modifiers }: Pi
           modifiers?: { $type: string; tag?: string }[];
         }>;
         const value = item.props.modifiers?.find((modifier) => modifier.$type === "tag")?.tag;
+        const title = item.props.title ?? item.props.children;
         return (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={title}
             accessibilityState={{ disabled, selected: selection === value }}
             disabled={disabled}
             onPress={() => onSelectionChange?.(value ?? null)}
           >
-            <Text>{item.props.title ?? item.props.children}</Text>
+            <Text>{title}</Text>
           </Pressable>
         );
       })}

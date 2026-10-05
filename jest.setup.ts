@@ -45,7 +45,6 @@ jest.mock("react-native-reanimated", () => ({
   getUseOfValueInStyleWarning: () => "",
   useAnimatedRef: () => jest.requireActual("react").useRef(null),
   useAnimatedStyle: () => ({}),
-  useScrollOffset: () => ({ value: 0 }),
 }));
 
 // expo-router/testing-library swaps in Reanimated's official mock, which needs Worklets' mock to load.

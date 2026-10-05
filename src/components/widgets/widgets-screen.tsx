@@ -99,19 +99,12 @@ export function WidgetsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingTop: 4,
+          paddingTop: Spacing.two,
           paddingBottom: 32,
           alignItems: "center",
         }}
       >
         <View style={{ width: contentWidth }}>
-          <Text
-            variant={fontScale > 1.4 ? "display" : "pageTitle"}
-            accessibilityRole="header"
-            style={[{ marginBottom: 24 }, fontScale > 1.4 ? undefined : { fontSize: 42, lineHeight: 54 }]}
-          >
-            Widgets
-          </Text>
           {preview(size)}
           <View
             style={{

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { wholePhoto } from "@/lib/capture/crop-geometry";
 import type { Quad } from "@/lib/capture/stages";
@@ -15,15 +15,16 @@ jest.mock("./crop-corners", () => ({
   },
 }));
 const mockHeaderRender = jest.fn();
-jest.mock("expo-router", () => ({
-  Stack: {
-    ...jest.requireActual("@/components/stack-toolbar-mock").mockStack,
-    Screen: () => {
-      mockHeaderRender();
-      return null;
-    },
-  },
-}));
+const mockNavigation = { setOptions: jest.fn() };
+jest.mock("expo-router", () => {
+  const { mockStack } = jest.requireActual("@/components/stack-toolbar-mock");
+  function Toolbar(props: { children: ReactNode }) {
+    mockHeaderRender();
+    return mockStack.Toolbar(props);
+  }
+  Toolbar.Button = mockStack.Toolbar.Button;
+  return { useNavigation: () => mockNavigation, Stack: { ...mockStack, Toolbar } };
+});
 jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
@@ -110,6 +111,14 @@ it("keeps the header out of the editor's own re-renders", async () => {
   await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
   await screen.findByRole("button", { name: "Save crop" });
   expect(mockHeaderRender).toHaveBeenCalledTimes(1);
+});
+
+it("hides the back button only while the editor is open", async () => {
+  const view = await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
+  await screen.findByRole("button", { name: "Save crop" });
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: false });
+  await view.unmount();
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: undefined });
 });
 
 it("cancels without saving", async () => {

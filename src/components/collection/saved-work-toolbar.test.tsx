@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { Alert } from "react-native";
 
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
@@ -39,12 +39,15 @@ jest.mock("expo-router", () => {
     </Pressable>
   );
   const Group = ({ children }: { children: unknown }) => <View>{children as never}</View>;
+  const Menu = ({ children, accessibilityLabel }: { children: unknown; accessibilityLabel?: string }) => (
+    <View accessibilityLabel={accessibilityLabel ?? "Menu section"}>{children as never}</View>
+  );
   return {
     useRouter: () => ({ back: mockBack, push: mockPush }),
     Stack: {
       Toolbar: Object.assign(Group, {
         Button,
-        Menu: Group,
+        Menu,
         MenuAction: Button,
       }),
     },
@@ -71,7 +74,7 @@ beforeEach(() => jest.clearAllMocks());
 it("offers an undo window before deletion and returns to the collection", async () => {
   const alert = jest.spyOn(Alert, "alert");
   await render(<SavedWorkToolbar savedId="plain" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Remove from collection" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Remove from Collection…" }));
   expect(scheduleRemoval).not.toHaveBeenCalled();
   const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
   expect(confirm).toBeDefined();
@@ -93,7 +96,7 @@ it("shares the artwork photo and keeps sharing unavailable without one", async (
 
 it("routes editing actions from the overflow menu", async () => {
   await render(<SavedWorkToolbar savedId="plain" visitId="visit-1" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Add photos" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Add Photos" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/add-photos",
     params: {
@@ -103,14 +106,24 @@ it("routes editing actions from the overflow menu", async () => {
       visitId: "visit-1",
     },
   });
-  await fireEvent.press(screen.getByRole("button", { name: "Link visit" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Link Visit" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/link-artwork",
     params: { savedId: "plain" },
   });
-  await fireEvent.press(screen.getByRole("button", { name: "Edit artwork details" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Edit Artwork Details" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/identify-artwork",
     params: { savedId: "plain" },
   });
+});
+
+it("sets removal apart from the editing actions in the overflow menu", async () => {
+  await render(<SavedWorkToolbar savedId="plain" />);
+  const removal = within(await screen.findByLabelText("Menu section"));
+  expect(removal.getByRole("button", { name: "Remove from Collection…" })).toBeOnTheScreen();
+  for (const name of ["Edit Artwork Details", "Add Photos", "Link Visit"]) {
+    expect(within(screen.getByLabelText("More options")).getByRole("button", { name })).toBeOnTheScreen();
+    expect(removal.queryByRole("button", { name })).toBeNull();
+  }
 });
