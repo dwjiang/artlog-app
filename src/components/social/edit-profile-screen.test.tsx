@@ -17,9 +17,15 @@ jest.mock("expo-router", () => ({
   router: { back: () => mockBack() },
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
 }));
+const mockTagSearch = jest.fn();
+jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => ({ key: "account:a" }) }));
 jest.mock("@/lib/social/use-social-query", () => ({
-  useSocialQuery: (_query: unknown, args: { username: string } | "skip") =>
-    args === "skip" ? { loading: false } : { data: mockAvailable(args.username), loading: false },
+  useSocialQuery: (query: never, args: { username: string } | { prefix: string } | "skip") =>
+    args === "skip"
+      ? { loading: false }
+      : jest.requireActual("convex/server").getFunctionName(query) === "tags:search"
+        ? { data: mockTagSearch(args), loading: false }
+        : { data: mockAvailable((args as { username: string }).username), loading: false },
 }));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
@@ -53,6 +59,22 @@ it("saves trimmed profile text while preserving an unchanged photo and username"
     bio: "A love of art.",
   });
   expect(mockBack).toHaveBeenCalledTimes(1);
+});
+
+it("suggests tags in use while a bio's tag is typed and saves the chosen one", async () => {
+  jest.useFakeTimers();
+  mockTagSearch.mockReturnValue([{ tag: "impressionism", postCount: 5 }]);
+  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  const bio = screen.getByLabelText("Bio");
+  await fireEvent.changeText(bio, "Loves #imp");
+  await fireEvent(bio, "selectionChange", { nativeEvent: { selection: { start: 10, end: 10 } } });
+  await act(() => jest.advanceTimersByTime(200));
+  expect(mockTagSearch).toHaveBeenLastCalledWith({ prefix: "imp" });
+  await fireEvent.press(screen.getByRole("button", { name: "#impressionism, 5 posts" }));
+  expect(screen.getByLabelText("Bio")).toHaveTextContent("Loves #impressionism");
+  jest.useRealTimers();
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockSave).toHaveBeenCalledWith({ name: "Alex Morgan", bio: "Loves #impressionism" });
 });
 
 it("keeps a rename made elsewhere while the form is open", async () => {

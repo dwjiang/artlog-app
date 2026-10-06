@@ -6,6 +6,8 @@ import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "re
 
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { NotePaper } from "@/components/note-paper";
+import { useHashtagInput } from "@/components/social/hashtag-input";
+import { TaggedText } from "@/components/social/tagged-text";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
 import { selectSavedWork } from "@/db/repos/saved-works";
@@ -66,6 +68,7 @@ function WorkNoteEditor({
   const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
   const { draft, savedText, saveFailed, loadFailed, setDraft, save } = useArtworkNote(savedLocalId, owner);
   const [editing, setEditing] = useState(initiallyEditing);
+  const tagging = useHashtagInput(draft ?? "", setDraft, MAX_NOTE_LENGTH, draft !== undefined);
 
   return (
     <View style={styles.section}>
@@ -104,7 +107,11 @@ function WorkNoteEditor({
             setEditing(false);
           }}
         >
-          <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 24, gap: 16 }}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 24, gap: 16 }}
+          >
             <View
               style={{
                 flexDirection: "row",
@@ -139,13 +146,11 @@ function WorkNoteEditor({
               placeholder="Add a note…"
               placeholderTextColor={Colors.light.textSecondary}
               multiline
-              maxLength={MAX_NOTE_LENGTH}
-              editable={draft !== undefined}
-              value={draft ?? ""}
-              onChangeText={setDraft}
+              {...tagging.inputProps}
               onBlur={() => void save()}
               style={styles.input}
             />
+            {tagging.suggestions}
             <View style={{ padding: 12, backgroundColor: Gallery.highlight }}>
               <ThemedText variant="metadata">Private note. You can choose to show it on your wall later.</ThemedText>
             </View>
@@ -168,9 +173,9 @@ function WorkNoteEditor({
       {draft !== undefined && (
         <NotePaper label={sharedOnWall ? "Public note" : "Private note"}>
           {draft ? (
-            <ThemedText selectable style={styles.body}>
+            <TaggedText selectable style={styles.body}>
               {draft}
-            </ThemedText>
+            </TaggedText>
           ) : (
             <ThemedText themeColor="textSecondary" style={styles.body}>
               No note yet.

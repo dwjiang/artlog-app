@@ -7,6 +7,8 @@ import { reportError } from "@/lib/observability";
 import { NoteEditor } from "./note-editor";
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
@@ -58,7 +60,8 @@ it("ends loading with an error if the note read fails", async () => {
 async function editNote() {
   const view = await render(<NoteEditor savedLocalId="work" />);
   await fireEvent.press(await screen.findByRole("button", { name: "Edit note" }));
-  const input = await screen.findByDisplayValue("Original note");
+  const input = await screen.findByLabelText("Notes");
+  expect(input).toHaveTextContent("Original note");
   await fireEvent.changeText(input, "New note");
   return { view, input };
 }
@@ -69,7 +72,7 @@ it("keeps a failed draft visible and lets the user retry saving it", async () =>
   await fireEvent(input, "blur");
   expect(await screen.findByText("Couldn’t save. Your draft is still here.")).toBeOnTheScreen();
   expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "SQLITE_BUSY" }), "collection.note.save");
-  expect(screen.getByDisplayValue("New note")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("New note");
   expect(await notes.getNote("work")).toMatchObject({ text: "Original note" });
   await fireEvent.press(screen.getByRole("button", { name: "Retry save" }));
   await waitFor(async () => expect(await notes.getNote("work")).toMatchObject({ text: "New note" }));
@@ -135,5 +138,12 @@ it("opens Notes when an existing artwork screen receives a note-edit request", a
   expect(await screen.findByRole("button", { name: "Edit note" })).toBeOnTheScreen();
   expect(screen.queryByLabelText("Notes")).toBeNull();
   await view.rerender(<NoteEditor savedLocalId="work" initiallyEditing />);
-  expect(await screen.findByDisplayValue("Original note")).toBeOnTheScreen();
+  expect(await screen.findByLabelText("Notes")).toHaveTextContent("Original note");
+});
+
+it("links the tags in a saved note to their pages", async () => {
+  await notes.setNote("work", "Back for the #Monet room");
+  await render(<NoteEditor savedLocalId="work" sharedOnWall />);
+  await fireEvent.press(await screen.findByRole("link", { name: "#Monet" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "monet" } });
 });

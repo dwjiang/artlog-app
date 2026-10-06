@@ -13,6 +13,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("expo-router", () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
+  useRouter: () => ({ push: mockPush }),
 }));
 let mockSession: { status: string; key: string; profileId?: string } = { status: "signed-out", key: "guest" };
 let mockProfile: object | undefined;

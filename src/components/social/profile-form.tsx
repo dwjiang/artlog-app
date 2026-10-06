@@ -18,7 +18,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
-import { ProfileField, UsernameField } from "./profile-fields";
+import { BioField, ProfileField, UsernameField } from "./profile-fields";
 import { ProfilePicturePicker } from "./profile-picture-picker";
 
 export function ProfileForm({ onCreated, introduction }: { onCreated: () => void; introduction: string }) {
@@ -126,15 +126,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         hint={profileCreated ? "Username saved" : undefined}
         editable={!busy && !profileCreated}
       />
-      <ProfileField
-        label="Bio (optional)"
-        accessibilityLabel="Bio"
-        value={bio}
-        onChangeText={setBio}
-        maxLength={LIMITS.bio}
-        multiline
-        editable={!busy && !profileCreated}
-      />
+      <BioField label="Bio (optional)" value={bio} onChangeText={setBio} editable={!busy && !profileCreated} />
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
         Your name, picture and bio appear on your public profile. Visits and private notes are separate.
       </Text>
