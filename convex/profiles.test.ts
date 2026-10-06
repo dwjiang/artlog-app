@@ -11,6 +11,7 @@ import {
 } from "../shared/social/contracts";
 import { STARTER_WALLS } from "../shared/wall/defaults";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { projectArtwork, projectSharedVisitCard, projectWallArtwork } from "./lib/projections";
 import { requirePublicWallItem, requireSharedVisit } from "./lib/publicationAccess";
 import { befriend, type SocialUser, socialUser } from "./lib/socialTestFixtures";
@@ -510,16 +511,27 @@ it("enforces shared selection, profile, and geography boundaries", () => {
       reflection: "",
       revision: 0,
       color: "#cdd0ca",
+      companionIds: [],
     }),
   ).not.toThrow();
+  const friend = "friend" as Id<"profiles">;
   for (const input of [
     { saveLocalIds: [id, id], reflection: "", revision: 0 },
+    { saveLocalIds: [], reflection: "", revision: 0, companionIds: [friend, friend] },
+    {
+      saveLocalIds: [],
+      reflection: "",
+      revision: 0,
+      companionIds: Array.from({ length: 11 }, (_, index) => `friend-${index}` as Id<"profiles">),
+    },
     { saveLocalIds: [], reflection: "x".repeat(20_001), revision: 0 },
     { saveLocalIds: ["bad"], reflection: "", revision: 0 },
     { saveLocalIds: [], reflection: "", revision: -1 },
     { saveLocalIds: [], reflection: "", revision: 0, color: "sage" },
   ]) {
-    expect(() => validateSelection({ color: "#CDD0CA", ...input, audience: "public" })).toThrow("invalid_post");
+    expect(() => validateSelection({ color: "#CDD0CA", companionIds: [], ...input, audience: "public" })).toThrow(
+      "invalid_post",
+    );
   }
   expect(() => validateWallItems([], Infinity)).toThrow("invalid_wall");
   for (const input of [{ name: " " }, { name: "x".repeat(61) }, { name: "Reader", bio: "x".repeat(161) }]) {

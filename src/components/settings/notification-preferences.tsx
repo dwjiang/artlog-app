@@ -15,6 +15,7 @@ import { showErrorToast } from "@/lib/ui/toast";
 const rows: { preference: NotificationPreference; label: string }[] = [
   { preference: "friends", label: "Friend requests" },
   { preference: "reactions", label: "Likes and comments" },
+  { preference: "companions", label: "Visits you’re added to" },
   { preference: "visitReminders", label: "Visit reminders" },
 ];
 

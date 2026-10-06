@@ -160,6 +160,18 @@ function AppContent() {
                   <Stack.Screen name="identify-artwork" options={{ ...TransparentHeader, title: "Artwork Details" }} />
                   <Stack.Screen name="add-photos" options={TransparentHeader} />
                   <Stack.Screen name="leaderboards" options={{ ...LargeTitleHeader, title: "Leaderboards" }} />
+                  <Stack.Protected guard={__DEV__}>
+                    <Stack.Screen name="exhibitions" options={{ ...LargeTitleHeader, title: "Exhibitions" }} />
+                    <Stack.Screen name="exhibition/[exhibitionId]" options={ScrollTitleHeader} />
+                    <Stack.Screen name="museum/[museumId]" options={ScrollTitleHeader} />
+                    <Stack.Screen name="museums" options={{ ...LargeTitleHeader, title: "Museums near you" }} />
+                    <Stack.Screen
+                      name="friends-want-to-see"
+                      options={{ ...LargeTitleHeader, title: "Friends want to see" }}
+                    />
+                    <Stack.Screen name="want-to-see" options={{ ...LargeTitleHeader, title: "Want to see" }} />
+                    <Stack.Screen name="explore-map" options={TransparentHeader} />
+                  </Stack.Protected>
                   <Stack.Screen name="people" options={{ ...LargeTitleHeader, ...groupedScreen, title: "Friends" }} />
                   <Stack.Screen
                     name="blocked-people"

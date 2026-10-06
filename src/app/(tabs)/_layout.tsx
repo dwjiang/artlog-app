@@ -41,6 +41,11 @@ export default function TabsLayout() {
               <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
               {unseenBadge && <NativeTabs.Trigger.Badge>{unseenBadge}</NativeTabs.Trigger.Badge>}
             </NativeTabs.Trigger>
+            {/* Explore shows sample shows until its backend exists, so release builds leave it out. */}
+            <NativeTabs.Trigger name="(explore)" hidden={!__DEV__}>
+              <NativeTabs.Trigger.Label>{TabTitles["(explore)"]}</NativeTabs.Trigger.Label>
+              <NativeTabs.Trigger.Icon sf={{ default: "safari", selected: "safari.fill" }} />
+            </NativeTabs.Trigger>
             <NativeTabs.Trigger name="(scan)">
               <NativeTabs.Trigger.Label>{TabTitles["(scan)"]}</NativeTabs.Trigger.Label>
               <NativeTabs.Trigger.Icon sf="camera.viewfinder" />

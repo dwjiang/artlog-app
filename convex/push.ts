@@ -37,7 +37,7 @@ const message = v.object({
   url: v.string(),
   collapseId: v.optional(v.string()),
 });
-const topic = v.union(v.literal("friends"), v.literal("reactions"));
+const topic = v.union(v.literal("friends"), v.literal("reactions"), v.literal("companions"));
 const destination = v.object({
   to: v.string(),
   deviceId: v.id("devices"),
@@ -52,9 +52,9 @@ const deliveryArgs = {
 const receipt = v.object({ id: v.string(), token: v.string() });
 
 export const register = mutation({
-  args: { token: v.string(), friends: v.boolean(), reactions: v.boolean() },
+  args: { token: v.string(), friends: v.boolean(), reactions: v.boolean(), companions: v.boolean() },
   returns: v.null(),
-  handler: async (ctx, { token, friends, reactions }) => {
+  handler: async (ctx, { token, friends, reactions, companions }) => {
     const device = await requireDevice(ctx);
     if (!TOKEN.test(token)) throw new ConvexError({ code: "invalid_push_token" });
     // A reinstall registers a new device but can keep the old token, which must stop reaching the old device's account.
@@ -65,10 +65,15 @@ export const register = mutation({
       .query("pushTokens")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", device._id))
       .unique();
-    const fields = { token, friends, reactions };
+    const fields = { token, friends, reactions, companions };
     if (!current) {
       await ctx.db.insert("pushTokens", { deviceId: device._id, ...fields });
-    } else if (current.token !== token || current.friends !== friends || current.reactions !== reactions) {
+    } else if (
+      current.token !== token
+      || current.friends !== friends
+      || current.reactions !== reactions
+      || current.companions !== companions
+    ) {
       await ctx.db.patch("pushTokens", current._id, fields);
     }
     return null;
@@ -83,8 +88,13 @@ export const prepare = internalMutation({
     const row = await ctx.db.get("notifications", notificationId);
     const recipient = row && (await ctx.db.get("profiles", row.recipientId));
     if (!row || !recipient?.active) return null;
-    const social = row.event.kind === "friendRequest" || row.event.kind === "friendAccepted";
-    const topic = social ? "friends" : "reactions";
+    const { kind } = row.event;
+    const topic =
+      kind === "friendRequest" || kind === "friendAccepted"
+        ? "friends"
+        : kind === "visitCompanion"
+          ? "companions"
+          : "reactions";
     const tokens = await recipientTokens(ctx, recipient.accountId, topic);
     if (tokens.length === 0) return null;
     const [item] = await resolveNotifications(ctx, recipient, [row], false);
@@ -259,6 +269,11 @@ async function compose(
       return {
         body: `${text({ kind: item.kind, actor, venue: item.venue })} “${truncate(item.body, COMMENT_CHARACTERS)}”`,
         url: `/visit/${encodeURIComponent(item.postId)}?comments=1`,
+      };
+    case "visitCompanion":
+      return {
+        body: text({ kind: item.kind, actor, venue: item.venue }),
+        url: `/visit/${encodeURIComponent(item.postId)}`,
       };
     case "visitLike": {
       const publication = await ctx.db

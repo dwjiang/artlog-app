@@ -13,6 +13,7 @@ import { suggestionReasonText } from "@/lib/social/presentation";
 import type { BrowsedProfile, Suggestion, SuggestionReason } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
+import { AvatarStack } from "./avatar-stack";
 import { CompactFriendshipControls } from "./friendship-controls";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
@@ -31,18 +32,7 @@ const relationshipOf = (person: StripPerson, refresh: () => void) =>
 function ReasonVisual({ reason, token, size }: { reason: SuggestionReason; token?: string | null; size: number }) {
   switch (reason.kind) {
     case "mutual":
-      return (
-        <View style={styles.stack}>
-          {reason.friends.map((friend, index) => (
-            <View
-              key={friend.profileId}
-              style={[styles.stacked, { borderRadius: size / 2 + 2 }, index > 0 && { marginLeft: -size / 3 }]}
-            >
-              <ProfileAvatar name={friend.name} photoUrl={friend.photoUrl} avatar={friend.avatar} size={size} />
-            </View>
-          ))}
-        </View>
-      );
+      return <AvatarStack people={reason.friends} size={size} />;
     case "artwork":
       return (
         <View style={[styles.thumb, { width: size, height: size }]} accessibilityElementsHidden>
@@ -295,8 +285,6 @@ const styles = StyleSheet.create({
   reason: { flexDirection: "row", alignItems: "center", gap: 6 },
   reasonCentered: { alignItems: "center", gap: 6 },
   reasonText: { ...Typography.metadata, color: Gallery.muted, flexShrink: 1 },
-  stack: { flexDirection: "row" },
-  stacked: { borderWidth: 1.5, borderColor: Gallery.paper },
   thumb: { borderRadius: Radius.thumbnail, overflow: "hidden" },
   strip: { paddingBottom: Spacing.three },
   cards: { gap: 10, paddingHorizontal: Spacing.content, paddingTop: Spacing.two },

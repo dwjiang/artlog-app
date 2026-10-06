@@ -317,5 +317,6 @@ export const notificationEvent = v.union(
     publicationId: v.id("sharedVisits"),
     commentId: v.id("visitComments"),
   }),
+  v.object({ kind: v.literal("visitCompanion"), publicationId: v.id("sharedVisits") }),
 );
 export type NotificationEvent = Infer<typeof notificationEvent>;

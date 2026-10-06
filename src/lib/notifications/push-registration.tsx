@@ -28,6 +28,7 @@ export function PushRegistration() {
   const [failed, setFailed] = useState(false);
   const friends = preferences?.friends;
   const reactions = preferences?.reactions;
+  const companions = preferences?.companions;
   useEffect(() => {
     if (!failed) return;
     const subscription = AppState.addEventListener("change", (state) => {
@@ -36,7 +37,15 @@ export function PushRegistration() {
     return () => subscription.remove();
   }, [failed]);
   useEffect(() => {
-    if (!ready || permission !== "granted" || friends === undefined || reactions === undefined) return;
+    if (
+      !ready
+      || permission !== "granted"
+      || friends === undefined
+      || reactions === undefined
+      || companions === undefined
+    ) {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -44,7 +53,7 @@ export function PushRegistration() {
         // Simulator builds carry no provisioning profile, so Expo would file their sandbox tokens as production.
         const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId, development: !Device.isDevice });
         if (cancelled) return;
-        await register({ token, friends, reactions });
+        await register({ token, friends, reactions, companions });
         if (!cancelled) setFailed(false);
       } catch (cause) {
         if (cancelled) return;
@@ -56,6 +65,6 @@ export function PushRegistration() {
     return () => {
       cancelled = true;
     };
-  }, [ready, permission, friends, reactions, register, attempt]);
+  }, [ready, permission, friends, reactions, companions, register, attempt]);
   return null;
 }

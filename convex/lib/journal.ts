@@ -56,14 +56,19 @@ export async function upsertJournalVisit(
       });
     }
   }
-  if (existing && (existing.visitedOn !== input.visitedOn || existing.visibility !== input.visibility)) {
+  if (
+    existing
+    && (existing.visitedOn !== input.visitedOn
+      || existing.visibility !== input.visibility
+      || existing.venueId !== input.venueId)
+  ) {
     const publication = await ctx.db
       .query("sharedVisits")
       .withIndex("by_visitId", (q) => q.eq("visitId", id))
       .unique();
     if (publication) {
       // The published version's audience mirrors the visit. An audience change keeps the revision, so a share flow
-      // that just switched it can still publish its draft.
+      // that just switched it can still publish its draft. A museum move only touches the post, for its triggers.
       await ctx.db.patch("sharedVisits", publication._id, {
         visitedOn: input.visitedOn,
         audience: input.visibility,

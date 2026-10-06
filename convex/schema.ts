@@ -802,6 +802,8 @@ export default defineSchema({
     // Absent on posts published before visit wallpapers, which show the default wall color.
     color: v.optional(v.string()),
     pattern: v.optional(wallPattern),
+    // Bind each selection to its friendship so ending and restarting it cannot restore old tags.
+    companionSelections: v.optional(v.array(v.object({ profileId: v.id("profiles"), friendshipRevision: v.number() }))),
   })
     .index("by_postId", ["postId"])
     .index("by_profile_visit", ["profileId", "visitLocalId"])
@@ -830,6 +832,20 @@ export default defineSchema({
   })
     .index("by_tag_history", ["tag", "visitedOn", "postId"])
     .index("by_publication", ["publicationId"]),
+  // Derived companion listings; revoked friendships are hidden immediately and cleaned up in bounded batches.
+  visitCompanions: defineTable({
+    publicationId: v.id("sharedVisits"),
+    authorId: v.id("profiles"),
+    profileId: v.id("profiles"),
+    postId: v.string(),
+    venueId: v.id("museums"),
+    visitedOn: v.string(),
+    friendshipRevision: v.number(),
+  })
+    .index("by_publication", ["publicationId"])
+    .index("by_profile_history", ["profileId", "visitedOn", "postId"])
+    .index("by_profile_venue_day", ["profileId", "venueId", "visitedOn"])
+    .index("by_author_profile_revision", ["authorId", "profileId", "friendshipRevision"]),
   // Public posts per tag; friends-only posts are left out so a tag used only among friends is never suggested.
   tagStats: defineTable({
     tag: v.string(),
@@ -895,6 +911,8 @@ export default defineSchema({
     token: v.string(),
     friends: v.boolean(),
     reactions: v.boolean(),
+    // Absent until the device next registers, which it does on every launch.
+    companions: v.optional(v.boolean()),
   })
     .index("by_deviceId", ["deviceId"])
     .index("by_token", ["token"]),

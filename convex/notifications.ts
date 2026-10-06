@@ -10,6 +10,7 @@ import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { readablePublication } from "./lib/publicationAccess";
 import { projectArtworkPage } from "./lib/sharedPublications";
+import { isListedCompanion } from "./lib/visitCompanions";
 import { visibleParticipant } from "./lib/visitReactions";
 
 const pageFields = { cursor: v.union(v.string(), v.null()), isDone: v.boolean() };
@@ -28,6 +29,7 @@ const notification = v.union(
   v.object({ ...base, kind: v.literal("friendAccepted") }),
   v.object({ ...base, kind: v.literal("visitLike"), ...visit }),
   v.object({ ...base, kind: v.literal("visitComment"), ...visit, body: v.string() }),
+  v.object({ ...base, kind: v.literal("visitCompanion"), ...visit }),
 );
 export type Notification = Infer<typeof notification>;
 type VisitSummary = { postId: string; venue: string; media?: Infer<typeof displayMedia> };
@@ -54,12 +56,16 @@ export async function resolveNotifications(
   rows: Doc<"notifications">[],
   withMedia: boolean,
 ): Promise<Notification[]> {
-  const visits = new Map<Id<"sharedVisits">, VisitSummary | null>();
-  async function visitSummary(publicationId: Id<"sharedVisits">) {
-    if (!visits.has(publicationId)) {
+  const visits = new Map<string, VisitSummary | null>();
+  // Likes and comments are on the viewer's own visits; a companion notice is on the actor's, which must still name them.
+  async function visitSummary(publicationId: Id<"sharedVisits">, authorId: Id<"profiles">) {
+    const key = `${publicationId}:${authorId}`;
+    if (!visits.has(key)) {
       const publication = await ctx.db.get("sharedVisits", publicationId);
-      const access =
-        publication?.profileId === viewer._id ? await readablePublication(ctx, publication, viewer._id) : null;
+      const listed =
+        publication?.profileId === authorId
+        && (authorId === viewer._id || (await isListedCompanion(ctx, publicationId, viewer._id)));
+      const access = listed ? await readablePublication(ctx, publication, viewer._id) : null;
       let summary: VisitSummary | null = null;
       if (access) {
         const first = withMedia
@@ -68,9 +74,9 @@ export async function resolveNotifications(
         const media = first?.photos?.[0] ?? first?.artwork.media;
         summary = { postId: access.publication.postId, venue: access.visit.venueName, ...(media ? { media } : {}) };
       }
-      visits.set(publicationId, summary);
+      visits.set(key, summary);
     }
-    return visits.get(publicationId)!;
+    return visits.get(key)!;
   }
   const items: Notification[] = [];
   for (const row of rows) {
@@ -87,9 +93,9 @@ export async function resolveNotifications(
       }
       continue;
     }
-    const summary = await visitSummary(event.publicationId);
+    const summary = await visitSummary(event.publicationId, event.kind === "visitCompanion" ? actor._id : viewer._id);
     if (!summary) continue;
-    if (event.kind === "visitLike") {
+    if (event.kind === "visitLike" || event.kind === "visitCompanion") {
       items.push({ ...fields, kind: event.kind, ...summary });
     } else {
       const comment = await ctx.db.get("visitComments", event.commentId);

@@ -24,7 +24,8 @@ export type NotificationSummary =
   | { kind: "friendAccepted"; actor: NotificationPerson }
   /** `people` leads with the newest liker; `count` is every like the sentence covers. */
   | { kind: "visitLike"; people: readonly NotificationPerson[]; count: number; venue: string }
-  | { kind: "visitComment"; actor: NotificationPerson; venue: string };
+  | { kind: "visitComment"; actor: NotificationPerson; venue: string }
+  | { kind: "visitCompanion"; actor: NotificationPerson; venue: string };
 
 /** The sentence an inbox row and its push notification share; people's names are the bold segments. */
 export function notificationSentence(summary: NotificationSummary): NotificationSegment[] {
@@ -52,5 +53,7 @@ export function notificationSentence(summary: NotificationSummary): Notification
     }
     case "visitComment":
       return [...person(summary.actor), { text: ` commented on your visit to ${summary.venue}:` }];
+    case "visitCompanion":
+      return [...person(summary.actor), { text: ` added you to a visit to ${summary.venue}.` }];
   }
 }

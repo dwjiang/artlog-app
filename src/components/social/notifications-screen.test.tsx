@@ -164,6 +164,24 @@ it("opens the visit for likes, its comments for a comment, and the profile for a
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Sam" } });
 });
 
+it("says who added you to a visit and opens it", async () => {
+  const added = {
+    id: "added",
+    kind: "visitCompanion" as const,
+    createdAt: 3_500,
+    actor: person("Maya"),
+    postId: "met",
+    venue: "The Met",
+    media,
+  };
+  mockList = { data: { seenAt: 1_000, items: [added, ...items] }, loading: false, refresh: jest.fn() };
+  await render(<NotificationsScreen />);
+
+  await fireEvent.press(screen.getByRole("button", { name: /^Maya \(@maya\) added you to a visit to The Met\./ }));
+
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/visit/[postId]", params: { postId: "met" } });
+});
+
 it("rewrites an accepted request in place", async () => {
   mockList = { data: { seenAt: 2_000, items: [request("accepted")] }, loading: false, refresh: jest.fn() };
   await render(<NotificationsScreen />);

@@ -1,3 +1,4 @@
+import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActionSheetIOS, StyleSheet, useWindowDimensions, View } from "react-native";
@@ -16,12 +17,15 @@ import { reportHref } from "@/lib/social/report";
 import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { showErrorToast, showToast } from "@/lib/ui/toast";
+import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { PageFooter } from "./social-state";
 import { TaggedText } from "./tagged-text";
 import { VisitReactions } from "./visit-reactions";
+import { WentWithLine } from "./went-with-line";
 
 const artworksPage = (visit: SharedVisit) => visit.artworks;
 const artworkId = (item: SharedVisit["artworks"]["page"][number]) => item.itemId;
@@ -99,7 +103,8 @@ export function VisitCard({
 }) {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
-  const { author, venue, visitedOn, audience } = visit;
+  const leaveVisit = useMutation(api.visitCompanions.leave);
+  const { author, venue, visitedOn, audience, companions } = visit;
   const hasArtworks = visit.artworks.page.length > 0 || hasMoreArtworks(visit);
   const openProfile = () =>
     router.push({
@@ -107,8 +112,15 @@ export function VisitCard({
       params: { profileId: author.profileId },
     });
   const others = author.profileId !== viewerProfileId;
+  const leave = () =>
+    leaveVisit({ postId: visit.postId }).then(
+      () => showToast("Removed from this visit."),
+      (cause: unknown) => showErrorToast(socialErrorMessage(cause) ?? "Couldn’t remove you from this visit.", leave),
+    );
+  const companion = companions.some((person) => person.profileId === viewerProfileId);
   const actions = [
     { label: `View ${author.name}’s profile`, run: openProfile },
+    ...(companion ? [{ label: "Remove me from this visit", run: () => void leave() }] : []),
     ...(others ? [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }] : []),
     ...(others && onBlock ? [{ label: `Block ${author.name}`, run: () => onBlock(author) }] : []),
   ];
@@ -164,6 +176,9 @@ export function VisitCard({
         </MotionPressable>
         <GalleryIconButton icon="ellipsis" label="More options" onPress={openMenu} />
       </View>
+      {companions.length > 0 && (
+        <WentWithLine people={companions} style={[styles.wentWith, fontScale > 1.4 && { marginLeft: 0 }]} />
+      )}
       {hasArtworks && (
         <View style={styles.art}>
           <VisitArt visit={visit} token={token} />
@@ -200,6 +215,8 @@ const styles = StyleSheet.create({
     gap: 11,
     minHeight: 44,
   },
+  // Hangs under the name: avatar 40 plus the identity gap 11, tucked into the heading's bottom margin.
+  wentWith: { marginLeft: 51, marginTop: -6, marginBottom: 12 },
   feedName: {
     fontSize: 14,
     lineHeight: 20,

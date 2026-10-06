@@ -20,6 +20,7 @@ const initial: ShareState = {
   reflection: "",
   saveLocalIds: [],
   revision: 0,
+  companions: [],
 };
 const transport = {
   getState: jest.fn(),
@@ -79,7 +80,31 @@ it("selects at most 50 artworks, uses the saved public notes, and allows zero", 
       photoSelections: [],
       color: expect.stringMatching(/^#[0-9A-F]{6}$/),
       pattern: expect.any(String),
+      companionIds: [],
     },
+    expect.anything(),
+  );
+});
+
+it("starts from the published companions and posts the friends picked, up to ten", async () => {
+  const person = (profileId: string) =>
+    ({
+      profileId,
+      name: profileId,
+      username: profileId,
+      avatar: "vermeer" as const,
+      publishedWallCount: 0,
+    }) as ShareState["companions"][number];
+  transport.getState.mockResolvedValue({ ...initial, status: "active", postId: "post", companions: [person("maya")] });
+  await controller.load();
+  expect(controller.getSnapshot().draft?.companionIds).toEqual(["maya"]);
+
+  controller.edit({ companionIds: Array.from({ length: 11 }, (_, index) => `friend-${index}`) as never });
+  expect(controller.getSnapshot().draft?.companionIds).toEqual(["maya"]);
+  controller.edit({ companionIds: ["maya", "jonah"] as never });
+  await controller.publish();
+  expect(transport.publish).toHaveBeenCalledWith(
+    expect.objectContaining({ companionIds: ["maya", "jonah"] }),
     expect.anything(),
   );
 });
