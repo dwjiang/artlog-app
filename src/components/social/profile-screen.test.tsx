@@ -110,6 +110,7 @@ const visit: SharedVisit = {
   visitedOn: "2026-09-12",
   color: "#FCFCF9",
   companions: [],
+  mentions: [],
   artworks: { page: [], cursor: null, isDone: true },
 };
 const filterChoices = () => {

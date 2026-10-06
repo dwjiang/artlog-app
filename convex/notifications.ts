@@ -6,6 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { relationshipSnapshot } from "./lib/friendships";
+import { notifiesPerson } from "./lib/mentions";
 import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { readablePublication } from "./lib/publicationAccess";
@@ -30,6 +31,8 @@ const notification = v.union(
   v.object({ ...base, kind: v.literal("visitLike"), ...visit }),
   v.object({ ...base, kind: v.literal("visitComment"), ...visit, body: v.string() }),
   v.object({ ...base, kind: v.literal("visitCompanion"), ...visit }),
+  v.object({ ...base, kind: v.literal("visitMention"), ...visit, body: v.string() }),
+  v.object({ ...base, kind: v.literal("commentMention"), ...visit, body: v.string(), owner: publicProfile }),
 );
 export type Notification = Infer<typeof notification>;
 type VisitSummary = { postId: string; venue: string; media?: Infer<typeof displayMedia> };
@@ -56,27 +59,36 @@ export async function resolveNotifications(
   rows: Doc<"notifications">[],
   withMedia: boolean,
 ): Promise<Notification[]> {
-  const visits = new Map<string, VisitSummary | null>();
-  // Likes and comments are on the viewer's own visits; a companion notice is on the actor's, which must still name them.
-  async function visitSummary(publicationId: Id<"sharedVisits">, authorId: Id<"profiles">) {
-    const key = `${publicationId}:${authorId}`;
-    if (!visits.has(key)) {
+  type Readable = { publication: Doc<"sharedVisits">; owner: Doc<"profiles">; summary: VisitSummary };
+  const readable = new Map<Id<"sharedVisits">, Readable | null>();
+  async function readableVisit(publicationId: Id<"sharedVisits">) {
+    if (!readable.has(publicationId)) {
       const publication = await ctx.db.get("sharedVisits", publicationId);
-      const listed =
-        publication?.profileId === authorId
-        && (authorId === viewer._id || (await isListedCompanion(ctx, publicationId, viewer._id)));
-      const access = listed ? await readablePublication(ctx, publication, viewer._id) : null;
-      let summary: VisitSummary | null = null;
+      const access = publication && (await readablePublication(ctx, publication, viewer._id));
+      let found: Readable | null = null;
       if (access) {
         const first = withMedia
           ? (await projectArtworkPage(ctx, access.publication, access.visit, { limit: 1 })).page[0]
           : undefined;
         const media = first?.photos?.[0] ?? first?.artwork.media;
-        summary = { postId: access.publication.postId, venue: access.visit.venueName, ...(media ? { media } : {}) };
+        const summary = {
+          postId: access.publication.postId,
+          venue: access.visit.venueName,
+          ...(media ? { media } : {}),
+        };
+        found = { publication: access.publication, owner: access.profile, summary };
       }
-      visits.set(key, summary);
+      readable.set(publicationId, found);
     }
-    return visits.get(key)!;
+    return readable.get(publicationId)!;
+  }
+  // Likes and comments are on the viewer's own visits; a companion notice is on the actor's, which must still name them.
+  async function visitSummary(publicationId: Id<"sharedVisits">, authorId: Id<"profiles">) {
+    const found = await readableVisit(publicationId);
+    const listed =
+      found?.publication.profileId === authorId
+      && (authorId === viewer._id || (await isListedCompanion(ctx, publicationId, viewer._id)));
+    return listed ? found.summary : null;
   }
   const items: Notification[] = [];
   for (const row of rows) {
@@ -90,6 +102,27 @@ export async function resolveNotifications(
         items.push({ ...fields, kind: event.kind, relationship: state });
       } else if (event.kind === "friendAccepted" && state.state === "accepted") {
         items.push({ ...fields, kind: event.kind });
+      }
+      continue;
+    }
+    // A mention notice lasts while the post is readable and its text still names the viewer.
+    if (event.kind === "visitMention" || event.kind === "commentMention") {
+      const found = await readableVisit(event.publicationId);
+      if (!found) continue;
+      if (event.kind === "visitMention") {
+        if (found.publication.profileId === actor._id && notifiesPerson(found.publication.mentions, viewer._id)) {
+          items.push({ ...fields, kind: event.kind, ...found.summary, body: found.publication.reflection });
+        }
+      } else {
+        const comment = await ctx.db.get("visitComments", event.commentId);
+        if (
+          comment?.profileId === actor._id
+          && notifiesPerson(comment.mentions, viewer._id)
+          && (await visibleParticipant(ctx, actor._id, [found.publication.profileId]))
+        ) {
+          const owner = await projectProfile(ctx, found.owner);
+          items.push({ ...fields, kind: event.kind, ...found.summary, body: comment.body, owner });
+        }
       }
       continue;
     }

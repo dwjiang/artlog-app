@@ -105,6 +105,7 @@ const visit: SharedVisit = {
   revision: 1,
   color: "#FCFCF9",
   companions: [],
+  mentions: [],
   artworks: {
     page: [
       {

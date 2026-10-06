@@ -3,6 +3,7 @@ import type { Triggers } from "convex-helpers/server/triggers";
 import { internal } from "../_generated/api";
 import type { DataModel, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { mentionRecipients, postMentionRecipients } from "./mentions";
 import { NOTIFICATION_RETENTION_MS } from "./retentionPolicy";
 import type { NotificationEvent } from "./validators";
 
@@ -16,6 +17,14 @@ async function notify(
   event: NotificationEvent,
 ) {
   if (actorId === recipientId) return;
+  // Mention notices are worked out again on every write to a post, so the row may already exist; keep the first one.
+  const existing = await ctx.db
+    .query("notifications")
+    .withIndex("by_actor_recipient_event", (q) =>
+      q.eq("actorId", actorId).eq("recipientId", recipientId).eq("event", event),
+    )
+    .first();
+  if (existing) return;
   const notificationId = await ctx.db.insert("notifications", {
     actorId,
     recipientId,
@@ -75,6 +84,50 @@ export function registerNotifications(triggers: Triggers<DataModel>) {
         publicationId: publication._id,
         commentId: comment._id,
       });
+    }
+  });
+
+  // Each person named in a comment hears about it once; the post's author already hears "commented on your visit".
+  triggers.register("visitComments", async (ctx, { newDoc, oldDoc, operation }) => {
+    if (operation === "update") return;
+    const comment = newDoc ?? oldDoc!;
+    const event = { kind: "commentMention" as const, publicationId: comment.publicationId, commentId: comment._id };
+    if (!newDoc) {
+      for (const { profileId } of comment.mentions ?? []) await withdraw(ctx, comment.profileId, profileId, event);
+      return;
+    }
+    const publication = await ctx.db.get("sharedVisits", comment.publicationId);
+    if (!publication) return;
+    const skip = [comment.profileId, publication.profileId];
+    for (const profileId of await mentionRecipients(ctx, comment.mentions, publication, skip)) {
+      await notify(ctx, comment.profileId, profileId, event);
+    }
+  });
+
+  // Every write to a post compares who its notes notify before and after: publishing, editing, an audience change and
+  // removal all add or withdraw mention notices without each path knowing about mentions.
+  triggers.register("sharedVisits", async (ctx, { id, newDoc, oldDoc }) => {
+    if (
+      oldDoc
+      && newDoc
+      && oldDoc.status === newDoc.status
+      && oldDoc.removal === newDoc.removal
+      && oldDoc.audience === newDoc.audience
+      && JSON.stringify(oldDoc.mentions ?? []) === JSON.stringify(newDoc.mentions ?? [])
+      && JSON.stringify(oldDoc.companionSelections ?? []) === JSON.stringify(newDoc.companionSelections ?? [])
+    ) {
+      return;
+    }
+    const authorId = (newDoc ?? oldDoc)!.profileId;
+    const event = { kind: "visitMention" as const, publicationId: id };
+    const before = await postMentionRecipients(ctx, oldDoc);
+    const after = await postMentionRecipients(ctx, newDoc);
+    // A former recipient may have lost access since the notification was sent.
+    for (const { profileId } of oldDoc?.mentions ?? []) {
+      if (!after.includes(profileId)) await withdraw(ctx, authorId, profileId, event);
+    }
+    for (const profileId of after) {
+      if (!before.includes(profileId)) await notify(ctx, authorId, profileId, event);
     }
   });
 

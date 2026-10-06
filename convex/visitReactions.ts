@@ -2,12 +2,13 @@ import { ConvexError, type Infer, v } from "convex/values";
 
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid } from "../shared/journal/limits";
-import { publicProfile } from "../shared/social/contracts";
+import { mention, publicProfile } from "../shared/social/contracts";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalAction, query, type QueryCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
+import { linkedMentions, resolveMentions } from "./lib/mentions";
 import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { optionalProfile, requireProfile } from "./lib/ownership";
@@ -31,11 +32,13 @@ const comment = v.object({
   isAuthor: v.boolean(),
   likeCount: v.number(),
   liked: v.boolean(),
+  mentions: v.array(mention),
 });
 const latestComment = v.object({
   commentId: v.id("visitComments"),
   authorName: v.string(),
   body: v.string(),
+  mentions: v.array(mention),
 });
 // Comments from blocked writers are skipped, so the preview gives up after this many hidden ones.
 const LATEST_COMMENT_SCAN = 10;
@@ -78,7 +81,16 @@ export const getSummary = query({
       .order("desc")) {
       const author = await visibleParticipant(ctx, row.profileId, [viewer?._id, publication.profileId]);
       if (author) {
-        latest = { commentId: row._id, authorName: author.name, body: row.body };
+        latest = {
+          commentId: row._id,
+          authorName: author.name,
+          body: row.body,
+          mentions: await linkedMentions(ctx, row.mentions, {
+            viewerId: viewer?._id,
+            writerId: row.profileId,
+            post: publication,
+          }),
+        };
         break;
       }
       if (++scanned === LATEST_COMMENT_SCAN) break;
@@ -163,6 +175,11 @@ export const listComments = query({
           isAuthor: row.profileId === publication.profileId,
           likeCount: (await commentLikeCount(ctx, row._id))?.likeCount ?? 0,
           liked: !!viewer && !!(await viewerCommentLike(ctx, row._id, viewer._id)),
+          mentions: await linkedMentions(ctx, row.mentions, {
+            viewerId: viewer?._id,
+            writerId: row.profileId,
+            post: publication,
+          }),
         });
       }
     }
@@ -225,11 +242,13 @@ export const insertComment = internalMutation({
   handler: async (ctx, input) => {
     const { profile, publication, body, existing } = await readCommentRequest(ctx, input);
     if (existing) return existing._id;
+    const mentions = await resolveMentions(ctx, body, profile._id);
     const id = await ctx.db.insert("visitComments", {
       publicationId: publication._id,
       profileId: profile._id,
       body,
       requestId: input.requestId,
+      ...(mentions.length > 0 ? { mentions } : {}),
     });
     await changeEngagement(ctx, publication._id, "commentCount", 1);
     return id;

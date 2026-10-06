@@ -96,6 +96,7 @@ const visit: SharedVisit = {
   artworkCount: 5,
   color: "#CDD0CA",
   companions: [],
+  mentions: [],
   pattern: "stripe",
   artworks: { page: works.slice(0, 3), cursor: "more", isDone: false },
 };

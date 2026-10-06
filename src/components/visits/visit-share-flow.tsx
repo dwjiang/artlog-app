@@ -351,6 +351,7 @@ export function VisitShareScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={share.content}
       >
         <View style={share.header}>
@@ -390,7 +391,13 @@ export function VisitShareScreen() {
               router.push({ pathname: "/visit-share/[visitId]/companions", params: { visitId: visit.localId } })
             }
           />
-          <VisitNotes ref={notes} visit={visit} autoSave={false} editable={!posting && !sharing.busy} />
+          <VisitNotes
+            ref={notes}
+            visit={{ ...visit, visibility: draft.audience }}
+            autoSave={false}
+            editable={!posting && !sharing.busy}
+            companionIds={draft?.companionIds}
+          />
           {acknowledged?.removed ? (
             <Text style={styles.error}>This share is no longer available.</Text>
           ) : (

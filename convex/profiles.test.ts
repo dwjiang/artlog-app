@@ -159,6 +159,7 @@ it("normalizes accents, case, and whitespace; paginates bounded public allowlist
   expect(Object.keys(publicResult!).sort()).toEqual([
     "avatar",
     "bio",
+    "bioMentions",
     "name",
     "profileId",
     "publishedWallCount",

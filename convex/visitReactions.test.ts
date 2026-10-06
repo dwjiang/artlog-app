@@ -214,6 +214,7 @@ describe("visit reactions", () => {
       commentId: newest,
       authorName: "Visitor",
       body: "Newest.",
+      mentions: [],
     });
     await third.as.mutation(api.friendships.block, { scope: third.scope, profileId: visitor.profileId });
     expect((await third.as.query(api.visitReactions.getSummary, { postId })).latestComment).toMatchObject({

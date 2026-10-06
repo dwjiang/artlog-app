@@ -1,10 +1,17 @@
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
+import type { Infer } from "convex/values";
+
+import type { publicProfile } from "@/shared/social/contracts";
 
 import type { api } from "../../../convex/_generated/api";
 
 export type SharedVisit = FunctionReturnType<typeof api.sharedVisits.get>;
 export type SharedArtwork = FunctionReturnType<typeof api.sharedVisits.getArtwork>;
-export type PublicProfile = NonNullable<FunctionReturnType<typeof api.profiles.getPublic>>;
+export type PublicProfile = Infer<typeof publicProfile>;
+/** A profile as its page shows it, with the handles in its bio that open a profile. */
+export type ProfilePage = NonNullable<FunctionReturnType<typeof api.profiles.getPublic>>;
+export type Mention = SharedVisit["mentions"][number];
+export type MentionPlace = FunctionArgs<typeof api.mentions.suggest>["place"];
 /** A listed profile carrying the viewer's relationship, which is absent on the viewer's own row and for guests. */
 export type BrowsedProfile = NonNullable<FunctionReturnType<typeof api.profiles.friends>>[number];
 export type PublicWall = NonNullable<FunctionReturnType<typeof api.walls.getPublic>>;

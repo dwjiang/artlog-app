@@ -57,6 +57,12 @@ jest.mock("react-native-reanimated/mock", () => ({
   cubicBezier: (...points: number[]) => points,
 }));
 
+// The keyboard accessory's native view config is missing under the test renderer; its children render in place.
+jest.mock("react-native/Libraries/Components/TextInput/InputAccessoryView", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Link previews and menus are native iOS views that only mount under the bridgeless runtime; Jest renders the
 // link's trigger and leaves the menu to the simulator.
 jest.mock("expo-router/build/link/preview/native", () => ({

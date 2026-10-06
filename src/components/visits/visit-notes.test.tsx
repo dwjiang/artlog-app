@@ -239,7 +239,10 @@ it("keeps end-visit notes unsaved through pauses, blur, backgrounding and dismis
   });
   const save = jest.spyOn(visits, "patchVisit");
   const view = await render(
-    <VisitNotes visit={{ ...draft, owner: anonymousOwner(), reflection: null }} autoSave={false} />,
+    <VisitNotes
+      visit={{ ...draft, owner: anonymousOwner(), reflection: null, visibility: "private" }}
+      autoSave={false}
+    />,
   );
   jest.useFakeTimers();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Unsaved review");

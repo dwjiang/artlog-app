@@ -10,7 +10,7 @@ type Sent = { to: string; body: string; badge: number; data: { url: string }; co
 type Ticket = { status: "ok"; id: string } | { status: "error"; details: { error: string } };
 
 const token = (name: string) => `ExponentPushToken[${name}]`;
-const everything = { friends: true, reactions: true, companions: true };
+const everything = { friends: true, reactions: true, companions: true, mentions: true };
 
 function stubExpo({
   tickets = (messages: Sent[]): Ticket[] => messages.map((_, index) => ({ status: "ok", id: `ticket-${index}` })),
@@ -71,6 +71,7 @@ describe("push notifications", () => {
       friends: false,
       reactions: true,
       companions: true,
+      mentions: true,
     });
     await signedOut.as.mutation(api.push.register, { token: token("old-phone"), ...everything });
 
@@ -117,6 +118,7 @@ describe("push notifications", () => {
       friends: true,
       reactions: false,
       companions: true,
+      mentions: true,
     });
     await ana.as.action(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
     await flush(t);
@@ -172,6 +174,55 @@ describe("push notifications", () => {
           to: token("ana"),
           body: expect.stringMatching(/^Author \(@u_author\) added you to a visit to .+\.$/),
           data: { url: `/visit/${postId}` },
+        }),
+      ],
+    ]);
+  });
+
+  it("tells people they were mentioned, under their own switch, with the quoted text", async () => {
+    const t = harness();
+    const sent = stubExpo();
+    const author = await socialUser(t, "Author");
+    const ana = await socialUser(t, "Ana");
+    const ben = await socialUser(t, "Ben");
+    await ana.as.mutation(api.push.register, { token: token("ana"), ...everything });
+    await ben.as.mutation(api.push.register, { token: token("ben"), ...everything, mentions: false });
+    await flush(t);
+    sent.length = 0;
+    const visit = await socialVisit(t, author);
+    await t.run((ctx) => ctx.db.patch("visits", visit.visit._id, { reflection: "With @u_ana and @u_ben." }));
+    const { postId } = await author.as.action(api.sharedVisits.publish, {
+      ...visit.selection,
+      reflection: "With @u_ana and @u_ben.",
+    });
+    await flush(t);
+    expect(sent).toEqual([
+      [
+        expect.objectContaining({
+          to: token("ana"),
+          body: expect.stringMatching(
+            /^Author \(@u_author\) mentioned you in a visit to .+: “With @u_ana and @u_ben\.”$/,
+          ),
+          data: { url: `/visit/${postId}` },
+        }),
+      ],
+    ]);
+
+    sent.length = 0;
+    await ben.as.action(api.visitReactions.addComment, {
+      postId: postId!,
+      body: "@u_ana see you there.",
+      requestId: crypto.randomUUID(),
+    });
+    await flush(t);
+    expect(sent).toEqual([
+      [
+        expect.objectContaining({
+          to: token("ana"),
+          body: expect.stringMatching(
+            /^Ben \(@u_ben\) mentioned you in a comment on Author’s visit to .+: “@u_ana see you there\.”$/,
+          ),
+          data: { url: `/visit/${postId}?comments=1` },
         }),
       ],
     ]);
@@ -244,6 +295,7 @@ describe("push notifications", () => {
       friends: false,
       reactions: true,
       companions: true,
+      mentions: true,
     });
     expect(await pushTokens(t)).toEqual([
       expect.objectContaining({ deviceId: second.deviceId, token: token("shared"), friends: false }),
@@ -287,6 +339,7 @@ describe("push notifications", () => {
                 friends: true,
                 reactions: false,
                 companions: true,
+                mentions: true,
               });
               break;
             case "replace token":

@@ -16,6 +16,10 @@ export const publicProfile = v.object({
   avatar: avatarId,
   publishedWallCount: v.number(),
 });
+/** A handle in a text and the person it named when written, so the link survives a later rename. */
+export const mention = v.object({ username: v.string(), profileId: v.id("profiles") });
+/** A profile as its own page shows it, with the bio handles that open a profile for this viewer. */
+export const profilePage = v.object({ ...publicProfile.fields, bioMentions: v.array(mention) });
 export const frame = v.union(...WALL_FRAMES.map((finish) => v.literal(finish.value)));
 export const isWallColor = (color: string) => /^#[0-9a-f]{6}$/i.test(color);
 /** A wall without a pattern is plain color. */
@@ -44,6 +48,16 @@ export const browsedProfile = v.object({
 });
 export const visitAudience = v.union(v.literal("private"), v.literal("friends"), v.literal("public"));
 export const publicationStatus = v.union(v.literal("private"), v.literal("active"));
+/** Where a handle is being typed, which decides who may be named there. */
+export const mentionPlace = v.union(
+  v.object({ kind: v.literal("comment"), postId: v.string() }),
+  v.object({ kind: v.literal("visit"), audience: visitAudience, companionIds: v.array(v.id("profiles")) }),
+  v.object({ kind: v.literal("profile") }),
+);
+export const mentionSuggestion = v.object({
+  profile: publicProfile,
+  role: v.optional(v.union(v.literal("author"), v.literal("companion"))),
+});
 export const sharedVisitMediaContext = v.object({
   kind: v.literal("sharedVisit"),
   postId: v.string(),

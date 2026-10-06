@@ -23,6 +23,7 @@ it("turns each kind of notification on or off on this iPhone", async () => {
   const reactions = await screen.findByRole("switch", { name: "Likes and comments" });
   await waitFor(() => expect(reactions).toBeEnabled());
   expect(screen.getByRole("switch", { name: "Friend requests" })).toBeChecked();
+  expect(screen.getByRole("switch", { name: "Mentions" })).toBeChecked();
   expect(screen.getByRole("switch", { name: "Visits you’re added to" })).toBeChecked();
   expect(screen.getByRole("switch", { name: "Visit reminders" })).toBeChecked();
 
@@ -34,6 +35,7 @@ it("turns each kind of notification on or off on this iPhone", async () => {
   expect(readPreferences(await db.select().from(settings))).toEqual({
     friends: true,
     reactions: false,
+    mentions: true,
     companions: false,
     visitReminders: true,
   });

@@ -22,6 +22,7 @@ const mockController = {
 const mockPatchVisit = jest.fn();
 const mockGrid = jest.fn();
 const mockUseSharing = jest.fn();
+const mockMentionQuery = jest.fn();
 let mockAudience: string | undefined;
 // Drag gestures cannot run under Jest, so the grid renders its items in order and exposes its props for reordering.
 jest.mock("react-native-sortables", () => {
@@ -104,6 +105,14 @@ jest.mock("@/lib/social/use-social-session", () => ({
 }));
 jest.mock("@/lib/social/use-friends", () => ({
   useFriends: () => ({ data: mockFriends, loading: false, error: undefined, refresh: jest.fn() }),
+}));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: (reference: never, args: unknown) => {
+    if (jest.requireActual("convex/server").getFunctionName(reference) === "mentions:suggest") {
+      mockMentionQuery(args);
+    }
+    return { data: [], refresh: jest.fn() };
+  },
 }));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
@@ -478,6 +487,22 @@ it("offers Private, Friends, and Public in the form without posting", async () =
   await fireEvent.press(screen.getByRole("button", { name: "Private" }));
   expect(mockController.edit).toHaveBeenCalledWith({ audience: "private" });
   expect(mockController.publish).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["private", "public"],
+  ["public", "friends"],
+] as const)("suggests mentions for the draft's %s → %s audience change", async (saved, chosen) => {
+  mockVisit.visibility = saved;
+  mockSharing.draft = { ...mockSharing.draft!, audience: chosen };
+  await render(<VisitShareLayout />);
+  const input = screen.getByLabelText("Notes");
+  await fireEvent.changeText(input, "@maya");
+  await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: 5, end: 5 } } });
+  expect(mockMentionQuery).toHaveBeenLastCalledWith({
+    query: "maya",
+    place: { kind: "visit", audience: chosen, companionIds: [] },
+  });
 });
 
 it("posts with the chosen audience, restores the visit's visibility when posting fails, and returns Home on success", async () => {

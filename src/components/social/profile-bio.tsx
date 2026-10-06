@@ -4,10 +4,11 @@ import { View } from "react-native";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import type { Mention } from "@/lib/social/types";
 
 import { TaggedText } from "./tagged-text";
 
-export function ProfileBio({ text }: { text?: string }) {
+export function ProfileBio({ text, mentions }: { text?: string; mentions?: readonly Mention[] }) {
   const [expanded, setExpanded] = useState(false);
   const [long, setLong] = useState(false);
   if (!text) return null;
@@ -30,6 +31,7 @@ export function ProfileBio({ text }: { text?: string }) {
       </Text>
       <TaggedText
         selectable
+        mentions={mentions}
         numberOfLines={expanded ? undefined : 2}
         style={{ fontSize: 16, lineHeight: 24, color: Gallery.ink, textAlign: "center" }}
       >

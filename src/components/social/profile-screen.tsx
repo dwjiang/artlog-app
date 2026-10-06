@@ -180,8 +180,10 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           )}
         </ReportToolbar>
       )}
+      {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
       <ScrollView
         ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}

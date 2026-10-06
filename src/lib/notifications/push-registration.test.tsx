@@ -30,11 +30,13 @@ it("registers this iPhone's push token with the pushes it wants, again after a c
       friends: true,
       reactions: true,
       companions: true,
+      mentions: true,
     }),
   );
 
   await setNotificationPreference("reactions", false);
   await setNotificationPreference("companions", false);
+  await setNotificationPreference("mentions", false);
 
   await waitFor(() =>
     expect(mockRegister).toHaveBeenLastCalledWith({
@@ -42,6 +44,7 @@ it("registers this iPhone's push token with the pushes it wants, again after a c
       friends: true,
       reactions: false,
       companions: false,
+      mentions: false,
     }),
   );
 });

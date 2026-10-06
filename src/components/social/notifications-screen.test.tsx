@@ -182,6 +182,48 @@ it("says who added you to a visit and opens it", async () => {
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/visit/[postId]", params: { postId: "met" } });
 });
 
+it("quotes mentions in visits and comments and opens the visit or its comments", async () => {
+  const inVisit = {
+    id: "in-visit",
+    kind: "visitMention" as const,
+    createdAt: 3_600,
+    actor: person("Maya"),
+    postId: "met",
+    venue: "The Met",
+    media,
+    body: "Finally saw it with @me.",
+  };
+  const inComment = {
+    id: "in-comment",
+    kind: "commentMention" as const,
+    createdAt: 3_500,
+    actor: person("Priya"),
+    owner: person("Jonah"),
+    postId: "moma",
+    venue: "MoMA",
+    media,
+    body: "@me you'd love this room.",
+  };
+  mockList = { data: { seenAt: 1_000, items: [inVisit, inComment] }, loading: false, refresh: jest.fn() };
+  await render(<NotificationsScreen />);
+
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: /^Maya \(@maya\) mentioned you in a visit to The Met: “Finally saw it with @me\.”/,
+    }),
+  );
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/visit/[postId]", params: { postId: "met" } });
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: /^Priya \(@priya\) mentioned you in a comment on Jonah’s visit to MoMA: “@me you'd love this room\.”/,
+    }),
+  );
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/visit/[postId]",
+    params: { postId: "moma", comments: "1" },
+  });
+});
+
 it("rewrites an accepted request in place", async () => {
   mockList = { data: { seenAt: 2_000, items: [request("accepted")] }, loading: false, refresh: jest.fn() };
   await render(<NotificationsScreen />);

@@ -17,6 +17,7 @@ import {
   audioReportEvidence,
   reportReview,
   removal,
+  mention,
 } from "../shared/social/contracts";
 import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
 import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
@@ -720,6 +721,7 @@ export default defineSchema({
     username: v.string(),
     name: v.string(),
     bio: v.optional(v.string()),
+    bioMentions: v.optional(v.array(mention)),
     photoStorageId: v.optional(v.id("files")),
     // A preset id from shared/social/avatars; plain string so retiring a preset never invalidates stored rows.
     avatar: v.optional(v.string()),
@@ -754,6 +756,8 @@ export default defineSchema({
     noteVisible: v.boolean(),
     noteRevision: v.number(),
     noteResetVersion: v.optional(v.number()),
+    // Resolved when the note is shared.
+    noteMentions: v.optional(v.array(mention)),
   })
     .index("by_wall_active", ["wallId", "active"])
     .index("by_wall_placement", ["wallId", "placementId"])
@@ -804,6 +808,7 @@ export default defineSchema({
     pattern: v.optional(wallPattern),
     // Bind each selection to its friendship so ending and restarting it cannot restore old tags.
     companionSelections: v.optional(v.array(v.object({ profileId: v.id("profiles"), friendshipRevision: v.number() }))),
+    mentions: v.optional(v.array(mention)),
   })
     .index("by_postId", ["postId"])
     .index("by_profile_visit", ["profileId", "visitLocalId"])
@@ -871,6 +876,7 @@ export default defineSchema({
     profileId: v.id("profiles"),
     body: v.string(),
     requestId: v.string(),
+    mentions: v.optional(v.array(mention)),
   })
     .index("by_publication", ["publicationId"])
     .index("by_profile_request", ["profileId", "requestId"]),
@@ -906,6 +912,7 @@ export default defineSchema({
     reactions: v.boolean(),
     // Absent until the device next registers, which it does on every launch.
     companions: v.optional(v.boolean()),
+    mentions: v.optional(v.boolean()),
   })
     .index("by_deviceId", ["deviceId"])
     .index("by_token", ["token"]),
