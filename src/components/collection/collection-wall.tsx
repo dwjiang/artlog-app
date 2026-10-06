@@ -401,7 +401,6 @@ export function CollectionWallContent({
                     ? `Choose saved artworks for your ${wall.signedIn ? "public wall" : "wall"}.`
                     : "Scan an artwork to add it to your collection."
                 }
-                footnote={wall.signedIn ? undefined : "Your wall stays private on this iPhone until you sign in."}
                 visual={<EmptyFrames />}
               >
                 <GalleryButton
