@@ -20,6 +20,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { PageFooter } from "./social-state";
+import { TaggedText } from "./tagged-text";
 import { VisitReactions } from "./visit-reactions";
 
 const artworksPage = (visit: SharedVisit) => visit.artworks;
@@ -169,9 +170,9 @@ export function VisitCard({
         </View>
       )}
       {!!visit.reflection && (
-        <Text selectable style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
+        <TaggedText selectable style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
           {visit.reflection}
-        </Text>
+        </TaggedText>
       )}
       <VisitReactions visit={visit} openComments={openComments} />
     </View>

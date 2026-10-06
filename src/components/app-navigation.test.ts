@@ -30,7 +30,7 @@ describe("App navigation", () => {
     });
   });
 
-  it.each(["scan", "collection"])("opens the %s tab at its own URL", (tab) => {
+  it.each(["scan", "collection", "search"])("opens the %s tab at its own URL", (tab) => {
     const tabs = getTabsState(`/${tab}`);
     expect(tabs?.routes[tabs.index ?? 0]).toMatchObject({
       name: `(${tab})`,
@@ -52,6 +52,12 @@ describe("App navigation", () => {
     const root = getRootState(`/${sheet}`);
     expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", sheet]);
     expect(root?.index).toBe(1);
+  });
+
+  it("opens a tag page over the tabs", () => {
+    const root = getRootState("/tag/monet");
+    expect(root?.routes.map((route) => route.name)).toEqual(["(tabs)", "tag/[tag]"]);
+    expect(root?.routes[1]).toMatchObject({ params: { tag: "monet" } });
   });
 
   it("opens sharing with its nested photo choice route", () => {

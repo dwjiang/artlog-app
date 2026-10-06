@@ -747,7 +747,7 @@ export function VenueResolver({ controller = venueController }: { controller?: V
     () => controller.getState().prompt,
   );
   const seenPrompt = useRef(prompt);
-  const introduction = useIntroduction(owner);
+  const introduction = useIntroduction();
 
   useEffect(() => {
     // The location request and the museum sheet would otherwise land on top of a first launch's welcome.

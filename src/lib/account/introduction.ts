@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { getSetting } from "@/db/repos/settings";
 import { reportError } from "@/lib/observability";
 
-import { getLocalProfileName } from "./local-profile";
-
 export const WELCOME_SEEN_SETTING = "welcome-seen";
 
 type Introduction = "checking" | "due" | "open" | "justEnded" | "over";
@@ -15,7 +13,7 @@ type Introduction = "checking" | "due" | "open" | "justEnded" | "over";
  * earlier launch; otherwise it is `pending` until the welcome has opened and the stack is back on the tabs, so a sign-in
  * it hands off to counts, and `justEnded` for the rest of that launch.
  */
-export function useIntroduction(owner: string): "pending" | "justEnded" | "over" {
+export function useIntroduction(): "pending" | "justEnded" | "over" {
   const [introduction, setIntroduction] = useState<Introduction>("checking");
   const top = useSegments()[0];
   if (introduction === "due" && top === "welcome") setIntroduction("open");
@@ -25,11 +23,9 @@ export function useIntroduction(owner: string): "pending" | "justEnded" | "over"
     // Checked once per launch: a sign-in during the introduction switches the owner but must not end it early.
     if (introduction !== "checking") return;
     let cancelled = false;
-    void Promise.all([getSetting(WELCOME_SEEN_SETTING), getLocalProfileName()])
-      .then(([seen, name]) => {
-        if (!cancelled) {
-          setIntroduction(seen === "true" && (name || owner.startsWith("account:")) ? "over" : "due");
-        }
+    void getSetting(WELCOME_SEEN_SETTING)
+      .then((seen) => {
+        if (!cancelled) setIntroduction(seen === "true" ? "over" : "due");
       })
       .catch((cause: unknown) => {
         reportError(cause, "account.introduction.load");
@@ -38,7 +34,7 @@ export function useIntroduction(owner: string): "pending" | "justEnded" | "over"
     return () => {
       cancelled = true;
     };
-  }, [introduction, owner]);
+  }, [introduction]);
 
   return introduction === "justEnded" || introduction === "over" ? introduction : "pending";
 }

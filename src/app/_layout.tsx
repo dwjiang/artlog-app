@@ -172,6 +172,7 @@ function AppContent() {
                     options={{ ...TransparentHeader, ...groupedScreen, title: "Friends" }}
                   />
                   <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
+                  <Stack.Screen name="tag/[tag]" options={LargeTitleHeader} />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
                   <Stack.Screen
                     name="share-profile"
@@ -248,10 +249,11 @@ function AppContent() {
                   <Stack.Screen
                     name="turn-on-notifications"
                     dangerouslySingular
+                    // App Review (5.1.1(iv)): a pre-prompt must not be closable before the iPhone prompt appears.
                     options={{
                       presentation: "formSheet",
                       sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
+                      gestureEnabled: false,
                       headerShown: false,
                     }}
                   />

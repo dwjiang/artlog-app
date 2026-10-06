@@ -17,6 +17,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { GlassSurface } from "@/components/glass-surface";
 import { MotionPressable } from "@/components/motion-pressable";
+import { PermissionAsk } from "@/components/permissions/permission-ask";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ProfilePicturePicker } from "@/components/social/profile-picture-picker";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -99,7 +100,7 @@ export function WelcomeScreen() {
     router.back();
   };
   const advance = () => (index >= count - 1 ? void close() : goTo(index + 1));
-  const allow = async (current: AccessStep) => {
+  const ask = async (current: AccessStep) => {
     await access.answer(current);
     advance();
   };
@@ -118,7 +119,7 @@ export function WelcomeScreen() {
   }, [account.account, account.busy, guest, router]);
 
   const finish = async () => {
-    if (!name.trim() || localProfile.loading || savingRef.current) return;
+    if (localProfile.loading || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     setError(undefined);
@@ -195,26 +196,19 @@ export function WelcomeScreen() {
               art={<AccessArt step={current.key} active={index === page} shown={reached >= page} />}
               overlay={current.key === "photos" ? <SavedPhotoTile shown={reached >= page} /> : undefined}
               bottom={sheetBottom}
+              // App Review (5.1.1(iv)) rejects pre-prompts that say "Allow" or offer a way past the iPhone prompt.
               actions={
-                current.answer === "unanswered" ? (
-                  <>
-                    <GalleryButton
-                      label={`Allow ${current.name}`}
-                      fullWidth
-                      variant="filled"
-                      busy={access.asking === current.key}
-                      busyLabel="Asking…"
-                      onPress={() => void allow(current)}
-                    />
-                    <GalleryButton label="Not Now" fullWidth variant="filled" tone="neutral" onPress={advance} />
-                  </>
-                ) : (
-                  <GalleryButton label="Continue" fullWidth variant="filled" onPress={() => void allow(current)} />
-                )
+                <GalleryButton
+                  label="Continue"
+                  fullWidth
+                  variant="filled"
+                  busy={access.asking === current.key}
+                  busyLabel="Asking…"
+                  onPress={() => void ask(current)}
+                />
               }
             >
-              <Headline>{current.headline}</Headline>
-              <Text themeColor="textSecondary">{current.caption}</Text>
+              <PermissionAsk kind={current.key} />
             </WelcomePage>
           );
         })}
@@ -253,7 +247,7 @@ export function WelcomeScreen() {
                 label="Continue"
                 fullWidth
                 variant="filled"
-                disabled={!name.trim() || localProfile.loading}
+                disabled={localProfile.loading}
                 busy={saving}
                 busyLabel="Saving…"
                 onPress={() => void finish()}
@@ -288,7 +282,7 @@ export function WelcomeScreen() {
                 selectionColor={Gallery.accent}
                 keyboardAppearance="light"
                 maxLength={LIMITS.name}
-                textContentType="name"
+                textContentType="nickname"
                 autoCapitalize="words"
                 returnKeyType="done"
                 editable={!saving && !localProfile.loading}

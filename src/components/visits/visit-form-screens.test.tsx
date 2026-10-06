@@ -140,7 +140,7 @@ it("rejects future dates and clears form drafts when the owner changes", async (
   expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Notes"), "Secret");
   await act(() => switchOwner("account:other", "scope-other"));
-  expect(screen.getByLabelText("Notes")).toHaveProp("value", "");
+  expect(screen.getByLabelText("Notes")).toHaveTextContent("");
   expect(screen.getByLabelText("Search museums")).toBeOnTheScreen();
 });
 

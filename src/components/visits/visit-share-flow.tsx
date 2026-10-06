@@ -347,6 +347,7 @@ export function VisitShareScreen() {
         ref={scrollRef}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={share.content}
       >
         <View style={share.header}>
