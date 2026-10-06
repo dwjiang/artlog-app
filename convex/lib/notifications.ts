@@ -78,6 +78,15 @@ export function registerNotifications(triggers: Triggers<DataModel>) {
     }
   });
 
+  // A row exists while the companion can read the post, so its notification follows the row.
+  triggers.register("visitCompanions", async (ctx, { newDoc, oldDoc, operation }) => {
+    if (operation === "update") return;
+    const row = newDoc ?? oldDoc!;
+    const event = { kind: "visitCompanion" as const, publicationId: row.publicationId };
+    if (newDoc) await notify(ctx, row.authorId, row.profileId, event);
+    else await withdraw(ctx, row.authorId, row.profileId, event);
+  });
+
   // The accepted request stays with the person who accepted it, where it reads "You and … are now friends"; every
   // other friendship notification between the pair is withdrawn when the edge moves, so a later request starts clean.
   triggers.register("friendships", async (ctx, { newDoc, oldDoc }) => {

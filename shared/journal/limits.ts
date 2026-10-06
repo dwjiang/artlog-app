@@ -16,6 +16,7 @@ export const LIMITS = {
   wallItems: 100,
   selectedSaves: 50,
   friends: 200,
+  companions: 10,
   city: 120,
   reportDetails: 2000,
   feedbackMessage: 2000,

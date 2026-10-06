@@ -19,6 +19,7 @@ import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
 import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
 import { matchesRecord, projectProfile, projectSharedVisitCard } from "./projections";
+import { visibleCompanions } from "./visitCompanions";
 
 export const publicationHeader = v.object({
   audience: visitAudience,
@@ -36,6 +37,8 @@ export const publicationHeader = v.object({
   revision: v.number(),
   color: v.string(),
   pattern: v.optional(wallPattern),
+  /** Friends the author went with, as this viewer may see them. */
+  companions: v.array(publicProfile),
 });
 export const artworkPage = v.object({
   page: v.array(sharedVisitCard),
@@ -58,6 +61,7 @@ export const publicationState = v.object({
   /** The published wallpaper; absent until the visit is first posted. */
   color: v.optional(v.string()),
   pattern: v.optional(wallPattern),
+  companions: v.array(publicProfile),
 });
 export const PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_ARTWORKS = 50;
@@ -115,6 +119,7 @@ export async function header(
   publication: Doc<"sharedVisits">,
   profile: Doc<"profiles">,
   visit: Doc<"visits">,
+  viewerId: Id<"profiles"> | undefined,
 ): Promise<Infer<typeof publicationHeader>> {
   const venue = await ctx.db.get("museums", visit.venueId);
   return {
@@ -132,6 +137,7 @@ export async function header(
     publishedAt: publication.publishedAt,
     revision: publication.publicationRevision,
     ...publicationWallpaper(publication),
+    companions: await visibleCompanions(ctx, publication, viewerId),
   };
 }
 function publicationWallpaper({ color, pattern }: Doc<"sharedVisits">) {
@@ -158,6 +164,7 @@ export async function stateForPublication(
     revision: publication?.publicationRevision ?? 0,
     saveLocalIds: items.map((item) => item.saveLocalId),
     ...(publication ? publicationWallpaper(publication) : {}),
+    companions: publication ? await visibleCompanions(ctx, publication, publication.profileId) : [],
   };
 }
 export function checkPublicationRevision(observed: number, current: number) {
@@ -338,6 +345,17 @@ export const tagHistory =
   async (before) => {
     const row = await historyHead(
       (bound) => ctx.db.query("postTags").withIndex("by_tag_history", (q) => bound(q.eq("tag", tag))),
+      before,
+    );
+    return row && ctx.db.get("sharedVisits", row.publicationId);
+  };
+// Posts that name the profile as a companion; the trigger keeps a row only while its post exists and lists them.
+export const companionHistory =
+  (ctx: QueryCtx, profileId: Id<"profiles">): HistoryStream =>
+  async (before) => {
+    const row = await historyHead(
+      (bound) =>
+        ctx.db.query("visitCompanions").withIndex("by_profile_history", (q) => bound(q.eq("profileId", profileId))),
       before,
     );
     return row && ctx.db.get("sharedVisits", row.publicationId);

@@ -7,6 +7,7 @@ import { registerNotifications } from "./notifications";
 import { registerPostTags } from "./postTags";
 import { withdrawProfilePosts } from "./publicationUpdates";
 import { CHALLENGE_RETENTION_MS, COMPLETED_REMOVAL_RETENTION_MS, EVIDENCE_RETENTION_MS } from "./retentionPolicy";
+import { registerVisitCompanions } from "./visitCompanions";
 import { registerCommentLikeCleanup } from "./visitReactions";
 
 export const databaseTriggers = new Triggers<DataModel>();
@@ -14,6 +15,7 @@ registerFileReferences(databaseTriggers);
 registerNotifications(databaseTriggers);
 registerCommentLikeCleanup(databaseTriggers);
 registerPostTags(databaseTriggers);
+registerVisitCompanions(databaseTriggers);
 
 databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {

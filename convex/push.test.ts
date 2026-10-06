@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "./_generated/api";
-import { socialUser, socialVisit, type SocialUser } from "./lib/socialTestFixtures";
+import { befriend, socialUser, socialVisit, type SocialUser } from "./lib/socialTestFixtures";
 import { seedDevice } from "./lib/testFactories";
 import { LIKE_PUSH_INTERVAL_MS } from "./push";
 import { harness, type Harness } from "./test.helpers";
@@ -10,7 +10,7 @@ type Sent = { to: string; body: string; badge: number; data: { url: string }; co
 type Ticket = { status: "ok"; id: string } | { status: "error"; details: { error: string } };
 
 const token = (name: string) => `ExponentPushToken[${name}]`;
-const everything = { friends: true, reactions: true };
+const everything = { friends: true, reactions: true, companions: true };
 
 function stubExpo({
   tickets = (messages: Sent[]): Ticket[] => messages.map((_, index) => ({ status: "ok", id: `ticket-${index}` })),
@@ -66,7 +66,12 @@ describe("push notifications", () => {
     await t.run(async (ctx) => {
       await ctx.db.patch("devices", quiet.deviceId, { accountId: ben.accountId });
     });
-    await quiet.as.mutation(api.push.register, { token: token("ben-ipad"), friends: false, reactions: true });
+    await quiet.as.mutation(api.push.register, {
+      token: token("ben-ipad"),
+      friends: false,
+      reactions: true,
+      companions: true,
+    });
     await signedOut.as.mutation(api.push.register, { token: token("old-phone"), ...everything });
 
     await ana.as.mutation(api.friendships.request, { profileId: ben.profileId, revision: 0 });
@@ -107,7 +112,12 @@ describe("push notifications", () => {
     await flush(t);
     expect(sent).toEqual([]);
 
-    await author.as.mutation(api.push.register, { token: token("author"), friends: true, reactions: false });
+    await author.as.mutation(api.push.register, {
+      token: token("author"),
+      friends: true,
+      reactions: false,
+      companions: true,
+    });
     await ana.as.action(api.visitReactions.addComment, { postId, body: "Lovely.", requestId: crypto.randomUUID() });
     await flush(t);
     expect(sent).toEqual([]);
@@ -132,6 +142,36 @@ describe("push notifications", () => {
         expect.objectContaining({
           body: expect.stringMatching(/^Ana \(@u_ana\) commented on your visit to .+: “The Seurat is huge\.”$/),
           data: { url: `/visit/${postId}?comments=1` },
+        }),
+      ],
+    ]);
+  });
+
+  it("tells a companion they were added, under their own switch", async () => {
+    const t = harness();
+    const sent = stubExpo();
+    const author = await socialUser(t, "Author");
+    const ana = await socialUser(t, "Ana");
+    const ben = await socialUser(t, "Ben");
+    await befriend(author, ana);
+    await befriend(author, ben);
+    await ana.as.mutation(api.push.register, { token: token("ana"), ...everything });
+    await ben.as.mutation(api.push.register, { token: token("ben"), ...everything, companions: false });
+    await flush(t);
+    sent.length = 0;
+    const visit = await socialVisit(t, author);
+    const { postId } = await author.as.action(api.sharedVisits.publish, {
+      ...visit.selection,
+      companionIds: [ana.profileId, ben.profileId],
+    });
+
+    await flush(t);
+    expect(sent).toEqual([
+      [
+        expect.objectContaining({
+          to: token("ana"),
+          body: expect.stringMatching(/^Author \(@u_author\) added you to a visit to .+\.$/),
+          data: { url: `/visit/${postId}` },
         }),
       ],
     ]);
@@ -199,7 +239,12 @@ describe("push notifications", () => {
     const first = await seedDevice(t);
     const second = await seedDevice(t);
     await first.as.mutation(api.push.register, { token: token("shared"), ...everything });
-    await second.as.mutation(api.push.register, { token: token("shared"), friends: false, reactions: true });
+    await second.as.mutation(api.push.register, {
+      token: token("shared"),
+      friends: false,
+      reactions: true,
+      companions: true,
+    });
     expect(await pushTokens(t)).toEqual([
       expect.objectContaining({ deviceId: second.deviceId, token: token("shared"), friends: false }),
     ]);
@@ -237,7 +282,12 @@ describe("push notifications", () => {
               }
               break;
             case "opt out":
-              await author.as.mutation(api.push.register, { token: token("author"), friends: true, reactions: false });
+              await author.as.mutation(api.push.register, {
+                token: token("author"),
+                friends: true,
+                reactions: false,
+                companions: true,
+              });
               break;
             case "replace token":
               await author.as.mutation(api.push.register, { token: token("replacement"), ...everything });

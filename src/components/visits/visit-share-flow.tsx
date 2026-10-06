@@ -41,6 +41,7 @@ import { LIMITS } from "@/shared/journal/limits";
 
 import { ArtBand, type BandArtwork } from "./art-band";
 import { ShareArtworkTile } from "./share-artwork-tile";
+import { CompanionPicker, ShareCompanionsRow, usePickedCompanions } from "./share-companions";
 import { SharePhotoPicker } from "./share-photo-picker";
 import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
@@ -97,6 +98,7 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
       <Stack screenOptions={{ ...NavigationTheme, ...TransparentHeader, animation: reduced ? "fade" : "default" }}>
         <Stack.Screen name="index" options={{ title: "Share Visit" }} />
         <Stack.Screen name="photos" options={{ title: "Choose Photos" }} />
+        <Stack.Screen name="companions" options={{ title: "Went With" }} />
       </Stack>
     </ShareContext>
   );
@@ -158,6 +160,7 @@ export function VisitShareScreen() {
     if (photos.error) reportError(photos.error, "visit.share-photos.load");
   }, [photos.error]);
   const { controller, draft, acknowledged } = sharing;
+  const companions = usePickedCompanions(draft?.companionIds ?? [], acknowledged?.companions ?? []);
   if (!visit.owner.startsWith("account:")) {
     return <GuestVisitSignIn visitId={visit.localId} />;
   }
@@ -380,6 +383,13 @@ export function VisitShareScreen() {
             disabled={sharing.busy}
             onChange={(audience) => controller.edit({ audience })}
           />
+          <ShareCompanionsRow
+            people={companions}
+            disabled={sharing.busy}
+            onPress={() =>
+              router.push({ pathname: "/visit-share/[visitId]/companions", params: { visitId: visit.localId } })
+            }
+          />
           <VisitNotes ref={notes} visit={visit} autoSave={false} editable={!posting && !sharing.busy} />
           {acknowledged?.removed ? (
             <Text style={styles.error}>This share is no longer available.</Text>
@@ -482,6 +492,27 @@ export function VisitSharePhotosScreen() {
           ],
         });
       }}
+    />
+  );
+}
+
+export function VisitShareCompanionsScreen() {
+  const { sharing } = useShareFlow();
+  const { controller, draft } = sharing;
+  if (!draft) {
+    return (
+      <VisitPage>
+        <VisitMessage action="Back" onAction={() => router.back()}>
+          Sharing is no longer open for this visit.
+        </VisitMessage>
+      </VisitPage>
+    );
+  }
+  return (
+    <CompanionPicker
+      selected={draft.companionIds}
+      disabled={sharing.busy}
+      onChange={(companionIds) => controller.edit({ companionIds })}
     />
   );
 }

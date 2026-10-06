@@ -40,6 +40,7 @@ it("publishes in the chosen order without private fields", async () => {
     "audience",
     "author",
     "color",
+    "companions",
     "pattern",
     "postId",
     "publishedAt",
