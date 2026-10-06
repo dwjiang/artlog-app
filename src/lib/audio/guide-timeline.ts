@@ -1,4 +1,5 @@
 import type { GuideSection, GuideSentence } from "../../../convex/lib/validators";
+import type { ListeningState } from "./listening-controller";
 
 export const GUIDE_SECTION_TITLES: Record<GuideSection, string> = {
   hook: "Opening",
@@ -57,4 +58,29 @@ export function sentenceAt({ starts }: GuideTimeline, position: number) {
   // Native seeks round to nanoseconds; allow one microsecond at a sentence boundary.
   while (index + 1 < starts.length && starts[index + 1] <= position + 0.000001) index++;
   return index;
+}
+
+export function sectionAt(timeline: GuideTimeline, position: number) {
+  const sentence = sentenceAt(timeline, position);
+  return timeline.sections.findLast((section) => section.sentence <= sentence)?.section;
+}
+
+/**
+ * The playing guide's timeline and the length its progress spans: the whole guide, or, while a live guide's length is
+ * unknown, the estimate beyond what has been generated.
+ */
+export function guideProgress({
+  sentences,
+  duration,
+  availableDuration,
+}: Pick<ListeningState, "sentences" | "duration" | "availableDuration">) {
+  const timeline = sentences ? guideTimeline(sentences, duration) : undefined;
+  return { timeline, scale: Math.max(timeline?.length ?? 0, duration || availableDuration) };
+}
+
+/** The progress span cut at the section starts, the last section running to its end; one part before sections are known. */
+export function guideParts(timeline: GuideTimeline | undefined, scale: number) {
+  return timeline?.sections.length && scale > 0
+    ? timeline.sections.map(({ start, end }, index, all) => ({ start, end: index === all.length - 1 ? scale : end }))
+    : [{ start: 0, end: Math.max(scale, 1) }];
 }
