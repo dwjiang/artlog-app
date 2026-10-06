@@ -47,8 +47,10 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
   return (
     <>
       <Stack.Screen options={{ title: `#${tag}` }} />
+      {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
       <FlatList
         style={socialStyles.root}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[socialStyles.content, { paddingBottom: 28 }]}
         contentInsetAdjustmentBehavior="automatic"
         data={ready && !unavailable ? feed.items : []}

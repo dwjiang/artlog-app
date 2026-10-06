@@ -104,7 +104,7 @@ export function NotificationsScreen() {
         ) : list.done ? (
           <SocialInvitation
             title="No notifications yet."
-            detail="Friend requests, likes and comments on your visits, and visits you’re added to appear here."
+            detail="Friend requests, likes and comments on your visits, mentions, and visits you’re added to appear here."
           >
             <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
           </SocialInvitation>
@@ -142,7 +142,10 @@ function sentence(row: Item[]) {
       });
     case "visitComment":
     case "visitCompanion":
+    case "visitMention":
       return notificationSentence({ kind: first.kind, actor, venue: first.venue });
+    case "commentMention":
+      return notificationSentence({ kind: first.kind, actor, owner: first.owner, venue: first.venue });
   }
 }
 
@@ -161,14 +164,18 @@ function NotificationRow({
   const [first] = row;
   const age = notificationAge(first.createdAt, now);
   const segments = sentence(row);
-  const quote = first.kind === "visitComment" ? `“${first.body}”` : undefined;
+  const quote =
+    first.kind === "visitComment" || first.kind === "visitMention" || first.kind === "commentMention"
+      ? `“${first.body}”`
+      : undefined;
   const open = () => {
     if (first.kind === "friendRequest" || first.kind === "friendAccepted") {
       router.push({ pathname: "/profile/[profileId]", params: { profileId: first.actor.profileId } });
     } else {
+      const comments = first.kind === "visitComment" || first.kind === "commentMention";
       router.push({
         pathname: "/visit/[postId]",
-        params: first.kind === "visitComment" ? { postId: first.postId, comments: "1" } : { postId: first.postId },
+        params: comments ? { postId: first.postId, comments: "1" } : { postId: first.postId },
       });
     }
   };
@@ -216,9 +223,7 @@ function NotificationRow({
             </>
           )}
         </View>
-        {(first.kind === "visitLike" || first.kind === "visitComment" || first.kind === "visitCompanion") && (
-          <VisitThumbnail media={first.media} label={first.venue} token={session.token} />
-        )}
+        {"venue" in first && <VisitThumbnail media={first.media} label={first.venue} token={session.token} />}
       </MotionPressable>
       {first.kind === "friendRequest" && first.relationship.state === "pending" && (
         <View style={styles.controls}>

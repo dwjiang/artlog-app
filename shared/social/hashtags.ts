@@ -58,16 +58,19 @@ export function activeHashtag(text: string, cursor: number): (TagRange & { query
   return { start: hash, end, query: text.slice(start, cursor).normalize("NFC").toLowerCase() };
 }
 
-/** Completes a tag and places the cursor after its trailing space; returns null if it would exceed the field limit. */
-export function completeHashtag(
+/** Puts `word` in place of `range` and the cursor after its trailing space; null if it would exceed the field limit. */
+export function completeWord(
   text: string,
   range: TagRange,
-  tag: string,
+  word: string,
   maxLength: number,
 ): { text: string; cursor: number } | null {
-  const before = `${text.slice(0, range.start)}#${tag}`;
+  const before = text.slice(0, range.start) + word;
   const after = text.slice(range.end);
   const spaced = after.startsWith(" ") ? after : ` ${after}`;
   const completed = before + spaced;
   return completed.length <= maxLength ? { text: completed, cursor: before.length + 1 } : null;
 }
+
+export const completeHashtag = (text: string, range: TagRange, tag: string, maxLength: number) =>
+  completeWord(text, range, `#${tag}`, maxLength);

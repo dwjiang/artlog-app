@@ -19,7 +19,7 @@ import { ReactionIcon } from "./reaction-icon";
 import { TaggedText } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
-export type ReactionVisit = Pick<SharedVisit, "postId" | "audience">;
+export type ReactionVisit = Pick<SharedVisit, "postId">;
 export type ReactionSummary = FunctionReturnType<typeof api.visitReactions.getSummary>;
 
 export function VisitReactions({ visit, openComments = false }: { visit: ReactionVisit; openComments?: boolean }) {
@@ -202,7 +202,8 @@ export function VisitReactionRow({
           hitSlop={{ bottom: 16 }}
         >
           <Text numberOfLines={2} style={styles.latestText}>
-            <Text style={styles.strong}>{latest.authorName}</Text> <TaggedText>{latest.body}</TaggedText>
+            <Text style={styles.strong}>{latest.authorName}</Text>{" "}
+            <TaggedText mentions={latest.mentions}>{latest.body}</TaggedText>
           </Text>
           {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
         </MotionPressable>

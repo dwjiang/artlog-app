@@ -114,8 +114,10 @@ export function HomeScreen() {
       <HomeToolbar requests={requests} unseen={unseen} feed={tab} onFeedChange={setChosenTab} />
       <WelcomePrompt />
       <WrapUpPrompt />
+      {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
       <FlatList
         ref={list}
+        keyboardShouldPersistTaps="handled"
         style={socialStyles.root}
         contentContainerStyle={[socialStyles.content, { paddingBottom: 28, minHeight: room.minHeight }]}
         contentInsetAdjustmentBehavior="automatic"

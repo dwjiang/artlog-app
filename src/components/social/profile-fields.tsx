@@ -7,7 +7,7 @@ import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { isUsernameProblem, usernameMessages, type UsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 
-import { useHashtagInput } from "./hashtag-input";
+import { useRichTextInput } from "./rich-text-input";
 
 type InputProps = Omit<ComponentProps<typeof TextInput>, "style">;
 
@@ -39,7 +39,14 @@ export function BioField({
   onChangeText: (bio: string) => void;
   editable: boolean;
 }) {
-  const tagging = useHashtagInput(value, onChangeText, LIMITS.bio, editable);
+  const tagging = useRichTextInput({
+    text: value,
+    onChangeText,
+    maxLength: LIMITS.bio,
+    editable,
+    place: { kind: "profile" },
+    docked: true,
+  });
   return (
     <View style={styles.field}>
       <ProfileField label={label} accessibilityLabel="Bio" multiline {...tagging.inputProps} />

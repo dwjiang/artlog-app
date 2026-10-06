@@ -25,7 +25,10 @@ export type NotificationSummary =
   /** `people` leads with the newest liker; `count` is every like the sentence covers. */
   | { kind: "visitLike"; people: readonly NotificationPerson[]; count: number; venue: string }
   | { kind: "visitComment"; actor: NotificationPerson; venue: string }
-  | { kind: "visitCompanion"; actor: NotificationPerson; venue: string };
+  | { kind: "visitCompanion"; actor: NotificationPerson; venue: string }
+  | { kind: "visitMention"; actor: NotificationPerson; venue: string }
+  /** `owner` wrote the visit the comment is on; a comment on the actor's own visit reads "their visit". */
+  | { kind: "commentMention"; actor: NotificationPerson; owner: NotificationPerson; venue: string };
 
 /** The sentence an inbox row and its push notification share; people's names are the bold segments. */
 export function notificationSentence(summary: NotificationSummary): NotificationSegment[] {
@@ -55,5 +58,12 @@ export function notificationSentence(summary: NotificationSummary): Notification
       return [...person(summary.actor), { text: ` commented on your visit to ${summary.venue}:` }];
     case "visitCompanion":
       return [...person(summary.actor), { text: ` added you to a visit to ${summary.venue}.` }];
+    case "visitMention":
+      return [...person(summary.actor), { text: ` mentioned you in a visit to ${summary.venue}:` }];
+    case "commentMention": {
+      const own = summary.owner.username === summary.actor.username;
+      const whose = own ? "their" : `${summary.owner.name}’s`;
+      return [...person(summary.actor), { text: ` mentioned you in a comment on ${whose} visit to ${summary.venue}:` }];
+    }
   }
 }

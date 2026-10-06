@@ -18,7 +18,7 @@ it("links each tag to its page and leaves the rest as text", async () => {
 it("runs the host's close step before opening the tag", async () => {
   const order: string[] = [];
   mockPush.mockImplementation(() => order.push("push"));
-  await render(<TaggedText onOpenTag={() => order.push("close")}>{"#monet"}</TaggedText>);
+  await render(<TaggedText onOpenLink={() => order.push("close")}>{"#monet"}</TaggedText>);
   await fireEvent.press(screen.getByRole("link", { name: "#monet" }));
   expect(order).toEqual(["close", "push"]);
 });
@@ -33,4 +33,15 @@ it("adds no links to text without tags", async () => {
   await render(<TaggedText>{"Gallery #243 and a#b"}</TaggedText>);
   expect(screen.queryAllByRole("link")).toEqual([]);
   expect(screen.getByText("Gallery #243 and a#b")).toBeOnTheScreen();
+});
+
+it("links the handles its mention list resolves to their profiles and leaves others as text", async () => {
+  await render(
+    <TaggedText mentions={[{ username: "maya", profileId: "maya-id" as never }]}>
+      {"With @Maya and @someone, #monet. Email me@example.com"}
+    </TaggedText>,
+  );
+  expect(screen.getAllByRole("link").map((link) => link.props.children)).toEqual(["@Maya", "#monet"]);
+  await fireEvent.press(screen.getByRole("link", { name: "@Maya" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "maya-id" } });
 });

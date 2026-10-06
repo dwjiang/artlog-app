@@ -29,7 +29,10 @@ it("updates only the authenticated profile and deletes replaced public photos", 
     bio: "Art",
     photoUrl: expect.any(String),
   });
-  expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).toEqual(updated);
+  expect(await t.query(api.profiles.getPublic, { profileId: owner.profileId })).toEqual({
+    ...updated,
+    bioMentions: [],
+  });
   await owner.as.mutation(internal.profilePhotoData.save, {
     profileId: owner.profileId,
     name: "Mira",

@@ -3,7 +3,13 @@ import { ConvexError, v, type Infer } from "convex/values";
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { LIMITS, normalizeSearch } from "../shared/journal/limits";
 import { isAvatarId } from "../shared/social/avatars";
-import { browsedProfile, publicProfile, validateProfile, validateSearch } from "../shared/social/contracts";
+import {
+  browsedProfile,
+  profilePage,
+  publicProfile,
+  validateProfile,
+  validateSearch,
+} from "../shared/social/contracts";
 import { usernameCandidates } from "../shared/social/username";
 import { randomWallStyle } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
@@ -11,6 +17,7 @@ import type { Doc } from "./_generated/dataModel";
 import { action, internalQuery, query, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { acceptedRelationships, blockedEitherWay, findBlock } from "./lib/friendships";
+import { linkedMentions, resolveMentions } from "./lib/mentions";
 import { requireAllowedBio } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
@@ -86,6 +93,8 @@ export const insert = internalMutation({
       ...randomWallStyle(),
       layoutRevision: 0,
     });
+    const bioMentions = await resolveMentions(ctx, fields.bio ?? "", profileId);
+    if (bioMentions.length > 0) await ctx.db.patch("profiles", profileId, { bioMentions });
     return projectProfile(ctx, (await ctx.db.get("profiles", profileId))!);
   },
 });
@@ -97,16 +106,22 @@ async function browsable(ctx: QueryCtx, viewer: Doc<"profiles"> | null, profile:
     && !(viewer && (await blockedEitherWay(ctx, viewer._id, profile._id)))
   );
 }
+async function projectProfilePage(ctx: QueryCtx, profile: Doc<"profiles">, viewer: Doc<"profiles"> | null) {
+  return {
+    ...(await projectProfile(ctx, profile)),
+    bioMentions: await linkedMentions(ctx, profile.bioMentions, { viewerId: viewer?._id, writerId: profile._id }),
+  };
+}
 export const getPublic = query({
   args: { profileId: v.id("profiles") },
-  returns: v.union(publicProfile, v.null()),
+  returns: v.union(profilePage, v.null()),
   handler: async (ctx, { profileId }) => {
     const profile = await activeProfile(ctx, profileId);
     if (!profile) return null;
     // A blocker can still open the profile they blocked to unblock it; the blocked person cannot.
     const viewer = await optionalProfile(ctx);
     if (viewer && (await findBlock(ctx, profileId, viewer._id))?.active) return null;
-    return projectProfile(ctx, profile);
+    return projectProfilePage(ctx, profile, viewer);
   },
 });
 export const search = query({
@@ -137,8 +152,11 @@ export const search = query({
 
 export const mine = query({
   args: {},
-  returns: publicProfile,
-  handler: async (ctx) => projectProfile(ctx, (await requireProfile(ctx)).profile),
+  returns: profilePage,
+  handler: async (ctx) => {
+    const { profile } = await requireProfile(ctx);
+    return projectProfilePage(ctx, profile, profile);
+  },
 });
 /** A profile's friends as the viewer may see them, each carrying the viewer's relationship to mark mutual friends. */
 export const friends = query({

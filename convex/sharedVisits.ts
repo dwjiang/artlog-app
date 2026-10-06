@@ -9,6 +9,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalAction, query, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
+import { resolveMentions } from "./lib/mentions";
 import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
@@ -121,10 +122,13 @@ export const savePublication = internalMutation({
   returns: publicationState,
   handler: async (ctx, input) => {
     const { profile, publication, visit, saves } = await readPublicationRequest(ctx, input);
+    const reflection = visit.reflection ?? "";
+    const mentions = await resolveMentions(ctx, reflection, profile._id, publication?.mentions);
     const fields = {
       audience: input.audience,
       status: "active" as const,
-      reflection: visit.reflection ?? "",
+      reflection,
+      mentions: mentions.length > 0 ? mentions : undefined,
       visitedOn: visit.visitedOn,
       publicationRevision: input.revision + 1,
       updatedAt: Date.now(),

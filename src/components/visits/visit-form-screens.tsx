@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
-import { useHashtagInput } from "@/components/social/hashtag-input";
+import { useRichTextInput } from "@/components/social/rich-text-input";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
@@ -68,7 +68,14 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   }, [initialVenueId, now]);
   const [reflection, setReflection] = useState("");
   const [busy, setBusy] = useState(false);
-  const tagging = useHashtagInput(reflection, setReflection, LIMITS.note, !busy);
+  const tagging = useRichTextInput({
+    text: reflection,
+    onChangeText: setReflection,
+    maxLength: LIMITS.note,
+    editable: !busy,
+    place: { kind: "visit", audience: "private", companionIds: [] },
+    docked: true,
+  });
   const [error, setError] = useState<string>();
   const submitting = useRef(false);
   const [localId] = useState(randomUUID);

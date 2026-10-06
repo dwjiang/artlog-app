@@ -3,7 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { AppState, StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { useHashtagInput } from "@/components/social/hashtag-input";
+import { useRichTextInput } from "@/components/social/rich-text-input";
 import { TaggedText } from "@/components/social/tagged-text";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -14,9 +14,10 @@ import { reportError } from "@/lib/observability";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 
+import type { Id } from "../../../convex/_generated/dataModel";
 import { visitStyles as styles } from "./visit-ui";
 
-type NotesVisit = Pick<Visit, "localId" | "owner" | "reflection">;
+type NotesVisit = Pick<Visit, "localId" | "owner" | "reflection" | "visibility">;
 export type VisitNotesHandle = { save: () => Promise<boolean> };
 type VisitNotesProps = {
   visit: NotesVisit;
@@ -24,6 +25,8 @@ type VisitNotesProps = {
   autoSave?: boolean;
   editable?: boolean;
   grouped?: boolean;
+  /** The friends picked for Went with, who lead the people offered for an @mention. */
+  companionIds?: readonly Id<"profiles">[];
   ref?: Ref<VisitNotesHandle>;
 };
 type NoteDraft = {
@@ -75,7 +78,14 @@ export function VisitNotes({ visit, ...props }: VisitNotesProps) {
   return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
 }
 
-function NoteField({ visit, autoSave = true, editable = true, grouped = false, ref }: VisitNotesProps) {
+function NoteField({
+  visit,
+  autoSave = true,
+  editable = true,
+  grouped = false,
+  companionIds = [],
+  ref,
+}: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? "");
   const [editing, setEditing] = useState(!autoSave);
   const [error, setError] = useState<string>();
@@ -134,7 +144,14 @@ function NoteField({ visit, autoSave = true, editable = true, grouped = false, r
       }, 500);
     }
   };
-  const tagging = useHashtagInput(draft, change, LIMITS.note, editable);
+  const tagging = useRichTextInput({
+    text: draft,
+    onChangeText: change,
+    maxLength: LIMITS.note,
+    editable,
+    place: { kind: "visit", audience: visit.visibility, companionIds: [...companionIds] },
+    docked: true,
+  });
 
   return (
     <View style={{ gap: 8 }}>

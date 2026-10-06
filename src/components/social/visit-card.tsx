@@ -185,7 +185,7 @@ export function VisitCard({
         </View>
       )}
       {!!visit.reflection && (
-        <TaggedText selectable style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
+        <TaggedText selectable mentions={visit.mentions} style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
           {visit.reflection}
         </TaggedText>
       )}

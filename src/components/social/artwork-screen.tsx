@@ -78,6 +78,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
             token={session.token}
             enrichment={data.enrichment}
             note={shared ? undefined : wall.data?.note}
+            noteMentions={shared ? undefined : wall.data?.noteMentions}
             headingRef={headingRef}
             onHeadingLayout={measureHeading}
           />

@@ -6,7 +6,16 @@ import { randomUUID } from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import { ActionSheetIOS, Alert, ScrollView, StyleSheet, TextInput, View, type ScrollViewProps } from "react-native";
+import {
+  ActionSheetIOS,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type ScrollViewProps,
+} from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -29,12 +38,12 @@ import { extractHashtags } from "@/shared/social/hashtags";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
-import { useHashtagInput } from "./hashtag-input";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
 import { ReactionIcon } from "./reaction-icon";
+import { useRichTextInput } from "./rich-text-input";
 import { PageFooter } from "./social-state";
-import { TaggedText, tagHref } from "./tagged-text";
+import { profileHref, TaggedText, tagHref } from "./tagged-text";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
 
 type CommentPage = FunctionReturnType<typeof api.visitReactions.listComments>;
@@ -44,12 +53,6 @@ const commentId = (value: Comment) => value.commentId;
 const likesPage = (value: FunctionReturnType<typeof api.visitReactions.listLikes>) => value;
 const profileId = (value: PublicProfile) => value.profileId;
 type CommentAction = { name: string; label: string; destructive?: boolean; run: () => void };
-
-const COMMENT_AUDIENCE = {
-  private: "Only you can see this visit and its comments.",
-  friends: "Only friends can see comments, like this visit.",
-  public: "Comments are public, like this visit.",
-} as const;
 
 export function VisitReactionsSheet({
   kind,
@@ -167,7 +170,32 @@ function Comments({
   const list = useRef<ScrollView>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const tagging = useHashtagInput(draft, setDraft, MAX_COMMENT_LENGTH, !busy);
+  const tagging = useRichTextInput({
+    text: draft,
+    onChangeText: setDraft,
+    maxLength: MAX_COMMENT_LENGTH,
+    editable: !busy,
+    place: { kind: "comment", postId: visit.postId },
+  });
+  const input = useRef<TextInput>(null);
+  // Replying fills in the person's handle; the "Replying to" bar lasts while the draft still starts with it.
+  const [replyTo, setReplyTo] = useState<PublicProfile>();
+  const handle = replyTo ? `@${replyTo.username}` : "";
+  const replying = !!replyTo && (draft === handle || draft.startsWith(`${handle} `));
+  const afterHandle = () => (replying ? draft.slice(handle.length).trimStart() : draft);
+  const reply = (item: Comment) => {
+    if (busy) return;
+    if (!tagging.replace(`@${item.author.username} ${afterHandle()}`)) {
+      setError("Shorten your comment to add a reply.");
+      return;
+    }
+    setError(undefined);
+    setReplyTo(item.author);
+    input.current?.focus();
+  };
+  const cancelReply = () => {
+    if (tagging.replace(afterHandle())) setReplyTo(undefined);
+  };
   const [focused, setFocused] = useState(false);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -214,6 +242,7 @@ function Comments({
         requestId: request.current.id,
       });
       setDraft("");
+      setReplyTo(undefined);
       request.current = null;
       setPosted(id);
     } catch (cause) {
@@ -274,7 +303,9 @@ function Comments({
       showErrorToast("Couldn’t copy the comment.");
     }
   };
+  const canReply = (item: Comment) => session.status === "ready" && session.profileId !== item.author.profileId;
   const actionsFor = (item: Comment): CommentAction[] => [
+    ...(canReply(item) ? [{ name: "reply", label: "Reply", run: () => reply(item) }] : []),
     { name: "copy", label: "Copy comment", run: () => void copy(item) },
     ...(session.profileId === item.author.profileId
       ? [{ name: "delete", label: "Delete comment", destructive: true, run: () => remove(item) }]
@@ -334,7 +365,7 @@ function Comments({
               ? formatRelativeTime(item.createdAt, now)
               : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.createdAt);
           const actions = actionsFor(item);
-          // VoiceOver reads the comment as one element, so each tag link is also one of its actions.
+          // VoiceOver reads the comment as one element, so each link is also one of its actions.
           const spoken = [
             ...actions,
             ...extractHashtags(item.body).map((tag) => ({
@@ -343,6 +374,14 @@ function Comments({
               run: () => {
                 onDismiss();
                 router.push(tagHref(tag));
+              },
+            })),
+            ...item.mentions.map((mention) => ({
+              name: `mention:${mention.username}`,
+              label: `Open @${mention.username}`,
+              run: () => {
+                onDismiss();
+                router.push(profileHref(mention.profileId));
               },
             })),
           ];
@@ -379,9 +418,19 @@ function Comments({
                     {item.isAuthor && <Text style={styles.author}>Author</Text>}
                     <Text style={styles.meta}>{time}</Text>
                   </View>
-                  <TaggedText style={styles.body} onOpenTag={onDismiss}>
+                  <TaggedText style={styles.body} mentions={item.mentions} onOpenLink={onDismiss}>
                     {item.body}
                   </TaggedText>
+                  {canReply(item) && (
+                    <Pressable
+                      accessible={false}
+                      hitSlop={{ top: 12, bottom: 12, left: 8, right: 16 }}
+                      onPress={() => reply(item)}
+                      style={styles.replyLink}
+                    >
+                      {({ pressed }) => <Text style={[styles.reply, pressed && { opacity: 0.5 }]}>Reply</Text>}
+                    </Pressable>
+                  )}
                 </View>
               </MotionPressable>
               <MotionPressable
@@ -413,6 +462,22 @@ function Comments({
         }
       />
       <View style={styles.composer} onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}>
+        {replyTo && replying && (
+          <View style={styles.replyBar}>
+            <Text style={styles.replyText} numberOfLines={1}>
+              Replying to <Text style={styles.replyName}>{replyTo.name}</Text>
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+              hitSlop={4}
+              onPress={cancelReply}
+              style={styles.replyCancel}
+            >
+              <VisitSymbol name="xmark" size={12} color={Gallery.muted} />
+            </Pressable>
+          </View>
+        )}
         {error && (
           <Text accessibilityRole="alert" style={styles.error}>
             {error}
@@ -430,6 +495,7 @@ function Comments({
               />
               <View style={[styles.inputWrap, focused && { borderColor: Gallery.accent }]}>
                 <TextInput
+                  ref={input}
                   accessibilityLabel="Add a comment"
                   placeholder="Add a comment…"
                   placeholderTextColor={Gallery.muted}
@@ -467,7 +533,6 @@ function Comments({
                 </MotionPressable>
               </View>
             </View>
-            <Text style={styles.audience}>{COMMENT_AUDIENCE[visit.audience]}</Text>
           </>
         ) : (
           <View style={styles.join}>
@@ -579,6 +644,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   meta: { fontSize: 12, lineHeight: 18, color: Gallery.muted },
+  replyLink: { alignSelf: "flex-start", marginTop: 4 },
+  reply: { fontSize: 12, lineHeight: 16, fontWeight: "600", color: Gallery.muted },
+  // Spans the composer's insets so the bar reads as a band on top of the field.
+  replyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: -20,
+    marginTop: -12,
+    paddingLeft: 20,
+    backgroundColor: Gallery.fill,
+  },
+  replyText: { flex: 1, fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  replyName: { fontWeight: "600", color: Gallery.ink },
+  replyCancel: { width: 44, height: 36, alignItems: "center", justifyContent: "center" },
   body: { fontSize: 14, lineHeight: 19, color: Gallery.ink },
   // Centers the heart and count on the name line and first body line: row padding 8 + (name line 18 + body line 19) / 2
   // − (heart 16 + gap 1 + count 13) / 2. That ends at 41.5, inside a one-line comment's 53, so a first like never grows it.
@@ -632,12 +711,6 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.accent,
     alignItems: "center",
     justifyContent: "center",
-  },
-  audience: {
-    fontSize: 10,
-    lineHeight: 16,
-    color: Gallery.muted,
-    marginLeft: 37,
   },
   join: { flexDirection: "row", alignItems: "center", gap: 12 },
   error: { fontSize: 13, lineHeight: 19, color: Gallery.destructive },

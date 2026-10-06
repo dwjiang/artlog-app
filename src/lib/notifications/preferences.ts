@@ -6,12 +6,13 @@ import { setSetting } from "@/db/repos/settings";
 import { settings } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 
-export type NotificationPreference = "friends" | "reactions" | "companions" | "visitReminders";
+export type NotificationPreference = "friends" | "reactions" | "mentions" | "companions" | "visitReminders";
 export type NotificationPreferences = Record<NotificationPreference, boolean>;
 
 const keys: Record<NotificationPreference, string> = {
   friends: "notify-friends",
   reactions: "notify-reactions",
+  mentions: "notify-mentions",
   companions: "notify-companions",
   visitReminders: "notify-visit-reminders",
 };
@@ -23,6 +24,7 @@ export function readPreferences(rows: readonly { key: string; value: string }[])
   return {
     friends: !off.has(keys.friends),
     reactions: !off.has(keys.reactions),
+    mentions: !off.has(keys.mentions),
     companions: !off.has(keys.companions),
     visitReminders: !off.has(keys.visitReminders),
   };

@@ -8,7 +8,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
-import type { PublicProfile } from "@/lib/social/types";
+import type { Mention, PublicProfile } from "@/lib/social/types";
 import type { AvatarId } from "@/shared/social/avatars";
 
 import { ProfileActionRow } from "./friendship-controls";
@@ -23,7 +23,7 @@ type ProfileIdentity = {
   avatarName?: string;
   avatarPhotoUrl?: string;
   avatar?: AvatarId;
-  profile?: { photoUrl?: string; avatar: AvatarId; bio?: string };
+  profile?: { photoUrl?: string; avatar: AvatarId; bio?: string; bioMentions?: readonly Mention[] };
 };
 /** A count left undefined is still loading. */
 type ProfileStat = { noun: string; count?: number; onPress?: () => void };
@@ -130,7 +130,7 @@ export function ProfileHeader({
             </View>
             {identity.profile
               && (identity.profile.bio ? (
-                <ProfileBio text={identity.profile.bio} />
+                <ProfileBio text={identity.profile.bio} mentions={identity.profile.bioMentions} />
               ) : (
                 <Text style={{ fontSize: 16, lineHeight: 24, fontStyle: "italic", color: Gallery.muted }}>No bio</Text>
               ))}

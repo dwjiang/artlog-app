@@ -4,6 +4,7 @@ import { isRevision, LIMITS } from "../shared/journal/limits";
 import {
   displayMedia,
   isWallColor,
+  mention,
   validateWallItems,
   wallArtwork,
   wallLayout,
@@ -16,6 +17,7 @@ import { internalMutation, mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
 import { blockedEitherWay } from "./lib/friendships";
+import { linkedMentions, resolveMentions } from "./lib/mentions";
 import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import {
@@ -146,6 +148,7 @@ export const getArtwork = query({
       profileId: v.id("profiles"),
       photos: v.array(displayMedia),
       enrichment: v.optional(publicArtworkStory),
+      noteMentions: v.array(mention),
     }),
     v.null(),
   ),
@@ -207,6 +210,9 @@ export const getArtwork = query({
       profileId: current.profile._id,
       photos: photos.size > 0 ? [...photos.values()] : [current.projection.artwork.media],
       ...(enrichment ? { enrichment } : {}),
+      noteMentions: current.projection.note
+        ? await linkedMentions(ctx, current.item.noteMentions, { viewerId: viewer?._id, writerId: current.profile._id })
+        : [],
     };
   },
 });
@@ -393,9 +399,13 @@ export const applyNoteVisibility = internalMutation({
         throw new ConvexError({ code: "conflict" });
       }
       if (item.noteVisible !== change.visible) {
+        const noteMentions = change.visible
+          ? await resolveMentions(ctx, save.note ?? "", profile._id, item.noteMentions)
+          : (item.noteMentions ?? []);
         await ctx.db.patch("wallItems", item._id, {
           noteVisible: change.visible,
           noteRevision: item.noteRevision + 1,
+          noteMentions: noteMentions.length > 0 ? noteMentions : undefined,
         });
       }
     }

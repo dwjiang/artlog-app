@@ -8,7 +8,7 @@ import { EmptySymbol } from "@/components/empty-state";
 import { DocentSection, type DocentSectionProps } from "@/components/scan/result/docent-section";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
-import type { SharedArtwork } from "@/lib/social/types";
+import type { Mention, SharedArtwork } from "@/lib/social/types";
 
 import { socialStyles } from "./social-styles";
 import { TaggedText } from "./tagged-text";
@@ -18,6 +18,7 @@ export function PublishedArtwork({
   photos,
   token,
   note,
+  noteMentions,
   enrichment,
   headingRef,
   onHeadingLayout,
@@ -26,6 +27,7 @@ export function PublishedArtwork({
   photos: SharedArtwork["artwork"]["media"][];
   token?: string | null;
   note?: string;
+  noteMentions?: readonly Mention[];
   enrichment?: DocentSectionProps;
   headingRef?: Ref<ComponentRef<typeof Text>>;
   onHeadingLayout?: () => void;
@@ -59,7 +61,7 @@ export function PublishedArtwork({
             <View style={styles.divider} />
             <View style={{ gap: 8 }}>
               <NoteHeading title="Notes" />
-              <TaggedText selectable style={styles.note}>
+              <TaggedText selectable mentions={noteMentions} style={styles.note}>
                 {note}
               </TaggedText>
             </View>

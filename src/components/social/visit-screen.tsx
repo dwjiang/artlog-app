@@ -33,8 +33,10 @@ function VisitPost({
   const visit = useSocialQuery(api.sharedVisits.get, ready && postId ? { postId } : "skip", session.key);
   const unavailable = !postId || convexErrorCode(visit.error) === "not_found";
   return (
+    // The card's comments sheet renders in this tree; "handled" lets taps reach its composer.
     <ScrollView
       style={socialStyles.root}
+      keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={socialStyles.content}
     >

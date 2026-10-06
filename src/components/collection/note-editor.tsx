@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "re
 
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { NotePaper } from "@/components/note-paper";
-import { useHashtagInput } from "@/components/social/hashtag-input";
+import { useRichTextInput } from "@/components/social/rich-text-input";
 import { TaggedText } from "@/components/social/tagged-text";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Fonts, Gallery, Spacing } from "@/constants/theme";
@@ -68,7 +68,14 @@ function WorkNoteEditor({
   const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
   const { draft, savedText, saveFailed, loadFailed, setDraft, save } = useArtworkNote(savedLocalId, owner);
   const [editing, setEditing] = useState(initiallyEditing);
-  const tagging = useHashtagInput(draft ?? "", setDraft, MAX_NOTE_LENGTH, draft !== undefined);
+  const tagging = useRichTextInput({
+    text: draft ?? "",
+    onChangeText: setDraft,
+    maxLength: MAX_NOTE_LENGTH,
+    editable: draft !== undefined,
+    place: { kind: "profile" },
+    docked: true,
+  });
 
   return (
     <View style={styles.section}>

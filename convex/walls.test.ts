@@ -282,6 +282,35 @@ it("makes a shared note private whenever it changes until it is shared again", a
   await expect(share(4)).rejects.toThrow("invalid_wall");
 });
 
+it("keeps a wall mention linked to the same person after hiding, renaming and resharing", async () => {
+  const t = harness();
+  const author = await wallFixture(t, "writer");
+  const ben = await socialUser(t, "Ben");
+  await syncNote(t, author, "With @u_ben.");
+  const wall = await author.as.mutation(api.walls.setLayout, author.input);
+  const { itemId } = wall.items[0];
+  const setVisibility = (visible: boolean, noteRevision: number) =>
+    author.as.action(api.walls.setNoteVisibility, {
+      scope: author.scope,
+      changes: [{ itemId, visible, noteRevision }],
+    });
+  const mentions = [{ username: "u_ben", profileId: ben.profileId }];
+
+  await setVisibility(true, 0);
+  expect((await t.query(api.walls.getArtwork, { itemId }))?.noteMentions).toEqual(mentions);
+
+  await setVisibility(false, 1);
+  const hidden = await t.query(api.walls.getArtwork, { itemId });
+  expect(hidden).not.toHaveProperty("note");
+  expect(hidden?.noteMentions).toEqual([]);
+  await ben.as.action(api.profilePhotos.save, { name: "Ben", username: "ben_renamed" });
+  const newcomer = await socialUser(t, "Ben");
+  expect(newcomer.profileId).not.toBe(ben.profileId);
+
+  await setVisibility(true, 2);
+  expect((await t.query(api.walls.getArtwork, { itemId }))?.noteMentions).toEqual(mentions);
+});
+
 it("refuses to share an offensive note but lets a note name its museum-titled artwork", async () => {
   const t = harness();
   const a = await wallFixture(t, "a");
@@ -403,6 +432,7 @@ it("allowlists public data and keeps snapshot metadata without catalog enrichmen
     ...publicWall!.items[0],
     profileId: a.profile.profileId,
     photos: [publicWall!.items[0].artwork.media],
+    noteMentions: [],
   });
 });
 

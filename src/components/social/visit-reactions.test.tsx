@@ -4,6 +4,7 @@ import { ActionSheetIOS } from "react-native";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { dismissToast, showErrorToast, useToast } from "@/lib/ui/toast";
+import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { VisitReactions, type ReactionSummary, type ReactionVisit } from "./visit-reactions";
 
@@ -24,9 +25,16 @@ jest.mock("@/lib/social/use-social-session", () => ({
 }));
 let mockTags: { tag: string; postCount: number }[];
 const mockTagSearch = jest.fn();
+let mockPeople: object[];
+const mockPeopleSearch = jest.fn();
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: never, args: unknown) => {
-    if (jest.requireActual("convex/server").getFunctionName(query) !== "tags:search") {
+    const name = jest.requireActual("convex/server").getFunctionName(query);
+    if (name === "mentions:suggest") {
+      if (args !== "skip") mockPeopleSearch(args);
+      return { data: args === "skip" ? undefined : mockPeople, refresh: mockRefresh };
+    }
+    if (name !== "tags:search") {
       return { data: mockSummary, refresh: mockRefresh };
     }
     if (args !== "skip") mockTagSearch(args);
@@ -48,7 +56,7 @@ jest.mock("expo-clipboard", () => ({ setStringAsync: (text: string) => mockCopy(
 const mockBlock = jest.fn();
 jest.mock("@/lib/social/use-block", () => ({ useBlock: () => ({ block: mockBlock }) }));
 
-const visit: ReactionVisit = { postId: "visit-a", audience: "public" };
+const visit: ReactionVisit = { postId: "visit-a" };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -66,6 +74,7 @@ beforeEach(() => {
   mockSummary = { likeCount: 13, commentCount: 2, liked: true, latestComment: null };
   mockComments = [];
   mockTags = [];
+  mockPeople = [];
   mockMutate.mockResolvedValue("new-comment");
 });
 
@@ -119,6 +128,7 @@ it("lets guests read comments and asks them to sign in before reacting", async (
       likeCount: 0,
       liked: false,
       author: { profileId: "friend", name: "Jules Morgan" },
+      mentions: [],
     },
   ];
   await render(<VisitReactions visit={visit} />);
@@ -175,7 +185,7 @@ it("closes the likes sheet before opening a liker’s profile", async () => {
 it("previews the newest comment under the visit and opens the sheet from it", async () => {
   mockSummary = {
     ...mockSummary,
-    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Beautiful light." },
+    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Beautiful light.", mentions: [] },
   };
   const view = await render(<VisitReactions visit={visit} />);
   expect(screen.getByText("View all 2 comments")).toBeOnTheScreen();
@@ -220,9 +230,15 @@ it("shows a comment heart at once while its write is in flight", async () => {
   ).toBeOnTheScreen();
 });
 
-const theirs = { profileId: "friend", name: "Jules Morgan" };
-function comment(commentId: string, body: string, author: { profileId: string; name: string }, likeCount = 0) {
-  return { commentId, body, createdAt: 1, isAuthor: false, likeCount, liked: false, author };
+const theirs = { profileId: "friend", name: "Jules Morgan", username: "jules" };
+function comment(
+  commentId: string,
+  body: string,
+  author: { profileId: string; name: string; username?: string },
+  likeCount = 0,
+  mentions: { username: string; profileId: string }[] = [],
+) {
+  return { commentId, body, createdAt: 1, isAuthor: false, likeCount, liked: false, author, mentions };
 }
 function chooseAction(label: string) {
   return jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
@@ -236,8 +252,8 @@ it("reports someone else’s comment from its touch-and-hold menu after closing 
   await render(<VisitReactions visit={visit} openComments />);
   await fireEvent(screen.getByLabelText(/Rude words\.$/), "longPress");
   expect(sheet.mock.calls[0][0]).toMatchObject({
-    options: ["Copy comment", "Report comment", "Block Jules Morgan", "Cancel"],
-    destructiveButtonIndex: [2],
+    options: ["Reply", "Copy comment", "Report comment", "Block Jules Morgan", "Cancel"],
+    destructiveButtonIndex: [3],
   });
   expect(screen.queryByText("Rude words.")).toBeNull();
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/report", params: { kind: "comment", id: "theirs" } });
@@ -276,6 +292,7 @@ it("gives VoiceOver the same comment actions and shows a failed block inside the
   await render(<VisitReactions visit={visit} openComments />);
   const row = screen.getByLabelText(/A comment\.$/);
   expect(row.props.accessibilityActions).toEqual([
+    { name: "reply", label: "Reply" },
     { name: "copy", label: "Copy comment" },
     { name: "report", label: "Report comment" },
     { name: "block", label: "Block Jules Morgan" },
@@ -292,7 +309,12 @@ it("gives VoiceOver the same comment actions and shows a failed block inside the
 it("opens a tag from the comment preview", async () => {
   mockSummary = {
     ...mockSummary,
-    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Saving this for #SketchSunday" },
+    latestComment: {
+      commentId: "newest" as never,
+      authorName: "Jules Morgan",
+      body: "Saving this for #SketchSunday",
+      mentions: [],
+    },
   };
   await render(<VisitReactions visit={visit} />);
   await fireEvent.press(screen.getByRole("link", { name: "#SketchSunday" }));
@@ -407,4 +429,91 @@ it("locks hashtag completion while posting and restores it after a failure", asy
   } finally {
     jest.useRealTimers();
   }
+});
+
+it("links handles the comment resolved and closes the sheet before opening the profile", async () => {
+  mockComments = [
+    comment("theirs", "@maya the Caillebotte is two rooms over, @nobody.", theirs, 0, [
+      { username: "maya", profileId: "maya-id" },
+    ]),
+  ];
+  await render(<VisitReactions visit={visit} openComments />);
+  expect(screen.getAllByRole("link").map((link) => link.props.children)).toEqual(["@maya"]);
+  await fireEvent.press(screen.getByRole("link", { name: "@maya" }));
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "maya-id" } });
+});
+
+it("suggests people for a typed handle and completes the chosen one", async () => {
+  jest.useFakeTimers();
+  mockPeople = [
+    { profile: { profileId: "maya-id", name: "Maya Chen", username: "maya", avatar: "vermeer" }, role: "author" },
+    { profile: { profileId: "marisol-id", name: "Marisol Vega", username: "marisol", avatar: "vermeer" } },
+  ];
+  await render(<VisitReactions visit={visit} openComments />);
+  const input = screen.getByLabelText("Add a comment");
+  await fireEvent.changeText(input, "Loved this. @Ma");
+  await fireEvent(input, "selectionChange", { nativeEvent: { selection: { start: 15, end: 15 } } });
+  await act(() => jest.advanceTimersByTime(200));
+  expect(mockPeopleSearch).toHaveBeenLastCalledWith({ query: "ma", place: { kind: "comment", postId: "visit-a" } });
+  expect(screen.getByRole("button", { name: "Marisol Vega, @marisol" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Maya Chen, @maya, Author" }));
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("Loved this. @maya");
+  expect(screen.getByLabelText("Add a comment").props.selection).toEqual({ start: 18, end: 18 });
+  jest.useRealTimers();
+});
+
+it("starts a reply with the person's handle, by the Reply link or the touch-and-hold menu", async () => {
+  mockComments = [comment("theirs", "Found it.", theirs), comment("mine", "Mine.", { profileId: "me", name: "Me" })];
+  await render(<VisitReactions visit={visit} openComments />);
+  expect(screen.getAllByText("Reply")).toHaveLength(1);
+  await fireEvent.press(screen.getByText("Reply"));
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("@jules");
+  expect(screen.getByText(/Replying to/)).toHaveTextContent("Replying to Jules Morgan");
+
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel reply" }));
+  expect(screen.queryByText(/Replying to/)).toBeNull();
+  expect(screen.getByLabelText("Add a comment")).not.toHaveTextContent("@jules");
+
+  await fireEvent.changeText(screen.getByLabelText("Add a comment"), "See you there");
+  const sheet = chooseAction("Reply");
+  await fireEvent(screen.getByLabelText(/Found it\.$/), "longPress");
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent("@jules See you there");
+  sheet.mockRestore();
+});
+
+it("preserves a full draft and explains why a reply cannot be added", async () => {
+  mockComments = [comment("theirs", "Found it.", theirs)];
+  const draft = "x".repeat(MAX_COMMENT_LENGTH);
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.changeText(screen.getByLabelText("Add a comment"), draft);
+  await fireEvent.press(screen.getByText("Reply"));
+  expect(screen.getByRole("alert")).toHaveTextContent("Shorten your comment to add a reply.");
+  expect(screen.queryByText(/Replying to/)).toBeNull();
+  expect(screen.getByLabelText("Add a comment")).toHaveTextContent(draft);
+  await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+  expect(mockMutate).toHaveBeenCalledWith("visitReactions:addComment", {
+    postId: visit.postId,
+    body: draft,
+    requestId: "request-uuid",
+  });
+});
+
+it("allows a reply that exactly fits the comment limit after shortening the draft", async () => {
+  mockComments = [comment("theirs", "Found it.", theirs)];
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.changeText(screen.getByLabelText("Add a comment"), "x".repeat(MAX_COMMENT_LENGTH));
+  await fireEvent.press(screen.getByText("Reply"));
+  const prefix = `@${theirs.username} `;
+  const draft = "x".repeat(MAX_COMMENT_LENGTH - prefix.length);
+  await fireEvent.changeText(screen.getByLabelText("Add a comment"), draft);
+  await fireEvent.press(screen.getByText("Reply"));
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText(/Replying to/)).toHaveTextContent(`Replying to ${theirs.name}`);
+  await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+  expect(mockMutate).toHaveBeenCalledWith("visitReactions:addComment", {
+    postId: visit.postId,
+    body: prefix + draft,
+    requestId: "request-uuid",
+  });
 });

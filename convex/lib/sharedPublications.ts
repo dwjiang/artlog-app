@@ -4,6 +4,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { pagination, type JournalOwner } from "../../shared/journal/contracts";
 import { isCalendarDate, isRevision, isUuid, LIMITS, utf8Bytes } from "../../shared/journal/limits";
 import {
+  mention,
   visitAudience,
   publicProfile,
   sharedVisitCard,
@@ -17,6 +18,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
+import { linkedMentions } from "./mentions";
 import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
 import { matchesRecord, projectProfile, projectSharedVisitCard } from "./projections";
 import { visibleCompanions } from "./visitCompanions";
@@ -39,6 +41,8 @@ export const publicationHeader = v.object({
   pattern: v.optional(wallPattern),
   /** Friends the author went with, as this viewer may see them. */
   companions: v.array(publicProfile),
+  /** The handles in `reflection` that open a profile for this viewer. */
+  mentions: v.array(mention),
 });
 export const artworkPage = v.object({
   page: v.array(sharedVisitCard),
@@ -138,6 +142,11 @@ export async function header(
     revision: publication.publicationRevision,
     ...publicationWallpaper(publication),
     companions: await visibleCompanions(ctx, publication, viewerId),
+    mentions: await linkedMentions(ctx, publication.mentions, {
+      viewerId,
+      writerId: publication.profileId,
+      post: publication,
+    }),
   };
 }
 function publicationWallpaper({ color, pattern }: Doc<"sharedVisits">) {

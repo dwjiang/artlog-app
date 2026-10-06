@@ -6,6 +6,7 @@ import { publicProfile, validateProfile } from "../shared/social/contracts";
 import { internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
+import { resolveMentions } from "./lib/mentions";
 import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
@@ -47,8 +48,10 @@ export const save = internalMutation({
     }
     const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
     if (photoStorageId) await retainFile(ctx, photoStorageId, true);
+    const bioMentions = await resolveMentions(ctx, fields.bio ?? "", profile._id, profile.bioMentions);
     await ctx.db.patch("profiles", profile._id, {
       ...fields,
+      bioMentions: bioMentions.length > 0 ? bioMentions : undefined,
       username,
       photoStorageId,
       avatar,
