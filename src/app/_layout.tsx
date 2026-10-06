@@ -248,10 +248,11 @@ function AppContent() {
                   <Stack.Screen
                     name="turn-on-notifications"
                     dangerouslySingular
+                    // App Review (5.1.1(iv)): a pre-prompt must not be closable before the iPhone prompt appears.
                     options={{
                       presentation: "formSheet",
                       sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
+                      gestureEnabled: false,
                       headerShown: false,
                     }}
                   />
