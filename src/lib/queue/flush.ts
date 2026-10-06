@@ -113,6 +113,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       venueId: row.venueId ?? undefined,
       visitId,
       capturedAt: row.capturedAt,
+      cropCorners: row.cropCorners ?? undefined,
     });
     if (!isCurrent()) return;
     await deps.recordResult(row.localId, response);

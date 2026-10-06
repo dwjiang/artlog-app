@@ -112,6 +112,11 @@ export async function eligibleObject(ctx: QueryCtx, object: Doc<"objects">, venu
   return eligibleContribution(ctx, await ctx.db.get("contributions", object.sourceContributionId));
 }
 
+/** A scan's photo lent to the catalogue work its verified label linked, rather than one agreed by visitors. */
+export function isLinkedView(vector: Doc<"vectors">): boolean {
+  return vector.source === "user_scan" && !!vector.scanId && !vector.feedbackId && !vector.proposalId;
+}
+
 export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Promise<boolean> {
   if (vector.source === "user" && !vector.contributionId) return false;
   if (vector.source === "user_scan" && !vector.scanId) return false;
@@ -125,6 +130,7 @@ export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Pro
     const scan = await ctx.db.get("scans", vector.scanId);
     const device = scan ? await ctx.db.get("devices", scan.deviceId) : null;
     if (!device || device.banned) return false;
+    if (isLinkedView(vector) && scan?.linked?.objectId !== vector.objectId) return false;
   }
   if (vector.feedbackId) {
     const feedback = await ctx.db.get("feedback", vector.feedbackId);

@@ -7,17 +7,16 @@ import model from "@/shared/model/model-version.json";
 
 import { getVisionRect } from "../../../modules/vision-rect/src";
 import { orb } from "./features";
-import { nestedQuads, selectCaptureQuad, toCorners, toQuad, turnQuad } from "./rectangle";
+import { cropQuads, toCorners, toQuad, turnQuad } from "./rectangle";
 import type { CaptureDependencies, CaptureOptions, PreparedPainting, Quad, Warper } from "./stages";
 import { triage } from "./triage";
 
 export const warper: Warper = {
-  async warpCandidates(photoUri, quad, size, nested, turns = 0, view) {
+  async warpCandidates(photoUri, quad, size, ranked, turns = 0, view) {
     const visionRect = getVisionRect();
     const path = filePath(photoUri);
     const still = await visionRect.detectStill(path, turns);
-    const selected = selectCaptureQuad(quad, still, view);
-    const inner = selected && nested ? nestedQuads(selected, still) : [];
+    const [likeliest, ...alternatives] = cropQuads(quad, still, ranked, view);
     if (__DEV__) {
       console.debug("Still analysis", {
         still: `${still.width}×${still.height}`,
@@ -26,11 +25,13 @@ export const warper: Warper = {
         ),
         rectangles: still.rectangles.length,
         subjectNote: still.subjectNote,
-        selected: selected?.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ") ?? "no boundary",
-        nested: inner.length,
+        guided: quad !== null,
+        crops: [likeliest, ...alternatives]
+          .filter(Boolean)
+          .map((corners) => corners.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(" ")),
       });
     }
-    if (!selected) return [];
+    if (!likeliest) return [];
     const warp = async (corners: Quad): Promise<PreparedPainting> => {
       const result = await visionRect.warpAndLetterbox(path, toCorners(turnQuad(corners, turns)), size);
       return {
@@ -42,12 +43,12 @@ export const warper: Warper = {
         cropSize: size,
       };
     };
-    const candidates = [await warp(selected)];
-    for (const corners of inner) {
+    const candidates = [await warp(likeliest)];
+    for (const corners of alternatives) {
       try {
         candidates.push(await warp(corners));
       } catch (error) {
-        reportError(error, "capture.warp_nested", { level: "warning" });
+        reportError(error, "capture.warp_alternative", { level: "warning" });
       }
     }
     return candidates;

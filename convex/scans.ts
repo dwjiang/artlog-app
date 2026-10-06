@@ -36,6 +36,7 @@ import {
   type ConfirmedSource,
 } from "./lib/validators";
 import { vectorHash, withVectorArchives } from "./lib/vectorStore";
+import { dropLinkedView } from "./linkedViews";
 import { deleteEmbedding, insertExpiringEmbedding, getEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
@@ -84,8 +85,8 @@ const createArgs = {
   visitId: scanFields.visitId,
   gallery: scanFields.gallery,
   modelVersion: v.string(),
-
   capturedAt: v.number(),
+  cropCorners: scanFields.cropCorners,
 };
 const created = v.object({ scan: schema.doc("scans"), existing: v.boolean() });
 
@@ -397,6 +398,7 @@ export const confirm = mutation({
     const scan = await requireNamingScan(ctx, scanId, source);
     const trimmed = trimConfirmed(fields);
     const previous = scan.confirmed;
+    if (scan.linked) await dropLinkedView(ctx, scanId);
     if (previous?.source === source && sameFields(previous.fields, trimmed)) {
       if (scan.linked) await ctx.db.patch("scans", scanId, { linked: undefined });
       return null;
@@ -462,6 +464,7 @@ export const link = mutation({
     );
     if (!match) throw new ConvexError({ code: "invalid_object" });
     if (scan.linked?.objectId === objectId && scan.linked.source === source) return null;
+    await dropLinkedView(ctx, scanId);
     await ctx.db.patch("scans", scanId, {
       linked: { source, objectId, artworkId: match.artworkId, linkedAt: Date.now() },
       rightNow: undefined,

@@ -15,7 +15,7 @@ import { requireDeviceFromAction } from "./lib/auth";
 import type { ScoredCandidate } from "./lib/calibrator/calibrate";
 import { featureIndex } from "./lib/calibrator/features";
 import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
-import { bestCropIndex } from "./lib/cropChoice";
+import { bestCropIndex, isNormalizedQuad } from "./lib/cropChoice";
 import { MAX_CANDIDATES, MAX_ORB_VERIFICATIONS, runPipeline } from "./lib/identifyPipeline";
 import { scheduleMatchFollowUps } from "./lib/matchFollowUps";
 import { isSupported, validateVector } from "./lib/modelVersion";
@@ -338,12 +338,15 @@ export const identify = action({
     venueId: v.optional(v.id("museums")),
     visitId: v.optional(v.id("visits")),
     capturedAt: v.number(),
+    // Absent from scans queued by builds that predate it.
+    cropCorners: v.optional(v.array(v.array(v.number()))),
   },
   returns: scanDisplay,
   handler: async (ctx, args): Promise<ScanDisplay> =>
     withErrorReporting("identify.identify", async () => {
       const device = await requireDeviceFromAction(ctx);
       await limitDevice(ctx, "identify", device._id);
+      if (args.cropCorners && !isNormalizedQuad(args.cropCorners)) throw new ConvexError({ code: "bad_crop" });
       const supported = isSupported(args.modelVersion);
       let query: OrbFeatures | undefined;
       if (supported) {
@@ -359,6 +362,7 @@ export const identify = action({
         modelVersion: args.modelVersion,
         vector: args.vector,
         capturedAt: args.capturedAt,
+        cropCorners: args.cropCorners,
       });
       const scanId = scan._id;
       if (

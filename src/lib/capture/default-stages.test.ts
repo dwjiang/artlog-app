@@ -29,15 +29,46 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it.each([null, quad])("requires still-image evidence even when preview corners exist: %s", async (preview) => {
+it("requires still-image evidence even when preview corners exist", async () => {
   mockStill.mockResolvedValue({
     width: 1200,
     height: 1600,
     rectangles: [],
     subjects: [],
   });
-  expect(await warper.warpCandidates("file:///photo.jpg", preview, 512, true)).toEqual([]);
+  expect(await warper.warpCandidates("file:///photo.jpg", quad, 512, true)).toEqual([]);
   expect(mockWarp).not.toHaveBeenCalled();
+});
+
+it("warps the whole photo when an import has no boundary", async () => {
+  const whole = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+  ];
+  mockStill.mockResolvedValue({ width: 1200, height: 1600, rectangles: [], subjects: [] });
+  mockWarp.mockResolvedValue({ cropPath: "/crop.jpg", usedQuad: whole });
+  expect(await warper.warpCandidates("file:///photo.jpg", null, 512, true)).toMatchObject([
+    { cropUri: "file:///crop.jpg" },
+  ]);
+  expect(mockWarp).toHaveBeenCalledWith("/photo.jpg", whole, 512);
+});
+
+it("warps the part of a turned shutter photo that the preview showed when no boundary was found", async () => {
+  mockStill.mockResolvedValue({ width: 3024, height: 4032, rectangles: [], subjects: [] });
+  mockWarp.mockImplementation(async (_path: string, usedQuad: typeof corners) => ({ cropPath: "/crop.jpg", usedQuad }));
+  await warper.warpCandidates("file:///shutter.jpg", null, 512, false, 1, { width: 402, height: 874 });
+  // The visible strip of the portrait preview becomes a band across the landscape photo.
+  const [band] = mockWarp.mock.calls.map(([, used]: [string, typeof corners]) =>
+    used.map(({ x, y }) => [Number(x.toFixed(3)), Number(y.toFixed(3))]),
+  );
+  expect(band).toEqual([
+    [0, 0.193],
+    [1, 0.193],
+    [1, 0.807],
+    [0, 0.807],
+  ]);
 });
 
 it("retains the exact model crop and exposes upright dimensions and native content bounds", async () => {
@@ -89,8 +120,10 @@ it("warps the boundary a shutter photo showed whole on the preview, not a larger
     subjects: [],
   });
   mockWarp.mockResolvedValue({ cropPath: "/crop.jpg", usedQuad: onScreen });
-  await warper.warpCandidates("file:///shutter.jpg", null, 512, false, 0, { width: 402, height: 874 });
-  expect(mockWarp).toHaveBeenCalledWith("/shutter.jpg", onScreen, 512);
+  await warper.warpCandidates("file:///shutter.jpg", null, 512, true, 0, { width: 402, height: 874 });
+  // It covers under a third of what the preview showed, so the whole visible frame is tried first.
+  expect(mockWarp).toHaveBeenLastCalledWith("/shutter.jpg", onScreen, 512);
+  expect(mockWarp).not.toHaveBeenCalledWith("/shutter.jpg", offScreen, 512);
 });
 
 it("does not treat a prominent internal portrait subject as the canvas boundary", async () => {
@@ -221,6 +254,6 @@ describe("a painting shown on a phone", () => {
     mockWarp.mockResolvedValueOnce({ cropPath: "/phone.jpg", usedQuad: corners }).mockRejectedValueOnce(failure);
     const candidates = await warper.warpCandidates("file:///phone.jpg", null, 512, true);
     expect(candidates.map((candidate) => candidate.cropUri)).toEqual(["file:///phone.jpg"]);
-    expect(mockReportError).toHaveBeenCalledWith(failure, "capture.warp_nested", { level: "warning" });
+    expect(mockReportError).toHaveBeenCalledWith(failure, "capture.warp_alternative", { level: "warning" });
   });
 });

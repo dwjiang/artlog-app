@@ -142,6 +142,7 @@ import type * as lib_visitReactions from "../lib/visitReactions.js";
 import type * as lib_wallFixtures from "../lib/wallFixtures.js";
 import type * as lib_wallItems from "../lib/wallItems.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
+import type * as linkedViews from "../linkedViews.js";
 import type * as mentions from "../mentions.js";
 import type * as museumDownloads from "../museumDownloads.js";
 import type * as museumPicks from "../museumPicks.js";
@@ -322,6 +323,7 @@ declare const fullApi: ApiFromModules<{
   "lib/wallFixtures": typeof lib_wallFixtures;
   "lib/wallItems": typeof lib_wallItems;
   "lib/wikidata": typeof lib_wikidata;
+  linkedViews: typeof linkedViews;
   mentions: typeof mentions;
   museumDownloads: typeof museumDownloads;
   museumPicks: typeof museumPicks;

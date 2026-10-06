@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 
 import type { PendingScan } from "@/db/schema";
-import type { IdentifyResponse } from "@/lib/capture/stages";
+import type { IdentifyResponse, Quad } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -138,9 +138,15 @@ afterEach(() => {
 });
 
 it("identifies queued rows oldest first and records each result", async () => {
+  const cropCorners: Quad = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
   const { deps, store } = fakeDependencies([
     pendingScan("later", { capturedAt: 200 }),
-    pendingScan("earlier", { capturedAt: 100 }),
+    pendingScan("earlier", { capturedAt: 100, cropCorners }),
   ]);
   await createFlusher(deps).start();
   expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(["earlier", "later"]);
@@ -153,6 +159,7 @@ it("identifies queued rows oldest first and records each result", async () => {
     venueId: undefined,
     visitId: undefined,
     capturedAt: 100,
+    cropCorners,
   });
   expect(deps.markIdentifying.mock.invocationCallOrder[0]).toBeLessThan(deps.identify.mock.invocationCallOrder[0]);
   expect(store.get("earlier")).toMatchObject({

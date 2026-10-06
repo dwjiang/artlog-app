@@ -15,8 +15,9 @@ export type PreparedPainting = {
 
 export type Warper = {
   /**
-   * Warps the likeliest painting boundary first; with `nested`, also the boundaries inside it that recognition
-   * may prefer, such as a painting shown on a phone. Empty when the photo has no boundary.
+   * Warps the likeliest crop first: the painting boundary, or the whole frame when an unguided photo's boundary is
+   * missing or small. With `ranked`, also the alternatives recognition may prefer, such as a painting shown on a phone.
+   * Empty when a guided capture's boundary is not on the still.
    * Finds boundaries in preview coordinates and warps them from the upright photo; `turns` are clockwise
    * quarter turns from the portrait preview, where `quad` was detected, to the upright photo.
    */
@@ -24,7 +25,7 @@ export type Warper = {
     photoUri: string,
     quad: Quad | null,
     size: number,
-    nested: boolean,
+    ranked: boolean,
     turns?: number,
     view?: { width: number; height: number },
   ): Promise<PreparedPainting[]>;

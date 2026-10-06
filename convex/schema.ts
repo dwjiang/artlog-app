@@ -557,6 +557,8 @@ export default defineSchema({
     modelVersion: v.string(),
     embeddingId: v.optional(v.id("scanEmbeddings")),
     capturedAt: v.number(),
+    // Where the identified crop sits in the upright photo, normalized; shows which crops recognition gets.
+    cropCorners: v.optional(v.array(v.array(v.number()))),
     status: scanStatus,
     calibratorVersion: v.optional(v.string()),
     outcome: v.optional(matchOutcome),

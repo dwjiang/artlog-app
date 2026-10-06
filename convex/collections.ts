@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
 import { pageArgs, pagination, validateSave } from "../shared/journal/contracts";
+import { internal } from "./_generated/api";
 import { query } from "./_generated/server";
 import { feedbackChanged } from "./feedbackReplay";
 import { mutation } from "./functions";
@@ -74,7 +75,6 @@ export const saveToCollection = mutation({
       confirmationRecorded: true,
       ...(scanId ? { scanId } : {}),
     });
-    // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
     const artwork = object && suggested ? await ctx.db.get("artworks", object.artworkId) : null;
     const snapshot = existing?.snapshot ?? args.snapshot;
     if (
@@ -85,19 +85,19 @@ export const saveToCollection = mutation({
     ) {
       throw new ConvexError({ code: "invalid_object" });
     }
-    // A linked scan was named from its label, so saving it confirms nothing about recognition.
-    if (
+    // An untouched suggestion is a confirm; an edited title or artist counts as nothing.
+    const kept =
       object
       && suggested
-      && scan
-      && !scan.linked
       && artwork
-      && (await eligibleObject(ctx, object, scan.venueId))
       && same(snapshot.title, suggested.title)
       && same(snapshot.artist, suggested.artist)
       && same(suggested.title, artwork.title)
       && same(suggested.artist, artwork.artist)
-    ) {
+        ? object
+        : null;
+    // A linked scan was named from its label, so saving it confirms nothing about recognition.
+    if (kept && scan && !scan.linked && (await eligibleObject(ctx, kept, scan.venueId))) {
       const event = await ctx.db
         .query("feedbackEvents")
         .withIndex("by_save", (q) => q.eq("saveId", collectionId))
@@ -107,14 +107,18 @@ export const saveToCollection = mutation({
           kind: "confirmation",
           deviceId: device._id,
           scanId: scan._id,
-          objectId: object._id,
+          objectId: kept._id,
           saveId: collectionId,
         });
-        await ctx.db.patch("objects", object._id, {
-          confirmCount: object.confirmCount + 1,
+        await ctx.db.patch("objects", kept._id, {
+          confirmCount: kept.confirmCount + 1,
         });
-        await feedbackChanged(ctx, object._id, false);
+        await feedbackChanged(ctx, kept._id, false);
       }
+    }
+    // Its photo can still teach recognition what the work its verified label named looks like.
+    if (kept && scan?.linked?.source === "label" && scan.linked.objectId === kept._id) {
+      await ctx.scheduler.runAfter(0, internal.linkedViews.learn, { scanId: scan._id });
     }
     return {
       collectionId,
