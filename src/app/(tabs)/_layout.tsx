@@ -87,6 +87,9 @@ export default function TabsLayout() {
               }}
             />
           </NativeTabs.Trigger>
+          <NativeTabs.Trigger name="(search)" role="search">
+            <NativeTabs.Trigger.Label>{TabTitles["(search)"]}</NativeTabs.Trigger.Label>
+          </NativeTabs.Trigger>
         </NativeTabs>
       </TabBarVisibility>
     </UnseenNotificationCount>

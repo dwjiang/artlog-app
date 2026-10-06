@@ -119,7 +119,7 @@ export function WelcomeScreen() {
   }, [account.account, account.busy, guest, router]);
 
   const finish = async () => {
-    if (!name.trim() || localProfile.loading || savingRef.current) return;
+    if (localProfile.loading || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     setError(undefined);
@@ -247,7 +247,7 @@ export function WelcomeScreen() {
                 label="Continue"
                 fullWidth
                 variant="filled"
-                disabled={!name.trim() || localProfile.loading}
+                disabled={localProfile.loading}
                 busy={saving}
                 busyLabel="Saving…"
                 onPress={() => void finish()}
@@ -282,7 +282,7 @@ export function WelcomeScreen() {
                 selectionColor={Gallery.accent}
                 keyboardAppearance="light"
                 maxLength={LIMITS.name}
-                textContentType="name"
+                textContentType="nickname"
                 autoCapitalize="words"
                 returnKeyType="done"
                 editable={!saving && !localProfile.loading}

@@ -818,6 +818,23 @@ export default defineSchema({
   })
     .index("by_publication_position", ["publicationId", "position"])
     .index("by_saveId", ["saveId"]),
+  // One row per hashtag in a readable post's notes; a sharedVisits trigger keeps these and `tagStats` in step.
+  postTags: defineTable({
+    tag: v.string(),
+    publicationId: v.id("sharedVisits"),
+    postId: v.string(),
+    visitedOn: v.string(),
+    publishedAt: v.number(),
+    public: v.boolean(),
+  })
+    .index("by_tag_history", ["tag", "visitedOn", "postId"])
+    .index("by_publication", ["publicationId"])
+    .index("by_public_published", ["public", "publishedAt"]),
+  // Public posts per tag; friends-only posts are left out so a tag used only among friends is never suggested.
+  tagStats: defineTable({
+    tag: v.string(),
+    publicCount: v.number(),
+  }).index("by_tag", ["tag"]),
   visitEngagement: defineTable({
     publicationId: v.id("sharedVisits"),
     likeCount: v.number(),

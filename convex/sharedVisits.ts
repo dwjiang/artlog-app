@@ -3,9 +3,10 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { pageArgs, pagination } from "../shared/journal/contracts";
 import { isUuid, LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { sharedSelection, sharedVisitCard, visitAudience } from "../shared/social/contracts";
+import { normalizeHashtag } from "../shared/social/hashtags";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, query, type QueryCtx } from "./_generated/server";
+import { action, internalAction, query, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
 import { flaggedUserTexts } from "./lib/moderation";
@@ -14,13 +15,13 @@ import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership"
 import { recordTitles } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
+import { withdrawProfilePosts } from "./lib/publicationUpdates";
 import { limitKey } from "./lib/rateLimits";
 import {
   checkPublicationRevision,
   compareHistory,
   header,
   historyCursor,
-  historyHead,
   type HistoryStream,
   ownedVisit,
   PAGE_ARTWORKS,
@@ -37,7 +38,23 @@ import {
   selectedSaves,
   projectVisitAlbum,
   stateForPublication,
+  tagHistory,
 } from "./lib/sharedPublications";
+
+const withdrawArgs = { profileId: v.id("profiles") };
+export const withdrawProfile = internalAction({
+  args: withdrawArgs,
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("sharedVisits.withdrawProfile", () =>
+      ctx.runMutation(internal.sharedVisits.withdrawProfileBatch, args),
+    ),
+});
+export const withdrawProfileBatch = internalMutation({
+  args: withdrawArgs,
+  returns: v.null(),
+  handler: (ctx, { profileId }) => withdrawProfilePosts(ctx, profileId),
+});
 
 const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
 async function readPublicationRequest(ctx: QueryCtx, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
@@ -190,7 +207,7 @@ async function historyPage(
   const streams = await Promise.all(
     sources.map(async (source) => ({
       source,
-      head: await historyHead(source, before),
+      head: await source(before),
     })),
   );
   const page = [];
@@ -224,7 +241,7 @@ async function historyPage(
     }
     last = candidate;
     scanned++;
-    streams.find((s) => s.source === stream.source)!.head = await historyHead(stream.source, candidate);
+    streams.find((s) => s.source === stream.source)!.head = await stream.source(candidate);
   }
   const isDone = streams.every((s) => !s.head);
   return {
@@ -293,6 +310,23 @@ export const listByProfile = query({
       viewer?._id,
       [profileHistory(ctx, input.profileId, audience)],
       `profile:${viewer?._id ?? "guest"}:${input.profileId}:${audience ?? "all"}`,
+      input,
+    );
+  },
+});
+// A tag page lists the posts whose notes use the tag, re-authorized per viewer like every other feed.
+export const listByTag = query({
+  args: { tag: v.string(), ...pageArgs },
+  returns: historyResult,
+  handler: async (ctx, { tag, ...input }) => {
+    const viewer = await optionalProfile(ctx);
+    const normalized = normalizeHashtag(tag);
+    if (!normalized) throw new ConvexError({ code: "not_found" });
+    return historyPage(
+      ctx,
+      viewer?._id,
+      [tagHistory(ctx, normalized)],
+      `tag:${viewer?._id ?? "guest"}:${normalized}`,
       input,
     );
   },

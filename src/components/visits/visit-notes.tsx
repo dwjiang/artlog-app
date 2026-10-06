@@ -3,6 +3,8 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { AppState, StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { useHashtagInput } from "@/components/social/hashtag-input";
+import { TaggedText } from "@/components/social/tagged-text";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { patchVisit } from "@/db/repos/visits";
@@ -121,6 +123,19 @@ function NoteField({ visit, autoSave = true, editable = true, grouped = false, r
     }
   }, [visit.reflection]);
 
+  const change = (text: string) => {
+    const note = latest.current;
+    note.text = text;
+    setDraft(text);
+    clearTimeout(note.timer);
+    if (autoSave) {
+      note.timer = setTimeout(() => {
+        void persist(note, false);
+      }, 500);
+    }
+  };
+  const tagging = useHashtagInput(draft, change, LIMITS.note, editable);
+
   return (
     <View style={{ gap: 8 }}>
       <View style={notes.header}>
@@ -140,41 +155,31 @@ function NoteField({ visit, autoSave = true, editable = true, grouped = false, r
         )}
       </View>
       {editing ? (
-        <TextInput
-          keyboardAppearance="light"
-          selectionColor={Gallery.accent}
-          placeholderTextColor={Gallery.muted}
-          accessibilityLabel="Notes"
-          placeholder="Add a note about this visit…"
-          value={draft}
-          editable={editable}
-          onFocus={() => {
-            latest.current.focused = true;
-          }}
-          onChangeText={(text) => {
-            const note = latest.current;
-            note.text = text;
-            setDraft(text);
-            clearTimeout(note.timer);
-            if (autoSave) {
-              note.timer = setTimeout(() => {
-                void persist(note, false);
-              }, 500);
-            }
-          }}
-          onBlur={() => {
-            latest.current.focused = false;
-            if (autoSave) void persist(latest.current);
-          }}
-          autoFocus={autoSave}
-          multiline
-          maxLength={LIMITS.note}
-          style={[styles.input, styles.reflection, grouped && notes.card]}
-        />
+        <>
+          <TextInput
+            keyboardAppearance="light"
+            selectionColor={Gallery.accent}
+            placeholderTextColor={Gallery.muted}
+            accessibilityLabel="Notes"
+            placeholder="Add a note about this visit…"
+            onFocus={() => {
+              latest.current.focused = true;
+            }}
+            {...tagging.inputProps}
+            onBlur={() => {
+              latest.current.focused = false;
+              if (autoSave) void persist(latest.current);
+            }}
+            autoFocus={autoSave}
+            multiline
+            style={[styles.input, styles.reflection, grouped && notes.card]}
+          />
+          {tagging.suggestions}
+        </>
       ) : draft ? (
-        <Text selectable style={[styles.body, grouped && notes.card]}>
+        <TaggedText selectable style={[styles.body, grouped && notes.card]}>
           {draft}
-        </Text>
+        </TaggedText>
       ) : (
         <Text style={[styles.caption, grouped && notes.card]}>No notes yet.</Text>
       )}

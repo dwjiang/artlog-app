@@ -16,6 +16,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ReactionIcon } from "./reaction-icon";
+import { TaggedText } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
 export type ReactionVisit = Pick<SharedVisit, "postId" | "audience">;
@@ -201,7 +202,7 @@ export function VisitReactionRow({
           hitSlop={{ bottom: 16 }}
         >
           <Text numberOfLines={2} style={styles.latestText}>
-            <Text style={styles.strong}>{latest.authorName}</Text> {latest.body}
+            <Text style={styles.strong}>{latest.authorName}</Text> <TaggedText>{latest.body}</TaggedText>
           </Text>
           {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
         </MotionPressable>

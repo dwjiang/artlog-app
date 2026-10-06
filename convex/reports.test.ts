@@ -316,7 +316,7 @@ it("reports a visible comment with its text as evidence, and removal deletes it"
     requestId: crypto.randomUUID(),
   });
   const target = { kind: "comment" as const, commentId };
-  const { reportId } = await guest.as.mutation(api.reports.submit, { target, reason: "harassment" });
+  const { reportId } = await guest.as.mutation(api.reports.submit, { target, reason: "offensive" });
   expect((await t.query(internal.review.getReport, { reportId }))?.evidence).toEqual({
     kind: "comment",
     profileId: commenter.profileId,

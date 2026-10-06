@@ -4,6 +4,8 @@ import type { DataModel } from "../_generated/dataModel";
 import { artworkSearchText } from "./corpusMatch";
 import { registerFileReferences } from "./fileReferences";
 import { registerNotifications } from "./notifications";
+import { registerPostTags } from "./postTags";
+import { withdrawProfilePosts } from "./publicationUpdates";
 import { CHALLENGE_RETENTION_MS, COMPLETED_REMOVAL_RETENTION_MS, EVIDENCE_RETENTION_MS } from "./retentionPolicy";
 import { registerCommentLikeCleanup } from "./visitReactions";
 
@@ -11,6 +13,7 @@ export const databaseTriggers = new Triggers<DataModel>();
 registerFileReferences(databaseTriggers);
 registerNotifications(databaseTriggers);
 registerCommentLikeCleanup(databaseTriggers);
+registerPostTags(databaseTriggers);
 
 databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {
@@ -49,6 +52,9 @@ databaseTriggers.register("deviceRemovals", async (ctx, { newDoc, oldDoc }) => {
 
 databaseTriggers.register("profiles", async (ctx, { newDoc, oldDoc }) => {
   const profile = newDoc ?? oldDoc!;
+  if (oldDoc?.active && !oldDoc.removal && (!newDoc?.active || newDoc.removal)) {
+    await withdrawProfilePosts(ctx, profile._id);
+  }
   const visibility = newDoc?.active && !newDoc.removal ? newDoc.leaderboardVisibility : "off";
   if (
     oldDoc

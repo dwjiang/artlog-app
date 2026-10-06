@@ -186,16 +186,21 @@ it("opens the terms and privacy policy websites from the first page", async () =
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
 });
 
-it("requires a name or nickname after the permission prompts", async () => {
+it("finishes as a guest without a name after declining the permission prompts", async () => {
+  mockRequestCamera.mockResolvedValue(false);
+  mockRequestPhotos.mockResolvedValue(declined);
+  mockRequestLocation.mockResolvedValue(declined);
   await render(<WelcomeScreen />);
   await reachNamePage();
   expect(screen.getByRole("header", { name: "Your name." })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText("Name"), "   ");
-  expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
-  await fireEvent(screen.getByLabelText("Name"), "submitEditing");
-  expect(mockBack).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(await getLocalProfileName()).toBeUndefined();
+  expect(await settings.getSetting("welcome-seen")).toBe("true");
+  expect(mockRequestCamera).toHaveBeenCalledTimes(1);
+  expect(mockRequestPhotos).toHaveBeenCalledTimes(1);
+  expect(mockRequestLocation).toHaveBeenCalledTimes(1);
 });
 
 it("goes back one page at a time without raising a prompt", async () => {
@@ -224,11 +229,15 @@ it("moves on without asking again when a permission is already answered", async 
   expect(await screen.findByLabelText("Step 2 of 5")).toBeOnTheScreen();
 });
 
-it("prefills the saved name when onboarding is reopened", async () => {
+it("prefills the saved name when onboarding is reopened, and clears it when emptied", async () => {
   await setLocalProfileName("Alex");
   await render(<WelcomeScreen />);
   await reachNamePage();
   expect(await screen.findByDisplayValue("Alex")).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("Name"), "");
+  await fireEvent(screen.getByLabelText("Name"), "submitEditing");
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(await getLocalProfileName()).toBeUndefined();
 });
 
 it("keeps the entered name and retries when saving fails", async () => {
