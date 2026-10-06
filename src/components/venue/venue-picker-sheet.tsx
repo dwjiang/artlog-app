@@ -9,15 +9,10 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
 import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { LoadingRing } from "@/components/loading-ring";
-import { TextSkeleton } from "@/components/loading-skeleton";
-import { MotionPressable } from "@/components/motion-pressable";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
-import { ArtworkPreviews, VisitSymbol } from "@/components/visits/visit-ui";
-import { Colors, Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
-import { formatVisitStart } from "@/lib/journal/history";
-import { useVisits } from "@/lib/journal/use-visits";
 import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
@@ -27,7 +22,7 @@ import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
 import { searchVenues } from "@/lib/venue/search-venues";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { venueLocation } from "@/lib/venue/venue-location";
-import { activeVisit, venueOptionKey, type CurrentVisit, type VenueOption } from "@/lib/venue/venue-reducer";
+import { venueOptionKey, type VenueOption } from "@/lib/venue/venue-reducer";
 
 import { MuseumMap, useOptionCoordinates } from "./museum-map";
 
@@ -44,96 +39,20 @@ function optionNote(option: VenueOption, nearest: boolean): string | undefined {
 }
 
 /**
- * One sheet for the venue pill, the visit bar and the location prompt: the visit open at this museum, or the chooser.
- * A visit paused elsewhere opens the chooser like `mode=choose` does; "Not here" then leaves that visit alone. A museum
- * chosen from the prompt starts a visit there, ending one paused elsewhere.
+ * One sheet for the venue pill, the open visit's Change Museum and the location prompt. `mode=change` offers to keep the
+ * open visit rather than leave the museum; a museum chosen from the prompt (`mode=choose`) starts a visit there, ending
+ * one paused elsewhere.
  */
 export function VenuePickerSheet() {
+  const router = useRouter();
   const view = useVenue();
-  const { mode: requested } = useLocalSearchParams<{ mode?: string }>();
-  const { visit } = view;
-  // The mode is fixed when the sheet opens: a confirmation in the chooser closes the sheet rather than flipping it.
-  const [mode, setMode] = useState<"visit" | "change" | "choose">(
-    activeVisit(view) && requested !== "choose" ? "visit" : "choose",
-  );
-  if (mode === "visit" && visit && view.status !== "denied") {
-    return <VisitSheet visit={visit} onChange={() => setMode("change")} />;
-  }
+  const { mode } = useLocalSearchParams<{ mode?: "choose" | "change" }>();
   return (
     <ChooserSheet
       view={view}
-      prompted={requested === "choose"}
-      keepVisit={visit && mode === "change" ? () => setMode("visit") : undefined}
+      prompted={mode === "choose"}
+      keepVisit={mode === "change" && view.visit ? () => router.back() : undefined}
     />
-  );
-}
-
-/** The open visit at this museum: its header opens the visit detail; the two actions change the museum or end it. */
-function VisitSheet({ visit, onChange }: { visit: CurrentVisit; onChange: () => void }) {
-  const router = useRouter();
-  const { fontScale } = useWindowDimensions();
-  const { visits, loading, error } = useVisits();
-  const summary = visits.find((row) => row.localId === visit.localId);
-  const works = summary?.works ?? [];
-  const sheetStyle = [styles.container, useFittedFormSheetStyle()];
-  const since = `Since ${formatVisitStart(visit.startedAt, visit.timeZone)}`;
-  const count = `${works.length} ${works.length === 1 ? "artwork" : "artworks"} this visit`;
-  const details =
-    loading && !error
-      ? undefined
-      : error
-        ? "Artwork count unavailable"
-        : summary?.location
-          ? `${summary.location} · ${count}`
-          : count;
-  const meta = details ? `${since} · ${details}` : since;
-  const stacked = fontScale >= 1.5;
-  return (
-    <ScrollView
-      style={sheetStyle}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-      bounces={false}
-    >
-      <MotionPressable
-        accessibilityRole="button"
-        accessibilityLabel={`${visit.venueName}, ${meta}`}
-        accessibilityHint="Opens the visit"
-        onPress={() =>
-          router.replace({
-            pathname: "/journal/[visitId]",
-            params: { visitId: visit.localId },
-          })
-        }
-        style={styles.header}
-      >
-        <View style={styles.headerText}>
-          <ThemedText type="title">{visit.venueName}</ThemedText>
-          <ThemedText themeColor="textSecondary">{meta}</ThemedText>
-          {!details && <TextSkeleton label="Loading visit artwork count" width={180} />}
-        </View>
-        <VisitSymbol name="chevron.right" size={13} />
-      </MotionPressable>
-      {works.length > 0 && <ArtworkPreviews works={works} overflow />}
-      <View style={stacked ? styles.stackedActions : styles.actions}>
-        <View style={stacked ? undefined : styles.action}>
-          <GalleryButton label="Change museum" variant="outlined" fullWidth onPress={onChange} />
-        </View>
-        <View style={stacked ? undefined : styles.action}>
-          <GalleryButton
-            label="End visit"
-            variant="filled"
-            fullWidth
-            onPress={() =>
-              router.replace({
-                pathname: "/journal/[visitId]",
-                params: { visitId: visit.localId, endVisit: "true" },
-              })
-            }
-          />
-        </View>
-      </View>
-    </ScrollView>
   );
 }
 
@@ -488,7 +407,6 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: Colors.light.background },
   groupedContainer: { backgroundColor: Gallery.groupedBackground },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   pickerScroll: { flexGrow: 0 },
@@ -499,9 +417,4 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     ...PinnedFooterBorder,
   },
-  header: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
-  headerText: { flex: 1, gap: Spacing.two },
-  actions: { flexDirection: "row", gap: Spacing.two },
-  stackedActions: { gap: Spacing.two },
-  action: { flex: 1 },
 });

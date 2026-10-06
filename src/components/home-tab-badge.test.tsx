@@ -26,14 +26,8 @@ jest.mock("expo-router/unstable-native-tabs", () => {
     }),
   };
 });
-jest.mock("expo-router", () => ({
-  useNavigation: () => ({ getState: () => undefined, addListener: () => () => {} }),
-}));
 jest.mock("@/lib/audio/use-listening", () => ({ useHasListeningTrack: () => false }));
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: undefined }) }));
 jest.mock("@/components/audio/mini-player", () => ({ MiniPlayer: () => null }));
-jest.mock("@/components/visits/visit-bar", () => ({ VisitBar: () => null }));
-jest.mock("@/components/visits/visit-player-bar", () => ({ VisitPlayerBar: () => null }));
 
 it("badges only the Home tab with the unseen notification count, capped, and drops the badge at zero", async () => {
   mockUnseen = 12;

@@ -4,12 +4,10 @@ import { Pressable, StyleSheet } from "react-native";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { LoadingRing } from "@/components/loading-ring";
-import { TextSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
-import { useLocalOwner } from "@/lib/account/owner-store";
-import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
+import { activeVisit } from "@/lib/venue/venue-reducer";
 
 export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "venue">): string {
   if (venue) return venue.name;
@@ -25,31 +23,29 @@ export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "ve
   }
 }
 
-/** The camera's one line about the visit: the museum scans match, and how many artworks the open visit holds. Opens the visit sheet. */
+/**
+ * The camera's line about the museum scans match, until a visit is in progress there and the visit band names it.
+ * Opens the museum chooser.
+ */
 export function VenuePill() {
   const router = useRouter();
-  const owner = useLocalOwner();
-  const { status, venue, visit } = useVenue();
+  const view = useVenue();
+  if (activeVisit(view)) return null;
+  const { status, venue } = view;
   const label = venuePillLabel({ status, venue });
-  const active = !!visit && visit.venueId === venue?.venueId;
-  const { works, loading, error } = useVisitWorks(active ? visit.localId : undefined, owner);
   const locating = !venue && (status === "idle" || status === "locating");
-  const accessibilityLabel =
-    active && !loading && !error
-      ? `${label}, visiting now, ${works.length} ${works.length === 1 ? "artwork" : "artworks"}`
-      : label;
   return (
     <GlassSurface isInteractive style={styles.pill}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint="Opens the visit sheet"
+        accessibilityLabel={label}
+        accessibilityHint="Opens the museum chooser"
         accessibilityState={{ disabled: locating, busy: locating }}
         disabled={locating}
         onPress={() => router.push("/venue-picker")}
         style={({ pressed }) => [styles.content, pressed && styles.pressed]}
       >
-        {!active && <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />}
+        <Image source="sf:building.columns" style={styles.icon} tintColor={Colors.light.overlayText} />
         {locating ? (
           <LoadingRing accessibilityLabel={label} color={Colors.light.overlayText} />
         ) : (
@@ -57,16 +53,6 @@ export function VenuePill() {
             {label}
           </ThemedText>
         )}
-        {active
-          && (loading ? (
-            <TextSkeleton label="Loading visit artwork count" width={24} />
-          ) : (
-            !error && (
-              <ThemedText type="small" themeColor="overlayText" style={styles.count}>
-                · {works.length}
-              </ThemedText>
-            )
-          ))}
         <Image
           source="sf:chevron.down"
           style={styles.chevron}
@@ -92,5 +78,4 @@ const styles = StyleSheet.create({
   icon: { width: 18, height: 18 },
   chevron: { width: 12, height: 12 },
   label: { flexShrink: 1 },
-  count: { opacity: 0.8 },
 });

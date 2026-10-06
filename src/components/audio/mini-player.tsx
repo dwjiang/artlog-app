@@ -17,13 +17,13 @@ export function openPlayer(view: "player" | "queue" = "player") {
   router.push({ pathname: "/now-playing", params: { view } });
 }
 type Listening = ReturnType<typeof useListening>;
-export function narrationStatus(audio: Listening) {
+function narrationStatus(audio: Listening) {
   if (audio.phase === "loading") return preparationLabel(audio.preparationStage);
   if (audio.phase === "error") return "Couldn’t play · Tap to retry";
   if (audio.waiting) return "Ready to play";
   return `${audio.playing ? "Playing" : "Paused"}${audio.duration ? ` · ${audioTime(audio.duration - audio.position)} left` : ""}`;
 }
-export function NarrationToggle({ audio, status }: { audio: Listening; status: string }) {
+function NarrationToggle({ audio, status }: { audio: Listening; status: string }) {
   return audio.phase === "loading" ? (
     <LoadingRing accessibilityLabel={status} size={22} style={{ minWidth: 44, minHeight: 44 }} />
   ) : (
@@ -37,15 +37,13 @@ export function NarrationToggle({ audio, status }: { audio: Listening; status: s
   );
 }
 /** The bar's tappable summary: a tap opens the player, a long press offers listening actions without opening it. */
-export function PlayerSummary({
+function PlayerSummary({
   audio,
   accessibilityLabel,
-  accessibilityValue,
   children,
 }: {
   audio: Listening;
   accessibilityLabel: string;
-  accessibilityValue?: { text: string };
   children: ReactNode;
 }) {
   const queueActions: { name: string; label: string; icon: LinkMenuActionProps["icon"]; run: () => void }[] = [
@@ -61,12 +59,11 @@ export function PlayerSummary({
           // Link hands its child role="link"; the summary opens a sheet, so it stays a button.
           role="button"
           accessibilityLabel={accessibilityLabel}
-          accessibilityValue={accessibilityValue}
           accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
           onAccessibilityAction={({ nativeEvent }) =>
             actions.find((action) => action.name === nativeEvent.actionName)?.run()
           }
-          style={accessoryStyles.summary}
+          style={styles.summary}
         >
           {children}
         </Pressable>
@@ -91,7 +88,7 @@ export function MiniPlayer() {
   if (!audio.current) return null;
   const subtitle = narrationStatus(audio);
   return (
-    <View style={accessoryStyles.row}>
+    <View style={styles.row}>
       <PlayerSummary audio={audio} accessibilityLabel={`Open player, ${audio.current.work.title}, ${subtitle}`}>
         <ArtworkThumbnail uri={audio.current.work.imageUri} size={32} />
         <View style={{ flex: 1, gap: 2 }}>
@@ -118,8 +115,7 @@ export function MiniPlayer() {
     </View>
   );
 }
-/** The row both accessory bars share: a tappable summary that opens the player, then trailing controls. */
-export const accessoryStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   row: {
     minHeight: MINI_PLAYER_HEIGHT,
     flexDirection: "row",

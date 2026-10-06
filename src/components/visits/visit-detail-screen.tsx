@@ -80,9 +80,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState("");
   const { end, move, visit: open } = useVenue();
-  // The open visit saves only by ending it, whether opened from the visit bar or reviewed from the visit sheet, and a
+  // The open visit saves only by ending it, whether opened from the visit band or reviewed for ending, and a
   // visibility change waits for that save.
   const ending = endingVisit || open?.localId === visit.localId;
+  // The visit band covers Scan's venue pill, so the open visit carries its way to correct the museum scans match.
+  const changeMuseum = open?.localId === visit.localId && !endingVisit;
   const notes = useRef<VisitNotesHandle>(null);
   const [draftVisibility, setDraftVisibility] = useState(visit.visibility);
   const [saving, setSaving] = useState(false);
@@ -388,9 +390,17 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
           />
         )}
       </View>
-      {(!ending || postId) && (
+      {(!ending || postId || changeMuseum) && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Visit options" tintColor={Gallery.ink}>
+            {changeMuseum && (
+              <Stack.Toolbar.MenuAction
+                icon="building.columns"
+                onPress={() => router.push({ pathname: "/venue-picker", params: { mode: "change" } })}
+              >
+                Change Museum…
+              </Stack.Toolbar.MenuAction>
+            )}
             {!ending && (
               <Stack.Toolbar.MenuAction
                 icon="square.and.arrow.up"

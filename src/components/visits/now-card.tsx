@@ -1,10 +1,8 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { createContext, use, useEffect } from "react";
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
@@ -14,12 +12,13 @@ import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue, visitByDefault } from "@/lib/venue/use-venue";
 
 import { DontMiss } from "./dont-miss";
+import { ON_PHOTO_TEXT_SHADOW, VisitBackdrop } from "./visit-backdrop";
 
-/** Set by the tab layout, which shows the visit bar on Home once the Now card has scrolled under the navigation bar. */
+/** Set by Home's layout, which shows the visit band once the Now card has scrolled under the navigation bar. */
 export const NowCardScrolledAway = createContext<((away: boolean) => void) | undefined>(undefined);
 
 /**
- * Tells the tab layout whether Home's Now card has scrolled under the navigation bar. Pass `onCardLayout` to a
+ * Tells Home's layout whether the Now card has scrolled under the navigation bar. Pass `onCardLayout` to a
  * `NowCard` that is a direct child of the scroll content, and the list's scroll events to `onScroll`.
  */
 export function useNowCardScroll() {
@@ -46,8 +45,6 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
   const nearby = !visit && venue && visitByDefault(venue.venueId) ? venue : undefined;
   if (!visit && !nearby) return null;
   const name = visit?.venueName ?? nearby?.name ?? "";
-  // The newest saved artwork with a photo; a save without one keeps the museum glyph rather than a placeholder frame.
-  const hero = works.find((work) => work.cropPath);
   const count = loading || error ? undefined : works.length;
   const status = visit ? (here ? "Visiting now" : "Visit open") : "You’re here";
   const openVisit = () => {
@@ -67,16 +64,9 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
               accessibilityLabel={`${status}, ${name}`}
               accessibilityHint={visit ? "Opens the visit" : "Opens the camera"}
               onPress={visit ? openVisit : scan}
-              style={({ pressed }) => [StyleSheet.absoluteFill, !hero && styles.blue, pressed && styles.pressed]}
+              style={({ pressed }) => [StyleSheet.absoluteFill, pressed && styles.pressed]}
             >
-              {hero ? (
-                <>
-                  <SavedWorkImage path={hero.cropPath} title={hero.title} style={StyleSheet.absoluteFill} />
-                  <View style={styles.scrim} />
-                </>
-              ) : (
-                <Image source="sf:building.columns.fill" tintColor={WATERMARK} style={styles.watermark} />
-              )}
+              <VisitBackdrop works={works} scrim={styles.scrim} watermark={styles.watermark} />
             </Pressable>
             {/* Taps on the text fall through to the card behind it; only the button takes its own. */}
             <View style={styles.content}>
@@ -151,13 +141,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const WATERMARK = "rgba(255, 255, 255, 0.14)";
 const ON_PHOTO_MUTED = "rgba(255, 255, 255, 0.72)";
-const TEXT_SHADOW = {
-  textShadowColor: "rgba(0, 0, 0, 0.35)",
-  textShadowRadius: 6,
-  textShadowOffset: { width: 0, height: 1 },
-};
 
 const styles = StyleSheet.create({
   section: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.two },
@@ -171,15 +155,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
   },
   card: { borderRadius: Radius.card, overflow: "hidden", backgroundColor: Gallery.ink },
-  blue: {
-    backgroundColor: Gallery.accent,
-    experimental_backgroundImage: "linear-gradient(150deg, #3A63E0 0%, #254FD4 45%, #1C3DA8 100%)",
-  },
   scrim: {
-    ...StyleSheet.absoluteFill,
     experimental_backgroundImage: "linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(10, 14, 20, 0.78) 100%)",
   },
-  watermark: { position: "absolute", right: -18, top: Spacing.compact, width: 170, height: 170 },
+  watermark: { right: -18, top: Spacing.compact, width: 170, height: 170 },
   pressed: { opacity: 0.85 },
   passThrough: { pointerEvents: "none" },
   content: {
@@ -200,8 +179,7 @@ const styles = StyleSheet.create({
   chipText: { color: Gallery.accent },
   chipPausedText: { color: Gallery.muted },
   bottom: { gap: Spacing.one, pointerEvents: "box-none" },
-  // The shadow keeps white text legible where a bright photo shows through the fade.
-  name: { color: Gallery.paper, fontSize: 24, lineHeight: 30, ...TEXT_SHADOW },
+  name: { color: Gallery.paper, fontSize: 24, lineHeight: 30, ...ON_PHOTO_TEXT_SHADOW },
   lead: { color: "rgba(255, 255, 255, 0.85)" },
   row: {
     flexDirection: "row",
@@ -212,6 +190,6 @@ const styles = StyleSheet.create({
   },
   trailing: { marginLeft: "auto" },
   stat: { gap: 1 },
-  statValue: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.paper, ...TEXT_SHADOW },
+  statValue: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.paper, ...ON_PHOTO_TEXT_SHADOW },
   statLabel: { fontSize: 11, lineHeight: 14, letterSpacing: 0.6, textTransform: "uppercase", color: ON_PHOTO_MUTED },
 });
