@@ -18,6 +18,7 @@ export function ListenActions({
   artworkId,
   title,
   artist,
+  date,
   imageUri,
   savedId,
   scanId,
@@ -25,6 +26,7 @@ export function ListenActions({
   artworkId: Id<"artworks">;
   title: string;
   artist: string;
+  date?: string | null;
   imageUri?: string;
   savedId?: string;
   scanId?: string;
@@ -39,6 +41,7 @@ export function ListenActions({
     artworkId,
     title,
     artist,
+    date: date || undefined,
     imageUri: imageUri ?? data.thumbnailUrl,
     savedId,
     scanId,

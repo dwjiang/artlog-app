@@ -9,7 +9,7 @@ import { requireDevice } from "./lib/auth";
 import { artworkSearchText } from "./lib/corpusMatch";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
-import { docentSentence, factChip, rightsStatus, type FactSheetEntry } from "./lib/validators";
+import { docentSentence, factChip, guideSentence, rightsStatus, type FactSheetEntry } from "./lib/validators";
 
 const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
   id,
@@ -30,7 +30,7 @@ export const enrichment = query({
       narrationResearchUpdatedAt: v.optional(v.number()),
       narrationOpening: v.string(),
       narrationRenderId: v.optional(v.string()),
-      narration: v.optional(v.array(docentSentence)),
+      narration: v.optional(v.array(guideSentence)),
       narrationWriting: v.boolean(),
       rightsStatus,
       thumbnailUrl: v.optional(v.string()),

@@ -5,6 +5,7 @@ import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
 
+import type { GuideSentence } from "../../../convex/lib/validators";
 import {
   ListeningController,
   type AudioHandle,
@@ -20,7 +21,7 @@ jest.mock("@/lib/ui/toast", () => ({ showErrorToast: jest.fn() }));
 const liveAudio = {
   renderId: "live-render",
   uri: "https://example.convex.site/narration-playlist",
-  sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
+  sentences: [{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" as const }],
   live: true,
 };
 const track = (id: string): ListeningTrack => ({
@@ -53,7 +54,7 @@ class Player implements AudioHandle {
   remove = jest.fn();
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
-  seekTo = jest.fn(async (seconds: number) => {
+  seekTo = jest.fn<ReturnType<AudioHandle["seekTo"]>, Parameters<AudioHandle["seekTo"]>>(async (seconds) => {
     this.currentStatus = { ...this.currentStatus, currentTime: seconds };
   });
   addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
@@ -81,7 +82,7 @@ function setup() {
         uri: "file:///audio.mp3",
         renderId: "stored-render",
         duration: 100,
-        sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
+        sentences: [{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" }],
       }),
     ),
     cancel: jest.fn(),
@@ -186,12 +187,7 @@ it("keeps works that stop playing in history, most recent last, until cleared", 
 
 it("ignores late synthesis after a different track or stop", async () => {
   const { controller, deps } = setup();
-  let resolve!: (value: {
-    uri: string;
-    renderId: string;
-    duration: number;
-    sentences: { sentence: string; factIds: string[] }[];
-  }) => void;
+  let resolve!: (value: { uri: string; renderId: string; duration: number; sentences: GuideSentence[] }) => void;
   deps.render.mockImplementationOnce(
     () =>
       new Promise((done) => {
@@ -205,7 +201,7 @@ it("ignores late synthesis after a different track or stop", async () => {
     uri: "old",
     renderId: "old-render",
     duration: 3,
-    sentences: [{ sentence: "Old script.", factIds: ["f1"] }],
+    sentences: [{ sentence: "Old script.", factIds: ["f1"], section: "hook" }],
   });
   await old;
   expect(deps.create).toHaveBeenCalledTimes(1);
@@ -220,9 +216,9 @@ it("clamps seeks and restarts completed narration", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
   await controller.seek(-15);
-  expect(first.seekTo).toHaveBeenLastCalledWith(0);
+  expect(first.seekTo).toHaveBeenLastCalledWith(0, 0, 0);
   await controller.seek(150);
-  expect(first.seekTo).toHaveBeenLastCalledWith(100);
+  expect(first.seekTo).toHaveBeenLastCalledWith(100, 0, 0);
   first.emit({ currentTime: 100, didJustFinish: true });
   controller.toggle();
   await Promise.resolve();
@@ -231,6 +227,107 @@ it("clamps seeks and restarts completed narration", async () => {
   second.emit();
   await Promise.resolve();
   expect(second.seekTo).toHaveBeenCalledWith(0, 0, 0);
+  controller.dispose();
+});
+
+it("plays a paused guide from a sentence without toggling playback", async () => {
+  const { controller, players } = setup();
+  await controller.play(track("a"), false, true);
+  const player = players.at(-1)!;
+  player.emit();
+  await Promise.resolve();
+  await controller.seek(30, { play: true, clamp: false });
+  expect(player.seekTo).toHaveBeenLastCalledWith(30, 0, 0);
+  expect(player.play).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot()).toMatchObject({ position: 30, waiting: false });
+  player.emit({ currentTime: 30, playing: true });
+  await controller.seek(60, { play: true, clamp: false });
+  expect(player.play).toHaveBeenCalledTimes(1);
+  expect(player.pause).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it.each([
+  { target: "sentence", play: true },
+  { target: "section", play: false },
+])("lands on the requested $target inside a live audio segment", async ({ play }) => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.seekableDuration = 24;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  try {
+    // AVPlayer landed at 10.08 s for an 11.3 s HLS seek unless both tolerances were zero.
+    player.seekTo.mockImplementationOnce(async (seconds, before, after) => {
+      player.currentStatus = { ...player.currentStatus, currentTime: before === 0 && after === 0 ? seconds : 10.08 };
+    });
+    await controller.seek(11.3, { play, clamp: false });
+    expect(controller.snapshot().position).toBe(11.3);
+    expect(player.play).toHaveBeenCalledTimes(play ? 1 : 0);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it.each(["switch", "stop"])("ignores pending sentence playback after a %s", async (action) => {
+  const { controller, play, players } = setup();
+  await controller.play(track("a"), false);
+  const first = players.at(-1)!;
+  first.emit();
+  await Promise.resolve();
+  let finish!: () => void;
+  first.seekTo.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+  const pending = controller.seek(30, { play: true, clamp: false });
+  if (action === "switch") {
+    const second = await play(track("b"));
+    second.emit({ playing: true });
+  } else {
+    controller.stop();
+  }
+  finish();
+  await pending;
+  expect(first.play).not.toHaveBeenCalled();
+  expect(players.at(-1)!.play).toHaveBeenCalledTimes(action === "switch" ? 1 : 0);
+  expect(players.at(-1)!.pause).toHaveBeenCalledTimes(action === "switch" ? 0 : 1);
+  expect(controller.snapshot()).toMatchObject({
+    current: action === "switch" ? track("b") : undefined,
+    phase: action === "switch" ? "ready" : "idle",
+    playing: action === "switch",
+  });
+  controller.dispose();
+});
+
+it("does not start playback when a sentence seek fails", async () => {
+  const { controller, players, deps } = setup();
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.emit();
+  await Promise.resolve();
+  const error = new Error("Seek failed");
+  player.seekTo.mockRejectedValueOnce(error);
+  await controller.seek(30, { play: true, clamp: false });
+  expect(controller.snapshot().phase).toBe("error");
+  expect(player.play).not.toHaveBeenCalled();
+  expect(deps.render).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(error, "narration.seek");
+  controller.dispose();
+});
+
+it("respects a pause requested while a sentence seek is pending", async () => {
+  const { controller, play } = setup();
+  const player = await play(track("a"));
+  player.emit({ playing: true });
+  let finish!: () => void;
+  player.seekTo.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+  const pending = controller.seek(30, { play: true, clamp: false });
+  controller.toggle();
+  player.emit({ playing: false });
+  finish();
+  await pending;
+  expect(player.play).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot().playing).toBe(false);
   controller.dispose();
 });
 
@@ -287,7 +384,7 @@ it("learns the duration from downloaded audio and uses it when resuming and fini
   const { controller, deps, players } = setup();
   deps.render.mockResolvedValue({
     uri: "file:///shimmer.mp3",
-    sentences: [{ sentence: "A spoken guide.", factIds: ["f1"] }],
+    sentences: [{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" }],
   } as never);
   await controller.play(track("a"));
   const first = players.at(-1)!;
@@ -313,7 +410,7 @@ it("shows the spoken transcript while retaining the original evidence for replay
   const { controller, play, deps } = setup();
   const original = track("a");
   await play(original);
-  expect(controller.snapshot().sentences).toEqual([{ sentence: "A spoken guide.", factIds: ["f1"] }]);
+  expect(controller.snapshot().sentences).toEqual([{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" }]);
   expect(controller.snapshot().current).toEqual(original);
   controller.restart();
   await Promise.resolve();
@@ -367,17 +464,17 @@ it("seeks within the native range before the total duration is known, then uses 
   player.emit({ duration: 0, currentTime: 8, playing: true });
   expect(controller.snapshot()).toMatchObject({ duration: 0, availableDuration: 24 });
   await controller.seek(12);
-  expect(player.seekTo).toHaveBeenLastCalledWith(12);
+  expect(player.seekTo).toHaveBeenLastCalledWith(12, 0, 0);
   await controller.seek(40);
-  expect(player.seekTo).toHaveBeenLastCalledWith(24);
+  expect(player.seekTo).toHaveBeenLastCalledWith(24, 0, 0);
   await controller.seek(-15);
-  expect(player.seekTo).toHaveBeenLastCalledWith(0);
+  expect(player.seekTo).toHaveBeenLastCalledWith(0, 0, 0);
   player.seekableDuration = 48;
   await controller.seek(40);
-  expect(player.seekTo).toHaveBeenLastCalledWith(40);
+  expect(player.seekTo).toHaveBeenLastCalledWith(40, 0, 0);
   player.emit({ duration: 61, currentTime: 40, playing: true });
   await controller.seek(90);
-  expect(player.seekTo).toHaveBeenLastCalledWith(61);
+  expect(player.seekTo).toHaveBeenLastCalledWith(61, 0, 0);
   controller.dispose();
 });
 
@@ -414,15 +511,37 @@ it("clamps live seeks to the native range, including changes since the last stat
   try {
     expect(controller.snapshot().availableDuration).toBe(42.383);
     await controller.seek(48.384);
-    expect(player.seekTo).toHaveBeenLastCalledWith(42.383);
+    expect(player.seekTo).toHaveBeenLastCalledWith(42.383, 0, 0);
     expect(controller.snapshot().position).toBe(42.383);
     player.seekableDuration = 50;
     await controller.seek(60);
-    expect(player.seekTo).toHaveBeenLastCalledWith(50);
+    expect(player.seekTo).toHaveBeenLastCalledWith(50, 0, 0);
     player.seekableDuration = 0;
     const calls = player.seekTo.mock.calls.length;
     await controller.seek(15);
     expect(player.seekTo).toHaveBeenCalledTimes(calls);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("refuses an unavailable sentence jump instead of clamping it to earlier audio", async () => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.seekableDuration = 4;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  try {
+    player.seekTo.mockClear();
+    await controller.seek(30, { play: true, clamp: false });
+    expect(player.seekTo).not.toHaveBeenCalled();
+    expect(player.play).not.toHaveBeenCalled();
+    player.seekableDuration = 40;
+    await controller.seek(30, { play: true, clamp: false });
+    expect(player.seekTo).toHaveBeenCalledWith(30, 0, 0);
+    expect(player.play).toHaveBeenCalledTimes(1);
   } finally {
     controller.dispose();
   }

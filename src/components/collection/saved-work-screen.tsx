@@ -160,6 +160,7 @@ function SavedArtwork({
               artworkId={work.artworkId}
               title={work.title}
               artist={work.artist}
+              date={work.date}
               savedId={work.localId}
               imageUri={work.cropPath ? captureFileUri(work.cropPath) : undefined}
             />

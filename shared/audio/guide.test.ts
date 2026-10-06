@@ -8,7 +8,7 @@ import {
   validateGuide,
   validateGuideBody,
 } from "./guide";
-import { guideBodyFixture, guideFixture, openingFixture, researchFixture } from "./guide-fixtures";
+import { guideBodyFixture, guideFixture, openingFixture, researchFixture, sectionedGuide } from "./guide-fixtures";
 
 const ids = new Set(researchFixture.map((fact) => fact.id));
 const richIds = new Set([...ids, "f3", "f4", "f5", "f6", "f7", "f8"]);
@@ -16,6 +16,18 @@ const richIds = new Set([...ids, "f3", "f4", "f5", "f6", "f7", "f8"]);
 it("preserves a substantial spoken guide and all its supporting citations", () => {
   expect(validateGuide(guideFixture, ids, openingFixture)).toEqual(guideFixture);
   expect(validateGuideBody(guideBodyFixture, ids)).toEqual(guideBodyFixture);
+});
+
+it("keeps each sentence's section, and rejects a script that lost them", () => {
+  const script = guideBodyFixture.map(({ sentence, factIds }) => ({ sentence, fact_ids: factIds, support: sentence }));
+  expect(parseGuideLines(sectionedGuide(script))?.map((line) => line.section)).toEqual(
+    guideBodyFixture.map((line) => line.section),
+  );
+  const [opening, ...body] = guideFixture;
+  const unsectioned = ({ sentence, factIds }: (typeof guideFixture)[number]) => ({ sentence, factIds });
+  expect(validateGuide([unsectioned(opening), ...body], ids, openingFixture)).toBeNull();
+  expect(validateGuide([opening, unsectioned(body[0]), ...body.slice(1)], ids, openingFixture)).toBeNull();
+  expect(validateGuide([opening, { ...body[0], section: "coda" }, ...body.slice(1)], ids, openingFixture)).toBeNull();
 });
 
 it("opens like a label with the year or whole range, never a catalogue date string or a year the title carries", () => {
@@ -157,7 +169,12 @@ it("accepts a sentence only when its support span is copied verbatim from a cite
 });
 
 it("accepts a span verbatim whole or clause by clause, whatever the case, and rejects an invented clause", () => {
-  const line = (support: string, fact_ids = ["f1", "f2"]) => ({ sentence: "Look at the pond.", fact_ids, support });
+  const line = (support: string, fact_ids = ["f1", "f2"]) => ({
+    sentence: "Look at the pond.",
+    fact_ids,
+    support,
+    section: "look" as const,
+  });
   expect(
     unsupportedLines(
       [
@@ -224,9 +241,10 @@ it("accepts a guide only inside the 100 to 225 word band, or from 90 words when 
     Array.from({ length: count }, (_, index) => ({
       sentence: `Extra sentence ${index + 1} about the lilies resting on the pond and the reflections of the garden around them.`,
       factIds: ["f1"],
+      section: "story" as const,
     }));
   // The first five fixture sentences run 85 words; the short line brings them to 92.
-  const short = { sentence: "One more lily rests near the edge.", factIds: ["f1"] };
+  const short = { sentence: "One more lily rests near the edge.", factIds: ["f1"], section: "takeaway" as const };
   expect(validateGuideBody(guideBodyFixture.slice(0, 6), richIds)).toHaveLength(6);
   expect(validateGuideBody(guideBodyFixture.slice(0, 5), richIds)).toBeNull();
   expect(validateGuideBody([...guideBodyFixture.slice(0, 5), short], richIds)).toBeNull();

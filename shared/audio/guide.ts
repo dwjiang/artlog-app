@@ -1,4 +1,4 @@
-import type { DocentSentence, FactSheetEntry } from "../../convex/lib/validators";
+import type { FactSheetEntry, GuideSection, GuideSentence } from "../../convex/lib/validators";
 
 export const GUIDE_MODEL = "nvidia/Nemotron-3-Ultra-550b-a55b";
 export const GUIDE_PROMPT = `You write the spoken script for one stop of a museum audio guide. One visitor is standing in front of this artwork with earphones in. Say what a good gallery guide standing beside them would say, using only the supplied research.
@@ -46,7 +46,7 @@ const guideLine = (minLength: number, maxLength: number) => ({
   required: ["sentence", "fact_ids", "support"],
   additionalProperties: false,
 });
-export const GUIDE_SECTIONS = ["hook", "look", "story", "takeaway"] as const;
+export const GUIDE_SECTIONS = ["hook", "look", "story", "takeaway"] as const satisfies readonly GuideSection[];
 // A section minimum the research cannot fill stalls the model: the grammar masks the closing bracket,
 // so it emits whitespace until the token cap. `relaxed` lets every section end after one sentence.
 export function guideSchema(factCount: number, { relaxed = false } = {}) {
@@ -90,10 +90,11 @@ export type GuideLine = {
   sentence: string;
   fact_ids: string[];
   support: string;
+  section: GuideSection;
 };
 
 // The model answers with its plan and then sections; the spoken script is the sections' sentences in
-// order, and the thread and quote are only there to steer the writing.
+// order, each keeping its section, and the thread and quote are only there to steer the writing.
 export function parseGuideLines(value: unknown): GuideLine[] | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const sections = value as Record<string, unknown>;
@@ -116,6 +117,7 @@ export function parseGuideLines(value: unknown): GuideLine[] | null {
         sentence: entry.sentence,
         fact_ids: entry.fact_ids,
         support: entry.support,
+        section,
       });
     }
   }
@@ -180,19 +182,20 @@ export function guideOpening(artwork: { title: string; artist: string; date?: st
   return [label(artwork.artist), label(artwork.title), spokenDate].filter(Boolean).join(" ");
 }
 
-export function validateGuide(value: unknown, factIds: ReadonlySet<string>, opening: string): DocentSentence[] | null {
+export function validateGuide(value: unknown, factIds: ReadonlySet<string>, opening: string): GuideSentence[] | null {
   if (
     !Array.isArray(value)
     || value[0]?.sentence !== opening
     || !Array.isArray(value[0]?.factIds)
     || value[0].factIds.length > 0
+    || value[0].section !== "hook"
   ) {
     return null;
   }
   const body = validateGuideBody(value.slice(1), factIds);
   if (!body || body.some((line) => line.sentence === opening)) return null;
   // Identification comes from the artwork record; only the researched body needs fact citations.
-  const sentences = [{ sentence: opening, factIds: [] }, ...body];
+  const sentences: GuideSentence[] = [{ sentence: opening, factIds: [], section: "hook" }, ...body];
   return sentences.map((line) => line.sentence).join(" ").length <= 4000 ? sentences : null;
 }
 
@@ -203,14 +206,15 @@ export function guideWordFloor(factCount: number): number {
   return factCount < THIN_RESEARCH_FACTS ? 90 : 100;
 }
 
-export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): DocentSentence[] | null {
+export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): GuideSentence[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > 24) return null;
-  const sentences: DocentSentence[] = [];
+  const sentences: GuideSentence[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
     if (
       !entry
       || typeof entry.sentence !== "string"
+      || !GUIDE_SECTIONS.includes(entry.section)
       || !Array.isArray(entry.factIds)
       || entry.factIds.length === 0
       || entry.factIds.some((id: unknown) => typeof id !== "string" || !factIds.has(id))
@@ -230,7 +234,7 @@ export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>):
       return null;
     }
     seen.add(sentence);
-    sentences.push({ sentence, factIds: [...new Set<string>(entry.factIds)] });
+    sentences.push({ sentence, factIds: [...new Set<string>(entry.factIds)], section: entry.section });
   }
   const text = sentences.map((entry) => entry.sentence).join(" ");
   const words = text.split(/\s+/).length;

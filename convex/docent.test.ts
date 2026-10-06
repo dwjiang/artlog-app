@@ -760,7 +760,10 @@ it("shares a single research pass between independent docent and audio scripts",
   const spoken = await as.action(api.narration.render, {
     artworkId: work.artworkId,
   });
-  expect(spoken.sentences).toEqual([{ sentence: guideOpening(researched!), factIds: [] }, ...guideBodyFixture]);
+  expect(spoken.sentences).toEqual([
+    { sentence: guideOpening(researched!), factIds: [], section: "hook" },
+    ...guideBodyFixture,
+  ]);
   expect((await artwork())?.docent).toEqual(researched?.docent);
   expect(calls(TAVILY)).toHaveLength(2);
   expect(JSON.parse(bodies(TOKEN_FACTORY)[2].messages[1].content).research).toEqual(

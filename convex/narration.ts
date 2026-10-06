@@ -36,11 +36,11 @@ import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitDevice, limitKey } from "./lib/rateLimits";
 import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
-import { docentSentence, factSheetEntry, type DocentSentence, type FactSheetEntry } from "./lib/validators";
+import { factSheetEntry, guideSentence, type FactSheetEntry, type GuideSentence } from "./lib/validators";
 
 const audio = v.object({
   uri: v.string(),
-  sentences: v.array(docentSentence),
+  sentences: v.array(guideSentence),
   renderId: v.string(),
   live: v.boolean(),
 });
@@ -60,7 +60,7 @@ export const claim = internalMutation({
     audio: v.union(audio, v.null()),
     facts: v.array(factSheetEntry),
     opening: v.string(),
-    sentences: v.optional(v.array(docentSentence)),
+    sentences: v.optional(v.array(guideSentence)),
   }),
   handler: async (ctx, args) => {
     const device = await requireDevice(ctx);
@@ -103,7 +103,7 @@ export const claim = internalMutation({
 
 // Stores the script and starts speaking it; false once the claim was released or replaced.
 export const scripted = internalMutation({
-  args: { artworkId: v.id("artworks"), claim: v.string(), sentences: v.array(docentSentence) },
+  args: { artworkId: v.id("artworks"), claim: v.string(), sentences: v.array(guideSentence) },
   returns: v.boolean(),
   handler: async (ctx, { artworkId, claim, sentences }) => {
     const entry = await narrationEntry(ctx, artworkId);
@@ -265,7 +265,7 @@ export const clear = internalMutation({
 });
 
 // Writes the stop from the research and returns the whole script, opening first.
-async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: string): Promise<DocentSentence[]> {
+async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: string): Promise<GuideSentence[]> {
   const day = await reserveSpend(ctx, "tokenFactory", 2);
   let calls = 0;
   const factIds = new Set(facts.map((fact) => fact.id));
@@ -285,10 +285,11 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
     if (problems.length > 0) return null;
     const guide = validateGuide(
       [
-        { sentence: opening, factIds: [] },
-        ...lines.map(({ sentence, fact_ids }) => ({
+        { sentence: opening, factIds: [], section: "hook" },
+        ...lines.map(({ sentence, fact_ids, section }) => ({
           sentence,
           factIds: fact_ids,
+          section,
         })),
       ],
       factIds,

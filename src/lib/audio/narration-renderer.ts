@@ -5,11 +5,11 @@ import { fetch } from "expo/fetch";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { validateGuide } from "@/shared/audio/guide";
 
-import type { DocentSentence } from "../../../convex/lib/validators";
+import type { GuideSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
 import type { NarrationPreparationStage } from "./narration-preparation";
 
-type Rendered = { uri: string; sentences: DocentSentence[]; renderId: string; live: boolean };
+type Rendered = { uri: string; sentences: GuideSentence[]; renderId: string; live: boolean };
 type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered>;
 
 function cacheDirectory() {

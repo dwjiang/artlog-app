@@ -280,7 +280,7 @@ it("re-renders from corrected artwork metadata even when the research is unchang
   expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationOpening).toBe(opening);
   const updated = await render();
   expect(updated.renderId).not.toBe(first.renderId);
-  expect(updated.sentences).toEqual([{ sentence: opening, factIds: [] }, ...guideBodyFixture]);
+  expect(updated.sentences).toEqual([{ sentence: opening, factIds: [], section: "hook" }, ...guideBodyFixture]);
   expect(fetcher).toHaveBeenCalledTimes(4);
   const speech = JSON.parse((fetcher.mock.calls[3] as unknown as [string, RequestInit])[1].body as string);
   expect(speech.input.startsWith(`${opening} ${guideBodyFixture[0].sentence}`)).toBe(true);

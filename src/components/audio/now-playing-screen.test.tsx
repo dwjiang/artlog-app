@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 
 import { dismissToast, showErrorToast } from "@/lib/ui/toast";
 
+import type { GuideSentence } from "../../../convex/lib/validators";
 import { NowPlayingScreen } from "./now-playing-screen";
 
 const mockAudio = {
@@ -23,11 +24,14 @@ const mockAudio = {
       ],
     },
   },
-  sentences: [{ sentence: "Take a moment to notice the lilies.", factIds: ["f1"] }] as
-    | { sentence: string; factIds: string[] }[]
+  sentences: [{ sentence: "Take a moment to notice the lilies.", factIds: ["f1"], section: "hook" }] as
+    | GuideSentence[]
     | undefined,
   phase: "ready",
   waiting: false,
+  position: 0,
+  duration: 30,
+  availableDuration: 0,
   controller: {},
 };
 jest.mock("@/lib/audio/use-listening", () => ({
@@ -53,7 +57,6 @@ jest.mock("./listening-queue", () => ({
 }));
 jest.mock("./add-saved-works", () => ({ AddSavedWorks: () => null }));
 jest.mock("./player-transport", () => ({
-  transportStacks: () => false,
   PlayerTransport: ({ onView }: { onView: (view: string) => void }) => {
     const { Pressable, Text } = jest.requireActual("react-native");
     return (
@@ -115,27 +118,19 @@ it("returns from choosing saved works to Up next", async () => {
   expect(screen.getByText("Add saved works")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(screen.getByRole("button", { name: "Add saved works" })).toBeOnTheScreen();
-  expect(screen.getByText("Now playing")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
 });
 
-it("shows preparation status until the spoken transcript is available", async () => {
+it("holds the transcript's place while the guide is prepared, and says when there is none", async () => {
   mockAudio.sentences = undefined;
   mockAudio.phase = "loading";
-  await render(<NowPlayingScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
-  expect(screen.getByText("The transcript will appear when your audio guide is ready.")).toBeOnTheScreen();
-  expect(screen.queryByText("The original research.")).toBeNull();
-});
-
-it("does not claim a queued guide is ready while it is still generating", async () => {
-  mockAudio.phase = "loading";
-  mockAudio.waiting = true;
   const { rerender } = await render(<NowPlayingScreen />);
-  expect(screen.getByText("Preparing audio")).toBeOnTheScreen();
-  expect(screen.queryByText("Ready to play")).toBeNull();
-  mockAudio.phase = "ready";
+  await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
+  expect(screen.getByRole("progressbar", { name: "Preparing narration…" })).toBeOnTheScreen();
+  expect(screen.queryByText("The original research.")).toBeNull();
+  mockAudio.phase = "error";
   await rerender(<NowPlayingScreen />);
-  expect(screen.getByText("Ready to play")).toBeOnTheScreen();
+  expect(screen.getByText("The transcript will appear when your audio guide is ready.")).toBeOnTheScreen();
 });
 
 it("shows narration failures as a toast above the modal player", async () => {

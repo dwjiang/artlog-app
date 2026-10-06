@@ -55,7 +55,7 @@ export function NativeChoiceMenu<T extends string>({
 }: {
   label: string;
   value: T;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; disabled?: boolean }[];
   onChange: (value: T) => void;
   disabled?: boolean;
   children: ReactNode;
@@ -73,8 +73,10 @@ export function NativeChoiceMenu<T extends string>({
             key={option.value}
             label={option.label}
             isOn={option.value === value}
-            modifiers={[disabledModifier(disabled)]}
-            onIsOnChange={() => onChange(option.value)}
+            modifiers={[disabledModifier(disabled || !!option.disabled)]}
+            onIsOnChange={() => {
+              if (!disabled && !option.disabled) onChange(option.value);
+            }}
           />
         ))}
       </Section>

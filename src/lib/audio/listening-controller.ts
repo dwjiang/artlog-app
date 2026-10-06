@@ -4,7 +4,7 @@ import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
-import type { DocentSentence } from "../../../convex/lib/validators";
+import type { GuideSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
 import type { NarrationPreparationStage } from "./narration-preparation";
 
@@ -57,7 +57,7 @@ export type AudioHandle = {
 };
 export type ListeningState = {
   renderId?: string;
-  sentences?: DocentSentence[];
+  sentences?: GuideSentence[];
   current?: ListeningTrack;
   queue: ListeningTrack[];
   // Works that stopped being current, oldest first.
@@ -72,12 +72,22 @@ export type ListeningState = {
   rate: number;
   revision: number;
 };
+
+export function canSeekTo(state: Pick<ListeningState, "phase" | "duration" | "availableDuration">, position: number) {
+  return (
+    state.phase === "ready"
+    && Number.isFinite(position)
+    && position >= 0
+    && position < (state.duration || state.availableDuration)
+  );
+}
+
 type Progress = Record<string, { position: number; duration: number; text: string }>;
 export type ListeningDependencies = {
   render(
     track: ListeningTrack,
     onStage?: (stage: NarrationPreparationStage) => void,
-  ): Promise<{ uri: string; sentences: DocentSentence[]; renderId: string; duration?: number; live?: boolean }>;
+  ): Promise<{ uri: string; sentences: GuideSentence[]; renderId: string; duration?: number; live?: boolean }>;
   cancel(): void;
   create(uri: string): AudioHandle;
   configure(): Promise<void>;
@@ -324,19 +334,26 @@ export class ListeningController {
       this.player?.play();
     }
   };
-  seek = async (position: number) => {
+  seek = async (position: number, { play = false, clamp = true }: { play?: boolean; clamp?: boolean } = {}) => {
     const { player } = this;
     if (this.state.phase !== "ready" || !player || !Number.isFinite(position)) return;
     this.refreshAvailability(player);
+    if (!clamp && !canSeekTo(this.state, position)) return;
     const limit = this.state.duration || this.state.availableDuration;
     if (!limit) return;
     const { generation } = this;
     const next = Math.max(0, Math.min(limit, position));
+    if (play) this.desiredPlaying = true;
     try {
-      await player.seekTo(next);
+      // Unbounded iOS tolerances snap HLS seeks to segment boundaries, before the selected sentence.
+      await player.seekTo(next, 0, 0);
       if (generation === this.generation) {
         this.update({ position: player.currentStatus.currentTime });
         this.remember();
+        if (play && this.desiredPlaying) {
+          this.update({ waiting: false });
+          if (!this.state.playing) player.play();
+        }
       }
     } catch (error) {
       if (generation === this.generation) {
