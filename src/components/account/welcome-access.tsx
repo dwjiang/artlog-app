@@ -3,16 +3,14 @@ import * as MediaLibrary from "expo-media-library";
 import { useState } from "react";
 import { useCameraPermission } from "react-native-vision-camera";
 
+import type { PermissionKind } from "@/components/permissions/permission-ask";
 import { reportError } from "@/lib/observability";
 
-export type AccessKey = "camera" | "photos" | "location";
+export type AccessKey = Exclude<PermissionKind, "notifications">;
 type Answer = "granted" | "declined" | "unanswered";
 type Permission = { granted: boolean; canAskAgain: boolean } | null;
 export type AccessStep = {
   key: AccessKey;
-  name: string;
-  headline: string;
-  caption: string;
   answer: Answer;
   request: () => Promise<unknown>;
 };
@@ -32,26 +30,16 @@ export function useWelcomeAccess() {
   const steps: AccessStep[] = [
     {
       key: "camera",
-      name: "camera",
-      headline: "Scan artworks.",
-      // No on-device promise: saved photos can reach the Wall, shared visits, and account backups.
-      caption: "Identifies paintings and reads their wall labels.",
       answer: answerOf({ granted: camera.hasPermission, canAskAgain: camera.canRequestPermission }),
       request: camera.requestPermission,
     },
     {
       key: "photos",
-      name: "photos",
-      headline: "Keep the photo.",
-      caption: "Adds the full-size original of each artwork you save. Artlog can’t see your other photos.",
       answer: answerOf(photos),
       request: requestPhotos,
     },
     {
       key: "location",
-      name: "location",
-      headline: "Find the museum.",
-      caption: "Names the museum you’re in and groups each visit. Only used while Artlog is open.",
       answer: answerOf(location),
       request: requestLocation,
     },

@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { ThemedText } from "@/components/themed-text";
+import { PermissionAsk } from "@/components/permissions/permission-ask";
 import { Colors, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { requestNotificationPermission } from "@/lib/notifications/permission";
@@ -14,7 +14,7 @@ export function NotificationsOfferSheet() {
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const [asking, setAsking] = useState(false);
 
-  async function allow() {
+  async function ask() {
     if (asking) return;
     setAsking(true);
     try {
@@ -27,28 +27,15 @@ export function NotificationsOfferSheet() {
 
   return (
     <ScrollView style={sheetStyle} contentContainerStyle={styles.content} bounces={false}>
-      <ThemedText type="subtitle" accessibilityRole="header">
-        Hear back from friends.
-      </ThemedText>
-      <ThemedText themeColor="textSecondary">
-        Tells you about friend requests, likes, and comments, and when a visit is still open. Choose which in Settings.
-      </ThemedText>
+      <PermissionAsk kind="notifications" />
       <ActionStack>
         <GalleryButton
-          label="Allow notifications"
+          label="Continue"
           variant="filled"
           fullWidth
           busy={asking}
           busyLabel="Asking…"
-          onPress={() => void allow()}
-        />
-        <GalleryButton
-          label="Not Now"
-          variant="filled"
-          tone="neutral"
-          fullWidth
-          disabled={asking}
-          onPress={() => router.back()}
+          onPress={() => void ask()}
         />
       </ActionStack>
     </ScrollView>
@@ -57,5 +44,6 @@ export function NotificationsOfferSheet() {
 
 const styles = StyleSheet.create({
   container: { backgroundColor: Colors.light.background },
-  content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
+  // The welcome's permission pages: 28 above the mark, 24 above Continue.
+  content: { padding: Spacing.content, paddingTop: 28, gap: Spacing.four },
 });

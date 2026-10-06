@@ -9,7 +9,7 @@ const OFFERED_KEY = "notifications-offered";
 
 /**
  * Offers notifications once, right after the person does something whose replies they would want to hear about.
- * iOS asks only once, so the offer explains first and the system prompt follows only from its primary button.
+ * iOS's notification prompt carries no reason of its own, so the offer explains first and its one button raises it.
  */
 export function offerNotifications(): void {
   void (async () => {
