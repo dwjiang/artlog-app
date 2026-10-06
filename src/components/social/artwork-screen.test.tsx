@@ -25,8 +25,9 @@ jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
 const mockSetOptions = jest.fn();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
   useNavigation: () => ({ setOptions: mockSetOptions }),
 }));
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
@@ -191,6 +192,19 @@ it("opens full photos from a public wall instead of reusing its cropped preview"
   expect(new URL(original.props.source.uri).searchParams.get("photoLocalId")).toBe("original");
   await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
   expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
+});
+
+it("links the tags in a public wall note to their pages", async () => {
+  mockQuery.mockImplementation((query, args) => ({
+    data:
+      args !== "skip" && getFunctionName(query) === "walls:getArtwork"
+        ? { ...artwork, profileId: "owner", layout: { frame: "gilt" }, note: "Back for the #Monet room" }
+        : undefined,
+    refresh: jest.fn(),
+  }));
+  await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
+  await fireEvent.press(screen.getByRole("link", { name: "#Monet" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "monet" } });
 });
 
 it("keeps shared-photo thumbnails just below landscape and portrait images", async () => {

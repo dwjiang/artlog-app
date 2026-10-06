@@ -19,7 +19,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
-import { ProfileField, UsernameField } from "./profile-fields";
+import { BioField, ProfileField, UsernameField } from "./profile-fields";
 import { ProfilePicturePicker } from "./profile-picture-picker";
 import { SocialGate, SocialState } from "./social-state";
 
@@ -135,7 +135,7 @@ export function EditProfileForm({ profile, scope }: { profile: PublicProfile; sc
           hint={usernameChanged ? undefined : "Friends and your profile QR code keep working if you change it."}
           editable={!busy}
         />
-        <ProfileField label="Bio" value={bio} onChangeText={setBio} maxLength={LIMITS.bio} multiline editable={!busy} />
+        <BioField label="Bio" value={bio} onChangeText={setBio} editable={!busy} />
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           Your picture, name and bio appear on your public profile.
         </Text>

@@ -192,6 +192,13 @@ it("draws the profile’s layout as ghosts until the profile arrives", async () 
   expect(screen.queryByRole("progressbar")).toBeNull();
 });
 
+it("links the tags in a bio to their pages", async () => {
+  mockProfile = { ...mockPerson, bio: "Chasing #Rothko rooms." };
+  await render(<ProfileScreen profileId="friend" />);
+  await fireEvent.press(screen.getByRole("link", { name: "#Rothko" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "rothko" } });
+});
+
 it("shows an empty wall without sending the viewer back to friends", async () => {
   await render(<ProfileScreen profileId="friend" />);
   expect(screen.getByText("No artworks on this wall yet.")).toBeOnTheScreen();

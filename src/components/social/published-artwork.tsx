@@ -11,6 +11,7 @@ import { Gallery, Typography } from "@/constants/theme";
 import type { SharedArtwork } from "@/lib/social/types";
 
 import { socialStyles } from "./social-styles";
+import { TaggedText } from "./tagged-text";
 
 export function PublishedArtwork({
   artwork,
@@ -58,9 +59,9 @@ export function PublishedArtwork({
             <View style={styles.divider} />
             <View style={{ gap: 8 }}>
               <NoteHeading title="Notes" />
-              <Text selectable style={styles.note}>
+              <TaggedText selectable style={styles.note}>
                 {note}
-              </Text>
+              </TaggedText>
             </View>
           </>
         )}

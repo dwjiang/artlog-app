@@ -7,6 +7,8 @@ import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { isUsernameProblem, usernameMessages, type UsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 
+import { useHashtagInput } from "./hashtag-input";
+
 type InputProps = Omit<ComponentProps<typeof TextInput>, "style">;
 
 export function ProfileField({ label, ...input }: InputProps & { label: string }) {
@@ -22,6 +24,26 @@ export function ProfileField({ label, ...input }: InputProps & { label: string }
         {...input}
         style={[styles.input, styles.inputText, input.multiline && styles.multiline]}
       />
+    </View>
+  );
+}
+
+export function BioField({
+  label,
+  value,
+  onChangeText,
+  editable,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (bio: string) => void;
+  editable: boolean;
+}) {
+  const tagging = useHashtagInput(value, onChangeText, LIMITS.bio, editable);
+  return (
+    <View style={styles.field}>
+      <ProfileField label={label} accessibilityLabel="Bio" multiline {...tagging.inputProps} />
+      {tagging.suggestions}
     </View>
   );
 }

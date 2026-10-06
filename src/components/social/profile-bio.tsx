@@ -5,6 +5,8 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 
+import { TaggedText } from "./tagged-text";
+
 export function ProfileBio({ text }: { text?: string }) {
   const [expanded, setExpanded] = useState(false);
   const [long, setLong] = useState(false);
@@ -26,13 +28,13 @@ export function ProfileBio({ text }: { text?: string }) {
       >
         {text}
       </Text>
-      <Text
+      <TaggedText
         selectable
         numberOfLines={expanded ? undefined : 2}
         style={{ fontSize: 16, lineHeight: 24, color: Gallery.ink, textAlign: "center" }}
       >
         {text}
-      </Text>
+      </TaggedText>
       {long && (
         <MotionPressable
           style={{ minHeight: 44, justifyContent: "center" }}
