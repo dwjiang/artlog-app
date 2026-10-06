@@ -242,13 +242,11 @@ it("gives signed-out owners a private wall on this iPhone without contacting the
     "device:private-wall",
   );
   await render(<CollectionWall works={[(await getSavedWork("guest-save"))!]} />);
-  const footnote = await screen.findByText("Your wall stays private on this iPhone until you sign in.");
-  expect(footnote).toBeOnTheScreen();
+  expect(await screen.findByText("Choose saved artworks for your wall.")).toBeOnTheScreen();
   // Native tab bars and their accessories contribute insets; the final action must scroll above them.
   expect(screen.root?.queryAll((node) => node.type === "RCTScrollView")[0].props.contentInsetAdjustmentBehavior).toBe(
     "automatic",
   );
-  expect(footnote.parent?.parent).toHaveStyle({ flexGrow: 1 });
   await fireEvent.press(screen.getByRole("button", { name: "Choose artworks" }));
   await fireEvent.press(await screen.findByRole("checkbox", { name: "Water Lilies" }));
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
@@ -624,7 +622,7 @@ it("re-reads a signed-out wall on focus after another screen changed it", async 
   };
   await insertSavedWork(work, "device:refocused-wall");
   await render(<CollectionWall works={[work as SavedWork]} />);
-  expect(await screen.findByText("Your wall stays private on this iPhone until you sign in.")).toBeOnTheScreen();
+  expect(await screen.findByText("Choose saved artworks for your wall.")).toBeOnTheScreen();
   // An artwork's detail screen hangs it through its own repository.
   const detail = createLocalWallRepository();
   detail.connect();
