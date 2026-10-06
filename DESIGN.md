@@ -75,8 +75,8 @@ positioning controls.
 Flat by default: hierarchy comes from type weight, ink versus muted, separators,
 and cool gray grouping surfaces. Notes use plain text and quiet separators. A footer pinned under scrolling content
 takes a hairline separator on its top edge. Interface surfaces carry no gradients. Soft paper shadows
-lift prints, postcards, empty-state papers, and the visit bar. Material finishes
-stay on glass bars, wall frames, camera scrims, and the globe; onboarding
+lift prints, postcards, empty-state papers, and the Now card. Material finishes
+stay on glass bars, wall frames, camera and visit-band scrims, and the globe; onboarding
 artwork shown full-bleed under a white sheet takes the camera's scrim and glass
 controls. Toasts
 are opaque ink pills with white text. Reduce Transparency replaces camera glass

@@ -1,69 +1,29 @@
-import { useNavigation } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniPlayer } from "@/components/audio/mini-player";
 import { TabBarVisibility } from "@/components/tab-bar-visibility";
-import { NowCardScrolledAway } from "@/components/visits/now-card";
-import { VisitBar } from "@/components/visits/visit-bar";
-import { VisitPlayerBar } from "@/components/visits/visit-player-bar";
+import { VisitBandLayout } from "@/components/visits/visit-band";
 import { TabTitles } from "@/constants/tabs";
 import { Gallery } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { countBadge, UnseenNotificationCount, useWatchUnseenNotifications } from "@/lib/social/unseen-notifications";
-import { useVenue } from "@/lib/venue/use-venue";
 
 export const unstable_settings = {
   anchor: "(home)",
 };
 
-type RouteState = {
-  index?: number;
-  routes: { name: string; state?: RouteState }[];
-};
-
-/** The tab navigator's state, nested under expo-router's `__root` route and any wrapper above the tabs. */
-function findTabsState(state: RouteState | undefined): RouteState | undefined {
-  for (const route of state?.routes ?? []) {
-    if (route.name === "(tabs)") return route.state;
-    const nested = findTabsState(route.state);
-    if (nested) return nested;
-  }
-  return undefined;
-}
-
-/** The selected tab, unchanged while a sheet or modal sits above the tabs. Reads the parent stack's state and follows its changes. */
-function useSelectedTab(): string | undefined {
-  const navigation = useNavigation();
-  const [tabs, setTabs] = useState(() => findTabsState(navigation.getState() as RouteState | undefined));
-  useEffect(
-    () =>
-      navigation.addListener("state", (event) => {
-        setTabs(findTabsState((event.data as { state?: RouteState }).state));
-      }),
-    [navigation],
-  );
-  return tabs?.routes[tabs.index ?? 0]?.name;
-}
-
-function AccessoryBar({ listening, visit }: { listening: boolean; visit: boolean }) {
-  if (listening && visit) return <VisitPlayerBar />;
-  return listening ? <MiniPlayer /> : <VisitBar />;
-}
-
 export default function TabsLayout() {
   const listening = useHasListeningTrack();
   const [hidden, setHidden] = useState(false);
-  const { visit } = useVenue();
-  const selectedTab = useSelectedTab();
   const unseen = useWatchUnseenNotifications();
   const unseenBadge = countBadge(unseen);
-  const [nowCardAway, setNowCardAway] = useState(false);
-  // Home carries the visit on its Now card until the card scrolls away; the bar keeps it in view everywhere else.
-  const showVisitBar = !!visit && (selectedTab !== "(home)" || nowCardAway);
+  // Outside the tabs' own safe areas, which the visit band extends.
+  const { top } = useSafeAreaInsets();
   return (
     <UnseenNotificationCount value={unseen}>
-      <NowCardScrolledAway value={setNowCardAway}>
+      <VisitBandLayout value={{ windowTop: top, tabBarHidden: hidden }}>
         <TabBarVisibility value={setHidden}>
           <NativeTabs
             minimizeBehavior="never"
@@ -71,10 +31,9 @@ export default function TabsLayout() {
             tintColor={Gallery.accent}
             backgroundColor={Gallery.paper}
           >
-            {/* The system slot above the tab bar holds one row, so a visit with narration shares a single bar. */}
-            {!hidden && (listening || showVisitBar) && (
+            {!hidden && listening && (
               <NativeTabs.BottomAccessory>
-                <AccessoryBar listening={listening} visit={showVisitBar} />
+                <MiniPlayer />
               </NativeTabs.BottomAccessory>
             )}
             <NativeTabs.Trigger name="(home)">
@@ -100,7 +59,7 @@ export default function TabsLayout() {
             </NativeTabs.Trigger>
           </NativeTabs>
         </TabBarVisibility>
-      </NowCardScrolledAway>
+      </VisitBandLayout>
     </UnseenNotificationCount>
   );
 }

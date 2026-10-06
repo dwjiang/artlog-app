@@ -34,7 +34,8 @@ export function QueueBadge() {
 }
 
 const styles = StyleSheet.create({
-  badge: { borderRadius: Spacing.four, overflow: "hidden" },
+  // Stays at the trailing edge when the venue pill steps aside for the visit band.
+  badge: { marginLeft: "auto", borderRadius: Spacing.four, overflow: "hidden" },
   content: {
     minHeight: 44,
     flexDirection: "row",

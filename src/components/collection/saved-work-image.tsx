@@ -16,6 +16,7 @@ export function SavedWorkImage({
   style,
   contain = false,
   syncing = false,
+  blurRadius,
   onLoad,
 }: {
   path: string | null;
@@ -23,6 +24,7 @@ export function SavedWorkImage({
   style: StyleProp<ViewStyle>;
   contain?: boolean;
   syncing?: boolean;
+  blurRadius?: number;
   onLoad?: (size: { width: number; height: number }) => void;
 }) {
   const [failedPath, setFailedPath] = useState<string>();
@@ -53,6 +55,7 @@ export function SavedWorkImage({
           cachePolicy="memory"
           source={captureFileUri(path)}
           contentFit={contain ? "contain" : "cover"}
+          blurRadius={blurRadius}
           onLoad={({ source }) => {
             setLoadedPath(path);
             if (source.width > 0 && source.height > 0) onLoad?.(source);

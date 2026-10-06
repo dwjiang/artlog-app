@@ -8,7 +8,7 @@ import * as visits from "@/db/repos/visits";
 import { switchOwner } from "@/lib/account/owner-store";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 
-import { VisitBar } from "./visit-bar";
+import { VisitBand } from "./visit-band";
 import { VisitDetailScreen } from "./visit-detail-screen";
 
 jest.mock("expo-router", () => {
@@ -598,6 +598,27 @@ it("offers only Save & end visit on the open visit, ending it in one step", asyn
   expect(mockToast).toHaveBeenCalledWith("Visit saved.");
 });
 
+it("lets the open visit change the museum scans match from its menu, but not from the end review", async () => {
+  mockVisit.endedAt = null;
+  mockOpenVisit = { localId: "visit" };
+  const navigation = renderRouter({
+    _layout: () => <Stack />,
+    index: () => <VisitBand />,
+    "journal/[visitId]": VisitDetailScreen,
+    "venue-picker": () => <Text>Museum chooser</Text>,
+  });
+  await navigation;
+  await fireEvent.press(screen.getByRole("button", { name: "Visit open at Museum" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Change Museum…" }));
+  expect(navigation.getPathname()).toBe("/venue-picker");
+  expect(navigation.getSearchParams()).toEqual({ mode: "change" });
+  await act(() => router.back());
+  await act(() => router.back());
+  await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
+  expect(screen.getByRole("button", { name: "Save & end visit" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Change Museum…" })).toBeNull();
+});
+
 it("holds a visibility change on the open visit until Save & end visit, as the end review does", async () => {
   mockVisit.owner = "account:test-account";
   switchOwner(mockVisit.owner);
@@ -628,7 +649,7 @@ async function openEndReview() {
   mockOpenVisit = { localId: mockVisit.localId };
   const navigation = renderRouter({
     _layout: () => <Stack />,
-    index: VisitBar,
+    index: () => <VisitBand />,
     "journal/[visitId]": VisitDetailScreen,
     "visit-share/[visitId]/index": () => <Text>Share form</Text>,
     "sign-in": () => <Text>Sign in to share this visit</Text>,

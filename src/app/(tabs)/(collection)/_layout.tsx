@@ -1,5 +1,6 @@
 import { Stack } from "expo-router/stack";
 
+import { VisitBand } from "@/components/visits/visit-band";
 import { NavigationTheme, ScrollTitleHeader } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
@@ -10,11 +11,14 @@ export const unstable_settings = {
 export default function CollectionLayout() {
   const reduced = useReducedMotion();
   return (
-    <Stack
-      screenOptions={{ ...NavigationTheme, animation: reduced ? "fade" : "default", animationMatchesGesture: true }}
-    >
-      <Stack.Screen name="collection" options={{ title: "Collection", headerShown: false }} />
-      <Stack.Screen name="visit-place" options={ScrollTitleHeader} />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{ ...NavigationTheme, animation: reduced ? "fade" : "default", animationMatchesGesture: true }}
+      >
+        <Stack.Screen name="collection" options={{ title: "Collection", headerShown: false }} />
+        <Stack.Screen name="visit-place" options={ScrollTitleHeader} />
+      </Stack>
+      <VisitBand />
+    </>
   );
 }

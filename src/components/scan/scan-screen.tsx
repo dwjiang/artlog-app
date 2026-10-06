@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
-import { VISIT_BAR_HEIGHT } from "@/components/visits/visit-bar";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
@@ -32,9 +31,8 @@ import { VenuePill } from "./venue-pill";
 export function ScanScreen() {
   const listening = useHasListeningTrack();
   // Scans resolve quietly, so an undecided spot asks here, once, when the camera comes up.
-  const { status: venueStatus, options: venueOptions, visit, promptChooser } = useVenue();
-  // The accessory slot above the tab bar holds one row: the narration, the open visit, or both in one bar.
-  const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : visit ? VISIT_BAR_HEIGHT + 16 : 0;
+  const { status: venueStatus, options: venueOptions, promptChooser } = useVenue();
+  const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();
   const { visitId } = useLocalSearchParams<{ visitId?: string }>();
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();

@@ -20,7 +20,6 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 
 const mockBack = jest.fn();
-const mockReplace = jest.fn();
 const mockConfirm = jest.fn();
 const mockDismiss = jest.fn();
 const mockDeclinePrompt = jest.fn();
@@ -32,24 +31,8 @@ let mockView: VenueView;
 let mockLocation: { granted: boolean; canAskAgain: boolean } | null = null;
 let mockRequestLocation: () => Promise<{ granted: boolean }>;
 let mockParams: { mode?: string } = {};
-let mockVisits: {
-  localId: string;
-  location: string;
-  works: { localId: string; title: string; cropPath: null }[];
-}[] = [];
-
-jest.mock("@/components/visits/visit-ui", () => ({
-  VisitSymbol: () => null,
-  ArtworkPreviews: ({ works }: { works: unknown[] }) => {
-    const { Text } = jest.requireActual("react-native");
-    return <Text>{works.length} previews</Text>;
-  },
-}));
-jest.mock("@/lib/journal/use-visits", () => ({
-  useVisits: () => ({ visits: mockVisits, loading: false }),
-}));
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ back: mockBack, replace: mockReplace }),
+  useRouter: () => ({ back: mockBack }),
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
@@ -101,7 +84,6 @@ beforeEach(async () => {
   mockEnd.mockResolvedValue(undefined);
   mockStartVisit.mockImplementation(async (venueId: string) => ({ ...visit, localId: "visit-new", venueId }));
   mockParams = {};
-  mockVisits = [];
   mockLocation = { granted: false, canAskAgain: false };
   mockRequestLocation = async () => ({ granted: true });
   mockView = {
@@ -459,85 +441,35 @@ describe("the open visit", () => {
       visit,
       options: [seeded, neighbour],
     };
-    mockVisits = [
-      {
-        localId: "visit-1",
-        location: "New York, United States",
-        works: [
-          { localId: "w1", title: "Water Lilies", cropPath: null },
-          { localId: "w2", title: "Irises", cropPath: null },
-        ],
-      },
-    ];
   });
 
-  afterEach(() => jest.restoreAllMocks());
-
-  it("shows the visit with its start time, place and artworks instead of the chooser", async () => {
-    jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 18, 22));
+  it('changes the museum from the visit screen, and "Keep current visit" closes the sheet', async () => {
+    mockParams = { mode: "change" };
     await render(<VenuePickerSheet />);
-    expect(
-      screen.getByRole("button", {
-        name: "Metropolitan Museum of Art, Since 5:10 PM · New York, United States · 2 artworks this visit",
-      }),
-    ).toBeOnTheScreen();
-    expect(screen.getByText("Since 5:10 PM · New York, United States · 2 artworks this visit")).toBeOnTheScreen();
-    expect(screen.getByText("2 previews")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Continue without a museum" })).toBeNull();
-  });
-
-  it("names the day a visit still open from an earlier day began, not a bare time that reads as today", async () => {
-    jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 19, 15));
-    await render(<VenuePickerSheet />);
-    expect(screen.getByText(/^Since 18 Sep 2026 · /)).toBeOnTheScreen();
-  });
-
-  it("opens the end-visit review without ending the visit", async () => {
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
-    expect(mockEnd).not.toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: "/journal/[visitId]",
-      params: { visitId: "visit-1", endVisit: "true" },
-    });
-  });
-
-  it("opens the visit detail from the museum header in place of the sheet", async () => {
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: /^Metropolitan Museum of Art, Since / }));
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: "/journal/[visitId]",
-      params: { visitId: "visit-1" },
-    });
-    expect(mockEnd).not.toHaveBeenCalled();
-  });
-
-  it('switches to the chooser on "Change museum" and back with "Keep current visit"', async () => {
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Change museum" }));
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Continue without a museum" })).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Keep current visit" }));
-    expect(screen.getByRole("button", { name: "End visit" })).toBeOnTheScreen();
+    expect(mockBack).toHaveBeenCalledTimes(1);
     expect(mockDismiss).not.toHaveBeenCalled();
+    expect(mockEnd).not.toHaveBeenCalled();
   });
 
-  it('offers to keep the current visit when "Change museum" finds nothing nearby', async () => {
+  it("offers to keep the current visit when changing the museum finds nothing nearby", async () => {
+    mockParams = { mode: "change" };
     mockView = { ...mockView, status: "none", options: [] };
     await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Change museum" }));
     expect(screen.getByText("No nearby museums found.")).toBeOnTheScreen();
     expect(screen.getByText("Search by museum or city, or keep your current visit.")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Continue without a museum" })).toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Keep current visit" }));
-    expect(screen.getByRole("button", { name: "End visit" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Keep current visit" })).toBeOnTheScreen();
   });
 
-  it("confirms a different museum from the chooser", async () => {
+  it("confirms a different museum chosen while changing it", async () => {
+    mockParams = { mode: "change" };
     await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Change museum" }));
     await fireEvent.press(screen.getByRole("button", { name: "Neue Galerie" }));
     expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
+    expect(mockStartVisit).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
