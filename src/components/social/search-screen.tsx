@@ -1,19 +1,30 @@
+import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
+import {
+  ArtistRow,
+  type ArtistSummary,
+  type CatalogArtwork,
+  CatalogArtworkRow,
+  useOpenCatalogArtwork,
+} from "@/components/catalog/catalog-rows";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SearchEmptyState } from "@/components/empty-state";
 import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
+import { useSavedCatalogWorks } from "@/lib/catalog/use-saved-catalog-works";
 import { useRecentSearches } from "@/lib/social/recent-searches";
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
+import { catalogSearchText } from "@/shared/catalog/text";
 import { validateSearch } from "@/shared/social/contracts";
 
 import { api } from "../../../convex/_generated/api";
@@ -29,6 +40,9 @@ import { tagHref } from "./tagged-text";
 
 const SHOWN = 5;
 const SHOWN_PEOPLE = 10;
+const SHOWN_ARTWORKS = 3;
+// One page past the shown rows tells Search whether "See all" has more to show.
+const ARTWORK_PAGE = 8;
 
 // The server rejects searches it can't run, so those never leave the phone.
 function peopleSearch(text: string) {
@@ -39,18 +53,31 @@ function peopleSearch(text: string) {
   }
 }
 
-/** The Search tab: tags and people, with recent searches, popular tags and people to add before anything is typed. */
+/**
+ * The Search tab: catalog artworks and artists, tags and people, with recent searches, popular tags and people to add
+ * before anything is typed.
+ */
 export function SearchScreen() {
   const router = useRouter();
   const session = useSocialSession();
+  const catalog = useCatalogReady();
+  const saved = useSavedCatalogWorks();
+  const openArtwork = useOpenCatalogArtwork();
   const { recent, remember, forget } = useRecentSearches();
   const [text, setText] = useState("");
   const query = text.trim();
   const settled = useDebouncedValue(query, 200, "");
   const online = !session.offline;
-  // A leading # asks for tags only.
+  // A leading # asks for tags only, and a leading @ for people only.
   const tagPrefix = settled.replace(/^#/, "");
   const people = settled.startsWith("#") ? "" : peopleSearch(settled);
+  const art = /^[#@]/.test(settled) || !catalogSearchText(settled) ? "" : settled;
+  const artists = useSocialQuery(api.artists.search, catalog.ready && art ? { query: art } : "skip", catalog.scope);
+  const artworks = useSocialQuery(
+    api.artworks.search,
+    catalog.ready && art ? { query: art, limit: ARTWORK_PAGE } : "skip",
+    catalog.scope,
+  );
   const popular = useSocialQuery(api.tags.popular, online ? {} : "skip", session.key);
   const tags = useSocialQuery(api.tags.search, online && tagPrefix ? { prefix: tagPrefix } : "skip", session.key);
   const profiles = useSocialQuery(
@@ -80,14 +107,38 @@ export function SearchScreen() {
     remember({ kind: "person", profile });
     router.push({ pathname: "/profile/[profileId]", params: { profileId: profile.profileId } });
   };
+  const rememberArtwork = ({ artworkId, title, thumbnailUrl }: CatalogArtwork) =>
+    remember({ kind: "artwork", artwork: { artworkId, title, thumbnailUrl } });
+  const rememberArtist = ({ artistId, name, coverUrl }: ArtistSummary) =>
+    remember({ kind: "artist", artist: { artistId, name, coverUrl } });
+  const openArtist = (artist: { artistId: string; name: string; coverUrl?: string }) => {
+    remember({ kind: "artist", artist });
+    router.push({ pathname: "/artist/[artistId]", params: { artistId: artist.artistId } });
+  };
+  const artistResults = art ? (artists.data ?? []) : [];
+  const artworkPage = art ? artworks.data : undefined;
+  const artworkResults = (artworkPage?.page ?? []).slice(0, SHOWN_ARTWORKS);
+  const moreArtworks = !!artworkPage && (artworkPage.page.length > SHOWN_ARTWORKS || !artworkPage.isDone);
   const tagResults = settled && tagPrefix ? (tags.data ?? []).slice(0, SHOWN) : [];
   const peopleResults = people ? (profiles.data?.page ?? []) : [];
-  const searching = settled !== query || (!!tagPrefix && tags.loading) || (!!people && profiles.loading);
-  const searchError = (!!tagPrefix && tags.error) || (!!people && profiles.error);
+  const searching =
+    settled !== query
+    || (!!tagPrefix && tags.loading)
+    || (!!people && profiles.loading)
+    || (!!art && (!catalog.ready || artists.loading || artworks.loading));
+  const searchError =
+    (!!tagPrefix && tags.error) || (!!people && profiles.error) || (!!art && (artists.error || artworks.error));
+  const results = artistResults.length + artworkResults.length + tagResults.length + peopleResults.length;
   let content;
   let state;
   if (!online) {
-    state = <SocialState title="You’re offline." detail="Connect to search tags and people." icon="wifi.slash" />;
+    state = (
+      <SocialState
+        title="You’re offline."
+        detail="Connect to search artworks, artists, tags and people."
+        icon="wifi.slash"
+      />
+    );
   } else if (!query) {
     const popularTags = popular.data ?? [];
     const suggested = suggestions.people.length > 0;
@@ -97,33 +148,69 @@ export function SearchScreen() {
         {recent.length > 0 && (
           <ListSection title="Recent" flush>
             <SearchChips>
-              {recent.map((entry) =>
-                entry.kind === "tag" ? (
-                  <SearchChip
-                    key={`tag:${entry.tag}`}
-                    label={`#${entry.tag}`}
-                    accessibilityLabel={`#${entry.tag}`}
-                    onPress={() => openTag(entry.tag)}
-                    onRemove={() => forget(entry)}
-                  />
-                ) : (
-                  <SearchChip
-                    key={entry.profile.profileId}
-                    label={entry.profile.name}
-                    leading={
-                      <ProfileAvatar
-                        name={entry.profile.name}
-                        photoUrl={entry.profile.photoUrl}
-                        avatar={entry.profile.avatar}
-                        size={24}
+              {recent.map((entry) => {
+                switch (entry.kind) {
+                  case "tag":
+                    return (
+                      <SearchChip
+                        key={`tag:${entry.tag}`}
+                        label={`#${entry.tag}`}
+                        accessibilityLabel={`#${entry.tag}`}
+                        onPress={() => openTag(entry.tag)}
+                        onRemove={() => forget(entry)}
                       />
-                    }
-                    accessibilityLabel={`View ${entry.profile.name}’s profile`}
-                    onPress={() => openPerson(entry.profile)}
-                    onRemove={() => forget(entry)}
-                  />
-                ),
-              )}
+                    );
+                  case "person":
+                    return (
+                      <SearchChip
+                        key={entry.profile.profileId}
+                        label={entry.profile.name}
+                        leading={
+                          <ProfileAvatar
+                            name={entry.profile.name}
+                            photoUrl={entry.profile.photoUrl}
+                            avatar={entry.profile.avatar}
+                            size={24}
+                          />
+                        }
+                        accessibilityLabel={`View ${entry.profile.name}’s profile`}
+                        onPress={() => openPerson(entry.profile)}
+                        onRemove={() => forget(entry)}
+                      />
+                    );
+                  case "artwork": {
+                    const { artwork } = entry;
+                    return (
+                      <SearchChip
+                        key={`artwork:${artwork.artworkId}`}
+                        label={artwork.title}
+                        leading={
+                          artwork.thumbnailUrl ? (
+                            <Image source={artwork.thumbnailUrl} accessible={false} style={styles.chipThumbnail} />
+                          ) : undefined
+                        }
+                        accessibilityLabel={artwork.title}
+                        onPress={() => {
+                          remember(entry);
+                          openArtwork(artwork.artworkId, saved.get(artwork.artworkId));
+                        }}
+                        onRemove={() => forget(entry)}
+                      />
+                    );
+                  }
+                  case "artist":
+                    return (
+                      <SearchChip
+                        key={`artist:${entry.artist.artistId}`}
+                        label={entry.artist.name}
+                        leading={<ProfileAvatar photoUrl={entry.artist.coverUrl} size={24} />}
+                        accessibilityLabel={entry.artist.name}
+                        onPress={() => openArtist(entry.artist)}
+                        onRemove={() => forget(entry)}
+                      />
+                    );
+                }
+              })}
             </SearchChips>
           </ListSection>
         )}
@@ -151,7 +238,10 @@ export function SearchScreen() {
       && !newest.loading
       && !newest.error;
     content = empty ? (
-      <SearchEmptyState title="Find people and tags." detail="Search by name, @username or #tag." />
+      <SearchEmptyState
+        title="Find artworks, artists and people."
+        detail="Search by title, artist, name, @username or #tag."
+      />
     ) : (
       <>
         <View style={styles.sections}>{sections}</View>
@@ -170,7 +260,7 @@ export function SearchScreen() {
         )}
       </>
     );
-  } else if (tagResults.length === 0 && peopleResults.length === 0 && !searchError) {
+  } else if (results === 0 && !moreArtworks && !searchError) {
     if (searching) {
       content = (
         <View style={styles.sections}>
@@ -178,11 +268,52 @@ export function SearchScreen() {
         </View>
       );
     } else {
-      state = <SearchEmptyState detail="Try another name or tag." />;
+      state = <SearchEmptyState detail="Try another title, artist, name or tag." />;
     }
   } else {
     content = (
       <View style={styles.sections}>
+        {!!art && artists.error && <SearchFailure noun="artists" onRetry={artists.refresh} />}
+        {artistResults.length > 0 && (
+          <ListSection title="Artists">
+            {artistResults.map((artist, index) => (
+              <ArtistRow
+                key={artist.artistId}
+                artist={artist}
+                query={art}
+                first={index === 0}
+                last={index === artistResults.length - 1}
+                onOpen={() => rememberArtist(artist)}
+              />
+            ))}
+          </ListSection>
+        )}
+        {!!art && artworks.error && <SearchFailure noun="artworks" onRetry={artworks.refresh} />}
+        {(artworkResults.length > 0 || moreArtworks) && (
+          <ListSection
+            title="Artworks"
+            action={
+              moreArtworks
+                ? {
+                    label: "See all",
+                    onPress: () => router.push({ pathname: "/search-artworks", params: { query: art } }),
+                  }
+                : undefined
+            }
+          >
+            {artworkResults.map((artwork, index) => (
+              <CatalogArtworkRow
+                key={artwork.artworkId}
+                artwork={artwork}
+                saved={saved.get(artwork.artworkId)}
+                query={art}
+                first={index === 0}
+                last={index === artworkResults.length - 1}
+                onOpen={() => rememberArtwork(artwork)}
+              />
+            ))}
+          </ListSection>
+        )}
         {!!tagPrefix && tags.error && <SearchFailure noun="tags" onRetry={tags.refresh} />}
         {tagResults.length > 0 && (
           <ListSection title="Tags">
@@ -221,7 +352,7 @@ export function SearchScreen() {
   return (
     <>
       <Stack.SearchBar
-        placeholder="People and tags"
+        placeholder="Artworks, artists and people"
         autoCapitalize="none"
         hideWhenScrolling={false}
         onChangeText={(event) => setText(event.nativeEvent.text)}
@@ -264,4 +395,5 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingTop: Spacing.two, paddingBottom: Spacing.five },
   sections: { gap: Spacing.four, paddingHorizontal: Spacing.content },
   people: { paddingTop: Spacing.four },
+  chipThumbnail: { width: 24, height: 24, borderRadius: Radius.thumbnail },
 });

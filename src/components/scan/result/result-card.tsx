@@ -1,12 +1,11 @@
-import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GuideTranscript } from "@/components/audio/guide-transcript";
-import { ListenActions } from "@/components/audio/listen-actions";
+import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
+import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
 import { useCapturePhotos } from "@/components/scan/capture-photos-button";
@@ -19,7 +18,6 @@ import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
 import { useLiftToasts } from "@/lib/ui/toast";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { DocentSection } from "./docent-section";
 import { FieldsForm } from "./fields-form";
 import { RightNowSection } from "./right-now-section";
 import { RunnerUps } from "./runner-ups";
@@ -82,7 +80,7 @@ export function ResultCard({
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
   const named = view.kind === "confident" || view.kind === "confirmed";
-  const attribution = [draft.artist, draft.date].filter(Boolean).join(" · ");
+  const attributed = !editingDetails && view.kind !== "soft";
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
   // from a label or their details goes back to where they named it.
@@ -143,42 +141,13 @@ export function ResultCard({
         contentContainerStyle={styles.content}
       >
         {header}
-        <View style={styles.identity}>
-          <ThemedText type="title">
-            {view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
-          </ThemedText>
-          {!editingDetails && (
-            <>
-              {view.kind !== "soft" && !!attribution && <ThemedText style={styles.workTitle}>{attribution}</ThemedText>}
-              {named && !!draft.medium && (
-                <View style={styles.metadata}>
-                  <Image
-                    source="sf:paintbrush.pointed"
-                    tintColor={Gallery.muted}
-                    style={styles.metadataIcon}
-                    accessible={false}
-                  />
-                  <ThemedText variant="metadata" themeColor="textSecondary" style={{ flexShrink: 1 }}>
-                    {draft.medium}
-                  </ThemedText>
-                </View>
-              )}
-              {named && !!draft.institution && (
-                <View style={styles.metadata}>
-                  <Image
-                    source="sf:building.columns"
-                    tintColor={Gallery.muted}
-                    style={styles.metadataIcon}
-                    accessible={false}
-                  />
-                  <ThemedText variant="metadata" themeColor="textSecondary" style={{ flexShrink: 1 }}>
-                    {draft.institution}
-                  </ThemedText>
-                </View>
-              )}
-            </>
-          )}
-        </View>
+        <ArtworkIdentity
+          title={view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
+          artist={attributed ? draft.artist : undefined}
+          date={attributed ? draft.date : undefined}
+          medium={!editingDetails && named ? draft.medium : undefined}
+          institution={!editingDetails && named ? draft.institution : undefined}
+        />
         {!named && !manual && (
           <View style={styles.recovery}>
             <ThemedText themeColor="textSecondary">
@@ -213,37 +182,28 @@ export function ResultCard({
           />
         )}
         {named && (
-          <View style={styles.about}>
-            <DocentSection
-              title="About this work"
-              docent={view.docent}
-              factSheet={view.factSheet}
-              status={view.docentStatus}
-              onRetry={onRetryDocent}
-              report={
-                view.primary
-                  ? { kind: "docent", artworkId: view.primary.artworkId }
-                  : scanId && { kind: "scanDocent", scanId }
-              }
-            />
-            {view.primary && (
-              <>
-                <ListenActions
-                  artworkId={view.primary.artworkId}
-                  title={draft.title}
-                  artist={draft.artist}
-                  date={draft.date}
-                  scanId={captureInput?.scanId}
-                  savedId={savedId}
-                  imageUri={
-                    captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
-                  }
-                />
-                <GuideTranscript artworkId={view.primary.artworkId} />
-              </>
-            )}
+          <ArtworkStory
+            artworkId={view.primary?.artworkId}
+            title={draft.title}
+            artist={draft.artist}
+            date={draft.date}
+            scanId={captureInput?.scanId}
+            savedId={savedId}
+            imageUri={
+              captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
+            }
+            docent={view.docent}
+            factSheet={view.factSheet}
+            status={view.docentStatus}
+            onRetry={onRetryDocent}
+            report={
+              view.primary
+                ? { kind: "docent", artworkId: view.primary.artworkId }
+                : scanId && { kind: "scanDocent", scanId }
+            }
+          >
             <RightNowSection rightNow={view.rightNow} />
-          </View>
+          </ArtworkStory>
         )}
         {suggestions.length > 0 && (
           <View style={styles.section}>
@@ -280,14 +240,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.four,
     gap: Spacing.three,
   },
-  identity: { gap: Spacing.two },
-  workTitle: { fontSize: 18, lineHeight: 26 },
-  metadata: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
-  // Centers the icon on the first text line so it stays put when a long name wraps.
-  metadataIcon: { width: 12, height: 12, marginTop: 3 },
   section: { gap: Spacing.compact, paddingTop: Spacing.two },
   recovery: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.card, backgroundColor: Gallery.fill },
-  about: { gap: Spacing.three },
   save: {
     paddingHorizontal: 20,
     ...PinnedFooterBorder,

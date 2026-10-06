@@ -1,5 +1,6 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
+import { normalizeText } from "../shared/catalog/text";
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
@@ -18,7 +19,6 @@ import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
-import { normalizeText } from "./lib/textMatch";
 import {
   confirmedDisplay,
   confirmedFields,

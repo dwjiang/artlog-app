@@ -139,6 +139,17 @@ includes `popularTags`, pick them once so Search doesn't wait for the cron:
 npx convex run tags:refreshPopular --prod --env-file .context/production-target.env
 ```
 
+Search's artwork and artist results read each artwork's search text and artist key. `convex import` skips the
+trigger that sets them, so after the first deploy that includes `artists`, and after every corpus import, fill
+them (and the artist counts) once, then pick the artist avatars so Search doesn't wait for the monthly cron:
+
+```sh
+npx convex run artworks:backfillSearchFields '{"cursor":null}' --prod --env-file .context/production-target.env
+npx convex run artists:refreshCovers --prod --env-file .context/production-target.env
+```
+
+Both return at once and schedule their remaining pages.
+
 Python imports use production `CONVEX_URL` and `CONVEX_DEPLOY_KEY` in the job
 process with a production-specific checkpoint. Keep the dev `.env.local` intact;
 the [upload todo](../todos/production-upload/README.md) owns import preparation and

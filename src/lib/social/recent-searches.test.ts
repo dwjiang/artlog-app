@@ -71,3 +71,17 @@ it("forgets one search and keeps the rest in order", async () => {
   expect(result.current.recent).toEqual(remaining);
   expect(JSON.parse((await settings.getSetting("search.recent"))!)).toEqual(remaining);
 });
+
+it("shows a search opened on one screen in every other screen's history", async () => {
+  const search = await renderHook(useRecentSearches);
+  const seeAll = await renderHook(useRecentSearches);
+  const artwork = { kind: "artwork", artwork: { artworkId: "a1", title: "Water Lilies" } } as const;
+  await act(() => seeAll.result.current.remember(artwork));
+  expect(search.result.current.recent).toEqual([artwork]);
+  // A later search from the first screen keeps the artwork instead of writing over it.
+  await act(() => search.result.current.remember({ kind: "artist", artist: { artistId: "r1", name: "Claude Monet" } }));
+  expect(JSON.parse((await settings.getSetting("search.recent"))!)).toEqual([
+    { kind: "artist", artist: { artistId: "r1", name: "Claude Monet" } },
+    artwork,
+  ]);
+});

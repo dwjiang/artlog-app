@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { type AccessibilityRole, Pressable, StyleSheet, View } from "react-native";
 
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, SettingsOutline, Spacing, Typography } from "@/constants/theme";
@@ -174,23 +175,41 @@ export function ListIcon({ name }: { name: string }) {
 
 export function ListSection({
   title,
+  action,
   outlined = false,
   flush = false,
   children,
 }: {
   title?: string;
+  /** A text button at the end of the title row, such as "See all". */
+  action?: { label: string; onPress: () => void };
   /** Draws the card edge for rows shown on paper instead of a grouped page. */
   outlined?: boolean;
   /** Starts the title at the content edge, for chips or tiles rather than rows inset in a card. */
   flush?: boolean;
   children: ReactNode;
 }) {
+  const heading = title && (
+    <Text accessibilityRole="header" style={[styles.sectionTitle, flush && styles.flushTitle]}>
+      {title}
+    </Text>
+  );
   return (
     <View style={styles.section}>
-      {title && (
-        <Text accessibilityRole="header" style={[styles.sectionTitle, flush && styles.flushTitle]}>
-          {title}
-        </Text>
+      {action ? (
+        <View style={styles.headingRow}>
+          {heading}
+          <View style={styles.headingAction}>
+            <GalleryButton
+              label={action.label}
+              accessibilityLabel={title ? `${action.label}: ${title}` : action.label}
+              fullWidth={false}
+              onPress={action.onPress}
+            />
+          </View>
+        </View>
+      ) : (
+        heading
       )}
       <View style={outlined && styles.outlined}>{children}</View>
     </View>
@@ -242,5 +261,8 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.two },
   sectionTitle: { ...Typography.eyebrow, color: Gallery.muted, paddingHorizontal: Spacing.three },
   flushTitle: { paddingHorizontal: 0 },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  // The button keeps its 44-point target without pushing the rows below away from their title.
+  headingAction: { marginVertical: -Spacing.compact, paddingRight: Spacing.two },
   outlined: { ...SettingsOutline, overflow: "hidden" },
 });

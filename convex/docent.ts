@@ -44,7 +44,7 @@ import schema from "./schema";
 
 // A scan's claim blocks concurrent generation for ten minutes; the batch job (enrich.claimBatch)
 // reclaims after an hour.
-const CLAIM_MS = 10 * 60 * 1000;
+export const CLAIM_MS = 10 * 60 * 1000;
 // Each chatJson call is retried at most once; linked references add one review call.
 // Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
 const MODEL_TIMEOUT_MS = 20_000;
@@ -53,6 +53,7 @@ export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): P
   await patchArtworkContent(ctx, artwork, { docent: undefined });
   await ctx.db.patch("artworks", artwork._id, {
     docentUpdatedAt: undefined,
+    docentNoSources: undefined,
     enrichClaimedAt: undefined,
     enrichGeneration: artwork.enrichGeneration + 1,
   });
@@ -118,6 +119,7 @@ export const claim = internalMutation({
       enrichClaimedAt: now,
       enrichGeneration: generation,
       docentFailedAt: undefined,
+      docentNoSources: undefined,
     });
     return generation;
   },
@@ -158,6 +160,7 @@ export const writeEnrichment = internalMutation({
       factSheetNeedsReview: needsReview || undefined,
       enrichClaimedAt: undefined,
       docentFailedAt: undefined,
+      docentNoSources: undefined,
     });
     return true;
   },
@@ -165,14 +168,15 @@ export const writeEnrichment = internalMutation({
 
 // Ends a claimed run that wrote nothing. A newer claim or an invalidation keeps its own state.
 export const fail = internalMutation({
-  args: { artworkId: v.id("artworks"), generation: v.number() },
+  args: { artworkId: v.id("artworks"), generation: v.number(), noSources: v.boolean() },
   returns: v.null(),
-  handler: async (ctx, { artworkId, generation }) => {
+  handler: async (ctx, { artworkId, generation, noSources }) => {
     const artwork = await ctx.db.get("artworks", artworkId);
     if (artwork?.enrichGeneration === generation) {
       await ctx.db.patch("artworks", artworkId, {
         enrichClaimedAt: undefined,
         docentFailedAt: Date.now(),
+        docentNoSources: noSources || undefined,
       });
     }
     return null;
@@ -365,6 +369,7 @@ export const ensure = internalAction({
     });
     if (generation === null) return null;
     let written = false;
+    let noSources = false;
     try {
       const models = configuredModels();
       if (!models) {
@@ -382,6 +387,7 @@ export const ensure = internalAction({
         accession: context.accession,
         owner: context.owner,
       });
+      noSources = result === "no_sources";
       if (!result || result === "no_sources") return null;
       written = await ctx.runMutation(internal.docent.writeEnrichment, {
         artworkId,
@@ -397,7 +403,7 @@ export const ensure = internalAction({
       throw error;
     } finally {
       if (!written) {
-        await ctx.runMutation(internal.docent.fail, { artworkId, generation });
+        await ctx.runMutation(internal.docent.fail, { artworkId, generation, noSources });
       }
     }
     return null;

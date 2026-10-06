@@ -1,3 +1,5 @@
+import { normalizeText } from "../../shared/catalog/text";
+
 const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
 const NAME_QUALIFIERS: Record<string, string> = {
   elder: "elder",
@@ -10,15 +12,6 @@ const NAME_QUALIFIERS: Record<string, string> = {
   iii: "iii",
   iv: "iv",
 };
-
-export function normalizeText(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replaceAll(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
 
 export function tokenSet(value: string): Set<string> {
   return new Set(normalizeText(value).split(" ").filter(Boolean));

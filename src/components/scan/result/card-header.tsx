@@ -1,11 +1,10 @@
 import { Image } from "expo-image";
-import { useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { ImageSkeleton } from "@/components/loading-skeleton";
+import { ArtworkFrame } from "@/components/artwork/artwork-frame";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import type { ResultKind } from "@/lib/result/state";
 
@@ -40,47 +39,19 @@ export function CardHeader({
   const correction = onEditDetails
     ? { label: "Edit details", onPress: onEditDetails }
     : onNotRight && { label: "Not right?", onPress: onNotRight };
-  const [failedUri, setFailedUri] = useState<string>();
-  const { height, fontScale } = useWindowDimensions();
-  const available = cropUri && failedUri !== cropUri;
+  const { fontScale } = useWindowDimensions();
   return (
     <View style={styles.header}>
-      <View
-        style={[
-          styles.frame,
-          { height: Math.min(360, height * (fontScale > 1.4 ? 0.25 : 0.36)) },
-          !available && styles.empty,
-        ]}
+      <ArtworkFrame
+        uri={cropUri}
+        loading={loading}
+        cachePolicy="memory"
+        accessibilityLabel="Your photo of this painting"
+        unavailableTitle={artworkTitle}
+        onError={(message) =>
+          reportError(new Error(message ?? "Painting preview unavailable"), "result.load_preview", { level: "warning" })
+        }
       >
-        {available ? (
-          <Image
-            cachePolicy="memory"
-            source={cropUri}
-            contentFit="contain"
-            accessibilityLabel="Your photo of this painting"
-            style={styles.photo}
-            onError={(event) => {
-              reportError(new Error(event?.error ?? "Painting preview unavailable"), "result.load_preview", {
-                level: "warning",
-              });
-              setFailedUri(cropUri);
-            }}
-          />
-        ) : loading ? (
-          <ImageSkeleton style={{ width: "100%", height: "100%" }} />
-        ) : (
-          <View style={styles.placeholder}>
-            <Image source="sf:photo" tintColor={Colors.light.textSecondary} style={styles.placeholderIcon} />
-            <ThemedText type="smallBold" style={styles.placeholderText}>
-              Photo unavailable
-            </ThemedText>
-            {artworkTitle && (
-              <ThemedText themeColor="textSecondary" style={styles.placeholderText}>
-                {artworkTitle}
-              </ThemedText>
-            )}
-          </View>
-        )}
         {onAdjustCrop && (
           <MotionPressable
             accessibilityRole="button"
@@ -91,7 +62,7 @@ export function CardHeader({
             <Image source="sf:crop" tintColor={Gallery.ink} style={styles.cropIcon} />
           </MotionPressable>
         )}
-      </View>
+      </ArtworkFrame>
       {kind !== "loading" && (
         <View
           style={[
@@ -122,13 +93,6 @@ export function CardHeader({
 
 const styles = StyleSheet.create({
   header: { gap: Spacing.two },
-  frame: {
-    width: "100%",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  empty: { backgroundColor: Colors.light.backgroundElement },
-  photo: { width: "100%", height: "100%" },
   crop: {
     position: "absolute",
     right: Spacing.compact,
@@ -151,7 +115,4 @@ const styles = StyleSheet.create({
   correctionRow: { minHeight: 44 },
   correction: { minHeight: 44, justifyContent: "center" },
   stackedStatus: { flexDirection: "column", alignItems: "flex-start" },
-  placeholder: { alignItems: "center", padding: 20, gap: Spacing.two },
-  placeholderIcon: { width: 32, height: 32 },
-  placeholderText: { alignSelf: "stretch", textAlign: "center" },
 });

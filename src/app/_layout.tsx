@@ -185,6 +185,12 @@ function AppContent() {
                   />
                   <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
                   <Stack.Screen name="tag/[tag]" options={LargeTitleHeader} />
+                  <Stack.Screen name="catalog/[artworkId]" options={{ title: "" }} />
+                  <Stack.Screen name="artist/[artistId]" options={ScrollTitleHeader} />
+                  <Stack.Screen
+                    name="search-artworks"
+                    options={{ ...LargeTitleHeader, ...groupedScreen, title: "Artworks" }}
+                  />
                   <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
                   <Stack.Screen
                     name="share-profile"

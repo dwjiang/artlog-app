@@ -62,6 +62,15 @@ export function listSavedWorks(owner = getLocalOwner(), includeDeleted = false) 
     .orderBy(desc(savedWorks.savedAt), desc(savedWorks.localId));
 }
 
+/** The owner's saves of catalog artworks, newest first, so catalog search and pages can open the saved copy. */
+export function listSavedCatalogWorks(owner = getLocalOwner()) {
+  return db
+    .select()
+    .from(savedWorks)
+    .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.deletedAt), isNotNull(savedWorks.artworkId)))
+    .orderBy(desc(savedWorks.savedAt), desc(savedWorks.localId));
+}
+
 /** Catalogue artworks the owner has kept, so suggestions can leave them out. */
 export function listSavedArtworkIds(owner = getLocalOwner()) {
   return db

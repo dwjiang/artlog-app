@@ -9,6 +9,7 @@ import { VisitSkeleton } from "@/components/loading-skeleton";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import type { SavedWork } from "@/db/schema";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { artistSections } from "@/lib/collection/artist-sections";
@@ -189,7 +190,16 @@ export function CollectionArtworks({
 // Tall photos stop at this height-to-width ratio so one portrait doesn't stretch its row.
 const MAX_TILE_RATIO = 1.18;
 
-function ArtworkTile({ work, width, hung }: { work: Work; width: number; hung: boolean }) {
+/** A saved work in a grid: your photo, title and artist, opening the saved page. */
+export function ArtworkTile({
+  work,
+  width,
+  hung = false,
+}: {
+  work: Pick<SavedWork, "localId" | "title" | "artist" | "cropPath" | "cropStorageId">;
+  width: number;
+  hung?: boolean;
+}) {
   const [photo, setPhoto] = useState<{ path: string; aspect: number }>();
   const aspect = photo && photo.path === work.cropPath ? photo.aspect : 1;
   const height = Math.min(width / aspect, width * MAX_TILE_RATIO);
