@@ -1075,6 +1075,15 @@ it("keeps typed details private, shows their background being written and reopen
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/enter-details/[scanId]", params: { scanId: SCAN_ID } });
 });
 
+it("shows a date typed without an artist on its own", async () => {
+  results.set("scans:get", {
+    ...missScan,
+    confirmed: { source: "manual", fields: { title: "Pond at dusk", date: "1906" }, confirmedAt: 5 },
+  });
+  await render(result());
+  expect(await screen.findByText("1906")).toBeOnTheScreen();
+});
+
 it("enters details by hand after rejecting a match", async () => {
   await render(result());
   await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));

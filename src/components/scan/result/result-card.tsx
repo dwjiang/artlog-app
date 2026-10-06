@@ -82,6 +82,7 @@ export function ResultCard({
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
   const named = view.kind === "confident" || view.kind === "confirmed";
+  const attribution = [draft.artist, draft.date].filter(Boolean).join(" · ");
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
   // from a label or their details goes back to where they named it.
@@ -148,12 +149,7 @@ export function ResultCard({
           </ThemedText>
           {!editingDetails && (
             <>
-              {view.kind !== "soft" && (
-                <ThemedText style={styles.workTitle}>
-                  {draft.artist}
-                  {draft.date ? ` · ${draft.date}` : ""}
-                </ThemedText>
-              )}
+              {view.kind !== "soft" && !!attribution && <ThemedText style={styles.workTitle}>{attribution}</ThemedText>}
               {named && !!draft.medium && (
                 <View style={styles.metadata}>
                   <Image
