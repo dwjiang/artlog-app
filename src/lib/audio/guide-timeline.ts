@@ -54,6 +54,7 @@ export function guideTimeline(sentences: GuideSentence[], duration?: number): Gu
 /** The sentence being spoken at a position: the last one already started, or the first before any has. */
 export function sentenceAt({ starts }: GuideTimeline, position: number) {
   let index = 0;
-  while (index + 1 < starts.length && starts[index + 1] <= position) index++;
+  // Native seeks round to nanoseconds; allow one microsecond at a sentence boundary.
+  while (index + 1 < starts.length && starts[index + 1] <= position + 0.000001) index++;
   return index;
 }

@@ -345,7 +345,8 @@ export class ListeningController {
     const next = Math.max(0, Math.min(limit, position));
     if (play) this.desiredPlaying = true;
     try {
-      await player.seekTo(next);
+      // Unbounded iOS tolerances snap HLS seeks to segment boundaries, before the selected sentence.
+      await player.seekTo(next, 0, 0);
       if (generation === this.generation) {
         this.update({ position: player.currentStatus.currentTime });
         this.remember();

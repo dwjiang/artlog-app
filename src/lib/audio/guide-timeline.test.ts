@@ -67,3 +67,13 @@ it("finds the sentence being spoken, holding the first before it starts and the 
   expect(sentenceAt(timeline, timeline.starts[6] - 0.01)).toBe(5);
   expect(sentenceAt(timeline, 500)).toBe(11);
 });
+
+it("keeps the selected sentence when iOS rounds its seek position to nanoseconds", () => {
+  const timeline = guideTimeline([
+    line("Ann Lee painted this harbor.", "hook"),
+    line("Find the boat near the edge.", "look"),
+    line("She sold it to pay her rent.", "story"),
+  ]);
+  expect(sentenceAt(timeline, 5.185185185)).toBe(2);
+  expect(sentenceAt(timeline, 5.18)).toBe(1);
+});

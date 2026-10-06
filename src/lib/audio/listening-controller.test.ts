@@ -54,7 +54,7 @@ class Player implements AudioHandle {
   remove = jest.fn();
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
-  seekTo = jest.fn(async (seconds: number) => {
+  seekTo = jest.fn<ReturnType<AudioHandle["seekTo"]>, Parameters<AudioHandle["seekTo"]>>(async (seconds) => {
     this.currentStatus = { ...this.currentStatus, currentTime: seconds };
   });
   addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
@@ -216,9 +216,9 @@ it("clamps seeks and restarts completed narration", async () => {
   const { controller, play, players } = setup();
   const first = await play(track("a"));
   await controller.seek(-15);
-  expect(first.seekTo).toHaveBeenLastCalledWith(0);
+  expect(first.seekTo).toHaveBeenLastCalledWith(0, 0, 0);
   await controller.seek(150);
-  expect(first.seekTo).toHaveBeenLastCalledWith(100);
+  expect(first.seekTo).toHaveBeenLastCalledWith(100, 0, 0);
   first.emit({ currentTime: 100, didJustFinish: true });
   controller.toggle();
   await Promise.resolve();
@@ -237,7 +237,7 @@ it("plays a paused guide from a sentence without toggling playback", async () =>
   player.emit();
   await Promise.resolve();
   await controller.seek(30, { play: true, clamp: false });
-  expect(player.seekTo).toHaveBeenLastCalledWith(30);
+  expect(player.seekTo).toHaveBeenLastCalledWith(30, 0, 0);
   expect(player.play).toHaveBeenCalledTimes(1);
   expect(controller.snapshot()).toMatchObject({ position: 30, waiting: false });
   player.emit({ currentTime: 30, playing: true });
@@ -245,6 +245,30 @@ it("plays a paused guide from a sentence without toggling playback", async () =>
   expect(player.play).toHaveBeenCalledTimes(1);
   expect(player.pause).not.toHaveBeenCalled();
   controller.dispose();
+});
+
+it.each([
+  { target: "sentence", play: true },
+  { target: "section", play: false },
+])("lands on the requested $target inside a live audio segment", async ({ play }) => {
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio);
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.seekableDuration = 24;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  try {
+    // AVPlayer landed at 10.08 s for an 11.3 s HLS seek unless both tolerances were zero.
+    player.seekTo.mockImplementationOnce(async (seconds, before, after) => {
+      player.currentStatus = { ...player.currentStatus, currentTime: before === 0 && after === 0 ? seconds : 10.08 };
+    });
+    await controller.seek(11.3, { play, clamp: false });
+    expect(controller.snapshot().position).toBe(11.3);
+    expect(player.play).toHaveBeenCalledTimes(play ? 1 : 0);
+  } finally {
+    controller.dispose();
+  }
 });
 
 it.each(["switch", "stop"])("ignores pending sentence playback after a %s", async (action) => {
@@ -440,17 +464,17 @@ it("seeks within the native range before the total duration is known, then uses 
   player.emit({ duration: 0, currentTime: 8, playing: true });
   expect(controller.snapshot()).toMatchObject({ duration: 0, availableDuration: 24 });
   await controller.seek(12);
-  expect(player.seekTo).toHaveBeenLastCalledWith(12);
+  expect(player.seekTo).toHaveBeenLastCalledWith(12, 0, 0);
   await controller.seek(40);
-  expect(player.seekTo).toHaveBeenLastCalledWith(24);
+  expect(player.seekTo).toHaveBeenLastCalledWith(24, 0, 0);
   await controller.seek(-15);
-  expect(player.seekTo).toHaveBeenLastCalledWith(0);
+  expect(player.seekTo).toHaveBeenLastCalledWith(0, 0, 0);
   player.seekableDuration = 48;
   await controller.seek(40);
-  expect(player.seekTo).toHaveBeenLastCalledWith(40);
+  expect(player.seekTo).toHaveBeenLastCalledWith(40, 0, 0);
   player.emit({ duration: 61, currentTime: 40, playing: true });
   await controller.seek(90);
-  expect(player.seekTo).toHaveBeenLastCalledWith(61);
+  expect(player.seekTo).toHaveBeenLastCalledWith(61, 0, 0);
   controller.dispose();
 });
 
@@ -487,11 +511,11 @@ it("clamps live seeks to the native range, including changes since the last stat
   try {
     expect(controller.snapshot().availableDuration).toBe(42.383);
     await controller.seek(48.384);
-    expect(player.seekTo).toHaveBeenLastCalledWith(42.383);
+    expect(player.seekTo).toHaveBeenLastCalledWith(42.383, 0, 0);
     expect(controller.snapshot().position).toBe(42.383);
     player.seekableDuration = 50;
     await controller.seek(60);
-    expect(player.seekTo).toHaveBeenLastCalledWith(50);
+    expect(player.seekTo).toHaveBeenLastCalledWith(50, 0, 0);
     player.seekableDuration = 0;
     const calls = player.seekTo.mock.calls.length;
     await controller.seek(15);
@@ -516,7 +540,7 @@ it("refuses an unavailable sentence jump instead of clamping it to earlier audio
     expect(player.play).not.toHaveBeenCalled();
     player.seekableDuration = 40;
     await controller.seek(30, { play: true, clamp: false });
-    expect(player.seekTo).toHaveBeenCalledWith(30);
+    expect(player.seekTo).toHaveBeenCalledWith(30, 0, 0);
     expect(player.play).toHaveBeenCalledTimes(1);
   } finally {
     controller.dispose();
