@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
+import { Colors, Gallery, OnPhoto, Radius, Spacing } from "@/constants/theme";
 import { useReduceTransparency } from "@/hooks/use-reduce-transparency";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -16,7 +16,7 @@ import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue } from "@/lib/venue/use-venue";
 
 import { SafeAreaBand } from "../../../modules/safe-area-band/src";
-import { newestPhoto, ON_PHOTO_TEXT_SHADOW, VisitBackdrop } from "./visit-backdrop";
+import { newestPhoto, VisitBackdrop } from "./visit-backdrop";
 
 /**
  * Set by the tab layout. Tab screens' own safe areas grow by the band, so the band reads the window's top inset from
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   icon: { width: 18, height: 18 },
   chevron: { width: 9, height: 14 },
-  name: { flexShrink: 1, fontSize: 17, lineHeight: 22, fontWeight: "600", color: ON_PHOTO, ...ON_PHOTO_TEXT_SHADOW },
+  name: { flexShrink: 1, fontSize: 17, lineHeight: 22, fontWeight: "600", color: ON_PHOTO, ...OnPhoto.textShadow },
   // The touch target surrounds the smaller glass surface so clipping cannot trim its tappable margin.
   action: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
   glass: { borderRadius: Radius.full, overflow: "hidden" },

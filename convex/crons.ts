@@ -11,4 +11,6 @@ crons.interval("expire unattached files", { hours: 1 }, internal.files.expire, {
 
 crons.interval("retry Pinecone sync", { minutes: 1 }, internal.vectorSync.drain, {});
 
+crons.weekly("pick popular tags", { dayOfWeek: "monday", hourUTC: 9, minuteUTC: 17 }, internal.tags.refreshPopular, {});
+
 export default crons;

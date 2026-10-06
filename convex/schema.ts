@@ -831,8 +831,7 @@ export default defineSchema({
     public: v.boolean(),
   })
     .index("by_tag_history", ["tag", "visitedOn", "postId"])
-    .index("by_publication", ["publicationId"])
-    .index("by_public_published", ["public", "publishedAt"]),
+    .index("by_publication", ["publicationId"]),
   // Derived companion listings; revoked friendships are hidden immediately and cleaned up in bounded batches.
   visitCompanions: defineTable({
     publicationId: v.id("sharedVisits"),
@@ -851,7 +850,15 @@ export default defineSchema({
   tagStats: defineTable({
     tag: v.string(),
     publicCount: v.number(),
-  }).index("by_tag", ["tag"]),
+  })
+    .index("by_tag", ["tag"])
+    .index("by_public_count", ["publicCount"]),
+  // Search's popular tags, picked weekly by a cron; the cover is a save whose catalog image is resolved on read.
+  popularTags: defineTable({
+    tag: v.string(),
+    rank: v.number(),
+    coverSaveId: v.optional(v.id("collections")),
+  }).index("by_rank", ["rank"]),
   visitEngagement: defineTable({
     publicationId: v.id("sharedVisits"),
     likeCount: v.number(),

@@ -6,13 +6,6 @@ import { Gallery } from "@/constants/theme";
 
 type VisitWork = { cropPath: string | null; title: string };
 
-/** Keeps white text on a visit photo legible where a bright patch shows through the scrim. */
-export const ON_PHOTO_TEXT_SHADOW = {
-  textShadowColor: "rgba(0, 0, 0, 0.35)",
-  textShadowRadius: 6,
-  textShadowOffset: { width: 0, height: 1 },
-};
-
 /** The newest saved artwork that has a photo. */
 export function newestPhoto<T extends VisitWork>(works: T[]): T | undefined {
   return works.find((work) => work.cropPath);

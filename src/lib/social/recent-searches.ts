@@ -42,15 +42,17 @@ export function useRecentSearches() {
       live = false;
     };
   }, [installation]);
+  const save = (entries: RecentSearch[]) => {
+    if (installation !== anonymousOwner()) return;
+    setHistory({ installation, entries });
+    setSetting(KEY, JSON.stringify(entries)).catch((cause) =>
+      reportError(cause, "search.recent.save", { level: "warning" }),
+    );
+  };
+  const others = (entry: RecentSearch) => recent.filter((row) => identity(row) !== identity(entry));
   return {
     recent,
-    remember: (entry: RecentSearch) => {
-      if (installation !== anonymousOwner()) return;
-      const next = [entry, ...recent.filter((row) => identity(row) !== identity(entry))].slice(0, LIMIT);
-      setHistory({ installation, entries: next });
-      setSetting(KEY, JSON.stringify(next)).catch((cause) =>
-        reportError(cause, "search.recent.save", { level: "warning" }),
-      );
-    },
+    remember: (entry: RecentSearch) => save([entry, ...others(entry)].slice(0, LIMIT)),
+    forget: (entry: RecentSearch) => save(others(entry)),
   };
 }

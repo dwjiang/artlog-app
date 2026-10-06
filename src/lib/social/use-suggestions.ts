@@ -73,6 +73,7 @@ export function useSuggestions(session: SocialSession) {
   }
   return {
     people: query.data?.people.filter((person) => !currentHidden.ids.includes(person.profile.profileId)) ?? [],
+    hiddenProfileIds: currentHidden.ids,
     friendCount: query.data?.friendCount,
     loading: query.loading,
     error: query.error,

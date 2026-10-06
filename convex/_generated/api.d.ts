@@ -121,6 +121,7 @@ import type * as lib_socialCleanup from "../lib/socialCleanup.js";
 import type * as lib_socialTestFixtures from "../lib/socialTestFixtures.js";
 import type * as lib_sourceScores from "../lib/sourceScores.js";
 import type * as lib_spend from "../lib/spend.js";
+import type * as lib_suggestionDismissals from "../lib/suggestionDismissals.js";
 import type * as lib_tavily from "../lib/tavily.js";
 import type * as lib_tavilySpend from "../lib/tavilySpend.js";
 import type * as lib_tentativeEntries from "../lib/tentativeEntries.js";
@@ -296,6 +297,7 @@ declare const fullApi: ApiFromModules<{
   "lib/socialTestFixtures": typeof lib_socialTestFixtures;
   "lib/sourceScores": typeof lib_sourceScores;
   "lib/spend": typeof lib_spend;
+  "lib/suggestionDismissals": typeof lib_suggestionDismissals;
   "lib/tavily": typeof lib_tavily;
   "lib/tavilySpend": typeof lib_tavilySpend;
   "lib/tentativeEntries": typeof lib_tentativeEntries;
