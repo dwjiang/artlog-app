@@ -248,7 +248,6 @@ it("gives signed-out owners a private wall on this iPhone without contacting the
   expect(screen.root?.queryAll((node) => node.type === "RCTScrollView")[0].props.contentInsetAdjustmentBehavior).toBe(
     "automatic",
   );
-  expect(footnote.parent?.parent).toHaveStyle({ flexGrow: 1 });
   await fireEvent.press(screen.getByRole("button", { name: "Choose artworks" }));
   await fireEvent.press(await screen.findByRole("checkbox", { name: "Water Lilies" }));
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));

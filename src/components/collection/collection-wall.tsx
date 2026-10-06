@@ -13,7 +13,7 @@ import { usePaneRoom, type PaneRoom } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { useHideTabBar } from "@/components/tab-bar-visibility";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, PinnedFooterBorder } from "@/constants/theme";
+import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
@@ -41,7 +41,6 @@ import { WallEditorPalette } from "./wall-editor-palette";
 import { WallGallery } from "./wall-gallery";
 import { WallProfileSheet } from "./wall-profile-sheet";
 import { WallArtworkSheet } from "./wall-sheets";
-import { wallpaperStyle } from "./wallpaper";
 import { WallpaperEditor } from "./wallpaper-editor";
 
 type CollectionWallProps = {
@@ -300,7 +299,7 @@ export function CollectionWallContent({
   }
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: color }]}>
+    <GestureHandlerRootView style={[styles.root, !blank && { backgroundColor: color }]}>
       {editing && (
         <View style={[styles.toolbar, { backgroundColor: Gallery.paper }]}>
           <Text variant="section" accessibilityRole="header">
@@ -391,38 +390,39 @@ export function CollectionWallContent({
           {opening ? (
             <WallSkeleton label="Opening your wall…" />
           ) : blank ? (
-            <View style={[styles.blankWall, wallpaperStyle(wallpaper)]}>
-              <View style={styles.emptyPaper}>
-                <EmptyState
-                  title="No artworks on your wall yet."
-                  detail={
-                    hasSavedArt
-                      ? `Choose saved artworks for your ${wall.signedIn ? "public wall" : "wall"}.`
-                      : "Scan an artwork to add it to your collection."
+            // The toolbar above already separates the empty state from the pane picker; the full inset would push its
+            // action under the tab bar.
+            <View style={styles.blank}>
+              <EmptyState
+                inset={false}
+                title="No artworks on your wall yet."
+                detail={
+                  hasSavedArt
+                    ? `Choose saved artworks for your ${wall.signedIn ? "public wall" : "wall"}.`
+                    : "Scan an artwork to add it to your collection."
+                }
+                footnote={wall.signedIn ? undefined : "Your wall stays private on this iPhone until you sign in."}
+                visual={<EmptyFrames />}
+              >
+                <GalleryButton
+                  label={
+                    !wall.draft && !wall.profileRequired
+                      ? "Load wall"
+                      : hasSavedArt
+                        ? "Choose artworks"
+                        : "Scan artwork"
                   }
-                  footnote={wall.signedIn ? undefined : "Your wall stays private on this iPhone until you sign in."}
-                  visual={<EmptyFrames />}
-                >
-                  <GalleryButton
-                    label={
-                      !wall.draft && !wall.profileRequired
-                        ? "Load wall"
-                        : hasSavedArt
-                          ? "Choose artworks"
-                          : "Scan artwork"
-                    }
-                    variant="filled"
-                    fullWidth
-                    onPress={() => {
-                      if (!wall.draft && !wall.profileRequired) void wall.refresh();
-                      else if (!hasSavedArt) router.navigate("/scan");
-                      // The wall is public, so its profile is created only once there is art to hang.
-                      else if (wall.profileRequired) setProfile(true);
-                      else openPicker();
-                    }}
-                  />
-                </EmptyState>
-              </View>
+                  variant="filled"
+                  fullWidth
+                  onPress={() => {
+                    if (!wall.draft && !wall.profileRequired) void wall.refresh();
+                    else if (!hasSavedArt) router.navigate("/scan");
+                    // The wall is public, so its profile is created only once there is art to hang.
+                    else if (wall.profileRequired) setProfile(true);
+                    else openPicker();
+                  }}
+                />
+              </EmptyState>
             </View>
           ) : (
             <View
@@ -474,7 +474,7 @@ export function CollectionWallContent({
                       )}
                       {!opening && (
                         <Text style={[styles.emptyCaption, { color: wallInk }]}>
-                          {editing ? "Choose Add art to hang your first artwork." : "Choose from your saved artworks."}
+                          {editing ? "Tap Add to hang your first artwork." : "Choose from your saved artworks."}
                         </Text>
                       )}
                       {opening ? (
@@ -591,19 +591,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: Gallery.fill,
   },
-  emptyPaper: {
-    backgroundColor: Gallery.paper,
-    borderRadius: 12,
-    flexGrow: 1,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  },
-  blankWall: {
-    flexGrow: 1,
-    padding: 20,
-    minHeight: 360,
-    borderTopWidth: 0.5,
-    borderTopColor: Gallery.separator,
-  },
+  blank: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two, paddingBottom: Spacing.four },
   empty: {
     minHeight: 440,
     padding: 32,
