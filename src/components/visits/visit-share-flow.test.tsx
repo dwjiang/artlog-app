@@ -54,7 +54,7 @@ jest.mock("@/lib/ui/toast", () => ({
   showToast: (...args: unknown[]) => mockToast(...args),
 }));
 jest.mock("@/lib/notifications/offer", () => ({ offerNotifications: () => mockOfferNotifications() }));
-let mockPage: "index" | "photos" = "index";
+let mockPage: "index" | "photos" | "companions" = "index";
 let mockSharing: ReturnType<typeof useVisitSharing>;
 let mockPhotos: ArtworkPhoto[] = [];
 const mockVisit = {
@@ -91,6 +91,20 @@ jest.mock("@/lib/visits/use-visit-sharing", () => ({
   },
 }));
 jest.mock("@/components/social/profile-form", () => ({ ProfileForm: () => null }));
+const mockFriend = (profileId: string, name: string, username: string) => ({
+  profileId,
+  name,
+  username,
+  avatar: "vermeer" as const,
+  publishedWallCount: 0,
+});
+let mockFriends = [mockFriend("maya", "Maya Chen", "maya"), mockFriend("jonah", "Jonah Park", "jonahp")];
+jest.mock("@/lib/social/use-social-session", () => ({
+  useSocialSession: () => ({ key: "a", status: "ready", profileId: "me", offline: false }),
+}));
+jest.mock("@/lib/social/use-friends", () => ({
+  useFriends: () => ({ data: mockFriends, loading: false, error: undefined, refresh: jest.fn() }),
+}));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
@@ -146,7 +160,13 @@ jest.mock("expo-router", () => {
     Stack: Object.assign(
       () => {
         const screens = jest.requireActual("./visit-share-flow");
-        return React.createElement(mockPage === "photos" ? screens.VisitSharePhotosScreen : screens.VisitShareScreen);
+        return React.createElement(
+          mockPage === "photos"
+            ? screens.VisitSharePhotosScreen
+            : mockPage === "companions"
+              ? screens.VisitShareCompanionsScreen
+              : screens.VisitShareScreen,
+        );
       },
       {
         Screen: () => null,
@@ -159,6 +179,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPage = "index";
   mockAudience = undefined;
+  mockFriends = [mockFriend("maya", "Maya Chen", "maya"), mockFriend("jonah", "Jonah Park", "jonahp")];
   mockVisit.owner = "account:a";
   mockVisit.visibility = "public";
   mockPhotos = [];
@@ -179,6 +200,7 @@ beforeEach(() => {
       revision: 0,
       saveLocalIds: [],
       reflection: "",
+      companions: [],
     },
     draft: {
       audience: "public",
@@ -188,6 +210,7 @@ beforeEach(() => {
       reflection: "",
       color: "#CDD0CA",
       pattern: "stripe",
+      companionIds: [],
     },
     profileRequired: false,
     conflict: false,
@@ -525,4 +548,54 @@ it("keeps the form when posting throws and lets the person cancel out", async ()
   expect(mockNavigate).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
   expect(mockDismiss).toHaveBeenCalledTimes(1);
+});
+
+it("names who came along and opens the friends picker from Went with", async () => {
+  mockSharing.draft!.companionIds = ["maya", "jonah"] as never;
+  await render(<VisitShareLayout />);
+
+  const row = screen.getByRole("button", { name: "Went with Maya Chen and Jonah Park" });
+  await fireEvent.press(row);
+
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/visit-share/[visitId]/companions",
+    params: { visitId: "visit" },
+  });
+});
+
+it("keeps a companion from the published post who is missing from the friend list", async () => {
+  mockFriends = [];
+  mockSharing.acknowledged!.companions = [mockFriend("maya", "Maya Chen", "maya")] as never;
+  mockSharing.draft!.companionIds = ["maya"] as never;
+  await render(<VisitShareLayout />);
+
+  expect(screen.getByRole("button", { name: "Went with Maya Chen" })).toBeOnTheScreen();
+});
+
+it("picks friends who came along into the draft, up to ten", async () => {
+  mockPage = "companions";
+  mockSharing.draft!.companionIds = ["jonah"] as never;
+  await render(<VisitShareLayout />);
+
+  expect(screen.getByRole("checkbox", { name: "Jonah Park" })).toBeChecked();
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Maya Chen" }));
+  expect(mockController.edit).toHaveBeenLastCalledWith({ companionIds: ["jonah", "maya"] });
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Jonah Park" }));
+  expect(mockController.edit).toHaveBeenLastCalledWith({ companionIds: [] });
+
+  mockFriends = Array.from({ length: 11 }, (_, index) => mockFriend(`f${index}`, `Friend ${index}`, `f${index}`));
+  mockSharing.draft!.companionIds = mockFriends.slice(1).map((friend) => friend.profileId) as never;
+  await screen.rerender(<VisitShareLayout />);
+  expect(screen.getByRole("checkbox", { name: "Friend 0" })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Friend 1" })).toBeEnabled();
+  expect(screen.getByText("You can add up to 10 people.")).toBeOnTheScreen();
+});
+
+it("offers Find friends when there is no one to pick", async () => {
+  mockPage = "companions";
+  mockFriends = [];
+  await render(<VisitShareLayout />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
+  expect(mockPush).toHaveBeenCalledWith("/people");
 });

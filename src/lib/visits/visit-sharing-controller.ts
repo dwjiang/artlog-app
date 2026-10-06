@@ -143,6 +143,7 @@ export function createVisitSharingController({
                 [...available].slice(0, LIMITS.selectedSaves).includes(row.saveLocalId),
               ),
           ...(acknowledged.color ? { color: acknowledged.color, pattern: acknowledged.pattern } : randomWallStyle()),
+          companionIds: acknowledged.companions.map((person) => person.profileId),
         };
     draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
     emit({
@@ -176,15 +177,20 @@ export function createVisitSharingController({
         const result = await transport.getState({ visitLocalId }, context);
         if (current()) accept(result);
       }),
-    edit(patch: Partial<Pick<ShareSelection, "audience" | "saveLocalIds" | "photoSelections" | "color" | "pattern">>) {
+    edit(
+      patch: Partial<
+        Pick<ShareSelection, "audience" | "saveLocalIds" | "photoSelections" | "color" | "pattern" | "companionIds">
+      >,
+    ) {
       if (!state.draft || state.busy || disposed) return;
       const available = new Set(saveLocalIds());
       const selected = patch.saveLocalIds;
       if (
-        selected
-        && (selected.length > LIMITS.selectedSaves
-          || new Set(selected).size !== selected.length
-          || selected.some((id) => !available.has(id)))
+        (selected
+          && (selected.length > LIMITS.selectedSaves
+            || new Set(selected).size !== selected.length
+            || selected.some((id) => !available.has(id))))
+        || (patch.companionIds?.length ?? 0) > LIMITS.companions
       ) {
         return;
       }

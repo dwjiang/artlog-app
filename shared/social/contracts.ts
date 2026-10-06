@@ -247,6 +247,8 @@ export const sharedSelection = v.object({
   photoSelections: v.optional(v.array(sharedPhotoSelection)),
   color: v.string(),
   pattern: v.optional(wallPattern),
+  /** Friends who went along; publishing keeps only those who are still friends. */
+  companionIds: v.array(v.id("profiles")),
 });
 export function validateProfile(input: { username?: string; name: string; bio?: string }) {
   const name = input.name.trim();
@@ -345,6 +347,8 @@ export function validateSelection(input: Infer<typeof sharedSelection>): void {
     || input.reflection.length > LIMITS.note
     || !isRevision(input.revision)
     || !isWallColor(input.color)
+    || input.companionIds.length > LIMITS.companions
+    || new Set(input.companionIds).size !== input.companionIds.length
   ) {
     throw new ConvexError({ code: "invalid_post" });
   }

@@ -71,6 +71,7 @@ async function share(t: Harness, user: SocialUser, visit: VisitRef) {
     reflection: "",
     revision: 0,
     color: "#CDD0CA",
+    companionIds: [],
   });
   return state.postId!;
 }

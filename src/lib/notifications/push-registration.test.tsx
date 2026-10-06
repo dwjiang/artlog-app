@@ -25,16 +25,23 @@ it("registers this iPhone's push token with the pushes it wants, again after a c
   jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
   await render(<PushRegistration />);
   await waitFor(() =>
-    expect(mockRegister).toHaveBeenCalledWith({ token: "ExponentPushToken[test]", friends: true, reactions: true }),
+    expect(mockRegister).toHaveBeenCalledWith({
+      token: "ExponentPushToken[test]",
+      friends: true,
+      reactions: true,
+      companions: true,
+    }),
   );
 
   await setNotificationPreference("reactions", false);
+  await setNotificationPreference("companions", false);
 
   await waitFor(() =>
     expect(mockRegister).toHaveBeenLastCalledWith({
       token: "ExponentPushToken[test]",
       friends: true,
       reactions: false,
+      companions: false,
     }),
   );
 });

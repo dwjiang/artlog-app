@@ -104,6 +104,7 @@ const visit: SharedVisit = {
   publishedAt: 1,
   revision: 1,
   color: "#FCFCF9",
+  companions: [],
   artworks: {
     page: [
       {

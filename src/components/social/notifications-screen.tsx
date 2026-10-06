@@ -104,7 +104,7 @@ export function NotificationsScreen() {
         ) : list.done ? (
           <SocialInvitation
             title="No notifications yet."
-            detail="Friend requests, likes, and comments on your visits appear here."
+            detail="Friend requests, likes and comments on your visits, and visits you’re added to appear here."
           >
             <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
           </SocialInvitation>
@@ -141,6 +141,7 @@ function sentence(row: Item[]) {
         venue: first.venue,
       });
     case "visitComment":
+    case "visitCompanion":
       return notificationSentence({ kind: first.kind, actor, venue: first.venue });
   }
 }
@@ -215,7 +216,7 @@ function NotificationRow({
             </>
           )}
         </View>
-        {(first.kind === "visitLike" || first.kind === "visitComment") && (
+        {(first.kind === "visitLike" || first.kind === "visitComment" || first.kind === "visitCompanion") && (
           <VisitThumbnail media={first.media} label={first.venue} token={session.token} />
         )}
       </MotionPressable>

@@ -83,6 +83,7 @@ export async function socialVisit(
         revision: 0,
         color: "#CDD0CA",
         pattern: "stripe" as const,
+        companionIds: [] as Id<"profiles">[],
       },
     };
   });

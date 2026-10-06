@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 import { ActionSheetIOS } from "react-native";
 
@@ -13,9 +13,16 @@ const mockRefresh = jest.fn();
 const mockArtworkRefresh = jest.fn();
 const mockPages = jest.fn();
 let mockVisit: { data?: SharedVisit; error?: Error };
+const mockLeave = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
-  useMutation: () => jest.fn(),
+  useMutation: (mutation: never) =>
+    jest.requireActual("convex/server").getFunctionName(mutation) === "visitCompanions:leave" ? mockLeave : jest.fn(),
+}));
+const mockToast = jest.fn();
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+  showErrorToast: (...args: unknown[]) => mockToast(...args),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({
@@ -88,6 +95,7 @@ const visit: SharedVisit = {
   revision: 1,
   artworkCount: 5,
   color: "#CDD0CA",
+  companions: [],
   pattern: "stripe",
   artworks: { page: works.slice(0, 3), cursor: "more", isDone: false },
 };
@@ -247,4 +255,47 @@ it("explains a revoked post and offers a retry for other failures", async () => 
   await view.rerender(<VisitScreen postId="post-a" />);
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   expect(mockRefresh).toHaveBeenCalled();
+});
+
+const companion = (profileId: string, name: string) => ({
+  profileId: profileId as never,
+  name,
+  username: profileId,
+  avatar: "vermeer" as const,
+  publishedWallCount: 0,
+});
+
+it("names the friends who came along, each opening their profile", async () => {
+  mockVisit = {
+    data: {
+      ...visit,
+      companions: [companion("maya", "Maya Chen"), companion("jonah", "Jonah Park"), companion("viewer", "Sam Lee")],
+    },
+  };
+  await render(<VisitScreen postId="post-a" />);
+
+  expect(screen.getByText(/with Maya Chen, Jonah Park, and Sam Lee/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("link", { name: "Jonah Park" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "jonah" } });
+});
+
+it("lets a companion remove themselves from the visit", async () => {
+  mockVisit = { data: { ...visit, companions: [companion("viewer", "Sam Lee")] } };
+  mockLeave.mockResolvedValue(null);
+  const sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
+    choose(options.options.indexOf("Remove me from this visit"));
+  });
+  await render(<VisitScreen postId="post-a" />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "More options" }));
+
+  expect(sheet.mock.calls[0][0].options).toEqual([
+    "View Alex Chen’s profile",
+    "Remove me from this visit",
+    "Report visit",
+    "Block Alex Chen",
+    "Cancel",
+  ]);
+  expect(mockLeave).toHaveBeenCalledWith({ postId: "post-a" });
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith("Removed from this visit."));
 });

@@ -25,28 +25,52 @@ async function increment(ctx: MutationCtx, accountId: Id<"accounts">, metric: "v
     });
   }
 }
-/** The visits metric counts museum days: a visit scores when it is the first at its museum that day. */
-export async function recordVisitScore(
+type MuseumDay = Pick<JournalVisit, "venueId" | "visitedOn">;
+/** The account's journal visits plus the posts it is named on as a companion, at one museum on one day; two suffice. */
+async function museumDayEntries(ctx: MutationCtx, accountId: Id<"accounts">, { venueId, visitedOn }: MuseumDay) {
+  const owner = { kind: "account" as const, accountId };
+  const own = await ctx.db
+    .query("visits")
+    .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", visitedOn))
+    .take(2);
+  if (own.length === 2) return 2;
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
+    .unique();
+  const named = profile
+    ? await ctx.db
+        .query("visitCompanions")
+        .withIndex("by_profile_venue_day", (q) =>
+          q.eq("profileId", profile._id).eq("venueId", venueId).eq("visitedOn", visitedOn),
+        )
+        .take(2)
+    : [];
+  return own.length + named.length;
+}
+/** The visits metric counts museum days: a day scores with its first entry and stops when its last one goes. */
+async function moveMuseumDay(ctx: MutationCtx, accountId: Id<"accounts">, day?: MuseumDay, previous?: MuseumDay) {
+  if (day && previous && previous.venueId === day.venueId && previous.visitedOn === day.visitedOn) return;
+  if (previous && (await museumDayEntries(ctx, accountId, previous)) === 0) {
+    await increment(ctx, accountId, "visits", -1);
+  }
+  if (day && (await museumDayEntries(ctx, accountId, day)) === 1) {
+    await increment(ctx, accountId, "visits", 1);
+  }
+}
+/** Runs after the visit is written, with the museum day it held before. */
+export async function recordVisitScore(ctx: MutationCtx, owner: JournalOwner, visit: MuseumDay, previous?: MuseumDay) {
+  if (owner.kind === "account") await moveMuseumDay(ctx, owner.accountId, visit, previous);
+}
+/** Runs after a companion row is written or deleted, with the museum day it holds now and held before. */
+export async function recordCompanionScore(
   ctx: MutationCtx,
-  owner: JournalOwner,
-  visit: Pick<JournalVisit, "venueId" | "visitedOn">,
-  previous?: Pick<JournalVisit, "venueId" | "visitedOn">,
+  profileId: Id<"profiles">,
+  day?: MuseumDay,
+  previous?: MuseumDay,
 ) {
-  if (owner.kind !== "account") return;
-  if (previous && previous.venueId === visit.venueId && previous.visitedOn === visit.visitedOn) return;
-  const onDay = ({ venueId, visitedOn }: Pick<JournalVisit, "venueId" | "visitedOn">) =>
-    ctx.db
-      .query("visits")
-      .withIndex("by_owner_venue_history", (q) =>
-        q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", visitedOn),
-      )
-      .take(2);
-  if (previous && (await onDay(previous)).length === 0) {
-    await increment(ctx, owner.accountId, "visits", -1);
-  }
-  if ((await onDay(visit)).length === 1) {
-    await increment(ctx, owner.accountId, "visits", 1);
-  }
+  const profile = await ctx.db.get("profiles", profileId);
+  if (profile) await moveMuseumDay(ctx, profile.accountId, day, previous);
 }
 export async function recordArtworkScore(
   ctx: MutationCtx,

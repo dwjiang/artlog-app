@@ -19,6 +19,7 @@ import { withdrawProfilePosts } from "./lib/publicationUpdates";
 import { limitKey } from "./lib/rateLimits";
 import {
   checkPublicationRevision,
+  companionHistory,
   compareHistory,
   header,
   historyCursor,
@@ -40,6 +41,7 @@ import {
   stateForPublication,
   tagHistory,
 } from "./lib/sharedPublications";
+import { isSelectedCompanion, selectCompanions } from "./lib/visitCompanions";
 
 const withdrawArgs = { profileId: v.id("profiles") };
 export const withdrawProfile = internalAction({
@@ -129,6 +131,7 @@ export const savePublication = internalMutation({
       publishedAt: publication?.publishedAt || Date.now(),
       color: input.color.toUpperCase(),
       pattern: input.pattern,
+      companionSelections: await selectCompanions(ctx, profile._id, input.companionIds),
     };
     const publicationId =
       publication?._id
@@ -173,7 +176,7 @@ export const get = query({
     if (!isUuid(input.postId)) throw new ConvexError({ code: "not_found" });
     const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile?._id);
     return {
-      ...(await header(ctx, publication, author, visit)),
+      ...(await header(ctx, publication, author, visit, profile?._id)),
       artworks: await projectArtworkPage(ctx, publication, visit, input),
     };
   },
@@ -200,7 +203,7 @@ async function historyPage(
   viewerId: Id<"profiles"> | undefined,
   sources: HistoryStream[],
   scope: string,
-  input: { cursor?: string | null; limit?: number },
+  input: { cursor?: string | null; limit?: number; profileId?: Id<"profiles"> },
 ) {
   const { numItems } = pagination(input);
   const before = parseHistoryCursor(scope, input.cursor);
@@ -223,14 +226,19 @@ async function historyPage(
       break;
     }
     const candidate = stream.head;
-    const access = await readablePublication(ctx, candidate, viewerId);
+    // Revoked companion rows may await cleanup; never list them on the former companion's profile.
+    const listed =
+      !input.profileId
+      || candidate.profileId === input.profileId
+      || (await isSelectedCompanion(ctx, candidate, input.profileId));
+    const access = listed && (await readablePublication(ctx, candidate, viewerId));
     if (access) {
       const artworks = await projectArtworkPage(ctx, candidate, access.visit, {
         limit: 3,
         highlightsOnly: true,
       });
       const result = {
-        ...(await header(ctx, candidate, access.profile, access.visit)),
+        ...(await header(ctx, candidate, access.profile, access.visit, viewerId)),
         artworks,
       };
       const size = utf8Bytes(result);
@@ -305,10 +313,13 @@ export const listByProfile = query({
     }
     // The same shortcut for an audience filter the viewer can never read.
     if ((audience === "private" && !own) || (audience === "friends" && !own && !friend)) return empty;
+    // Visits the profile was named on join its own unless a filter narrows the list to one audience of its own posts.
     return historyPage(
       ctx,
       viewer?._id,
-      [profileHistory(ctx, input.profileId, audience)],
+      audience
+        ? [profileHistory(ctx, input.profileId, audience)]
+        : [profileHistory(ctx, input.profileId), companionHistory(ctx, input.profileId)],
       `profile:${viewer?._id ?? "guest"}:${input.profileId}:${audience ?? "all"}`,
       input,
     );
