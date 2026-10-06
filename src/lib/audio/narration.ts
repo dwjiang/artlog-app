@@ -15,6 +15,8 @@ export type ListeningWork = {
   renderId?: string;
 };
 export type ListeningTrack = { work: ListeningWork };
+/** How often the player reports its position while playing. */
+export const PLAYBACK_UPDATE_MS = 250;
 export function trackKey(track: ListeningTrack) {
   return track.work.artworkId;
 }

@@ -10,7 +10,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { type GuideTimeline, guideTimeline, sentenceAt } from "@/lib/audio/guide-timeline";
+import { type GuideTimeline, guideParts, guideProgress, sectionAt } from "@/lib/audio/guide-timeline";
 import { canSeekTo, type ListeningState } from "@/lib/audio/listening-controller";
 import { audioTime } from "@/lib/audio/narration";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
@@ -35,9 +35,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   }, [preparing, preparation]);
   const availableDuration = audio.duration || audio.availableDuration;
   const seekable = ready && availableDuration > 0;
-  const timeline = audio.sentences ? guideTimeline(audio.sentences, audio.duration) : undefined;
-  // The bar spans the whole guide; while a live guide's length is unknown, that is the estimate, beyond what is generated.
-  const scale = Math.max(timeline?.length ?? 0, availableDuration);
+  const { timeline, scale } = guideProgress(audio);
   const sliderScale = scrubbing ? draftScale : scale;
   const position = scrubbing ? draft : audio.position;
   const queue = view === "queue" || view === "saved";
@@ -205,11 +203,6 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   );
 }
 
-function sectionAt(timeline: GuideTimeline, position: number) {
-  const sentence = sentenceAt(timeline, position);
-  return timeline.sections.findLast((section) => section.sentence <= sentence)?.section;
-}
-
 /** The current part of the guide as a native pop-up button that jumps to the start of another part. */
 function SectionMenu({
   timeline,
@@ -269,10 +262,7 @@ function SectionTrack({
   position: number;
   available: number;
 }) {
-  const parts =
-    timeline?.sections.length && scale > 0
-      ? timeline.sections.map(({ start, end }, index, all) => ({ start, end: index === all.length - 1 ? scale : end }))
-      : [{ start: 0, end: Math.max(scale, 1) }];
+  const parts = guideParts(timeline, scale);
   const share = (value: number, start: number, end: number): `${number}%` =>
     `${end > start ? Math.min(100, Math.max(0, ((value - start) / (end - start)) * 100)) : 0}%`;
   return (

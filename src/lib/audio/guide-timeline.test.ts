@@ -1,5 +1,5 @@
 import type { GuideSection, GuideSentence } from "../../../convex/lib/validators";
-import { guideTimeline, sentenceAt } from "./guide-timeline";
+import { guideParts, guideProgress, guideTimeline, sectionAt, sentenceAt } from "./guide-timeline";
 
 const line = (sentence: string, section: GuideSection = "story"): GuideSentence => ({
   sentence,
@@ -76,4 +76,32 @@ it("keeps the selected sentence when iOS rounds its seek position to nanoseconds
   ]);
   expect(sentenceAt(timeline, 5.185185185)).toBe(2);
   expect(sentenceAt(timeline, 5.18)).toBe(1);
+});
+
+it("names the section being spoken at any position", () => {
+  const timeline = guideTimeline(waterLilies, 75.77);
+  expect([0, 12, 30, 70].map((position) => sectionAt(timeline, position))).toEqual([
+    "hook",
+    "look",
+    "story",
+    "takeaway",
+  ]);
+});
+
+it("spans a live guide's estimated length until the real length arrives, and never less than what is generated", () => {
+  const live = guideProgress({ sentences: waterLilies, duration: 0, availableDuration: 20 });
+  expect(live.scale).toBe(guideTimeline(waterLilies).length);
+  expect(guideProgress({ sentences: waterLilies, duration: 75.77, availableDuration: 0 }).scale).toBe(75.77);
+  expect(guideProgress({ sentences: undefined, duration: 0, availableDuration: 20 })).toEqual({
+    timeline: undefined,
+    scale: 20,
+  });
+});
+
+it("cuts the progress span at each section start, the last section running to the end of the span", () => {
+  const timeline = guideTimeline(waterLilies, 75.77);
+  const parts = guideParts(timeline, 80);
+  expect(parts.map(({ start }) => start)).toEqual(timeline.sections.map(({ start }) => start));
+  expect(parts.at(-1)?.end).toBe(80);
+  expect(guideParts(undefined, 0)).toEqual([{ start: 0, end: 1 }]);
 });
