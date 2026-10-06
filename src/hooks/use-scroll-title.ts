@@ -1,9 +1,9 @@
 import { useNavigation } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { useEffect, useRef } from "react";
-import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Text } from "react-native";
+import type { LayoutChangeEvent, ScrollView, Text } from "react-native";
 
 import { NavigationTheme, ScrollTitleHeader } from "@/constants/theme";
+import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
 
 const SHOWN = { headerTitleStyle: NavigationTheme.headerTitleStyle };
 const HIDDEN = { headerTitleStyle: ScrollTitleHeader.headerTitleStyle };
@@ -18,24 +18,9 @@ const HIDDEN = { headerTitleStyle: ScrollTitleHeader.headerTitleStyle };
  */
 export function useScrollTitle(title: string) {
   const navigation = useNavigation();
-  const headerHeight = useHeaderHeight();
   const scrollRef = useRef<ScrollView>(null);
   const headingRef = useRef<Text>(null);
-  // The offset stays unknown until the first scroll event, so the title starts hidden.
-  const position = useRef({ offset: -Infinity, headingBottom: Infinity, shown: false });
-
-  function update() {
-    const { current } = position;
-    const shown = current.offset + headerHeight >= current.headingBottom;
-    if (shown === current.shown) return;
-    current.shown = shown;
-    navigation.setOptions(shown ? SHOWN : HIDDEN);
-  }
-
-  function recordHeading(bottom: number) {
-    position.current.headingBottom = bottom;
-    update();
-  }
+  const { recordEdge, onScroll } = useScrolledUnderBar((shown) => navigation.setOptions(shown ? SHOWN : HIDDEN));
 
   useEffect(() => {
     navigation.setOptions({ title });
@@ -44,15 +29,12 @@ export function useScrollTitle(title: string) {
   return {
     scrollRef,
     headingRef,
-    onHeadingLayout: ({ nativeEvent: { layout } }: LayoutChangeEvent) => recordHeading(layout.y + layout.height),
+    onHeadingLayout: ({ nativeEvent: { layout } }: LayoutChangeEvent) => recordEdge(layout.y + layout.height),
     measureHeading: () => {
       const scrollView = scrollRef.current?.getNativeScrollRef();
       if (!headingRef.current || !scrollView) return;
-      headingRef.current.measureLayout(scrollView, (_left, top, _width, height) => recordHeading(top + height));
+      headingRef.current.measureLayout(scrollView, (_left, top, _width, height) => recordEdge(top + height));
     },
-    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      position.current.offset = event.nativeEvent.contentOffset.y;
-      update();
-    },
+    onScroll,
   };
 }

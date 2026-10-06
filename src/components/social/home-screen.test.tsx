@@ -16,11 +16,17 @@ let mockParams: { feed?: string; posted?: string };
 let mockDelivered: Record<string, unknown>;
 const mockSubscriptions = new Map<object, RequestForQueries>();
 const mockPush = jest.fn();
+const mockNavigate = jest.fn();
+let mockVisit: object | undefined;
 jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
-jest.mock("@/components/visits/now-card", () => ({ NowCard: () => null }));
+jest.mock("@/components/visits/now-card", () => ({
+  NowCard: () => null,
+  useNowCardScroll: () => ({ onCardLayout: () => {}, onScroll: () => {} }),
+}));
 jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => null }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit }) }));
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockSession.token }));
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 jest.mock("expo-router", () => {
@@ -31,7 +37,7 @@ jest.mock("expo-router", () => {
     Number.parseInt(String(Platform.Version), 10) >= 26 ? <Text>{children}</Text> : null;
   return {
     useLocalSearchParams: () => mockParams,
-    useRouter: () => ({ push: mockPush }),
+    useRouter: () => ({ push: mockPush, navigate: mockNavigate }),
     Stack: mockStack,
   };
 });
@@ -94,6 +100,7 @@ beforeEach(() => {
   mockDelivered = {};
   mockParams = {};
   mockUnseen = 0;
+  mockVisit = undefined;
   mockSession = {
     status: "ready",
     key: "account-a",
@@ -257,4 +264,37 @@ it("opens Global when friends have no visits and keeps it when a friend posts la
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Friends museum")).toBeOnTheScreen();
+});
+
+it("names the open feed on the toolbar menu, hiding it until Home knows which feed opens", async () => {
+  await renderHome();
+  expect(screen.queryByLabelText(/ feed$/)).toBeNull();
+  await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
+  expect(screen.getByLabelText("Friends feed")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Friends", selected: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Global" }));
+  expect(screen.getByLabelText("Global feed")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Friends", selected: false })).toBeOnTheScreen();
+});
+
+it.each([
+  ["without a visit", undefined],
+  ["under the Now card during a visit", { localId: "visit-1" }],
+])("offers the empty feeds’ next steps %s", async (_, visit) => {
+  mockVisit = visit;
+  await renderHome();
+  await deliver({
+    "sharedVisits:listFeed:first": { page: [], cursor: null, isDone: true },
+    "sharedVisits:listPublic:first": { page: [], cursor: null, isDone: true },
+  });
+  expect(screen.getByRole("header", { name: "No public visits yet." })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "View public walls" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people");
+  await fireEvent.press(screen.getByRole("button", { name: "Scan an artwork" }));
+  expect(mockNavigate).toHaveBeenLastCalledWith("/scan");
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.getByRole("header", { name: "No visits from friends yet." })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
 });

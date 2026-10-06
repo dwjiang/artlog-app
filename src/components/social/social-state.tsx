@@ -2,9 +2,8 @@ import { useRouter } from "expo-router";
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 
-import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { EmptyState, EmptySymbol } from "@/components/empty-state";
+import { EmptyActions, EmptyCard, EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
 import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -37,6 +36,7 @@ export function SocialState({
   onAction,
   secondaryAction,
   onSecondaryAction,
+  card = false,
 }: {
   title: string;
   detail?: string;
@@ -46,6 +46,8 @@ export function SocialState({
   onSecondaryAction?: () => void;
   action?: string;
   onAction?: () => void;
+  /** Sets the state as a gray card under other content. */
+  card?: boolean;
 }) {
   if (loading) {
     return (
@@ -54,16 +56,13 @@ export function SocialState({
       </View>
     );
   }
+  const primary = action && onAction ? { label: action, onPress: onAction } : undefined;
+  const secondary =
+    secondaryAction && onSecondaryAction ? { label: secondaryAction, onPress: onSecondaryAction } : undefined;
+  if (card) return <EmptyCard title={title} detail={detail} action={primary} secondaryAction={secondary} />;
   return (
     <EmptyState title={title} detail={detail ?? ""} visual={<EmptySymbol name={icon} size={132} />}>
-      <ActionStack
-        textActions={
-          secondaryAction
-          && onSecondaryAction && <GalleryButton label={secondaryAction} onPress={onSecondaryAction} fullWidth />
-        }
-      >
-        {action && onAction && <GalleryButton label={action} onPress={onAction} variant="filled" fullWidth />}
-      </ActionStack>
+      <EmptyActions action={primary} secondaryAction={secondary} />
     </EmptyState>
   );
 }
@@ -72,44 +71,37 @@ export function SocialGate({
   session,
   onBrowseGlobal,
   context = "friends",
+  card = false,
 }: {
   session: SocialSession;
   onBrowseGlobal?: () => void;
   context?: SignInContext;
+  /** Sets each state as a gray card under other content. */
+  card?: boolean;
 }) {
   const router = useRouter();
   if (session.status === "ready") return null;
+  const browseGlobal = onBrowseGlobal && { label: "Browse Global", onPress: onBrowseGlobal };
   if (session.status === "signed-out") {
     return (
       <SocialInvitation
+        card={card}
         title={"Sign in to add friends."}
         detail="See the museum visits and artworks your friends share."
-      >
-        <ActionStack
-          textActions={onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
-        >
-          <GalleryButton label="Sign in" variant="filled" fullWidth onPress={() => router.push(signInRoute(context))} />
-        </ActionStack>
-      </SocialInvitation>
+        action={{ label: "Sign in", onPress: () => router.push(signInRoute(context)) }}
+        secondaryAction={browseGlobal}
+      />
     );
   }
   if (session.status === "profile-required") {
     return (
       <SocialInvitation
+        card={card}
         title="Create a public profile."
         detail="A public profile lets you find friends and follow their museum visits."
-      >
-        <ActionStack
-          textActions={onBrowseGlobal && <GalleryButton label="Browse Global" fullWidth onPress={onBrowseGlobal} />}
-        >
-          <GalleryButton
-            label="Create your profile"
-            variant="filled"
-            fullWidth
-            onPress={() => router.push("/create-profile")}
-          />
-        </ActionStack>
-      </SocialInvitation>
+        action={{ label: "Create your profile", onPress: () => router.push("/create-profile") }}
+        secondaryAction={browseGlobal}
+      />
     );
   }
   if (session.status === "offline") {
@@ -118,6 +110,7 @@ export function SocialGate({
         title="You’re offline."
         detail="Your saved collection is still here. Shared visits will return when you’re connected."
         icon="wifi.slash"
+        card={card}
         action="Open your collection"
         onAction={() => {
           router.dismissAll();
@@ -133,6 +126,7 @@ export function SocialGate({
       <SocialState
         title="Couldn’t load your account."
         detail={socialErrorMessage(session.error) ?? "Check your connection and try again."}
+        card={card}
         action="Try again"
         onAction={session.refresh}
       />

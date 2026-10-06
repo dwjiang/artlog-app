@@ -1,11 +1,13 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { createContext, use, useEffect } from "react";
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
@@ -13,11 +15,29 @@ import { useVenue, visitByDefault } from "@/lib/venue/use-venue";
 
 import { DontMiss } from "./dont-miss";
 
+/** Set by the tab layout, which shows the visit bar on Home once the Now card has scrolled under the navigation bar. */
+export const NowCardScrolledAway = createContext<((away: boolean) => void) | undefined>(undefined);
+
+/**
+ * Tells the tab layout whether Home's Now card has scrolled under the navigation bar. Pass `onCardLayout` to a
+ * `NowCard` that is a direct child of the scroll content, and the list's scroll events to `onScroll`.
+ */
+export function useNowCardScroll() {
+  const report = use(NowCardScrolledAway);
+  const { recordEdge, onScroll } = useScrolledUnderBar((away) => report?.(away));
+  // A remounted Home starts scrolled to the top, with its card in view.
+  useEffect(() => () => report?.(false), [report]);
+  return {
+    onCardLayout: ({ nativeEvent: { layout } }: LayoutChangeEvent) => recordEdge(layout.y + layout.height),
+    onScroll,
+  };
+}
+
 /**
  * Home's "Now" card: the museum the phone is at before anything is saved there, then the visit in progress. A visit
  * paused elsewhere stays on the card as "Visit open" so it can still be reviewed and ended.
  */
-export function NowCard() {
+export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) => void }) {
   const router = useRouter();
   const owner = useLocalOwner();
   const { venue, visit } = useVenue();
@@ -36,7 +56,7 @@ export function NowCard() {
   const scan = () => router.navigate("/scan");
   return (
     <>
-      <View style={styles.section}>
+      <View style={styles.section} onLayout={onLayout}>
         <Text variant="section" accessibilityRole="header" style={styles.heading}>
           Now
         </Text>

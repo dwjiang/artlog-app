@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { MiniPlayer } from "@/components/audio/mini-player";
 import { TabBarVisibility } from "@/components/tab-bar-visibility";
+import { NowCardScrolledAway } from "@/components/visits/now-card";
 import { VisitBar } from "@/components/visits/visit-bar";
 import { VisitPlayerBar } from "@/components/visits/visit-player-bar";
 import { TabTitles } from "@/constants/tabs";
@@ -57,41 +58,49 @@ export default function TabsLayout() {
   const selectedTab = useSelectedTab();
   const unseen = useWatchUnseenNotifications();
   const unseenBadge = countBadge(unseen);
-  // Home carries the visit on its Now card; the bar keeps it in view on the camera and in the collection.
-  const showVisitBar = !!visit && selectedTab !== "(home)";
+  const [nowCardAway, setNowCardAway] = useState(false);
+  // Home carries the visit on its Now card until the card scrolls away; the bar keeps it in view everywhere else.
+  const showVisitBar = !!visit && (selectedTab !== "(home)" || nowCardAway);
   return (
     <UnseenNotificationCount value={unseen}>
-      <TabBarVisibility value={setHidden}>
-        <NativeTabs minimizeBehavior="never" hidden={hidden} tintColor={Gallery.accent} backgroundColor={Gallery.paper}>
-          {/* The system slot above the tab bar holds one row, so a visit with narration shares a single bar. */}
-          {!hidden && (listening || showVisitBar) && (
-            <NativeTabs.BottomAccessory>
-              <AccessoryBar listening={listening} visit={showVisitBar} />
-            </NativeTabs.BottomAccessory>
-          )}
-          <NativeTabs.Trigger name="(home)">
-            <NativeTabs.Trigger.Label>{TabTitles["(home)"]}</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
-            {unseenBadge && <NativeTabs.Trigger.Badge>{unseenBadge}</NativeTabs.Trigger.Badge>}
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="(scan)">
-            <NativeTabs.Trigger.Label>{TabTitles["(scan)"]}</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="(collection)">
-            <NativeTabs.Trigger.Label>{TabTitles["(collection)"]}</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              sf={{
-                default: "square.grid.2x2",
-                selected: "square.grid.2x2.fill",
-              }}
-            />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="(search)" role="search">
-            <NativeTabs.Trigger.Label>{TabTitles["(search)"]}</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-        </NativeTabs>
-      </TabBarVisibility>
+      <NowCardScrolledAway value={setNowCardAway}>
+        <TabBarVisibility value={setHidden}>
+          <NativeTabs
+            minimizeBehavior="never"
+            hidden={hidden}
+            tintColor={Gallery.accent}
+            backgroundColor={Gallery.paper}
+          >
+            {/* The system slot above the tab bar holds one row, so a visit with narration shares a single bar. */}
+            {!hidden && (listening || showVisitBar) && (
+              <NativeTabs.BottomAccessory>
+                <AccessoryBar listening={listening} visit={showVisitBar} />
+              </NativeTabs.BottomAccessory>
+            )}
+            <NativeTabs.Trigger name="(home)">
+              <NativeTabs.Trigger.Label>{TabTitles["(home)"]}</NativeTabs.Trigger.Label>
+              <NativeTabs.Trigger.Icon sf={{ default: "house", selected: "house.fill" }} />
+              {unseenBadge && <NativeTabs.Trigger.Badge>{unseenBadge}</NativeTabs.Trigger.Badge>}
+            </NativeTabs.Trigger>
+            <NativeTabs.Trigger name="(scan)">
+              <NativeTabs.Trigger.Label>{TabTitles["(scan)"]}</NativeTabs.Trigger.Label>
+              <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
+            </NativeTabs.Trigger>
+            <NativeTabs.Trigger name="(collection)">
+              <NativeTabs.Trigger.Label>{TabTitles["(collection)"]}</NativeTabs.Trigger.Label>
+              <NativeTabs.Trigger.Icon
+                sf={{
+                  default: "square.grid.2x2",
+                  selected: "square.grid.2x2.fill",
+                }}
+              />
+            </NativeTabs.Trigger>
+            <NativeTabs.Trigger name="(search)" role="search">
+              <NativeTabs.Trigger.Label>{TabTitles["(search)"]}</NativeTabs.Trigger.Label>
+            </NativeTabs.Trigger>
+          </NativeTabs>
+        </TabBarVisibility>
+      </NowCardScrolledAway>
     </UnseenNotificationCount>
   );
 }

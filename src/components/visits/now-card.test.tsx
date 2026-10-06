@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
+import type { PropsWithChildren } from "react";
+import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 
 import type { VenueView } from "@/lib/venue/use-venue";
 
-import { NowCard } from "./now-card";
+import { NowCard, NowCardScrolledAway, useNowCardScroll } from "./now-card";
 
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
@@ -11,6 +13,7 @@ let mockVenue: VenueView["venue"];
 let mockVisitByDefault = true;
 let mockWorks: { localId: string; cropPath: string | null; title: string }[] = [];
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, navigate: mockNavigate }) }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({ visit: mockVisit, venue: mockVenue }),
@@ -99,4 +102,32 @@ it("keeps a visit paused elsewhere on the card as open rather than in progress",
   expect(screen.getByText("The Metropolitan Museum of Art")).toBeOnTheScreen();
   expect(screen.queryByText("Neue Galerie")).toBeNull();
   expect(screen.queryByText(/Don’t miss/)).toBeNull();
+});
+
+it("tells the tab layout when the card scrolls under the navigation bar and back, and resets when Home goes", async () => {
+  const report = jest.fn();
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <NowCardScrolledAway value={report}>{children}</NowCardScrolledAway>
+  );
+  const view = await renderHook(() => useNowCardScroll(), { wrapper });
+  const scroll = (y: number) =>
+    act(() =>
+      view.result.current.onScroll({
+        nativeEvent: { contentOffset: { x: 0, y } },
+      } as NativeSyntheticEvent<NativeScrollEvent>),
+    );
+  await act(() =>
+    view.result.current.onCardLayout({
+      nativeEvent: { layout: { x: 0, y: 8, width: 402, height: 280 } },
+    } as LayoutChangeEvent),
+  );
+  for (const y of [-116, 0, 171]) await scroll(y);
+  expect(report).not.toHaveBeenCalled();
+  for (const y of [172, 600]) await scroll(y);
+  expect(report.mock.calls).toEqual([[true]]);
+  for (const y of [40, -116]) await scroll(y);
+  expect(report.mock.calls).toEqual([[true], [false]]);
+  await scroll(400);
+  await view.unmount();
+  expect(report.mock.calls).toEqual([[true], [false], [true], [false]]);
 });
