@@ -132,6 +132,13 @@ npx convex run museumPicks:rebuild --prod --env-file .context/production-target.
 The command returns at once; scheduled steps finish the rebuild and log
 `Museum picks rebuilt`.
 
+Search's popular tags are picked by a Monday cron. After the first deploy that
+includes `popularTags`, pick them once so Search doesn't wait for the cron:
+
+```sh
+npx convex run tags:refreshPopular --prod --env-file .context/production-target.env
+```
+
 Python imports use production `CONVEX_URL` and `CONVEX_DEPLOY_KEY` in the job
 process with a production-specific checkpoint. Keep the dev `.env.local` intact;
 the [upload todo](../todos/production-upload/README.md) owns import preparation and

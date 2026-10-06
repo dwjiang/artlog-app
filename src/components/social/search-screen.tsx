@@ -8,22 +8,27 @@ import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
-import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useRecentSearches, type RecentSearch } from "@/lib/social/recent-searches";
+import { useRecentSearches } from "@/lib/social/recent-searches";
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { useSuggestions } from "@/lib/social/use-suggestions";
 import { validateSearch } from "@/shared/social/contracts";
 
 import { api } from "../../../convex/_generated/api";
+import { PopularTags } from "./popular-tags";
+import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
+import { SearchChip, SearchChips } from "./search-chip";
 import { SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
+import { SuggestionStrip } from "./suggested-people";
 import { TagRow } from "./tag-row";
 import { tagHref } from "./tagged-text";
 
 const SHOWN = 5;
+const SHOWN_PEOPLE = 10;
 
 // The server rejects searches it can't run, so those never leave the phone.
 function peopleSearch(text: string) {
@@ -34,33 +39,46 @@ function peopleSearch(text: string) {
   }
 }
 
-/** The Search tab: tags and people, with recent and popular tags before anything is typed. */
+/** The Search tab: tags and people, with recent searches, popular tags and people to add before anything is typed. */
 export function SearchScreen() {
   const router = useRouter();
   const session = useSocialSession();
-  const { recent, remember } = useRecentSearches();
+  const { recent, remember, forget } = useRecentSearches();
   const [text, setText] = useState("");
   const query = text.trim();
   const settled = useDebouncedValue(query, 200, "");
   const online = !session.offline;
-  const asOf = useCurrentMinute();
   // A leading # asks for tags only.
   const tagPrefix = settled.replace(/^#/, "");
   const people = settled.startsWith("#") ? "" : peopleSearch(settled);
-  const popular = useSocialQuery(api.tags.popular, online ? { asOf } : "skip", session.key);
-  const [lastPopular, setLastPopular] = useState<{ scope: string; tags: NonNullable<typeof popular.data> }>();
-  if (popular.data !== undefined && (lastPopular?.scope !== session.key || lastPopular.tags !== popular.data)) {
-    setLastPopular({ scope: session.key, tags: popular.data });
-  }
+  const popular = useSocialQuery(api.tags.popular, online ? {} : "skip", session.key);
   const tags = useSocialQuery(api.tags.search, online && tagPrefix ? { prefix: tagPrefix } : "skip", session.key);
   const profiles = useSocialQuery(
     api.profiles.search,
     online && people ? { query: people, limit: SHOWN } : "skip",
     session.key,
   );
+  const suggestions = useSuggestions(session);
+  // Guests, and people with no one to suggest yet, see the newest profiles instead.
+  const browsing = online && !query && session.status !== "loading" && !suggestions.loading;
+  const newest = useSocialQuery(
+    api.profiles.discover,
+    browsing && suggestions.people.length === 0 ? { limit: SHOWN_PEOPLE + 1, excludeDismissed: true } : "skip",
+    session.key,
+  );
+  const newestPeople = (newest.data?.page ?? [])
+    .filter(
+      (person) => person.profileId !== session.profileId && !suggestions.hiddenProfileIds.includes(person.profileId),
+    )
+    .slice(0, SHOWN_PEOPLE)
+    .map((profile) => ({ profile }));
   const openTag = (tag: string) => {
     remember({ kind: "tag", tag });
     router.push(tagHref(tag));
+  };
+  const openPerson = (profile: PublicProfile) => {
+    remember({ kind: "person", profile });
+    router.push({ pathname: "/profile/[profileId]", params: { profileId: profile.profileId } });
   };
   const tagResults = settled && tagPrefix ? (tags.data ?? []).slice(0, SHOWN) : [];
   const peopleResults = people ? (profiles.data?.page ?? []) : [];
@@ -71,36 +89,47 @@ export function SearchScreen() {
   if (!online) {
     state = <SocialState title="You’re offline." detail="Connect to search tags and people." icon="wifi.slash" />;
   } else if (!query) {
-    const popularTags = popular.data ?? (lastPopular?.scope === session.key ? lastPopular.tags : []);
-    content = (
+    const popularTags = popular.data ?? [];
+    const suggested = suggestions.people.length > 0;
+    const strip = suggested ? suggestions.people : newestPeople;
+    const sections = (
       <>
         {recent.length > 0 && (
-          <ListSection title="Recent">
-            {recent.map((entry, index) => (
-              <RecentRow
-                key={entry.kind === "tag" ? `tag:${entry.tag}` : entry.profile.profileId}
-                entry={entry}
-                first={index === 0}
-                last={index === recent.length - 1}
-                onOpenTag={openTag}
-                onOpenPerson={(profile) => remember({ kind: "person", profile })}
-              />
-            ))}
+          <ListSection title="Recent" flush>
+            <SearchChips>
+              {recent.map((entry) =>
+                entry.kind === "tag" ? (
+                  <SearchChip
+                    key={`tag:${entry.tag}`}
+                    label={`#${entry.tag}`}
+                    accessibilityLabel={`#${entry.tag}`}
+                    onPress={() => openTag(entry.tag)}
+                    onRemove={() => forget(entry)}
+                  />
+                ) : (
+                  <SearchChip
+                    key={entry.profile.profileId}
+                    label={entry.profile.name}
+                    leading={
+                      <ProfileAvatar
+                        name={entry.profile.name}
+                        photoUrl={entry.profile.photoUrl}
+                        avatar={entry.profile.avatar}
+                        size={24}
+                      />
+                    }
+                    accessibilityLabel={`View ${entry.profile.name}’s profile`}
+                    onPress={() => openPerson(entry.profile)}
+                    onRemove={() => forget(entry)}
+                  />
+                ),
+              )}
+            </SearchChips>
           </ListSection>
         )}
         {popularTags.length > 0 && (
-          <ListSection title="Popular this week">
-            {popularTags.map(({ tag, postCount }, index) => (
-              <TagRow
-                key={tag}
-                tag={tag}
-                count={postCount}
-                chevron
-                first={index === 0}
-                last={index === popularTags.length - 1}
-                onPress={() => openTag(tag)}
-              />
-            ))}
+          <ListSection title="Popular tags" flush>
+            <PopularTags tags={popularTags} onOpen={openTag} />
           </ListSection>
         )}
         {popular.error ? (
@@ -108,14 +137,52 @@ export function SearchScreen() {
         ) : popular.loading && popularTags.length === 0 ? (
           <ListSkeleton card label="Loading popular tags…" />
         ) : null}
+        {newest.error && <SearchFailure noun="people" onRetry={newest.refresh} />}
+      </>
+    );
+    const empty =
+      recent.length === 0
+      && popularTags.length === 0
+      && !popular.loading
+      && !popular.error
+      && strip.length === 0
+      && session.status !== "loading"
+      && !suggestions.loading
+      && !newest.loading
+      && !newest.error;
+    content = empty ? (
+      <SearchEmptyState title="Find people and tags." detail="Search by name, @username or #tag." />
+    ) : (
+      <>
+        <View style={styles.sections}>{sections}</View>
+        {strip.length > 0 && (
+          <View style={styles.people}>
+            <SuggestionStrip
+              people={strip}
+              title={suggested ? "Suggested" : "New on Artlog"}
+              invite={session.status === "ready"}
+              session={session}
+              onDismiss={suggestions.dismiss}
+              refresh={suggested ? suggestions.refresh : newest.refresh}
+              seeAll={() => router.push("/people")}
+            />
+          </View>
+        )}
       </>
     );
   } else if (tagResults.length === 0 && peopleResults.length === 0 && !searchError) {
-    if (searching) content = <ListSkeleton card label="Searching…" />;
-    else state = <SearchEmptyState detail="Try another name or tag." />;
+    if (searching) {
+      content = (
+        <View style={styles.sections}>
+          <ListSkeleton card label="Searching…" />
+        </View>
+      );
+    } else {
+      state = <SearchEmptyState detail="Try another name or tag." />;
+    }
   } else {
     content = (
-      <>
+      <View style={styles.sections}>
         {!!tagPrefix && tags.error && <SearchFailure noun="tags" onRetry={tags.refresh} />}
         {tagResults.length > 0 && (
           <ListSection title="Tags">
@@ -148,7 +215,7 @@ export function SearchScreen() {
           </ListSection>
         )}
         {!!people && profiles.error && <SearchFailure noun="people" onRetry={profiles.refresh} />}
-      </>
+      </View>
     );
   }
   return (
@@ -167,7 +234,7 @@ export function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {state ?? <View style={styles.sections}>{content}</View>}
+        {state ?? content}
       </ScrollView>
     </>
   );
@@ -192,27 +259,9 @@ const publicFields = ({ profileId, username, name, bio, photoUrl, avatar, publis
   publishedWallCount,
 });
 
-function RecentRow({
-  entry,
-  first,
-  last,
-  onOpenTag,
-  onOpenPerson,
-}: {
-  entry: RecentSearch;
-  first: boolean;
-  last: boolean;
-  onOpenTag: (tag: string) => void;
-  onOpenPerson: (profile: PublicProfile) => void;
-}) {
-  if (entry.kind === "tag") {
-    return <TagRow tag={entry.tag} chevron first={first} last={last} onPress={() => onOpenTag(entry.tag)} />;
-  }
-  return <ProfileRow profile={entry.profile} first={first} last={last} onOpen={() => onOpenPerson(entry.profile)} />;
-}
-
 const styles = StyleSheet.create({
   page: { backgroundColor: Gallery.groupedBackground },
   content: { flexGrow: 1, paddingTop: Spacing.two, paddingBottom: Spacing.five },
   sections: { gap: Spacing.four, paddingHorizontal: Spacing.content },
+  people: { paddingTop: Spacing.four },
 });

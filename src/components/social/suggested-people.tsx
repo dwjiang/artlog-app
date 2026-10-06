@@ -10,7 +10,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
-import type { Suggestion, SuggestionReason } from "@/lib/social/types";
+import type { BrowsedProfile, Suggestion, SuggestionReason } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { CompactFriendshipControls } from "./friendship-controls";
@@ -23,8 +23,10 @@ type SuggestionActions = {
   /** Reloads the suggestions, whose rows carry each person's relationship. */
   refresh: () => void;
 };
-const relationshipOf = (person: Suggestion, refresh: () => void) =>
-  "relationship" in person.profile ? { data: person.profile.relationship, refresh } : undefined;
+/** A person in the suggestion strip; one shown without a reason, such as a newest profile, can't be dismissed. */
+type StripPerson = Suggestion | { profile: BrowsedProfile; reason?: undefined };
+const relationshipOf = (person: StripPerson, refresh: () => void) =>
+  person.profile.relationship ? { data: person.profile.relationship, refresh } : undefined;
 
 function ReasonVisual({ reason, token, size }: { reason: SuggestionReason; token?: string | null; size: number }) {
   switch (reason.kind) {
@@ -128,9 +130,11 @@ function SuggestionRow({
 }
 
 function SuggestionHeading({
+  title = "Suggested",
   action,
   tight = false,
 }: {
+  title?: string;
   action?: { label: string; onPress: () => void };
   /** Directly under other controls, where a full section gap would read as a break. */
   tight?: boolean;
@@ -138,7 +142,7 @@ function SuggestionHeading({
   return (
     <View style={[styles.heading, tight && { paddingTop: 0 }]}>
       <Text variant="section" accessibilityRole="header">
-        Suggested
+        {title}
       </Text>
       {action && <GalleryButton label={action.label} variant="text" onPress={action.onPress} />}
     </View>
@@ -190,7 +194,7 @@ function SuggestionCard({
   onDismiss,
   refresh,
   width,
-}: SuggestionActions & { person: Suggestion; width: number }) {
+}: SuggestionActions & { person: StripPerson; width: number }) {
   const router = useRouter();
   return (
     <View style={[styles.card, { width }]}>
@@ -211,7 +215,13 @@ function SuggestionCard({
         <Text style={styles.cardName} numberOfLines={2}>
           {person.profile.name}
         </Text>
-        <SuggestionReasonLine reason={person.reason} token={session.token} centered />
+        {person.reason ? (
+          <SuggestionReasonLine reason={person.reason} token={session.token} centered />
+        ) : (
+          <Text style={[styles.reasonText, { textAlign: "center" }]} numberOfLines={1}>
+            @{person.profile.username}
+          </Text>
+        )}
       </MotionPressable>
       <CompactFriendshipControls
         profileId={person.profile.profileId}
@@ -219,9 +229,11 @@ function SuggestionCard({
         relationship={relationshipOf(person, refresh)}
         fullWidth
       />
-      <View style={styles.cardDismiss}>
-        <DismissButton person={person} onDismiss={onDismiss} />
-      </View>
+      {person.reason && (
+        <View style={styles.cardDismiss}>
+          <DismissButton person={person} onDismiss={onDismiss} />
+        </View>
+      )}
     </View>
   );
 }
@@ -242,22 +254,24 @@ function InviteCard({ width }: { width: number }) {
   );
 }
 
-/** Suggestion cards that scroll sideways above the Friends feed, ending with an invitation. */
+/** People cards that scroll sideways, as above the Friends feed, ending with an invitation when there is a profile to share. */
 export function SuggestionStrip({
   people,
   seeAll,
+  title,
+  invite = true,
   ...actions
-}: SuggestionActions & { people: Suggestion[]; seeAll: () => void }) {
+}: SuggestionActions & { people: StripPerson[]; seeAll: () => void; title?: string; invite?: boolean }) {
   const { fontScale } = useWindowDimensions();
   const width = Math.round(168 * Math.min(Math.max(fontScale, 1), 1.5));
   return (
     <View style={styles.strip}>
-      <SuggestionHeading action={{ label: "See all", onPress: seeAll }} tight />
+      <SuggestionHeading title={title} action={{ label: "See all", onPress: seeAll }} tight />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>
         {people.map((person) => (
           <SuggestionCard key={person.profile.profileId} person={person} width={width} {...actions} />
         ))}
-        <InviteCard width={width} />
+        {invite && <InviteCard width={width} />}
       </ScrollView>
     </View>
   );

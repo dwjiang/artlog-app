@@ -1,5 +1,5 @@
 import type { NativeStackNavigationOptions } from "expo-router";
-import { Platform, StyleSheet, type TextStyle } from "react-native";
+import { Platform, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 
 import { isIOS26OrLater } from "@/lib/ios-version";
 import { WALL_COLORS } from "@/shared/wall/defaults";
@@ -86,6 +86,17 @@ export const Typography = {
 } as const satisfies Record<string, TextStyle>;
 
 export type TextRole = keyof typeof Typography;
+
+/** White text on artwork photos: a scrim darkening the lower part, and a shadow for bright patches it lets through. */
+export const OnPhoto = {
+  scrim: { experimental_backgroundImage: "linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(10, 14, 20, 0.78) 100%)" },
+  textShadow: {
+    textShadowColor: "rgba(0, 0, 0, 0.35)",
+    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 1 },
+  },
+  muted: "rgba(255, 255, 255, 0.72)",
+} satisfies { scrim: ViewStyle; textShadow: TextStyle; muted: string };
 
 export const Spacing = {
   half: 2,

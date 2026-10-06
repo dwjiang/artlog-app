@@ -1,13 +1,22 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
+
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
 import { SearchScreen } from "./search-screen";
 
 const mockPush = jest.fn();
 const mockArgs = jest.fn();
 const mockRefresh = jest.fn();
+const mockMutation = jest.fn();
 const mockSettings = new Map<string, string>();
 let mockOffline = false;
+let mockSession: { status: string; key: string; profileId?: string; token?: string };
 let mockResults: Record<string, unknown>;
+jest.mock("convex/browser", () => ({
+  ConvexHttpClient: function () {
+    return { mutation: mockMutation };
+  },
+}));
 jest.mock("expo-router", () => ({
   Stack: {
     SearchBar: ({ placeholder, onChangeText }: { placeholder: string; onChangeText: (event: unknown) => void }) => {
@@ -27,7 +36,7 @@ jest.mock("@/db/repos/settings", () => ({
   setSetting: async (key: string, value: string) => void mockSettings.set(key, value),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ status: "signed-out", key: "guest", offline: mockOffline }),
+  useSocialSession: () => ({ ...mockSession, offline: mockOffline }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: never, args: unknown) => {
@@ -58,8 +67,10 @@ beforeEach(() => {
   mockPush.mockClear();
   mockArgs.mockClear();
   mockRefresh.mockClear();
+  mockMutation.mockReset().mockResolvedValue(null);
   mockSettings.clear();
   mockOffline = false;
+  mockSession = { status: "signed-out", key: "guest" };
   mockResults = {
     "tags:popular": [
       { tag: "impressionism", postCount: 214 },
@@ -73,52 +84,60 @@ beforeEach(() => {
   };
 });
 
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  dismissToast();
+  jest.useRealTimers();
+});
 
 async function type(text: string) {
   await fireEvent.changeText(screen.getByLabelText("People and tags"), text);
   await act(() => jest.advanceTimersByTime(250));
 }
 
-it("offers this week's popular tags and remembers the one opened", async () => {
+it("offers popular tags and remembers the one opened", async () => {
   await render(<SearchScreen />);
   await act(() => jest.advanceTimersByTime(0));
-  expect(screen.getByRole("header", { name: "Popular this week" })).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "Popular tags" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "#impressionism, 214 posts" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "impressionism" } });
   expect(screen.getByRole("header", { name: "Recent" })).toBeOnTheScreen();
   expect(JSON.parse(mockSettings.get("search.recent")!)).toEqual([{ kind: "tag", tag: "impressionism" }]);
 });
 
-it("advances the popular-tag window while Search stays mounted", async () => {
-  jest.setSystemTime(new Date("2026-09-09T12:00:15Z"));
-  await render(<SearchScreen />);
-  expect(mockArgs).toHaveBeenCalledWith("tags:popular", { asOf: Date.parse("2026-09-09T12:00:00Z") });
-  await act(() => jest.advanceTimersByTime(60_000));
-  expect(mockArgs).toHaveBeenCalledWith("tags:popular", { asOf: Date.parse("2026-09-09T12:01:00Z") });
-});
-
-it("keeps popular tags visible while the next time window loads, then accepts an empty result", async () => {
-  const view = await render(<SearchScreen />);
-  mockResults["tags:popular"] = undefined;
-  await act(() => jest.advanceTimersByTime(60_000));
-  expect(screen.getByRole("button", { name: "#monet, 312 posts" })).toBeOnTheScreen();
-  mockResults["tags:popular"] = [];
-  await view.rerender(<SearchScreen />);
-  expect(screen.queryByRole("header", { name: "Popular this week" })).toBeNull();
-});
-
-it("lists recent tags and people from earlier searches", async () => {
+it("lists recent tags and people from earlier searches and reopens them, most recent first", async () => {
+  const { relationship: _, ...person } = monica;
   mockSettings.set(
     "search.recent",
     JSON.stringify([
       { kind: "tag", tag: "sketchsunday" },
-      { kind: "person", profile: { ...monica, relationship: undefined } },
+      { kind: "person", profile: person },
     ]),
   );
   await render(<SearchScreen />);
   expect(await screen.findByRole("button", { name: "#sketchsunday" })).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "View Monica Reyes’s profile" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "monica" } });
+  expect(JSON.parse(mockSettings.get("search.recent")!)).toEqual([
+    { kind: "person", profile: person },
+    { kind: "tag", tag: "sketchsunday" },
+  ]);
+});
+
+it("removes a recent search", async () => {
+  const { relationship: _, ...person } = monica;
+  mockSettings.set(
+    "search.recent",
+    JSON.stringify([
+      { kind: "tag", tag: "sketchsunday" },
+      { kind: "person", profile: person },
+    ]),
+  );
+  await render(<SearchScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Remove #sketchsunday from recent searches" }));
+  expect(screen.queryByRole("button", { name: "#sketchsunday" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Remove Monica Reyes from recent searches" }));
+  expect(screen.queryByRole("header", { name: "Recent" })).toBeNull();
+  expect(JSON.parse(mockSettings.get("search.recent")!)).toEqual([]);
 });
 
 it("finds tags and people as you type and keeps the person opened", async () => {
@@ -185,4 +204,119 @@ it("keeps recent searches visible when popular tags fail and offers a retry", as
   expect(await screen.findByRole("button", { name: "#sketchsunday" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Retry popular tags" }));
   expect(mockRefresh).toHaveBeenCalledWith("tags:popular");
+});
+
+it("shows popular tags as artwork tiles once there are enough to fill the grid", async () => {
+  const cover = {
+    kind: "catalog",
+    url: "https://museum.example/lilies.jpg",
+    sourceUrl: "https://museum.example/lilies",
+    rights: "public_domain",
+    width: 600,
+    height: 400,
+  };
+  mockResults["tags:popular"] = ["impressionism", "ukiyoe", "vangogh", "portraits"].map((tag, index) => ({
+    tag,
+    postCount: 40 - index,
+    ...(index === 0 ? { cover } : {}),
+  }));
+  await render(<SearchScreen />);
+  expect(screen.getByText("40 posts")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "#portraits, 37 posts" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "portraits" } });
+});
+
+it("suggests people to add, falling back to the newest profiles without the viewer's own", async () => {
+  mockResults["profiles:discover"] = { page: [monica], cursor: null, isDone: true };
+  const view = await render(<SearchScreen />);
+  expect(screen.getByRole("header", { name: "New on Artlog" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+  expect(screen.getByText("@monireyes")).toBeOnTheScreen();
+  expect(screen.queryByText("Invite friends")).toBeNull();
+
+  mockSession = { status: "ready", key: "account", profileId: "me", token: "token" };
+  mockResults["suggestions:list"] = {
+    friendCount: 0,
+    people: [{ profile: monica, reason: { kind: "museum", venueName: "Art Institute of Chicago" } }],
+  };
+  mockArgs.mockClear();
+  await view.rerender(<SearchScreen />);
+  expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
+  expect(screen.getByText("Invite friends")).toBeOnTheScreen();
+  expect(mockArgs).not.toHaveBeenCalledWith("profiles:discover", expect.anything());
+  await fireEvent.press(screen.getByRole("button", { name: "See all" }));
+  expect(mockPush).toHaveBeenCalledWith("/people");
+
+  mockResults["suggestions:list"] = { friendCount: 0, people: [] };
+  mockResults["profiles:discover"] = {
+    page: [{ ...monica, profileId: "me", name: "Me" }, monica],
+    cursor: null,
+    isDone: true,
+  };
+  await view.rerender(<SearchScreen />);
+  expect(screen.getByRole("header", { name: "New on Artlog" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "View Me’s profile" })).toBeNull();
+  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+});
+
+it("says how to search when there is nothing to show yet", async () => {
+  mockResults["tags:popular"] = [];
+  mockResults["profiles:discover"] = { page: [], cursor: null, isDone: true };
+  await render(<SearchScreen />);
+  expect(screen.getByText("Find people and tags.")).toBeOnTheScreen();
+});
+
+it.each(["resolve", "reject"] as const)(
+  "keeps the last dismissed suggestion out of fallback cards while saving, then handles %s",
+  async (outcome) => {
+    let settle!: () => void;
+    mockMutation.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          settle = () => (outcome === "resolve" ? resolve(null) : reject(new Error("Dismissal failed")));
+        }),
+    );
+    mockSession = { status: "ready", key: "account", profileId: "me", token: "token" };
+    mockResults["suggestions:list"] = {
+      friendCount: 0,
+      people: [{ profile: monica, reason: { kind: "museum", venueName: "MoMA" } }],
+    };
+    mockResults["profiles:discover"] = {
+      page: [monica, { ...monica, profileId: "theo", name: "Theo" }],
+      cursor: null,
+      isDone: true,
+    };
+    const toast = await renderHook(useToast);
+    await render(<SearchScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Hide Monica Reyes from suggestions" }));
+    expect(screen.getByRole("header", { name: "New on Artlog" })).toBeOnTheScreen();
+    expect(mockArgs).toHaveBeenCalledWith("profiles:discover", { limit: 11, excludeDismissed: true });
+    expect(screen.getByRole("button", { name: "View Theo’s profile" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "View Monica Reyes’s profile" })).toBeNull();
+
+    await act(async () => settle());
+    expect(screen.queryByRole("button", { name: "View Monica Reyes’s profile" }) !== null).toBe(outcome === "reject");
+    expect(toast.result.current?.action?.label).toBe(outcome === "resolve" ? "Undo" : "Retry");
+    if (outcome === "resolve") {
+      await act(async () => toast.result.current!.action!.onPress());
+    }
+    expect(screen.getByRole("header", { name: "Suggested" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+  },
+);
+
+it("offers a retry when people discovery fails on an otherwise empty screen", async () => {
+  mockResults["tags:popular"] = [];
+  mockResults["profiles:discover"] = new Error("Discovery unavailable");
+  const view = await render(<SearchScreen />);
+
+  expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t load people.");
+  expect(screen.queryByText("Find people and tags.")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry people" }));
+  expect(mockRefresh).toHaveBeenCalledWith("profiles:discover");
+
+  mockResults["profiles:discover"] = { page: [monica], cursor: null, isDone: true };
+  await view.rerender(<SearchScreen />);
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
 });

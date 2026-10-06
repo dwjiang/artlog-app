@@ -57,3 +57,17 @@ it("keeps this installation's history when signing in and out", async () => {
   await act(() => switchOwner(anonymousOwner()));
   expect(result.current.recent).toEqual([{ kind: "tag", tag: "monet" }]);
 });
+
+it("forgets one search and keeps the rest in order", async () => {
+  const { result } = await renderHook(useRecentSearches);
+  for (const tag of ["monet", "renoir", "cassatt"]) {
+    await act(() => result.current.remember({ kind: "tag", tag }));
+  }
+  await act(() => result.current.forget({ kind: "tag", tag: "renoir" }));
+  const remaining = [
+    { kind: "tag", tag: "cassatt" },
+    { kind: "tag", tag: "monet" },
+  ];
+  expect(result.current.recent).toEqual(remaining);
+  expect(JSON.parse((await settings.getSetting("search.recent"))!)).toEqual(remaining);
+});

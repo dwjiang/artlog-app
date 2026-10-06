@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-nativ
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, OnPhoto, Radius, Spacing } from "@/constants/theme";
 import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -12,7 +12,7 @@ import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { useVenue, visitByDefault } from "@/lib/venue/use-venue";
 
 import { DontMiss } from "./dont-miss";
-import { ON_PHOTO_TEXT_SHADOW, VisitBackdrop } from "./visit-backdrop";
+import { VisitBackdrop } from "./visit-backdrop";
 
 /** Set by Home's layout, which shows the visit band once the Now card has scrolled under the navigation bar. */
 export const NowCardScrolledAway = createContext<((away: boolean) => void) | undefined>(undefined);
@@ -141,8 +141,6 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const ON_PHOTO_MUTED = "rgba(255, 255, 255, 0.72)";
-
 const styles = StyleSheet.create({
   section: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.two },
   heading: { paddingBottom: Spacing.two },
@@ -155,9 +153,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
   },
   card: { borderRadius: Radius.card, overflow: "hidden", backgroundColor: Gallery.ink },
-  scrim: {
-    experimental_backgroundImage: "linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(10, 14, 20, 0.78) 100%)",
-  },
+  scrim: OnPhoto.scrim,
   watermark: { right: -18, top: Spacing.compact, width: 170, height: 170 },
   pressed: { opacity: 0.85 },
   passThrough: { pointerEvents: "none" },
@@ -179,7 +175,7 @@ const styles = StyleSheet.create({
   chipText: { color: Gallery.accent },
   chipPausedText: { color: Gallery.muted },
   bottom: { gap: Spacing.one, pointerEvents: "box-none" },
-  name: { color: Gallery.paper, fontSize: 24, lineHeight: 30, ...ON_PHOTO_TEXT_SHADOW },
+  name: { color: Gallery.paper, fontSize: 24, lineHeight: 30, ...OnPhoto.textShadow },
   lead: { color: "rgba(255, 255, 255, 0.85)" },
   row: {
     flexDirection: "row",
@@ -190,6 +186,6 @@ const styles = StyleSheet.create({
   },
   trailing: { marginLeft: "auto" },
   stat: { gap: 1 },
-  statValue: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.paper, ...ON_PHOTO_TEXT_SHADOW },
-  statLabel: { fontSize: 11, lineHeight: 14, letterSpacing: 0.6, textTransform: "uppercase", color: ON_PHOTO_MUTED },
+  statValue: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.paper, ...OnPhoto.textShadow },
+  statLabel: { fontSize: 11, lineHeight: 14, letterSpacing: 0.6, textTransform: "uppercase", color: OnPhoto.muted },
 });

@@ -658,6 +658,28 @@ it("lists a person’s friends with the viewer’s relationship, leaving out blo
   await expect(t.query(api.profiles.friends, { profileId: jamie.profileId })).rejects.toThrow("unauthenticated");
 });
 
+it("excludes the viewer's saved dismissals from discovery recommendations and supports Undo", async () => {
+  const t = harness();
+  const viewer = await socialUser(t, "viewer");
+  const otherViewer = await socialUser(t, "other_viewer");
+  const monica = await socialUser(t, "Monica");
+  const input = { excludeDismissed: true, limit: 10 };
+  const containsMonica = (result: { page: { profileId: string }[] }) =>
+    result.page.some((person) => person.profileId === monica.profileId);
+  expect(containsMonica(await viewer.as.query(api.profiles.discover, input))).toBe(true);
+
+  await viewer.as.mutation(api.suggestions.dismiss, { profileId: monica.profileId });
+
+  expect(containsMonica(await viewer.as.query(api.profiles.discover, input))).toBe(false);
+  expect(containsMonica(await otherViewer.as.query(api.profiles.discover, input))).toBe(true);
+  expect(containsMonica(await t.query(api.profiles.discover, input))).toBe(true);
+  expect(containsMonica(await viewer.as.query(api.profiles.discover, {}))).toBe(true);
+  expect(containsMonica(await viewer.as.query(api.profiles.search, { query: "Monica" }))).toBe(true);
+
+  await viewer.as.mutation(api.suggestions.restore, { profileId: monica.profileId });
+  expect(containsMonica(await viewer.as.query(api.profiles.discover, input))).toBe(true);
+});
+
 it("embeds the viewer’s relationship in browse lists and leaves guests without one", async () => {
   const { t, account } = await fixture();
   const a = await account("browse-a");

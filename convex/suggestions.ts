@@ -10,6 +10,7 @@ import { projectProfile } from "./lib/projections";
 import { readablePublication, requirePublicWallItem } from "./lib/publicationAccess";
 import { activeWallItems, publicWallProjection } from "./lib/publicWall";
 import { limitKey } from "./lib/rateLimits";
+import { findDismissal } from "./lib/suggestionDismissals";
 
 // Every signal reads a bounded sample, so one read stays near a few thousand documents however large the graph grows.
 const SAMPLE = {
@@ -257,13 +258,6 @@ export const inCommonWith = query({
     return { artworks, museums };
   },
 });
-
-function findDismissal(ctx: QueryCtx, profileId: Id<"profiles">, dismissedId: Id<"profiles">) {
-  return ctx.db
-    .query("suggestionDismissals")
-    .withIndex("by_profile_dismissed", (q) => q.eq("profileId", profileId).eq("dismissedId", dismissedId))
-    .unique();
-}
 
 export const dismiss = mutation({
   args: { profileId: v.id("profiles") },

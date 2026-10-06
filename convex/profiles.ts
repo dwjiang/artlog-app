@@ -15,6 +15,7 @@ import { requireAllowedBio } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
+import { findDismissal } from "./lib/suggestionDismissals";
 
 // `avatar` carries over the painting someone already had as a guest.
 const createArgs = {
@@ -161,7 +162,7 @@ export const friends = query({
 });
 
 export const discover = query({
-  args: { ...pageArgs },
+  args: { ...pageArgs, excludeDismissed: v.optional(v.boolean()) },
   returns: v.object({
     page: v.array(browsedProfile),
     cursor: v.union(v.string(), v.null()),
@@ -176,6 +177,7 @@ export const discover = query({
       .paginate(pagination(input));
     const page = [];
     for (const profile of result.page) {
+      if (input.excludeDismissed && viewer && (await findDismissal(ctx, viewer._id, profile._id))) continue;
       if (await browsable(ctx, viewer, profile)) page.push(await projectBrowsedProfile(ctx, viewer, profile));
     }
     return {

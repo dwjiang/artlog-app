@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { befriend, setVisitVisibility, socialUser, socialVisit, type SocialUser } from "./lib/socialTestFixtures";
+import { seedArtworkWithObject } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
 afterEach(() => {
@@ -13,13 +14,37 @@ async function post(
   t: Harness,
   user: SocialUser,
   reflection: string,
-  { audience = "public", visitedOn }: { audience?: "public" | "friends" | "private"; visitedOn?: string } = {},
+  {
+    audience = "public",
+    visitedOn,
+    saves = 1,
+  }: { audience?: "public" | "friends" | "private"; visitedOn?: string; saves?: number } = {},
 ) {
-  const draft = await socialVisit(t, user, 1, visitedOn);
+  const draft = await socialVisit(t, user, saves, visitedOn);
   await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection }));
   if (audience !== "public") await setVisitVisibility(t, user, draft.visit._id, audience);
   const state = await user.as.action(api.sharedVisits.publish, { ...draft.selection, audience, reflection });
   return { ...draft, postId: state.postId! };
+}
+
+async function showCatalogImage(t: Harness, saveId: Id<"collections">, url: string) {
+  const { objectId, artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
+  await t.run((ctx) => ctx.db.patch("collections", saveId, { objectId, artworkId }));
+  const source = {
+    kind: "catalog" as const,
+    url,
+    sourceUrl: "https://museum.example/rights",
+    rights: "public_domain" as const,
+    width: 600,
+    height: 400,
+  };
+  await t.mutation(internal.displayMedia.registerCatalog, {
+    saveId,
+    objectId,
+    source,
+    imageRightsEvidence: "Public domain per museum record",
+  });
+  return source;
 }
 
 const publicationOf = (t: Harness, postId: string) =>
@@ -198,22 +223,102 @@ it("finishes removing tags across multiple bounded batches", async () => {
   expect(await tagRows(t, _id)).toEqual([]);
 });
 
-it("ranks this week's public tags by posts published in the last seven days", async () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-09-01T12:00:00Z"));
+it("picks the tags with the most public posts of all time, keeping their counts live until the next pick", async () => {
   const t = harness();
   const author = await socialUser(t);
-  await post(t, author, "#renoir #renoir");
+  for (let i = 0; i < 3; i++) {
+    await post(t, author, "#renoir #cassatt #degas #monet #morisot", { visitedOn: "2026-01-01" });
+  }
+  await post(t, author, "#renoir #cassatt #degas #monet");
+  await post(t, author, "#renoir #cassatt #degas");
+  await post(t, author, "#renoir #cassatt");
   await post(t, author, "#renoir");
-  vi.setSystemTime(new Date("2026-09-09T12:00:00Z"));
-  await post(t, author, "#monet #cassatt");
-  await post(t, author, "#monet");
-  await post(t, author, "#cassatt #renoir");
-  await post(t, author, "#hidden", { audience: "friends" });
-  expect(await t.query(api.tags.popular, { asOf: Date.now() })).toEqual([
-    { tag: "cassatt", postCount: 2 },
-    { tag: "monet", postCount: 2 },
-    { tag: "renoir", postCount: 3 },
+  await post(t, author, "#hidden #hidden2 #hidden3", { audience: "friends" });
+  const sargent = await post(t, author, "#sargent", { visitedOn: "2026-10-01" });
+  const popular = async () => (await t.query(api.tags.popular, {})).map(({ tag, postCount }) => [tag, postCount]);
+  expect(await popular()).toEqual([]);
+
+  await t.action(internal.tags.refreshPopular, {});
+  expect(await popular()).toEqual([
+    ["renoir", 7],
+    ["cassatt", 6],
+    ["degas", 5],
+    ["monet", 4],
+    ["morisot", 3],
+    ["sargent", 1],
   ]);
-  expect(await t.query(api.tags.popular, { asOf: Date.parse("2026-09-17T12:00:00Z") })).toEqual([]);
+  await setVisitVisibility(t, author, sargent.visit._id, "private");
+  for (let i = 0; i < 4; i++) await post(t, author, "#hopper");
+  expect(await popular()).toEqual([
+    ["renoir", 7],
+    ["cassatt", 6],
+    ["degas", 5],
+    ["monet", 4],
+    ["morisot", 3],
+  ]);
+  await t.action(internal.tags.refreshPopular, {});
+  expect(await popular()).toEqual([
+    ["renoir", 7],
+    ["cassatt", 6],
+    ["degas", 5],
+    ["hopper", 4],
+    ["monet", 4],
+    ["morisot", 3],
+  ]);
+});
+
+it("covers each popular tag with a catalog image from its most-liked public post", async () => {
+  const t = harness();
+  const author = await socialUser(t);
+  const fans = [await socialUser(t), await socialUser(t), await socialUser(t)];
+  const like = async (postId: string, count: number) => {
+    for (const fan of fans.slice(0, count)) await fan.as.mutation(api.visitReactions.setLike, { postId, liked: true });
+  };
+  const liked = await post(t, author, "#impressionism #monet", { visitedOn: "2026-09-01", saves: 2 });
+  const lilies = await showCatalogImage(t, liked.saves[0].id, "https://museum.example/lilies.jpg");
+  const wheat = await showCatalogImage(t, liked.saves[1].id, "https://museum.example/wheat.jpg");
+  const newer = await post(t, author, "#impressionism #monet", { visitedOn: "2026-09-10" });
+  await showCatalogImage(t, newer.saves[0].id, "https://museum.example/noon.jpg");
+  const pictureless = await post(t, author, "#impressionism", { visitedOn: "2026-09-20" });
+  await like(liked.postId, 2);
+  await like(pictureless.postId, 3);
+  const covers = async () =>
+    Object.fromEntries((await t.query(api.tags.popular, {})).map(({ tag, cover }) => [tag, cover?.url]));
+
+  await t.action(internal.tags.refreshPopular, {});
+  expect(await covers()).toEqual({ impressionism: lilies.url, monet: wheat.url });
+  // A takedown or revocation hides the image at once rather than at the next pick.
+  await t.run(async (ctx) => {
+    const asset = await ctx.db
+      .query("mediaAssets")
+      .withIndex("by_save_kind", (q) => q.eq("saveId", liked.saves[0].id))
+      .first();
+    await ctx.db.patch("mediaAssets", asset!._id, { revokedAt: Date.now() });
+  });
+  expect(await covers()).toEqual({ impressionism: undefined, monet: wheat.url });
+});
+
+it.each([
+  { scenario: "many post lookups", tags: ["cassatt", "degas", "monet", "morisot", "renoir", "sargent"], saves: 1 },
+  { scenario: "large save records", tags: ["monet"], saves: 3 },
+])("refreshes tags without catalog images within transaction limits: $scenario", async ({ tags, saves }) => {
+  const t = harness({ transactionLimits: true });
+  const reflection = tags.map((tag) => `#${tag}`).join(" ");
+  for (let authorNumber = 0; authorNumber < 4; authorNumber++) {
+    const author = await socialUser(t);
+    for (let i = 0; i < 25; i++) {
+      const draft = await post(t, author, reflection, { saves });
+      if (saves > 1) {
+        await t.run(async (ctx) => {
+          for (const save of draft.saves) {
+            await ctx.db.patch("collections", save.id, { note: "画".repeat(20_000) });
+          }
+        });
+      }
+    }
+  }
+
+  await t.action(internal.tags.refreshPopular, {});
+
+  expect(await t.query(api.tags.popular, {})).toEqual(tags.map((tag) => ({ tag, postCount: 100 })));
 });

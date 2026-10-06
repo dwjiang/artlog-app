@@ -175,17 +175,20 @@ export function ListIcon({ name }: { name: string }) {
 export function ListSection({
   title,
   outlined = false,
+  flush = false,
   children,
 }: {
   title?: string;
   /** Draws the card edge for rows shown on paper instead of a grouped page. */
   outlined?: boolean;
+  /** Starts the title at the content edge, for chips or tiles rather than rows inset in a card. */
+  flush?: boolean;
   children: ReactNode;
 }) {
   return (
     <View style={styles.section}>
       {title && (
-        <Text accessibilityRole="header" style={styles.sectionTitle}>
+        <Text accessibilityRole="header" style={[styles.sectionTitle, flush && styles.flushTitle]}>
           {title}
         </Text>
       )}
@@ -238,5 +241,6 @@ const styles = StyleSheet.create({
   iconSymbol: { width: 18, height: 18 },
   section: { gap: Spacing.two },
   sectionTitle: { ...Typography.eyebrow, color: Gallery.muted, paddingHorizontal: Spacing.three },
+  flushTitle: { paddingHorizontal: 0 },
   outlined: { ...SettingsOutline, overflow: "hidden" },
 });
