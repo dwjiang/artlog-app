@@ -42,6 +42,7 @@ export function AddSavedWorks() {
           artworkId: work.artworkId,
           title: work.title,
           artist: work.artist,
+          date: work.date || undefined,
           savedId: work.localId,
           imageUri: work.cropPath ? captureFileUri(work.cropPath) : enriched.thumbnailUrl,
           facts: enriched.narrationFacts,

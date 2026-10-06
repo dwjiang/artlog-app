@@ -121,6 +121,16 @@ export const docentSentence = v.object({
 });
 export type DocentSentence = Infer<typeof docentSentence>;
 
+// The audio guide keeps the part of the stop each spoken sentence belongs to; the opening label line is part of the hook.
+export const guideSection = v.union(v.literal("hook"), v.literal("look"), v.literal("story"), v.literal("takeaway"));
+export type GuideSection = Infer<typeof guideSection>;
+export const guideSentence = v.object({
+  sentence: v.string(),
+  factIds: v.array(v.string()),
+  section: guideSection,
+});
+export type GuideSentence = Infer<typeof guideSentence>;
+
 export const docentStatus = v.union(
   v.literal("ready"),
   v.literal("writing"),

@@ -35,6 +35,7 @@ import {
   embeddingArchive,
   evidenceKind,
   factSheetEntry,
+  guideSentence,
   researchConflict,
   feedbackResolution,
   labelFlow,
@@ -91,7 +92,7 @@ export default defineSchema({
     speechModel: v.string(),
     voice: v.string(),
     storageId: v.optional(v.id("files")),
-    sentences: v.optional(v.array(docentSentence)),
+    sentences: v.optional(v.array(guideSentence)),
     // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
     segments: v.optional(v.array(v.object({ storageId: v.id("files"), duration: v.number() }))),
   }).index("by_artworkId", ["artworkId"]),

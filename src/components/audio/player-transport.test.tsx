@@ -1,30 +1,38 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
+import { guideTimeline } from "@/lib/audio/guide-timeline";
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
 
-import { PlayerTransport, transportStacks } from "./player-transport";
+import type { GuideSentence } from "../../../convex/lib/validators";
+import { PlayerTransport } from "./player-transport";
 
 const mockSeek = jest.fn();
 const mockToggle = jest.fn();
 const mockAudio = {
+  position: 12,
   duration: 120,
   availableDuration: 0,
   phase: "ready",
   preparationStage: undefined as NarrationPreparationStage | undefined,
+  sentences: undefined as GuideSentence[] | undefined,
+  waiting: false,
 };
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({
-    position: 12,
-    duration: mockAudio.duration,
-    availableDuration: mockAudio.availableDuration,
-    phase: mockAudio.phase,
-    preparationStage: mockAudio.preparationStage,
+    ...mockAudio,
     playing: true,
     rate: 1,
     controller: { seek: mockSeek, toggle: mockToggle },
   }),
 }));
+// Four equally long sentences, one per section, so each section takes a quarter of the guide.
+const guide: GuideSentence[] = [
+  { sentence: "Ann Lee painted this harbor.", factIds: [], section: "hook" },
+  { sentence: "Find the boat near the edge.", factIds: ["f1"], section: "look" },
+  { sentence: "She sold it to pay her rent.", factIds: ["f1"], section: "story" },
+  { sentence: "Its sea still looks so cold.", factIds: ["f1"], section: "takeaway" },
+];
 jest.mock("@react-native-community/slider", () => {
   const { View } = jest.requireActual("react-native");
   return function MockSlider(props: object) {
@@ -34,13 +42,16 @@ jest.mock("@react-native-community/slider", () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAudio.position = 12;
   mockAudio.duration = 120;
   mockAudio.availableDuration = 0;
   mockAudio.phase = "ready";
   mockAudio.preparationStage = undefined;
+  mockAudio.sentences = undefined;
+  mockAudio.waiting = false;
 });
 
-it("keeps the controls in place with a busy play button and no loading caption or timer", async () => {
+it("keeps the controls in place with a busy play button and the stage where the section goes", async () => {
   const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
   mockAudio.phase = "loading";
   mockAudio.preparationStage = "generating";
@@ -52,7 +63,8 @@ it("keeps the controls in place with a busy play button and no loading caption o
   expect(mockToggle).not.toHaveBeenCalled();
   expect(screen.getByRole("adjustable", { name: "Narration position" })).toHaveProp("disabled", true);
   expect(screen.getByRole("button", { name: "Back 15 seconds" })).toBeDisabled();
-  expect(screen.queryByText("Generating narration…")).toBeNull();
+  expect(screen.getByText("Generating narration…")).toBeOnTheScreen();
+  expect(screen.getByText("—:—")).toBeOnTheScreen();
   expect(screen.queryByText(/keep exploring|elapsed/)).toBeNull();
   expect(screen.getByRole("button", { name: "Transcript and sources" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Up next" })).toBeOnTheScreen();
@@ -103,15 +115,56 @@ it("labels the speed, transcript, and queue buttons with visible text", async ()
   expect(screen.getByRole("button", { name: "Up next" })).toHaveTextContent("Up next");
 });
 
-it.each([
-  [375, 1, false],
-  [375, 1.12, true],
-  [393, 1.12, false],
-  [402, 1.24, true],
-  [430, 1.24, false],
-  [440, 1.35, true],
-])("on a %i pt screen at %f× text, stacks the actions: %s", (width, fontScale, stacks) => {
-  expect(transportStacks(width, fontScale)).toBe(stacks);
+it("names the section being spoken and jumps to the start of another", async () => {
+  mockAudio.sentences = guide;
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("checkbox", { name: "Opening", checked: true })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("checkbox", { name: "The story" }));
+  expect(mockSeek).toHaveBeenCalledWith(60, { clamp: false });
+  mockAudio.position = 75;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("checkbox", { name: "The story", checked: true })).toBeOnTheScreen();
+});
+
+it("offers no section jumps until the guide can seek", async () => {
+  mockAudio.sentences = guide;
+  mockAudio.duration = 0;
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("checkbox", { name: "Takeaway" })).toBeDisabled();
+});
+
+it("keeps ungenerated sections disabled until their starts are available", async () => {
+  mockAudio.sentences = guide;
+  mockAudio.duration = 0;
+  mockAudio.availableDuration = 4;
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("checkbox", { name: "Look closer" })).toBeEnabled();
+  const story = screen.getByRole("checkbox", { name: "The story" });
+  expect(story).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Takeaway" })).toBeDisabled();
+  await fireEvent.press(story);
+  expect(mockSeek).not.toHaveBeenCalled();
+  const start = guideTimeline(guide).starts[2];
+  mockAudio.availableDuration = start + 1;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(story).toBeEnabled();
+  await fireEvent.press(story);
+  expect(mockSeek).toHaveBeenCalledWith(start, { clamp: false });
+  mockAudio.duration = 120;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("checkbox", { name: "Takeaway" })).toBeEnabled();
+});
+
+it("says a queued guide is ready only once it is, without hiding its sections", async () => {
+  mockAudio.waiting = true;
+  mockAudio.phase = "loading";
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.queryByText("Ready to play")).toBeNull();
+  mockAudio.phase = "ready";
+  mockAudio.sentences = guide;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByText("Ready to play")).toBeOnTheScreen();
+  expect(screen.getByRole("checkbox", { name: "Opening", checked: true })).toBeOnTheScreen();
 });
 
 it("marks transcript selection and returns to the artwork when tapped again", async () => {
@@ -144,6 +197,17 @@ it("offers no seeking and no time left while the narration's length is still unk
   expect(screen.queryByText(/^−/)).not.toBeOnTheScreen();
   await fireEvent(slider, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
   expect(mockSeek).not.toHaveBeenCalled();
+});
+
+it("spans a live guide's estimated length while its audio is still generating", async () => {
+  mockAudio.sentences = guide;
+  mockAudio.duration = 0;
+  mockAudio.availableDuration = 4;
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  const slider = screen.getByRole("adjustable", { name: "Narration position" });
+  expect(slider.props.maximumValue).toBeGreaterThan(4);
+  expect(slider).toHaveAccessibilityValue({ text: "0:12 of 0:04 available" });
+  expect(screen.getByText("0:04 available")).toBeOnTheScreen();
 });
 
 it("enables the growing generated range and changes to time remaining when the full duration arrives", async () => {

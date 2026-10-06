@@ -38,7 +38,7 @@ type NumberedSource = { number: number; label: string; url: string };
 
 // Numbers each cited page once, in order of first citation, and marks only the last sentence of
 // each run that rests on the same pages, so a single-source paragraph carries one marker.
-function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
+export function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = []) {
   const facts = new Map(factSheet.map((fact) => [fact.id, fact]));
   const sources: NumberedSource[] = [];
   const cited = docent.map(({ sentence, factIds }) => {
@@ -155,53 +155,63 @@ function DocentFailed({ onRetry }: { onRetry?: () => Promise<void> }) {
 }
 
 function CitedParagraph({ sentences, sources }: ReturnType<typeof citeDocent>) {
-  const labelOf = (number: number) => sources[number - 1].label;
-  const spoken = sentences
-    .map(({ sentence, markers }) =>
-      markers.length > 0
-        ? `${sentence} ${markers.length > 1 ? "Sources" : "Source"}: ${markers.map(labelOf).join(", ")}.`
-        : sentence,
-    )
-    .join(" ");
   return (
     <View style={styles.prose}>
-      <ThemedText accessibilityLabel={spoken}>
+      <ThemedText
+        accessibilityLabel={sentences.map(({ sentence, markers }) => citedLabel(sentence, markers, sources)).join(" ")}
+      >
         {sentences.map(({ sentence, markers }, index) => (
           <Fragment key={index}>
             {index > 0 && " "}
             <ThemedText>{sentence}</ThemedText>
-            {markers.map((number) => (
-              // The paragraph's label speaks the source names, so VoiceOver skips the digits.
-              <View
-                key={number}
-                style={styles.marker}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              >
-                <SourceNumber number={number} />
-              </View>
-            ))}
+            <SourceMarkers markers={markers} />
           </Fragment>
         ))}
       </ThemedText>
-      {sources.length > 0 && (
-        <View style={styles.sources}>
-          <ThemedText variant="metadata" themeColor="textSecondary" style={styles.sourcesHeading}>
-            Sources
-          </ThemedText>
-          <View>
-            {sources.map(({ number, label, url }) => (
-              <SourceLink key={url} label={label} url={url} style={styles.source}>
-                <SourceNumber number={number} />
-                <ThemedText variant="metadata" style={styles.sourceLabel}>
-                  {label}
-                </ThemedText>
-                <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
-              </SourceLink>
-            ))}
-          </View>
-        </View>
-      )}
+      <SourceList sources={sources} />
+    </View>
+  );
+}
+
+/** A cited sentence as VoiceOver reads it: the sentence, then the names of the pages its markers number. */
+export function citedLabel(sentence: string, markers: number[], sources: NumberedSource[]) {
+  if (markers.length === 0) return sentence;
+  const labels = markers.map((number) => sources[number - 1].label);
+  return `${sentence} ${markers.length > 1 ? "Sources" : "Source"}: ${labels.join(", ")}.`;
+}
+
+/** Inline source numbers after a sentence; its label speaks the source names, so VoiceOver skips the digits. */
+export function SourceMarkers({ markers }: { markers: number[] }) {
+  return markers.map((number) => (
+    <View
+      key={number}
+      style={styles.marker}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <SourceNumber number={number} />
+    </View>
+  ));
+}
+
+export function SourceList({ sources }: { sources: NumberedSource[] }) {
+  if (sources.length === 0) return null;
+  return (
+    <View style={styles.sources}>
+      <ThemedText variant="metadata" themeColor="textSecondary" style={styles.sourcesHeading}>
+        Sources
+      </ThemedText>
+      <View>
+        {sources.map(({ number, label, url }) => (
+          <SourceLink key={url} label={label} url={url} style={styles.source}>
+            <SourceNumber number={number} />
+            <ThemedText variant="metadata" style={styles.sourceLabel}>
+              {label}
+            </ThemedText>
+            <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
+          </SourceLink>
+        ))}
+      </View>
     </View>
   );
 }

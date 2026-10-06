@@ -143,8 +143,8 @@ it("returns the rendered audio guide script until the research behind it changes
     seedArtworkWithObject(ctx, { artwork: { factSheetUpdatedAt: 5 }, artworkContent: { factSheet } }),
   );
   const script = [
-    { sentence: openingFixture, factIds: [] },
-    { sentence: "The pond is in Monet's garden at Giverny.", factIds: ["f2"] },
+    { sentence: openingFixture, factIds: [], section: "hook" as const },
+    { sentence: "The pond is in Monet's garden at Giverny.", factIds: ["f2"], section: "hook" as const },
   ];
   await t.run(async (ctx) => {
     const artwork = await ctx.db.get("artworks", artworkId);

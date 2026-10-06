@@ -5,6 +5,7 @@ export type ListeningWork = {
   artworkId: Id<"artworks">;
   title: string;
   artist: string;
+  date?: string;
   imageUri?: string;
   savedId?: string;
   scanId?: string;

@@ -236,6 +236,7 @@ export function ResultCard({
                   artworkId={view.primary.artworkId}
                   title={draft.title}
                   artist={draft.artist}
+                  date={draft.date}
                   scanId={captureInput?.scanId}
                   savedId={savedId}
                   imageUri={

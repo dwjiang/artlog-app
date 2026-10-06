@@ -3,11 +3,11 @@ import { SPEECH_MODEL, SPEECH_VOICE } from "../../shared/audio/speech";
 import type { Doc, Id } from "../_generated/dataModel";
 import { env, type QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
-import type { DocentSentence } from "./validators";
+import type { GuideSentence } from "./validators";
 
 export type RenderedNarration = {
   uri: string;
-  sentences: DocentSentence[];
+  sentences: GuideSentence[];
   renderId: string;
   // A playlist that grows while speech is still being generated, instead of the finished file.
   live: boolean;
