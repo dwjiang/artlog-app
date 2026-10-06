@@ -4,15 +4,14 @@ import { use, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
-import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
-import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
+import { EmptyCard } from "@/components/empty-state";
 import { FeedSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
-import { NowCard } from "@/components/visits/now-card";
+import { NowCard, useNowCardScroll } from "@/components/visits/now-card";
 import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -22,9 +21,10 @@ import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
+import { useVenue } from "@/lib/venue/use-venue";
 
 import { api } from "../../../convex/_generated/api";
-import { HomeToolbar } from "./home-toolbar";
+import { HomeToolbar, type Feed } from "./home-toolbar";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
@@ -35,18 +35,17 @@ import { VisitCard } from "./visit-card";
 const STRIP_FRIEND_LIMIT = 5;
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
-type FeedTab = "friends" | "global";
 
 export function HomeScreen() {
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
-  const [chosenTab, setChosenTab] = useState<FeedTab>();
+  const [chosenTab, setChosenTab] = useState<Feed>();
   // Posting a visit returns here naming the feed it landed in; each post carries its own stamp so a repeat lands too.
   const { feed: requestedFeed, posted } = useLocalSearchParams<{ feed?: string; posted?: string }>();
   const [appliedPost, setAppliedPost] = useState<string>();
   const request = posted && (requestedFeed === "friends" || requestedFeed === "global") ? posted : undefined;
   if (request && request !== appliedPost) {
     setAppliedPost(request);
-    setChosenTab(requestedFeed as FeedTab);
+    setChosenTab(requestedFeed as Feed);
   }
   const session = useSocialSession();
   const blocking = useBlock(session);
@@ -71,7 +70,7 @@ export function HomeScreen() {
   );
   // Profiles land on Friends only when it has visits. The first answer sticks so a later friend post cannot pull the
   // reader off Global.
-  const [landing, setLanding] = useState<{ profileId: typeof session.profileId; tab: FeedTab }>();
+  const [landing, setLanding] = useState<{ profileId: typeof session.profileId; tab: Feed }>();
   const friendsLanding =
     friendsFeed.items.length > 0 || friendsFeed.error ? "friends" : friendsFeed.done ? "global" : undefined;
   if (canBrowseFriends && friendsLanding && landing?.profileId !== session.profileId) {
@@ -100,6 +99,10 @@ export function HomeScreen() {
   const list = useRef<FlatList<SharedVisit>>(null);
   const room = usePaneRoom(list);
   usePaneSwitch(tab ?? "", () => room);
+  const { onCardLayout, onScroll: onNowCardScroll } = useNowCardScroll();
+  // During a visit the Now card leads Home, so an empty feed sits beneath it as a card instead of filling the page.
+  const card = !!useVenue().visit;
+  const shareProfile = () => router.push("/share-profile");
   const pull = usePullToRefresh({
     enabled: canBrowse,
     refreshing: feed.refreshing,
@@ -108,7 +111,7 @@ export function HomeScreen() {
   return (
     <>
       {/* Guests see these too; each page asks them to sign in. */}
-      <HomeToolbar requests={requests} unseen={unseen} />
+      <HomeToolbar requests={requests} unseen={unseen} feed={tab} onFeedChange={setChosenTab} />
       <WelcomePrompt />
       <WrapUpPrompt />
       <FlatList
@@ -117,7 +120,10 @@ export function HomeScreen() {
         contentContainerStyle={[socialStyles.content, { paddingBottom: 28, minHeight: room.minHeight }]}
         contentInsetAdjustmentBehavior="automatic"
         onLayout={room.onLayout}
-        onScroll={room.onScroll}
+        onScroll={(event) => {
+          room.onScroll(event);
+          onNowCardScroll(event);
+        }}
         data={canBrowse ? feed.items : []}
         keyExtractor={visitId}
         initialNumToRender={4}
@@ -166,19 +172,9 @@ export function HomeScreen() {
                 />
               </View>
             )}
-            <NowCard />
-            {/* Each feed starts below the switch; the suggestion strip under it belongs to Friends. */}
-            <View style={styles.tabs} onLayout={room.onHeaderLayout}>
-              <NativeSegmentedPicker
-                label="Visit feed"
-                value={tab}
-                onChange={setChosenTab}
-                options={[
-                  { value: "friends", label: "Friends" },
-                  { value: "global", label: "Global" },
-                ]}
-              />
-            </View>
+            <NowCard onLayout={onCardLayout} />
+            {/* Each feed starts here; the suggestion strip below belongs to Friends. */}
+            <View onLayout={room.onPinnedLayout} />
             {showStrip && <SuggestionStrip people={suggestions.people} {...suggestionActions} />}
           </>
         }
@@ -187,62 +183,55 @@ export function HomeScreen() {
             session.status === "loading" ? (
               <FeedSkeleton label="Loading your account…" />
             ) : (
-              <SocialGate session={session} onBrowseGlobal={() => setChosenTab("global")} />
+              <SocialGate session={session} onBrowseGlobal={() => setChosenTab("global")} card={card} />
             )
           ) : feed.done && !feed.loading && !feed.error ? (
             tab === "global" ? (
               <SocialInvitation
+                card={card}
                 title="No public visits yet."
                 detail="View public walls to see other people’s collections."
-              >
-                <ActionStack
-                  textActions={
-                    <GalleryButton label="Scan an artwork" fullWidth onPress={() => router.navigate("/scan")} />
-                  }
-                >
-                  <GalleryButton
-                    label="View public walls"
-                    variant="filled"
-                    fullWidth
-                    onPress={() => router.push("/people")}
-                  />
-                </ActionStack>
-              </SocialInvitation>
+                action={{ label: "View public walls", onPress: () => router.push("/people") }}
+                secondaryAction={{ label: "Scan an artwork", onPress: () => router.navigate("/scan") }}
+              />
             ) : suggestions.people.length > 0 ? (
-              <View>
-                <View style={styles.emptyFeed}>
-                  <Text variant="section" accessibilityRole="header">
-                    No visits from friends yet.
-                  </Text>
-                  <Text themeColor="textSecondary">Add friends to see the museum visits they share.</Text>
-                </View>
-                <SuggestionList people={suggestions.people.slice(0, 5)} {...suggestionActions} />
-                <View style={styles.emptyFeedAction}>
-                  <GalleryButton
-                    label="Share your profile"
-                    icon="qrcode"
-                    variant="outlined"
-                    fullWidth
-                    onPress={() => router.push("/share-profile")}
+              card ? (
+                <View>
+                  <EmptyCard
+                    title="No visits from friends yet."
+                    detail="Add friends to see the museum visits they share."
+                    action={{ label: "Share your profile", icon: "qrcode", onPress: shareProfile }}
                   />
+                  <SuggestionList people={suggestions.people.slice(0, 5)} {...suggestionActions} />
                 </View>
-              </View>
+              ) : (
+                <View>
+                  <View style={styles.emptyFeed}>
+                    <Text variant="section" accessibilityRole="header">
+                      No visits from friends yet.
+                    </Text>
+                    <Text themeColor="textSecondary">Add friends to see the museum visits they share.</Text>
+                  </View>
+                  <SuggestionList people={suggestions.people.slice(0, 5)} {...suggestionActions} />
+                  <View style={styles.emptyFeedAction}>
+                    <GalleryButton
+                      label="Share your profile"
+                      icon="qrcode"
+                      variant="outlined"
+                      fullWidth
+                      onPress={shareProfile}
+                    />
+                  </View>
+                </View>
+              )
             ) : (
               <SocialInvitation
+                card={card}
                 title="No visits from friends yet."
                 detail="Add friends to see the museum visits they share."
-              >
-                <ActionStack
-                  textActions={<GalleryButton label="Browse Global" fullWidth onPress={() => setChosenTab("global")} />}
-                >
-                  <GalleryButton
-                    label="Find friends"
-                    variant="filled"
-                    fullWidth
-                    onPress={() => router.push("/people")}
-                  />
-                </ActionStack>
-              </SocialInvitation>
+                action={{ label: "Find friends", onPress: () => router.push("/people") }}
+                secondaryAction={{ label: "Browse Global", onPress: () => setChosenTab("global") }}
+              />
             )
           ) : null
         }
@@ -259,9 +248,8 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Padding inside the header, not the content container, keeps the switch's measured offset in content coordinates.
+  // Padding inside the header, not the content container, keeps measured offsets in content coordinates.
   header: { paddingTop: Spacing.two },
-  tabs: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
   emptyFeed: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
   emptyFeedAction: { paddingHorizontal: 20, paddingTop: 16 },
 });

@@ -7,7 +7,19 @@ import { Gallery } from "@/constants/theme";
 import { isIOS26OrLater } from "@/lib/ios-version";
 import { countBadge } from "@/lib/social/unseen-notifications";
 
-export function HomeToolbar({ requests, unseen }: { requests: number; unseen: number }) {
+export type Feed = "friends" | "global";
+
+const FEED_LABELS: Record<Feed, string> = { friends: "Friends", global: "Global" };
+
+type HomeToolbarProps = {
+  requests: number;
+  unseen: number;
+  /** Unset while the landing feed is still being decided, which hides the switch. */
+  feed: Feed | undefined;
+  onFeedChange: (feed: Feed) => void;
+};
+
+export function HomeToolbar({ requests, unseen, feed, onFeedChange }: HomeToolbarProps) {
   const router = useRouter();
   const requestsBadge = countBadge(requests);
   const unseenBadge = countBadge(unseen);
@@ -26,41 +38,55 @@ export function HomeToolbar({ requests, unseen }: { requests: number; unseen: nu
       badge: unseenBadge,
     },
   ] as const;
+  const feedLabel = FEED_LABELS[feed ?? "friends"];
   return (
-    <Stack.Toolbar placement="right">
-      {actions.map(({ icon, label, href, badge }) =>
-        isIOS26OrLater() ? (
-          <Stack.Toolbar.Button
-            key={href}
-            icon={icon}
-            accessibilityLabel={label}
-            tintColor={Gallery.ink}
-            onPress={() => router.push(href)}
-          >
-            {badge && <Stack.Toolbar.Badge>{badge}</Stack.Toolbar.Badge>}
-          </Stack.Toolbar.Button>
-        ) : (
-          // UIKit bar-item badges require iOS 26, so older bars host the same actions with visible counts.
-          <Stack.Toolbar.View key={href}>
-            <View style={styles.button}>
-              <GalleryIconButton icon={icon} label={label} onPress={() => router.push(href)} />
-              {badge && (
-                <View
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                  pointerEvents="none"
-                  style={styles.badge}
-                >
-                  <Text allowFontScaling={false} style={styles.count}>
-                    {badge}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Stack.Toolbar.View>
-        ),
-      )}
-    </Stack.Toolbar>
+    <>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Menu hidden={!feed} accessibilityLabel={`${feedLabel} feed`} tintColor={Gallery.ink}>
+          <Stack.Toolbar.Label>{feedLabel}</Stack.Toolbar.Label>
+          <Stack.Toolbar.MenuAction icon="person.2" isOn={feed === "friends"} onPress={() => onFeedChange("friends")}>
+            {FEED_LABELS.friends}
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction icon="globe" isOn={feed === "global"} onPress={() => onFeedChange("global")}>
+            {FEED_LABELS.global}
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        {actions.map(({ icon, label, href, badge }) =>
+          isIOS26OrLater() ? (
+            <Stack.Toolbar.Button
+              key={href}
+              icon={icon}
+              accessibilityLabel={label}
+              tintColor={Gallery.ink}
+              onPress={() => router.push(href)}
+            >
+              {badge && <Stack.Toolbar.Badge>{badge}</Stack.Toolbar.Badge>}
+            </Stack.Toolbar.Button>
+          ) : (
+            // UIKit bar-item badges require iOS 26, so older bars host the same actions with visible counts.
+            <Stack.Toolbar.View key={href}>
+              <View style={styles.button}>
+                <GalleryIconButton icon={icon} label={label} onPress={() => router.push(href)} />
+                {badge && (
+                  <View
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    pointerEvents="none"
+                    style={styles.badge}
+                  >
+                    <Text allowFontScaling={false} style={styles.count}>
+                      {badge}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Stack.Toolbar.View>
+          ),
+        )}
+      </Stack.Toolbar>
+    </>
   );
 }
 

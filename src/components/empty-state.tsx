@@ -1,11 +1,14 @@
 import { Image } from "expo-image";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { Gallery } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 
+import { ActionStack } from "./action-stack";
 import { GalleryButton } from "./collection/gallery-button";
 import { ThemedText as Text } from "./themed-text";
+
+export type EmptyAction = { label: string; icon?: ComponentProps<typeof GalleryButton>["icon"]; onPress: () => void };
 
 export function EmptyState({
   title,
@@ -51,6 +54,59 @@ export function EmptyState({
         <Text lineBreakStrategyIOS="push-out" style={[styles.footnote, styles.centeredText]}>
           {footnote}
         </Text>
+      )}
+    </View>
+  );
+}
+
+/** An empty state's primary button with an optional text button flush beneath it. */
+export function EmptyActions({ action, secondaryAction }: { action?: EmptyAction; secondaryAction?: EmptyAction }) {
+  return (
+    <ActionStack
+      textActions={
+        secondaryAction && <GalleryButton label={secondaryAction.label} onPress={secondaryAction.onPress} fullWidth />
+      }
+    >
+      {action && (
+        <GalleryButton label={action.label} icon={action.icon} onPress={action.onPress} variant="filled" fullWidth />
+      )}
+    </ActionStack>
+  );
+}
+
+/** An empty state set as a gray card in the page gutter, for a section that sits under other content. */
+export function EmptyCard({
+  title,
+  detail,
+  action,
+  secondaryAction,
+}: {
+  title: string;
+  detail?: string;
+  action?: EmptyAction;
+  secondaryAction?: EmptyAction;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text accessibilityRole="header" style={styles.cardTitle}>
+        {title}
+      </Text>
+      {detail && <Text style={styles.cardDetail}>{detail}</Text>}
+      {(action || secondaryAction) && (
+        <View style={styles.cardActions}>
+          {action && (
+            <GalleryButton
+              label={action.label}
+              icon={action.icon}
+              onPress={action.onPress}
+              variant="filled"
+              size="compact"
+            />
+          )}
+          {secondaryAction && (
+            <GalleryButton label={secondaryAction.label} onPress={secondaryAction.onPress} size="compact" />
+          )}
+        </View>
       )}
     </View>
   );
@@ -103,6 +159,25 @@ const styles = StyleSheet.create({
   detail: { color: Gallery.muted, fontSize: 15, lineHeight: 23 },
   footnote: { color: Gallery.muted, fontSize: 12, lineHeight: 18 },
   actions: { gap: 8, alignItems: "stretch" },
+  card: {
+    marginHorizontal: Spacing.content,
+    marginTop: Spacing.compact,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: Spacing.three,
+    gap: Spacing.one,
+    backgroundColor: Gallery.fill,
+    borderRadius: Radius.card,
+  },
+  cardTitle: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.ink },
+  cardDetail: { fontSize: 14, lineHeight: 21, color: Gallery.muted },
+  cardActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 10,
+    marginTop: Spacing.compact,
+  },
   symbol: {
     width: 76,
     height: 76,
