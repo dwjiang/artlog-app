@@ -1,8 +1,8 @@
+import { normalizeText } from "../../shared/catalog/text";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { eligibleObjectRecord } from "./recognitionEligibility";
 import {
-  normalizeText,
   spellingSimilarity,
   surnameMatches,
   TITLE_MATCH_THRESHOLD,
@@ -18,10 +18,6 @@ const SPELLING_THRESHOLD = 0.7;
 const YEAR_SLACK = 2;
 const YEAR_BONUS = 0.25;
 const MAX_OBJECTS_PER_ARTWORK = 16;
-
-export function artworkSearchText({ title, artist }: Pick<Doc<"artworks">, "title" | "artist">): string {
-  return normalizeText(`${title} ${artist}`);
-}
 
 export type CorpusQuery = { title: string; artist?: string; date?: string; wikidataId?: string };
 export type CorpusMatch = { objectId: Id<"objects">; artworkId: Id<"artworks"> };

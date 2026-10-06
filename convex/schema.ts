@@ -131,14 +131,34 @@ export default defineSchema({
     enrichGeneration: v.number(),
     // Set when the latest docent run ended without writing, so the card can offer a retry.
     docentFailedAt: v.optional(v.number()),
+    // Stops automatic catalog retries only after a successful search found no usable sources.
+    docentNoSources: v.optional(v.boolean()),
     factSheetNeedsReview: v.optional(v.boolean()),
     // Derived from title and artist by a database trigger; corpus rows written before it carry none until backfilled.
     searchText: v.optional(v.string()),
+    // Derived from artist by the same trigger and backfill; absent for placeholder names such as "Unknown artist".
+    artistKey: v.optional(v.string()),
   })
     .index("by_key", ["key"])
     .index("by_wikidataId", ["wikidataId"])
     .index("by_factSheetNeedsReview", ["factSheetNeedsReview"])
+    .index("by_artistKey", ["artistKey"])
     .searchIndex("search_text", { searchField: "searchText" }),
+
+  // One row per artist key, counting the established, unretired works that carry it; kept by the artworks trigger.
+  artists: defineTable({
+    key: v.string(),
+    name: v.string(),
+    workCount: v.number(),
+  })
+    .index("by_key", ["key"])
+    .searchIndex("search_key", { searchField: "key" }),
+  // The monthly avatar pick: each artist's most-saved work, resolved to its picture on read.
+  artistCovers: defineTable({
+    artistKey: v.string(),
+    artworkId: v.id("artworks"),
+    saves: v.number(),
+  }).index("by_artistKey", ["artistKey"]),
 
   artworkContent: defineTable({
     researchConflicts: v.optional(v.array(researchConflict)),

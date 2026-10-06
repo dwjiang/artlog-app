@@ -12,6 +12,7 @@ const mockSettings = new Map<string, string>();
 let mockOffline = false;
 let mockSession: { status: string; key: string; profileId?: string; token?: string };
 let mockResults: Record<string, unknown>;
+let mockSaved = new Map<string, { localId: string }>();
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function () {
     return { mutation: mockMutation };
@@ -37,6 +38,12 @@ jest.mock("@/db/repos/settings", () => ({
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => ({ ...mockSession, offline: mockOffline }),
+}));
+jest.mock("@/lib/catalog/use-catalog-ready", () => ({
+  useCatalogReady: () => ({ ready: !mockOffline, offline: mockOffline, scope: "catalog" }),
+}));
+jest.mock("@/lib/catalog/use-saved-catalog-works", () => ({
+  useSavedCatalogWorks: () => mockSaved,
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: never, args: unknown) => {
@@ -69,6 +76,7 @@ beforeEach(() => {
   mockRefresh.mockClear();
   mockMutation.mockReset().mockResolvedValue(null);
   mockSettings.clear();
+  mockSaved = new Map();
   mockOffline = false;
   mockSession = { status: "signed-out", key: "guest" };
   mockResults = {
@@ -81,6 +89,8 @@ beforeEach(() => {
       { tag: "mondrian", postCount: 1 },
     ],
     "profiles:search": { page: [monica], cursor: null, isDone: true },
+    "artists:search": [],
+    "artworks:search": { page: [], cursor: null, isDone: true },
   };
 });
 
@@ -90,7 +100,7 @@ afterEach(() => {
 });
 
 async function type(text: string) {
-  await fireEvent.changeText(screen.getByLabelText("People and tags"), text);
+  await fireEvent.changeText(screen.getByLabelText("Artworks, artists and people"), text);
   await act(() => jest.advanceTimersByTime(250));
 }
 
@@ -158,7 +168,104 @@ it("searches only tags when the text starts with #", async () => {
   await type("#mon");
   expect(mockArgs).toHaveBeenCalledWith("tags:search", { prefix: "mon" });
   expect(mockArgs).not.toHaveBeenCalledWith("profiles:search", expect.anything());
+  expect(mockArgs).not.toHaveBeenCalledWith("artworks:search", expect.anything());
+  expect(mockArgs).not.toHaveBeenCalledWith("artists:search", expect.anything());
   expect(screen.queryByRole("header", { name: "People" })).toBeNull();
+});
+
+const lilies = {
+  artworkId: "lilies",
+  title: "Water Lilies",
+  artist: "Claude Monet",
+  date: "1906",
+  thumbnailUrl: "https://museum.example/lilies.jpg",
+};
+const wheat = { artworkId: "wheat", title: "Stacks of Wheat (End of Summer)", artist: "Claude Monet", date: "1890–91" };
+const monet = {
+  artistId: "monet",
+  name: "Claude Monet",
+  workCount: 214,
+  coverUrl: "https://museum.example/lilies.jpg",
+};
+
+it("finds artists and artworks as you type, above tags and people", async () => {
+  mockResults["artists:search"] = [monet];
+  mockResults["artworks:search"] = { page: [lilies, wheat], cursor: null, isDone: true };
+  await render(<SearchScreen />);
+  await type("monet");
+  expect(mockArgs).toHaveBeenCalledWith("artists:search", { query: "monet" });
+  expect(mockArgs).toHaveBeenCalledWith("artworks:search", { query: "monet", limit: 8 });
+  expect(screen.getAllByRole("header").map((header) => header.props.children)).toEqual([
+    "Artists",
+    "Artworks",
+    "Tags",
+    "People",
+  ]);
+  // Everything fits, so there is nothing more to see.
+  expect(screen.queryByRole("button", { name: "See all: Artworks" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Claude Monet, 214 works" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/artist/[artistId]", params: { artistId: "monet" } });
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Stacks of Wheat (End of Summer), Claude Monet · 1890–91" }),
+  );
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/catalog/[artworkId]", params: { artworkId: "wheat" } });
+  expect(JSON.parse(mockSettings.get("search.recent")!)).toEqual([
+    { kind: "artwork", artwork: { artworkId: "wheat", title: "Stacks of Wheat (End of Summer)" } },
+    { kind: "artist", artist: { artistId: "monet", name: "Claude Monet", coverUrl: monet.coverUrl } },
+  ]);
+});
+
+it("opens your saved copy of an artwork you saved, and lists the rest under See all", async () => {
+  mockSaved = new Map([["lilies", { localId: "save-1" }]]);
+  mockResults["artworks:search"] = {
+    page: [lilies, wheat, { ...wheat, artworkId: "w2" }, { ...wheat, artworkId: "w3" }],
+    cursor: "next",
+    isDone: false,
+  };
+  await render(<SearchScreen />);
+  await type("monet");
+  expect(screen.getAllByRole("button", { name: /Stacks of Wheat/ })).toHaveLength(2);
+  await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet · 1906, Saved" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/saved/[savedId]", params: { savedId: "save-1" } });
+  await fireEvent.press(screen.getByRole("button", { name: "See all: Artworks" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/search-artworks", params: { query: "monet" } });
+});
+
+it("keeps later artwork matches reachable when the first page contains only hidden works", async () => {
+  mockResults["tags:search"] = [];
+  mockResults["profiles:search"] = { page: [], cursor: null, isDone: true };
+  mockResults["artworks:search"] = { page: [], cursor: "next", isDone: false };
+  await render(<SearchScreen />);
+  await type("water lilies");
+  expect(screen.queryByText("No results found.")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "See all: Artworks" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/search-artworks", params: { query: "water lilies" } });
+});
+
+it("reopens recent artworks and artists", async () => {
+  mockSettings.set(
+    "search.recent",
+    JSON.stringify([
+      { kind: "artwork", artwork: { artworkId: "wheat", title: "Stacks of Wheat" } },
+      { kind: "artist", artist: { artistId: "monet", name: "Claude Monet" } },
+    ]),
+  );
+  await render(<SearchScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Claude Monet" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/artist/[artistId]", params: { artistId: "monet" } });
+  await fireEvent.press(screen.getByRole("button", { name: "Stacks of Wheat" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/catalog/[artworkId]", params: { artworkId: "wheat" } });
+});
+
+it("offers a retry when the catalog searches fail", async () => {
+  mockResults["artists:search"] = new Error("Server unavailable");
+  mockResults["artworks:search"] = new Error("Server unavailable");
+  await render(<SearchScreen />);
+  await type("monet");
+  expect(screen.getByRole("button", { name: "#monet, 312 posts" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry artists" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Retry artworks" }));
+  expect(mockRefresh.mock.calls).toEqual([["artists:search"], ["artworks:search"]]);
 });
 
 it("says when nothing matches and when the phone is offline", async () => {
@@ -263,7 +370,7 @@ it("says how to search when there is nothing to show yet", async () => {
   mockResults["tags:popular"] = [];
   mockResults["profiles:discover"] = { page: [], cursor: null, isDone: true };
   await render(<SearchScreen />);
-  expect(screen.getByText("Find people and tags.")).toBeOnTheScreen();
+  expect(screen.getByText("Find artworks, artists and people.")).toBeOnTheScreen();
 });
 
 it.each(["resolve", "reject"] as const)(
@@ -311,7 +418,7 @@ it("offers a retry when people discovery fails on an otherwise empty screen", as
   const view = await render(<SearchScreen />);
 
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t load people.");
-  expect(screen.queryByText("Find people and tags.")).toBeNull();
+  expect(screen.queryByText("Find artworks, artists and people.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Retry people" }));
   expect(mockRefresh).toHaveBeenCalledWith("profiles:discover");
 

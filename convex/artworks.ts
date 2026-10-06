@@ -1,15 +1,27 @@
-import { v } from "convex/values";
+import { type Infer, v } from "convex/values";
 
 import { guideOpening, guideResearch } from "../shared/audio/guide";
+import { catalogSearchText } from "../shared/catalog/text";
+import { pageArgs, pagination } from "../shared/journal/contracts";
 import { internal } from "./_generated/api";
-import { query } from "./_generated/server";
-import { internalMutation } from "./functions";
+import type { Doc } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
+import { CLAIM_MS } from "./docent";
+import { internalMutation, mutation } from "./functions";
+import { artistByKey, artworkSearchFields } from "./lib/artists";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
-import { artworkSearchText } from "./lib/corpusMatch";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
-import { docentSentence, factChip, guideSentence, rightsStatus, type FactSheetEntry } from "./lib/validators";
+import {
+  docentSentence,
+  factChip,
+  guideSentence,
+  rightsStatus,
+  snapshotFields,
+  type FactSheetEntry,
+} from "./lib/validators";
+import { joinCandidate } from "./scans";
 
 const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
   id,
@@ -25,6 +37,7 @@ export const enrichment = query({
     v.object({
       docent: v.optional(v.array(docentSentence)),
       docentWriting: v.boolean(),
+      docentGeneration: v.number(),
       factSheet: v.optional(v.array(factChip)),
       narrationFacts: v.optional(v.array(factChip)),
       narrationResearchUpdatedAt: v.optional(v.number()),
@@ -69,6 +82,7 @@ export const enrichment = query({
     return {
       docent: content?.docent?.en,
       docentWriting: !content?.docent?.en && artwork.enrichClaimedAt !== undefined && !artwork.factSheetNeedsReview,
+      docentGeneration: artwork.enrichGeneration,
       factSheet: content?.factSheet?.map(chip),
       narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(chip) : undefined,
       narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
@@ -82,21 +96,121 @@ export const enrichment = query({
   },
 });
 
-const SEARCH_TEXT_PAGE = 256;
+const SEARCH_FIELDS_PAGE = 256;
 
-// Rows written since the artworks trigger existed already carry their search text; this fills the corpus loaded before it.
-export const backfillSearchText = internalMutation({
+// `convex import` skips the artworks trigger, so imported corpus rows get their search text and artist key (and
+// count toward their artist) only when this runs. Rows already current are left alone, so it can be re-run.
+export const backfillSearchFields = internalMutation({
   args: { cursor: v.union(v.string(), v.null()) },
   returns: v.null(),
   handler: async (ctx, { cursor }) => {
-    const page = await ctx.db.query("artworks").paginate({ cursor, numItems: SEARCH_TEXT_PAGE });
+    const page = await ctx.db.query("artworks").paginate({ cursor, numItems: SEARCH_FIELDS_PAGE });
     for (const artwork of page.page) {
-      const searchText = artworkSearchText(artwork);
-      if (artwork.searchText !== searchText) await ctx.db.patch("artworks", artwork._id, { searchText });
+      const fields = artworkSearchFields(artwork);
+      if (artwork.searchText !== fields.searchText || artwork.artistKey !== fields.artistKey) {
+        await ctx.db.patch("artworks", artwork._id, fields);
+      }
     }
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.artworks.backfillSearchText, { cursor: page.continueCursor });
+      await ctx.scheduler.runAfter(0, internal.artworks.backfillSearchFields, { cursor: page.continueCursor });
     }
     return null;
+  },
+});
+
+// A work can hang in several places; looking past a few objects for a picture isn't worth the reads.
+const OBJECTS_PER_WORK = 8;
+
+export const catalogArtwork = snapshotFields.extend({
+  artworkId: v.id("artworks"),
+  thumbnailUrl: v.optional(v.string()),
+});
+export type CatalogArtwork = Infer<typeof catalogArtwork>;
+
+/** A catalog work as search and its page show it, from its first eligible object; null once it can't be shown. */
+export async function projectCatalogArtwork(ctx: QueryCtx, artwork: Doc<"artworks">): Promise<CatalogArtwork | null> {
+  if (artwork.retiredAt || artwork.identityStatus !== "established") return null;
+  const objects = await ctx.db
+    .query("objects")
+    .withIndex("by_artworkId", (q) => q.eq("artworkId", artwork._id))
+    .take(OBJECTS_PER_WORK);
+  let shown: CatalogArtwork | null = null;
+  for (const object of objects) {
+    if (object.identityStatus !== "established") continue;
+    const joined = await joinCandidate(ctx, {
+      objectId: object._id,
+      artworkId: artwork._id,
+      identityStatus: "established",
+    });
+    if (!joined) continue;
+    const { title, artist, date, medium, institution } = joined.candidate;
+    const thumbnailUrl = artwork.rightsStatus === "public_domain" ? joined.candidate.thumbnailUrl : undefined;
+    shown ??= { artworkId: artwork._id, title, artist, date, medium, institution, thumbnailUrl };
+    if (thumbnailUrl) return { ...shown, thumbnailUrl };
+  }
+  return shown;
+}
+
+/** Catalog works whose title or artist has every word of the query, best match first. */
+export const search = query({
+  args: { query: v.string(), ...pageArgs },
+  returns: v.object({
+    page: v.array(catalogArtwork),
+    cursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, input) => {
+    await requireDevice(ctx);
+    const text = catalogSearchText(input.query);
+    const options = pagination(input);
+    if (!text) return { page: [], cursor: null, isDone: true };
+    const result = await ctx.db
+      .query("artworks")
+      .withSearchIndex("search_text", (q) => q.search("searchText", text))
+      .paginate(options);
+    const page = [];
+    for (const artwork of result.page) {
+      const shown = await projectCatalogArtwork(ctx, artwork);
+      if (shown) page.push(shown);
+    }
+    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+  },
+});
+
+/** A catalog work's page: its details and the artist page they link to. */
+export const get = query({
+  args: { artworkId: v.id("artworks") },
+  returns: v.union(v.null(), catalogArtwork.extend({ artistId: v.optional(v.id("artists")) })),
+  handler: async (ctx, { artworkId }) => {
+    await requireDevice(ctx);
+    const artwork = await ctx.db.get("artworks", artworkId);
+    const shown = artwork && (await projectCatalogArtwork(ctx, artwork));
+    if (!shown) return null;
+    const artist = artwork.artistKey ? await artistByKey(ctx, artwork.artistKey) : null;
+    return { ...shown, ...(artist ? { artistId: artist._id } : {}) };
+  },
+});
+
+// Opening a work starts missing research. Successful empty research isn't repeated; temporary failures can
+// retry on later opens, subject to the docent's per-device limit and daily spend cap. True when a run starts.
+export const research = mutation({
+  args: { artworkId: v.id("artworks") },
+  returns: v.boolean(),
+  handler: async (ctx, { artworkId }) => {
+    const device = await requireDevice(ctx);
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (
+      !artwork
+      || artwork.retiredAt
+      || artwork.identityStatus !== "established"
+      || artwork.factSheetNeedsReview
+      || artwork.docentNoSources
+      || (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > Date.now() - CLAIM_MS)
+    ) {
+      return false;
+    }
+    if ((await readArtworkContent(ctx, artwork))?.docent?.en?.length) return false;
+    await ctx.scheduler.runAfter(0, internal.docent.ensure, { artworkId, deviceId: device._id });
+    return true;
   },
 });

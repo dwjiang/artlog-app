@@ -8,6 +8,7 @@ import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { labelField } from "./lib/labelVerify";
+import { limiter } from "./lib/rateLimits";
 import { readSpend, seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
@@ -593,6 +594,63 @@ describe("docent.ensure", () => {
     expect(last?.enrichClaimedAt).toBeUndefined();
     expect(calls(TAVILY)).toHaveLength(120);
     expect((await readArtwork(t, artworkIds[59]))?.docent?.en).toHaveLength(1);
+  });
+});
+
+describe("catalog research", () => {
+  it.each(["rate limit", "spend cap", "source failure"])("recovers on a later open after a %s", async (failure) => {
+    vi.useFakeTimers();
+    try {
+      const { t, work, artwork } = await fixture();
+      const { as, deviceId } = await seedDevice(t);
+      if (failure === "rate limit") {
+        await t.run((ctx) => limiter.limit(ctx, "docent", { key: deviceId, count: 60 }));
+      } else if (failure === "spend cap") {
+        vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "0");
+      } else {
+        page(PAGE, "down", { status: 503 });
+        wikidata(500);
+        tavily(undefined, 500);
+      }
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(true);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(await artwork()).toHaveProperty("docentFailedAt");
+
+      await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000);
+      vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", "1000");
+      routes = [];
+      everything();
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(true);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect((await artwork())?.docent?.en).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves successful empty research alone until it is explicitly invalidated", async () => {
+    vi.useFakeTimers();
+    try {
+      const { t, work, artwork } = await fixture({ pageUrl: null, wikidataId: null });
+      const { as } = await seedDevice(t);
+      tavily({ results: [], usage: { credits: 1 } });
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(true);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect((await artwork())?.docent).toBeUndefined();
+      const searches = calls(TAVILY).length;
+      expect(searches).toBeGreaterThan(0);
+      const other = await seedDevice(t);
+      expect(await other.as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(false);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(calls(TAVILY)).toHaveLength(searches);
+
+      await t.mutation(internal.docent.invalidateDocent, { artworkId: work.artworkId });
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(true);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect(calls(TAVILY).length).toBeGreaterThan(searches);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

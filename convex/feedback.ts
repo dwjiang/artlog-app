@@ -2,6 +2,7 @@ import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { rejectionPayload } from "../shared/attestation/attested-payloads";
+import { normalizeText } from "../shared/catalog/text";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, type MutationCtx } from "./_generated/server";
 import { requireAttestedWrite } from "./devices";
@@ -13,7 +14,7 @@ import { loadCurrentPlacement } from "./lib/placements";
 import { limitDevice } from "./lib/rateLimits";
 import { eligibleObject } from "./lib/recognitionEligibility";
 import { FLAG_MIN_REJECTIONS, FLAG_REJECT_RATIO, PENALTY_STEP } from "./lib/rejectionPenalty";
-import { normalizeText, personMatches } from "./lib/textMatch";
+import { personMatches } from "./lib/textMatch";
 import type { LabelFlow } from "./lib/validators";
 import { proposePlacementFromScan } from "./placements";
 import { queueMultiView } from "./promotion";

@@ -1,0 +1,188 @@
+import { v } from "convex/values";
+
+import { catalogSearchText } from "../shared/catalog/text";
+import { pageArgs, pagination } from "../shared/journal/contracts";
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internalAction, query, type QueryCtx } from "./_generated/server";
+import { catalogArtwork, projectCatalogArtwork } from "./artworks";
+import { internalMutation } from "./functions";
+import { requireDevice } from "./lib/auth";
+import { withErrorReporting } from "./lib/observability";
+
+const SEARCH_RESULTS = 3;
+// Most of an artist's first works have a picture; an artist whose first dozen don't gets the person glyph.
+const COVER_SCAN = 12;
+const COVER_PAGE = 200;
+const SAVES_PAGE = 500;
+
+const artistSummary = v.object({
+  artistId: v.id("artists"),
+  name: v.string(),
+  workCount: v.number(),
+  coverUrl: v.optional(v.string()),
+});
+
+async function pictureOf(ctx: QueryCtx, artworkId: Id<"artworks">, artistKey: string): Promise<string | undefined> {
+  const artwork = await ctx.db.get("artworks", artworkId);
+  if (artwork?.rightsStatus !== "public_domain" || artwork.artistKey !== artistKey) return undefined;
+  return (await projectCatalogArtwork(ctx, artwork))?.thumbnailUrl;
+}
+
+/** The artist's avatar: the monthly most-saved pick, else their first catalog work with a public-domain picture. */
+async function coverUrl(ctx: QueryCtx, key: string): Promise<string | undefined> {
+  const pick = await ctx.db
+    .query("artistCovers")
+    .withIndex("by_artistKey", (q) => q.eq("artistKey", key))
+    .first();
+  const picked = pick && (await pictureOf(ctx, pick.artworkId, key));
+  if (picked) return picked;
+  const works = await ctx.db
+    .query("artworks")
+    .withIndex("by_artistKey", (q) => q.eq("artistKey", key))
+    .take(COVER_SCAN);
+  for (const artwork of works) {
+    const url = await pictureOf(ctx, artwork._id, key);
+    if (url) return url;
+  }
+  return undefined;
+}
+
+async function summarize(ctx: QueryCtx, artist: Doc<"artists">) {
+  const cover = await coverUrl(ctx, artist.key);
+  return {
+    artistId: artist._id,
+    name: artist.name,
+    workCount: artist.workCount,
+    ...(cover ? { coverUrl: cover } : {}),
+  };
+}
+
+/** Artists whose name has every word of the query, best match first. */
+export const search = query({
+  args: { query: v.string() },
+  returns: v.array(artistSummary),
+  handler: async (ctx, input) => {
+    await requireDevice(ctx);
+    const text = catalogSearchText(input.query);
+    if (!text) return [];
+    const matches = await ctx.db
+      .query("artists")
+      .withSearchIndex("search_key", (q) => q.search("key", text))
+      .take(SEARCH_RESULTS);
+    return Promise.all(matches.map((artist) => summarize(ctx, artist)));
+  },
+});
+
+export const get = query({
+  args: { artistId: v.id("artists") },
+  returns: v.union(v.null(), artistSummary.extend({ key: v.string() })),
+  handler: async (ctx, { artistId }) => {
+    await requireDevice(ctx);
+    const artist = await ctx.db.get("artists", artistId);
+    return artist && { ...(await summarize(ctx, artist)), key: artist.key };
+  },
+});
+
+/** The artist's catalog works in the order the catalog gained them. */
+export const works = query({
+  args: { artistId: v.id("artists"), ...pageArgs },
+  returns: v.object({
+    page: v.array(catalogArtwork),
+    cursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, input) => {
+    await requireDevice(ctx);
+    const options = pagination(input);
+    const artist = await ctx.db.get("artists", input.artistId);
+    if (!artist) return { page: [], cursor: null, isDone: true };
+    const result = await ctx.db
+      .query("artworks")
+      .withIndex("by_artistKey", (q) => q.eq("artistKey", artist.key))
+      .paginate(options);
+    const page = [];
+    for (const artwork of result.page) {
+      const shown = await projectCatalogArtwork(ctx, artwork);
+      if (shown) page.push(shown);
+    }
+    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+  },
+});
+
+const savedWork = v.object({ artworkId: v.id("artworks"), saves: v.number() });
+
+/** Monthly: replaces each artist's avatar pick with their most-saved work that has a public-domain picture. */
+export const refreshCovers = internalAction({
+  args: {
+    phase: v.optional(v.union(v.literal("clear"), v.literal("tally"))),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    // The artwork the previous page of saves ended inside, with its saves so far.
+    open: v.optional(savedWork),
+  },
+  returns: v.null(),
+  handler: (ctx, { phase = "clear", cursor = null, open }) =>
+    withErrorReporting("artists.refreshCovers", async () => {
+      if (phase === "clear") {
+        const done = await ctx.runMutation(internal.artists.clearCovers, {});
+        await ctx.scheduler.runAfter(0, internal.artists.refreshCovers, { phase: done ? "tally" : "clear" });
+        return null;
+      }
+      const page = await ctx.runMutation(internal.artists.tallyCovers, { cursor, open });
+      if (!page.isDone) {
+        await ctx.scheduler.runAfter(0, internal.artists.refreshCovers, {
+          phase,
+          cursor: page.cursor,
+          open: page.open ?? undefined,
+        });
+      }
+      return null;
+    }),
+});
+
+export const clearCovers = internalMutation({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("artistCovers").take(COVER_PAGE);
+    for (const row of rows) await ctx.db.delete("artistCovers", row._id);
+    return rows.length < COVER_PAGE;
+  },
+});
+
+// Saves arrive grouped by artwork (the index orders them so), so a page's last artwork may continue on the next.
+export const tallyCovers = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()), open: v.optional(savedWork) },
+  returns: v.object({ cursor: v.string(), isDone: v.boolean(), open: v.union(savedWork, v.null()) }),
+  handler: async (ctx, { cursor, open }) => {
+    const page = await ctx.db
+      .query("collections")
+      .withIndex("by_artwork_deletedAt")
+      .paginate({ cursor, numItems: SAVES_PAGE });
+    let current = open ?? null;
+    const finished: { artworkId: Id<"artworks">; saves: number }[] = [];
+    for (const save of page.page) {
+      if (!save.artworkId || save.deletedAt !== undefined) continue;
+      if (current?.artworkId === save.artworkId) {
+        current.saves++;
+        continue;
+      }
+      if (current) finished.push(current);
+      current = { artworkId: save.artworkId, saves: 1 };
+    }
+    if (page.isDone && current) finished.push(current);
+    for (const { artworkId, saves } of finished) {
+      const artwork = await ctx.db.get("artworks", artworkId);
+      if (!artwork?.artistKey || !(await pictureOf(ctx, artworkId, artwork.artistKey))) continue;
+      const { artistKey } = artwork;
+      const pick = await ctx.db
+        .query("artistCovers")
+        .withIndex("by_artistKey", (q) => q.eq("artistKey", artistKey))
+        .first();
+      // A tie keeps the work that comes first in the index, so unchanged saves pick the same avatar every month.
+      if (!pick) await ctx.db.insert("artistCovers", { artistKey, artworkId, saves });
+      else if (saves > pick.saves) await ctx.db.patch("artistCovers", pick._id, { artworkId, saves });
+    }
+    return { cursor: page.continueCursor, isDone: page.isDone, open: page.isDone ? null : current };
+  },
+});

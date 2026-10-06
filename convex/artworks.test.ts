@@ -1,10 +1,10 @@
 import { expect, it } from "vitest";
 
 import { openingFixture } from "../shared/audio/guide-fixtures";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { narrationProvenance } from "./lib/narrationCache";
-import { seedArtworkWithObject, seedDevice } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
 const docent = [
@@ -54,6 +54,7 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
   expect(await as.query(api.artworks.enrichment, { artworkId })).toEqual({
     docent,
     docentWriting: false,
+    docentGeneration: 0,
     narrationWriting: false,
     narrationFacts: chips,
     narrationResearchUpdatedAt: 5,
@@ -75,6 +76,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
   ).toEqual({
     rightsStatus: "in_copyright",
     docentWriting: false,
+    docentGeneration: 0,
     narrationWriting: false,
     narrationOpening: openingFixture,
   });
@@ -82,6 +84,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
   expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({
     rightsStatus: "public_domain",
     docentWriting: false,
+    docentGeneration: 0,
     narrationWriting: false,
     narrationOpening: openingFixture,
   });
@@ -168,4 +171,127 @@ it("returns the rendered audio guide script until the research behind it changes
   const stale = await as.query(api.artworks.enrichment, { artworkId });
   expect(stale?.narration).toBeUndefined();
   expect(stale?.narrationRenderId).toBeUndefined();
+});
+
+it("finds catalog works by title or artist, leaving out works that can't be shown", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const venueId = await t.run((ctx) => seedMuseum(ctx, { name: "Art Institute of Chicago" }));
+  const wheat = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { title: "Stacks of Wheat (End of Summer)", artist: "Claude Monet", date: "1890–91" },
+      object: { ownerId: venueId },
+    }),
+  );
+  const copyrighted = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { title: "Monet's Garden", artist: "Jane Painter", rightsStatus: "in_copyright" },
+    }),
+  );
+  const takenDown = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, { artwork: { title: "Taken", artist: "Claude Monet" } }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("takedowns", {
+      target: { kind: "artwork", artworkId: takenDown.artworkId },
+      requester: "museum",
+      receivedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { title: "Unconfirmed", artist: "Claude Monet", identityStatus: "tentative" },
+    }),
+  );
+  const result = await as.query(api.artworks.search, { query: "Monet" });
+  expect(result.isDone).toBe(true);
+  expect(result.page).toEqual(
+    expect.arrayContaining([
+      {
+        artworkId: wheat.artworkId,
+        title: "Stacks of Wheat (End of Summer)",
+        artist: "Claude Monet",
+        date: "1890–91",
+        medium: "Oil on canvas",
+        institution: "Art Institute of Chicago",
+        thumbnailUrl: "https://museum.example/work.jpg",
+      },
+      // In-copyright works are listed without their picture.
+      expect.not.objectContaining({ thumbnailUrl: expect.anything() }),
+    ]),
+  );
+  expect(result.page.map(({ artworkId }) => artworkId).sort()).toEqual([wheat.artworkId, copyrighted.artworkId].sort());
+  expect((await as.query(api.artworks.search, { query: "wheat summ" })).page).toHaveLength(1);
+  expect(await as.query(api.artworks.search, { query: " ?! " })).toEqual({ page: [], cursor: null, isDone: true });
+});
+
+it("opens a catalog work's page with a link to its artist, and nothing for a retired work", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { artist: "Claude Monet" } }));
+  const page = await as.query(api.artworks.get, { artworkId });
+  const artist = await t.run((ctx) => ctx.db.query("artists").first());
+  expect(page).toMatchObject({ artworkId, title: "Water Lilies", artist: "Claude Monet", artistId: artist!._id });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { retiredAt: 1 }));
+  expect(await as.query(api.artworks.get, { artworkId })).toBeNull();
+});
+
+it.each(["public_domain", "in_copyright", "unknown"] as const)(
+  "shows a stored catalog crop only when the artwork is public domain: %s",
+  async (rightsStatus) => {
+    const t = harness();
+    const { as } = await seedDevice(t);
+    const { artworkId } = await t.run(async (ctx) => {
+      const thumbnailStorageId = await fileStorage.store(ctx, new Blob(["crop"], { type: "image/jpeg" }));
+      await retainFile(ctx, thumbnailStorageId, true);
+      return seedArtworkWithObject(ctx, {
+        artwork: { rightsStatus },
+        object: { source: "user" },
+        objectDetails: { thumbnailStorageId },
+      });
+    });
+    const work = await as.query(api.artworks.get, { artworkId });
+    expect(work).not.toBeNull();
+    expect(!!work?.thumbnailUrl).toBe(rightsStatus === "public_domain");
+    const search = await as.query(api.artworks.search, { query: "Water Lilies" });
+    expect(search.page[0]?.thumbnailUrl).toBe(work?.thumbnailUrl);
+    const works = await as.query(api.artists.works, { artistId: work!.artistId! });
+    expect(works.page[0]?.thumbnailUrl).toBe(work?.thumbnailUrl);
+  },
+);
+
+it("exposes a completed research generation even when the client missed the writing state", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
+  expect(await as.query(api.artworks.enrichment, { artworkId })).toMatchObject({
+    docentGeneration: 0,
+    docentWriting: false,
+  });
+  const generation = await t.mutation(internal.docent.claim, { artworkId });
+  await t.mutation(internal.docent.fail, { artworkId, generation: generation!, noSources: false });
+  expect(await as.query(api.artworks.enrichment, { artworkId })).toMatchObject({
+    docentGeneration: generation,
+    docentWriting: false,
+  });
+});
+
+it("researches a work opened from search once, and not again after it found nothing", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  expect(await as.mutation(api.artworks.research, { artworkId })).toBe(true);
+  expect((await scheduled()).map(({ name }) => name)).toEqual(["docent:ensure"]);
+
+  // A run in progress or one that found no sources is left alone; so is a work that already has its story.
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() }));
+  expect(await as.mutation(api.artworks.research, { artworkId })).toBe(false);
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined, docentNoSources: true }));
+  expect(await as.mutation(api.artworks.research, { artworkId })).toBe(false);
+  const told = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, { artworkContent: { docent: { en: docent }, factSheet } }),
+  );
+  expect(await as.mutation(api.artworks.research, { artworkId: told.artworkId })).toBe(false);
+  expect(await scheduled()).toHaveLength(1);
 });

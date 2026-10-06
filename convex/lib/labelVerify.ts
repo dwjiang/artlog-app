@@ -1,3 +1,4 @@
+import { normalizeText } from "../../shared/catalog/text";
 import type { Doc } from "../_generated/dataModel";
 import { reportBackendError } from "./observability";
 import { extractPage, hasArtworkMetadata, type PageFields } from "./pageExtract";
@@ -8,7 +9,6 @@ import {
   exactTitle,
   jaccard,
   mentions,
-  normalizeText,
   personMatches,
   titleMatches,
   titleQualifiersMatch,

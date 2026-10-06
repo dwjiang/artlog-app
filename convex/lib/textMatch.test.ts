@@ -5,7 +5,6 @@ import {
   exactTitle,
   jaccard,
   mentions,
-  normalizeText,
   personMatches,
   segments,
   spellingSimilarity,
@@ -33,8 +32,7 @@ describe("text matching", () => {
     expect(titleMatches(label, candidate)).toBe(true);
   });
 
-  it("normalizes case, diacritics and punctuation", () => {
-    expect(normalizeText("  Cruzando el Río Bravo — 1884!")).toBe("cruzando el rio bravo 1884");
+  it("scores word overlap regardless of order", () => {
     expect(jaccard("Water Lilies", "Lilies, Water")).toBe(1);
     expect(jaccard("", "x")).toBe(0);
   });

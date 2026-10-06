@@ -8,6 +8,7 @@ and Python tooling (`scripts/data/`, `scripts/model/`). Each domain owns its fix
 | `attestation/` | Signed payload formats and canonical JSON serialization         | iOS, Convex                 |
 | `calibrator/`  | Feature parity fixtures and training-output contract            | Convex, Python jobs         |
 | `capture/`     | Crop candidate bounds                                           | iOS, Convex                 |
+| `catalog/`     | Catalog text normalization and artist keys                      | iOS, Convex                 |
 | `collection/`  | Saved-collection limits                                         | iOS, Convex                 |
 | `docent/`      | Prose validation parity fixtures                                | Convex, Python jobs         |
 | `label/`       | Wall-label OCR payload bounds                                   | iOS, Convex                 |

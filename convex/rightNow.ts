@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 
+import { normalizeText } from "../shared/catalog/text";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
@@ -9,7 +10,6 @@ import { limitDevice } from "./lib/rateLimits";
 import { regionDomains } from "./lib/regions";
 import { acceptRightNow, firstSentence } from "./lib/rightNowAccept";
 import { searchWithCredit } from "./lib/tavilySpend";
-import { normalizeText } from "./lib/textMatch";
 import { rightNowCard, type RightNowCard } from "./lib/validators";
 
 // Cache accepted cards and empty outcomes for seven days per (artist, region) and

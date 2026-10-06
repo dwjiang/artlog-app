@@ -110,7 +110,7 @@ it("derives search text on every artwork write", async () => {
   );
 });
 
-it("backfills search text on rows written before the trigger existed", async () => {
+it("backfills search fields on imported rows, which skip the trigger", async () => {
   // A bare harness writes without the database triggers, as the corpus import did.
   const t = convexTest(schema, import.meta.glob("../**/*.*s"));
   const artworkId = await t.run((ctx) =>
@@ -124,8 +124,9 @@ it("backfills search text on rows written before the trigger existed", async () 
       enrichGeneration: 0,
     }),
   );
-  await t.mutation(internal.artworks.backfillSearchText, { cursor: null });
-  expect((await t.run((ctx) => ctx.db.get("artworks", artworkId)))?.searchText).toBe(
-    "the sleeping gypsy henri rousseau",
-  );
+  await t.mutation(internal.artworks.backfillSearchFields, { cursor: null });
+  expect(await t.run((ctx) => ctx.db.get("artworks", artworkId))).toMatchObject({
+    searchText: "the sleeping gypsy henri rousseau",
+    artistKey: "henri rousseau",
+  });
 });

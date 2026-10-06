@@ -1,5 +1,6 @@
 import type { Infer } from "convex/values";
 
+import { normalizeText } from "../../shared/catalog/text";
 import { defaultAvatar, isAvatarId } from "../../shared/social/avatars";
 import {
   type browsedProfile,
@@ -14,7 +15,6 @@ import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
 import { relationshipSnapshot } from "./friendships";
-import { normalizeText } from "./textMatch";
 
 export async function projectProfile(ctx: QueryCtx, profile: Doc<"profiles">): Promise<Infer<typeof publicProfile>> {
   const photoUrl = profile.photoStorageId ? await fileStorage.getUrl(ctx, profile.photoStorageId) : null;

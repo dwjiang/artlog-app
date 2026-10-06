@@ -1,6 +1,6 @@
+import { normalizeText } from "../../shared/catalog/text";
 import type { Doc, Id } from "../_generated/dataModel";
 import { normalizeAccession } from "./museumWorkIdentity";
-import { normalizeText } from "./textMatch";
 import type { ContributionField, EvidenceKind } from "./validators";
 
 // The museum's page, not the visitor, named the work. `tavily+image` qualifies because
