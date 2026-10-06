@@ -93,7 +93,14 @@ export function CardHeader({
         )}
       </View>
       {kind !== "loading" && (
-        <View style={[styles.status, fontScale > 1.4 && styles.stackedStatus]}>
+        <View
+          style={[
+            styles.status,
+            // Cards that can offer a correction keep its height, so hiding the link during a save doesn't shift them.
+            (kind === "confident" || kind === "soft" || kind === "confirmed") && styles.correctionRow,
+            fontScale > 1.4 && styles.stackedStatus,
+          ]}
+        >
           <ConfidenceChip kind={kind} probability={probability} source={source} />
           {correction && (
             <MotionPressable
@@ -140,8 +147,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: 44,
   },
+  correctionRow: { minHeight: 44 },
   correction: { minHeight: 44, justifyContent: "center" },
   stackedStatus: { flexDirection: "column", alignItems: "flex-start" },
   placeholder: { alignItems: "center", padding: 20, gap: Spacing.two },
