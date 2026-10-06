@@ -1,6 +1,7 @@
 import csv
 import json
 import logging
+import re
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -12,6 +13,41 @@ from ..rights import from_source_flag
 from .fetch import validate_met_header, write_json
 
 log = logging.getLogger(__name__)
+
+# Flat works a phone can frame like a painting. Classification is the Met's department taxonomy; the object name
+# catches flat works filed elsewhere, such as a hanging scroll under Asian Art.
+FLAT_CLASSIFICATION = re.compile(
+    r"^(Drawings|Prints|Photographs|Codices|Manuscripts and Illuminations|Calligraphy|Miniatures|"
+    r"Textiles-Tapestries|Ephemera|Albums|Books|Papyri|Ostraca)",
+    re.IGNORECASE,
+)
+FLAT_NAME = re.compile(
+    r"\b(painting|drawing|print|photograph|watercolou?r|hanging scroll|handscroll|album leaf|folding screen|"
+    r"screen|fan|miniature|icon|tapestry|poster|woodblock|etching|engraving|lithograph|pastel|manuscript|"
+    r"folio|leaf|page|fresco|mural|cartoon|sketch|study|scroll)\b",
+    re.IGNORECASE,
+)
+NOT_FLAT_NAME = re.compile(
+    r"\b(sculpture|statue|figure|vase|vessel|bowl|jar|cup|box|coin|medal|ring|armor|helmet|sword|chair|table|"
+    r"cabinet|clock|ewer|plate|dish|tile|textile fragment|book binding|negative|stereograph|carte-de-visite|"
+    r"cabinet card|baseball card|trade card|playing card)\b",
+    re.IGNORECASE,
+)
+# Every impression of a print or photograph is the same artwork in another collection.
+MULTIPLE_CLASSIFICATION = re.compile(r"^(Prints|Photographs)", re.IGNORECASE)
+
+
+def is_painting(row: dict) -> bool:
+    return "Paintings" in row["Classification"]
+
+
+def is_flat(row: dict) -> bool:
+    """A flat work other than a painting: a drawing, print, photograph, manuscript leaf, tapestry and the like."""
+    if is_painting(row) or NOT_FLAT_NAME.search(row["Object Name"]):
+        return False
+    return bool(
+        FLAT_CLASSIFICATION.match(row["Classification"]) or FLAT_NAME.search(row["Object Name"])
+    )
 
 
 class MetHydrator:
@@ -111,11 +147,12 @@ def iter_records(path: Path, *, get_object: Callable[[str], dict]) -> Iterator[R
         reader = csv.DictReader(body)
         validate_met_header(reader.fieldnames or [])
         for row in reader:
-            if "Paintings" not in row["Classification"]:
+            public = row["Is Public Domain"] == "True"
+            # Other flat works without an image to recognize would only add rows.
+            if not is_painting(row) and not (public and is_flat(row)):
                 continue
             source_id = row["Object ID"]
             key = f"met:{source_id}"
-            public = row["Is Public Domain"] == "True"
             image = get_object(source_id) if public else {}
             # The live institutional flag can revoke the older CSV's affirmative flag.
             if image.get("isPublicDomain") is False:
@@ -130,6 +167,9 @@ def iter_records(path: Path, *, get_object: Callable[[str], dict]) -> Iterator[R
                 yearStart=year(row["Object Begin Date"]),
                 yearEnd=year(row["Object End Date"]),
                 rightsStatus=from_source_flag(public),
+                multiplicity="multiple"
+                if MULTIPLE_CLASSIFICATION.match(row["Classification"])
+                else "unknown",
             )
             obj = ObjectRecord(
                 key=key,

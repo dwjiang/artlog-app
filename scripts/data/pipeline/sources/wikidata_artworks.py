@@ -2,7 +2,8 @@ import hashlib
 import json
 import logging
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -12,19 +13,94 @@ from .fetch import write_json
 
 log = logging.getLogger(__name__)
 ANONYMOUS_CREATOR_ID = "Q4233718"
-CENSUS_QUERY = """SELECT DISTINCT ?item ?collection WHERE {
-  ?item wdt:P31 wd:Q3305213; wdt:P18 ?image .
-  OPTIONAL { ?item wdt:P195 ?collection . FILTER(ISIRI(?collection)) }
-}"""
+PAINTING = "Q3305213"
+# Flat works a phone can frame like a painting, named for their objects' medium. Photographs are left out: most are
+# archive photographs rather than art.
+FLAT_CLASSES = {
+    "Q93184": "drawing",
+    "Q11060274": "print",
+    "Q18761202": "watercolor",
+    "Q11835431": "engraving",
+    "Q18218093": "etching",
+    "Q12043905": "pastel",
+    "Q15123870": "lithograph",
+    "Q18219090": "woodcut",
+    "Q28913685": "woodblock print",
+    "Q48498": "illuminated manuscript",
+    "Q8362": "manuscript illumination",
+    "Q184296": "tapestry",
+    "Q21281546": "gouache",
+    "Q132137": "icon",
+    "Q79218": "triptych",
+    "Q282129": "miniature",
+    "Q429785": "poster",
+    "Q15711026": "altarpiece",
+    "Q1278452": "polyptych",
+    "Q475476": "diptych",
+    "Q134194": "fresco",
+    "Q219423": "mural",
+    "Q28104579": "album leaf",
+    "Q1964917": "oil sketch",
+    "Q1144689": "folding screen",
+    "Q55439": "panel painting",
+    "Q916651": "thangka",
+    "Q50488927": "fan painting",
+    "Q741226": "byōbu",
+}
+# Prints and posters come in many impressions of the same artwork.
+MULTIPLE_CLASSES = {
+    "Q11060274",
+    "Q11835431",
+    "Q18218093",
+    "Q15123870",
+    "Q18219090",
+    "Q28913685",
+    "Q429785",
+}
+
+
+def _classes(values: Iterable[str]) -> str:
+    return " ".join(f"wd:{value}" for value in values)
+
+
+def census_queries(current_year: int) -> list[str]:
+    """Paintings with an image, and other flat works whose rights `from_wikidata` may find public domain.
+
+    Only public-domain flat works are kept, so their census skips the rest; `iter_records` still decides.
+    """
+    return [
+        f"""SELECT DISTINCT ?item ?collection WHERE {{
+  ?item wdt:P31 wd:{PAINTING}; wdt:P18 ?image .
+  OPTIONAL {{ ?item wdt:P195 ?collection . FILTER(ISIRI(?collection)) }}
+}}""",
+        f"""SELECT DISTINCT ?item ?collection WHERE {{
+  VALUES ?cls {{ {_classes(FLAT_CLASSES)} }}
+  ?item wdt:P31 ?cls; wdt:P18 ?image .
+  FILTER NOT EXISTS {{ ?item wdt:P31 wd:{PAINTING} }}
+  {{
+    ?item wdt:P6216 wd:Q19652 .
+    FILTER NOT EXISTS {{ ?item wdt:P6216 ?other . FILTER(?other != wd:Q19652) }}
+  }} UNION {{
+    FILTER NOT EXISTS {{ ?item wdt:P6216 ?any }}
+    FILTER EXISTS {{ ?item wdt:P170 ?creator . FILTER(ISIRI(?creator) && ?creator != wd:{ANONYMOUS_CREATOR_ID}) }}
+    FILTER NOT EXISTS {{
+      ?item wdt:P170 ?named .
+      FILTER NOT EXISTS {{ ?named wdt:P570 ?death . FILTER(YEAR(?death) <= {current_year - 100}) }}
+    }}
+  }}
+  OPTIONAL {{ ?item wdt:P195 ?collection . FILTER(ISIRI(?collection)) }}
+}}""",
+    ]
 
 
 def metadata_query(qids: list[str]) -> str:
     from ..wikidata import _values
 
-    return f"""SELECT ?item ?itemLabel ?image ?artist ?artistLabel ?death ?inception
+    return f"""SELECT ?item ?itemLabel ?cls ?image ?artist ?artistLabel ?death ?inception
       ?location ?copyright ?collection ?accession ?directAccession ?series ?versionOf WHERE {{
       VALUES ?item {{ {_values(qids)} }}
-      ?item wdt:P31 wd:Q3305213; wdt:P18 ?image .
+      VALUES ?cls {{ wd:{PAINTING} {_classes(FLAT_CLASSES)} }}
+      ?item wdt:P31 ?cls; wdt:P18 ?image .
       OPTIONAL {{ ?item wdt:P170 ?artist . OPTIONAL {{ ?artist wdt:P570 ?death }} }}
       OPTIONAL {{ ?item wdt:P571 ?inception }}
       OPTIONAL {{ ?item wdt:P276 ?location }}
@@ -49,8 +125,13 @@ def _timeout(error: Exception) -> bool:
     )
 
 
-def fetch_paintings(
-    out: Path, *, user_agent: str, fetch: Callable = sparql, batch_size: int = 500
+def fetch_artworks(
+    out: Path,
+    *,
+    user_agent: str,
+    fetch: Callable = sparql,
+    batch_size: int = 500,
+    current_year: int | None = None,
 ) -> dict:
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
@@ -59,7 +140,10 @@ def fetch_paintings(
     if census_path.exists():
         census = json.loads(census_path.read_text())
     else:
-        census = fetch(CENSUS_QUERY, user_agent=user_agent)
+        year = current_year if current_year is not None else datetime.now(UTC).year
+        census = [
+            row for query in census_queries(year) for row in fetch(query, user_agent=user_agent)
+        ]
         write_json(census_path, census)
     owners: dict[str, set[str]] = defaultdict(set)
     for row in census:
@@ -70,7 +154,7 @@ def fetch_paintings(
         else:
             owners[qid]
     if not owners:
-        raise RuntimeError("Wikidata returned an empty painting census")
+        raise RuntimeError("Wikidata returned an empty artwork census")
     counts = Counter(collection for values in owners.values() for collection in values)
     top = {collection for collection, _ in counts.most_common(200)}
     groups = defaultdict(list)
@@ -82,7 +166,7 @@ def fetch_paintings(
 
     def run_slice(name: str, qids: list[str], *, decade: bool = False) -> None:
         digest = hashlib.sha256("\n".join(qids).encode()).hexdigest()[:16]
-        path = out / f"paintings-{name}-{digest}.json"
+        path = out / f"artworks-{name}-{digest}.json"
         pending = qids
         try:
             rows = json.loads(path.read_text())["results"]["bindings"] if path.exists() else []
@@ -217,6 +301,10 @@ def iter_records(bindings, *, owners, current_year=None):
         if "copyright" in unknown[entity]:
             statuses.append("unknown")
         rights = from_wikidata(statuses, deaths, current_year=current_year)
+        classes = {qid(value) for value in values("cls")}
+        if PAINTING not in classes and rights != "public_domain":
+            continue
+        kind = None if PAINTING in classes else FLAT_CLASSES[min(classes & FLAT_CLASSES.keys())]
         collections = sorted({value for value in values("collection") if qid(value)})
         mapped = {value: owners.venue(value, owner=True) for value in collections}
         # Multiple collection claims do not establish a single owner; do not pick one arbitrarily.
@@ -264,6 +352,7 @@ def iter_records(bindings, *, owners, current_year=None):
             yearStart=min(years) if years else None,
             yearEnd=max(years) if years else None,
             rightsStatus=rights,
+            multiplicity="multiple" if classes & MULTIPLE_CLASSES else "unknown",
             seriesId=f"wikidata:{series[0]}" if len(series) == 1 else None,
         )
         parsed = urlsplit(images[0])
@@ -281,6 +370,7 @@ def iter_records(bindings, *, owners, current_year=None):
             artworkKey=key,
             ownerKey=owner,
             accession=accession,
+            medium=kind,
             sourceId=entity,
             imageRef=image_ref,
             thumbnailUrl=image_ref + "?width=330" if rights == "public_domain" else None,

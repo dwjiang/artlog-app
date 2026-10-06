@@ -225,3 +225,61 @@ def test_dedupe_refuses_features_from_different_download_inputs(merged_corpus, t
         run(tmp_path / "features", metadata, out)
 
     assert not out.exists()
+
+
+def test_additions_attach_to_imported_survivors_without_rewriting_them(delta_package):
+    out, stats = delta_package()
+
+    assert {row["key"] for row in read_jsonl(out / "artworks.jsonl")} == {"cma:1", "fng:2"}
+    objects = {row["key"]: row for row in read_jsonl(out / "objects.jsonl")}
+    assert objects.keys() == {"cma:1", "fng:2"}
+    assert objects["cma:1"]["mergedIntoKey"] == "met:0"
+    assert objects["cma:1"]["thumbnailUrl"] == "https://cma.test/1-small.jpg"
+    assert "mergedIntoKey" not in objects["fng:2"]
+    assert [
+        (row["objectKey"], row["venueKey"]) for row in read_jsonl(out / "placements.jsonl")
+    ] == [
+        ("fng:2", "museum:2"),
+        ("met:0", "museum:2"),
+    ]
+    assert {row["viewKey"]: row["objectKey"] for row in read_jsonl(out / "vector-index.jsonl")} == {
+        "cma:1": "met:0",
+        "fng:2": "fng:2",
+    }
+    assert read_jsonl(out / "descriptor-index.jsonl") == [
+        {"objectKey": "fng:2", "viewKey": "fng:2"}
+    ]
+    assert read_jsonl(out / "external-references.jsonl") == [{"table": "objects", "key": "met:0"}]
+    assert stats["delta"]["aliasesOfImported"] == 1
+
+
+def test_additions_never_join_two_imported_survivors(delta_package):
+    # Its accession matches met:1 while its image matches met:0, which has the same artist and owner.
+    out, _ = delta_package(
+        artworks=[
+            {
+                "key": "fng:9",
+                "title": "Bridge",
+                "artist": "Artist 1",
+                "rightsStatus": "public_domain",
+            }
+        ],
+        objects=[
+            {
+                "key": "fng:9",
+                "artworkKey": "fng:9",
+                "ownerKey": "museum:1",
+                "accession": "1",
+                "source": "corpus",
+                "sourceId": "9",
+                "imageRef": "https://fng.test/9.jpg",
+                "pageUrl": "https://fng.test/9",
+            }
+        ],
+        placements=[],
+        axes={"fng:9": 0},
+    )
+
+    assert read_jsonl(out / "merges.jsonl") == [
+        {"from": "fng:9", "into": "met:1", "rule": "accession"}
+    ]

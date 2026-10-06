@@ -1,0 +1,217 @@
+{
+  "info": {
+    "total": 8,
+    "parameters": { "skip": 0, "limit": 1000, "cc0": "", "has_image": "1" }
+  },
+  "data": [
+    {
+      "id": 1001,
+      "accession_number": "1900.1",
+      "share_license_status": "CC0",
+      "current_location": "204 Colonial American",
+      "title": "Harbor at Dusk",
+      "creation_date": "c. 1900",
+      "creation_date_earliest": 1895,
+      "creation_date_latest": 1905,
+      "culture": ["America"],
+      "technique": "oil on canvas",
+      "department": "American Painting and Sculpture",
+      "collection": "American - Painting",
+      "type": "Painting",
+      "measurements": "Framed: 90 x 78 cm; Unframed: 76 x 64 cm",
+      "url": "https://clevelandart.org/art/1900.1",
+      "images": {
+        "annotation": "",
+        "web": {
+          "url": "https://openaccess-cdn.clevelandart.org/1900.1/1900.1_web.jpg",
+          "width": "748",
+          "height": "893",
+          "filesize": "402404",
+          "filename": "1900.1_web.jpg"
+        },
+        "print": {
+          "url": "https://openaccess-cdn.clevelandart.org/1900.1/1900.1_print.jpg",
+          "width": "2849",
+          "height": "3400",
+          "filesize": "5904910",
+          "filename": "1900.1_print.jpg"
+        },
+        "full": {
+          "url": "https://openaccess-cdn.clevelandart.org/1900.1/1900.1_full.tif",
+          "width": "4609",
+          "height": "5500",
+          "filesize": "76080612",
+          "filename": "1900.1_full.tif"
+        }
+      },
+      "creators": [
+        {
+          "id": 10,
+          "description": "Ada Painter (American, 1860–1930)",
+          "qualifier": null,
+          "role": "artist",
+          "birth_year": "1860",
+          "death_year": "1930"
+        }
+      ]
+    },
+    {
+      "id": 1002,
+      "accession_number": "1900.2",
+      "share_license_status": "CC0",
+      "current_location": null,
+      "title": "River Mill",
+      "creation_date": "1650s",
+      "creation_date_earliest": 1650,
+      "creation_date_latest": 1659,
+      "culture": ["Netherlands"],
+      "technique": "etching",
+      "department": "Prints",
+      "collection": "PR - Etching",
+      "type": "Print",
+      "measurements": "Sheet: 10 x 15 cm",
+      "url": "https://clevelandart.org/art/1900.2",
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.2/1900.2_web.jpg" }
+      },
+      "creators": [
+        {
+          "id": 20,
+          "description": "Workshop of Ben Printer (Dutch, 1610–1670)",
+          "qualifier": "workshop of",
+          "role": "artist"
+        },
+        {
+          "id": 21,
+          "description": "Cleo Publisher (Dutch, 1620–1680)",
+          "qualifier": null,
+          "role": "published by"
+        }
+      ]
+    },
+    {
+      "id": 1003,
+      "accession_number": "1900.3",
+      "share_license_status": "CC0",
+      "current_location": null,
+      "title": "",
+      "creation_date": null,
+      "creation_date_earliest": null,
+      "creation_date_latest": null,
+      "culture": [],
+      "technique": null,
+      "department": "Photography",
+      "collection": "Photography",
+      "type": "Photograph",
+      "measurements": null,
+      "url": null,
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.3/1900.3_web.jpg" }
+      },
+      "creators": []
+    },
+    {
+      "id": 1004,
+      "accession_number": "1900.4",
+      "share_license_status": "CC0",
+      "current_location": "ATRM Atrium",
+      "title": "Garden Hunt",
+      "creation_date": "1500s",
+      "creation_date_earliest": 1500,
+      "creation_date_latest": 1599,
+      "culture": ["Flanders"],
+      "technique": "wool and silk",
+      "department": "Textiles",
+      "collection": "Textiles",
+      "type": "Tapestry",
+      "measurements": "300 x 400 cm",
+      "url": "https://clevelandart.org/art/1900.4",
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.4/1900.4_web.jpg" }
+      },
+      "creators": []
+    },
+    {
+      "id": 1005,
+      "accession_number": "1900.5",
+      "share_license_status": "CC0",
+      "current_location": "WL West Lawn",
+      "title": "Fountain Study",
+      "creation_date": "1910",
+      "creation_date_earliest": 1910,
+      "creation_date_latest": 1910,
+      "culture": ["America"],
+      "technique": "graphite",
+      "department": "Drawings",
+      "collection": "DR - American",
+      "type": "Drawing",
+      "measurements": "Sheet: 20 x 30 cm",
+      "url": "https://clevelandart.org/art/1900.5",
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.5/1900.5_web.jpg" }
+      },
+      "creators": [{ "id": 30, "description": "Dora Drafter", "role": "artist" }]
+    },
+    {
+      "id": 1006,
+      "accession_number": "1900.6",
+      "share_license_status": "CC0",
+      "current_location": "214 Rodin",
+      "title": "Seated Figure",
+      "creation_date": "1902",
+      "creation_date_earliest": 1902,
+      "creation_date_latest": 1902,
+      "culture": ["France"],
+      "technique": "bronze",
+      "department": "European Painting and Sculpture",
+      "collection": "Mod Euro - Sculpture",
+      "type": "Sculpture",
+      "measurements": "70 x 40 x 50 cm",
+      "url": "https://clevelandart.org/art/1900.6",
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.6/1900.6_web.jpg" }
+      },
+      "creators": [{ "id": 40, "description": "Eli Sculptor (French, 1850–1920)", "role": "artist" }]
+    },
+    {
+      "id": 1007,
+      "accession_number": "1900.7",
+      "share_license_status": "Copyrighted",
+      "current_location": "229 Modern European",
+      "title": "Blue Room",
+      "creation_date": "1950",
+      "creation_date_earliest": 1950,
+      "creation_date_latest": 1950,
+      "culture": ["France"],
+      "technique": "oil on canvas",
+      "department": "Modern European Painting and Sculpture",
+      "collection": "Mod Euro - Painting",
+      "type": "Painting",
+      "measurements": "50 x 60 cm",
+      "url": "https://clevelandart.org/art/1900.7",
+      "images": {
+        "web": { "url": "https://openaccess-cdn.clevelandart.org/1900.7/1900.7_web.jpg" }
+      },
+      "creators": [{ "id": 50, "description": "Finn Modern (French, 1900–1990)", "role": "artist" }]
+    },
+    {
+      "id": 1008,
+      "accession_number": "1900.8",
+      "share_license_status": "CC0",
+      "current_location": null,
+      "title": "Market Day",
+      "creation_date": "1800",
+      "creation_date_earliest": 1800,
+      "creation_date_latest": 1800,
+      "culture": ["England"],
+      "technique": "lithograph",
+      "department": "Prints",
+      "collection": "PR - Lithograph",
+      "type": "Print",
+      "measurements": null,
+      "url": "https://clevelandart.org/art/1900.8",
+      "images": null,
+      "creators": []
+    }
+  ]
+}

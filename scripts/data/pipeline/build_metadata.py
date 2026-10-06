@@ -13,10 +13,15 @@ from .multiplicity import apply_multiplicity
 from .normalize import RecordTriple, merge_records, qid
 from .owner_map import OwnerMap
 from .polite_http import PoliteClient
-from .sources import aic, met, wikidata_paintings
+from .sources import aic, cma, fng, met, wikidata_artworks
 from .sources.fetch import write_json
 
 log = logging.getLogger(__name__)
+
+
+def _source_rows(body: dict | list) -> list[dict]:
+    """Cleveland pages wrap their rows in `data`; the Finnish National Gallery dump is a bare list."""
+    return body["data"] if isinstance(body, dict) else body
 
 
 def build(
@@ -29,7 +34,9 @@ def build(
     fixtures: Path | None = None,
     aic_snapshot: str = "live",
     retry_met_denied: bool = False,
+    existing: frozenset[str] = frozenset(),
 ) -> dict:
+    """With `existing` object keys, builds only the objects an earlier corpus lacks."""
     counts = {source: Counter() for source in sources}
     source_rights = {source: Counter() for source in sources}
     coverage = {}
@@ -37,6 +44,9 @@ def build(
     def measured(source: str, triples: Iterator[RecordTriple]) -> Iterator[RecordTriple]:
         for index, triple in enumerate(triples, 1):
             artwork, obj, placement = triple
+            if obj.key in existing:
+                counts[source]["existing"] += 1
+                continue
             counts[source]["objects"] += 1
             counts[source]["imageRefs"] += obj.imageRef is not None
             counts[source]["thumbnails"] += obj.thumbnailUrl is not None
@@ -112,10 +122,31 @@ def build(
                             source,
                             aic.iter_records((json.loads(line) for line in body), current=False),
                         )
+            elif source in ("cma", "fng"):
+                if fixtures:
+                    rows = _source_rows(
+                        json.loads((fixtures / f"{source}-sample.json").read_text())
+                    )
+                else:
+                    manifest = json.loads((dumps / source / "stats.json").read_text())
+                    if not manifest.get("complete"):
+                        raise RuntimeError(f"{source} snapshot is incomplete")
+                    coverage[source] = manifest
+                    rows = [
+                        row
+                        for filename in manifest["files"]
+                        for row in _source_rows(json.loads((dumps / source / filename).read_text()))
+                    ]
+                yield from measured(
+                    source,
+                    cma.iter_records(rows)
+                    if source == "cma"
+                    else fng.iter_records(rows, today=datetime.now(UTC).date()),
+                )
             else:
                 path = dumps / "wikidata"
                 if fixtures:
-                    files = [fixtures / "wikidata-paintings-sample.json"]
+                    files = [fixtures / "wikidata-artworks-sample.json"]
                     complete = True
                 else:
                     manifest = json.loads((path / "stats.json").read_text())
@@ -135,7 +166,7 @@ def build(
                             entity := qid(row.get("item", {}).get("value"))
                         ):
                             versions.add(entity)
-                    for triple in wikidata_paintings.iter_records(bindings, owners=owners):
+                    for triple in wikidata_artworks.iter_records(bindings, owners=owners):
                         if triple[0].key in seen:
                             raise ValueError(
                                 f"Duplicate Wikidata item across slices: {triple[0].key}"
@@ -215,6 +246,13 @@ def main() -> None:
         "--venues", type=Path, help="Use a JSON array of previously exported museum keys"
     )
     parser.add_argument(
+        "--exclude-objects",
+        type=Path,
+        action="append",
+        default=[],
+        help="objects.jsonl of an imported corpus, repeatable; build only the objects they lack",
+    )
+    parser.add_argument(
         "--retry-met-denied",
         action="store_true",
         help="Retry cached Met 403s and unchecked records at 1 request/sec with bounded cooldowns",
@@ -230,9 +268,11 @@ def main() -> None:
     if (
         not sources
         or len(set(sources)) != len(sources)
-        or set(sources) - {"met", "aic", "wikidata"}
+        or set(sources) - {"met", "aic", "wikidata", "cma", "fng"}
     ):
-        parser.error("--sources must be a unique comma-separated selection of met,aic,wikidata")
+        parser.error(
+            "--sources must be a unique comma-separated selection of met,aic,wikidata,cma,fng"
+        )
     settings = get_settings()
     setup_logging(settings)
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -256,6 +296,11 @@ def main() -> None:
         fixtures=args.fixtures,
         aic_snapshot=args.aic_snapshot,
         retry_met_denied=args.retry_met_denied,
+        existing=frozenset(
+            json.loads(line)["key"]
+            for path in args.exclude_objects
+            for line in path.read_text().splitlines()
+        ),
     )
     print(
         json.dumps(

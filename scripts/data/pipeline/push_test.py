@@ -567,3 +567,36 @@ def test_preflight_resume_refuses_changed_baseline_before_any_write(merged_corpu
     with pytest.raises(ValueError, match="baseline changed"):
         push(directory, writer)
     assert writer.calls == []
+
+
+def test_additions_import_after_checking_the_imported_rows_they_point_at(delta_package, tmp_path):
+    out, _ = delta_package()
+    corpus = Corpus(out)
+    assert corpus.referenced_rows() == {"objects": ["met:0"], "artworks": []}
+
+    with pytest.raises(ValueError, match="Imported objects these additions point at are missing"):
+        run(
+            corpus,
+            Writer(),
+            checkpoint=tmp_path / "missing.json",
+            deployment_url="https://dev.test",
+        )
+
+    writer = Writer()
+    writer.stored["objects"].add(json.dumps({"key": "met:0"}, sort_keys=True))
+    run(corpus, writer, checkpoint=tmp_path / "push.json", deployment_url="https://dev.test")
+    written = {
+        stage: [row for _, rows in writer.calls if _ == stage for row in rows] for stage in STAGES
+    }
+    assert [row["key"] for row in written["objects"]] == ["fng:2", "cma:1"]
+    assert {row["viewKey"]: row["objectKey"] for row in written["vectors"]} == {
+        "cma:1": "met:0",
+        "fng:2": "fng:2",
+    }
+
+
+def test_a_sample_of_additions_needs_no_imported_rows(delta_package):
+    out, _ = delta_package()
+    corpus = Corpus(out, limit=5)
+    assert corpus.referenced_rows() == {"objects": [], "artworks": []}
+    assert [row["key"] for row in corpus.rows["objects"]] == ["fng:2"]

@@ -24,7 +24,8 @@ def apply_multiplicity(
             groups[(normalized(row.artist), normalized(row.title))].add(row.wikidataId)
     result = []
     for row in artworks:
-        if not row.key.startswith("wikidata:"):
+        # A source that knows the work comes in impressions, such as a print, outranks title matching.
+        if not row.key.startswith("wikidata:") or row.multiplicity == "multiple":
             result.append(row)
             continue
         matches = groups[(normalized(row.artist), normalized(row.title))]

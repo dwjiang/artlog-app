@@ -6,12 +6,15 @@
   limits `source` to the ids of the sources sent.
 
 - `met-sample.csv`, `met-images-sample.json`, `aic-sample.json`, and
-  `wikidata-paintings-sample.json` — synthetic corpus metadata using
+  `wikidata-artworks-sample.json` — synthetic corpus metadata using
   the published source field names. Names, accession values, and object/image
   IDs in these four fixtures are invented, not institutional assertions.
   They cover painting filters, missing images, rights revocation and ambiguity,
   owner/location differences, accession qualifiers, duplicate SPARQL bindings,
   and series/version identity. No images are included or fetched by these tests.
+
+- `cma-sample.json` — synthetic Cleveland Open Access page (invented values, live field names); covers type, CC0, image and outdoor-location filters.
+- `fng-sample.json` — synthetic Finnish National Gallery dump rows (invented values, live field names); covers organisation, category, CC0 and exhibition-date rules.
 
 - `wikidata-iceland.json` — saved WDQS response on 2026-09-09, with the query
   included. The 35 distinct Icelandic museums/gallery venues have coordinates

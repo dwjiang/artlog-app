@@ -109,6 +109,8 @@ def merge_records(
             fields.update(incoming)
         fields["key"] = key
         fields["rightsStatus"] = merge_rights(row.rightsStatus for row in candidates)
+        if any(row.multiplicity == "multiple" for row in candidates):
+            fields["multiplicity"] = "multiple"
         artworks[key] = ArtworkRecord(**fields)
     for key, obj in objects.items():
         if artworks[obj.artworkKey].rightsStatus != "public_domain":

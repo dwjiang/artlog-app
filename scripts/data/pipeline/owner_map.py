@@ -9,6 +9,12 @@ from .sources.fetch import write_json
 
 MET_KEY = "wikidata:Q160236"
 AIC_KEY = "wikidata:Q239303"
+CMA_KEY = "wikidata:Q657415"
+# The Finnish National Gallery owns the collection its three museums show.
+FNG_KEY = "wikidata:Q2983474"
+ATENEUM_KEY = "wikidata:Q754507"
+SINEBRYCHOFF_KEY = "wikidata:Q1393952"
+KIASMA_KEY = "wikidata:Q1633361"
 
 
 class OwnerMap:

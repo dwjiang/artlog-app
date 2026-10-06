@@ -16,5 +16,11 @@
     "isPublicDomain": false,
     "primaryImage": "https://images.metmuseum.org/revoked.jpg",
     "primaryImageSmall": "https://images.metmuseum.org/revoked-small.jpg"
+  },
+  "7": {
+    "objectID": 7,
+    "isPublicDomain": true,
+    "primaryImage": "https://images.metmuseum.org/seven.jpg",
+    "primaryImageSmall": "https://images.metmuseum.org/small-seven.jpg"
   }
 }
