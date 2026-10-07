@@ -1,13 +1,11 @@
 import { convexErrorCode } from "@/lib/network-error";
 
-import type { LayoutInput, OwnerWall, VisibilityInput, WallTransport } from "./wall-transport";
+import type { LayoutInput, OwnerWall, WallTransport } from "./wall-transport";
 
 type LayoutDraft = Omit<LayoutInput, "scope" | "revision">;
-type NoteDraft = VisibilityInput["changes"];
 export type WallState<Wall> = {
   acknowledged: Wall | null;
   layoutDraft: LayoutDraft | null;
-  noteDraft: NoteDraft;
   pending: boolean;
 };
 type State = WallState<OwnerWall>;
@@ -26,7 +24,6 @@ type Dependencies = {
 const empty = (): State => ({
   acknowledged: null,
   layoutDraft: null,
-  noteDraft: [],
   pending: false,
 });
 
@@ -94,13 +91,11 @@ export function createWallRepository(deps: Dependencies) {
       current.finish();
     }
   }
-  async function publish(kind: "layout" | "notes") {
+  async function publishLayout() {
     if (state.pending) throw new Error("A wall update is in progress");
-    const { acknowledged } = state;
-    const { layoutDraft } = state;
-    const { noteDraft } = state;
+    const { acknowledged, layoutDraft } = state;
     if (!acknowledged) throw new Error("Refresh your wall first");
-    if (kind === "layout" ? !layoutDraft : noteDraft.length === 0) return;
+    if (!layoutDraft) return;
     const current = request();
     if (acknowledged.scope !== current.scope) {
       current.finish();
@@ -110,40 +105,33 @@ export function createWallRepository(deps: Dependencies) {
     update({ pending: true });
     try {
       await current.ready();
-      const result =
-        kind === "layout"
-          ? await deps.transport.setLayout(
-              {
-                ...layoutDraft!,
-                scope: current.scope,
-                revision: layoutRevision ?? acknowledged.revision,
-              },
-              current.context,
-            )
-          : await deps.transport.setNoteVisibility({ scope: current.scope, changes: noteDraft }, current.context);
+      const result = await deps.transport.setLayout(
+        {
+          ...layoutDraft,
+          scope: current.scope,
+          revision: layoutRevision ?? acknowledged.revision,
+        },
+        current.context,
+      );
       current.check();
       if (result.scope !== current.scope) {
         throw new Error("Wall account changed");
       }
-      if (kind === "layout") layoutRevision = result.revision;
+      layoutRevision = result.revision;
       update({
         acknowledged: result,
-        ...(kind === "layout" && state.layoutDraft === layoutDraft ? { layoutDraft: null } : {}),
-        ...(kind === "notes" && state.noteDraft === noteDraft ? { noteDraft: [] } : {}),
+        ...(state.layoutDraft === layoutDraft ? { layoutDraft: null } : {}),
       });
     } catch (error) {
       current.check();
       if (convexErrorCode(error) === "conflict") {
-        update({
-          noteDraft: [],
-          acknowledged: null,
-        });
+        update({ acknowledged: null });
         const fresh = await deps.transport.getMine(current.context);
         current.check();
         if (fresh.scope !== current.scope) {
           throw new Error("Wall account changed");
         }
-        if (kind === "layout") layoutRevision = fresh.revision;
+        layoutRevision = fresh.revision;
         update({ acknowledged: fresh });
       }
       throw error;
@@ -183,24 +171,8 @@ export function createWallRepository(deps: Dependencies) {
         },
       });
     },
-    setNoteDraft: (changes: { itemId: NoteDraft[number]["itemId"]; visible: boolean }[]) => {
-      if (!state.acknowledged) throw new Error("Refresh your wall first");
-      const noteDraft = changes.map((change) => {
-        const item = state.acknowledged!.items.find((item) => item.itemId === change.itemId);
-        if (!item || (change.visible && !item.noteEligible)) {
-          throw new Error("Note is unavailable");
-        }
-        return { ...change, noteRevision: item.noteRevision };
-      });
-      update({ noteDraft });
-    },
-    publishLayout: () => publish("layout"),
-    publishNotes: () => publish("notes"),
-    discardDrafts: () =>
-      update({
-        layoutDraft: null,
-        noteDraft: [],
-      }),
+    publishLayout,
+    discardDrafts: () => update({ layoutDraft: null }),
     dispose: () => {
       disposed = true;
       unsubscribe?.();

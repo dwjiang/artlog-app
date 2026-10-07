@@ -1,10 +1,10 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
-import { isRevision, LIMITS } from "../shared/journal/limits";
+import { LIMITS } from "../shared/journal/limits";
 import {
+  artworkDetail,
   displayMedia,
   isWallColor,
-  mention,
   validateWallItems,
   wallArtwork,
   wallLayout,
@@ -12,14 +12,11 @@ import {
 } from "../shared/social/contracts";
 import { DEFAULT_WALL_COLOR } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
-import { action, internalQuery, query, type QueryCtx } from "./_generated/server";
-import { internalMutation, mutation } from "./functions";
+import { query, type QueryCtx } from "./_generated/server";
+import { mutation } from "./functions";
 import { ownedAlbumPhoto, selectedPhotoMedia } from "./lib/albumMedia";
 import { contributionSource, resolveDisplayAsset } from "./lib/displayMedia";
 import { blockedEitherWay } from "./lib/friendships";
-import { linkedMentions, resolveMentions } from "./lib/mentions";
-import { flaggedUserTexts } from "./lib/moderation";
-import { withErrorReporting } from "./lib/observability";
 import {
   activeProfile,
   optionalProfile,
@@ -27,7 +24,7 @@ import {
   requireOwnedSave,
   requireProfile,
 } from "./lib/ownership";
-import { recordTitles } from "./lib/projections";
+import { projectArtworkDetail, projectOwnNote } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { requirePublicWallItem, requireSharedVisitItem } from "./lib/publicationAccess";
 import { activeWallItems, publicWallProjection } from "./lib/publicWall";
@@ -43,10 +40,6 @@ const ownerItem = v.object({
   placementId: v.string(),
   photoLocalId: v.optional(v.string()),
   saveLocalId: v.string(),
-  noteVisible: v.boolean(),
-  noteRevision: v.number(),
-  noteEligible: v.boolean(),
-  privateNote: v.optional(v.string()),
 });
 const ownerWall = v.object({
   scope: v.string(),
@@ -80,10 +73,6 @@ async function readMine(ctx: QueryCtx): Promise<Infer<typeof ownerWall>> {
         placementId: item.placementId,
         ...(item.photoLocalId ? { photoLocalId: item.photoLocalId } : {}),
         saveLocalId: item.saveLocalId,
-        noteVisible: item.noteVisible,
-        noteRevision: item.noteRevision,
-        noteEligible: !!current.save.note?.trim(),
-        ...(current.save.note ? { privateNote: current.save.note } : {}),
       });
     }
   }
@@ -145,10 +134,11 @@ export const getArtwork = query({
   returns: v.union(
     v.object({
       ...wallArtwork.fields,
+      artwork: artworkDetail,
       profileId: v.id("profiles"),
       photos: v.array(displayMedia),
       enrichment: v.optional(publicArtworkStory),
-      noteMentions: v.array(mention),
+      ownNote: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -207,12 +197,11 @@ export const getArtwork = query({
     const enrichment = await projectArtworkStory(ctx, current.save);
     return {
       ...current.projection,
+      artwork: projectArtworkDetail(current.projection.artwork, current.save),
       profileId: current.profile._id,
       photos: photos.size > 0 ? [...photos.values()] : [current.projection.artwork.media],
       ...(enrichment ? { enrichment } : {}),
-      noteMentions: current.projection.note
-        ? await linkedMentions(ctx, current.item.noteMentions, { viewerId: viewer?._id, writerId: current.profile._id })
-        : [],
+      ...projectOwnNote(current.save, current.profile._id, viewer?._id),
     };
   },
 });
@@ -277,11 +266,7 @@ export const setLayout = mutation({
     const selectedIds = new Set(selected.map((item) => item.placementId));
     for (const item of previous) {
       if (!selectedIds.has(item.placementId)) {
-        await ctx.db.patch("wallItems", item._id, {
-          active: false,
-          noteVisible: false,
-          noteRevision: item.noteRevision + 1,
-        });
+        await ctx.db.patch("wallItems", item._id, { active: false });
       }
     }
     for (const item of selected) {
@@ -297,7 +282,6 @@ export const setLayout = mutation({
           photoLocalId: item.photoLocalId,
           layout: item.layout,
           active: true,
-          noteVisible: existing.active && existing.noteVisible,
         });
       } else {
         await ctx.db.insert("wallItems", {
@@ -309,8 +293,6 @@ export const setLayout = mutation({
           photoLocalId: item.photoLocalId,
           layout: item.layout,
           active: true,
-          noteVisible: false,
-          noteRevision: 0,
         });
       }
       if (!(await resolveDisplayAsset(ctx, item.save)) && (await contributionSource(ctx, item.save))) {
@@ -325,90 +307,6 @@ export const setLayout = mutation({
       layoutRevision: (wall?.layoutRevision ?? 0) + 1,
     });
     await ctx.db.patch("profiles", profile._id, { publishedWallCount: selected.length });
-    return readMine(ctx);
-  },
-});
-const noteChanges = v.array(
-  v.object({
-    itemId: v.id("wallItems"),
-    noteRevision: v.number(),
-    visible: v.boolean(),
-  }),
-);
-const sharedNote = v.object({ itemId: v.id("wallItems"), note: v.string() });
-function validateNoteChanges(changes: Infer<typeof noteChanges>) {
-  if (
-    changes.length > LIMITS.wallItems
-    || new Set(changes.map((c) => c.itemId)).size !== changes.length
-    || changes.some((c) => !isRevision(c.noteRevision))
-  ) {
-    throw new ConvexError({ code: "invalid_wall" });
-  }
-}
-export const setNoteVisibility = action({
-  args: { scope: v.string(), changes: noteChanges },
-  returns: ownerWall,
-  handler: (ctx, input): Promise<Infer<typeof ownerWall>> =>
-    withErrorReporting("walls.setNoteVisibility", async () => {
-      const { notes, titles } = await ctx.runQuery(internal.walls.notesToShare, input);
-      const flagged = await flaggedUserTexts(
-        notes.map(({ note }) => note),
-        titles,
-      );
-      if (flagged.some(Boolean)) throw new ConvexError({ code: "note_not_allowed" });
-      return ctx.runMutation(internal.walls.applyNoteVisibility, { ...input, notes });
-    }),
-});
-/** The notes a change would make public, and the titles of their artworks, which a note may name. */
-export const notesToShare = internalQuery({
-  args: { scope: v.string(), changes: noteChanges },
-  returns: v.object({ notes: v.array(sharedNote), titles: v.array(v.string()) }),
-  handler: async (ctx, { scope, changes }) => {
-    const { profile } = await wallOwner(ctx, scope);
-    validateNoteChanges(changes);
-    const notes = [];
-    const saves = [];
-    for (const change of changes.filter((c) => c.visible)) {
-      const { item, save } = await requirePublicWallItem(ctx, change.itemId);
-      if (item.profileId !== profile._id) throw new ConvexError({ code: "not_found" });
-      notes.push({ itemId: item._id, note: save.note ?? "" });
-      saves.push(save);
-    }
-    return { notes, titles: await recordTitles(ctx, saves) };
-  },
-});
-export const applyNoteVisibility = internalMutation({
-  args: { scope: v.string(), changes: noteChanges, notes: v.array(sharedNote) },
-  returns: ownerWall,
-  handler: async (ctx, { scope, changes, notes }) => {
-    const { profile } = await wallOwner(ctx, scope);
-    validateNoteChanges(changes);
-    for (const change of changes) {
-      const { item, save } = await requirePublicWallItem(ctx, change.itemId);
-      if (item.profileId !== profile._id) {
-        throw new ConvexError({ code: "not_found" });
-      }
-      if (item.noteRevision !== change.noteRevision) {
-        throw new ConvexError({ code: "conflict" });
-      }
-      if (change.visible && !save.note?.trim()) {
-        throw new ConvexError({ code: "invalid_wall" });
-      }
-      // Only the text the action checked may go public.
-      if (change.visible && notes.find((row) => row.itemId === item._id)?.note !== save.note) {
-        throw new ConvexError({ code: "conflict" });
-      }
-      if (item.noteVisible !== change.visible) {
-        const noteMentions = change.visible
-          ? await resolveMentions(ctx, save.note ?? "", profile._id, item.noteMentions)
-          : (item.noteMentions ?? []);
-        await ctx.db.patch("wallItems", item._id, {
-          noteVisible: change.visible,
-          noteRevision: item.noteRevision + 1,
-          noteMentions: noteMentions.length > 0 ? noteMentions : undefined,
-        });
-      }
-    }
     return readMine(ctx);
   },
 });

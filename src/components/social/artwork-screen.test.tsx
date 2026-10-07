@@ -13,6 +13,7 @@ let mockSession = {
   status: "ready",
   offline: false,
   token: "private-token",
+  profileId: "viewer",
 };
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,
@@ -31,6 +32,10 @@ jest.mock("expo-router", () => ({
   useNavigation: () => ({ setOptions: mockSetOptions }),
 }));
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
+jest.mock("@/lib/audio/use-listening");
+jest.mock("@/lib/audio/use-cached-narration-duration", () => ({ useCachedNarrationDuration: () => undefined }));
+const mockEnrichment = jest.fn();
+jest.mock("@/lib/use-artwork-enrichment", () => ({ useArtworkEnrichment: () => mockEnrichment() }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
     const { View } = jest.requireActual("react-native");
@@ -58,6 +63,7 @@ beforeEach(() => {
     status: "ready",
     offline: false,
     token: "private-token",
+    profileId: "viewer",
   };
   artwork = {
     itemId: "art-a" as never,
@@ -194,33 +200,75 @@ it("opens full photos from a public wall instead of reusing its cropped preview"
   expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
 });
 
-it("links the tags in a public wall note to their pages", async () => {
+it("shows the owner their own note under Your notes, with its tags linked", async () => {
   mockQuery.mockImplementation((query, args) => ({
     data:
       args !== "skip" && getFunctionName(query) === "walls:getArtwork"
-        ? { ...artwork, profileId: "owner", layout: { frame: "gilt" }, note: "Back for the #Monet room" }
+        ? { ...artwork, profileId: "viewer", layout: { frame: "gilt" }, ownNote: "Back for the #Monet room" }
         : undefined,
     refresh: jest.fn(),
   }));
   await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
+  expect(screen.getByRole("header", { name: "Your notes" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "#Monet" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "monet" } });
 });
 
-it("keeps shared-photo thumbnails just below landscape and portrait images", async () => {
+it("sizes shared photos like a scan's picture and keeps the thumbnails just below them", async () => {
   artwork = {
     ...artwork,
     photos: [
-      { ...media("landscape"), width: 1500, height: 1000 },
+      { ...media("landscape"), width: 3000, height: 1000 },
       { ...media("portrait"), width: 800, height: 1200 },
     ],
   };
   await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
-  const { width, height } = Dimensions.get("window");
+  const { width, height, fontScale } = Dimensions.get("window");
   expect(screen.getByLabelText("Photo thumbnails")).toBeOnTheScreen();
-  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({ height: (width - 40) / 1.5 });
+  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({ height: (width - 40) / 3 });
   await fireEvent.press(screen.getByRole("button", { name: "Show photo 2" }));
+  // The scan card's frame height at this window's text size.
   expect(screen.getByLabelText("Artwork photos")).toHaveStyle({
-    height: Math.min((width - 40) * 1.5, width * 1.2, height * 0.52),
+    height: Math.min(360, height * (fontScale > 1.4 ? 0.25 : 0.36)),
   });
+});
+
+it("shows a shared artwork like a scan's result: details and museum, its story and the audio guide", async () => {
+  const story = {
+    artworkId: "starry" as never,
+    docent: [{ sentence: "Van Gogh painted the view from his asylum window.", factIds: ["f1"] }],
+    factSheet: [{ id: "f1", sourceUrl: "https://www.moma.org/collection/works/79802", sourceLabel: "MoMA" }],
+  };
+  mockEnrichment.mockReturnValue({
+    docent: story.docent,
+    docentWriting: false,
+    docentGeneration: 0,
+    factSheet: story.factSheet,
+    narrationFacts: story.factSheet,
+    narrationWriting: false,
+    narrationOpening: "The Starry Night",
+    rightsStatus: "public_domain",
+  });
+  mockQuery.mockImplementation((query, args) => ({
+    data:
+      args !== "skip" && getFunctionName(query) === "walls:getArtwork"
+        ? {
+            ...artwork,
+            artwork: { ...artwork.artwork, institution: "The Museum of Modern Art" },
+            profileId: "owner",
+            layout: { frame: "gilt" },
+            enrichment: story,
+          }
+        : undefined,
+    refresh: jest.fn(),
+  }));
+  await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
+  expect(screen.getByRole("header", { name: "Starry Night" })).toBeOnTheScreen();
+  expect(screen.getByText("Vincent van Gogh · 1889")).toBeOnTheScreen();
+  expect(screen.getByText("Oil on canvas")).toBeOnTheScreen();
+  expect(screen.getByText("The Museum of Modern Art")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.getByText(story.docent[0].sentence)).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Listen to this work" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Report description" })).toBeOnTheScreen();
 });

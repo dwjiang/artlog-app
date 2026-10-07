@@ -3,6 +3,7 @@ import type { Infer } from "convex/values";
 import { normalizeText } from "../../shared/catalog/text";
 import { defaultAvatar, isAvatarId } from "../../shared/social/avatars";
 import {
+  type artworkDetail,
   type browsedProfile,
   type displayMedia,
   type publicArtwork,
@@ -11,7 +12,7 @@ import {
   validateMedia,
 } from "../../shared/social/contracts";
 import { isSevere } from "../../shared/social/offensive-text";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
 import { relationshipSnapshot } from "./friendships";
@@ -102,6 +103,21 @@ export function projectArtwork(
     media,
   };
 }
+export function projectArtworkDetail(
+  artwork: Infer<typeof publicArtwork>,
+  save: Pick<Doc<"collections">, "snapshot">,
+): Infer<typeof artworkDetail> {
+  const { institution } = save.snapshot;
+  return institution && !isSevere(institution) ? { ...artwork, institution } : artwork;
+}
+/** Notes stay private: an artwork's page carries one only to its owner. */
+export function projectOwnNote(
+  save: Pick<Doc<"collections">, "note">,
+  ownerId: Id<"profiles">,
+  viewerId: Id<"profiles"> | undefined,
+): { ownNote?: string } {
+  return viewerId === ownerId && save.note?.trim() ? { ownNote: save.note } : {};
+}
 export function projectWallArtwork(
   item: Doc<"wallItems">,
   save: Doc<"collections">,
@@ -120,7 +136,6 @@ export function projectWallArtwork(
       },
       fromRecord,
     ),
-    ...(item.noteVisible && save.note?.trim() ? { note: save.note } : {}),
   };
 }
 export function projectSharedVisitCard(

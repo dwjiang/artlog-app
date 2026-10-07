@@ -37,7 +37,6 @@ let mockToken: string | null = "token";
 const mockTransport = {
   getMine: jest.fn(),
   setLayout: jest.fn(),
-  setNoteVisibility: jest.fn(),
 } satisfies WallTransport;
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
 jest.mock("react-native-safe-area-context", () => ({
@@ -163,9 +162,6 @@ const published: OwnerWall = {
       itemId: "item-a" as never,
       placementId: "save-a",
       saveLocalId: "save-a",
-      noteVisible: false,
-      noteRevision: 0,
-      noteEligible: true,
       layout: { x: 0.1, y: 0.2, width: 0.4, frame: "gilt", layer: 0 },
       artwork: {
         title: "The Milkmaid",
@@ -424,7 +420,6 @@ it("saves each color, frame, and placement edit using the latest acknowledged re
     },
     expect.anything(),
   );
-  expect(mockTransport.setNoteVisibility).not.toHaveBeenCalled();
 });
 
 it("retains a failed edit until an explicit retry saves it", async () => {

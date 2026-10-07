@@ -8,8 +8,6 @@ export async function deactivateWallItem(
 ): Promise<void> {
   await ctx.db.patch("wallItems", item._id, {
     active: false,
-    noteVisible: false,
-    noteRevision: item.noteRevision + 1,
     ...(removal ? { removal } : {}),
   });
   const wall = await ctx.db.get("walls", item.wallId);

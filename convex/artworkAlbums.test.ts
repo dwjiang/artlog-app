@@ -164,7 +164,7 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
   await owner.as.mutation(api.artworkAlbums.sync, input);
   const target = await socialVisit(t, owner, 1);
   await t.run((ctx) => ctx.db.patch("collections", target.saves[0].id, { note: "Target note" }));
-  const wall = await owner.as.mutation(api.walls.setLayout, {
+  await owner.as.mutation(api.walls.setLayout, {
     scope: owner.scope,
     revision: 0,
     color: "#45524B",
@@ -175,10 +175,6 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
         layout: { x: 0, y: 0, width: 0.3, layer: 0, frame: "oak" },
       },
     ],
-  });
-  await owner.as.action(api.walls.setNoteVisibility, {
-    scope: owner.scope,
-    changes: [{ itemId: wall.items[0].itemId, noteRevision: 0, visible: true }],
   });
   const args = {
     scope: owner.scope,

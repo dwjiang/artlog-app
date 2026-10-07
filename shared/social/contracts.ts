@@ -117,11 +117,12 @@ export const publicArtwork = v.object({
   medium: v.optional(v.string()),
   media: displayMedia,
 });
+/** An artwork's own page also names the museum saved with it; walls, posts and feeds leave it out. */
+export const artworkDetail = v.object({ ...publicArtwork.fields, institution: v.optional(v.string()) });
 export const wallArtwork = v.object({
   itemId: v.id("wallItems"),
   layout: wallLayout,
   artwork: publicArtwork,
-  note: v.optional(v.string()),
 });
 export const sharedVisitCard = v.object({
   itemId: v.id("sharedVisitItems"),
@@ -219,7 +220,6 @@ export const reportEvidence = v.union(
     artist: v.string(),
     date: v.optional(v.string()),
     medium: v.optional(v.string()),
-    note: v.optional(v.string()),
   }),
   v.object({
     kind: v.literal("sharedVisit"),

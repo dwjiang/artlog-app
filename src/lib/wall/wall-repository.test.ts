@@ -14,9 +14,6 @@ const wall: OwnerWall = {
       placementId: "save-a",
       saveLocalId: "save-a",
       layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
-      noteVisible: false,
-      noteRevision: 0,
-      noteEligible: true,
       artwork: {
         title: "Title",
         artist: "Artist",
@@ -48,7 +45,6 @@ function fixture() {
   const transport = {
     getMine: jest.fn().mockResolvedValue(wall),
     setLayout: jest.fn().mockResolvedValue({ ...wall, revision: 2, color: draft.color }),
-    setNoteVisibility: jest.fn().mockResolvedValue(wall),
   } satisfies WallTransport;
   const online = jest.fn().mockResolvedValue(true);
   const repository = createWallRepository({
@@ -84,11 +80,10 @@ function fixture() {
   };
 }
 
-it("keeps drafts separate and updates acknowledged state only after the server replies", async () => {
+it("updates acknowledged state only after the server replies", async () => {
   const { repository, transport } = fixture();
   await repository.refresh();
   repository.setLayoutDraft(draft);
-  repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
   expect(repository.getSnapshot().acknowledged).toEqual(wall);
   const pending = deferred<OwnerWall>();
   transport.setLayout.mockReturnValueOnce(pending.promise);
@@ -103,7 +98,6 @@ it("keeps drafts separate and updates acknowledged state only after the server r
   expect(repository.getSnapshot()).toMatchObject({
     pending: false,
     layoutDraft: null,
-    noteDraft: [{ visible: true }],
     acknowledged: { revision: 2 },
   });
   expect(transport.setLayout.mock.calls[0][0]).toEqual({
@@ -160,68 +154,20 @@ it("clears owner responses and drafts, aborts requests and rejects acknowledgeme
   expect(f.repository.getSnapshot()).toMatchObject({
     acknowledged: null,
     layoutDraft: null,
-    noteDraft: [],
     pending: false,
   });
   f.repository.dispose();
 });
 
-it("refreshes conflicts and requires a new note confirmation using current revisions", async () => {
-  const { repository, transport } = fixture();
-  await repository.refresh();
-  repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  transport.setNoteVisibility.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
-  transport.getMine.mockResolvedValueOnce({
-    ...wall,
-    items: [{ ...wall.items[0], noteRevision: 2 }],
-  });
-  await expect(repository.publishNotes()).rejects.toMatchObject({
-    data: { code: "conflict" },
-  });
-  expect(repository.getSnapshot()).toMatchObject({
-    noteDraft: [],
-    acknowledged: { items: [{ noteRevision: 2 }] },
-  });
-  await repository.publishNotes();
-  expect(transport.setNoteVisibility).toHaveBeenCalledTimes(1);
-  repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  await repository.publishNotes();
-  expect(transport.setNoteVisibility.mock.calls[1][0].changes[0].noteRevision).toBe(2);
-  repository.dispose();
-});
-
-it("keeps layout drafts after conflict but clears pending note confirmation", async () => {
+it("keeps layout drafts after a conflict", async () => {
   const { repository, transport } = fixture();
   await repository.refresh();
   repository.setLayoutDraft(draft);
-  repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
   transport.setLayout.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
   await expect(repository.publishLayout()).rejects.toMatchObject({
     data: { code: "conflict" },
   });
-  expect(repository.getSnapshot()).toMatchObject({
-    layoutDraft: draft,
-    noteDraft: [],
-  });
-  repository.dispose();
-});
-
-it("keeps the layout draft’s base revision through a notes conflict", async () => {
-  const { repository, transport } = fixture();
-  await repository.refresh();
-  repository.setLayoutDraft(draft);
-  repository.setNoteDraft([{ itemId: wall.items[0].itemId, visible: true }]);
-  transport.setNoteVisibility.mockRejectedValueOnce(new ConvexError({ code: "conflict" }));
-  transport.getMine.mockResolvedValueOnce({
-    ...wall,
-    revision: 7,
-    items: [{ ...wall.items[0], noteRevision: 2 }],
-  });
-  await expect(repository.publishNotes()).rejects.toMatchObject({
-    data: { code: "conflict" },
-  });
-  await repository.publishLayout();
-  expect(transport.setLayout.mock.calls[0][0].revision).toBe(1);
+  expect(repository.getSnapshot()).toMatchObject({ layoutDraft: draft });
   repository.dispose();
 });
 

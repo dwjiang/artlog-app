@@ -7,7 +7,7 @@ import { invalidateAlbumPhoto } from "./lib/albumMedia";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, requireJournalOwner } from "./lib/ownership";
-import { invalidateDeletedSave, resetNoteSharing } from "./lib/publicationAccess";
+import { invalidateDeletedSave } from "./lib/publicationAccess";
 import { advancePublicationRevision } from "./lib/publicationUpdates";
 import { limitDevice } from "./lib/rateLimits";
 import { mergeSavedRecognition } from "./lib/savedRecognition";
@@ -281,7 +281,6 @@ export const merge = mutation({
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),
       });
-      if ((note || undefined) !== target.note) await resetNoteSharing(ctx, target._id);
       await mergeSavedRecognition(ctx, source._id, target._id);
       await ctx.db.patch("collections", source._id, {
         deletedAt: Date.now(),
