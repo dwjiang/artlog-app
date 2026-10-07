@@ -50,6 +50,11 @@ function samePlacement(a: Placement, b: Placement) {
   return a.x === b.x && a.y === b.y && a.width === b.width;
 }
 
+function snap(points: number) {
+  "worklet";
+  return Math.round(points * PIXEL) / PIXEL;
+}
+
 function tick() {
   void Haptics.selectionAsync().catch(() => {});
 }
@@ -279,10 +284,7 @@ function Hanging({
       }
     });
   const place = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: Math.round((x.get() * width - 22) * PIXEL) / PIXEL },
-      { translateY: Math.round((y.get() * width - 22) * PIXEL) / PIXEL },
-    ],
+    transform: [{ translateX: snap(x.get() * width - 22) }, { translateY: snap(y.get() * width - 22) }],
     zIndex: dragging.get() ? 101 : editing && selected ? 100 : layout.layer,
     opacity: dragging.get() ? 0.92 : 1,
   }));
@@ -296,6 +298,20 @@ function Hanging({
         { translateX: ((1 - scale) * current * width) / 2 },
         { translateY: ((1 - scale) * height * width) / 2 },
         { scale: current * scale },
+      ],
+    };
+  });
+  // Hangs the label under the animated artwork, measured from the artwork's top edge.
+  const labelPlace = useAnimatedStyle(() => {
+    const current = size.get();
+    const scale = 1 + LIFT * lift.get();
+    const { height } = wallPieceBounds({ ...piece, layout: { ...layout, width: current } }, width);
+    // The frame inset is capped, so scaling the saved artwork differs from recomputing its bounds.
+    const renderedHeight = (artworkHeight * current * scale) / layout.width;
+    return {
+      transform: [
+        { translateX: snap(((1 - scale) * current * width) / 2) },
+        { translateY: snap(((1 - scale) * height * width) / 2 + renderedHeight) },
       ],
     };
   });
@@ -355,14 +371,18 @@ function Hanging({
               <View style={{ outlineColor: Gallery.accent, outlineWidth: editing && selected ? 1.5 : 0 }}>
                 <WallArtwork piece={piece} width={artworkWidth} />
               </View>
-              <View style={styles.label}>
-                <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
-                  {piece.artwork.artist}
-                </Text>
-                <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
-                  {piece.artwork.title}
-                </Text>
-              </View>
+            </View>
+          </Animated.View>
+          {/* iOS blurs text under the artwork's scales even though they cancel out, so the label only translates. Layout
+              puts it under the saved artwork; this offset cancels that in the same commit as the saved size. */}
+          <Animated.View style={[styles.label, labelPlace]}>
+            <View style={[styles.lines, { transform: [{ translateY: -snap(artworkHeight) }] }]}>
+              <Text maxFontSizeMultiplier={1.3} style={[styles.artist, { color: labelColor }]}>
+                {piece.artwork.artist}
+              </Text>
+              <Text maxFontSizeMultiplier={1.3} style={[styles.title, { color: labelColor }]}>
+                {piece.artwork.title}
+              </Text>
             </View>
           </Animated.View>
         </Pressable>
@@ -470,7 +490,8 @@ function ResizeCorner({
 const styles = StyleSheet.create({
   hanging: { position: "absolute", left: 0, top: 0, padding: 22 },
   scaled: { transformOrigin: "top left", pointerEvents: "none" },
-  label: { marginTop: 14, gap: 2 },
+  label: { marginTop: 14, pointerEvents: "none" },
+  lines: { gap: 2 },
   artist: { fontSize: 12, lineHeight: 16, fontWeight: "600" },
   title: { fontSize: 12, lineHeight: 16 },
   cornerTarget: {

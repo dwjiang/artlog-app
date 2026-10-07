@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useState } from "react";
+import { PixelRatio, StyleSheet } from "react-native";
 import { State, type PanGesture } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
 
-import type { WallArrangement, WallPiece } from "@/lib/wall/wall-layout";
+import { wallPieceBounds, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
 
 import { WallGallery } from "./wall-gallery";
 
@@ -59,6 +60,65 @@ it("opens artwork without a numbered wall label", async () => {
   expect(screen.queryByText("1")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
   expect(onSelect).toHaveBeenCalledWith(piece);
+});
+
+function labelTransforms() {
+  const button = screen.getByLabelText("Water Lilies, Claude Monet");
+  const transforms: Record<string, unknown>[] = [];
+  for (let node = screen.getByText("Claude Monet").parent; node && node !== button; node = node.parent) {
+    const { transform } = StyleSheet.flatten(node.props.style) ?? {};
+    if (Array.isArray(transform)) transforms.push(...transform);
+  }
+  return transforms;
+}
+
+it("hangs the label under the artwork without scaling its text", async () => {
+  await render(<WallGallery pieces={[piece]} wallpaper={{ color: "#FCFCF9" }} width={390} onSelect={jest.fn()} />);
+  const transforms = labelTransforms();
+  expect(transforms.some((operation) => "scale" in operation)).toBe(false);
+  expect(transforms.reduce((sum, operation) => sum + Number(operation.translateY ?? 0), 0)).toBeCloseTo(0);
+});
+
+it.each([
+  { shape: "portrait", aspect: 0.4, start: 0.8, end: 0.4 },
+  { shape: "landscape", aspect: 2.5, start: 0.4, end: 0.8 },
+])("keeps the label below a resized $shape before and after saving", async ({ aspect, start, end }) => {
+  const artwork: WallPiece = {
+    ...piece,
+    cropAspectRatio: aspect,
+    layout: { ...piece.layout, frame: "carved-leaf", width: start },
+  };
+  const onArrange = jest.fn(() => true);
+  const props = {
+    wallpaper: { color: "#FCFCF9" },
+    width: 390,
+    editing: true,
+    selectedId: "art",
+    onSelect: jest.fn(),
+    onArrange,
+  };
+  const savedHeight = wallPieceBounds(artwork, props.width).height * props.width;
+  await render(<WallGallery {...props} pieces={[artwork]} />);
+  await act(() =>
+    fireGestureHandler<PanGesture>(getByGestureTestId("resize-art-bottom-right"), [
+      { state: State.BEGAN },
+      { state: State.ACTIVE, translationX: (end - start) * props.width, translationY: (end / start - 1) * savedHeight },
+      { state: State.END, translationX: (end - start) * props.width, translationY: (end / start - 1) * savedHeight },
+    ]),
+  );
+  expect(onArrange).toHaveBeenCalledWith({ art: { ...artwork.layout, width: expect.closeTo(end) } });
+  // Re-evaluate animated styles while the saved layout still has its original dimensions.
+  await screen.rerender(<WallGallery {...props} pieces={[artwork]} />);
+  const transforms = labelTransforms();
+  const labelTop = savedHeight + 14 + transforms.reduce((sum, operation) => sum + Number(operation.translateY ?? 0), 0);
+  const artworkBottom = savedHeight * (end / start);
+  expect(Math.abs(labelTop - artworkBottom - 14)).toBeLessThanOrEqual(1 / PixelRatio.get());
+  expect(transforms.some((operation) => "scale" in operation)).toBe(false);
+
+  await screen.rerender(
+    <WallGallery {...props} pieces={[{ ...artwork, layout: { ...artwork.layout, width: end } }]} />,
+  );
+  expect(labelTransforms().reduce((sum, operation) => sum + Number(operation.translateY ?? 0), 0)).toBeCloseTo(0);
 });
 
 it("keeps accessible resizing on the selected wall artwork", async () => {
