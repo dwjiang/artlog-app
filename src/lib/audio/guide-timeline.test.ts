@@ -7,7 +7,7 @@ const line = (sentence: string, section: GuideSection = "story"): GuideSentence 
   section,
 });
 
-// A real 75.8 s Water Lilies render (2026-10-05), with each sentence's start read from the pauses in its audio.
+// A 75.8 s Water Lilies audio fixture, with each sentence's start read from the pauses in its audio.
 const waterLilies = [
   line("Claude Monet. Water Lilies. Dated 1906.", "hook"),
   line("Monet called these water lily paintings an obsession, and the canvas shows why.", "hook"),

@@ -15,9 +15,9 @@ linking flow. The button stays disabled until both public client IDs are configu
 2. Set `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
    in `.env.local` using the corresponding `*.apps.googleusercontent.com` IDs.
    In a Conductor workspace, set the same values in the root checkout's `.env.local`.
-   Set these public variables in the build environment for any future EAS build too.
+   Set these public variables in the build environment for EAS builds too.
 3. Set `GOOGLE_WEB_CLIENT_ID` on the matching Convex deployment to the same Web
-   application client ID. For the current dev deployment:
+   application client ID. For the selected development deployment:
 
    ```sh
    npx convex env set GOOGLE_WEB_CLIENT_ID 'your-web-client.apps.googleusercontent.com'

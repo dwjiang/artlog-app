@@ -2,6 +2,9 @@
 
 Keep agent docs focused on project constraints and task-specific routing.
 Code, types, tests, and configuration are the source of implementation details.
+Docs and comments state what stays true. Leave out dates, commit IDs, status or
+progress notes (“not implemented yet”, “(new)”), implementation plans, and rules
+tied to an event or release phase.
 
 ## Communication
 
@@ -23,10 +26,6 @@ Code, types, tests, and configuration are the source of implementation details.
 
 ## Engineering principles
 
-- **Pre-release:** There are no real users or data worth preserving. Make breaking
-  schema and API changes directly, update every caller, and remove superseded
-  code. Add no migrations, shims, version flags, or dual paths solely for old data
-  or callers unless compatibility is explicitly required.
 - Choose the simplest complete implementation; avoid speculative abstractions and
   temporary stopgaps. When the same UI or logic appears in multiple places, extract
   one shared component or helper and migrate every copy to it.
@@ -43,9 +42,9 @@ Code, types, tests, and configuration are the source of implementation details.
   those cannot express. Keep comments concise and remove redundant ones; reserve
   JSDoc for externally consumed contracts TypeScript cannot express.
 - Do not implement changes the user has deferred or marked out of scope.
-- This is a hackathon entry. Before changing model providers, the Token Factory or
-  Tavily runtime paths, `LICENSE`, or the README's setup and model claims, read
-  `docs/hackathon/README.md` and keep the submission eligible.
+- Before changing model providers, the Token Factory or Tavily runtime paths,
+  `LICENSE`, or the README's setup and model claims, read `docs/integrations.md`
+  and preserve its integration and licensing contracts.
 
 ## Project conventions
 

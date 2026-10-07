@@ -111,7 +111,7 @@ it("derives search text on every artwork write", async () => {
 });
 
 it("backfills search fields on imported rows, which skip the trigger", async () => {
-  // A bare harness writes without the database triggers, as the corpus import did.
+  // A bare harness writes without the database triggers, as corpus imports do.
   const t = convexTest(schema, import.meta.glob("../**/*.*s"));
   const artworkId = await t.run((ctx) =>
     ctx.db.insert("artworks", {

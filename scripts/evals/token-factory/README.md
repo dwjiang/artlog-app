@@ -1,12 +1,10 @@
 # Token Factory model evaluations
 
 Reusable label, fact-sheet, docent and moderation comparisons. The prompts,
-fixtures and `config.json` preserve the September 8 baseline; they are not
-automatically synchronized with production prompts. The
-[findings](../../../docs/experiments/README.md#token-factory-models)
-and [archived responses, reviews and budget](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/token-factory/results)
-record that run. Model availability, rates and context limits in the baseline
-configuration are historical: update them for a new live comparison.
+fixtures and `config.json` define the evaluation protocol independently of
+production prompts. See the
+[findings](../../../docs/experiments/README.md#token-factory-models).
+Check model availability, rates and context limits before live comparisons.
 
 ## Local checks
 
@@ -56,8 +54,7 @@ and disable SDK retries. The runner saves a cost reservation before dispatch,
 then reconciles it with reported token usage. Unknown spend remains reserved;
 API failures stop the run. Budget totals are local estimates at the configured
 rates, not invoice totals or a cap on other clients. Keep the same ledger when
-resuming a run. Historical spike spend remains in the archived ledger and is
-not treated as spend in a new evaluation.
+resuming a run. Each directory's ledger accounts only for that evaluation.
 
 ## Rescore saved responses
 
@@ -72,21 +69,17 @@ uv run python moderation-eval.py --results-dir results/run-001 --model lightning
 
 The report must already exist and its protocol must match the configuration,
 prompts and fixtures. Use the original `--mode`, `--tag` and thinking setting
-when rescoring an older run. Archived baseline reports can be copied from Git
-history into a local results directory without restoring the old spike tree.
-The archived fact-sheet main report has a different fixture-manifest hash from
-the retained fixture set; it requires the matching historical fixtures to rescore.
-The protocol check deliberately refuses that mismatch.
+when rescoring a saved run. The protocol check rejects mismatched configurations,
+prompts or fixture manifests.
 
 ## Evaluation contracts
 
 - **Labels:** 25 distinct photos, one request per model per photo. The system
   prompt is fixed in `prompts/label.txt`. Input is a JPEG data URL and the schema.
   `labels/manifest.json` records every accepted field value, attribution,
-  license link, source URL, download URL and SHA-256. Ground truth was manually
-  transcribed by the executing agent before the candidate runs; it has not
-  received independent human review. Case, whitespace, curly apostrophes and
-  dash style are normalized. Explicit variants cover birth prefixes, some
+  license link, source URL, download URL and SHA-256. Ground truth is agent-transcribed;
+  field scores measure agreement with that fixture. Case, whitespace, curly
+  apostrophes and dash style are normalized. Explicit variants cover birth prefixes, some
   abbreviated date ranges and printed subtitles. Other differences count as
   errors, including added dates in titles and acquisition years as accessions.
   Report both field accuracy and the stricter rate of getting title and artist
@@ -106,11 +99,10 @@ The protocol check deliberately refuses that mismatch.
   requires all three valid JSON responses to be equal after canonicalizing
   object keys; sentence order and wording remain significant. Sentence-count
   compliance (three or four) is measured separately from JSON validity.
-- **Fact sheets:** five real Met paintings, each with owner metadata fetched
-  through the Met API, a Wikidata snapshot, and five live web-search snippets.
-  The Tavily connector could not authenticate; the built-in web search supplied
-  the snippets. This evaluation does not measure Tavily behavior. Search was limited
-  to the owner's domain, with some thin or off-topic snippets retained to test
+- **Fact sheets:** five real Met paintings, each with owner metadata from
+  the Met API, a Wikidata snapshot, and five built-in web-search snippets.
+  This evaluation does not measure Tavily behavior. Snippets use
+  the owner's domain, with some thin or off-topic passages retained to test
   source selection. Scores are explicit trust inputs, not search relevance.
   Automated scoring checks exact URL membership. Semantic support and correct
   source assignment require the separate review recorded with the results.
@@ -127,7 +119,7 @@ JSON do not establish factual correctness.
 ## Label image licensing and sample limits
 
 The 25 photographs retain the individual Creative Commons licenses linked in
-`labels/manifest.json`; the repository's MIT license does not relicense them.
+`labels/manifest.json`; the repository's license does not relicense them.
 Attribution is to Marshall Astor (11), Jim.henderson (2), Another Believer (9),
 and Elliott Brown (3). Files are original downloads or Wikimedia-generated
 thumbnails up to 1280 pixels wide, with no local editing.

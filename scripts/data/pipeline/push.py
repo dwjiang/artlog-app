@@ -108,7 +108,7 @@ class Corpus:
             ):
                 raise ValueError("Merge targets must be surviving objects")
         self.rows["objects"].sort(key=lambda row: ("mergedIntoKey" in row, row["key"]))
-        # Hub scoring is deferred; also clear prior corpus penalties when reimporting.
+        # Imports set corpus penalties to zero, including when reimporting existing objects.
         self.rows["penalties"] = [
             {"objectKey": row["key"], "calibratorPenalty": 0} for row in self.rows["objects"]
         ]

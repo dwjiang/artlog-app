@@ -233,7 +233,7 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
         errors.append("No confident threshold reaches precision >= 0.99 with nonzero support")
     if soft is None:
         errors.append("No soft threshold reaches true-object top-1 recall >= 0.90")
-    # Failed fits keep provisional v1 thresholds for diagnostic tables only; no JSON is emitted.
+    # Failed fits use fallback thresholds for diagnostic tables only; no JSON is emitted.
     confident_value = confident if confident is not None else 0.85
     config = {
         "version": VERSION,

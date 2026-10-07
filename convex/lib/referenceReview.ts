@@ -11,8 +11,7 @@ export function referenceReviewInput(sources: SourceDoc[], target: { title: stri
   };
 }
 
-// Models copying a caption drop its punctuation (MoMA's "The Starry Night. Saint Rémy" came back
-// as "The Starry Night\nSaint Rémy"), so a quote must repeat the page's words in order, not its characters.
+// Models can change a caption's punctuation, so a quote must repeat the page's words in order, not its characters.
 function quoteWords(text: string): string {
   // Han and kana have no required spaces; keep character boundaries without splitting Latin words or numbers.
   return ` ${normalizePassage(text)

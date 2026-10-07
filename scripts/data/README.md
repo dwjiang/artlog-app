@@ -87,8 +87,8 @@ Convex writes and downloads no image bodies. It reads seeded venue keys from
 Convex unless `--venues /path/to/keys.json` supplies a saved JSON array.
 
 Repeat commands to resume. Use a new scratch directory for a fresh snapshot,
-and keep one writer per directory. After Met access recovers, use
-`build_metadata --retry-met-denied` to retry cached denials and unchecked rows.
+and keep one writer per directory. Use `build_metadata --retry-met-denied`
+to retry cached denials and unchecked rows.
 AIC defaults to a complete live metadata snapshot; its blocked images are omitted.
 
 ### 2. Index build
@@ -118,8 +118,7 @@ caffeinate -i uv run python -m pipeline.build_index --stage dedupe
 This validates metadata against the feature build and writes
 `$SCRATCH_DIR/merged/`, retaining source aliases, embedding views, and one ORB
 reference per indexed survivor. Keep this snapshot unchanged during import.
-[Hub scoring is deferred](../../docs/todos/hub-scoring/README.md); imports need
-no penalty files and set corpus penalties to zero.
+Imports need no penalty files and set corpus penalties to zero.
 
 ### Small corpus for development and previews
 
@@ -182,15 +181,12 @@ baseline during preflight requires review and a new checkpoint. Python callers
 can use `with ConvexWriter(settings) as writer` to close its upload connections.
 
 Vector metadata commits queue Pinecone writes. Training vector exports use
-actions to read the archives.
-Deploy to a fresh database, or reset and reseed the pre-release vector data and
-remove its old Pinecone records; the old embedding tables and remote IDs are
-incompatible. Start a new import checkpoint after a reset.
+actions to read the archives. A database reset requires a new import checkpoint.
 
 Full imports use `push --in "$SCRATCH_DIR/merged" --full` and require every shard
 from a full build; pilots and exported subsets are refused. The
-[full production upload](../../docs/todos/production-upload/README.md) was resumed
-on 2026-09-27; its checkpoint and verification reports determine completion.
+[corpus import guide](../../docs/operations/corpus-imports.md) covers full imports
+and verification reports.
 
 ## Add sources to an imported corpus
 
@@ -251,9 +247,9 @@ objects. Artist/date conflicts save their exact evidence, hold enrichment and
 narration, and appear in `review:listResearchConflicts`; `review:replaceFactSheet`
 clears the hold after deliberate review. The conflict query returns `{ rows, cursor }`;
 pass its cursor back until it is null, even when a page's rows are empty.
-Reference-derived facts retain both the
-source URL and the Wikidata/Commons URL that cited it. The existing narration
-catalogue filter is unchanged. Each extraction batch reserves two Tavily credits
+Reference-derived facts retain both the source URL and the Wikidata/Commons URL
+that cited it. Narration applies the catalogue filter in `shared/audio/guide.ts`.
+Each extraction batch reserves two Tavily credits
 and reconciles provider usage; reference review adds one model call.
 
 To inspect richer research for an already-enriched artwork, use `--dry-run`.
@@ -298,7 +294,7 @@ Use the index build's accepted dtype (`--dtype float16` or `--dtype float32`).
 Outputs default to `out/`; keep the training manifest, feature rows, model JSON,
 metrics, and report together. Training does not install weights. See the
 [output contract](../../shared/calibrator/README.md) and
-[evaluation findings](../../docs/experiments/README.md#calibrator-v2).
+[evaluation findings](../../docs/experiments/README.md#calibration).
 
 ## Verification
 

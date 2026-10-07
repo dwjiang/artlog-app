@@ -101,7 +101,7 @@ class PackageReferences(Mapping):
 
 
 def load_index(directory: Path) -> Index:
-    """The merged corpus package that production was imported from: every indexed view, one
+    """A merged corpus package: every indexed view, one
     ORB reference per survivor, and artwork keys for artwork-level labels."""
     stats = json.loads((directory / "stats.json").read_text())
     if not stats["completeFeatures"]:
@@ -126,7 +126,7 @@ def load_index(directory: Path) -> Index:
                 "source": row["source"],
                 "imageRef": row.get("imageRef"),
                 "rightsStatus": works[row["artworkKey"]]["rightsStatus"],
-                # Hub scoring is deferred: the import writes zero corpus penalties.
+                # Training uses the zero corpus penalties written by the importer.
                 "objectPenalty": 0,
             }
     if objects.keys() != survivors:

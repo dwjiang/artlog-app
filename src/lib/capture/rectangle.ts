@@ -6,7 +6,7 @@ import type { Quad } from "./stages";
 export const STABLE_WINDOW_MS = 800;
 /**
  * Fraction of the frame diagonal a smoothed corner may move within the window and still count as
- * steady. Hand-held aiming at a painting measured 3–6.5% raw corner movement per window on the phone.
+ * steady. Smoothing tolerates hand-held motion and Vision's per-frame corner wobble.
  */
 export const STABLE_MAX_DISPLACEMENT = 0.06;
 /** Weight of the newest detection in the tracked corners; Vision's per-frame corner wobble is the rest. */
@@ -33,23 +33,21 @@ export const MISS_GRACE_MS = 300;
 export const STILL_MATCH_TOLERANCE = 0.05;
 /**
  * A lifted subject whose region area over quad area is within this of 1 is a quadrilateral: a framed
- * painting. On the Mac harness gallery photographs paintings measured 1.001–1.016; visitors 1.10–1.43,
- * figures inside a canvas 0.94 and 1.19, and visitors merged with the painting behind them 0.96.
+ * painting. Irregular figures and merged foreground regions differ from their fitted quad's area.
  */
 export const SUBJECT_QUAD_FILL_TOLERANCE = 0.025;
 // Small lifted regions can be details inside an edge-to-edge painting, despite a rectangular mask.
 export const MIN_UNGUIDED_SUBJECT_AREA_FRACTION = 0.2;
 /**
- * Share of the chosen boundary below which a rectangle inside it is a detail, not a painting worth ranking. Paintings
- * on phone and laptop screens covered 0.19–0.61 of the screen; a 0.09 detail of an engraving matched a wrong work.
+ * Share of the chosen boundary below which a rectangle inside it is a detail, not a painting worth ranking.
+ * Small details can match another work even when the enclosing artwork is correct.
  */
 export const MIN_NESTED_SHARE = 0.15;
 /** Normalized distance a nested corner may sit outside the chosen boundary, where the two share an edge. */
 export const NESTED_EDGE_TOLERANCE = 0.01;
 /**
- * Share of the frame below which an unguided boundary is likelier a detail than the artwork. On 937 gallery photos of
- * catalogued paintings (2026-10-06), trying the whole frame first below it raised confident right answers from 345 to
- * 630; cutoffs from 0.2 to 0.5 scored within 1% of each other.
+ * Share of the frame below which an unguided boundary is likelier a detail than the artwork, so the whole frame
+ * is tried first.
  */
 export const WHOLE_FRAME_BELOW = 0.3;
 

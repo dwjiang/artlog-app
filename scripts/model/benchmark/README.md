@@ -3,9 +3,7 @@
 Measures compilation, loading, 50 warmed predictions, sampled process memory,
 thermal state and `MLComputePlan` preferred devices in a separate light-mode
 iPhone app. It also exports vectors for the 200 shared calibration images.
-This retains the device harness from the
-[original investigation](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/coreml-export)
-and consumes the [maintained model export](../README.md).
+It consumes the [model export](../README.md).
 
 ## Prepare
 
@@ -26,10 +24,9 @@ source-byte hashes in `scripts/data/calibration/image-hashes.json`. It downloads
 images into `artifacts/images/`, verifies cached bytes, and writes hashed raw RGB
 buffers to `artifacts/calibration-512/`. Requests are spaced at least one second
 apart; temporary failures have bounded retries and respect `Retry-After`.
-Reruns reuse verified source images. It does not fetch the old 2,000-image
-retrieval index or change the shared calibration references.
+Reruns reuse verified source images and keep the shared calibration references unchanged.
 
-Pixels use the historical reference's EXIF handling, bicubic resize and centered
+Pixels use the calibration reference's EXIF handling, bicubic resize and centered
 black padding. They isolate model numerics; they do not test the production
 camera's mean-color, bilinear preprocessing. The existing reference embeddings
 and report remain together under `scripts/data/calibration/`.

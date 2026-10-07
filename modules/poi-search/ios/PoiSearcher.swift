@@ -22,8 +22,8 @@ struct PoiRecord {
   }
 }
 
-/// Museum-category and "art gallery" text searches run together: SFMOMA was missing
-/// from the museum filter (classified as a landmark), so neither request alone is complete.
+/// Museum-category and "art gallery" text searches run together because MapKit can classify art museums
+/// as landmarks, so neither request alone covers every museum and gallery.
 enum PoiSearcher {
   static let maxResults = 8
   /// Two hits closer than this with the same normalized name are one place listed twice.

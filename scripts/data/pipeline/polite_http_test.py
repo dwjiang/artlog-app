@@ -682,8 +682,8 @@ def test_threads_sharing_a_client_keep_the_host_spacing():
         list(pool.map(lambda i: c.get(f"https://museum.example/{i}"), range(10)))
     times = sorted(sent)
     assert len(times) == 10
-    # Reservations keep the schedule's pace; the unlocked client fired the two threads
-    # together in pairs. Sleep overshoot on one thread can shave a few ms off a gap.
+    # Reservations keep concurrent threads on the shared schedule.
+    # Sleep overshoot on one thread can shave a few ms off a gap.
     assert times[-1] - times[0] >= 9 * period
     assert min(b - a for a, b in pairwise(times)) >= period / 2
 

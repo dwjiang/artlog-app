@@ -6,16 +6,15 @@ import ImageIO
 import Vision
 
 enum RectangleDetectorTuning {
-  /// Vision reported 1.0 for every rectangle it returned on 49 gallery photographs, so a floor only ever drops candidates.
+  /// Confidence does not distinguish artwork boundaries, so candidates remain available for geometric checks.
   static let minimumConfidence: Float = 0
   static let minimumAspectRatio: Float = 0.3
   static let maximumAspectRatio: Float = 1.0
   static let minimumSize: Float = 0.15
   static let maximumObservations = 5
   static let quadratureTolerance: Float = 30
-  /// Vision's candidates come and go with input resolution: a framed portrait found at 1440 px vanished at 960 px
-  /// and returned at 640 px. Each image is analyzed at its own size and at these fractions of it, and the union
-  /// found the painting in 13 of 14 wall photographs against 10 for the full size alone.
+  /// Vision's candidates depend on input resolution. Analyzing at multiple scales keeps boundaries
+  /// that any single resolution can miss.
   static let extraScales: [CGFloat] = [2.0 / 3.0, 4.0 / 9.0]
   /// Normalized corner distance under which candidates from different scales are the same rectangle.
   static let duplicateDistance: CGFloat = 0.02

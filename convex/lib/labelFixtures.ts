@@ -1,5 +1,4 @@
-// Recorded Tavily and Wikidata responses, including live Wikidata data from 2026-09-10;
-// only the fields the verifier reads are kept.
+// Recorded Tavily and Wikidata responses, trimmed to the fields the verifier reads.
 
 const artic = (path: string) => `https://www.artic.edu${path}`;
 const met = (path: string) => `https://www.metmuseum.org${path}`;

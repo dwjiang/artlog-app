@@ -161,7 +161,7 @@ export function CollectionWallContent({
     const session = captureOwner();
     wall.setError(undefined);
     try {
-      // Layers are reassigned by order because a piece hung while a removal was pending took the layer of a visible one.
+      // Reassign layers by order so pieces added during a pending removal cannot share a visible piece's layer.
       wall.repository.setLayoutDraft({
         ...snapshot.layoutDraft,
         items: snapshot.layoutDraft.items

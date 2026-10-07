@@ -56,12 +56,8 @@ namespace margelo::nitro::visionrect {
   /**
    * The C++ part of HybridVisionRectSpec_cxx.swift.
    *
-   * HybridVisionRectSpecSwift (C++) accesses HybridVisionRectSpec_cxx (Swift), and might
-   * contain some additional bridging code for C++ <> Swift interop.
-   *
-   * Since this obviously introduces an overhead, I hope at some point in
-   * the future, HybridVisionRectSpec_cxx can directly inherit from the C++ class HybridVisionRectSpec
-   * to simplify the whole structure and memory management.
+   * HybridVisionRectSpecSwift (C++) accesses HybridVisionRectSpec_cxx (Swift)
+   * through the C++ <> Swift bridge.
    */
   class HybridVisionRectSpecSwift: public virtual HybridVisionRectSpec {
   public:

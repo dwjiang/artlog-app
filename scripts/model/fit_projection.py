@@ -4,8 +4,8 @@
 
 Reads every `vectors-*.npy` (L2-normalized SUMMARY_DIM floats) and writes the centering mean
 and the SUMMARY_DIM × EMBEDDING_DIM matrix whose columns are the top principal components
-divided by λ^(WHITEN_POWER / 2). Square-root whitening: full whitening searched better on the
-Mac but amplified the phone's int8/fp16 noise past the drift gate (2026-09-26 evaluation).
+divided by λ^(WHITEN_POWER / 2). Square-root whitening limits amplification of the phone's
+int8/fp16 noise so the projected vectors can pass the drift gate.
 """
 
 import argparse

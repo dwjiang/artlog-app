@@ -30,8 +30,7 @@ JPEG_QUALITY = 90
 COMMONS_THUMB_WIDTH = 960
 # Standard thumbnail steps at or below the default (mediawiki.org "Common thumbnail sizes").
 # A file no wider than the requested width comes back as its original, and
-# upload.wikimedia.org throttles originals far harder than thumbnails: every 429 seen across
-# three runs (20 of 20) hit an original while originals were a third of the requests.
+# upload.wikimedia.org throttles originals more strictly than thumbnails.
 COMMONS_THUMB_STEPS = (960, 500, 330, 250, 120, 60, 40, 20)
 COMMONS_FILE_PATH = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
@@ -43,10 +42,9 @@ BACKOFF_SECONDS = 2.0
 MAX_COOLDOWN_SECONDS = 600.0
 CONSECUTIVE_DENIALS_LIMIT = 20
 PERMANENT_STATUSES = frozenset({400, 401, 403, 404, 410, 451})
-# Wikimedia media rules (Wikitech robot policy, read 2026-09-10): total concurrency ≤ 2 and
+# Wikimedia media rules (Wikitech robot policy): total concurrency ≤ 2 and
 # ≤ 25 Mbps over 10 s windows, standard thumbnail sizes, thumbnails preferred; the action API
-# (imageinfo): concurrency 1, < 5 req/s. Thumbnail requests at ≈ 3 req/s across both streams
-# ran without a 429 (2026-09-10), so the media rate is capped at 4. Met CDN documented ceiling
+# (imageinfo): concurrency 1, < 5 req/s. The media rate is capped at 4. Met CDN documented ceiling
 # is 20 req/s; AIC: a single stream at ≤ 1 req/s with its identifying header. Cleveland's
 # open-access CDN and the Finnish National Gallery publish no limit; one modest stream each.
 SOURCE_RATES = {"met": 8.0, "aic": 1.0, "wikidata": 4.0, "cma": 4.0, "fng": 2.0}

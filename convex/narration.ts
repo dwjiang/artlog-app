@@ -302,14 +302,12 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
     }
     return guide;
   };
-  // One pass without reasoning: about 3 seconds against 15 to 35 with low-effort thinking, the same
-  // pass rate and fewer invented claims on the 2026-09-25 eval, and no runaway thinking that hits the cap.
+  // Reasoning is disabled to keep guide generation within the playback latency and token budgets.
   const write = (schema: ReturnType<typeof guideSchema>, previousAttemptProblems?: string) =>
     chatJson({
       model: GUIDE_MODEL,
       system: GUIDE_PROMPT,
-      // The schema stays in the prompt here: without it 4 of 12 scripts broke the length rules on the
-      // 2026-09-28 check and the retry cost more than the 500 tokens saved.
+      // The prompt carries the schema as well as the grammar so the model can follow the length rules.
       user: JSON.stringify({
         task: "Write the continuation of this audio guide stop from the research. Do not repeat the opening.",
         ...(previousAttemptProblems ? { previousAttemptProblems } : {}),
@@ -319,7 +317,7 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
       }),
       schemaName: "audioGuide",
       schema,
-      // A script runs 700 to 1,100 tokens; the cap only decides how long a stall runs (under 10 seconds).
+      // The token cap bounds stalled generation while allowing a complete guide script.
       maxTokens: 3000,
       timeoutMs: 60_000,
       parse,
@@ -333,9 +331,8 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
         throw error;
       }
       calls += error.data.calls;
-      // A stall means the research ran out before a section's minimum: 6 of 20 attempts for a sheet with
-      // three story facts on 2026-09-29, 0 of 10 relaxed. A rejection is retried with the rejected
-      // sentences named; pointed feedback lands better than the rules did.
+      // Thin research can stall at a section's minimum, so truncation retries relax the lengths.
+      // Format rejections instead retry with the specific validation problems.
       script =
         error.data.reason === "truncated"
           ? await write(guideSchema(facts.length, { relaxed: true }))

@@ -152,8 +152,8 @@ function OwnedCollection({
   );
 }
 
-// Fabric never mounts `display: "none"` views, so a section shown for the first time sized its SwiftUI controls only
-// then and pushed the page down. The hidden section stays mounted, invisible and out of reach instead. Unless it is
+// Fabric never mounts `display: "none"` views, so showing one defers SwiftUI sizing and can shift the page.
+// The hidden section stays mounted, invisible and out of reach. Unless it is
 // `collapsable={false}`, Fabric flattens the shown wrapper away and reinserts its scroll view, which restores its offset
 // from shadow state; that trails a scroll `usePaneSwitch` has just made.
 function CollectionSection({ shown, children }: { shown: boolean; children: ReactNode }) {

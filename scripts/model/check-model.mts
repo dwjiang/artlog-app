@@ -9,7 +9,7 @@ const models = resolve(process.argv[2] ?? join(root, "modules/coreml-embed/ios/M
 const recovery = "Run `git lfs install` and `git lfs pull` before building or uploading to EAS.";
 const lfsPointerPrefix = "version https://git-lfs.github.com/spec/v1";
 const notices = join(root, "modules/coreml-embed/ios/model-notices/c-radio-v3-b");
-// SHA-256 of NVIDIA's unchanged June 14, 2024 agreement, linked in Notice.txt.
+// SHA-256 of NVIDIA's model agreement, linked in Notice.txt.
 const licenseSha256 = "396d7de220f6b0e6fcfe33836f1b99a9943769b97c56330444f8efe1b441f607";
 
 function modelFile(path: string): Buffer {

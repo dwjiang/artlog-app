@@ -263,7 +263,7 @@ export async function requireAttestedWrite(ctx: MutationCtx, args: AttestedWrite
   return { ...device, attestCounter: result.counter };
 }
 
-// Verification-only endpoint for the phone smoke check; remove before release.
+// Verification-only endpoint for the phone smoke check.
 export const assertSmoke = mutation({
   args: {
     nonce: v.string(),

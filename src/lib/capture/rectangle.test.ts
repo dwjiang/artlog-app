@@ -412,7 +412,7 @@ describe("selectCaptureQuad", () => {
   });
 
   it("crops a camera photo only to a boundary that holds the preview's center and shows whole on it", () => {
-    // iPhone 17 Pro shutter captures (2026-10-03 logs): the 4:3 still shows about 0.19–0.81 of its width on screen.
+    // iPhone 17 Pro shutter fixtures: the 4:3 still shows about 0.19–0.81 of its width on screen.
     const phone = { width: 402, height: 874 };
     const portrait = (rectangles: Quad[]) => ({ ...still(rectangles), width: 3024, height: 4032 });
     const pastLeftEdge: Quad = [
