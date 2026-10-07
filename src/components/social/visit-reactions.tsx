@@ -8,6 +8,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { withPendingLike } from "@/lib/social/presentation";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
@@ -15,6 +16,7 @@ import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
+import { LikeHeart, playLikeHaptic } from "./like-heart";
 import { ReactionIcon } from "./reaction-icon";
 import { TaggedText } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
@@ -43,7 +45,7 @@ function LiveReactions({
   const summary = useSocialQuery(api.visitReactions.getSummary, ready ? { postId: visit.postId } : "skip", session.key);
   const setLike = useMutation(api.visitReactions.setLike);
   const [sheet, setSheet] = useState<"comments" | "likes" | null>(openComments ? "comments" : null);
-  const [busy, setBusy] = useState(false);
+  const [likeTarget, setLikeTarget] = useState<boolean>();
   const pending = useRef(false);
   const join = () => {
     setSheet(null);
@@ -55,22 +57,24 @@ function LiveReactions({
       return;
     }
     if (!summary.data || session.status !== "ready" || pending.current) return;
+    const liked = !summary.data.liked;
     pending.current = true;
-    setBusy(true);
+    setLikeTarget(liked);
+    if (liked) playLikeHaptic();
     try {
-      await setLike({ postId: visit.postId, liked: !summary.data.liked });
+      await setLike({ postId: visit.postId, liked });
     } catch (cause) {
       showErrorToast(socialErrorMessage(cause) ?? "Couldn’t update your like.", () => void like());
     } finally {
       pending.current = false;
-      setBusy(false);
+      setLikeTarget(undefined);
     }
   };
   return (
     <>
       <VisitReactionRow
-        summary={summary.data}
-        busy={busy}
+        summary={summary.data && withPendingLike(summary.data, likeTarget)}
+        busy={likeTarget !== undefined}
         disabled={!ready || !summary.data}
         onLike={() => void like()}
         onComments={() => setSheet("comments")}
@@ -140,7 +144,7 @@ export function VisitReactionRow({
           onPress={onLike}
           style={styles.reaction}
         >
-          <ReactionIcon kind="heart" filled={liked} />
+          <LikeHeart liked={summary?.liked} />
           <Text style={[styles.count, liked && { color: Gallery.accent }]}>{summary ? count : "–"}</Text>
         </MotionPressable>
         <MotionPressable

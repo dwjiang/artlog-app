@@ -50,7 +50,11 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
-jest.mock("expo-haptics", () => ({ impactAsync: async () => {}, ImpactFeedbackStyle: { Medium: "medium" } }));
+const mockImpact = jest.fn(async (_style: string) => {});
+jest.mock("expo-haptics", () => ({
+  impactAsync: (style: string) => mockImpact(style),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+}));
 const mockCopy = jest.fn();
 jest.mock("expo-clipboard", () => ({ setStringAsync: (text: string) => mockCopy(text) }));
 const mockBlock = jest.fn();
@@ -78,7 +82,7 @@ beforeEach(() => {
   mockMutate.mockResolvedValue("new-comment");
 });
 
-it("shows the liked state and submits only one unlike while a request is pending", async () => {
+it("shows an unlike at once, silently, and submits only one while it is pending", async () => {
   let resolve!: () => void;
   mockMutate.mockImplementation(
     () =>
@@ -88,8 +92,7 @@ it("shows the liked state and submits only one unlike while a request is pending
   );
   await render(<VisitReactions visit={visit} />);
   expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
-  const unlike = screen.getByRole("button", { name: "Unlike visit" });
-  expect(screen.getByRole("button", { name: "Unlike visit", selected: true })).toBeOnTheScreen();
+  const unlike = screen.getByRole("button", { name: "Unlike visit", selected: true });
   await fireEvent.press(unlike);
   await fireEvent.press(unlike);
   expect(mockMutate).toHaveBeenCalledTimes(1);
@@ -97,8 +100,34 @@ it("shows the liked state and submits only one unlike while a request is pending
     postId: "visit-a",
     liked: false,
   });
-  expect(screen.getByRole("button", { name: "Unlike visit", busy: true })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Like visit", selected: false, busy: true, value: { text: "12 likes" } }),
+  ).toBeDisabled();
+  expect(screen.getByText("12 people like this")).toBeOnTheScreen();
+  expect(mockImpact).not.toHaveBeenCalled();
   await act(() => resolve());
+});
+
+it("fills the heart with one light haptic as soon as a visit is liked", async () => {
+  mockSummary = { ...mockSummary, likeCount: 12, liked: false };
+  let resolve!: () => void;
+  mockMutate.mockImplementation(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+  );
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Like visit", selected: false }));
+  expect(
+    screen.getByRole("button", { name: "Unlike visit", selected: true, value: { text: "13 likes" } }),
+  ).toBeDisabled();
+  expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
+  expect(mockImpact).toHaveBeenCalledTimes(1);
+  expect(mockImpact).toHaveBeenCalledWith("light");
+  await act(() => resolve());
+  // The mocked summary never receives the saved like, so the heart falls back to the server's state.
+  expect(screen.getByRole("button", { name: "Like visit", selected: false })).toBeEnabled();
 });
 
 it("keeps the like state and exposes retry after a failed write", async () => {
@@ -223,6 +252,8 @@ it("shows a comment heart at once while its write is in flight", async () => {
     value: { text: "3 likes" },
   });
   expect(pending).toBeDisabled();
+  expect(mockImpact).toHaveBeenCalledTimes(1);
+  expect(mockImpact).toHaveBeenCalledWith("light");
   await act(() => resolve());
   // The mocked list never receives the saved like, so the heart falls back to the server's state.
   expect(

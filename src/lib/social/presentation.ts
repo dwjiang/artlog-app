@@ -80,3 +80,10 @@ export function suggestionReasonText(reason: SuggestionReason): string {
       return `Liked your visit to ${reason.venueName}`;
   }
 }
+
+// A like request in flight shows its requested state, so a tap answers at once and a failed write falls back.
+export function withPendingLike<T extends { liked: boolean; likeCount: number }>(value: T, target?: boolean): T {
+  return target === undefined || target === value.liked
+    ? value
+    : { ...value, liked: target, likeCount: value.likeCount + (target ? 1 : -1) };
+}

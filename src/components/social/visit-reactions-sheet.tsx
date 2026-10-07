@@ -27,6 +27,7 @@ import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
+import { withPendingLike } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
@@ -38,9 +39,9 @@ import { extractHashtags } from "@/shared/social/hashtags";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
+import { LikeHeart, playLikeHaptic } from "./like-heart";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
-import { ReactionIcon } from "./reaction-icon";
 import { useRichTextInput } from "./rich-text-input";
 import { PageFooter } from "./social-state";
 import { profileHref, TaggedText, tagHref } from "./tagged-text";
@@ -209,7 +210,6 @@ function Comments({
   const [error, setError] = useState<string>();
   const [menuFor, setMenuFor] = useState<string>();
   const [composerHeight, setComposerHeight] = useState(0);
-  // The heart shows the requested state until the write settles, so a tap answers at once and a failure falls back.
   const likeRequests = useRef(new Map<string, boolean>());
   const [likeTargets, setLikeTargets] = useState<ReadonlyMap<string, boolean>>(new Map());
   const { canLoadMore, loadMore } = comments;
@@ -285,6 +285,7 @@ function Comments({
     if (session.status !== "ready" || likeRequests.current.has(item.commentId)) return;
     likeRequests.current.set(item.commentId, !item.liked);
     setLikeTargets(new Map(likeRequests.current));
+    if (!item.liked) playLikeHaptic();
     try {
       await setCommentLike({ postId: visit.postId, commentId: item.commentId, liked: !item.liked });
     } catch (cause) {
@@ -386,8 +387,7 @@ function Comments({
             })),
           ];
           const target = likeTargets.get(item.commentId);
-          const liked = target ?? item.liked;
-          const likeCount = item.likeCount + (target === undefined || target === item.liked ? 0 : target ? 1 : -1);
+          const { liked, likeCount } = withPendingLike(item, target);
           return (
             <View
               style={[
@@ -446,7 +446,7 @@ function Comments({
                 onPress={() => void toggleLike(item)}
                 style={styles.commentLike}
               >
-                <ReactionIcon kind="heart" filled={liked} size={16} color={Gallery.muted} />
+                <LikeHeart liked={liked} size={16} color={Gallery.muted} />
                 {likeCount > 0 && (
                   <Text style={[styles.likeCount, liked && { color: Gallery.accent }]}>{likeCount}</Text>
                 )}
