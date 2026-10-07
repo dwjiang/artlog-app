@@ -179,15 +179,15 @@ export function VisitCard({
       {companions.length > 0 && (
         <WentWithLine people={companions} style={[styles.wentWith, fontScale > 1.4 && { marginLeft: 0 }]} />
       )}
+      {!!visit.reflection && (
+        <TaggedText selectable mentions={visit.mentions} style={[styles.notes, hasArtworks && { marginBottom: 8 }]}>
+          {visit.reflection}
+        </TaggedText>
+      )}
       {hasArtworks && (
         <View style={styles.art}>
           <VisitArt visit={visit} token={token} />
         </View>
-      )}
-      {!!visit.reflection && (
-        <TaggedText selectable mentions={visit.mentions} style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
-          {visit.reflection}
-        </TaggedText>
       )}
       <VisitReactions visit={visit} openComments={openComments} />
     </View>

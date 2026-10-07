@@ -124,7 +124,7 @@ export function VisitReactionRow({
   const viewAll = summary && summary.commentCount > 1 ? `View all ${summary.commentCount} comments` : undefined;
   return (
     <View>
-      <View style={styles.row}>
+      <View pointerEvents="box-none" style={styles.row}>
         <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike visit" : "Like visit"}
@@ -213,17 +213,20 @@ export function VisitReactionRow({
 }
 
 const styles = StyleSheet.create({
+  // The 44-point targets overlap the content above and the like summary below so the icons sit close to both.
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     minHeight: 44,
+    marginTop: -3,
+    marginBottom: -6,
+    zIndex: 1,
     flexWrap: "wrap",
   },
   reaction: {
     minWidth: 44,
     minHeight: 44,
-    paddingTop: 4,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
