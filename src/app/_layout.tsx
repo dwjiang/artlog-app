@@ -10,7 +10,7 @@ import { ProfileSetupPrompt } from "@/components/account/profile-setup-prompt";
 import { AppDiagnostics } from "@/components/app-diagnostics";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { AppUpdateGate } from "@/components/app-update-gate";
-import { DockedPlayerInsets, ListeningRoot } from "@/components/audio/listening-root";
+import { DockedPlayerLayout } from "@/components/audio/docked-player";
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
 import { ToastLayer } from "@/components/toast";
@@ -77,236 +77,236 @@ function AppContent() {
         <WidgetProvider>
           <ThemeProvider value={navigationTheme}>
             <ListeningProvider>
-              <ListeningRoot>
-                <Stack
-                  screenOptions={{
-                    ...NavigationTheme,
-                    animation: reduced ? "fade" : "default",
-                    animationMatchesGesture: true,
+              <Stack
+                screenOptions={{
+                  ...NavigationTheme,
+                  animation: reduced ? "fade" : "default",
+                  animationMatchesGesture: true,
+                }}
+                screenLayout={({ route, options, children }) => (
+                  <DockedPlayerLayout
+                    dockable={route.name !== "(tabs)" && (!options.presentation || options.presentation === "card")}
+                  >
+                    {children}
+                  </DockedPlayerLayout>
+                )}
+              >
+                <Stack.Screen
+                  name="now-playing"
+                  dangerouslySingular
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                    contentStyle: { backgroundColor: Gallery.paper },
                   }}
-                  screenLayout={({ options, children }) => (
-                    <DockedPlayerInsets modal={!!options.presentation && options.presentation !== "card"}>
-                      {children}
-                    </DockedPlayerInsets>
-                  )}
-                >
+                />
+                <Stack.Screen
+                  name="(tabs)"
+                  options={({ route }) => ({
+                    headerShown: false,
+                    title: TabTitles[getFocusedRouteNameFromRoute(route) ?? "(home)"],
+                  })}
+                />
+                <Stack.Screen
+                  name="result/[scanId]"
+                  options={({ route }) => ({
+                    title: "",
+                    animation:
+                      reduced || (route.params as { entrance?: string } | undefined)?.entrance === "capture"
+                        ? "fade"
+                        : "default",
+                  })}
+                  listeners={({ navigation, route }) => ({
+                    transitionEnd: ({ data }) => {
+                      if (
+                        !data.closing
+                        && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
+                      ) {
+                        navigation.setParams({ entrance: undefined });
+                      }
+                    },
+                  })}
+                />
+                <Stack.Screen name="all-artworks" options={{ ...LargeTitleHeader, title: "All Artworks" }} />
+                <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
+                <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
+                <Stack.Screen
+                  name="sign-in"
+                  dangerouslySingular
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="welcome"
+                  options={{
+                    presentation: "fullScreenModal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen name="settings-detail" options={{ ...TransparentHeader, title: "Settings" }} />
+                <Stack.Screen name="settings" options={{ ...LargeTitleHeader, title: "Settings" }} />
+                <Stack.Screen name="widgets" options={{ ...LargeTitleHeader, title: "Widgets" }} />
+                <Stack.Screen name="saved/[savedId]" options={ScrollTitleHeader} />
+                <Stack.Screen name="wall-display" options={ScrollTitleHeader} />
+                <Stack.Screen
+                  name="journal/[visitId]"
+                  options={{ ...LargeTitleHeader, ...groupedScreen, title: "Visit Details" }}
+                />
+                <Stack.Screen name="adjust-crop" options={{ title: "Adjust Crop", gestureEnabled: false }} />
+                <Stack.Screen name="photo-details" options={{ ...TransparentHeader, title: "Photo Details" }} />
+                <Stack.Screen name="identify-artwork" options={{ ...TransparentHeader, title: "Artwork Details" }} />
+                <Stack.Screen name="add-photos" options={TransparentHeader} />
+                <Stack.Screen name="leaderboards" options={{ ...LargeTitleHeader, title: "Leaderboards" }} />
+                <Stack.Protected guard={__DEV__}>
+                  <Stack.Screen name="exhibitions" options={{ ...LargeTitleHeader, title: "Exhibitions" }} />
+                  <Stack.Screen name="exhibition/[exhibitionId]" options={ScrollTitleHeader} />
+                  <Stack.Screen name="museum/[museumId]" options={ScrollTitleHeader} />
+                  <Stack.Screen name="museums" options={{ ...LargeTitleHeader, title: "Museums near you" }} />
                   <Stack.Screen
-                    name="now-playing"
-                    dangerouslySingular
-                    options={{
-                      presentation: "modal",
-                      headerShown: false,
-                      contentStyle: { backgroundColor: Gallery.paper },
-                    }}
+                    name="friends-want-to-see"
+                    options={{ ...LargeTitleHeader, title: "Friends want to see" }}
                   />
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={({ route }) => ({
-                      headerShown: false,
-                      title: TabTitles[getFocusedRouteNameFromRoute(route) ?? "(home)"],
-                    })}
-                  />
-                  <Stack.Screen
-                    name="result/[scanId]"
-                    options={({ route }) => ({
-                      title: "",
-                      animation:
-                        reduced || (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                          ? "fade"
-                          : "default",
-                    })}
-                    listeners={({ navigation, route }) => ({
-                      transitionEnd: ({ data }) => {
-                        if (
-                          !data.closing
-                          && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                        ) {
-                          navigation.setParams({ entrance: undefined });
-                        }
-                      },
-                    })}
-                  />
-                  <Stack.Screen name="all-artworks" options={{ ...LargeTitleHeader, title: "All Artworks" }} />
-                  <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
-                  <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
-                  <Stack.Screen
-                    name="sign-in"
-                    dangerouslySingular
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="welcome"
-                    options={{
-                      presentation: "fullScreenModal",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen name="settings-detail" options={{ ...TransparentHeader, title: "Settings" }} />
-                  <Stack.Screen name="settings" options={{ ...LargeTitleHeader, title: "Settings" }} />
-                  <Stack.Screen name="widgets" options={{ ...LargeTitleHeader, title: "Widgets" }} />
-                  <Stack.Screen name="saved/[savedId]" options={ScrollTitleHeader} />
-                  <Stack.Screen name="wall-display" options={ScrollTitleHeader} />
-                  <Stack.Screen
-                    name="journal/[visitId]"
-                    options={{ ...LargeTitleHeader, ...groupedScreen, title: "Visit Details" }}
-                  />
-                  <Stack.Screen name="adjust-crop" options={{ title: "Adjust Crop", gestureEnabled: false }} />
-                  <Stack.Screen name="photo-details" options={{ ...TransparentHeader, title: "Photo Details" }} />
-                  <Stack.Screen name="identify-artwork" options={{ ...TransparentHeader, title: "Artwork Details" }} />
-                  <Stack.Screen name="add-photos" options={TransparentHeader} />
-                  <Stack.Screen name="leaderboards" options={{ ...LargeTitleHeader, title: "Leaderboards" }} />
-                  <Stack.Protected guard={__DEV__}>
-                    <Stack.Screen name="exhibitions" options={{ ...LargeTitleHeader, title: "Exhibitions" }} />
-                    <Stack.Screen name="exhibition/[exhibitionId]" options={ScrollTitleHeader} />
-                    <Stack.Screen name="museum/[museumId]" options={ScrollTitleHeader} />
-                    <Stack.Screen name="museums" options={{ ...LargeTitleHeader, title: "Museums near you" }} />
-                    <Stack.Screen
-                      name="friends-want-to-see"
-                      options={{ ...LargeTitleHeader, title: "Friends want to see" }}
-                    />
-                    <Stack.Screen name="want-to-see" options={{ ...LargeTitleHeader, title: "Want to see" }} />
-                    <Stack.Screen name="explore-map" options={TransparentHeader} />
-                  </Stack.Protected>
-                  <Stack.Screen name="people" options={{ ...LargeTitleHeader, ...groupedScreen, title: "Friends" }} />
-                  <Stack.Screen
-                    name="blocked-people"
-                    options={{ ...TransparentHeader, ...groupedScreen, title: "Blocked People" }}
-                  />
-                  <Stack.Screen name="notifications" options={{ ...LargeTitleHeader, title: "Notifications" }} />
-                  <Stack.Screen name="profile/[profileId]" options={ScrollTitleHeader} />
-                  <Stack.Screen
-                    name="profile-friends"
-                    options={{ ...TransparentHeader, ...groupedScreen, title: "Friends" }}
-                  />
-                  <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
-                  <Stack.Screen name="tag/[tag]" options={LargeTitleHeader} />
-                  <Stack.Screen name="catalog/[artworkId]" options={{ title: "" }} />
-                  <Stack.Screen name="artist/[artistId]" options={ScrollTitleHeader} />
-                  <Stack.Screen
-                    name="search-artworks"
-                    options={{ ...LargeTitleHeader, ...groupedScreen, title: "Artworks" }}
-                  />
-                  <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
-                  <Stack.Screen
-                    name="share-profile"
-                    options={{ ...TransparentHeader, ...groupedScreen, title: "Share Profile" }}
-                  />
-                  <Stack.Screen
-                    name="create-profile"
-                    options={{
-                      presentation: "fullScreenModal",
-                      headerShown: false,
-                      gestureEnabled: false,
-                    }}
-                  />
-                  <Stack.Screen name="artwork" options={ScrollTitleHeader} />
-                  <Stack.Screen
-                    name="visit-create"
-                    options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Add Visit" }}
-                  />
-                  <Stack.Screen name="capture-context" options={{ ...TransparentHeader, ...groupedScreen }} />
-                  <Stack.Screen name="link-artwork" options={{ ...TransparentHeader, ...groupedScreen }} />
-                  <Stack.Screen
-                    name="visit-museum"
-                    options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Change Museum" }}
-                  />
-                  <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="visit-globe"
-                    options={{
-                      presentation: "modal",
-                      ...TransparentHeader,
-                      title: "Visited Museums",
-                      headerTintColor: Gallery.accent,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="venue-picker"
-                    dangerouslySingular
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                      ...groupedScreen,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="visit-add"
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                      ...groupedScreen,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="dont-miss"
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="visit-wrap-up"
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="turn-on-notifications"
-                    dangerouslySingular
-                    // App Review (5.1.1(iv)): a pre-prompt must not be closable before the iPhone prompt appears.
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      gestureEnabled: false,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="send-feedback"
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="report"
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                      ...groupedScreen,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="queue"
-                    dangerouslySingular
-                    options={{
-                      presentation: "formSheet",
-                      sheetAllowedDetents: "fitToContents",
-                      sheetGrabberVisible: true,
-                      headerShown: false,
-                    }}
-                  />
-                </Stack>
-                <NotificationResponder />
-              </ListeningRoot>
+                  <Stack.Screen name="want-to-see" options={{ ...LargeTitleHeader, title: "Want to see" }} />
+                  <Stack.Screen name="explore-map" options={TransparentHeader} />
+                </Stack.Protected>
+                <Stack.Screen name="people" options={{ ...LargeTitleHeader, ...groupedScreen, title: "Friends" }} />
+                <Stack.Screen
+                  name="blocked-people"
+                  options={{ ...TransparentHeader, ...groupedScreen, title: "Blocked People" }}
+                />
+                <Stack.Screen name="notifications" options={{ ...LargeTitleHeader, title: "Notifications" }} />
+                <Stack.Screen name="profile/[profileId]" options={ScrollTitleHeader} />
+                <Stack.Screen
+                  name="profile-friends"
+                  options={{ ...TransparentHeader, ...groupedScreen, title: "Friends" }}
+                />
+                <Stack.Screen name="visit/[postId]" options={{ ...TransparentHeader, title: "Post" }} />
+                <Stack.Screen name="tag/[tag]" options={LargeTitleHeader} />
+                <Stack.Screen name="catalog/[artworkId]" options={{ title: "" }} />
+                <Stack.Screen name="artist/[artistId]" options={ScrollTitleHeader} />
+                <Stack.Screen
+                  name="search-artworks"
+                  options={{ ...LargeTitleHeader, ...groupedScreen, title: "Artworks" }}
+                />
+                <Stack.Screen name="edit-profile" options={{ ...visitSheet, title: "Edit Profile" }} />
+                <Stack.Screen
+                  name="share-profile"
+                  options={{ ...TransparentHeader, ...groupedScreen, title: "Share Profile" }}
+                />
+                <Stack.Screen
+                  name="create-profile"
+                  options={{
+                    presentation: "fullScreenModal",
+                    headerShown: false,
+                    gestureEnabled: false,
+                  }}
+                />
+                <Stack.Screen name="artwork" options={ScrollTitleHeader} />
+                <Stack.Screen
+                  name="visit-create"
+                  options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Add Visit" }}
+                />
+                <Stack.Screen name="capture-context" options={{ ...TransparentHeader, ...groupedScreen }} />
+                <Stack.Screen name="link-artwork" options={{ ...TransparentHeader, ...groupedScreen }} />
+                <Stack.Screen
+                  name="visit-museum"
+                  options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Change Museum" }}
+                />
+                <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="visit-globe"
+                  options={{
+                    presentation: "modal",
+                    ...TransparentHeader,
+                    title: "Visited Museums",
+                    headerTintColor: Gallery.accent,
+                  }}
+                />
+                <Stack.Screen
+                  name="venue-picker"
+                  dangerouslySingular
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                    ...groupedScreen,
+                  }}
+                />
+                <Stack.Screen
+                  name="visit-add"
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                    ...groupedScreen,
+                  }}
+                />
+                <Stack.Screen
+                  name="dont-miss"
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="visit-wrap-up"
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="turn-on-notifications"
+                  dangerouslySingular
+                  // App Review (5.1.1(iv)): a pre-prompt must not be closable before the iPhone prompt appears.
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    gestureEnabled: false,
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="send-feedback"
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="report"
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                    ...groupedScreen,
+                  }}
+                />
+                <Stack.Screen
+                  name="queue"
+                  dangerouslySingular
+                  options={{
+                    presentation: "formSheet",
+                    sheetAllowedDetents: "fitToContents",
+                    sheetGrabberVisible: true,
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <NotificationResponder />
             </ListeningProvider>
             <ToastLayer>
               <RemovalToast />
