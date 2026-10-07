@@ -50,7 +50,11 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
-jest.mock("expo-haptics", () => ({ impactAsync: async () => {}, ImpactFeedbackStyle: { Medium: "medium" } }));
+const mockImpact = jest.fn(async (_style: string) => {});
+jest.mock("expo-haptics", () => ({
+  impactAsync: (style: string) => mockImpact(style),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+}));
 const mockCopy = jest.fn();
 jest.mock("expo-clipboard", () => ({ setStringAsync: (text: string) => mockCopy(text) }));
 const mockBlock = jest.fn();
@@ -78,7 +82,7 @@ beforeEach(() => {
   mockMutate.mockResolvedValue("new-comment");
 });
 
-it("shows the liked state and submits only one unlike while a request is pending", async () => {
+it("shows an unlike at once, silently, and submits only one while it is pending", async () => {
   let resolve!: () => void;
   mockMutate.mockImplementation(
     () =>
@@ -88,8 +92,7 @@ it("shows the liked state and submits only one unlike while a request is pending
   );
   await render(<VisitReactions visit={visit} />);
   expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
-  const unlike = screen.getByRole("button", { name: "Unlike visit" });
-  expect(screen.getByRole("button", { name: "Unlike visit", selected: true })).toBeOnTheScreen();
+  const unlike = screen.getByRole("button", { name: "Unlike visit", selected: true });
   await fireEvent.press(unlike);
   await fireEvent.press(unlike);
   expect(mockMutate).toHaveBeenCalledTimes(1);
@@ -97,8 +100,34 @@ it("shows the liked state and submits only one unlike while a request is pending
     postId: "visit-a",
     liked: false,
   });
-  expect(screen.getByRole("button", { name: "Unlike visit", busy: true })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Like visit", selected: false, busy: true, value: { text: "12 likes" } }),
+  ).toBeDisabled();
+  expect(screen.getByText("12 people like this")).toBeOnTheScreen();
+  expect(mockImpact).not.toHaveBeenCalled();
   await act(() => resolve());
+});
+
+it("fills the heart with one light haptic as soon as a visit is liked", async () => {
+  mockSummary = { ...mockSummary, likeCount: 12, liked: false };
+  let resolve!: () => void;
+  mockMutate.mockImplementation(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+  );
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Like visit", selected: false }));
+  expect(
+    screen.getByRole("button", { name: "Unlike visit", selected: true, value: { text: "13 likes" } }),
+  ).toBeDisabled();
+  expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
+  expect(mockImpact).toHaveBeenCalledTimes(1);
+  expect(mockImpact).toHaveBeenCalledWith("light");
+  await act(() => resolve());
+  // The mocked summary never receives the saved like, so the heart falls back to the server's state.
+  expect(screen.getByRole("button", { name: "Like visit", selected: false })).toBeEnabled();
 });
 
 it("keeps the like state and exposes retry after a failed write", async () => {
@@ -185,7 +214,12 @@ it("closes the likes sheet before opening a liker’s profile", async () => {
 it("previews the newest comment under the visit and opens the sheet from it", async () => {
   mockSummary = {
     ...mockSummary,
-    latestComment: { commentId: "newest" as never, authorName: "Jules Morgan", body: "Beautiful light.", mentions: [] },
+    latestComment: {
+      commentId: "newest" as never,
+      author: { profileId: "friend" as never, name: "Jules Morgan" },
+      body: "Beautiful light.",
+      mentions: [],
+    },
   };
   const view = await render(<VisitReactions visit={visit} />);
   expect(screen.getByText("View all 2 comments")).toBeOnTheScreen();
@@ -198,6 +232,28 @@ it("previews the newest comment under the visit and opens the sheet from it", as
   await view.rerender(<VisitReactions visit={visit} />);
   expect(screen.queryByText(/View all/)).toBeNull();
   expect(screen.getByRole("button", { name: "Open comment from Jules Morgan: Beautiful light." })).toBeOnTheScreen();
+});
+
+it("opens the previewed comment author’s profile, by touch or with VoiceOver", async () => {
+  mockSummary = {
+    ...mockSummary,
+    latestComment: {
+      commentId: "newest" as never,
+      author: { profileId: "friend" as never, name: "Jules Morgan" },
+      body: "Beautiful light.",
+      mentions: [],
+    },
+  };
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("link", { name: "Jules Morgan" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "friend" } });
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+
+  mockPush.mockClear();
+  const preview = screen.getByRole("button", { name: /Latest from Jules Morgan/ });
+  expect(preview.props.accessibilityActions).toEqual([{ name: "profile", label: "View Jules Morgan’s profile" }]);
+  await fireEvent(preview, "accessibilityAction", { nativeEvent: { actionName: "profile" } });
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "friend" } });
 });
 
 it("shows a comment heart at once while its write is in flight", async () => {
@@ -223,6 +279,8 @@ it("shows a comment heart at once while its write is in flight", async () => {
     value: { text: "3 likes" },
   });
   expect(pending).toBeDisabled();
+  expect(mockImpact).toHaveBeenCalledTimes(1);
+  expect(mockImpact).toHaveBeenCalledWith("light");
   await act(() => resolve());
   // The mocked list never receives the saved like, so the heart falls back to the server's state.
   expect(
@@ -296,6 +354,7 @@ it("gives VoiceOver the same comment actions and shows a failed block inside the
     { name: "copy", label: "Copy comment" },
     { name: "report", label: "Report comment" },
     { name: "block", label: "Block Jules Morgan" },
+    { name: "profile", label: "View Jules Morgan’s profile" },
   ]);
   await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "block" } });
   expect(mockBlock).toHaveBeenCalledWith(theirs);
@@ -311,7 +370,7 @@ it("opens a tag from the comment preview", async () => {
     ...mockSummary,
     latestComment: {
       commentId: "newest" as never,
-      authorName: "Jules Morgan",
+      author: { profileId: "friend" as never, name: "Jules Morgan" },
       body: "Saving this for #SketchSunday",
       mentions: [],
     },
@@ -438,10 +497,28 @@ it("links handles the comment resolved and closes the sheet before opening the p
     ]),
   ];
   await render(<VisitReactions visit={visit} openComments />);
-  expect(screen.getAllByRole("link").map((link) => link.props.children)).toEqual(["@maya"]);
+  expect(screen.getAllByRole("link").map((link) => link.props.children)).toEqual(["Jules Morgan", "@maya"]);
   await fireEvent.press(screen.getByRole("link", { name: "@maya" }));
   expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "maya-id" } });
+});
+
+it.each([
+  ["name", () => fireEvent.press(screen.getByRole("link", { name: "Jules Morgan" }))],
+  ["photo", () => fireEvent.press(screen.getByText("JM", { includeHiddenElements: true }))],
+  [
+    "VoiceOver action",
+    () =>
+      fireEvent(screen.getByLabelText(/Found it\.$/), "accessibilityAction", {
+        nativeEvent: { actionName: "profile" },
+      }),
+  ],
+])("closes the comments before opening a commenter’s profile from their %s", async (_, open) => {
+  mockComments = [comment("theirs", "Found it.", theirs)];
+  await render(<VisitReactions visit={visit} openComments />);
+  await open();
+  expect(screen.queryByRole("header", { name: "Comments 2" })).toBeNull();
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "friend" } });
 });
 
 it("suggests people for a typed handle and completes the chosen one", async () => {

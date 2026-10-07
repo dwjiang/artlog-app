@@ -13,6 +13,7 @@ import { api } from "../../../convex/_generated/api";
 import { PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
+import { VisitSeparator } from "./visit-separator";
 
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
@@ -55,6 +56,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
         contentInsetAdjustmentBehavior="automatic"
         data={ready && !unavailable ? feed.items : []}
         keyExtractor={visitId}
+        ItemSeparatorComponent={VisitSeparator}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         renderItem={({ item }) => (

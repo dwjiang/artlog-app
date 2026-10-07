@@ -5,6 +5,7 @@ import { ListRow } from "@/components/list-row";
 import type { PublicProfile } from "@/lib/social/types";
 
 import { ProfileAvatar } from "./profile-avatar";
+import { profileHref } from "./tagged-text";
 
 /** A person in a grouped list. Tapping the row opens their profile unless it is not `interactive`. */
 export function ProfileRow({
@@ -43,7 +44,7 @@ export function ProfileRow({
         interactive
           ? () => {
               onOpen?.();
-              router.push({ pathname: "/profile/[profileId]", params: { profileId: profile.profileId } });
+              router.push(profileHref(profile.profileId));
             }
           : undefined
       }

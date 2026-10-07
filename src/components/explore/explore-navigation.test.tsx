@@ -8,9 +8,8 @@ import RootLayout, { unstable_settings } from "@/app/_layout";
 jest.mock("@/lib/audio/listening-provider", () => ({
   ListeningProvider: ({ children }: { children: import("react").ReactNode }) => children,
 }));
-jest.mock("@/components/audio/listening-root", () => ({
-  ListeningRoot: ({ children }: { children: import("react").ReactNode }) => children,
-  DockedPlayerInsets: ({ children }: PropsWithChildren) => children,
+jest.mock("@/components/audio/docked-player", () => ({
+  DockedPlayerLayout: ({ children }: PropsWithChildren) => children,
 }));
 jest.mock("@/lib/use-app-compatibility", () => ({
   useAppCompatibility: () => ({ loading: false, updateRequired: false }),

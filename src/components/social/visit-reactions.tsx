@@ -8,6 +8,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { withPendingLike } from "@/lib/social/presentation";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
@@ -15,8 +16,9 @@ import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
+import { LikeHeart, playLikeHaptic } from "./like-heart";
 import { ReactionIcon } from "./reaction-icon";
-import { TaggedText } from "./tagged-text";
+import { profileHref, TaggedText, TextLink } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
 export type ReactionVisit = Pick<SharedVisit, "postId">;
@@ -43,7 +45,7 @@ function LiveReactions({
   const summary = useSocialQuery(api.visitReactions.getSummary, ready ? { postId: visit.postId } : "skip", session.key);
   const setLike = useMutation(api.visitReactions.setLike);
   const [sheet, setSheet] = useState<"comments" | "likes" | null>(openComments ? "comments" : null);
-  const [busy, setBusy] = useState(false);
+  const [likeTarget, setLikeTarget] = useState<boolean>();
   const pending = useRef(false);
   const join = () => {
     setSheet(null);
@@ -55,22 +57,24 @@ function LiveReactions({
       return;
     }
     if (!summary.data || session.status !== "ready" || pending.current) return;
+    const liked = !summary.data.liked;
     pending.current = true;
-    setBusy(true);
+    setLikeTarget(liked);
+    if (liked) playLikeHaptic();
     try {
-      await setLike({ postId: visit.postId, liked: !summary.data.liked });
+      await setLike({ postId: visit.postId, liked });
     } catch (cause) {
       showErrorToast(socialErrorMessage(cause) ?? "Couldn’t update your like.", () => void like());
     } finally {
       pending.current = false;
-      setBusy(false);
+      setLikeTarget(undefined);
     }
   };
   return (
     <>
       <VisitReactionRow
-        summary={summary.data}
-        busy={busy}
+        summary={summary.data && withPendingLike(summary.data, likeTarget)}
+        busy={likeTarget !== undefined}
         disabled={!ready || !summary.data}
         onLike={() => void like()}
         onComments={() => setSheet("comments")}
@@ -117,6 +121,7 @@ export function VisitReactionRow({
   onComments: () => void;
   onLikes: () => void;
 }) {
+  const router = useRouter();
   const liked = summary?.liked ?? false;
   const count = summary?.likeCount ?? 0;
   const others = count - 1;
@@ -124,7 +129,7 @@ export function VisitReactionRow({
   const viewAll = summary && summary.commentCount > 1 ? `View all ${summary.commentCount} comments` : undefined;
   return (
     <View>
-      <View style={styles.row}>
+      <View pointerEvents="box-none" style={styles.row}>
         <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike visit" : "Like visit"}
@@ -140,7 +145,7 @@ export function VisitReactionRow({
           onPress={onLike}
           style={styles.reaction}
         >
-          <ReactionIcon kind="heart" filled={liked} />
+          <LikeHeart liked={summary?.liked} />
           <Text style={[styles.count, liked && { color: Gallery.accent }]}>{summary ? count : "–"}</Text>
         </MotionPressable>
         <MotionPressable
@@ -194,7 +199,9 @@ export function VisitReactionRow({
       {latest && (
         <MotionPressable
           accessibilityRole="button"
-          accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.authorName}: ${latest.body}`}
+          accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.author.name}: ${latest.body}`}
+          accessibilityActions={[{ name: "profile", label: `View ${latest.author.name}’s profile` }]}
+          onAccessibilityAction={() => router.push(profileHref(latest.author.profileId))}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onComments}
@@ -202,7 +209,9 @@ export function VisitReactionRow({
           hitSlop={{ bottom: 16 }}
         >
           <Text numberOfLines={2} style={styles.latestText}>
-            <Text style={styles.strong}>{latest.authorName}</Text>{" "}
+            <TextLink href={profileHref(latest.author.profileId)} style={styles.strong}>
+              {latest.author.name}
+            </TextLink>{" "}
             <TaggedText mentions={latest.mentions}>{latest.body}</TaggedText>
           </Text>
           {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
@@ -213,17 +222,20 @@ export function VisitReactionRow({
 }
 
 const styles = StyleSheet.create({
+  // The 44-point targets overlap the content above and the like summary below so the icons sit close to both.
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     minHeight: 44,
+    marginTop: -3,
+    marginBottom: -6,
+    zIndex: 1,
     flexWrap: "wrap",
   },
   reaction: {
     minWidth: 44,
     minHeight: 44,
-    paddingTop: 4,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,

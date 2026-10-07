@@ -30,6 +30,7 @@ import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { SuggestionList, SuggestionStrip } from "./suggested-people";
 import { VisitCard } from "./visit-card";
+import { VisitSeparator } from "./visit-separator";
 
 // Suggestions sit above the Friends feed only until there are enough friends for the feed to carry the screen.
 const STRIP_FRIEND_LIMIT = 5;
@@ -128,6 +129,7 @@ export function HomeScreen() {
         }}
         data={canBrowse ? feed.items : []}
         keyExtractor={visitId}
+        ItemSeparatorComponent={VisitSeparator}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         renderItem={({ item }) => (

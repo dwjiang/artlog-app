@@ -27,6 +27,7 @@ import { VisitSymbol } from "@/components/visits/visit-ui";
 import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
+import { withPendingLike } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
@@ -38,12 +39,12 @@ import { extractHashtags } from "@/shared/social/hashtags";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
+import { LikeHeart, playLikeHaptic } from "./like-heart";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
-import { ReactionIcon } from "./reaction-icon";
 import { useRichTextInput } from "./rich-text-input";
 import { PageFooter } from "./social-state";
-import { profileHref, TaggedText, tagHref } from "./tagged-text";
+import { profileHref, TaggedText, tagHref, TextLink } from "./tagged-text";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
 
 type CommentPage = FunctionReturnType<typeof api.visitReactions.listComments>;
@@ -209,7 +210,6 @@ function Comments({
   const [error, setError] = useState<string>();
   const [menuFor, setMenuFor] = useState<string>();
   const [composerHeight, setComposerHeight] = useState(0);
-  // The heart shows the requested state until the write settles, so a tap answers at once and a failure falls back.
   const likeRequests = useRef(new Map<string, boolean>());
   const [likeTargets, setLikeTargets] = useState<ReadonlyMap<string, boolean>>(new Map());
   const { canLoadMore, loadMore } = comments;
@@ -285,6 +285,7 @@ function Comments({
     if (session.status !== "ready" || likeRequests.current.has(item.commentId)) return;
     likeRequests.current.set(item.commentId, !item.liked);
     setLikeTargets(new Map(likeRequests.current));
+    if (!item.liked) playLikeHaptic();
     try {
       await setCommentLike({ postId: visit.postId, commentId: item.commentId, liked: !item.liked });
     } catch (cause) {
@@ -365,9 +366,14 @@ function Comments({
               ? formatRelativeTime(item.createdAt, now)
               : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.createdAt);
           const actions = actionsFor(item);
+          const openAuthor = () => {
+            onDismiss();
+            router.push(profileHref(item.author.profileId));
+          };
           // VoiceOver reads the comment as one element, so each link is also one of its actions.
           const spoken = [
             ...actions,
+            { name: "profile", label: `View ${item.author.name}’s profile`, run: openAuthor },
             ...extractHashtags(item.body).map((tag) => ({
               name: `tag:${tag}`,
               label: `Open #${tag}`,
@@ -386,8 +392,7 @@ function Comments({
             })),
           ];
           const target = likeTargets.get(item.commentId);
-          const liked = target ?? item.liked;
-          const likeCount = item.likeCount + (target === undefined || target === item.liked ? 0 : target ? 1 : -1);
+          const { liked, likeCount } = withPendingLike(item, target);
           return (
             <View
               style={[
@@ -406,15 +411,19 @@ function Comments({
                 onLongPress={() => showActions(item)}
                 style={styles.commentContent}
               >
-                <ProfileAvatar
-                  name={item.author.name}
-                  photoUrl={item.author.photoUrl}
-                  avatar={item.author.avatar}
-                  size={28}
-                />
+                <MotionPressable accessible={false} onPress={openAuthor}>
+                  <ProfileAvatar
+                    name={item.author.name}
+                    photoUrl={item.author.photoUrl}
+                    avatar={item.author.avatar}
+                    size={28}
+                  />
+                </MotionPressable>
                 <View style={{ flex: 1 }}>
                   <View style={styles.byline}>
-                    <Text style={styles.name}>{item.author.name}</Text>
+                    <TextLink href={profileHref(item.author.profileId)} onOpen={onDismiss} style={styles.name}>
+                      {item.author.name}
+                    </TextLink>
                     {item.isAuthor && <Text style={styles.author}>Author</Text>}
                     <Text style={styles.meta}>{time}</Text>
                   </View>
@@ -446,7 +455,7 @@ function Comments({
                 onPress={() => void toggleLike(item)}
                 style={styles.commentLike}
               >
-                <ReactionIcon kind="heart" filled={liked} size={16} color={Gallery.muted} />
+                <LikeHeart liked={liked} size={16} color={Gallery.muted} />
                 {likeCount > 0 && (
                   <Text style={[styles.likeCount, liked && { color: Gallery.accent }]}>{likeCount}</Text>
                 )}

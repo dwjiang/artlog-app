@@ -23,7 +23,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { PageFooter } from "./social-state";
-import { TaggedText } from "./tagged-text";
+import { profileHref, TaggedText } from "./tagged-text";
 import { VisitReactions } from "./visit-reactions";
 import { WentWithLine } from "./went-with-line";
 
@@ -106,11 +106,7 @@ export function VisitCard({
   const leaveVisit = useMutation(api.visitCompanions.leave);
   const { author, venue, visitedOn, audience, companions } = visit;
   const hasArtworks = visit.artworks.page.length > 0 || hasMoreArtworks(visit);
-  const openProfile = () =>
-    router.push({
-      pathname: "/profile/[profileId]",
-      params: { profileId: author.profileId },
-    });
+  const openProfile = () => router.push(profileHref(author.profileId));
   const others = author.profileId !== viewerProfileId;
   const leave = () =>
     leaveVisit({ postId: visit.postId }).then(
@@ -179,15 +175,15 @@ export function VisitCard({
       {companions.length > 0 && (
         <WentWithLine people={companions} style={[styles.wentWith, fontScale > 1.4 && { marginLeft: 0 }]} />
       )}
+      {!!visit.reflection && (
+        <TaggedText selectable mentions={visit.mentions} style={[styles.notes, hasArtworks && { marginBottom: 8 }]}>
+          {visit.reflection}
+        </TaggedText>
+      )}
       {hasArtworks && (
         <View style={styles.art}>
           <VisitArt visit={visit} token={token} />
         </View>
-      )}
-      {!!visit.reflection && (
-        <TaggedText selectable mentions={visit.mentions} style={[styles.notes, hasArtworks && { marginTop: 12 }]}>
-          {visit.reflection}
-        </TaggedText>
       )}
       <VisitReactions visit={visit} openComments={openComments} />
     </View>
@@ -196,11 +192,9 @@ export function VisitCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 20,
+    paddingHorizontal: 20,
     paddingTop: 19,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Gallery.softBorder,
   },
   feedHeading: {
     flexDirection: "row",
