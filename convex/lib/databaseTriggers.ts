@@ -2,6 +2,7 @@ import { Triggers } from "convex-helpers/server/triggers";
 
 import type { DataModel } from "../_generated/dataModel";
 import { registerArtists } from "./artists";
+import { registerDemoPhotoCleanup } from "./demoPhotos";
 import { registerFileReferences } from "./fileReferences";
 import { registerNotifications } from "./notifications";
 import { registerPostTags } from "./postTags";
@@ -17,6 +18,7 @@ registerCommentLikeCleanup(databaseTriggers);
 registerPostTags(databaseTriggers);
 registerVisitCompanions(databaseTriggers);
 registerArtists(databaseTriggers);
+registerDemoPhotoCleanup(databaseTriggers);
 
 databaseTriggers.register("attestChallenges", async (ctx, { newDoc, operation }) => {
   if (operation === "insert") {

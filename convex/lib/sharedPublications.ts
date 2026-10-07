@@ -20,7 +20,7 @@ import { ownedAlbumPhoto, selectedPhotoMedia } from "./albumMedia";
 import { resolveDisplayAsset } from "./displayMedia";
 import { linkedMentions } from "./mentions";
 import { findOwnedVisit, requireMembership, requireOwnedSave } from "./ownership";
-import { matchesRecord, projectProfile, projectSharedVisitCard } from "./projections";
+import { matchesRecord, projectProfile, projectSharedVisitCard, recordTitles } from "./projections";
 import { visibleCompanions } from "./visitCompanions";
 
 export const publicationHeader = v.object({
@@ -117,6 +117,15 @@ export function publicationItems(ctx: QueryCtx, publicationId: Id<"sharedVisits"
     .query("sharedVisitItems")
     .withIndex("by_publication_position", (q) => q.eq("publicationId", publicationId))
     .take(LIMITS.selectedSaves + 1);
+}
+/** The catalog titles of a post's works, which moderation reads as "the artwork". */
+export async function publicationRecordTitles(ctx: QueryCtx, publicationId: Id<"sharedVisits">) {
+  const saves = [];
+  for (const item of await publicationItems(ctx, publicationId)) {
+    const save = await ctx.db.get("collections", item.saveId);
+    if (save) saves.push(save);
+  }
+  return recordTitles(ctx, saves);
 }
 export async function header(
   ctx: QueryCtx,

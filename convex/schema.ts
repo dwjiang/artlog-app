@@ -82,6 +82,13 @@ export default defineSchema({
     deleteAttempts: v.number(),
   }).index("by_expiresAt", ["expiresAt"]),
 
+  // Photos the demo bot uploaded for a post it has yet to publish, with the size its re-encode produced.
+  demoPhotos: defineTable({
+    fileId: v.id("files"),
+    width: v.number(),
+    height: v.number(),
+  }).index("by_fileId", ["fileId"]),
+
   // Without a claim the row holds only a script, kept for the next render (narrationCache.ts).
   narrationAudio: defineTable({
     artworkId: v.id("artworks"),
@@ -833,7 +840,8 @@ export default defineSchema({
     .index("by_audience_status_history", ["audience", "status", "visitedOn", "postId"])
     .index("by_profile_status_history", ["profileId", "status", "visitedOn", "postId"])
     .index("by_profile_audience_status_history", ["profileId", "audience", "status", "visitedOn", "postId"])
-    .index("by_visitId", ["visitId"]),
+    .index("by_visitId", ["visitId"])
+    .index("by_profile_publishedAt", ["profileId", "publishedAt"]),
   sharedVisitItems: defineTable({
     publicationId: v.id("sharedVisits"),
     saveId: v.id("collections"),
@@ -904,7 +912,9 @@ export default defineSchema({
     mentions: v.optional(v.array(mention)),
   })
     .index("by_publication", ["publicationId"])
-    .index("by_profile_request", ["profileId", "requestId"]),
+    .index("by_profile_request", ["profileId", "requestId"])
+    // Demo activity keys a comment by its submission alone, so a reused submission ID is caught across authors.
+    .index("by_requestId", ["requestId"]),
   commentLikes: defineTable({
     commentId: v.id("visitComments"),
     profileId: v.id("profiles"),

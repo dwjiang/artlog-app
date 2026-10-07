@@ -1,5 +1,7 @@
 import type { Triggers } from "convex-helpers/server/triggers";
+import type { Infer } from "convex/values";
 
+import type { mention } from "../../shared/social/contracts";
 import { internal } from "../_generated/api";
 import type { DataModel, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -32,6 +34,29 @@ export async function changeEngagement(
       [field]: delta,
     });
   }
+}
+
+export async function insertVisitLike(ctx: MutationCtx, publicationId: Id<"sharedVisits">, profileId: Id<"profiles">) {
+  await ctx.db.insert("visitLikes", { publicationId, profileId });
+  await changeEngagement(ctx, publicationId, "likeCount", 1);
+}
+
+export async function insertVisitComment(
+  ctx: MutationCtx,
+  {
+    mentions,
+    ...comment
+  }: {
+    publicationId: Id<"sharedVisits">;
+    profileId: Id<"profiles">;
+    body: string;
+    requestId: string;
+    mentions: Infer<typeof mention>[];
+  },
+) {
+  const id = await ctx.db.insert("visitComments", { ...comment, ...(mentions.length > 0 ? { mentions } : {}) });
+  await changeEngagement(ctx, comment.publicationId, "commentCount", 1);
+  return id;
 }
 
 export function commentLikeCount(ctx: QueryCtx, commentId: Id<"visitComments">) {

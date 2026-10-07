@@ -12,15 +12,17 @@ import { linkedMentions, resolveMentions } from "./lib/mentions";
 import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { optionalProfile, requireProfile } from "./lib/ownership";
-import { projectProfile, recordTitles } from "./lib/projections";
+import { projectProfile } from "./lib/projections";
 import { requireSharedVisit } from "./lib/publicationAccess";
 import { limitKey } from "./lib/rateLimits";
-import { publicationItems } from "./lib/sharedPublications";
+import { publicationRecordTitles } from "./lib/sharedPublications";
 import {
   changeCommentLikes,
   changeEngagement,
   commentLikeCount,
   engagement,
+  insertVisitComment,
+  insertVisitLike,
   visibleParticipant,
 } from "./lib/visitReactions";
 
@@ -118,13 +120,10 @@ export const setLike = mutation({
     await limitKey(ctx, "likeVisit", accountId);
     if (current) {
       await ctx.db.delete("visitLikes", current._id);
+      await changeEngagement(ctx, publication._id, "likeCount", -1);
     } else {
-      await ctx.db.insert("visitLikes", {
-        publicationId: publication._id,
-        profileId: profile._id,
-      });
+      await insertVisitLike(ctx, publication._id, profile._id);
     }
-    await changeEngagement(ctx, publication._id, "likeCount", liked ? 1 : -1);
     return null;
   },
 });
@@ -228,12 +227,7 @@ export const prepareComment = internalMutation({
     if (existing) return { commentId: existing._id, titles: [] };
     // Commit the attempt before moderation, so rejected text also consumes the quota.
     await limitKey(ctx, "commentVisit", accountId);
-    const saves = [];
-    for (const item of await publicationItems(ctx, publication._id)) {
-      const save = await ctx.db.get("collections", item.saveId);
-      if (save) saves.push(save);
-    }
-    return { commentId: null, titles: await recordTitles(ctx, saves) };
+    return { commentId: null, titles: await publicationRecordTitles(ctx, publication._id) };
   },
 });
 export const insertComment = internalMutation({
@@ -242,16 +236,13 @@ export const insertComment = internalMutation({
   handler: async (ctx, input) => {
     const { profile, publication, body, existing } = await readCommentRequest(ctx, input);
     if (existing) return existing._id;
-    const mentions = await resolveMentions(ctx, body, profile._id);
-    const id = await ctx.db.insert("visitComments", {
+    return insertVisitComment(ctx, {
       publicationId: publication._id,
       profileId: profile._id,
       body,
       requestId: input.requestId,
-      ...(mentions.length > 0 ? { mentions } : {}),
+      mentions: await resolveMentions(ctx, body, profile._id),
     });
-    await changeEngagement(ctx, publication._id, "commentCount", 1);
-    return id;
   },
 });
 

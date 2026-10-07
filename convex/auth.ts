@@ -1,9 +1,10 @@
 import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials";
-import { convexAuth, createAccount, getAuthUserId } from "@convex-dev/auth/server";
+import { convexAuth, createAccount } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 
 import { internal } from "./_generated/api";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
+import { authUserId } from "./lib/auth";
 import { verifyGoogleIdentityToken } from "./lib/googleToken";
 import type { AccountProvider } from "./lib/validators";
 
@@ -66,7 +67,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   callbacks: {
     createOrUpdateUser: async (ctx, args) => {
       if (args.provider.id === "apple-native" || args.provider.id === "google-native") {
-        const current = await getAuthUserId(ctx);
+        const current = await authUserId(ctx);
         if (!current) throw new ConvexError({ code: "unauthenticated" });
         return current;
       }
