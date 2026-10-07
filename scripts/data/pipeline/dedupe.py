@@ -22,8 +22,11 @@ log = logging.getLogger(__name__)
 EMBEDDING_MERGE_COSINE = 0.93
 
 
+MUSEUM_SOURCES = {"met", "aic", "cma", "fng"}
+
+
 def priority(key: str) -> tuple[bool, str]:
-    return (key.split(":", 1)[0] not in {"met", "aic"}, key)
+    return (key.split(":", 1)[0] not in MUSEUM_SOURCES, key)
 
 
 def accession(value: str | None) -> str:
@@ -37,13 +40,26 @@ def artist(value: str) -> str:
     return "" if any(name.strip() in unknown for name in normalized.split(";")) else normalized
 
 
-def find_merges(objects: list[dict], vectors: dict, artists: dict, *, block_size=1024):
-    parents = {row["key"]: row["key"] for row in objects}
-    sources = {row["key"]: {row["key"].split(":", 1)[0]} for row in objects}
-    accessions = {
-        row["key"]: {number} if (number := accession(row.get("accession"))) else set()
-        for row in objects
-    }
+def find_merges(
+    objects: list[dict],
+    vectors: dict,
+    artists: dict,
+    *,
+    block_size=1024,
+    frozen: dict[str, str] | None = None,
+    fresh: set[str] | None = None,
+):
+    """`frozen` maps an imported corpus's objects to their survivors. Those decisions stand: two imported survivors
+    never merge, and an imported survivor outranks any new record merging into it. With `fresh`, only pairs that
+    involve a fresh object are compared."""
+    frozen = frozen or {}
+    fixed = set(frozen.values())
+    parents = {row["key"]: frozen.get(row["key"], row["key"]) for row in objects}
+    sources, accessions = defaultdict(set), defaultdict(set)
+    for row in objects:
+        sources[parents[row["key"]]].add(row["key"].split(":", 1)[0])
+        if number := accession(row.get("accession")):
+            accessions[parents[row["key"]]].add(number)
     rules = {}
 
     def root(key):
@@ -54,14 +70,14 @@ def find_merges(objects: list[dict], vectors: dict, artists: dict, *, block_size
 
     def merge(a, b, rule):
         a, b = root(a), root(b)
-        if a == b:
+        if a == b or (a in fixed and b in fixed):
             return
         # An alias must not bridge distinct source records or conflicting accessions.
         if rule == "embedding" and (
             sources[a] & sources[b] or len(accessions[a] | accessions[b]) > 1
         ):
             return
-        survivor, duplicate = sorted((a, b), key=priority)
+        survivor, duplicate = sorted((a, b), key=lambda key: (key not in fixed, priority(key)))
         parents[duplicate] = survivor
         sources[survivor].update(sources.pop(duplicate))
         accessions[survivor].update(accessions.pop(duplicate))
@@ -83,15 +99,20 @@ def find_merges(objects: list[dict], vectors: dict, artists: dict, *, block_size
         if row.get("ownerKey") and key in vectors and (name := artist(artists.get(key, ""))):
             groups[row["ownerKey"], name].append(key)
     for keys in groups.values():
-        if len(keys) < 2:
+        rows = [i for i, key in enumerate(keys) if fresh is None or key in fresh]
+        if len(keys) < 2 or not rows:
             continue
+        compared = set(rows)
         matrix = np.stack([vectors[key] for key in keys])
-        for start in range(0, len(keys), block_size):
-            for other in range(start, len(keys), 20000):
-                scores = matrix[start : start + block_size] @ matrix[other : other + 20000].T
+        for start in range(0, len(rows), block_size):
+            block = rows[start : start + block_size]
+            for other in range(0, len(keys), 20000):
+                scores = matrix[block] @ matrix[other : other + 20000].T
                 left, right = np.where(scores >= EMBEDDING_MERGE_COSINE)
-                for i, j in zip(left + start, right + other, strict=True):
-                    if i < j:
+                for i, j in zip(left, right + other, strict=True):
+                    i = block[i]
+                    # Each pair once: compared rows meet later compared rows and every other row.
+                    if i != j and (j not in compared or i < j):
                         merge(keys[i], keys[j], "embedding")
     mapping = {key: root(key) for key in sorted(parents)}
     audit = [{"from": key, "into": mapping[key], "rule": rules[key]} for key in sorted(rules)]
@@ -242,14 +263,224 @@ def run(features: Path, metadata: Path, out: Path) -> dict:
     return stats
 
 
+def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> dict:
+    """Dedupes objects an imported package lacks against it and packages only those additions.
+
+    Imported rows are never rewritten: a new object that duplicates an imported one becomes its alias, and its
+    placement and views attach to the imported survivor. `external-references.jsonl` lists the imported rows the
+    additions point at, so an import can check they exist first.
+    """
+    started = time.monotonic()
+    if out.resolve() in {
+        *(base.resolve() for base in bases),
+        features.resolve(),
+        metadata.resolve(),
+    }:
+        raise ValueError("Merged output must be separate from its inputs")
+    base_objects, base_works, base_placements, base_vectors = {}, {}, set(), {}
+    base_descriptors = set()
+    for base in bases:
+        base_stats = json.loads((base / "stats.json").read_text())
+        for name in (
+            "artworks.jsonl",
+            "objects.jsonl",
+            "placements.jsonl",
+            "descriptor-index.jsonl",
+        ):
+            if file_hash(base / name) != base_stats["files"][name]:
+                raise ValueError(f"Base package {name} does not match its stats.json")
+        base_objects |= {row["key"]: row for row in read_jsonl(base / "objects.jsonl")}
+        base_works |= {row["key"]: row for row in read_jsonl(base / "artworks.jsonl")}
+        base_placements |= {
+            (row["objectKey"], row["venueKey"], row["source"])
+            for row in read_jsonl(base / "placements.jsonl")
+        }
+        base_vectors |= Features(base).vectors
+        base_descriptors.update(
+            row["objectKey"] for row in read_jsonl(base / "descriptor-index.jsonl")
+        )
+    frozen = {key: row.get("mergedIntoKey", key) for key, row in base_objects.items()}
+
+    metadata_stats = json.loads((metadata / "stats.json").read_text())
+    artworks = read_jsonl(metadata / "artworks.jsonl")
+    objects = read_jsonl(metadata / "objects.jsonl")
+    placements = read_jsonl(metadata / "placements.jsonl")
+    for name, rows in (("artworks", artworks), ("objects", objects), ("placements", placements)):
+        if len(rows) != metadata_stats[name]:
+            raise ValueError(f"Metadata {name} count disagrees with stats.json")
+    works = {row["key"]: row for row in artworks}
+    by_key = {row["key"]: row for row in objects}
+    if len(works) != len(artworks) or len(by_key) != len(objects):
+        raise ValueError("Duplicate metadata keys")
+    if by_key.keys() & base_objects.keys():
+        raise ValueError("Additions repeat imported objects; build metadata with --exclude-objects")
+    data = Features(features)
+    if data.manifest.get("downloadInputsSha256") != task_fingerprint(
+        iter_tasks(metadata / "objects.jsonl")
+    ):
+        raise ValueError("Feature download inputs do not match metadata; rebuild the features")
+    if set(data.vectors) - by_key.keys():
+        raise ValueError("Feature keys missing from metadata")
+
+    def artist_of(row):
+        work = works.get(row["artworkKey"]) or base_works[row["artworkKey"]]
+        return work["artist"]
+
+    combined = [*base_objects.values(), *objects]
+    mapping, merges = find_merges(
+        combined,
+        {**base_vectors, **data.vectors},
+        {row["key"]: artist_of(row) for row in combined},
+        frozen=frozen,
+        fresh=set(by_key),
+    )
+
+    # Rights reach every artwork an alias links; imported artworks keep theirs, so additions can only lose rights.
+    linked = defaultdict(set)
+    for key, row in by_key.items():
+        target = mapping[key]
+        target_work = (by_key.get(target) or base_objects[target])["artworkKey"]
+        linked[row["artworkKey"]].add(target_work)
+        linked[target_work].add(row["artworkKey"])
+    rights = {key: row["rightsStatus"] for key, row in works.items()}
+    visited = set()
+    for key in linked:
+        if key in visited:
+            continue
+        component, pending = set(), [key]
+        while pending:
+            current = pending.pop()
+            if current not in component:
+                component.add(current)
+                pending.extend(linked[current] - component)
+        visited.update(component)
+        merged_rights = merge_rights(
+            (works.get(work) or base_works[work])["rightsStatus"] for work in component
+        )
+        for work in component & works.keys():
+            rights[work] = merged_rights
+
+    new_works = [
+        {**row, "rightsStatus": rights[row["key"]]}
+        for row in artworks
+        if row["key"] not in base_works
+    ]
+    merged_objects = []
+    for row in sorted(objects, key=lambda row: priority(row["key"])):
+        row = dict(row)
+        # An imported artwork keeps its row, so its rights are the ones a thumbnail answers to.
+        key = row["artworkKey"]
+        if (base_works[key] if key in base_works else {"rightsStatus": rights[key]})[
+            "rightsStatus"
+        ] != "public_domain":
+            row.pop("thumbnailUrl", None)
+        if mapping[row["key"]] != row["key"]:
+            row["mergedIntoKey"] = mapping[row["key"]]
+        merged_objects.append(row)
+    merged_objects.sort(key=lambda row: ("mergedIntoKey" in row, priority(row["key"])))
+
+    merged_placements = {}
+    for row in sorted(
+        placements,
+        key=lambda p: (mapping[p["objectKey"]] != p["objectKey"], priority(p["objectKey"])),
+    ):
+        target = mapping[row["objectKey"]]
+        key = target, row["venueKey"], row["source"]
+        if key not in base_placements:
+            merged_placements.setdefault(key, {**row, "objectKey": target})
+    vector_index = [
+        {"objectKey": mapping[key], "viewKey": key, "source": by_key[key]["source"]}
+        for key in sorted(data.vectors, key=priority)
+    ]
+    descriptor_keys = {}
+    for row in vector_index:
+        if row["objectKey"] not in base_descriptors:
+            descriptor_keys.setdefault(row["objectKey"], row["viewKey"])
+    referenced_objects = {target for key in by_key if (target := mapping[key]) in base_objects} | {
+        key for key, *_ in merged_placements if key in base_objects
+    }
+    referenced_works = {row["artworkKey"] for row in objects if row["artworkKey"] in base_works}
+    external = [{"table": "objects", "key": key} for key in sorted(referenced_objects)] + [
+        {"table": "artworks", "key": key, "rightsStatus": base_works[key]["rightsStatus"]}
+        for key in sorted(referenced_works)
+    ]
+
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "stats.json").unlink(missing_ok=True)
+    for name in data.files:
+        if name != "manifest.json":
+            temporary = out / (name + ".tmp")
+            shutil.copyfile(features / name, temporary)
+            temporary.replace(out / name)
+    write_json(out / "manifest.json", data.manifest)
+    names = ("artworks", "objects", "placements", "merges", "vector-index", "descriptor-index")
+    for name, rows in zip(
+        names,
+        (
+            new_works,
+            merged_objects,
+            [merged_placements[k] for k in sorted(merged_placements)],
+            [row for row in merges if row["from"] in by_key],
+            vector_index,
+            [
+                {"objectKey": key, "viewKey": value}
+                for key, value in sorted(descriptor_keys.items())
+            ],
+        ),
+        strict=True,
+    ):
+        write_jsonl(out / f"{name}.jsonl", rows)
+    write_jsonl(out / "external-references.jsonl", external)
+    planned_images = sum(bool(row.get("imageRef")) for row in objects)
+    shard_size = data.manifest.get("shardSize")
+    expected_shards = math.ceil(planned_images / shard_size) if shard_size else None
+    stats = {
+        "expectedShards": expected_shards,
+        "completeFeatures": data.manifest.get("limit") is None
+        and expected_shards is not None
+        and set(data.manifest["shards"]) == {str(i) for i in range(expected_shards)},
+        "artworks": len(new_works),
+        "objects": len(merged_objects),
+        "placements": len(merged_placements),
+        "vectors": len(vector_index),
+        "descriptors": len(descriptor_keys),
+        "merges": sum(row["from"] in by_key for row in merges),
+        "objectsWithoutFeatures": len(by_key.keys() - data.vectors.keys()),
+        "delta": {
+            "baseStatsSha256": [file_hash(base / "stats.json") for base in bases],
+            "aliasesOfImported": sum(mapping[key] in base_objects for key in by_key),
+            "viewsOfImported": sum(row["objectKey"] in base_objects for row in vector_index),
+            "placementsOnImported": sum(key in base_objects for key, *_ in merged_placements),
+            "externalObjects": len(referenced_objects),
+            "externalArtworks": len(referenced_works),
+        },
+        "seconds": round(time.monotonic() - started, 2),
+    }
+    files = data.files + [f"{name}.jsonl" for name in (*names, "external-references")]
+    stats["files"] = {name: file_hash(out / name) for name in sorted(files)}
+    write_json(out / "stats.json", stats)
+    log.info("Delta dedupe: %s", {k: v for k, v in stats.items() if k != "files"})
+    return stats
+
+
 def main():
     parser = argparse.ArgumentParser(description="Deduplicate within an owner and retain all views")
     parser.add_argument("--features", type=Path, required=True)
     parser.add_argument("--metadata", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument(
+        "--base",
+        type=Path,
+        action="append",
+        help="imported merged package, repeatable; package only the additions to them",
+    )
     args = parser.parse_args()
     setup_logging(get_settings())
-    result = run(args.features, args.metadata, args.out)
+    result = (
+        run_delta(args.base, args.features, args.metadata, args.out)
+        if args.base
+        else run(args.features, args.metadata, args.out)
+    )
     print(json.dumps({k: v for k, v in result.items() if k != "files"}))
 
 

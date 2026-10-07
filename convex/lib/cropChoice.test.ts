@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { bestCropIndex, NESTED_CROP_MIN_GAIN, NESTED_CROP_MIN_SIMILARITY } from "./cropChoice";
+import { bestCropIndex, isNormalizedQuad, NESTED_CROP_MIN_GAIN, NESTED_CROP_MIN_SIMILARITY } from "./cropChoice";
 
 const strong = NESTED_CROP_MIN_SIMILARITY + 0.2;
 
@@ -21,4 +21,18 @@ it("keeps the outer crop when the best nested match is too weak to trust", () =>
 
 it("keeps the outer crop when the nested crop is barely closer", () => {
   expect(bestCropIndex([strong, strong + NESTED_CROP_MIN_GAIN / 2])).toBe(0);
+});
+
+it("accepts only four corners inside the photo", () => {
+  const whole = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  expect(isNormalizedQuad(whole)).toBe(true);
+  expect(isNormalizedQuad(whole.slice(0, 3))).toBe(false);
+  expect(isNormalizedQuad([...whole.slice(0, 3), [0, 1.2]])).toBe(false);
+  expect(isNormalizedQuad([...whole.slice(0, 3), [0, Number.NaN]])).toBe(false);
+  expect(isNormalizedQuad([...whole.slice(0, 3), [0]])).toBe(false);
 });

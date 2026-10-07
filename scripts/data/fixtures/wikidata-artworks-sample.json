@@ -45,6 +45,10 @@
         "location": {
           "type": "uri",
           "value": "http://www.wikidata.org/entity/Q239303"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -79,6 +83,10 @@
         "directAccession": {
           "type": "literal",
           "value": "X2"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -97,6 +105,10 @@
         "collection": {
           "type": "uri",
           "value": "http://www.wikidata.org/entity/Q160236"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -123,6 +135,10 @@
         "death": {
           "type": "literal",
           "value": "1901-01-01T00:00:00Z"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -141,6 +157,10 @@
         "versionOf": {
           "type": "uri",
           "value": "http://www.wikidata.org/entity/Q1"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -167,6 +187,10 @@
         "series": {
           "type": "uri",
           "value": "http://www.wikidata.org/entity/Q100"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
         }
       },
       {
@@ -213,6 +237,82 @@
         "location": {
           "type": "uri",
           "value": "http://www.wikidata.org/entity/Q239303"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q3305213"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q7"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Harbor at dawn"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q11060274"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Harbor.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q71"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Cy Printer"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1890-01-01T00:00:00Z"
+        },
+        "inception": {
+          "type": "literal",
+          "value": "1880-01-01T00:00:00Z"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q160236"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q8"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Modern sketch"
+        },
+        "cls": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q93184"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Sketch.jpg"
+        },
+        "artist": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q81"
+        },
+        "artistLabel": {
+          "type": "literal",
+          "value": "Dee Drawer"
+        },
+        "death": {
+          "type": "literal",
+          "value": "1990-01-01T00:00:00Z"
+        },
+        "collection": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q160236"
         }
       }
     ]

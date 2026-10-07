@@ -3,13 +3,17 @@ import json
 import httpx
 import pytest
 
-from .wikidata_paintings import fetch_paintings
+from .wikidata_artworks import fetch_artworks
 
 
 def binding(qid, **values):
     return {
         key: {"value": value}
-        for key, value in {"item": f"http://www.wikidata.org/entity/{qid}", **values}.items()
+        for key, value in {
+            "item": f"http://www.wikidata.org/entity/{qid}",
+            "cls": "http://www.wikidata.org/entity/Q3305213",
+            **values,
+        }.items()
     }
 
 
@@ -22,12 +26,42 @@ def test_painting_fetch_covers_collections_and_remainder_and_resumes(tmp_path):
             return [binding("Q1", collection="http://www.wikidata.org/entity/Q10"), binding("Q2")]
         return [binding("Q1" if "wd:Q1 " in query else "Q2", image="file.jpg")]
 
-    first = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
-    second = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    first = fetch_artworks(tmp_path, user_agent="test", fetch=fetch)
+    second = fetch_artworks(tmp_path, user_agent="test", fetch=fetch)
     assert first == second
     assert first["complete"] and first["items"] == 2
-    assert len(calls) == 3
+    # A census of paintings and one of other flat works, then one metadata query per slice.
+    assert len(calls) == 4
     assert any("remainder" in path for path in first["files"])
+
+
+def test_existing_painting_census_does_not_hide_flat_works(tmp_path):
+    from .wikidata_artworks import census_queries, metadata_query
+
+    painting = binding("Q1", image="painting.jpg")
+    print_ = binding("Q2", cls="http://www.wikidata.org/entity/Q11060274", image="print.jpg")
+    (tmp_path / "census.json").write_text(json.dumps([painting]))
+    painting_query, flat_query = census_queries(2026)
+    calls = []
+
+    def fetch(query, **kwargs):
+        calls.append(query)
+        if query == painting_query:
+            return [painting]
+        if query == flat_query:
+            return [print_]
+        assert query == metadata_query(["Q1", "Q2"])
+        return [painting, print_]
+
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=fetch, current_year=2026)
+
+    assert result["complete"] and result["censusItems"] == result["items"] == 2
+    assert json.loads((tmp_path / result["files"][0]).read_text())["results"]["bindings"] == [
+        painting,
+        print_,
+    ]
+    assert fetch_artworks(tmp_path, user_agent="test", fetch=fetch, current_year=2026) == result
+    assert calls == [painting_query, flat_query, metadata_query(["Q1", "Q2"])]
 
 
 def test_repeated_slice_timeout_reports_partial_coverage(tmp_path):
@@ -38,7 +72,7 @@ def test_repeated_slice_timeout_reports_partial_coverage(tmp_path):
             return [binding("Q1", death="1901-01-01T00:00:00Z")]
         raise httpx.ReadTimeout("deadline")
 
-    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=fetch)
     assert not result["complete"]
     assert result["missingItems"] == ["Q1"]
     assert "death-1900" in result["failedSlices"][0]["slice"]
@@ -49,7 +83,7 @@ def test_missing_metadata_is_not_silently_counted_as_complete(tmp_path):
     def fetch(query, **kwargs):
         return [binding("Q1")] if "SELECT DISTINCT" in query else []
 
-    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=fetch)
     assert result["missingItems"] == ["Q1"]
     assert not result["complete"]
 
@@ -58,7 +92,7 @@ def test_missing_metadata_is_not_silently_counted_as_complete(tmp_path):
 def test_incomplete_checkpoints_retry_missing_items_and_preserve_fetched_rows(
     tmp_path, initial_items
 ):
-    from .wikidata_paintings import metadata_query
+    from .wikidata_artworks import metadata_query
 
     calls = []
     original = [binding(item, image="original.jpg") for item in initial_items]
@@ -66,7 +100,7 @@ def test_incomplete_checkpoints_retry_missing_items_and_preserve_fetched_rows(
     def first_fetch(query, **kwargs):
         return [binding("Q1"), binding("Q2")] if "SELECT DISTINCT" in query else original
 
-    first = fetch_paintings(tmp_path, user_agent="test", fetch=first_fetch)
+    first = fetch_artworks(tmp_path, user_agent="test", fetch=first_fetch)
     missing = sorted({"Q1", "Q2"} - set(initial_items))
     assert first["missingItems"] == missing
 
@@ -77,13 +111,13 @@ def test_incomplete_checkpoints_retry_missing_items_and_preserve_fetched_rows(
         assert query == metadata_query(missing)
         return recovered
 
-    second = fetch_paintings(tmp_path, user_agent="test", fetch=retry)
+    second = fetch_artworks(tmp_path, user_agent="test", fetch=retry)
     assert second["complete"] and second["items"] == 2
     assert second["missingItems"] == second["failedSlices"] == []
     assert len(second["files"]) == 1
     rows = json.loads((tmp_path / second["files"][0]).read_text())["results"]["bindings"]
     assert rows == original + recovered
-    assert fetch_paintings(tmp_path, user_agent="test", fetch=retry) == second
+    assert fetch_artworks(tmp_path, user_agent="test", fetch=retry) == second
     assert len(calls) == 1
 
 
@@ -91,11 +125,11 @@ def test_incomplete_checkpoints_retry_missing_items_and_preserve_fetched_rows(
 def test_resume_timeouts_preserve_cached_items_and_slice_only_missing_items(
     tmp_path, decade_recovers
 ):
-    from .wikidata_paintings import metadata_query
+    from .wikidata_artworks import metadata_query
 
     original = binding("Q1", image="original.jpg")
     recovered = binding("Q2", image="recovered.jpg")
-    fetch_paintings(
+    fetch_artworks(
         tmp_path,
         user_agent="test",
         fetch=lambda query, **kwargs: (
@@ -115,7 +149,7 @@ def test_resume_timeouts_preserve_cached_items_and_slice_only_missing_items(
             return [recovered]
         raise httpx.ReadTimeout("deadline")
 
-    result = fetch_paintings(tmp_path, user_agent="test", fetch=retry)
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=retry)
     rows = [
         row
         for file in result["files"]
@@ -129,7 +163,7 @@ def test_resume_timeouts_preserve_cached_items_and_slice_only_missing_items(
     if not decade_recovers:
         assert result["failedSlices"][0]["items"] == ["Q2"]
 
-    complete = fetch_paintings(
+    complete = fetch_artworks(
         tmp_path, user_agent="test", fetch=lambda *args, **kwargs: [recovered]
     )
     assert complete["complete"]
@@ -144,10 +178,10 @@ def fixture_records():
     from pathlib import Path
 
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     bindings = json.loads(
-        (Path(__file__).parents[2] / "fixtures/wikidata-paintings-sample.json").read_text()
+        (Path(__file__).parents[2] / "fixtures/wikidata-artworks-sample.json").read_text()
     )["results"]["bindings"]
     owners = OwnerMap({"wikidata:Q160236", "wikidata:Q239303"})
     return list(iter_records(bindings, owners=owners, current_year=2026)), owners
@@ -242,16 +276,15 @@ def test_three_wikidata_records_match_the_ingest_contract():
 
 def test_duplicate_bindings_do_not_duplicate_objects_or_replace_identity_with_series():
     result, _ = fixture_records()
-    assert len(result) == 6
-    artwork, obj, _ = result[-1]
-    assert artwork.wikidataId == "Q6"
+    assert len(result) == 7
+    artwork, obj, _ = next(triple for triple in result if triple[0].wikidataId == "Q6")
     assert artwork.seriesId == "wikidata:Q100"
     assert obj.sourceId == "Q6"
 
 
 def test_multi_owner_accessions_and_locations_are_not_assigned_arbitrarily():
     from ..owner_map import AIC_KEY, MET_KEY, OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -275,7 +308,7 @@ def test_multi_owner_accessions_and_locations_are_not_assigned_arbitrarily():
 
 def test_missing_coauthor_death_never_inherits_the_other_authors_public_domain():
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -296,7 +329,7 @@ def test_missing_coauthor_death_never_inherits_the_other_authors_public_domain()
 
 def test_unknown_value_image_claims_are_excluded_without_becoming_urls():
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [binding("Q1", image="http://www.wikidata.org/.well-known/genid/unknown")]
     assert list(iter_records(source, owners=OwnerMap(set()))) == []
@@ -316,7 +349,7 @@ def test_truncated_json_response_is_recovered_with_decade_slicing(tmp_path):
             raise json.JSONDecodeError("truncated", "{", 1)
         return [binding("Q1", image="file.jpg")]
 
-    result = fetch_paintings(tmp_path, user_agent="test", fetch=fetch)
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=fetch)
     assert result["complete"] is True
     assert len(result["files"]) == 1
     assert "death-1900" in result["files"][0]
@@ -324,7 +357,7 @@ def test_truncated_json_response_is_recovered_with_decade_slicing(tmp_path):
 
 def test_unknown_coauthor_and_coowner_claims_do_not_disappear_during_parsing():
     from ..owner_map import MET_KEY, OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -350,7 +383,7 @@ def test_unknown_coauthor_and_coowner_claims_do_not_disappear_during_parsing():
 
 def test_unknown_death_claim_does_not_get_discarded_in_favor_of_an_older_date():
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -374,7 +407,7 @@ def test_unknown_death_claim_does_not_get_discarded_in_favor_of_an_older_date():
 def test_anonymous_creator_entities_remain_unknown_even_with_a_known_coauthor(coauthored):
     from ..multiplicity import apply_multiplicity
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -407,7 +440,7 @@ def test_anonymous_creator_entities_remain_unknown_even_with_a_known_coauthor(co
 def test_a_named_creator_is_not_anonymous_just_because_its_label_matches():
     from ..multiplicity import apply_multiplicity
     from ..owner_map import OwnerMap
-    from .wikidata_paintings import iter_records
+    from .wikidata_artworks import iter_records
 
     source = [
         binding(
@@ -422,3 +455,14 @@ def test_a_named_creator_is_not_anonymous_just_because_its_label_matches():
     result = apply_multiplicity([artwork], version_items=set(), complete=True)[0]
     assert result.multiplicity == "unique"
     assert result.artistId == "Q10"
+
+
+def test_other_flat_works_must_be_public_domain_and_prints_are_multiples():
+    result, _ = fixture_records()
+    by_id = {artwork.wikidataId: (artwork, obj) for artwork, obj, _ in result}
+    print_artwork, print_object = by_id["Q7"]
+    assert print_artwork.multiplicity == "multiple"
+    assert print_object.medium == "print"
+    assert by_id["Q1"][1].medium is None
+    # A drawing whose artist died in 1990 is not yet public domain.
+    assert "Q8" not in by_id

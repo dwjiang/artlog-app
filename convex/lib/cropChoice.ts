@@ -18,3 +18,11 @@ export function bestCropIndex(similarities: readonly number[]): number {
     similarities[best] >= NESTED_CROP_MIN_SIMILARITY && similarities[best] - similarities[0] >= NESTED_CROP_MIN_GAIN;
   return clearlyBetter ? best : 0;
 }
+
+/** Four corners inside the photo, each an x and y normalized to its size. */
+export function isNormalizedQuad(corners: readonly (readonly number[])[]): boolean {
+  return (
+    corners.length === 4
+    && corners.every((corner) => corner.length === 2 && corner.every((value) => value >= 0 && value <= 1))
+  );
+}

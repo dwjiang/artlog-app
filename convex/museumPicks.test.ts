@@ -97,6 +97,27 @@ it("keeps each museum's best catalogue guesses, once per artwork, and only ones 
   });
 });
 
+it("counts only Wikidata's paintings, not its prints, as paintings", async () => {
+  const t = harness();
+  const venueId = await t.run((ctx) => seedMuseum(ctx));
+  const scored = new Map<string, Id<"objects">>();
+  for (const medium of ["print", undefined]) {
+    const { objectId } = await t.run((ctx) =>
+      seedArtworkWithObject(ctx, {
+        artwork: { title: "Harbor", artist: "Cy Printer" },
+        objectDetails: { medium },
+        placement: { venueId, source: "wikidata", onView: false, confidence: 0.5 },
+      }),
+    );
+    scored.set(medium ?? "painting", objectId);
+  }
+
+  const { venues } = await t.query(internal.museumPicks.scorePage, { cursor: null });
+  const score = (objectId: Id<"objects"> | undefined) =>
+    venues.flatMap((venue) => venue.picks).find((pick) => pick.objectId === objectId)?.score;
+  expect(score(scored.get("painting"))).toBe(score(scored.get("print"))! + 1);
+});
+
 it("keeps a museum's picks from every page its placements span", async () => {
   const t = harness();
   const { as } = await seedDevice(t);

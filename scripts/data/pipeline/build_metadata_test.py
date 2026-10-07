@@ -32,11 +32,11 @@ def test_fixture_build_writes_linked_records_stats_and_is_repeatable(tmp_path):
         )
     }
     objects = [json.loads(line) for line in (tmp_path / "objects.jsonl").read_text().splitlines()]
-    assert len(artworks) == 14 and len(objects) == 15
+    assert len(artworks) == 16 and len(objects) == 17
     assert artworks["wikidata:Q1"]["multiplicity"] == "multiple"
-    assert stats["sources"]["met"]["objects"] == 5
+    assert stats["sources"]["met"]["objects"] == 6
     assert stats["sources"]["aic"]["objects"] == 4
-    assert stats["sources"]["wikidata"]["objects"] == 6
+    assert stats["sources"]["wikidata"]["objects"] == 7
     assert stats["unmappedOwners"] == {"Q999": 1}
     assert all(obj["artworkKey"] in artworks for obj in objects)
     assert all(
@@ -92,3 +92,44 @@ def test_incomplete_live_aic_snapshot_cannot_replace_a_finished_metadata_build(t
             aic_snapshot="live",
         )
     assert json.loads((out / "stats.json").read_text()) == {"old": "complete build"}
+
+
+def test_existing_objects_are_left_out_of_a_build_for_additions(tmp_path):
+    stats = build(
+        ["met", "wikidata"],
+        out=tmp_path,
+        dumps=tmp_path / "dumps",
+        owners=OwnerMap({MET_KEY, AIC_KEY}),
+        user_agent="test",
+        fixtures=FIXTURES,
+        existing=frozenset({"met:1", "wikidata:Q1"}),
+    )
+    keys = {
+        json.loads(line)["key"] for line in (tmp_path / "objects.jsonl").read_text().splitlines()
+    }
+    assert not keys & {"met:1", "wikidata:Q1"}
+    assert {"met:7", "wikidata:Q7"} <= keys
+    assert stats["sources"]["met"]["existing"] == stats["sources"]["wikidata"]["existing"] == 1
+
+
+def test_museum_open_access_sources_build_with_their_buildings_as_venues(tmp_path):
+    from .owner_map import ATENEUM_KEY, CMA_KEY, FNG_KEY, KIASMA_KEY, SINEBRYCHOFF_KEY
+
+    stats = build(
+        ["cma", "fng"],
+        out=tmp_path,
+        dumps=tmp_path / "dumps",
+        owners=OwnerMap({CMA_KEY, FNG_KEY, ATENEUM_KEY, SINEBRYCHOFF_KEY, KIASMA_KEY}),
+        user_agent="test",
+        fixtures=FIXTURES,
+    )
+    placements = [
+        json.loads(line) for line in (tmp_path / "placements.jsonl").read_text().splitlines()
+    ]
+    assert stats["sources"]["cma"]["objects"] > 0 and stats["sources"]["fng"]["objects"] > 0
+    assert {row["venueKey"] for row in placements} <= {
+        CMA_KEY,
+        ATENEUM_KEY,
+        SINEBRYCHOFF_KEY,
+        KIASMA_KEY,
+    }

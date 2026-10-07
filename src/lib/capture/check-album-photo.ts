@@ -46,6 +46,7 @@ export async function checkAlbumPhoto(
         localId: photo.localId,
         modelVersion: captureOptions.modelVersion,
         capturedAt: photo.capturedAt,
+        cropCorners: painting.corners,
       }),
       15_000,
       "Recognition timed out",

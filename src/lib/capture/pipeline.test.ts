@@ -302,24 +302,18 @@ it("keeps a capture made before registration when the same installation becomes 
   expect(deps.identify).not.toHaveBeenCalled();
 });
 
-it.each([
-  ["camera", /hold steady/],
-  ["library", /Choose a photo/],
-] as const)(
-  "requires a still boundary before quality checks, recognition, or persistence: %s",
-  async (source, message) => {
-    const deps = dependencies();
-    deps.warper.warpCandidates.mockResolvedValue([]);
-    expect(await runCapture({ ...input, source }, deps, options)).toMatchObject({
-      kind: "retake",
-      reason: "boundary",
-      message: expect.stringMatching(message),
-    });
-    expect(deps.triage.check).not.toHaveBeenCalled();
-    expect(deps.embedder.embed).not.toHaveBeenCalled();
-    expect(deps.store.enqueue).not.toHaveBeenCalled();
-  },
-);
+it("requires a still boundary before quality checks, recognition, or persistence", async () => {
+  const deps = dependencies();
+  deps.warper.warpCandidates.mockResolvedValue([]);
+  expect(await runCapture({ ...input, source: "camera" }, deps, options)).toMatchObject({
+    kind: "retake",
+    reason: "boundary",
+    message: expect.stringMatching(/hold steady/),
+  });
+  expect(deps.triage.check).not.toHaveBeenCalled();
+  expect(deps.embedder.embed).not.toHaveBeenCalled();
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+});
 
 it("starts preparation presentation concurrently but retains images before persistence moves them", async () => {
   const deps = dependencies();

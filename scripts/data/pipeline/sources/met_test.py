@@ -102,7 +102,7 @@ def test_three_met_records_match_the_ingest_contract():
     ]
 
 
-def test_met_only_hydrates_public_domain_paintings_and_honors_revocation():
+def test_met_only_hydrates_public_domain_works_and_honors_revocation():
     images = json.loads((FIXTURES / "met-images-sample.json").read_text())
     calls = []
 
@@ -110,12 +110,30 @@ def test_met_only_hydrates_public_domain_paintings_and_honors_revocation():
         calls.append(id)
         return images[id]
 
-    result = list(iter_records(FIXTURES / "met-sample.csv", get_object=fetch))
-    assert calls == ["1", "3", "6"]
-    assert len(result) == 5
-    artwork, obj, _ = result[-1]
+    result = {
+        artwork.key: (artwork, obj)
+        for artwork, obj, _ in iter_records(FIXTURES / "met-sample.csv", get_object=fetch)
+    }
+    assert calls == ["1", "3", "6", "7"]
+    assert list(result) == ["met:1", "met:2", "met:3", "met:5", "met:6", "met:7"]
+    artwork, obj = result["met:6"]
     assert artwork.rightsStatus == "unknown"
     assert obj.imageRef is None and obj.thumbnailUrl is None
+
+
+def test_met_keeps_public_domain_flat_works_and_treats_prints_as_multiples():
+    artwork, obj, _ = next(triple for triple in records() if triple[0].key == "met:7")
+    assert artwork.multiplicity == "multiple"
+    assert obj.imageRef == "https://images.metmuseum.org/seven.jpg"
+
+
+def test_met_places_works_where_the_api_shows_them_now_over_the_older_csv():
+    placements = {triple[0].key: triple[2] for triple in records()}
+    # The CSV lists met:3 in gallery 102 and met:7 nowhere; their API records say the opposite.
+    assert placements["met:3"].onView is False
+    assert placements["met:7"].gallery == "690" and placements["met:7"].onView is True
+    # Without a gallery in its API record, met:1 keeps the CSV's.
+    assert placements["met:1"].gallery == "101"
 
 
 def test_unavailable_met_image_metadata_is_reported_and_checkpointed(tmp_path):

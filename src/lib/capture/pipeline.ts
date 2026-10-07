@@ -55,10 +55,7 @@ export async function runCapture(
         kind: "retake",
         reason: "boundary",
         timings,
-        message:
-          input.source === "library"
-            ? "Choose a photo that shows the whole painting, including all four corners."
-            : "Fit the whole painting in view, including all four corners, and hold steady.",
+        message: "Fit the whole painting in view, including all four corners, and hold steady.",
       };
     }
     const { painting: prepared, vector } = await chooseCrop(

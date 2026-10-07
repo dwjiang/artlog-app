@@ -86,7 +86,14 @@ class Corpus:
         self.rows["vectors"] = read_jsonl(directory / "vector-index.jsonl")
         self.rows["descriptors"] = read_jsonl(directory / "descriptor-index.jsonl")
         self.objects = {row["key"]: row for row in self.rows["objects"]}
-        works = {row["key"]: row for row in self.rows["artworks"]}
+        # A package of additions points at already imported rows; it names them to check they exist first.
+        self.external = (
+            read_jsonl(directory / "external-references.jsonl") if "delta" in self.stats else []
+        )
+        imported_objects = {row["key"] for row in self.external if row["table"] == "objects"}
+        works = {row["key"]: row for row in self.rows["artworks"]} | {
+            row["key"]: row for row in self.external if row["table"] == "artworks"
+        }
         for row in self.objects.values():
             if (
                 "thumbnailUrl" in row
@@ -94,7 +101,11 @@ class Corpus:
             ):
                 raise ValueError(f"Non-public-domain thumbnail on {row['key']}")
             target = row.get("mergedIntoKey")
-            if target and (target not in self.objects or "mergedIntoKey" in self.objects[target]):
+            if (
+                target
+                and target not in imported_objects
+                and (target not in self.objects or "mergedIntoKey" in self.objects[target])
+            ):
                 raise ValueError("Merge targets must be surviving objects")
         self.rows["objects"].sort(key=lambda row: ("mergedIntoKey" in row, row["key"]))
         # Hub scoring is deferred; also clear prior corpus penalties when reimporting.
@@ -105,7 +116,21 @@ class Corpus:
             if len(self.rows[stage]) != self.stats[stage]:
                 raise ValueError(f"Merged {stage} count disagrees with stats.json")
         if limit is not None:
-            selected = select_objects([row["objectKey"] for row in self.rows["vectors"]], limit)
+            # Every alias travels with its survivor, including its artwork dependency.
+            local_works = {row["key"] for row in self.rows["artworks"]}
+            dependent_groups = {
+                row.get("mergedIntoKey", row["key"])
+                for row in self.objects.values()
+                if row["artworkKey"] not in local_works
+            }
+            selected = select_objects(
+                [
+                    row["objectKey"]
+                    for row in self.rows["vectors"]
+                    if row["objectKey"] in self.objects and row["objectKey"] not in dependent_groups
+                ],
+                limit,
+            )
             # Keep all original records and views belonging to each selected survivor.
             selected |= {
                 row["key"] for row in self.objects.values() if row.get("mergedIntoKey") in selected
@@ -132,6 +157,24 @@ class Corpus:
                 sort_keys=True,
             ).encode()
         ).hexdigest()
+
+    def referenced_rows(self) -> dict[str, list[str]]:
+        """Imported rows the selected rows point at."""
+        objects = {row["key"] for row in self.rows["objects"]}
+        works = {row["key"] for row in self.rows["artworks"]}
+        targets = {row.get("mergedIntoKey") for row in self.rows["objects"]}
+        targets |= {row["objectKey"] for stage in STAGES[2:] for row in self.rows[stage]}
+        external = {(row["table"], row["key"]) for row in self.external}
+        return {
+            "objects": sorted(
+                key for key in targets if ("objects", key) in external and key not in objects
+            ),
+            "artworks": sorted(
+                key
+                for key in {row["artworkKey"] for row in self.rows["objects"]}
+                if ("artworks", key) in external and key not in works
+            ),
+        }
 
     def plan(self) -> dict:
         survivors = sorted({row["objectKey"] for row in self.rows["vectors"]})
@@ -296,6 +339,15 @@ def run(
             raise ValueError(
                 "Preflight baseline changed; review the deployment and use a new checkpoint"
             )
+        referenced = corpus.referenced_rows()
+        for table in ("artworks", "objects"):
+            keys = referenced[table]
+            for start in range(0, len(keys), 500):
+                batch = [{"key": key} for key in keys[start : start + 500]]
+                if writer.query("ingest:countExisting", {"table": table, "rows": batch}) != len(
+                    batch
+                ):
+                    raise ValueError(f"Imported {table} these additions point at are missing")
         with ThreadPoolExecutor(max_workers=PREFLIGHT_WORKERS) as pool:
             for stage in STAGES[:-1]:
                 rows = corpus.rows[stage]

@@ -81,7 +81,8 @@ export const scorePage = internalQuery({
         medium: shown.details.medium,
         multiplicity: shown.artwork.multiplicity,
         onView: placement.onView,
-        fromPaintingsSource: placement.source === "wikidata",
+        // Wikidata paintings carry no medium; its other flat works, such as prints, name their kind there.
+        fromPaintingsSource: placement.source === "wikidata" && shown.details.medium === undefined,
       });
       if (score !== null) picks.push({ artworkId: shown.artwork._id, objectId: placement.objectId, score });
     }

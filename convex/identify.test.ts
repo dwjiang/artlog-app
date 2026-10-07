@@ -104,6 +104,26 @@ describe("identify action", () => {
     expect(await storedCorners(t, result.scanId)).toHaveLength(4);
   });
 
+  it("records where the identified crop sits in the photo and rejects corners outside it", async () => {
+    const { t, user, args } = await fixture();
+    const { scope } = await user.as.query(api.accounts.me, {});
+    const cropCorners = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ];
+    const result = await user.as.action(api.identify.identify, { ...args, scope, cropCorners });
+    expect((await t.run((ctx) => ctx.db.get("scans", result.scanId)))?.cropCorners).toEqual(cropCorners);
+    await expect(
+      user.as.action(api.identify.identify, {
+        ...capture(),
+        scope,
+        cropCorners: [...cropCorners.slice(0, 3), [0, 1.5]],
+      }),
+    ).rejects.toMatchObject({ data: { code: "bad_crop" } });
+  });
+
   it("reports a missing file among verified candidates as an error", async () => {
     const { t, user, args } = await fixture();
     await t.run(async (ctx) =>

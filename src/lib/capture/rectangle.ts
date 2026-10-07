@@ -46,6 +46,12 @@ export const MIN_UNGUIDED_SUBJECT_AREA_FRACTION = 0.2;
 export const MIN_NESTED_SHARE = 0.15;
 /** Normalized distance a nested corner may sit outside the chosen boundary, where the two share an edge. */
 export const NESTED_EDGE_TOLERANCE = 0.01;
+/**
+ * Share of the frame below which an unguided boundary is likelier a detail than the artwork. On 937 gallery photos of
+ * catalogued paintings (2026-10-06), trying the whole frame first below it raised confident right answers from 345 to
+ * 630; cutoffs from 0.2 to 0.5 scored within 1% of each other.
+ */
+export const WHOLE_FRAME_BELOW = 0.3;
 
 export type FrameSize = { width: number; height: number };
 export type Guidance = "searching" | "move-closer" | "fit-whole-painting" | "straighten" | "hold-still" | "ready";
@@ -373,4 +379,33 @@ export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetectio
     ?? largestQuad(rectangles.filter(framed))
     ?? null
   );
+}
+
+/** The part of the still the cover-fitted `view` showed, or the whole photo without one. */
+export function visibleFrame(still: FrameSize, view?: FrameSize): Quad {
+  const scale = view?.width && view.height ? Math.max(view.width / still.width, view.height / still.height) : 0;
+  const x = scale ? (1 - view!.width / (still.width * scale)) / 2 : 0;
+  const y = scale ? (1 - view!.height / (still.height * scale)) / 2 : 0;
+  return [
+    [x, y],
+    [1 - x, y],
+    [1 - x, 1 - y],
+    [x, 1 - y],
+  ];
+}
+
+/**
+ * Crops to identify, likeliest first; with `ranked`, also the alternatives recognition may prefer. Empty when a guided
+ * capture's boundary is not on the still.
+ *
+ * A guided capture keeps the boundary it tracked. An unguided photo, from the shutter without a tracked boundary or an
+ * import, tries the whole frame first when its boundary is missing or covers under WHOLE_FRAME_BELOW of the frame:
+ * the artwork then usually fills the photo, and the small boundary is a detail inside it.
+ */
+export function cropQuads(previewQuad: Quad | null, still: StillDetection, ranked: boolean, view?: FrameSize): Quad[] {
+  const selected = selectCaptureQuad(previewQuad, still, view);
+  const frame = visibleFrame(still, view);
+  const wholeFirst = !previewQuad && (!selected || quadArea(selected) < WHOLE_FRAME_BELOW * quadArea(frame));
+  const quads = [...(wholeFirst ? [frame] : []), ...(selected ? [selected, ...nestedQuads(selected, still)] : [])];
+  return quads.slice(0, ranked ? MAX_CROP_CANDIDATES : 1);
 }

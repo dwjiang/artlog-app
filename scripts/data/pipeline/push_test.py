@@ -567,3 +567,90 @@ def test_preflight_resume_refuses_changed_baseline_before_any_write(merged_corpu
     with pytest.raises(ValueError, match="baseline changed"):
         push(directory, writer)
     assert writer.calls == []
+
+
+def test_additions_import_after_checking_the_imported_rows_they_point_at(delta_package, tmp_path):
+    out, _ = delta_package()
+    corpus = Corpus(out)
+    assert corpus.referenced_rows() == {"objects": ["met:0"], "artworks": []}
+
+    with pytest.raises(ValueError, match="Imported objects these additions point at are missing"):
+        run(
+            corpus,
+            Writer(),
+            checkpoint=tmp_path / "missing.json",
+            deployment_url="https://dev.test",
+        )
+
+    writer = Writer()
+    writer.stored["objects"].add(json.dumps({"key": "met:0"}, sort_keys=True))
+    run(corpus, writer, checkpoint=tmp_path / "push.json", deployment_url="https://dev.test")
+    written = {
+        stage: [row for _, rows in writer.calls if _ == stage for row in rows] for stage in STAGES
+    }
+    assert [row["key"] for row in written["objects"]] == ["fng:2", "cma:1"]
+    assert {row["viewKey"]: row["objectKey"] for row in written["vectors"]} == {
+        "cma:1": "met:0",
+        "fng:2": "fng:2",
+    }
+
+
+def test_a_sample_of_additions_needs_no_imported_rows(delta_package):
+    out, _ = delta_package()
+    corpus = Corpus(out, limit=5)
+    assert corpus.referenced_rows() == {"objects": [], "artworks": []}
+    assert [row["key"] for row in corpus.rows["objects"]] == ["fng:2"]
+
+
+@pytest.mark.parametrize("external_artwork_on_alias", [False, True])
+def test_exported_additions_exclude_groups_with_imported_artworks(
+    delta_package, tmp_path, external_artwork_on_alias
+):
+    from pipeline.subset import export
+
+    artwork = {"title": "Harbor", "artist": "Cy Printer", "rightsStatus": "public_domain"}
+    objects = [
+        {
+            "key": key,
+            "artworkKey": key,
+            "ownerKey": "museum:3",
+            "source": "corpus",
+            "sourceId": key.split(":")[1],
+            "accession": key,
+            "imageRef": f"https://museum.test/{key}.jpg",
+            "thumbnailUrl": f"https://museum.test/{key}-small.jpg",
+            "pageUrl": f"https://museum.test/{key}",
+        }
+        for key in ("cma:1", "fng:2")
+    ]
+    axes = {"cma:1": 1, "fng:2": 2}
+    if external_artwork_on_alias:
+        objects.append({**objects[0], "key": "wikidata:Q9", "artworkKey": "art:1"})
+        axes["wikidata:Q9"] = 3
+    else:
+        objects[0]["artworkKey"] = "art:1"
+    out, _ = delta_package(
+        artworks=[{**artwork, "key": key} for key in {obj["artworkKey"] for obj in objects}],
+        objects=objects,
+        placements=[],
+        axes=axes,
+    )
+    assert Corpus(out).referenced_rows() == {"objects": [], "artworks": ["art:1"]}
+
+    sample = Corpus(out, limit=1)
+    assert sample.referenced_rows() == {"objects": [], "artworks": []}
+    assert [row["key"] for row in sample.rows["objects"]] == ["fng:2"]
+    exported = tmp_path / "standalone"
+    export(sample, exported)
+    out.rename(tmp_path / "delta-unavailable")
+    restored = Corpus(exported, limit=1)
+    assert {row["artworkKey"] for row in restored.rows["objects"]} <= {
+        row["key"] for row in restored.rows["artworks"]
+    }
+    report = run(
+        restored,
+        Writer(),
+        checkpoint=tmp_path / "standalone-push.json",
+        deployment_url="https://dev.test",
+    )
+    assert report["countsMatch"] and report["readback"]["matches"]

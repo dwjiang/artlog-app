@@ -17,6 +17,7 @@ MET_COLUMNS = {
     "Object ID",
     "Is Public Domain",
     "Classification",
+    "Object Name",
     "Title",
     "Artist Display Name",
     "Object Date",
@@ -280,7 +281,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fetch resumable corpus metadata; no image downloads"
     )
-    for source in ("met", "aic", "wikidata"):
+    for source in ("met", "aic", "wikidata", "cma", "fng"):
         parser.add_argument(f"--{source}", action="store_true")
     parser.add_argument(
         "--aic-live",
@@ -293,9 +294,9 @@ def main() -> None:
     setup_logging(settings)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     out = args.out or settings.scratch_dir / "dumps"
-    selected = [name for name in ("met", "aic", "wikidata") if getattr(args, name)]
+    selected = [name for name in ("met", "aic", "wikidata", "cma", "fng") if getattr(args, name)]
     if not selected:
-        parser.error("select --met, --aic, and/or --wikidata")
+        parser.error("select --met, --aic, --wikidata, --cma, and/or --fng")
     if args.aic_live and not args.aic:
         parser.error("--aic-live requires --aic")
     # These are the institutions' published metadata endpoints, not website crawling.
@@ -314,10 +315,18 @@ def main() -> None:
             )
             if args.aic_live:
                 fetch_aic_live(client, out / "aic" / "live")
-    if args.wikidata:
-        from .wikidata_paintings import fetch_paintings
+        if args.cma:
+            from .cma import fetch_cma
 
-        fetch_paintings(out / "wikidata", user_agent=settings.user_agent)
+            fetch_cma(client, out / "cma")
+        if args.fng:
+            from .fng import fetch_fng
+
+            fetch_fng(client, out / "fng")
+    if args.wikidata:
+        from .wikidata_artworks import fetch_artworks
+
+        fetch_artworks(out / "wikidata", user_agent=settings.user_agent)
 
 
 if __name__ == "__main__":

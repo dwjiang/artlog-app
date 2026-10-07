@@ -33,6 +33,12 @@ See `run-status.json`, `push-prod-full.report.json`, `recognition-audit.json`,
 The [upload runbook](../todos/production-upload/README.md) owns completion gates
 and recovery. [Hub scoring](../todos/hub-scoring/README.md) remains deferred.
 
+On 2026-10-07 two add-only packages grew production to 619,101 artworks, 629,144 objects,
+488,307 placements, 621,252 vectors and 594,841 descriptors: Wikidata flat works and new
+paintings, Cleveland and the Finnish National Gallery, then the Met's prints, drawings,
+photographs and other flat works. Each passed a 30-object pilot, matching counts and a clean
+2% readback; see the [corpus inventory](corpus.md#additions-2026-10).
+
 The job restarted at 11:29 PDT with four concurrent preflight reads and feature
 preparation batches, 32 pooled R2 upload workers, and ordered metadata commits.
 Its 1,000-object pilot passed counts, sampled readback, and Pinecone checks at

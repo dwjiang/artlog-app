@@ -1,5 +1,6 @@
 import type { RectObservation, RectPoint } from "../../../modules/vision-rect/src";
 import {
+  cropQuads,
   MISS_GRACE_MS,
   NESTED_AREA_RATIO,
   RectTracker,
@@ -11,6 +12,7 @@ import {
   selectCaptureQuad,
   toQuad,
   turnQuad,
+  visibleFrame,
 } from "./rectangle";
 import type { Quad } from "./stages";
 
@@ -552,5 +554,58 @@ describe("nestedQuads", () => {
     const inner = toQuad(box(0.2, 0.2, 0.8, 0.8));
     const detail = toQuad(box(0.3, 0.3, 0.7, 0.7));
     expect(nestedQuads(outer, still([detail, inner, sameCanvas, canvas, outer]))).toEqual([canvas, inner]);
+  });
+});
+
+describe("visibleFrame", () => {
+  it("is the whole photo without a preview", () => {
+    expect(visibleFrame({ width: 1280, height: 853 })).toEqual(toQuad(box(0, 0, 1, 1)));
+  });
+
+  it("is the strip of a portrait still that a taller preview showed", () => {
+    const visible = visibleFrame({ width: 3024, height: 4032 }, { width: 402, height: 874 });
+    expect(visible.map(([x, y]) => [Number(x.toFixed(3)), y])).toEqual([
+      [0.193, 0],
+      [0.807, 0],
+      [0.807, 1],
+      [0.193, 1],
+    ]);
+  });
+});
+
+describe("cropQuads", () => {
+  const whole = toQuad(box(0, 0, 1, 1));
+  const painting = toQuad(box(0.1, 0.1, 0.9, 0.9));
+  // A window or doorway inside an artwork that fills the photo.
+  const detail = toQuad(box(0.4, 0.3, 0.7, 0.6));
+
+  it("tries the whole photo when an unguided photo has no boundary", () => {
+    expect(cropQuads(null, still(), true)).toEqual([whole]);
+  });
+
+  it("tries the whole photo before a boundary too small to be the artwork, and the boundary when ranked", () => {
+    expect(cropQuads(null, still([detail]), true)).toEqual([whole, detail]);
+    expect(cropQuads(null, still([detail]), false)).toEqual([whole]);
+  });
+
+  it("keeps a boundary that covers enough of the photo", () => {
+    expect(cropQuads(null, still([painting]), true)).toEqual([painting]);
+  });
+
+  it("keeps a guided capture's tracked boundary however small, and nothing when the still lacks it", () => {
+    expect(cropQuads(detail, still([detail]), true)).toEqual([detail]);
+    expect(cropQuads(detail, still(), true)).toEqual([]);
+  });
+
+  it("measures a shutter photo's boundary against the part of the still the preview showed", () => {
+    // About a fifth of the still but a third of the strip the preview showed.
+    const onScreen = toQuad(box(0.3, 0.3, 0.7, 0.8));
+    const view = { width: 402, height: 874 };
+    expect(cropQuads(null, { ...still([onScreen]), width: 3024, height: 4032 }, true, view)).toEqual([onScreen]);
+    const small = toQuad(box(0.35, 0.4, 0.65, 0.6));
+    expect(cropQuads(null, { ...still([small]), width: 3024, height: 4032 }, true, view)).toEqual([
+      visibleFrame({ width: 3024, height: 4032 }, view),
+      small,
+    ]);
   });
 });

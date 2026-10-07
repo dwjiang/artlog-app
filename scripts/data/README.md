@@ -70,10 +70,16 @@ to re-export after a venue-column change.
 ### 1. Corpus metadata
 
 ```sh
-uv run python -m pipeline.sources.fetch --met --aic --aic-live
+uv run python -m pipeline.sources.fetch --met --aic --aic-live --cma --fng
 caffeinate -i uv run python -m pipeline.sources.fetch --wikidata
-caffeinate -i uv run python -m pipeline.build_metadata --sources met,aic,wikidata
+caffeinate -i uv run python -m pipeline.build_metadata --sources met,aic,wikidata,cma,fng
 ```
+
+Met and Wikidata contribute paintings plus public-domain flat works (drawings, prints,
+photographs, manuscript leaves and the like); Cleveland (`cma`) and the Finnish National
+Gallery (`fng`) contribute flat works with a CC0 image. Met hydrates each public-domain
+row from its API; it throttles bursts past about 80 requests a minute, so keep it near
+one request a second.
 
 Source snapshots go under `$SCRATCH_DIR/dumps/`. Normalized metadata goes under
 `$SCRATCH_DIR/metadata/`; `stats.json` marks completion. This stage makes no
@@ -185,6 +191,31 @@ Full imports use `push --in "$SCRATCH_DIR/merged" --full` and require every shar
 from a full build; pilots and exported subsets are refused. The
 [full production upload](../../docs/todos/production-upload/README.md) was resumed
 on 2026-09-27; its checkpoint and verification reports determine completion.
+
+## Add sources to an imported corpus
+
+Build only the objects an imported package lacks, in a new scratch directory, then
+dedupe them against that package so a new record that duplicates an imported one
+becomes its alias. Imported rows are never rewritten; the additions' placements and
+views attach to the imported survivors.
+
+```sh
+export SCRATCH_DIR="/path/to/additions"   # metadata/, images/, features/
+caffeinate -i uv run python -m pipeline.build_metadata --sources wikidata,cma,fng \
+  --dumps /path/to/dumps --venues venue-keys.json \
+  --exclude-objects "$IMPORTED/objects.jsonl" --out "$SCRATCH_DIR/metadata"
+cp -R "$IMPORTED_SCRATCH/calibration" "$SCRATCH_DIR/calibration"   # pinned drift images
+caffeinate -i uv run python -m pipeline.build_index --stage download,drift,embed
+uv run python -m pipeline.dedupe --base "$IMPORTED" --features "$SCRATCH_DIR/features" \
+  --metadata "$SCRATCH_DIR/metadata" --out "$SCRATCH_DIR/merged"
+uv run python -m pipeline.push --in "$SCRATCH_DIR/merged" --full --dry-run
+```
+
+Repeat `--exclude-objects` and `--base` to stack a later batch on earlier ones. The
+package's `external-references.jsonl` names the imported rows it points at; the push
+checks they exist before writing. `--limit N` samples only the package's own survivors,
+so a pilot needs no imported rows. Some calibration images change upstream, so reuse the
+cached set whose hashes are pinned rather than refetching it.
 
 ## Exhibition checklists
 

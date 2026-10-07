@@ -1,0 +1,343 @@
+[
+  {
+    "objectId": 101,
+    "responsibleOrganisation": "Kansallisgalleria / Ateneumin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "painting", "fi": "maalaus", "sv": "målning" }],
+    "title": { "en": "Lake View", "fi": "Järvinäkymä", "sv": "Sjöutsikt" },
+    "inventoryNumber": "A I 101",
+    "yearFrom": 1890,
+    "yearTo": 1895,
+    "datePrefix": { "en": "circa", "fi": "noin", "sv": "cirka" },
+    "people": [
+      {
+        "id": 1,
+        "firstName": "Ada",
+        "familyName": "Maalari",
+        "attribution": null,
+        "role": { "id": 98595, "en": "Artist", "fi": "taiteilija", "sv": "konstnär", "type": "role" }
+      }
+    ],
+    "materials": [{ "en": "oil", "fi": "öljy", "sv": "olja" }, { "fi": "pohjustamaton kangas" }],
+    "multimedia": [
+      {
+        "id": 9011,
+        "license": "CC0",
+        "isRiaDisplayImage": false,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9011.jpg",
+          "1000": "/media-assets/1/jpg/1000/9011.jpg"
+        }
+      },
+      {
+        "id": 9012,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9012.jpg",
+          "1000": "/media-assets/1/jpg/1000/9012.jpg"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 501,
+        "title": "Ajan kysymys, kokoelmanäyttely / En tidsfråga, samlingsutställning / A Question of Time, collection exhibition",
+        "startDate": "2023-04-14",
+        "location": "Kansallisgalleria / Ateneumin taidemuseo"
+      },
+      {
+        "id": 502,
+        "title": "Järvet ja meret",
+        "startDate": "2017-10-27",
+        "endDate": "2018-02-25",
+        "location": "Kansallisgalleria / Ateneumin taidemuseo"
+      },
+      { "id": 503, "title": "Salon d'automne, Paris 2026", "startDate": "2026-09-01", "endDate": "2026-12-31" }
+    ]
+  },
+  {
+    "objectId": 102,
+    "responsibleOrganisation": "Kansallisgalleria / Sinebrychoffin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [
+      { "en": "graphic arts", "fi": "grafiikka", "sv": "grafik" },
+      { "en": "late impression", "fi": "myöhäisvedos", "sv": "senare avdrag" }
+    ],
+    "title": { "en": "", "fi": "Katu", "sv": "" },
+    "inventoryNumber": "C IV 102",
+    "yearFrom": 1700,
+    "people": [
+      {
+        "id": 2,
+        "firstName": null,
+        "familyName": "Imp. Painaja",
+        "role": { "id": 142428, "en": "Printer", "fi": "painaja", "sv": "tryckare", "type": "role" }
+      },
+      {
+        "id": 3,
+        "firstName": "Ben",
+        "familyName": "Kaivertaja",
+        "role": { "id": 98595, "en": "Artist", "fi": "taiteilija", "sv": "konstnär", "type": "role" }
+      }
+    ],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9021,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9021.jpg",
+          "1000": "/media-assets/1/jpg/1000/9021.jpg"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 504,
+        "title": "Veden elämää",
+        "startDate": "2024-02-15",
+        "endDate": "2024-08-11",
+        "location": "Kansallisgalleria / Sinebrychoffin taidemuseo"
+      }
+    ]
+  },
+  {
+    "objectId": 103,
+    "responsibleOrganisation": "Kansallisgalleria / Ateneumin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "drawing", "fi": "piirustus", "sv": "teckning" }],
+    "title": { "en": "Peacock", "fi": "Riikinkukko", "sv": "Påfågel" },
+    "inventoryNumber": "A II 103",
+    "people": [
+      {
+        "id": 4,
+        "firstName": "Cleo",
+        "familyName": "Piirtäjä",
+        "role": { "id": 98595, "en": "Artist", "fi": "taiteilija", "sv": "konstnär", "type": "role" }
+      }
+    ],
+    "materials": [{ "en": "paper", "fi": "paperi", "sv": "papper" }],
+    "multimedia": [
+      {
+        "id": 9031,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9031.tif",
+          "1000": "/media-assets/1/jpg/1000/9031.tif"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 501,
+        "title": "Ajan kysymys, kokoelmanäyttely / En tidsfråga, samlingsutställning / A Question of Time, collection exhibition",
+        "startDate": "2023-04-14",
+        "location": "Kansallisgalleria / Ateneumin taidemuseo"
+      },
+      {
+        "id": 505,
+        "title": "Riikinkukko puutarhassa - Mathias Withoosin Rooma",
+        "startDate": "2026-09-24",
+        "endDate": "2027-01-10",
+        "location": "Kansallisgalleria / Sinebrychoffin taidemuseo"
+      }
+    ]
+  },
+  {
+    "objectId": 104,
+    "responsibleOrganisation": "Kansallisgalleria / Ateneumin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "drawing", "fi": "piirustus", "sv": "teckning" }],
+    "title": null,
+    "inventoryNumber": "A II 104",
+    "people": [
+      {
+        "id": 5,
+        "firstName": null,
+        "familyName": "tekijä ei tiedossa",
+        "role": { "id": 98595, "en": "Artist", "fi": "taiteilija", "sv": "konstnär", "type": "role" }
+      }
+    ],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9041,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9041.jpg",
+          "1000": "/media-assets/1/jpg/1000/9041.jpg"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 506,
+        "title": "Modernit klassikot",
+        "startDate": "2027-02-01",
+        "endDate": "2027-06-30",
+        "location": "Kansallisgalleria / Ateneumin taidemuseo"
+      }
+    ]
+  },
+  {
+    "objectId": 105,
+    "responsibleOrganisation": "Kansallisgalleria / Nykytaiteen museo Kiasma",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "fine-art photograph", "fi": "taidevalokuva", "sv": "konstfotografi" }],
+    "title": { "en": "Harbour", "fi": "Satama", "sv": "Hamn" },
+    "inventoryNumber": "N-1920-105",
+    "yearFrom": 1920,
+    "yearTo": 1920,
+    "people": [
+      {
+        "id": 6,
+        "firstName": "Dora",
+        "familyName": "Kuvaaja",
+        "role": { "id": 98595, "en": "Artist", "fi": "taiteilija", "sv": "konstnär", "type": "role" }
+      }
+    ],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9051,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9051.jpg",
+          "1000": "/media-assets/1/jpg/1000/9051.jpg"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 507,
+        "title": "Nelivärinen uni Kiasman kokoelmanäyttely 2026",
+        "startDate": "2026-02-27",
+        "endDate": "2027-01-10",
+        "location": "Kansallisgalleria / Nykytaiteen museo Kiasma, Helsinki"
+      }
+    ]
+  },
+  {
+    "objectId": 106,
+    "responsibleOrganisation": "Kansallisgalleria / Ateneumin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "sculpture", "fi": "veistos", "sv": "skulptur" }],
+    "title": { "en": "Bather", "fi": "Kylpijä", "sv": "Badare" },
+    "inventoryNumber": "A III 106",
+    "people": [],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9061,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9061.jpg",
+          "1000": "/media-assets/1/jpg/1000/9061.jpg"
+        }
+      }
+    ],
+    "exhibitions": []
+  },
+  {
+    "objectId": 107,
+    "responsibleOrganisation": "Valtion taideteostoimikunta",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "painting", "fi": "maalaus", "sv": "målning" }],
+    "title": { "en": "Office Landscape", "fi": "Toimistomaisema", "sv": "" },
+    "inventoryNumber": "VTM 107",
+    "people": [],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9071,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9071.jpg",
+          "1000": "/media-assets/1/jpg/1000/9071.jpg"
+        }
+      }
+    ],
+    "exhibitions": []
+  },
+  {
+    "objectId": 108,
+    "responsibleOrganisation": "Kansallisgalleria / Arkistokokoelmat",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "drawing", "fi": "piirustus", "sv": "teckning" }],
+    "title": { "en": "Archive Sketch", "fi": "Arkistoluonnos", "sv": "" },
+    "inventoryNumber": "ARK 108",
+    "people": [],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9081,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9081.jpg",
+          "1000": "/media-assets/1/jpg/1000/9081.jpg"
+        }
+      }
+    ],
+    "exhibitions": []
+  },
+  {
+    "objectId": 109,
+    "responsibleOrganisation": "Kansallisgalleria / Ateneumin taidemuseo",
+    "category": { "categoryId": "artwork", "en": "part of a work", "fi": "teososa", "sv": "del av konstverk" },
+    "classifications": [{ "en": "painting", "fi": "maalaus", "sv": "målning" }],
+    "title": { "en": "Altarpiece, wing", "fi": "Alttaritaulu, siipi", "sv": "" },
+    "inventoryNumber": "A I 109:1",
+    "people": [],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9091,
+        "license": "CC0",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9091.jpg",
+          "1000": "/media-assets/1/jpg/1000/9091.jpg"
+        }
+      }
+    ],
+    "exhibitions": []
+  },
+  {
+    "objectId": 110,
+    "responsibleOrganisation": "Kansallisgalleria / Nykytaiteen museo Kiasma, Helsinki",
+    "category": { "categoryId": "artwork", "en": "artwork", "fi": "taideteos", "sv": "konstverk" },
+    "classifications": [{ "en": "painting", "fi": "maalaus", "sv": "målning" }],
+    "title": { "en": "Red Field", "fi": "Punainen kenttä", "sv": "" },
+    "inventoryNumber": "N-2001-110",
+    "people": [],
+    "materials": [],
+    "multimedia": [
+      {
+        "id": 9101,
+        "license": "In Copyright",
+        "isRiaDisplayImage": true,
+        "jpg": {
+          "500": "/media-assets/1/jpg/500/9101.jpg",
+          "1000": "/media-assets/1/jpg/1000/9101.jpg"
+        }
+      }
+    ],
+    "exhibitions": [
+      {
+        "id": 507,
+        "title": "Nelivärinen uni Kiasman kokoelmanäyttely 2026",
+        "startDate": "2026-02-27",
+        "endDate": "2027-01-10",
+        "location": "Kansallisgalleria / Nykytaiteen museo Kiasma, Helsinki"
+      }
+    ]
+  }
+]

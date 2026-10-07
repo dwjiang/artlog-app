@@ -15,6 +15,7 @@ import { patchObjectDetails, readObjectDetails, readObjectOrb } from "./lib/obje
 import { deleteOrbIfUnreferenced } from "./lib/orbStorage";
 import { evidenceDeviceIds, loadProposalEvidence } from "./lib/proposalEvidence";
 import { deleteVector } from "./lib/vectorStore";
+import { dropLinkedView } from "./linkedViews";
 import { readyForReview, reassessProposal } from "./placements";
 import { queueMultiView } from "./promotion";
 import { deleteEmbedding } from "./scanEmbeddings";
@@ -664,7 +665,7 @@ export const revertVenueFeedback = internalMutation({
     }
     await bumpCounter(ctx, "vectors", -deleted);
     if (page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.revert.revertVenueObjects, {
+      await ctx.scheduler.runAfter(0, internal.revert.revertVenueLinkedViews, {
         venueId,
         optOutId,
         cursor: null,
@@ -676,6 +677,28 @@ export const revertVenueFeedback = internalMutation({
         cursor: page.continueCursor,
       });
     }
+    return null;
+  },
+});
+
+export const revertVenueLinkedViews = internalMutation({
+  args: {
+    venueId: v.id("museums"),
+    optOutId: v.id("optOuts"),
+    cursor: cursorArg,
+  },
+  returns: v.null(),
+  handler: async (ctx, { venueId, optOutId, cursor }) => {
+    const page = await ctx.db
+      .query("scans")
+      .withIndex("by_venueId", (q) => q.eq("venueId", venueId))
+      .paginate(paging(cursor));
+    for (const scan of page.page) await dropLinkedView(ctx, scan._id);
+    await ctx.scheduler.runAfter(
+      0,
+      page.isDone ? internal.revert.revertVenueObjects : internal.revert.revertVenueLinkedViews,
+      { venueId, optOutId, cursor: page.isDone ? null : page.continueCursor },
+    );
     return null;
   },
 });
