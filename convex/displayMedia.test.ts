@@ -580,7 +580,6 @@ it("delegates shared access to the social guard, never falls back to wall access
     await ctx.db.patch("sharedVisits", (await ctx.db.get("sharedVisitItems", shared))!.publicationId, {
       status: "active",
     });
-    await ctx.db.patch("wallItems", f.itemId, { noteVisible: true });
   });
   expect((await viewer.as.fetch(path)).status).toBe(200);
   expect(

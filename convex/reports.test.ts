@@ -180,8 +180,6 @@ it("captures only published wall text and retains removal even if an active flag
       placementId: draft.saves[0].localId,
       saveLocalId: draft.saves[0].localId,
       active: true,
-      noteVisible: false,
-      noteRevision: 0,
       layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
     });
   });
@@ -208,7 +206,6 @@ it("captures only published wall text and retains removal even if an active flag
     data: { code: "not_found" },
   });
   const item = await t.run((ctx) => ctx.db.get("wallItems", itemId));
-  expect(item?.noteRevision).toBe(1);
   expect((await t.run((ctx) => ctx.db.get("walls", item!.wallId)))?.layoutRevision).toBe(2);
   expect((await t.run((ctx) => ctx.db.get("profiles", a.profileId)))?.publishedWallCount).toBe(0);
 });

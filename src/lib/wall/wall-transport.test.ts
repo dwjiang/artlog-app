@@ -31,9 +31,8 @@ it("does not retry a failed network request and preserves conflict error codes",
   const fetcher = jest.fn().mockRejectedValueOnce(new Error("Network request failed"));
   const transport = createWallTransport("https://example.convex.cloud", fetcher);
   const context = { token: "token", signal: new AbortController().signal };
-  await expect(transport.setNoteVisibility({ scope: "account:a:1", changes: [] }, context)).rejects.toThrow(
-    "Network request failed",
-  );
+  const layout = { scope: "account:a:1", revision: 0, color: "#45524B", items: [] };
+  await expect(transport.setLayout(layout, context)).rejects.toThrow("Network request failed");
   expect(fetcher).toHaveBeenCalledTimes(1);
   fetcher.mockResolvedValueOnce({
     ok: false,
@@ -44,7 +43,5 @@ it("does not retry a failed network request and preserves conflict error codes",
       errorData: { code: "conflict" },
     }),
   });
-  await expect(transport.setNoteVisibility({ scope: "account:a:1", changes: [] }, context)).rejects.toMatchObject({
-    data: { code: "conflict" },
-  });
+  await expect(transport.setLayout(layout, context)).rejects.toMatchObject({ data: { code: "conflict" } });
 });

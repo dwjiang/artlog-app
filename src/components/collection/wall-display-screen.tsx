@@ -10,16 +10,13 @@ import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
-import { ERROR_MESSAGES } from "@/shared/social/errors";
 import { WALL_FRAMES as wallFrames } from "@/shared/wall/frames";
 
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
-import { NoteVisibility } from "./note-visibility";
 import { PhotoVisibility } from "./photo-visibility";
 import { WallArtwork } from "./wall-artwork";
 import { WallFramePicker } from "./wall-options";
@@ -52,20 +49,13 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
   );
 }
 
-/** Everything about how one hung artwork appears on the wall: frame, the photo shown, and a public wall's note. */
+/** Everything about how one hung artwork appears on the wall: its frame and the photo shown. */
 function WallDisplay({ work }: { work: SavedWork }) {
   const { width } = useWindowDimensions();
   const { onHeadingLayout, onScroll } = useScrollTitle(work.title);
   const wall = useCollectionWall([work]);
   const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
-  const published = wall.acknowledged?.items.find((item) => item.saveLocalId === work.localId);
   const piece = wall.pieces.find((item) => item.localId === hung?.placementId);
-  // The hook owns the first read; a later sync can change note eligibility, so it re-reads the loaded wall.
-  useEffect(() => {
-    if (wall.signedIn && work.syncedAt && wall.acknowledged) {
-      void wall.refresh();
-    }
-  }, [wall.repository, work.syncedAt, wall.signedIn]); // oxlint-disable-line react-hooks/exhaustive-deps
   async function saveLayout() {
     wall.setError(undefined);
     try {
@@ -91,21 +81,6 @@ function WallDisplay({ work }: { work: SavedWork }) {
       ),
     });
     void saveLayout();
-  }
-  async function shareNote(value: boolean) {
-    if (!published || wall.pending) return;
-    wall.setError(undefined);
-    try {
-      wall.repository.setNoteDraft([{ itemId: published.itemId, visible: value }]);
-      await wall.repository.publishNotes();
-    } catch (cause) {
-      reportError(cause, "wall.notes.publish");
-      wall.setError(
-        convexErrorCode(cause) === "note_not_allowed"
-          ? ERROR_MESSAGES.note_not_allowed
-          : "This note could not be shared. Refresh to review the latest synced note and try again.",
-      );
-    }
   }
   return (
     <ScrollView
@@ -174,20 +149,6 @@ function WallDisplay({ work }: { work: SavedWork }) {
             <Text style={styles.caption}>Only the selected photo appears on your wall.</Text>
             {hung.photoLocalId && <PhotoVisibility savedId={work.localId} photoId={hung.photoLocalId} />}
           </View>
-          {wall.signedIn && (
-            <View style={styles.section}>
-              <NoteVisibility
-                visible={published?.noteVisible ?? false}
-                disabled={wall.pending || !published?.noteEligible}
-                onChange={(value) => {
-                  void shareNote(value);
-                }}
-              />
-              {!published?.noteEligible && (
-                <Text style={styles.caption}>Add a note and let it sync before sharing it.</Text>
-              )}
-            </View>
-          )}
         </>
       )}
       {wall.error && (

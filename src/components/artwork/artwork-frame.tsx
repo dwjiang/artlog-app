@@ -30,8 +30,7 @@ export function ArtworkFrame({
   onError?: (message?: string) => void;
   children?: ReactNode;
 }) {
-  const { height, fontScale } = useWindowDimensions();
-  const maxHeight = Math.min(360, height * (fontScale > 1.4 ? 0.25 : 0.36));
+  const maxHeight = useArtworkFrameHeight();
   const [failedUri, setFailedUri] = useState<string>();
   const [shape, setShape] = useState<{ uri: string; aspectRatio: number }>();
   const available = !!uri && failedUri !== uri;
@@ -78,6 +77,12 @@ export function ArtworkFrame({
       {children}
     </View>
   );
+}
+
+/** The tallest an artwork page's picture grows, so the title stays close under it. */
+export function useArtworkFrameHeight() {
+  const { height, fontScale } = useWindowDimensions();
+  return Math.min(360, height * (fontScale > 1.4 ? 0.25 : 0.36));
 }
 
 const styles = StyleSheet.create({

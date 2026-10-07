@@ -37,7 +37,6 @@ export async function readPrivateWall(owner: string): Promise<WallDraft | undefi
 const empty = (): WallState<WallDraft> => ({
   acknowledged: null,
   layoutDraft: null,
-  noteDraft: [],
   pending: false,
 });
 
@@ -98,9 +97,6 @@ export function createLocalWallRepository() {
       if (current.active()) update({ pending: false });
     }
   }
-  function unpublished(): never {
-    throw new Error("Sign in to share notes on a public wall");
-  }
   return {
     connect: () => {
       unsubscribe ??= subscribeOwnerChange(clear);
@@ -128,9 +124,7 @@ export function createLocalWallRepository() {
         },
       });
     },
-    setNoteDraft: (_changes: unknown) => unpublished(),
     publishLayout,
-    publishNotes: async () => unpublished(),
     discardDrafts: () => update({ layoutDraft: null }),
     dispose: () => {
       unsubscribe?.();

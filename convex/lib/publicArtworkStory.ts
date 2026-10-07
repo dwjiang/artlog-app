@@ -6,6 +6,8 @@ import { readArtworkContent } from "./artworkContent";
 import { docentSentence, factChip } from "./validators";
 
 export const publicArtworkStory = v.object({
+  // The catalog work the story belongs to, so viewers can open its audio guide as they would after a scan.
+  artworkId: v.id("artworks"),
   docent: v.array(docentSentence),
   factSheet: v.array(factChip),
 });
@@ -30,6 +32,7 @@ export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections"
   if (!docent?.length) return undefined;
   const cited = new Set(docent.flatMap((line) => line.factIds));
   return {
+    artworkId: artwork._id,
     docent,
     factSheet: facts
       .filter((fact) => cited.has(fact.id))

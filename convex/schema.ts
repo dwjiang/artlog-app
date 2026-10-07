@@ -773,11 +773,6 @@ export default defineSchema({
     photoLocalId: v.optional(v.string()),
     active: v.boolean(),
     layout: wallLayout,
-    noteVisible: v.boolean(),
-    noteRevision: v.number(),
-    noteResetVersion: v.optional(v.number()),
-    // Resolved when the note is shared.
-    noteMentions: v.optional(v.array(mention)),
   })
     .index("by_wall_active", ["wallId", "active"])
     .index("by_wall_placement", ["wallId", "placementId"])

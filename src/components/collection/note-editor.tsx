@@ -35,11 +35,9 @@ export function NoteHeading({ title, children }: { title: string; children?: Rea
 // Saves on blur and when the screen closes mid-edit.
 export function NoteEditor({
   savedLocalId,
-  sharedOnWall,
   initiallyEditing = false,
 }: {
   savedLocalId: string;
-  sharedOnWall?: boolean;
   initiallyEditing?: boolean;
 }) {
   const owner = useLocalOwner();
@@ -48,7 +46,6 @@ export function NoteEditor({
       key={`${owner}:${savedLocalId}:${initiallyEditing}`}
       savedLocalId={savedLocalId}
       owner={owner}
-      sharedOnWall={sharedOnWall}
       initiallyEditing={initiallyEditing}
     />
   );
@@ -57,12 +54,10 @@ export function NoteEditor({
 function WorkNoteEditor({
   savedLocalId,
   owner,
-  sharedOnWall,
   initiallyEditing,
 }: {
   savedLocalId: string;
   owner: string;
-  sharedOnWall?: boolean;
   initiallyEditing: boolean;
 }) {
   const work = useLiveQuery(selectSavedWork(savedLocalId, owner), [savedLocalId, owner]).data[0];
@@ -158,9 +153,6 @@ function WorkNoteEditor({
               style={styles.input}
             />
             {tagging.suggestions}
-            <View style={{ padding: 12, backgroundColor: Gallery.highlight }}>
-              <ThemedText variant="metadata">Private note. You can choose to show it on your wall later.</ThemedText>
-            </View>
             {draft?.length === MAX_NOTE_LENGTH && (
               <ThemedText themeColor="textSecondary" style={styles.body}>
                 {NOTE_LENGTH_MESSAGE}
@@ -178,7 +170,7 @@ function WorkNoteEditor({
         </WallSheet>
       )}
       {draft !== undefined && (
-        <NotePaper label={sharedOnWall ? "Public note" : "Private note"}>
+        <NotePaper label="Private note">
           {draft ? (
             <TaggedText selectable style={styles.body}>
               {draft}
@@ -191,19 +183,8 @@ function WorkNoteEditor({
         </NotePaper>
       )}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Image
-          source={sharedOnWall ? "sf:globe" : "sf:lock"}
-          tintColor={Gallery.muted}
-          style={{ width: 13, height: 13 }}
-          accessible={false}
-        />
-        <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
-          {sharedOnWall === true
-            ? "Shared on your public wall"
-            : sharedOnWall === false || !owner.startsWith("account:")
-              ? "Only you"
-              : "Private unless shared on your wall"}
-        </ThemedText>
+        <Image source="sf:lock" tintColor={Gallery.muted} style={{ width: 13, height: 13 }} accessible={false} />
+        <ThemedText style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>Only you</ThemedText>
       </View>
       {saveFailed && !editing ? (
         <View>

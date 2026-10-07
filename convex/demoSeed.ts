@@ -297,8 +297,6 @@ async function seedWall(
       photoLocalId: item.photoLocalId,
       layout: item.layout,
       active: true,
-      noteVisible: false,
-      noteRevision: 0,
     });
   }
   await ctx.db.patch("profiles", profileId, { publishedWallCount: wall.items.length });

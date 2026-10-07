@@ -53,8 +53,6 @@ it("revokes immediately, purges social references in batches, and deletes files 
         placementId: draft.saves[0].localId,
         saveLocalId: draft.saves[0].localId,
         active: true,
-        noteVisible: false,
-        noteRevision: 0,
         layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
       });
       await ctx.db.insert("blocks", {

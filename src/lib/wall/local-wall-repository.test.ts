@@ -105,11 +105,3 @@ it("clears the wall when the owner changes and keeps each owner's wall separate"
   await repository.refresh();
   expect(repository.getSnapshot().acknowledged?.color).toBe("#6C2F2B");
 });
-
-it("never publishes notes from a signed-out wall", async () => {
-  guest();
-  const repository = open();
-  await repository.refresh();
-  expect(() => repository.setNoteDraft([])).toThrow("Sign in");
-  await expect(repository.publishNotes()).rejects.toThrow("Sign in");
-});

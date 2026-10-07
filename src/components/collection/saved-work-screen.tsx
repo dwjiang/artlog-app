@@ -184,11 +184,7 @@ function SavedArtwork({
           visitId={currentEncounter?.visit.localId}
         />
         <Divider />
-        <NoteEditor
-          savedLocalId={work.localId}
-          initiallyEditing={editNote}
-          sharedOnWall={wall.acknowledged?.items.some((item) => item.saveLocalId === work.localId && item.noteVisible)}
-        />
+        <NoteEditor savedLocalId={work.localId} initiallyEditing={editNote} />
         {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
         {work.artworkId ? (
           <ArtworkEnrichment artworkId={work.artworkId} />

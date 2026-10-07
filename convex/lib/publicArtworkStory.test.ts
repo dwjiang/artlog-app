@@ -13,7 +13,7 @@ const source = {
   sourceLabel: "Museum",
 };
 const docent = [{ sentence: "Painted beside the garden.", factIds: ["museum"] }];
-const enrichment = { docent, factSheet: [source] };
+const story = { docent, factSheet: [source] };
 async function addStory(
   t: Harness,
   saveId: Id<"collections">,
@@ -45,12 +45,13 @@ async function addStory(
 it("exposes only cited story fields through an active public wall item", async () => {
   const t = harness();
   const owner = await wallFixture(t);
-  await addStory(t, owner.saveId);
+  const artworkId = await addStory(t, owner.saveId);
   const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
   const { itemId } = wall.items[0];
   const detail = await t.query(api.walls.getArtwork, { itemId });
-  expect(detail?.enrichment).toEqual(enrichment);
-  expect(JSON.stringify(detail)).not.toMatch(
+  // The catalog work's id opens its audio guide, as on a scan or catalog page.
+  expect(detail?.enrichment).toEqual({ artworkId, ...story });
+  expect(JSON.stringify({ ...detail, enrichment: story })).not.toMatch(
     /Internal fact|Unsupported claim|Private journal|sourceScore|artworkId|saveLocalId/,
   );
   expect((await t.query(api.walls.getPublic, { profileId: owner.profile.profileId }))?.items[0]).not.toHaveProperty(
@@ -82,19 +83,21 @@ it("returns public visit stories without friendship and revokes access when made
   const owner = await socialUser(t);
   const reader = await socialUser(t);
   const draft = await socialVisit(t, owner, 1);
-  await addStory(t, draft.saves[0].id);
+  const artworkId = await addStory(t, draft.saves[0].id);
   const publication = await owner.as.action(api.sharedVisits.publish, draft.selection);
   const postId = publication.postId!;
   const post = await owner.as.query(api.sharedVisits.get, { postId });
   const { itemId } = post.artworks.page[0];
   expect(post.artworks.page[0]).not.toHaveProperty("enrichment");
-  expect((await t.query(api.sharedVisits.getArtwork, { postId, itemId })).enrichment).toEqual(enrichment);
+  expect((await t.query(api.sharedVisits.getArtwork, { postId, itemId })).enrichment).toEqual({ artworkId, ...story });
   const detail = await reader.as.query(api.sharedVisits.getArtwork, {
     postId,
     itemId,
   });
-  expect(detail.enrichment).toEqual(enrichment);
-  expect(JSON.stringify(detail)).not.toMatch(/PRIVATE|Internal fact|Unsupported claim|sourceScore|artworkId/);
+  expect(detail.enrichment).toEqual({ artworkId, ...story });
+  expect(JSON.stringify({ ...detail, enrichment: story })).not.toMatch(
+    /PRIVATE|Internal fact|Unsupported claim|sourceScore|artworkId/,
+  );
   await setVisitVisibility(t, owner, draft.visit._id, "private");
   await expect(reader.as.query(api.sharedVisits.getArtwork, { postId, itemId })).rejects.toMatchObject({
     data: { code: "not_found" },

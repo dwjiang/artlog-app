@@ -1,24 +1,24 @@
 import { useState, type ComponentRef, type Ref } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { ArtworkFrame, useArtworkFrameHeight } from "@/components/artwork/artwork-frame";
+import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
+import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { PhotoGallery } from "@/components/artwork/photo-gallery";
-import { NoteHeading } from "@/components/collection/note-editor";
-import { EmptySymbol } from "@/components/empty-state";
-import { DocentSection, type DocentSectionProps } from "@/components/scan/result/docent-section";
+import { HighlightHeading } from "@/components/highlight-heading";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Typography } from "@/constants/theme";
-import type { Mention, SharedArtwork } from "@/lib/social/types";
+import { Spacing } from "@/constants/theme";
+import type { SharedArtwork } from "@/lib/social/types";
 
-import { socialStyles } from "./social-styles";
 import { TaggedText } from "./tagged-text";
 
+/** Someone else's shared artwork, laid out like a scan's result card. */
 export function PublishedArtwork({
   artwork,
   photos,
   token,
-  note,
-  noteMentions,
+  ownNote,
   enrichment,
   headingRef,
   onHeadingLayout,
@@ -26,63 +26,53 @@ export function PublishedArtwork({
   artwork: SharedArtwork["artwork"];
   photos: SharedArtwork["artwork"]["media"][];
   token?: string | null;
-  note?: string;
-  noteMentions?: readonly Mention[];
-  enrichment?: DocentSectionProps;
+  /** The viewer's own private note; the server sends it only when the artwork is theirs. */
+  ownNote?: string;
+  enrichment?: SharedArtwork["enrichment"];
   headingRef?: Ref<ComponentRef<typeof Text>>;
   onHeadingLayout?: () => void;
 }) {
   const { width } = useWindowDimensions();
   return (
-    <>
+    <View style={styles.page}>
       <PublishedArtworkGallery
         key={`${width}:${JSON.stringify(photos)}`}
         title={artwork.title}
         photos={photos}
         token={token}
       />
-      <View style={styles.details}>
-        <View style={styles.museumLabel}>
-          <Text selectable accessibilityRole="header" style={styles.artist} ref={headingRef} onLayout={onHeadingLayout}>
-            {artwork.title}
-          </Text>
-          <Text selectable style={styles.title}>
-            {artwork.artist || "Artist unknown"}
-            {artwork.date ? `, ${artwork.date}` : ""}
-          </Text>
-          {!!artwork.medium && (
-            <Text selectable style={styles.medium}>
-              {artwork.medium}
-            </Text>
-          )}
+      <ArtworkIdentity
+        title={artwork.title}
+        artist={artwork.artist}
+        date={artwork.date}
+        medium={artwork.medium}
+        institution={artwork.institution}
+        headingRef={headingRef}
+        onHeadingLayout={onHeadingLayout}
+      />
+      {!!ownNote && (
+        <View style={styles.section}>
+          <HighlightHeading>Your notes</HighlightHeading>
+          <TaggedText selectable>{ownNote}</TaggedText>
         </View>
-        {!!note && (
-          <>
-            <View style={styles.divider} />
-            <View style={{ gap: 8 }}>
-              <NoteHeading title="Notes" />
-              <TaggedText selectable mentions={noteMentions} style={styles.note}>
-                {note}
-              </TaggedText>
-            </View>
-          </>
-        )}
-        {enrichment && (
-          <>
-            <View style={styles.divider} />
-            <DocentSection docent={enrichment.docent} factSheet={enrichment.factSheet} title="About this work" />
-          </>
-        )}
-        {artwork.media.kind !== "placeholder" && artwork.media.credit && (
-          <>
-            <View style={styles.divider} />
-            <Text selectable style={styles.caption}>
-              {artwork.media.credit}
-            </Text>
-          </>
-        )}
-      </View>
-    </>
+      )}
+      {enrichment && (
+        <ArtworkStory
+          artworkId={enrichment.artworkId}
+          title={artwork.title}
+          artist={artwork.artist}
+          date={artwork.date}
+          docent={enrichment.docent}
+          factSheet={enrichment.factSheet}
+          report={{ kind: "docent", artworkId: enrichment.artworkId }}
+        />
+      )}
+      {artwork.media.kind !== "placeholder" && artwork.media.credit && (
+        <Text selectable variant="metadata" themeColor="textSecondary">
+          {artwork.media.credit}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -96,64 +86,47 @@ function PublishedArtworkGallery({
   token?: string | null;
 }) {
   const [page, setPage] = useState(0);
+  const maxImageHeight = useArtworkFrameHeight();
   if (photos.length === 0) {
-    return (
-      <View style={styles.emptyGallery}>
-        <EmptySymbol name="photo" />
-        <Text style={styles.caption}>No photos shared for this artwork.</Text>
-      </View>
-    );
+    return <ArtworkFrame accessibilityLabel={title} unavailableText="No photos shared for this artwork." />;
   }
   return (
-    <PhotoGallery
-      photos={photos.map((media, index) => ({
-        media,
-        id: String(index),
-        label: `photo ${index + 1}`,
-        width: media.width,
-        height: media.height,
-      }))}
-      page={page}
-      onPageChange={setPage}
-      renderPhoto={({ media }, index, size) => (
-        <DisplayMedia
-          media={media}
-          label={`${title}, photo ${index + 1}`}
-          width={size.width}
-          height={size.height}
-          token={token}
-        />
-      )}
-      renderThumbnail={({ media }, index) => (
-        <DisplayMedia media={media} label={`${title}, thumbnail ${index + 1}`} width={36} height={44} token={token} />
-      )}
-    />
+    <View style={styles.gallery}>
+      <PhotoGallery
+        photos={photos.map((media, index) => ({
+          media,
+          id: String(index),
+          label: `photo ${index + 1}`,
+          width: media.width,
+          height: media.height,
+        }))}
+        page={page}
+        onPageChange={setPage}
+        maxImageHeight={maxImageHeight}
+        renderPhoto={({ media }, index, size) => (
+          <DisplayMedia
+            media={media}
+            label={`${title}, photo ${index + 1}`}
+            width={size.width}
+            height={size.height}
+            token={token}
+          />
+        )}
+        renderThumbnail={({ media }, index) => (
+          <DisplayMedia media={media} label={`${title}, thumbnail ${index + 1}`} width={36} height={44} token={token} />
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  details: { padding: 20, gap: 16 },
-  museumLabel: { gap: 4 },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Gallery.separator,
+  page: {
+    paddingHorizontal: Spacing.content,
+    paddingTop: Spacing.two,
+    gap: Spacing.three,
   },
-  artist: { ...Typography.display, color: Gallery.ink },
-  title: { color: Gallery.ink, fontSize: 20, lineHeight: 26 },
-  medium: { color: Gallery.muted, fontSize: 15, lineHeight: 22 },
-  note: {
-    ...socialStyles.body,
-    textAlign: "left",
-    color: Gallery.ink,
-    marginLeft: 24,
-  },
-  caption: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
-  emptyGallery: {
-    gap: 12,
-    minHeight: 180,
-    padding: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Gallery.fill,
-  },
+  // The gallery pages span the screen and pad each photo back to the content edge.
+  gallery: { marginHorizontal: -Spacing.content },
+  section: { gap: Spacing.two, paddingTop: Spacing.one },
 });

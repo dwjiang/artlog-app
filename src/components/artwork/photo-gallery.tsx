@@ -16,6 +16,7 @@ export function PhotoGallery<T extends Photo>({
   renderPhoto,
   renderThumbnail,
   onAddPhotos,
+  maxImageHeight,
 }: {
   photos: T[];
   page: number;
@@ -23,6 +24,8 @@ export function PhotoGallery<T extends Photo>({
   renderPhoto: (photo: T, index: number, size: { width: number; height: number }) => ReactNode;
   renderThumbnail: (photo: T, index: number) => ReactNode;
   onAddPhotos?: () => void;
+  /** Caps a photo's height; defaults to about half the screen. */
+  maxImageHeight?: number;
 }) {
   const { width, height } = useWindowDimensions();
   const gallery = useRef<ScrollView>(null);
@@ -31,11 +34,9 @@ export function PhotoGallery<T extends Photo>({
   const selected = Math.max(0, Math.min(photos.length - 1, page));
   const photo = photos[selected];
   const aspectRatio = photo?.width && photo?.height ? photo.width / photo.height : 0;
-  const maxImageHeight = Math.min(width * 1.2, height * 0.52);
+  const maxHeight = maxImageHeight ?? Math.min(width * 1.2, height * 0.52);
   const imageHeight =
-    Number.isFinite(aspectRatio) && aspectRatio > 0
-      ? Math.min((width - 40) / aspectRatio, maxImageHeight)
-      : maxImageHeight;
+    Number.isFinite(aspectRatio) && aspectRatio > 0 ? Math.min((width - 40) / aspectRatio, maxHeight) : maxHeight;
   const filmstripOffset = Math.max(0, selected * 48 - (width - 40 - 44) / 2);
 
   useEffect(() => {

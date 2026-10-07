@@ -109,7 +109,7 @@ async function socialEvidence(
   }
   if (target.kind === "wallItem") {
     const { item, profile, save } = await requirePublicWallItem(ctx, target.itemId);
-    const { artwork, note } = projectWallArtwork(item, save, undefined, await matchesRecord(ctx, save));
+    const { artwork } = projectWallArtwork(item, save, undefined, await matchesRecord(ctx, save));
     return {
       kind: "wallItem",
       profileId: profile._id,
@@ -118,7 +118,6 @@ async function socialEvidence(
       artist: artwork.artist,
       date: artwork.date,
       medium: artwork.medium,
-      note,
     };
   }
   if (target.kind === "sharedVisit") {

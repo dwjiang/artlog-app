@@ -63,7 +63,7 @@ export async function socialVisit(
         snapshot: {
           title: `Work ${i}`,
           artist: "Artist",
-          institution: "PRIVATE SOURCE",
+          institution: "Test Museum",
         },
         note: "PRIVATE NOTE",
         updatedAt: 1,

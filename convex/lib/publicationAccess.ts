@@ -13,33 +13,12 @@ import { deleteSavedRecognition } from "./savedRecognition";
 import { deactivateWallItem } from "./wallItems";
 
 type ReadCtx = QueryCtx | MutationCtx;
-// A changed note was never checked or shared in its new form: it goes private, and opt-ins sent for the old text fail.
-export async function resetNoteSharing(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
-  const save = await ctx.db.get("collections", saveId);
-  if (!save) return;
-  const items = await ctx.db
-    .query("wallItems")
-    .withIndex("by_save_active", (q) => q.eq("saveId", saveId).eq("active", true))
-    .take(LIMITS.wallItems + 1);
-  for (const item of items) {
-    if (item.noteResetVersion !== save.changeVersion) {
-      await ctx.db.patch("wallItems", item._id, {
-        noteVisible: false,
-        noteRevision: item.noteRevision + 1,
-        noteResetVersion: save.changeVersion,
-      });
-    }
-  }
-}
 export async function invalidateWallSave(ctx: MutationCtx, saveId: Id<"collections">): Promise<void> {
   const items = await ctx.db
     .query("wallItems")
     .withIndex("by_save_active", (q) => q.eq("saveId", saveId).eq("active", true))
     .take(LIMITS.wallItems + 1);
-  for (const item of items) {
-    if (!item.active && !item.noteVisible) continue;
-    await deactivateWallItem(ctx, item);
-  }
+  for (const item of items) await deactivateWallItem(ctx, item);
 }
 export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collections">): Promise<void> {
   await deleteSavedRecognition(ctx, save._id);

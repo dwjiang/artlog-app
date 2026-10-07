@@ -292,7 +292,7 @@ it("deletion revokes profile and publication access immediately", async () => {
   });
 });
 
-it("projects only permitted artwork fields, no artwork notes on shared cards, and a square placeholder", () => {
+it("projects only permitted artwork fields, no notes on walls or shared cards, and a square placeholder", () => {
   const save = {
     snapshot: {
       title: "Work",
@@ -318,14 +318,10 @@ it("projects only permitted artwork fields, no artwork notes on shared cards, an
     itemId: "item",
     artwork,
   });
-  expect(projectWallArtwork({ _id: "wall", noteVisible: false, layout: {} } as never, save)).not.toHaveProperty("note");
-  expect(projectWallArtwork({ _id: "wall", noteVisible: true, layout: {} } as never, save)).toHaveProperty(
-    "note",
-    "Private note",
-  );
+  expect(projectWallArtwork({ _id: "wall", layout: {} } as never, save)).not.toHaveProperty("note");
 });
 
-it("invalidates reverse save references, consent and revisions while keeping the visit and empty post", async () => {
+it("invalidates reverse save references and revisions while keeping the visit and empty post", async () => {
   const { t, account } = await fixture();
   const user = await account("a");
   const profile = await user.as.action(api.profiles.create, {
@@ -379,8 +375,6 @@ it("invalidates reverse save references, consent and revisions while keeping the
       placementId: localId,
       saveLocalId: localId,
       active: true,
-      noteVisible: true,
-      noteRevision: 2,
       layout: { x: 0, y: 0, width: 1, layer: 0, frame: "black" },
     });
     const post = await ctx.db.insert("sharedVisits", {
@@ -412,11 +406,7 @@ it("invalidates reverse save references, consent and revisions while keeping the
   await expect(t.run((ctx) => requirePublicWallItem(ctx, ids.itemId))).rejects.toMatchObject({
     data: { code: "not_found" },
   });
-  expect(await t.run((ctx) => ctx.db.get("wallItems", ids.itemId))).toMatchObject({
-    active: false,
-    noteVisible: false,
-    noteRevision: 3,
-  });
+  expect(await t.run((ctx) => ctx.db.get("wallItems", ids.itemId))).toMatchObject({ active: false });
   expect(await t.run((ctx) => ctx.db.get("walls", ids.wallId))).toMatchObject({
     layoutRevision: 4,
   });
@@ -493,7 +483,7 @@ it("publishes eligible media with an allowlist and binds derivatives to a public
     },
   } as never;
   expect(projectArtwork(save, derivative).media.kind).toBe("placeholder");
-  const projected = projectWallArtwork({ _id: "wall-item", layout: {}, noteVisible: false } as never, save, derivative);
+  const projected = projectWallArtwork({ _id: "wall-item", layout: {} } as never, save, derivative);
   expect(projected.artwork.media).toMatchObject({
     kind: "derivative",
     reference: { kind: "wallItem", itemId: "wall-item" },

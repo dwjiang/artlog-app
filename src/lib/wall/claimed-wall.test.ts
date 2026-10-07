@@ -30,9 +30,6 @@ const hungWall: OwnerWall = {
       itemId: "item-a" as never,
       placementId: "account-placement",
       saveLocalId: "account-save",
-      noteVisible: false,
-      noteRevision: 0,
-      noteEligible: false,
       layout,
       artwork: {
         title: "The Milkmaid",
@@ -75,7 +72,6 @@ async function signIn(serverWall: OwnerWall) {
   const transport = {
     getMine: jest.fn().mockResolvedValue(serverWall),
     setLayout: jest.fn().mockResolvedValue({ ...serverWall, revision: 2, color: guestWall.color }),
-    setNoteVisibility: jest.fn(),
   } satisfies WallTransport;
   const repository = createWallRepository({
     transport,

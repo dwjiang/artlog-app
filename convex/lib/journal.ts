@@ -11,7 +11,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { recordArtworkScore, recordVisitScore } from "./leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion } from "./ownership";
-import { invalidateDeletedSave, resetNoteSharing } from "./publicationAccess";
+import { invalidateDeletedSave } from "./publicationAccess";
 
 export async function upsertJournalVisit(
   ctx: MutationCtx,
@@ -155,6 +155,5 @@ export async function upsertJournalSave(
   const row = (await ctx.db.get("collections", id))!;
   await recordArtworkScore(ctx, owner, row, existing);
   if (row.deletedAt !== undefined) await invalidateDeletedSave(ctx, row);
-  else if (existing && existing.note !== row.note) await resetNoteSharing(ctx, row._id);
   return row;
 }

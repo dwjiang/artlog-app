@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { ConvexError } from "convex/values";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { Gallery } from "@/constants/theme";
 import { insertSavedWork } from "@/db/repos/saved-works";
@@ -53,45 +52,6 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
-});
-
-it("explains why a hung work cannot share its note until the note has synced", async () => {
-  mockWall = {
-    signedIn: true,
-    pieces: [],
-    draft: {
-      color: "#FCFCF9",
-      items: [{ placementId: "p", saveLocalId: "lilies", layout }],
-    },
-    setError: jest.fn(),
-  };
-  await render(<WallDisplayScreen savedId="lilies" />);
-  expect(await screen.findByRole("switch", { name: "Show note on public wall" })).toBeDisabled();
-  expect(screen.getByText("Add a note and let it sync before sharing it.")).toBeOnTheScreen();
-});
-
-it("says why the server refused to share a note", async () => {
-  const items = [
-    { placementId: "p", saveLocalId: "lilies", layout, itemId: "i", noteVisible: false, noteEligible: true },
-  ];
-  const setError = jest.fn();
-  mockWall = {
-    signedIn: true,
-    pieces: [],
-    draft: { color: "#FCFCF9", items },
-    acknowledged: { color: "#FCFCF9", items } as never,
-    refresh: jest.fn().mockResolvedValue(undefined),
-    repository: {
-      setNoteDraft: jest.fn(),
-      publishNotes: jest.fn().mockRejectedValue(new ConvexError({ code: "note_not_allowed" })),
-    } as never,
-    setError,
-  };
-  await render(<WallDisplayScreen savedId="lilies" />);
-  await fireEvent(await screen.findByRole("switch", { name: "Show note on public wall" }), "valueChange", true);
-  await waitFor(() =>
-    expect(setError).toHaveBeenLastCalledWith("This note includes words that aren’t allowed. Edit it to share it."),
-  );
 });
 
 it.each([
@@ -220,34 +180,4 @@ it("tells the owner when the artwork is not on the wall", async () => {
   };
   await render(<WallDisplayScreen savedId="lilies" />);
   expect(await screen.findByText("This artwork is not on your wall.")).toBeOnTheScreen();
-});
-
-it("re-reads the wall for a synced work so note eligibility reflects the latest sync", async () => {
-  const refresh = jest.fn().mockResolvedValue(undefined);
-  const acknowledged = {
-    color: "#FCFCF9",
-    items: [
-      {
-        placementId: "p",
-        saveLocalId: "lilies",
-        layout,
-        itemId: "i",
-        noteVisible: false,
-        noteEligible: false,
-      },
-    ],
-  };
-  mockWall = {
-    signedIn: true,
-    pieces: [],
-    draft: { color: "#FCFCF9", items: acknowledged.items },
-    acknowledged: acknowledged as never,
-    refresh,
-    setError: jest.fn(),
-  };
-  const view = await render(<WallDisplayScreen savedId="lilies" />);
-  await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
-  await view.rerender(<WallDisplayScreen savedId="unsynced" />);
-  expect(await screen.findByRole("header", { name: "Haystacks" })).toBeOnTheScreen();
-  expect(refresh).toHaveBeenCalledTimes(1);
 });

@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useState, type ComponentRef, type Ref } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -13,6 +13,8 @@ export function ArtworkIdentity({
   medium,
   institution,
   onOpenArtist,
+  headingRef,
+  onHeadingLayout,
 }: {
   title: string;
   artist?: string;
@@ -21,11 +23,15 @@ export function ArtworkIdentity({
   institution?: string;
   /** Makes the artist's name a link. */
   onOpenArtist?: () => void;
+  headingRef?: Ref<ComponentRef<typeof ThemedText>>;
+  onHeadingLayout?: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
   return (
     <View style={styles.identity}>
-      <ThemedText type="title">{title}</ThemedText>
+      <ThemedText type="title" accessibilityRole="header" ref={headingRef} onLayout={onHeadingLayout}>
+        {title}
+      </ThemedText>
       {(!!artist || !!date) && (
         <ThemedText style={styles.attribution}>
           {artist && onOpenArtist ? (
