@@ -36,7 +36,7 @@ import { SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { SuggestionStrip } from "./suggested-people";
 import { TagRow } from "./tag-row";
-import { tagHref } from "./tagged-text";
+import { profileHref, tagHref } from "./tagged-text";
 
 const SHOWN = 5;
 const SHOWN_PEOPLE = 10;
@@ -105,7 +105,7 @@ export function SearchScreen() {
   };
   const openPerson = (profile: PublicProfile) => {
     remember({ kind: "person", profile });
-    router.push({ pathname: "/profile/[profileId]", params: { profileId: profile.profileId } });
+    router.push(profileHref(profile.profileId));
   };
   const rememberArtwork = ({ artworkId, title, thumbnailUrl }: CatalogArtwork) =>
     remember({ kind: "artwork", artwork: { artworkId, title, thumbnailUrl } });

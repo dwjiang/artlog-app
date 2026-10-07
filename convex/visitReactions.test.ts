@@ -212,13 +212,13 @@ describe("visit reactions", () => {
     });
     expect((await t.query(api.visitReactions.getSummary, { postId })).latestComment).toEqual({
       commentId: newest,
-      authorName: "Visitor",
+      author: { profileId: visitor.profileId, name: "Visitor" },
       body: "Newest.",
       mentions: [],
     });
     await third.as.mutation(api.friendships.block, { scope: third.scope, profileId: visitor.profileId });
     expect((await third.as.query(api.visitReactions.getSummary, { postId })).latestComment).toMatchObject({
-      authorName: "Author",
+      author: { profileId: author.profileId, name: "Author" },
       body: "First.",
     });
   });

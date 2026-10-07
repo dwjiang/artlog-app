@@ -17,6 +17,7 @@ import { AvatarStack } from "./avatar-stack";
 import { CompactFriendshipControls } from "./friendship-controls";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
+import { profileHref } from "./tagged-text";
 
 type SuggestionActions = {
   session: SocialSession;
@@ -191,9 +192,7 @@ function SuggestionCard({
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={`View ${person.profile.name}’s profile`}
-        onPress={() =>
-          router.push({ pathname: "/profile/[profileId]", params: { profileId: person.profile.profileId } })
-        }
+        onPress={() => router.push(profileHref(person.profile.profileId))}
         style={styles.cardIdentity}
       >
         <ProfileAvatar
