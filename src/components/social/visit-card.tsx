@@ -192,11 +192,9 @@ export function VisitCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 20,
+    paddingHorizontal: 20,
     paddingTop: 19,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Gallery.softBorder,
   },
   feedHeading: {
     flexDirection: "row",

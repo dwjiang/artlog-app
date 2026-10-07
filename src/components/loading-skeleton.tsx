@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 
+import { VisitSeparator } from "@/components/social/visit-separator";
 import { Gallery, Motion, Radius } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
@@ -206,21 +207,24 @@ export function FeedSkeleton({ label = "Loading visits…" }: { label?: string }
   return (
     <LoadingSkeleton label={label}>
       {[0, 1].map((index) => (
-        <View key={index} style={styles.card}>
-          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-            <Ghost width={40} height={40} round />
-            <View style={{ flex: 1, gap: 8 }}>
-              <Ghost width="52%" height={17} />
-              <Ghost width="40%" height={13} />
+        <Fragment key={index}>
+          {index > 0 && <VisitSeparator />}
+          <View style={styles.card}>
+            <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+              <Ghost width={40} height={40} round />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Ghost width="52%" height={17} />
+                <Ghost width="40%" height={13} />
+              </View>
+            </View>
+            <Ghost height={230} />
+            <View style={{ gap: 9 }}>
+              <Ghost width="88%" height={28} />
+              <Ghost width="65%" height={15} />
+              <Ghost width="35%" height={13} />
             </View>
           </View>
-          <Ghost height={230} />
-          <View style={{ gap: 9 }}>
-            <Ghost width="88%" height={28} />
-            <Ghost width="65%" height={15} />
-            <Ghost width="35%" height={13} />
-          </View>
-        </View>
+        </Fragment>
       ))}
     </LoadingSkeleton>
   );
@@ -318,7 +322,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 24,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Gallery.separator,
   },
 });
