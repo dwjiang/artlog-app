@@ -37,15 +37,14 @@ data; other checkouts can pass absolute `--in` and `--checkpoint` paths directly
 
 ## Corpus and production counts
 
-| Table/stage |                        Full corpus input |   Last verified production count |
-| ----------- | ---------------------------------------: | -------------------------------: |
-| museums     | 3,924 required keys; not an import stage |                           42,452 |
-| artworks    |                                  404,653 |                           11,721 |
-| objects     |                                  409,973 |                           15,427 |
-| placements  |                                  296,344 |                           14,256 |
-| vectors     |                                  402,139 |                           13,616 |
-| descriptors |                                  397,047 |                           10,000 |
-| penalties   |    409,973 zero assignments; not a table | 15,427 zero assignments verified |
+| Table/stage |                        Full corpus input | Production after the 2026-10 additions |
+| ----------- | ---------------------------------------: | -------------------------------------: |
+| museums     | 3,924 required keys; not an import stage |                                 42,452 |
+| artworks    |                                  404,653 |                                619,101 |
+| objects     |                                  409,973 |                                629,144 |
+| placements  |                                  296,344 |                                488,307 |
+| vectors     |                                  402,139 |                                621,252 |
+| descriptors |                                  397,047 |                                594,841 |
 
 There are 7,019 merged aliases and 402,954 metadata survivors; 397,047 survivors
 have recognition features. Keep the metadata-only objects too. Do not invent
@@ -64,6 +63,22 @@ Raw payload estimates from the dry-run are 4,941,484,032 bytes for float64
 embeddings and 9,336,475,392 bytes for selected ORB payloads. The local float32
 embeddings occupy 2,470,742,016 bytes. These are payload sizes, **not billed DB,
 search-index, or file-storage measurements**, and exclude metadata and indexes.
+
+## Additions, 2026-10
+
+Two add-only packages extend the imported corpus without rebuilding it (see the
+[pipeline guide](../../scripts/data/README.md#add-sources-to-an-imported-corpus)). They live
+under `jobs/scratch/delta-2026-10/` beside their metadata, features and prod import reports.
+
+| Package    | Sources                                                                    | Objects | New survivors | Aliases of imported objects | On view |
+| ---------- | -------------------------------------------------------------------------- | ------: | ------------: | --------------------------: | ------: |
+| `a/merged` | Wikidata flat works and new paintings, Cleveland, Finnish National Gallery | 138,357 |       121,734 |                       6,239 |   1,191 |
+| `b/merged` | Met prints, drawings, photographs and other flat works                     |  80,814 |        76,060 |                       4,701 |     810 |
+
+`b` was deduped against both `merged-pca512` and `a/merged`. Both imports finished on
+2026-10-07 with matching counts, clean 2% readback including Pinecone, and no thumbnail
+rights violations. Met galleries for `b` come from the API records fetched that week,
+not the September CSV. The temporary import key was deleted afterwards.
 
 ## Importer snapshot
 
