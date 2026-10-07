@@ -9,7 +9,8 @@
     "objectID": 3,
     "isPublicDomain": true,
     "primaryImage": "",
-    "primaryImageSmall": ""
+    "primaryImageSmall": "",
+    "GalleryNumber": ""
   },
   "6": {
     "objectID": 6,
@@ -21,6 +22,7 @@
     "objectID": 7,
     "isPublicDomain": true,
     "primaryImage": "https://images.metmuseum.org/seven.jpg",
-    "primaryImageSmall": "https://images.metmuseum.org/small-seven.jpg"
+    "primaryImageSmall": "https://images.metmuseum.org/small-seven.jpg",
+    "GalleryNumber": "690"
   }
 }

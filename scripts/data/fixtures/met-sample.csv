@@ -1,7 +1,7 @@
 Object ID,Is Public Domain,Classification,Object Name,Title,Artist Display Name,Object Date,Object Begin Date,Object End Date,Medium,Dimensions,Object Number,Gallery Number,Link Resource,Object Wikidata URL,Artist Wikidata URL,Department
 1,True,Paintings,Painting,Blue sky,Ada Painter,1900,1900,1900,Oil on canvas,10 x 20 cm,1900.1,101,https://www.metmuseum.org/art/collection/search/1,https://www.wikidata.org/wiki/Q1,https://www.wikidata.org/wiki/Q10,
 2,False,Paintings,Painting,City,Ben Painter,,,,,,1900.2,,https://www.metmuseum.org/art/collection/search/2,,,
-3,True,Paintings,Painting,Study,,,,,,,1900.3,,https://www.metmuseum.org/art/collection/search/3,,,
+3,True,Paintings,Painting,Study,,,,,,,1900.3,102,https://www.metmuseum.org/art/collection/search/3,,,
 4,True,Ceramics,Vase,Vase,,,,,,,1900.4,,https://www.metmuseum.org/art/collection/search/4,,,
 5,False,Paintings,Painting,Replica,,,,,,,1900.5,,https://www.metmuseum.org/art/collection/search/5,,,
 6,True,Paintings,Painting,Revoked,,,,,,,1900.6,,https://www.metmuseum.org/art/collection/search/6,,,

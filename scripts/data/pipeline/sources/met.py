@@ -184,7 +184,10 @@ def iter_records(path: Path, *, get_object: Callable[[str], dict]) -> Iterator[R
                 pageUrl=clean(row["Link Resource"])
                 or f"https://www.metmuseum.org/art/collection/search/{source_id}",
             )
-            gallery = clean(row["Gallery Number"])
+            # The API record was fetched for this build; the CSV snapshot's gallery can be weeks old.
+            gallery = clean(
+                image["GalleryNumber"] if "GalleryNumber" in image else row["Gallery Number"]
+            )
             yield (
                 artwork,
                 obj,

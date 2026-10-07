@@ -122,10 +122,18 @@ def test_met_only_hydrates_public_domain_works_and_honors_revocation():
 
 
 def test_met_keeps_public_domain_flat_works_and_treats_prints_as_multiples():
-    artwork, obj, placement = next(triple for triple in records() if triple[0].key == "met:7")
+    artwork, obj, _ = next(triple for triple in records() if triple[0].key == "met:7")
     assert artwork.multiplicity == "multiple"
     assert obj.imageRef == "https://images.metmuseum.org/seven.jpg"
-    assert placement.onView is False
+
+
+def test_met_places_works_where_the_api_shows_them_now_over_the_older_csv():
+    placements = {triple[0].key: triple[2] for triple in records()}
+    # The CSV lists met:3 in gallery 102 and met:7 nowhere; their API records say the opposite.
+    assert placements["met:3"].onView is False
+    assert placements["met:7"].gallery == "690" and placements["met:7"].onView is True
+    # Without a gallery in its API record, met:1 keeps the CSV's.
+    assert placements["met:1"].gallery == "101"
 
 
 def test_unavailable_met_image_metadata_is_reported_and_checkpointed(tmp_path):
